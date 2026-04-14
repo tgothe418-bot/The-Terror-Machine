@@ -4,13 +4,33 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Message } from '../../types';
 import { sendMessageToVoice } from '../../services/geminiService';
 import { useAppStore } from '../../store/useAppStore';
+import { useVoiceStore } from '../../store/useVoiceStore';
+import { Trash2 } from 'lucide-react';
 
 export default function TheVoice() {
   const setPhase = useAppStore((state) => state.setPhase);
+  const { messages, addMessage, clearHistory } = useVoiceStore();
   const [input, setInput] = useState('');
-  const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isConfirmingClear, setIsConfirmingClear] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Handle hydration
+  useEffect(() => {
+    const unsub = useVoiceStore.persist.onHydrate(() => setHydrated(false));
+    const unsubFinish = useVoiceStore.persist.onFinishHydration(() => setHydrated(true));
+    
+    // Check if already hydrated
+    if (useVoiceStore.persist.hasHydrated()) {
+      setHydrated(true);
+    }
+
+    return () => {
+      unsub();
+      unsubFinish();
+    };
+  }, []);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -20,10 +40,10 @@ export default function TheVoice() {
 
   // Initial greeting
   useEffect(() => {
-    if (messages.length === 0) {
+    if (hydrated && messages.length === 0) {
       handleGreeting();
     }
-  }, []);
+  }, [hydrated, messages.length]);
 
   const handleGreeting = async () => {
     setIsLoading(true);
@@ -31,9 +51,9 @@ export default function TheVoice() {
       const response = await sendMessageToVoice([
         { role: 'user', content: 'Hello.', timestamp: Date.now() }
       ]);
-      setMessages([{ role: 'assistant', content: response, timestamp: Date.now() }]);
+      addMessage({ role: 'voice', content: response, timestamp: Date.now() });
     } catch (error) {
-      setMessages([{ role: 'assistant', content: "I'm here, but my connection seems a bit fuzzy. Shall we try again?", timestamp: Date.now() }]);
+      addMessage({ role: 'voice', content: "I'm here, but my connection seems a bit fuzzy. Shall we try again?", timestamp: Date.now() });
     } finally {
       setIsLoading(false);
     }
@@ -44,17 +64,15 @@ export default function TheVoice() {
     if (!input.trim() || isLoading) return;
 
     const userMsg: Message = { role: 'user', content: input, timestamp: Date.now() };
-    const newMessages = [...messages, userMsg];
-    
-    setMessages(newMessages);
+    addMessage(userMsg);
     setInput('');
     setIsLoading(true);
 
     try {
-      const response = await sendMessageToVoice(newMessages);
-      setMessages((prev) => [...prev, { role: 'assistant', content: response, timestamp: Date.now() }]);
+      const response = await sendMessageToVoice([...messages, userMsg]);
+      addMessage({ role: 'voice', content: response, timestamp: Date.now() });
     } catch (error) {
-      setMessages((prev) => [...prev, { role: 'assistant', content: "I'm sorry, I lost my train of thought for a moment. What were we saying?", timestamp: Date.now() }]);
+      addMessage({ role: 'voice', content: "I'm sorry, I lost my train of thought for a moment. What were we saying?", timestamp: Date.now() });
     } finally {
       setIsLoading(false);
     }
@@ -80,6 +98,36 @@ export default function TheVoice() {
         </div>
 
         <div className="flex items-center gap-2 text-zinc-600">
+          <div className="flex items-center">
+            {isConfirmingClear ? (
+              <div className="flex items-center gap-2 mr-4 animate-in fade-in slide-in-from-right-2">
+                <span className="text-[8px] uppercase tracking-widest text-fresh-blood">Clear all memory?</span>
+                <button 
+                  onClick={() => {
+                    clearHistory();
+                    setIsConfirmingClear(false);
+                  }}
+                  className="text-[8px] uppercase tracking-widest text-white hover:underline"
+                >
+                  Yes
+                </button>
+                <button 
+                  onClick={() => setIsConfirmingClear(false)}
+                  className="text-[8px] uppercase tracking-widest text-zinc-500 hover:underline"
+                >
+                  No
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setIsConfirmingClear(true)}
+                className="p-2 hover:text-fresh-blood transition-colors mr-4"
+                title="Clear Memory"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            )}
+          </div>
           <MessageCircle className="w-3 h-3" />
           <span className="text-[8px] uppercase tracking-[0.3em]">Conversational Link Active</span>
         </div>

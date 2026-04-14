@@ -33,7 +33,7 @@ export async function sendMessageToArchitect(messageHistory: Message[]) {
     }
 
     return {
-      role: msg.role === "assistant" ? "model" : "user",
+      role: (msg.role === "assistant" || msg.role === "voice") ? "model" : "user",
       parts: parts,
     };
   });

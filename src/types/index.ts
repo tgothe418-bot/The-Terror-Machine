@@ -32,7 +32,7 @@ export interface ScenarioBlueprint {
 }
 
 export interface Message {
-  role: 'user' | 'assistant';
+  role: 'user' | 'assistant' | 'voice';
   content: string;
   timestamp: number;
   attachments?: Attachment[];
