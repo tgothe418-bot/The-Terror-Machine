@@ -93,10 +93,25 @@ export async function sendMessageToVoice(messageHistory: Message[]) {
     throw new Error("API Key missing. Configure GEMINI_API_KEY in the Secrets panel.");
   }
 
-  const contents = messageHistory.map((msg) => ({
-    role: msg.role === "assistant" ? "model" : "user",
-    parts: [{ text: msg.content }],
-  }));
+  const contents = messageHistory.map((msg) => {
+    const parts: any[] = [{ text: msg.content }];
+    
+    if (msg.attachments && msg.attachments.length > 0) {
+      msg.attachments.forEach(att => {
+        parts.push({
+          inlineData: {
+            mimeType: att.mimeType,
+            data: att.data
+          }
+        });
+      });
+    }
+
+    return {
+      role: (msg.role === "assistant" || msg.role === "voice") ? "model" : "user",
+      parts: parts,
+    };
+  });
 
   try {
     const response = await ai.models.generateContent({
@@ -104,7 +119,7 @@ export async function sendMessageToVoice(messageHistory: Message[]) {
       contents: contents,
       config: {
         systemInstruction: VOICE_SYSTEM_PROMPT,
-        temperature: 0.9, // Higher for more natural conversational flow
+        temperature: 0.9,
         topP: 0.95,
         topK: 40,
       },

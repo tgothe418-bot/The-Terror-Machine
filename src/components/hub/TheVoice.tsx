@@ -1,20 +1,30 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ArrowLeft, Send, Loader2, MessageCircle } from 'lucide-react';
+import { ArrowLeft, Send, Loader2, MessageCircle, Trash2, Paperclip, Image as ImageIcon, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Message } from '../../types';
+import { Message, Attachment } from '../../types';
 import { sendMessageToVoice } from '../../services/geminiService';
 import { useAppStore } from '../../store/useAppStore';
 import { useVoiceStore } from '../../store/useVoiceStore';
-import { Trash2 } from 'lucide-react';
 
 export default function TheVoice() {
   const setPhase = useAppStore((state) => state.setPhase);
   const { messages, addMessage, clearHistory } = useVoiceStore();
   const [input, setInput] = useState('');
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isConfirmingClear, setIsConfirmingClear] = useState(false);
   const [hydrated, setHydrated] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Auto-resize textarea
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`;
+    }
+  }, [input]);
 
   // Handle hydration
   useEffect(() => {
@@ -59,13 +69,20 @@ export default function TheVoice() {
     }
   };
 
-  const handleSend = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim() || isLoading) return;
+  const handleSend = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if ((!input.trim() && attachments.length === 0) || isLoading) return;
 
-    const userMsg: Message = { role: 'user', content: input, timestamp: Date.now() };
+    const userMsg: Message = { 
+      role: 'user', 
+      content: input, 
+      timestamp: Date.now(),
+      attachments: attachments.length > 0 ? [...attachments] : undefined
+    };
+    
     addMessage(userMsg);
     setInput('');
+    setAttachments([]);
     setIsLoading(true);
 
     try {
@@ -75,6 +92,63 @@ export default function TheVoice() {
       addMessage({ role: 'voice', content: "I'm sorry, I lost my train of thought for a moment. What were we saying?", timestamp: Date.now() });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+    await processFiles(Array.from(files));
+  };
+
+  const processFiles = async (files: File[]) => {
+    const newAttachments: Attachment[] = [];
+    for (const file of files) {
+      if (!file.type.startsWith('image/')) continue;
+      const base64 = await fileToBase64(file);
+      newAttachments.push({
+        name: file.name,
+        mimeType: file.type,
+        data: base64
+      });
+    }
+    setAttachments(prev => [...prev, ...newAttachments]);
+  };
+
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => {
+        const result = reader.result as string;
+        resolve(result.split(',')[1]);
+      };
+      reader.onerror = error => reject(error);
+    });
+  };
+
+  const handlePaste = async (e: React.ClipboardEvent) => {
+    const items = e.clipboardData.items;
+    const files: File[] = [];
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.indexOf('image') !== -1) {
+        const blob = items[i].getAsFile();
+        if (blob) files.push(blob);
+      }
+    }
+    if (files.length > 0) {
+      await processFiles(files);
+    }
+  };
+
+  const removeAttachment = (index: number) => {
+    setAttachments(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
     }
   };
 
@@ -151,6 +225,19 @@ export default function TheVoice() {
                   ? 'bg-zinc-900 text-zinc-300 border border-zinc-800' 
                   : 'text-zinc-100 font-light italic'
               }`}>
+                {msg.attachments && msg.attachments.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {msg.attachments.map((att, i) => (
+                      <img 
+                        key={i}
+                        src={`data:${att.mimeType};base64,${att.data}`}
+                        alt={att.name}
+                        className="max-h-48 rounded border border-zinc-700"
+                        referrerPolicy="no-referrer"
+                      />
+                    ))}
+                  </div>
+                )}
                 {msg.content}
               </div>
             </motion.div>
@@ -170,24 +257,77 @@ export default function TheVoice() {
 
       {/* Input Area */}
       <div className="p-8 border-t border-zinc-900 bg-black">
-        <form onSubmit={handleSend} className="max-w-4xl mx-auto relative">
-          <input
-            type="text"
-            autoFocus
-            disabled={isLoading}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Speak your mind..."
-            className="w-full bg-zinc-950 border border-zinc-900 p-6 pr-16 text-sm focus:outline-none focus:border-zinc-700 placeholder:text-zinc-800 disabled:opacity-50 transition-all"
-          />
-          <button
-            type="submit"
-            disabled={isLoading || !input.trim()}
-            className="absolute right-6 top-1/2 -translate-y-1/2 text-zinc-700 hover:text-white transition-colors disabled:opacity-50"
-          >
-            <Send className="w-5 h-5" />
-          </button>
-        </form>
+        <div className="max-w-4xl mx-auto space-y-4">
+          {/* Attachment Previews */}
+          <AnimatePresence>
+            {attachments.length > 0 && (
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                className="flex flex-wrap gap-3 p-4 bg-zinc-950 border border-zinc-900 rounded-lg"
+              >
+                {attachments.map((att, i) => (
+                  <div key={i} className="relative group">
+                    <img 
+                      src={`data:${att.mimeType};base64,${att.data}`}
+                      alt="preview"
+                      className="w-20 h-20 object-cover rounded border border-zinc-800"
+                      referrerPolicy="no-referrer"
+                    />
+                    <button 
+                      onClick={() => removeAttachment(i)}
+                      className="absolute -top-2 -right-2 bg-fresh-blood text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <form onSubmit={handleSend} className="relative">
+            <textarea
+              ref={textareaRef}
+              autoFocus
+              disabled={isLoading}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              onPaste={handlePaste}
+              placeholder="Speak your mind... (Shift+Enter for new line)"
+              className="w-full bg-zinc-950 border border-zinc-900 p-6 pr-32 text-sm focus:outline-none focus:border-zinc-700 placeholder:text-zinc-800 disabled:opacity-50 transition-all resize-none min-h-[80px] scrollbar-hide"
+            />
+            
+            <div className="absolute right-6 bottom-6 flex items-center gap-4">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="text-zinc-700 hover:text-white transition-colors"
+                title="Upload Image"
+              >
+                <Paperclip className="w-5 h-5" />
+              </button>
+              <button
+                type="submit"
+                disabled={isLoading || (!input.trim() && attachments.length === 0)}
+                className="text-zinc-700 hover:text-white transition-colors disabled:opacity-50"
+              >
+                <Send className="w-5 h-5" />
+              </button>
+            </div>
+
+            <input 
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              accept="image/*"
+              multiple
+              className="hidden"
+            />
+          </form>
+        </div>
       </div>
     </div>
   );
