@@ -121,7 +121,7 @@ export default function Runtime() {
               initial={{ opacity: 0, y: 5 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3 }}
-              className={`text-sm leading-relaxed ${
+              className={`text-sm leading-relaxed whitespace-pre-wrap ${
                 msg.role === 'user' ? 'text-zinc-500 italic' : 'text-zinc-100'
               }`}
             >
