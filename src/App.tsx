@@ -7,6 +7,7 @@ import { useAppStore } from './store/useAppStore';
 import WelcomeScreen from './components/hub/WelcomeScreen';
 import Forge from './components/forge/Forge';
 import Engine from './components/engine/Engine';
+import TheVoice from './components/hub/TheVoice';
 
 export default function App() {
   const phase = useAppStore((state) => state.phase);
@@ -16,6 +17,7 @@ export default function App() {
       {phase === 'hub' && <WelcomeScreen />}
       {phase === 'forge' && <Forge />}
       {phase === 'engine' && <Engine />}
+      {phase === 'voice' && <TheVoice />}
     </main>
   );
 }

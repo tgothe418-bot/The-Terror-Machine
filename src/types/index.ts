@@ -1,4 +1,4 @@
-export type AppPhase = 'hub' | 'forge' | 'engine';
+export type AppPhase = 'hub' | 'forge' | 'engine' | 'voice';
 
 export type ContentScale = 1 | 2 | 3 | 4 | 5 | 6;
 
