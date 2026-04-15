@@ -3,25 +3,25 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { Message } from '../types';
 import { idbStorage } from '../lib/idbStorage';
 
-interface VoiceState {
+interface ForgeState {
   messages: Message[];
   addMessage: (message: Message) => void;
   clearHistory: () => void;
 }
 
 /**
- * Zustand store for The Voice's persistent memory.
+ * Zustand store for The Forge's persistent memory.
  * Uses IndexedDB via idb-keyval for asynchronous, non-blocking storage.
  */
-export const useVoiceStore = create<VoiceState>()(
+export const useForgeStore = create<ForgeState>()(
   persist(
     (set) => ({
       messages: [
         {
-          role: 'voice',
-          content: "Hello. I'm The Voice. I'm here to listen and chat. What's on your mind?",
+          role: 'assistant',
+          content: 'Forge Initialized. Architect online. Describe the foundation of your nightmare.',
           timestamp: Date.now(),
-        }
+        },
       ],
       addMessage: (message) =>
         set((state) => ({
@@ -30,15 +30,15 @@ export const useVoiceStore = create<VoiceState>()(
       clearHistory: () => set({ 
         messages: [
           {
-            role: 'voice',
-            content: "Memory cleared. I'm ready to start our conversation fresh. What's on your mind?",
+            role: 'assistant',
+            content: 'Forge Reset. Architect online. Describe the foundation of your nightmare.',
             timestamp: Date.now(),
-          }
+          },
         ] 
       }),
     }),
     {
-      name: 'the-voice-memory',
+      name: 'the-forge-memory',
       storage: createJSONStorage(() => idbStorage),
     }
   )

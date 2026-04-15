@@ -12,7 +12,7 @@ if (!apiKey) {
 
 const ai = new GoogleGenAI({ apiKey: apiKey || "" });
 
-export async function sendMessageToArchitect(messageHistory: Message[]) {
+export async function sendMessageToArchitect(messageHistory: Message[], voiceContext?: Message[]) {
   if (!apiKey) {
     throw new Error("API Key missing. Configure GEMINI_API_KEY in the Secrets panel.");
   }
@@ -38,12 +38,26 @@ export async function sendMessageToArchitect(messageHistory: Message[]) {
     };
   });
 
+  // Inject Voice context if provided
+  let systemInstruction = ARCHITECT_SYSTEM_PROMPT;
+  if (voiceContext && voiceContext.length > 0) {
+    const voiceSummary = voiceContext
+      .filter(m => m.role === 'user')
+      .slice(-5)
+      .map(m => m.content)
+      .join('\n');
+    
+    if (voiceSummary) {
+      systemInstruction += `\n\nCONTEXT FROM THE VOICE (User's recent thoughts): \n${voiceSummary}\n\nUse this context to better understand the user's preferences and subconscious desires for the nightmare.`;
+    }
+  }
+
   try {
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: contents,
       config: {
-        systemInstruction: ARCHITECT_SYSTEM_PROMPT,
+        systemInstruction: systemInstruction,
         temperature: 0.7,
         topP: 0.95,
         topK: 40,
@@ -88,7 +102,7 @@ export async function sendMessageToOrchestrator(blueprint: ScenarioBlueprint, me
   }
 }
 
-export async function sendMessageToVoice(messageHistory: Message[]) {
+export async function sendMessageToVoice(messageHistory: Message[], forgeContext?: Message[]) {
   if (!apiKey) {
     throw new Error("API Key missing. Configure GEMINI_API_KEY in the Secrets panel.");
   }
@@ -113,12 +127,26 @@ export async function sendMessageToVoice(messageHistory: Message[]) {
     };
   });
 
+  // Inject Forge context if provided
+  let systemInstruction = VOICE_SYSTEM_PROMPT;
+  if (forgeContext && forgeContext.length > 0) {
+    const forgeSummary = forgeContext
+      .filter(m => m.role === 'user')
+      .slice(-5)
+      .map(m => m.content)
+      .join('\n');
+    
+    if (forgeSummary) {
+      systemInstruction += `\n\nCONTEXT FROM THE FORGE (User's nightmare designs): \n${forgeSummary}\n\nUse this context to be supportive and curious about the user's creative process in the Forge, but maintain your friendly, non-clinical personality.`;
+    }
+  }
+
   try {
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: contents,
       config: {
-        systemInstruction: VOICE_SYSTEM_PROMPT,
+        systemInstruction: systemInstruction,
         temperature: 0.9,
         topP: 0.95,
         topK: 40,

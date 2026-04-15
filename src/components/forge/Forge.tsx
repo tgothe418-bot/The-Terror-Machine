@@ -1,27 +1,42 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ArrowLeft, Download, Send, Terminal, Loader2, Paperclip, X, FileText, Image as ImageIcon } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
+import { useForgeStore } from '../../store/useForgeStore';
+import { useVoiceStore } from '../../store/useVoiceStore';
 import { Message, ScenarioBlueprint, Attachment } from '../../types';
 import { downloadJson } from '../../lib/download';
 import { extractBlueprint } from '../../lib/jsonParser';
 import { sendMessageToArchitect } from '../../services/geminiService';
 import { motion, AnimatePresence } from 'motion/react';
+import { Trash2 } from 'lucide-react';
 
 export default function Forge() {
   const setPhase = useAppStore((state) => state.setPhase);
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      role: 'assistant',
-      content: 'Forge Initialized. Architect online. Describe the foundation of your nightmare.',
-      timestamp: Date.now(),
-    },
-  ]);
+  const { messages, addMessage, clearHistory } = useForgeStore();
+  const voiceMessages = useVoiceStore((state) => state.messages);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [blueprint, setBlueprint] = useState<ScenarioBlueprint | null>(null);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [isConfirmingClear, setIsConfirmingClear] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Handle hydration
+  useEffect(() => {
+    const unsub = useForgeStore.persist.onHydrate(() => setHydrated(false));
+    const unsubFinish = useForgeStore.persist.onFinishHydration(() => setHydrated(true));
+    
+    if (useForgeStore.persist.hasHydrated()) {
+      setHydrated(true);
+    }
+
+    return () => {
+      unsub();
+      unsubFinish();
+    };
+  }, []);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -79,14 +94,13 @@ export default function Forge() {
       attachments: attachments.length > 0 ? [...attachments] : undefined,
     };
 
-    const newMessages = [...messages, userMessage];
-    setMessages(newMessages);
+    addMessage(userMessage);
     setInput('');
     setAttachments([]);
     setIsLoading(true);
 
     try {
-      const responseText = await sendMessageToArchitect(newMessages);
+      const responseText = await sendMessageToArchitect([...messages, userMessage], voiceMessages);
       
       const detectedBlueprint = extractBlueprint(responseText);
       let finalContent = responseText;
@@ -101,14 +115,14 @@ export default function Forge() {
         content: finalContent,
         timestamp: Date.now(),
       };
-      setMessages((prev) => [...prev, assistantMessage]);
+      addMessage(assistantMessage);
     } catch (error) {
       const errorMessage: Message = {
         role: 'assistant',
         content: "Error: Connection to Architect severed. Verify API configuration.",
         timestamp: Date.now(),
       };
-      setMessages((prev) => [...prev, errorMessage]);
+      addMessage(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -139,18 +153,51 @@ export default function Forge() {
           </div>
         </div>
 
-        <button
-          onClick={handleExport}
-          disabled={!blueprint}
-          className={`flex items-center gap-2 px-4 py-2 border transition-all duration-300 text-[10px] tracking-[0.2em] uppercase ${
-            blueprint 
-              ? 'border-white bg-white text-black hover:bg-zinc-200 shadow-[0_0_15px_rgba(255,255,255,0.3)]' 
-              : 'border-zinc-800 text-zinc-700 cursor-not-allowed opacity-50'
-          }`}
-        >
-          <Download className={`w-3 h-3 ${blueprint ? 'animate-bounce' : ''}`} />
-          {blueprint ? 'Export Blueprint' : 'Blueprint Locked'}
-        </button>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center">
+            {isConfirmingClear ? (
+              <div className="flex items-center gap-2 mr-4 animate-in fade-in slide-in-from-right-2">
+                <span className="text-[8px] uppercase tracking-widest text-fresh-blood">Reset Forge?</span>
+                <button 
+                  onClick={() => {
+                    clearHistory();
+                    setIsConfirmingClear(false);
+                  }}
+                  className="text-[8px] uppercase tracking-widest text-white hover:underline"
+                >
+                  Yes
+                </button>
+                <button 
+                  onClick={() => setIsConfirmingClear(false)}
+                  className="text-[8px] uppercase tracking-widest text-zinc-500 hover:underline"
+                >
+                  No
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setIsConfirmingClear(true)}
+                className="p-2 text-zinc-600 hover:text-fresh-blood transition-colors mr-2"
+                title="Clear Memory"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+
+          <button
+            onClick={handleExport}
+            disabled={!blueprint}
+            className={`flex items-center gap-2 px-4 py-2 border transition-all duration-300 text-[10px] tracking-[0.2em] uppercase ${
+              blueprint 
+                ? 'border-white bg-white text-black hover:bg-zinc-200 shadow-[0_0_15px_rgba(255,255,255,0.3)]' 
+                : 'border-zinc-800 text-zinc-700 cursor-not-allowed opacity-50'
+            }`}
+          >
+            <Download className={`w-3 h-3 ${blueprint ? 'animate-bounce' : ''}`} />
+            {blueprint ? 'Export Blueprint' : 'Blueprint Locked'}
+          </button>
+        </div>
       </header>
 
       {/* Chat Area */}

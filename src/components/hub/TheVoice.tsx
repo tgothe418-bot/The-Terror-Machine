@@ -5,10 +5,12 @@ import { Message, Attachment } from '../../types';
 import { sendMessageToVoice } from '../../services/geminiService';
 import { useAppStore } from '../../store/useAppStore';
 import { useVoiceStore } from '../../store/useVoiceStore';
+import { useForgeStore } from '../../store/useForgeStore';
 
 export default function TheVoice() {
   const setPhase = useAppStore((state) => state.setPhase);
   const { messages, addMessage, clearHistory } = useVoiceStore();
+  const forgeMessages = useForgeStore((state) => state.messages);
   const [input, setInput] = useState('');
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -48,27 +50,6 @@ export default function TheVoice() {
     }
   }, [messages, isLoading]);
 
-  // Initial greeting
-  useEffect(() => {
-    if (hydrated && messages.length === 0) {
-      handleGreeting();
-    }
-  }, [hydrated, messages.length]);
-
-  const handleGreeting = async () => {
-    setIsLoading(true);
-    try {
-      const response = await sendMessageToVoice([
-        { role: 'user', content: 'Hello.', timestamp: Date.now() }
-      ]);
-      addMessage({ role: 'voice', content: response, timestamp: Date.now() });
-    } catch (error) {
-      addMessage({ role: 'voice', content: "I'm here, but my connection seems a bit fuzzy. Shall we try again?", timestamp: Date.now() });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const handleSend = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if ((!input.trim() && attachments.length === 0) || isLoading) return;
@@ -86,7 +67,7 @@ export default function TheVoice() {
     setIsLoading(true);
 
     try {
-      const response = await sendMessageToVoice([...messages, userMsg]);
+      const response = await sendMessageToVoice([...messages, userMsg], forgeMessages);
       addMessage({ role: 'voice', content: response, timestamp: Date.now() });
     } catch (error) {
       addMessage({ role: 'voice', content: "I'm sorry, I lost my train of thought for a moment. What were we saying?", timestamp: Date.now() });
