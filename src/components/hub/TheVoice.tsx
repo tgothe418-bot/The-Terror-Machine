@@ -103,12 +103,19 @@ export default function TheVoice() {
 
   const processFiles = async (files: File[]) => {
     const newAttachments: Attachment[] = [];
+    const allowedTypes = ['image/', 'application/pdf', 'application/json', 'text/markdown', 'text/plain'];
+    
     for (const file of files) {
-      if (!file.type.startsWith('image/')) continue;
+      const isAllowed = allowedTypes.some(type => file.type.startsWith(type)) || 
+                        file.name.endsWith('.md') || 
+                        file.name.endsWith('.json');
+      
+      if (!isAllowed) continue;
+      
       const base64 = await fileToBase64(file);
       newAttachments.push({
         name: file.name,
-        mimeType: file.type,
+        mimeType: file.type || (file.name.endsWith('.md') ? 'text/markdown' : 'application/octet-stream'),
         data: base64
       });
     }
@@ -228,13 +235,21 @@ export default function TheVoice() {
                 {msg.attachments && msg.attachments.length > 0 && (
                   <div className="flex flex-wrap gap-2 mb-4">
                     {msg.attachments.map((att, i) => (
-                      <img 
-                        key={i}
-                        src={`data:${att.mimeType};base64,${att.data}`}
-                        alt={att.name}
-                        className="max-h-48 rounded border border-zinc-700"
-                        referrerPolicy="no-referrer"
-                      />
+                      <div key={i} className="flex flex-col gap-2">
+                        {att.mimeType.startsWith('image/') ? (
+                          <img 
+                            src={`data:${att.mimeType};base64,${att.data}`}
+                            alt={att.name}
+                            className="max-h-48 rounded border border-zinc-700"
+                            referrerPolicy="no-referrer"
+                          />
+                        ) : (
+                          <div className="flex items-center gap-2 px-3 py-2 border border-zinc-800 bg-black/50 text-[10px] uppercase tracking-widest text-zinc-400">
+                            <Paperclip className="w-3 h-3" />
+                            <span className="max-w-[150px] truncate">{att.name}</span>
+                          </div>
+                        )}
+                      </div>
                     ))}
                   </div>
                 )}
@@ -269,12 +284,19 @@ export default function TheVoice() {
               >
                 {attachments.map((att, i) => (
                   <div key={i} className="relative group">
-                    <img 
-                      src={`data:${att.mimeType};base64,${att.data}`}
-                      alt="preview"
-                      className="w-20 h-20 object-cover rounded border border-zinc-800"
-                      referrerPolicy="no-referrer"
-                    />
+                    {att.mimeType.startsWith('image/') ? (
+                      <img 
+                        src={`data:${att.mimeType};base64,${att.data}`}
+                        alt="preview"
+                        className="w-20 h-20 object-cover rounded border border-zinc-800"
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : (
+                      <div className="w-20 h-20 flex flex-col items-center justify-center bg-zinc-900 border border-zinc-800 rounded p-2 text-center">
+                        <Paperclip className="w-6 h-6 text-zinc-600 mb-1" />
+                        <span className="text-[8px] text-zinc-500 truncate w-full">{att.name}</span>
+                      </div>
+                    )}
                     <button 
                       onClick={() => removeAttachment(i)}
                       className="absolute -top-2 -right-2 bg-fresh-blood text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
@@ -297,22 +319,22 @@ export default function TheVoice() {
               onKeyDown={handleKeyDown}
               onPaste={handlePaste}
               placeholder="Speak your mind... (Shift+Enter for new line)"
-              className="w-full bg-zinc-950 border border-zinc-900 p-6 pr-32 text-sm focus:outline-none focus:border-zinc-700 placeholder:text-zinc-800 disabled:opacity-50 transition-all resize-none min-h-[80px] scrollbar-hide"
+              className="w-full bg-zinc-950 border border-zinc-900 p-6 pr-32 text-sm focus:outline-none focus:border-zinc-700 focus:ring-1 focus:ring-zinc-700/20 placeholder:text-zinc-800 disabled:opacity-50 transition-all resize-none min-h-[80px] scrollbar-hide"
             />
             
             <div className="absolute right-6 bottom-6 flex items-center gap-4">
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="text-zinc-700 hover:text-white transition-colors"
-                title="Upload Image"
+                className="text-zinc-700 hover:text-white transition-all duration-300 hover:scale-110 active:scale-95"
+                title="Upload Files (Images, PDF, JSON, MD)"
               >
                 <Paperclip className="w-5 h-5" />
               </button>
               <button
                 type="submit"
                 disabled={isLoading || (!input.trim() && attachments.length === 0)}
-                className="text-zinc-700 hover:text-white transition-colors disabled:opacity-50"
+                className="text-zinc-700 hover:text-white transition-all duration-300 hover:scale-110 active:scale-95 disabled:opacity-50"
               >
                 <Send className="w-5 h-5" />
               </button>
@@ -322,7 +344,7 @@ export default function TheVoice() {
               type="file"
               ref={fileInputRef}
               onChange={handleFileChange}
-              accept="image/*"
+              accept="image/*,.pdf,.json,.md,text/markdown"
               multiple
               className="hidden"
             />

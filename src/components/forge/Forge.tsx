@@ -34,12 +34,20 @@ export default function Forge() {
     if (!files) return;
 
     const newAttachments: Attachment[] = [];
+    const allowedTypes = ['image/', 'application/pdf', 'application/json', 'text/markdown', 'text/plain'];
+
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
+      const isAllowed = allowedTypes.some(type => file.type.startsWith(type)) || 
+                        file.name.endsWith('.md') || 
+                        file.name.endsWith('.json');
+      
+      if (!isAllowed) continue;
+
       const base64 = await fileToBase64(file);
       newAttachments.push({
         name: file.name,
-        mimeType: file.type || 'application/octet-stream',
+        mimeType: file.type || (file.name.endsWith('.md') ? 'text/markdown' : 'application/octet-stream'),
         data: base64.split(',')[1], // Remove prefix
       });
     }
@@ -233,45 +241,45 @@ export default function Forge() {
 
           <form onSubmit={handleSend} className="relative flex flex-col gap-2">
             <div className="relative">
-              <textarea
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSend();
-                  }
-                }}
-                disabled={isLoading}
-                placeholder={isLoading ? "Awaiting Architect..." : "Input parameters or paste reference material..."}
-                className="w-full bg-zinc-950 border border-zinc-800 p-4 pr-24 text-sm focus:outline-none focus:border-zinc-500 transition-colors placeholder:text-zinc-700 disabled:opacity-50 min-h-[100px] resize-none scrollbar-hide"
-              />
-              <div className="absolute right-4 bottom-4 flex items-center gap-4">
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={isLoading}
-                  className="text-zinc-500 hover:text-white transition-colors disabled:opacity-50"
-                  title="Attach Files (JSON, PDF, Images)"
-                >
-                  <Paperclip className="w-5 h-5" />
-                </button>
-                <button
-                  type="submit"
-                  disabled={isLoading || (!input.trim() && attachments.length === 0)}
-                  className="text-zinc-500 hover:text-white transition-colors disabled:opacity-50"
-                >
-                  {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
-                </button>
-              </div>
-              <input 
-                type="file" 
-                ref={fileInputRef}
-                onChange={handleFileChange}
-                multiple
-                accept=".json,.pdf,image/*"
-                className="hidden"
-              />
+                  <textarea
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSend();
+                      }
+                    }}
+                    disabled={isLoading}
+                    placeholder={isLoading ? "Awaiting Architect..." : "Input parameters or paste reference material..."}
+                    className="w-full bg-zinc-950 border border-zinc-800 p-4 pr-24 text-sm focus:outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500/20 transition-all placeholder:text-zinc-800 disabled:opacity-50 min-h-[100px] resize-none scrollbar-hide"
+                  />
+                  <div className="absolute right-4 bottom-4 flex items-center gap-4">
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isLoading}
+                      className="text-zinc-700 hover:text-white transition-all duration-300 disabled:opacity-50 hover:scale-110 active:scale-95"
+                      title="Attach Files (JSON, PDF, Images, MD)"
+                    >
+                      <Paperclip className="w-5 h-5" />
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isLoading || (!input.trim() && attachments.length === 0)}
+                      className="text-zinc-700 hover:text-white transition-all duration-300 disabled:opacity-50 hover:scale-110 active:scale-95"
+                    >
+                      {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+                    </button>
+                  </div>
+                  <input 
+                    type="file" 
+                    ref={fileInputRef}
+                    onChange={handleFileChange}
+                    multiple
+                    accept=".json,.pdf,image/*,.md,text/markdown"
+                    className="hidden"
+                  />
             </div>
           </form>
         </div>
