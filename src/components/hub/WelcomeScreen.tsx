@@ -1,9 +1,25 @@
-import { Hammer, Play, Ghost, Target, Activity } from 'lucide-react';
+import React, { useState } from 'react';
+import { Hammer, Play, Ghost, Target, Activity, Trash2, AlertTriangle, RefreshCw } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
-import TheVoice from './TheVoice';
+import { useVoiceStore } from '../../store/useVoiceStore';
+import { useForgeStore } from '../../store/useForgeStore';
+import { useEngineStore } from '../../core/store';
+import { motion, AnimatePresence } from 'motion/react';
 
 export default function WelcomeScreen() {
   const setPhase = useAppStore((state) => state.setPhase);
+  const clearVoice = useVoiceStore((state) => state.clearHistory);
+  const clearForge = useForgeStore((state) => state.clearHistory);
+  const clearEngine = useEngineStore((state) => state.clearBlueprint);
+  
+  const [isConfirmingReset, setIsConfirmingReset] = useState(false);
+
+  const handleFullReset = () => {
+    clearVoice();
+    clearForge();
+    clearEngine();
+    setIsConfirmingReset(false);
+  };
 
   return (
     <div className="min-h-screen bg-black text-zinc-100 flex flex-col items-center justify-center p-6 font-sans overflow-hidden relative">
@@ -111,6 +127,55 @@ export default function WelcomeScreen() {
               <span>Ready for Execution</span>
             </div>
           </button>
+        </div>
+
+        {/* Global Reset Option */}
+        <div className="flex flex-col items-center pt-8">
+          <AnimatePresence mode="wait">
+            {!isConfirmingReset ? (
+              <motion.button
+                key="reset-trigger"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 0.3 }}
+                whileHover={{ opacity: 1 }}
+                onClick={() => setIsConfirmingReset(true)}
+                className="flex items-center gap-2 px-4 py-2 text-[10px] font-mono text-zinc-500 uppercase tracking-[0.3em] hover:text-red-500 transition-all group"
+              >
+                <RefreshCw className="w-3 h-3 group-hover:rotate-180 transition-transform duration-700" />
+                Clear System Memory
+              </motion.button>
+            ) : (
+              <motion.div
+                key="reset-confirm"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 1.05 }}
+                className="flex flex-col items-center gap-4 p-6 border border-red-500/20 bg-red-500/5 backdrop-blur-md max-w-sm text-center"
+              >
+                <div className="flex items-center gap-3 text-red-500">
+                  <AlertTriangle className="w-4 h-4" />
+                  <span className="text-[10px] font-bold uppercase tracking-[0.3em]">Total Wipe Warning</span>
+                </div>
+                <p className="text-[10px] text-zinc-400 uppercase leading-relaxed tracking-wider">
+                  This will purge all history from The Voice, The Forge, and The Engine. This neural link termination is permanent.
+                </p>
+                <div className="flex items-center gap-4 pt-2">
+                  <button
+                    onClick={() => setIsConfirmingReset(false)}
+                    className="px-6 py-2 text-[10px] font-mono text-zinc-500 hover:text-white uppercase tracking-widest transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleFullReset}
+                    className="px-6 py-2 bg-red-600 hover:bg-red-500 text-white text-[10px] font-mono uppercase tracking-[0.2em] transition-all shadow-lg shadow-red-600/20"
+                  >
+                    Confirm Wipe
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         <footer className="pt-16 border-t border-zinc-900/50">
