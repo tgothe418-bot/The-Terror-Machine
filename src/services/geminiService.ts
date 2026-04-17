@@ -3,6 +3,7 @@ import { ARCHITECT_SYSTEM_PROMPT } from "../core/prompts/architect";
 import { ORCHESTRATOR_SYSTEM_PROMPT } from "../core/prompts/orchestrator";
 import { VOICE_SYSTEM_PROMPT } from "../core/prompts/voice";
 import { Message, ScenarioBlueprint, BicameralOutput, LogicState } from "../types";
+import { extractBlueprint } from "../lib/jsonParser";
 
 const apiKey = process.env.GEMINI_API_KEY;
 
@@ -106,8 +107,15 @@ export async function sendMessageToOrchestrator(
     });
 
     const textResponse = response.text || "{}";
-    const parsed: BicameralOutput = JSON.parse(textResponse);
-    return parsed;
+    
+    // Use custom parser instead of JSON.parse for robustness
+    const parsed = extractBlueprint(textResponse);
+    
+    if (!parsed) {
+      throw new Error("Orchestrator returned heavily malformed output that could not be parsed.");
+    }
+    
+    return parsed as BicameralOutput;
   } catch (error) {
     console.error("Gemini API Error (Orchestrator):", error);
     throw error;
