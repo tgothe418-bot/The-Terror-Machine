@@ -1,14 +1,18 @@
 import { create } from 'zustand';
-import { ScenarioBlueprint } from '../types';
+import { ScenarioBlueprint, LogicState } from '../types';
 
 interface EngineState {
   activeBlueprint: ScenarioBlueprint | null;
-  loadBlueprint: (blueprint: ScenarioBlueprint) => void;
+  gameState: LogicState | null; // NEW: Track the mechanical state
+  setBlueprint: (blueprint: ScenarioBlueprint) => void;
   clearBlueprint: () => void;
+  updateGameState: (newState: LogicState) => void; // NEW: Action to update state
 }
 
 export const useEngineStore = create<EngineState>((set) => ({
   activeBlueprint: null,
-  loadBlueprint: (blueprint: ScenarioBlueprint) => set({ activeBlueprint: blueprint }),
-  clearBlueprint: () => set({ activeBlueprint: null }),
+  gameState: null,
+  setBlueprint: (blueprint) => set({ activeBlueprint: blueprint, gameState: null }),
+  clearBlueprint: () => set({ activeBlueprint: null, gameState: null }),
+  updateGameState: (newState) => set({ gameState: newState }),
 }));

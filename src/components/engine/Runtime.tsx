@@ -9,6 +9,8 @@ import { sendMessageToOrchestrator } from '../../services/geminiService';
 export default function Runtime() {
   const activeBlueprint = useEngineStore((state) => state.activeBlueprint);
   const clearBlueprint = useEngineStore((state) => state.clearBlueprint);
+  const gameState = useEngineStore((state) => state.gameState);
+  const updateGameState = useEngineStore((state) => state.updateGameState);
   const setPhase = useAppStore((state) => state.setPhase);
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
@@ -31,13 +33,16 @@ export default function Runtime() {
   const startSimulation = async () => {
     setIsLoading(true);
     try {
-      const initialResponse = await sendMessageToOrchestrator(activeBlueprint!, [
-        { role: 'user', content: 'Begin simulation.', timestamp: Date.now() }
-      ]);
+      const initialResponse = await sendMessageToOrchestrator(
+        activeBlueprint!, 
+        [{ role: 'user', content: 'Begin simulation. Establish environment and initial state.', timestamp: Date.now() }],
+        gameState // Pass current state (null initially)
+      );
       
       setMessages([
-        { role: 'assistant', content: initialResponse, timestamp: Date.now() }
+        { role: 'assistant', content: initialResponse.narrative_text, timestamp: Date.now() }
       ]);
+      updateGameState(initialResponse.logic_state); // Save logic state silently
     } catch (error) {
       setMessages([
         { role: 'assistant', content: '[ SYSTEM ERROR: NEURAL LINK FAILURE. REBOOT REQUIRED. ]', timestamp: Date.now() }
@@ -59,8 +64,11 @@ export default function Runtime() {
     setIsLoading(true);
 
     try {
-      const response = await sendMessageToOrchestrator(activeBlueprint!, newMessages);
-      setMessages((prev) => [...prev, { role: 'assistant', content: response, timestamp: Date.now() }]);
+      const response = await sendMessageToOrchestrator(activeBlueprint!, newMessages, gameState);
+      
+      setMessages((prev) => [...prev, { role: 'assistant', content: response.narrative_text, timestamp: Date.now() }]);
+      updateGameState(response.logic_state); // Sync mechanical reality
+      
     } catch (error) {
       setMessages((prev) => [...prev, { role: 'assistant', content: '[ SYSTEM ERROR: COMMAND PROCESSING FAILURE. ]', timestamp: Date.now() }]);
     } finally {

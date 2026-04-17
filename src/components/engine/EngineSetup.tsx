@@ -6,7 +6,7 @@ import { ScenarioBlueprint } from '../../types';
 
 export default function EngineSetup() {
   const setPhase = useAppStore((state) => state.setPhase);
-  const loadBlueprint = useEngineStore((state) => state.loadBlueprint);
+  const setBlueprint = useEngineStore((state) => state.setBlueprint);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -24,7 +24,7 @@ export default function EngineSetup() {
 
         // Validation: Check for required properties
         if (parsed.title && parsed.contentScale && parsed.setting && parsed.contentLevelDescription) {
-          loadBlueprint(parsed as ScenarioBlueprint);
+          setBlueprint(parsed as ScenarioBlueprint);
         } else {
           setError('INVALID BLUEPRINT: REQUIRED PARAMETERS MISSING (TITLE, SCALE, SETTING, OR DESCRIPTION)');
         }

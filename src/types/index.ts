@@ -42,3 +42,15 @@ export interface AppState {
   phase: AppPhase;
   setPhase: (phase: AppPhase) => void;
 }
+
+export interface LogicState {
+  current_location: string;
+  player_injuries: string[];
+  inventory: string[];
+  psychological_status: string;
+}
+
+export interface BicameralOutput {
+  narrative_text: string;
+  logic_state: LogicState;
+}
