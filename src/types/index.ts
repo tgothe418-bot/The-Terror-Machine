@@ -48,6 +48,7 @@ export interface LogicState {
   player_injuries: string[];
   inventory: string[];
   psychological_status: string;
+  player_role: 'protagonist' | 'antagonist';
 }
 
 export interface BicameralOutput {

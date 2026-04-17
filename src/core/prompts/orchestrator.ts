@@ -15,12 +15,14 @@ You must respond with a VALID JSON object using the following exact schema. Do n
     "current_location": "String describing the immediate location.",
     "player_injuries": ["Array of", "strings representing", "current physical wounds"],
     "inventory": ["Array of", "strings representing", "held items"],
-    "psychological_status": "A short string summarizing mental degradation or terror."
+    "psychological_status": "A short string summarizing mental degradation or terror.",
+    "player_role": "protagonist | antagonist"
   }
 }
 
 OPERATIONAL DIRECTIVES:
 - Evaluate the USER COMMAND against the current [LOGIC STATE]. If they try to use an item they don't have, they fail.
+- You must strictly adhere to the 'player_role'. If 'protagonist', the user is the victim/hero fighting the nightmare. If 'antagonist', the user is the architect or source of terror, commanding the nightmare against others.
 - Update the 'logic_state' arrays based on the consequences of the narrative. 
 - The 'narrative_text' must never mention game mechanics, stats, or inventories directly. It must strictly be visceral prose.
 `.trim();
