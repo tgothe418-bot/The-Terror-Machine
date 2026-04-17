@@ -40,6 +40,13 @@ export const useVoiceStore = create<VoiceState>()(
     {
       name: 'the-voice-memory',
       storage: createJSONStorage(() => idbStorage),
+      partialize: (state) => ({
+        ...state,
+        messages: state.messages.map((msg) => {
+          const { attachments, ...messageWithoutFiles } = msg;
+          return messageWithoutFiles;
+        }),
+      }),
     }
   )
 );

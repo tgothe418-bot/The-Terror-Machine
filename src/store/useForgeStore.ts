@@ -40,6 +40,13 @@ export const useForgeStore = create<ForgeState>()(
     {
       name: 'the-forge-memory',
       storage: createJSONStorage(() => idbStorage),
+      partialize: (state) => ({
+        ...state,
+        messages: state.messages.map((msg) => {
+          const { attachments, ...messageWithoutFiles } = msg;
+          return messageWithoutFiles;
+        }),
+      }),
     }
   )
 );
