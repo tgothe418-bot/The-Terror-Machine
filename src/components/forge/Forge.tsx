@@ -6,7 +6,7 @@ import { useVoiceStore } from '../../store/useVoiceStore';
 import { Message, ScenarioBlueprint, Attachment } from '../../types';
 import { downloadJson } from '../../lib/download';
 import { extractBlueprint } from '../../lib/jsonParser';
-import { sendMessageToArchitect } from '../../services/geminiService';
+import { sendMessageToArchitect, extractStyleProfile } from '../../services/geminiService';
 import { motion, AnimatePresence } from 'motion/react';
 import { Trash2 } from 'lucide-react';
 
@@ -102,11 +102,24 @@ export default function Forge() {
     try {
       const responseText = await sendMessageToArchitect([...messages, userMessage], voiceMessages);
       
-      const detectedBlueprint = extractBlueprint(responseText);
+      const detectedBlueprint = extractBlueprint(responseText) as ScenarioBlueprint;
       let finalContent = responseText;
 
       if (detectedBlueprint && (detectedBlueprint.title || detectedBlueprint.setting)) {
-        setBlueprint(detectedBlueprint as ScenarioBlueprint);
+        // If the architect missed the style profile, extract it manually from the user's input/files
+        if (!detectedBlueprint.styleProfile) {
+          const userText = [...messages, userMessage]
+            .filter(m => m.role === 'user' && m.content)
+            .map(m => m.content)
+            .join('\n');
+          
+          if (userText.length > 100) {
+            const style = await extractStyleProfile(userText);
+            detectedBlueprint.styleProfile = style;
+          }
+        }
+        
+        setBlueprint(detectedBlueprint);
         finalContent = "[ SYSTEM: BLUEPRINT COMPILED AND READY FOR EXTRACTION ]";
       }
 

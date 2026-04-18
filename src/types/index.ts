@@ -29,6 +29,7 @@ export interface ScenarioBlueprint {
     pacingDirectives: string; // Instructions for the Orchestrator
     keyPlotElements: string[];
   };
+  styleProfile?: string; // A synthesized description of the user's writing style
 }
 
 export interface Message {

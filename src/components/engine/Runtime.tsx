@@ -5,6 +5,7 @@ import { useAppStore } from '../../store/useAppStore';
 import { motion, AnimatePresence } from 'motion/react';
 import { Message } from '../../types';
 import { sendMessageToOrchestrator } from '../../services/geminiService';
+import ErgodicTextRenderer from './ErgodicTextRenderer';
 
 export default function Runtime() {
   const activeBlueprint = useEngineStore((state) => state.activeBlueprint);
@@ -130,10 +131,17 @@ export default function Runtime() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3 }}
               className={`text-sm leading-relaxed whitespace-pre-wrap ${
-                msg.role === 'user' ? 'text-zinc-500 italic' : 'text-zinc-100'
+                msg.role === 'user' ? 'text-zinc-500 italic' : ''
               }`}
             >
-              {msg.role === 'user' ? `> ${msg.content}` : msg.content}
+              {msg.role === 'user' ? (
+                `> ${msg.content}`
+              ) : (
+                <ErgodicTextRenderer 
+                  text={msg.content} 
+                  status={gameState?.psychological_status || 'Stable'} 
+                />
+              )}
             </motion.div>
           ))}
           {isLoading && (

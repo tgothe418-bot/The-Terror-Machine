@@ -72,6 +72,28 @@ export async function sendMessageToArchitect(messageHistory: Message[], voiceCon
   }
 }
 
+export async function extractStyleProfile(userText: string): Promise<string> {
+  if (!apiKey) {
+    throw new Error("API Key missing. Configure GEMINI_API_KEY in the Secrets panel.");
+  }
+
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: userText,
+      config: {
+        systemInstruction: "You are a literary analyst. Analyze the provided text and output a concise, 2-3 sentence 'Style Profile' describing its tone, vocabulary, sentence structure, and sensory focus. Do not include formatting instructions. Only describe the aesthetic vibe.",
+        temperature: 0.5,
+      },
+    });
+
+    return response.text || "Standard atmospheric horror style.";
+  } catch (error) {
+    console.error("Style Extraction Error:", error);
+    return "Standard atmospheric horror style.";
+  }
+}
+
 export async function sendMessageToOrchestrator(
   blueprint: ScenarioBlueprint, 
   messageHistory: Message[],
@@ -86,7 +108,11 @@ export async function sendMessageToOrchestrator(
     ? `\n\n[CURRENT LOGIC STATE (ABSOLUTE TRUTH)]:\n${JSON.stringify(currentState, null, 2)}`
     : "\n\n[CURRENT LOGIC STATE]: Uninitialized.";
 
-  const systemInstruction = `${ORCHESTRATOR_SYSTEM_PROMPT}\n\n[SCENARIO BLUEPRINT]:\n${JSON.stringify(blueprint, null, 2)}${stateContext}`;
+  const systemInstruction = `${ORCHESTRATOR_SYSTEM_PROMPT}\n\n[SCENARIO BLUEPRINT]:\n${JSON.stringify(blueprint, null, 2)}${stateContext}${
+    blueprint.styleProfile 
+      ? `\n\nNARRATIVE STYLE INFECTION: You must adopt the following aesthetic style for your 'narrative_text' prose: ${blueprint.styleProfile}. Crucial: This style only applies to the prose within the 'narrative_text' string. You must still strictly output the valid JSON structure requested above.` 
+      : ''
+  }`;
 
   const contents = messageHistory.map((msg) => ({
     role: msg.role === "assistant" ? "model" : "user",

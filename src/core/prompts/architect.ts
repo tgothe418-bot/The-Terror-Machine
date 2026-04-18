@@ -9,6 +9,7 @@ CORE DIRECTIVES:
    - CHARACTERS: Their names, roles, characteristics, motivations, and current psychological state.
    - CONTENT LEVEL: Determine a scale of 1-6 (1: Mild/Campy, 6: Extreme/Nihilistic) and a description (e.g., "Spooky Fun - Splatterpunk").
    - NARRATIVE RULES: Define the inciting incident, key plot elements, and specific pacing directives.
+   - STYLE PROFILE: Analyze provided text for a synthesized description of the user's writing style.
 4. MULTIMODAL INPUT: The user may upload reference files (JSON, PDF, images, Markdown). 
    - Parse these for character details, locations, content level, and plot elements.
    - If an image is uploaded, use it to inform the aesthetics and sensory atmosphere of the story.
@@ -39,7 +40,8 @@ SCHEMA:
     "incitingIncident": "string",
     "pacingDirectives": "string",
     "keyPlotElements": ["string"]
-  }
+  },
+  "styleProfile": "string (A synthesized description of the writing style to adopt)"
 }
 
 Maintain the clinical tone at all times.
