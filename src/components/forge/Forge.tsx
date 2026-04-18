@@ -109,8 +109,19 @@ export default function Forge() {
         // If the architect missed the style profile, extract it manually from the user's input/files
         if (!detectedBlueprint.styleProfile) {
           const userText = [...messages, userMessage]
-            .filter(m => m.role === 'user' && m.content)
-            .map(m => m.content)
+            .filter(m => m.role === 'user')
+            .map(m => {
+              let text = m.content || '';
+              if (m.attachments) {
+                const textAttachments = m.attachments
+                  .filter(a => a.mimeType === 'text/markdown' || a.mimeType === 'text/plain')
+                  // Decode base64 to include actual text reference
+                  .map(a => atob(a.data)) 
+                  .join('\n');
+                text += '\n' + textAttachments;
+              }
+              return text;
+            })
             .join('\n');
           
           if (userText.length > 100) {
