@@ -7,16 +7,64 @@ import { Message } from '../../types';
 import { sendMessageToOrchestrator } from '../../services/geminiService';
 import ErgodicTextRenderer from './ErgodicTextRenderer';
 
+const SESSION_TIMEOUT = 60 * 60 * 1000; // 60 minutes
+const HEARTBEAT_INTERVAL = 30000; // 30 seconds
+
 export default function Runtime() {
   const activeBlueprint = useEngineStore((state) => state.activeBlueprint);
   const clearBlueprint = useEngineStore((state) => state.clearBlueprint);
   const gameState = useEngineStore((state) => state.gameState);
   const updateGameState = useEngineStore((state) => state.updateGameState);
+  const messages = useEngineStore((state) => state.messages);
+  const addMessage = useEngineStore((state) => state.addMessage);
+  const setMessages = useEngineStore((state) => state.setMessages);
+  
   const setPhase = useAppStore((state) => state.setPhase);
   const [input, setInput] = useState('');
-  const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [lastActivity, setLastActivity] = useState(Date.now());
+  const [hydrated, setHydrated] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Handle Hydration
+  useEffect(() => {
+    const unsub = useEngineStore.persist.onHydrate(() => setHydrated(false));
+    const unsubFinish = useEngineStore.persist.onFinishHydration(() => setHydrated(true));
+    
+    if (useEngineStore.persist.hasHydrated()) {
+      setHydrated(true);
+    }
+
+    return () => {
+      unsub();
+      unsubFinish();
+    };
+  }, []);
+
+  // Monitor for idle timeout
+  useEffect(() => {
+    const checkIdle = setInterval(() => {
+      const idleTime = Date.now() - lastActivity;
+      if (idleTime > SESSION_TIMEOUT) {
+        addMessage({
+          role: 'assistant',
+          content: '[ SYSTEM: NEURAL LINK SEVERED DUE TO PROLONGED INACTIVITY. RETURNING TO HUB. ]',
+          timestamp: Date.now()
+        });
+        setTimeout(() => handleExit(), 3000);
+      }
+    }, 10000);
+
+    return () => clearInterval(checkIdle);
+  }, [lastActivity]);
+
+  // Keep-alive heartbeat (visual only to reassure user)
+  useEffect(() => {
+    const heartbeat = setInterval(() => {
+      console.debug('[ THE ENGINE ]: Neural Link Pulse Confirmed');
+    }, HEARTBEAT_INTERVAL);
+    return () => clearInterval(heartbeat);
+  }, []);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -24,12 +72,17 @@ export default function Runtime() {
     }
   }, [messages, isLoading]);
 
+  // Update activity timestamp on any message
+  useEffect(() => {
+    setLastActivity(Date.now());
+  }, [messages]);
+
   // Initial simulation start
   useEffect(() => {
-    if (activeBlueprint && messages.length === 0) {
+    if (hydrated && activeBlueprint && messages.length === 0) {
       startSimulation();
     }
-  }, [activeBlueprint]);
+  }, [activeBlueprint, hydrated, messages.length]);
 
   const startSimulation = async () => {
     setIsLoading(true);
@@ -40,14 +93,10 @@ export default function Runtime() {
         gameState // Pass current state (null initially)
       );
       
-      setMessages([
-        { role: 'assistant', content: initialResponse.narrative_text, timestamp: Date.now() }
-      ]);
+      addMessage({ role: 'assistant', content: initialResponse.narrative_text, timestamp: Date.now() });
       updateGameState(initialResponse.logic_state); // Save logic state silently
     } catch (error) {
-      setMessages([
-        { role: 'assistant', content: '[ SYSTEM ERROR: NEURAL LINK FAILURE. REBOOT REQUIRED. ]', timestamp: Date.now() }
-      ]);
+      addMessage({ role: 'assistant', content: '[ SYSTEM ERROR: NEURAL LINK FAILURE. REBOOT REQUIRED. ]', timestamp: Date.now() });
     } finally {
       setIsLoading(false);
     }
@@ -60,29 +109,29 @@ export default function Runtime() {
     const userMsg: Message = { role: 'user', content: input, timestamp: Date.now() };
     const newMessages = [...messages, userMsg];
     
-    setMessages(newMessages);
+    addMessage(userMsg);
     setInput('');
     setIsLoading(true);
 
     try {
       const response = await sendMessageToOrchestrator(activeBlueprint!, newMessages, gameState);
       
-      setMessages((prev) => [...prev, { role: 'assistant', content: response.narrative_text, timestamp: Date.now() }]);
+      addMessage({ role: 'assistant', content: response.narrative_text, timestamp: Date.now() });
       updateGameState(response.logic_state); // Sync mechanical reality
       
     } catch (error) {
-      setMessages((prev) => [...prev, { role: 'assistant', content: '[ SYSTEM ERROR: COMMAND PROCESSING FAILURE. ]', timestamp: Date.now() }]);
+      addMessage({ role: 'assistant', content: '[ SYSTEM ERROR: COMMAND PROCESSING FAILURE. ]', timestamp: Date.now() });
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleExit = () => {
-    clearBlueprint();
+    // DO NOT clearBlueprint() - maintain session until explicit wipe
     setPhase('hub');
   };
 
-  if (!activeBlueprint) return null;
+  if (!hydrated || !activeBlueprint) return null;
 
   return (
     <div className="h-screen bg-black text-zinc-100 flex flex-col font-mono selection:bg-white selection:text-black">
