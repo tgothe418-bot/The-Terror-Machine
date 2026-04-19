@@ -144,7 +144,15 @@ async function summarizeHistory(messages: Message[], currentState: LogicState): 
     });
 
     const text = response.text || "{}";
-    return JSON.parse(text) as LogicState['lore_and_memory'];
+    try {
+      const parsedLore = JSON.parse(text);
+      return {
+        established_facts: Array.isArray(parsedLore.established_facts) ? parsedLore.established_facts : [],
+        permanent_consequences: Array.isArray(parsedLore.permanent_consequences) ? parsedLore.permanent_consequences : []
+      };
+    } catch (e) {
+      return currentState.lore_and_memory;
+    }
   } catch (error) {
     console.error("Summarization Error:", error);
     return currentState.lore_and_memory;
@@ -177,18 +185,28 @@ export async function sendMessageToOrchestrator(
   }
 
   // Phase 3: Pacing State Machine - Inject only the current pacing directive
-  const currentPacing = blueprint.narrativeRules.phaseDirectives[blueprint.narrativeRules.currentTensionLevel] 
-    || Object.values(blueprint.narrativeRules.phaseDirectives)[0];
+  let currentPacing = "";
+  if (blueprint.narrativeRules?.phaseDirectives) {
+    const tension = blueprint.narrativeRules.currentTensionLevel || 'buildup';
+    currentPacing = blueprint.narrativeRules.phaseDirectives[tension] 
+      || Object.values(blueprint.narrativeRules.phaseDirectives)[0] 
+      || "";
+  } else if ((blueprint.narrativeRules as any)?.pacingDirectives) {
+    // Fallback for older or partially malformed blueprints
+    currentPacing = (blueprint.narrativeRules as any).pacingDirectives;
+  }
 
   const slimBlueprint = {
     ...blueprint,
     narrativeRules: {
       ...blueprint.narrativeRules,
-      pacingDirectives: currentPacing // Replace the mapping with the specific active directive
+      pacingDirectives: currentPacing 
     }
   };
   // Remove the large phaseDirectives from the payload to save tokens
-  delete (slimBlueprint.narrativeRules as any).phaseDirectives;
+  if (slimBlueprint.narrativeRules) {
+    delete (slimBlueprint.narrativeRules as any).phaseDirectives;
+  }
 
   // Inject the absolute truth of the game state into the prompt
   const stateContext = updatedState 
@@ -202,7 +220,7 @@ export async function sendMessageToOrchestrator(
       - Cadence: ${blueprint.styleProfile.syntacticCadence}
       - Core Theme: ${blueprint.styleProfile.thematicCore}
       
-      Crucial: This style only applies to the prose within the 'narrative_text' string. You must still strictly output the valid JSON structure requested above.` 
+      Crucial: This style only applies to the prose within the 'narrative_blocks' array. You must still strictly output the valid JSON structure requested above.` 
       : ''
   }`;
 
@@ -233,11 +251,38 @@ export async function sendMessageToOrchestrator(
       throw new Error("Orchestrator returned heavily malformed output that could not be parsed.");
     }
     
-    const output = parsed as BicameralOutput;
+    const rawOutput = parsed as any;
     
-    // If we summarized, we need to return the updated state properly
+    // Robust structural ensurance
+    let blocks = Array.isArray(rawOutput.narrative_blocks) ? rawOutput.narrative_blocks : [];
+    
+    // Fallback for old schema or malformed response
+    if (blocks.length === 0 && rawOutput.narrative_text) {
+      blocks = [{ type: 'prose', content: rawOutput.narrative_text }];
+    } else if (blocks.length === 0 && typeof parsed === 'string') {
+      blocks = [{ type: 'prose', content: parsed }];
+    }
+
+    const output: BicameralOutput = {
+      narrative_blocks: blocks,
+      logic_state: rawOutput.logic_state || {}
+    };
+
+    // Ensure all required fields in logic_state
+    output.logic_state.current_location = output.logic_state.current_location || updatedState?.current_location || blueprint.setting.location;
+    output.logic_state.player_injuries = output.logic_state.player_injuries || updatedState?.player_injuries || [];
+    output.logic_state.inventory = output.logic_state.inventory || updatedState?.inventory || [];
+    output.logic_state.psychological_status = output.logic_state.psychological_status || updatedState?.psychological_status || 'Stable';
+    output.logic_state.player_role = output.logic_state.player_role || updatedState?.player_role || 'protagonist';
+    
+    // Ensure lore_and_memory is preserved or initialized
     if (updatedState) {
       output.logic_state.lore_and_memory = updatedState.lore_and_memory;
+    } else {
+      output.logic_state.lore_and_memory = rawOutput.logic_state?.lore_and_memory || {
+        established_facts: [],
+        permanent_consequences: []
+      };
     }
 
     return {

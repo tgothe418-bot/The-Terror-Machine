@@ -30,11 +30,11 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
         const content = event.target?.result as string;
         const parsed = JSON.parse(content);
 
-        // Validation: Check for required properties
-        if (parsed.title && parsed.contentScale && parsed.setting && parsed.contentLevelDescription) {
+        // Validation: Check for minimum required properties for the engine to operate
+        if (parsed.title && parsed.setting && parsed.narrativeRules) {
           setPreviewBlueprint(parsed as ScenarioBlueprint);
         } else {
-          setError('INVALID BLUEPRINT: REQUIRED PARAMETERS MISSING (TITLE, SCALE, SETTING, OR DESCRIPTION)');
+          setError('INVALID BLUEPRINT: CORE STRUCTURAL MARKERS MISSING (TITLE, SETTING, OR NARRATIVE RULES)');
         }
       } catch (err) {
         setError('PARSING ERROR: FILE CORRUPTED OR NOT VALID JSON');

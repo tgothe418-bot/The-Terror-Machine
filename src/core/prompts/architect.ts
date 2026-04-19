@@ -38,10 +38,19 @@ SCHEMA:
   ],
   "narrativeRules": {
     "incitingIncident": "string",
-    "pacingDirectives": "string",
+    "phaseDirectives": {
+      "buildup": "Specific directives for slow, mounting dread",
+      "visceral_climax": "Specific directives for peak intensity",
+      "aftermath": "Specific directives for hollow, lingering trauma"
+    },
+    "currentTensionLevel": "buildup",
     "keyPlotElements": ["string"]
   },
-  "styleProfile": "string (A synthesized description of the writing style to adopt)"
+  "styleProfile": {
+    "sensoryDominance": ["list", "of", "senses"],
+    "syntacticCadence": "Description of prose rhythm",
+    "thematicCore": "Central aesthetic obsession"
+  }
 }
 
 Maintain the clinical tone at all times.

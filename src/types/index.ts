@@ -46,6 +46,7 @@ export interface Message {
   content: string;
   timestamp: number;
   attachments?: Attachment[];
+  blocks?: NarrativeBlock[];
 }
 
 export interface AppState {
@@ -65,7 +66,15 @@ export interface LogicState {
   };
 }
 
+export type BlockType = 'prose' | 'dialogue' | 'internal_monologue' | 'environmental_intrusion';
+
+export interface NarrativeBlock {
+  type: BlockType;
+  content: string;
+  speaker?: string; // Optional: Only used if type is 'dialogue' or 'internal_monologue'
+}
+
 export interface BicameralOutput {
-  narrative_text: string;
+  narrative_blocks: NarrativeBlock[];
   logic_state: LogicState;
 }

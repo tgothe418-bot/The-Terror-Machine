@@ -3,7 +3,18 @@ import { ArrowLeft, Terminal, Send, Loader2 } from 'lucide-react';
 import { useEngineStore } from '../../core/store';
 import { useAppStore } from '../../store/useAppStore';
 import { motion, AnimatePresence } from 'motion/react';
-import { Message } from '../../types';
+import { Message, NarrativeBlock } from '../../types';
+
+// Helper to format blocks for plain text fallback
+const formatBlocks = (blocks?: NarrativeBlock[]): string => {
+  if (!blocks || !Array.isArray(blocks)) return '';
+  return blocks.map(block => {
+    if ((block.type === 'dialogue' || block.type === 'internal_monologue') && block.speaker) {
+      return `${block.speaker.toUpperCase()}: ${block.content}`;
+    }
+    return block.content;
+  }).join('\n\n');
+};
 import { sendMessageToOrchestrator } from '../../services/geminiService';
 import ErgodicTextRenderer from './ErgodicTextRenderer';
 
@@ -93,7 +104,12 @@ export default function Runtime() {
         gameState // Pass current state (null initially)
       );
       
-      addMessage({ role: 'assistant', content: initialResponse.narrative_text, timestamp: Date.now() });
+      addMessage({ 
+        role: 'assistant', 
+        content: formatBlocks(initialResponse.narrative_blocks), 
+        blocks: initialResponse.narrative_blocks,
+        timestamp: Date.now() 
+      });
       updateGameState(initialResponse.logic_state); // Save logic state silently
     } catch (error) {
       addMessage({ role: 'assistant', content: '[ SYSTEM ERROR: NEURAL LINK FAILURE. REBOOT REQUIRED. ]', timestamp: Date.now() });
@@ -116,12 +132,17 @@ export default function Runtime() {
     try {
       const response = await sendMessageToOrchestrator(activeBlueprint!, newMessages, gameState);
       
+      const assistantMsg: Message = { 
+        role: 'assistant', 
+        content: formatBlocks(response.narrative_blocks), 
+        blocks: response.narrative_blocks,
+        timestamp: Date.now() 
+      };
+
       if (response.summarizedHistory) {
-        // If history was summarized, we update the store with the new truncated history
-        // PLUS the new message from the assistant
-        setMessages([...response.summarizedHistory, { role: 'assistant', content: response.narrative_text, timestamp: Date.now() }]);
+        setMessages([...response.summarizedHistory, assistantMsg]);
       } else {
-        addMessage({ role: 'assistant', content: response.narrative_text, timestamp: Date.now() });
+        addMessage(assistantMsg);
       }
       
       updateGameState(response.logic_state); // Sync mechanical reality
@@ -198,6 +219,50 @@ export default function Runtime() {
             >
               {msg.role === 'user' ? (
                 `> ${msg.content}`
+              ) : msg.blocks ? (
+                <div className="space-y-6">
+                  {msg.blocks.map((block, bIdx) => {
+                    const status = gameState?.psychological_status || 'Stable';
+                    
+                    if (block.type === 'dialogue') {
+                      return (
+                        <div key={bIdx} className="pl-4 border-l-2 border-zinc-800">
+                          <span className="text-[10px] uppercase tracking-widest text-zinc-600 block mb-1">
+                            {block.speaker || 'Unknown'}
+                          </span>
+                          <span className="text-white italic">
+                            <ErgodicTextRenderer text={`"${block.content}"`} status={status} />
+                          </span>
+                        </div>
+                      );
+                    }
+                    
+                    if (block.type === 'internal_monologue') {
+                      return (
+                        <div key={bIdx} className="text-zinc-400 italic font-light pl-4">
+                           <ErgodicTextRenderer text={block.content} status={status} />
+                        </div>
+                      );
+                    }
+
+                    if (block.type === 'environmental_intrusion') {
+                      return (
+                        <div key={bIdx} className="bg-red-500/5 border border-red-500/10 p-4 text-fresh-blood font-bold tracking-tighter uppercase animate-pulse">
+                           <ErgodicTextRenderer text={block.content} status={status} />
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div key={bIdx}>
+                        <ErgodicTextRenderer 
+                          text={block.content} 
+                          status={status} 
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
               ) : (
                 <ErgodicTextRenderer 
                   text={msg.content} 
