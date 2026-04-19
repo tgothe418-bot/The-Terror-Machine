@@ -152,7 +152,7 @@ async function summarizeHistory(messages: Message[], currentState: LogicState): 
         established_facts: Array.isArray(parsedLore.established_facts) ? parsedLore.established_facts : [],
         permanent_consequences: Array.isArray(parsedLore.permanent_consequences) ? parsedLore.permanent_consequences : []
       };
-    } catch (e) {
+    } catch {
       return currentState.lore_and_memory;
     }
   } catch (error) {
@@ -170,8 +170,8 @@ export async function sendMessageToOrchestrator(
     throw new Error("API Key missing. Configure GEMINI_API_KEY in the Secrets panel.");
   }
 
-  let activeHistory = [...messageHistory];
-  let updatedState = currentState ? { ...currentState } : null;
+  const activeHistory = [...messageHistory];
+  const updatedState = currentState ? { ...currentState } : null;
   let historyWasSummarized = false;
 
   // Phase 4: rolling summarization threshold (e.g. 10 messages)
@@ -271,6 +271,7 @@ export async function sendMessageToOrchestrator(
     }
 
     const output: BicameralOutput = {
+      engine_thoughts: rawOutput.engine_thoughts || "",
       narrative_blocks: blocks,
       logic_state: rawOutput.logic_state || {}
     };
@@ -355,8 +356,14 @@ export async function sendMessageToVoice(messageHistory: Message[], forgeContext
     });
 
     return response.text || "Error: No response from The Voice.";
-  } catch (error) {
-    console.error("Gemini API Error:", error);
+  } catch (error: any) {
+    console.error("Gemini API Error (The Voice):", error);
+    
+    // Check for safety filter blocks
+    if (error.message?.includes('SAFETY') || error.message?.includes('candidate')) {
+      return "I'm sorry. I found myself wandering into a corridor of thought that I'm not permitted to explore. Shall we discuss something else?";
+    }
+    
     throw error;
   }
 }

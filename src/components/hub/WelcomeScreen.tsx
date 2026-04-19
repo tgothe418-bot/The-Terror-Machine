@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Hammer, Play, Ghost, Target, Activity, Trash2, AlertTriangle, RefreshCw } from 'lucide-react';
+import { Hammer, Play, Ghost, Target, Activity, AlertTriangle, RefreshCw } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import { useVoiceStore } from '../../store/useVoiceStore';
 import { useForgeStore } from '../../store/useForgeStore';

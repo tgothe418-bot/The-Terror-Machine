@@ -1,11 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ArrowLeft, Send, Loader2, MessageCircle, Trash2, Paperclip, Image as ImageIcon, X } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { ArrowLeft, Send, Loader2, MessageCircle, Trash2, Paperclip, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Message, Attachment } from '../../types';
 import { sendMessageToVoice } from '../../services/geminiService';
 import { useAppStore } from '../../store/useAppStore';
 import { useVoiceStore } from '../../store/useVoiceStore';
 import { useForgeStore } from '../../store/useForgeStore';
+import { useEngineStore } from '../../core/store';
 
 export default function TheVoice() {
   const setPhase = useAppStore((state) => state.setPhase);
@@ -33,8 +36,6 @@ export default function TheVoice() {
     const unsub = useVoiceStore.persist.onHydrate(() => setHydrated(false));
     const unsubFinish = useVoiceStore.persist.onFinishHydration(() => setHydrated(true));
     
-    setHydrated(useVoiceStore.persist.hasHydrated());
-
     return () => {
       unsub();
       unsubFinish();
@@ -58,15 +59,37 @@ export default function TheVoice() {
       attachments: attachments.length > 0 ? [...attachments] : undefined
     };
     
+    const currentHistory = [...messages, userMsg];
+    
     addMessage(userMsg);
     setInput('');
     setAttachments([]);
     setIsLoading(true);
 
     try {
-      const response = await sendMessageToVoice([...messages, userMsg], forgeMessages);
-      addMessage({ role: 'voice', content: response, timestamp: Date.now() });
-    } catch (error) {
+      const chatHistory = currentHistory.map(msg => ({
+        role: msg.role === 'voice' ? 'assistant' : msg.role,
+        content: msg.content,
+        attachments: msg.attachments
+      }));
+      const response = await sendMessageToVoice(chatHistory as any, forgeMessages);
+      const voiceMsg: Message = { role: 'voice', content: response, timestamp: Date.now() };
+      addMessage(voiceMsg);
+
+      // Output to Engine if simulation is active
+      const engineStore = useEngineStore.getState();
+      if (engineStore.activeBlueprint) {
+        engineStore.addMessage({
+          role: 'voice',
+          content: response,
+          timestamp: Date.now(),
+          blocks: [{
+            type: 'system_voice',
+            content: response
+          }]
+        });
+      }
+    } catch {
       addMessage({ role: 'voice', content: "I'm sorry, I lost my train of thought for a moment. What were we saying?", timestamp: Date.now() });
     } finally {
       setIsLoading(false);
@@ -137,6 +160,8 @@ export default function TheVoice() {
     }
   };
 
+  if (!hydrated) return null;
+
   return (
     <div className="h-screen bg-black text-zinc-100 flex flex-col font-sans selection:bg-white selection:text-black">
       {/* Header */}
@@ -195,7 +220,7 @@ export default function TheVoice() {
       {/* Chat Area */}
       <div 
         ref={scrollRef}
-        className="flex-1 overflow-y-auto p-8 2xl:p-16 space-y-12 2xl:space-y-20 scrollbar-hide max-w-4xl 2xl:max-w-6xl mx-auto w-full"
+        className="flex-1 overflow-y-auto p-8 2xl:p-16 space-y-12 2xl:space-y-20 scrollbar-hide max-w-4xl 2xl:max-w-6xl mx-auto w-full voice-chat-container"
       >
         <AnimatePresence initial={false}>
           {messages.map((msg, idx) => (
@@ -205,10 +230,10 @@ export default function TheVoice() {
               animate={{ opacity: 1, y: 0 }}
               className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}
             >
-              <div className={`max-w-[80%] p-6 text-base leading-relaxed whitespace-pre-wrap ${
+              <div className={`max-w-[80%] p-6 text-base leading-relaxed whitespace-pre-wrap transition-all duration-500 backdrop-blur-sm ${
                 msg.role === 'user' 
-                  ? 'bg-zinc-900 text-zinc-300 border border-zinc-800' 
-                  : 'text-zinc-100 font-light italic'
+                  ? 'bg-zinc-900/40 text-zinc-300 border border-zinc-800/50 hover:bg-zinc-900/60' 
+                  : 'text-zinc-100 font-light italic bg-white/[0.02] border border-white/[0.05] hover:bg-white/[0.04]'
               }`}>
                 {msg.attachments && msg.attachments.length > 0 && (
                   <div className="flex flex-wrap gap-2 mb-4">
@@ -231,7 +256,11 @@ export default function TheVoice() {
                     ))}
                   </div>
                 )}
-                {msg.content}
+                <div className={`markdown-voice ${msg.role === 'user' ? 'text-zinc-300' : 'text-zinc-100'}`}>
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {msg.content}
+                  </ReactMarkdown>
+                </div>
               </div>
             </motion.div>
           ))}
@@ -249,8 +278,8 @@ export default function TheVoice() {
       </div>
 
       {/* Input Area */}
-      <div className="p-8 border-t border-zinc-900 bg-black">
-        <div className="max-w-4xl mx-auto space-y-4">
+      <div className="p-8 border-t border-zinc-900 bg-black voice-input-pane">
+        <div className="max-w-4xl mx-auto space-y-4 voice-input-wrapper">
           {/* Attachment Previews */}
           <AnimatePresence>
             {attachments.length > 0 && (

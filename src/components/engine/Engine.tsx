@@ -12,8 +12,6 @@ export default function Engine() {
     const unsub = useEngineStore.persist.onHydrate(() => setHydrated(false));
     const unsubFinish = useEngineStore.persist.onFinishHydration(() => setHydrated(true));
     
-    setHydrated(useEngineStore.persist.hasHydrated());
-
     return () => {
       unsub();
       unsubFinish();

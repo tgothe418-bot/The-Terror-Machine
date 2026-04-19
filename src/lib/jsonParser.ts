@@ -11,7 +11,7 @@ export function extractBlueprint(responseText: string): any | null {
     if (markdownMatch) {
       try {
         return JSON.parse(markdownMatch[1].trim());
-      } catch (e) {
+      } catch {
         // Fall through
       }
     }
@@ -24,14 +24,14 @@ export function extractBlueprint(responseText: string): any | null {
       const potentialJson = cleanText.substring(start, end + 1);
       try {
         return JSON.parse(potentialJson);
-      } catch (e) {
+      } catch {
         // Fall through
       }
     }
 
     // No valid JSON found
     return null;
-  } catch (e) {
+  } catch {
     // Only log if it's a truly unexpected error, not just a parsing failure
     return null;
   }
@@ -51,7 +51,7 @@ export function extractCastData(responseText: string): any[] | null {
       if (start !== -1 && end !== -1) {
         return JSON.parse(jsonStr.substring(start, end + 1));
       }
-    } catch (e) {
+    } catch {
       return null;
     }
   }
@@ -71,7 +71,7 @@ export function extractAddedCharacter(responseText: string): any | null {
       if (start !== -1 && end !== -1) {
         return JSON.parse(jsonStr.substring(start, end + 1));
       }
-    } catch (e) {
+    } catch {
       return null;
     }
   }

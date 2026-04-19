@@ -2,7 +2,6 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { ArrowLeft, Terminal, Send, Loader2, Eye } from 'lucide-react';
 import { useEngineStore } from '../../core/store';
 import { useAppStore } from '../../store/useAppStore';
-import { useVoiceStore } from '../../store/useVoiceStore';
 import { motion, AnimatePresence } from 'motion/react';
 import { Message, NarrativeBlock } from '../../types';
 
@@ -33,19 +32,13 @@ export default function Runtime() {
   const setPhase = useAppStore((state) => state.setPhase);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [lastActivity, setLastActivity] = useState(() => Date.now());
-  const [hydrated, setHydrated] = useState(false);
+  const [hydrated, setHydrated] = useState(() => useEngineStore.persist.hasHydrated());
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Handle Hydration
   useEffect(() => {
     const unsub = useEngineStore.persist.onHydrate(() => setHydrated(false));
     const unsubFinish = useEngineStore.persist.onFinishHydration(() => setHydrated(true));
     
-    if (useEngineStore.persist.hasHydrated()) {
-      setHydrated(true);
-    }
-
     return () => {
       unsub();
       unsubFinish();
@@ -66,18 +59,13 @@ export default function Runtime() {
         gameState // Pass current state (null initially)
       );
       
-      const voiceBlocks = initialResponse.narrative_blocks.filter(b => b.type === 'system_voice');
-      const narrativeBlocks = initialResponse.narrative_blocks.filter(b => b.type !== 'system_voice');
-
-      if (voiceBlocks.length > 0) {
-        const voiceStore = useVoiceStore.getState();
-        voiceBlocks.forEach(b => voiceStore.setVoiceMessage(b.content));
-      }
+      const narrativeBlocks = initialResponse.narrative_blocks;
 
       addMessage({ 
         role: 'assistant', 
         content: formatBlocks(narrativeBlocks), 
         blocks: narrativeBlocks,
+        engine_thoughts: initialResponse.engine_thoughts,
         timestamp: Date.now() 
       });
       updateGameState(initialResponse.logic_state); // Save logic state silently
@@ -119,17 +107,20 @@ export default function Runtime() {
     }
   }, [messages, isLoading]);
 
-  // Update activity timestamp on any message
-  useEffect(() => {
-    setLastActivity(Date.now());
-  }, [messages]);
+  // Note: Activity timestamp is updated via event handlers to avoid cascading renders
+
+  const hasStarted = useRef(false);
 
   // Initial simulation start
   useEffect(() => {
-    if (hydrated && activeBlueprint && messages.length === 0) {
-      startSimulation();
+    if (hydrated && activeBlueprint && messages.length === 0 && !isLoading && !hasStarted.current) {
+      hasStarted.current = true;
+      // Use microtask to avoid synchronous setState in effect
+      queueMicrotask(() => {
+        startSimulation();
+      });
     }
-  }, [activeBlueprint, hydrated, messages.length, startSimulation]);
+  }, [activeBlueprint, hydrated, messages.length, startSimulation, isLoading]);
 
   const handleCommand = async (e?: React.FormEvent, overrideInput?: string) => {
     e?.preventDefault();
@@ -146,18 +137,13 @@ export default function Runtime() {
     try {
       const response = await sendMessageToOrchestrator(activeBlueprint!, newMessages, gameState);
       
-      const voiceBlocks = response.narrative_blocks.filter(b => b.type === 'system_voice');
-      const narrativeBlocks = response.narrative_blocks.filter(b => b.type !== 'system_voice');
-
-      if (voiceBlocks.length > 0) {
-        const voiceStore = useVoiceStore.getState();
-        voiceBlocks.forEach(b => voiceStore.setVoiceMessage(b.content));
-      }
+      const narrativeBlocks = response.narrative_blocks;
 
       const assistantMsg: Message = { 
         role: 'assistant', 
         content: formatBlocks(narrativeBlocks), 
         blocks: narrativeBlocks,
+        engine_thoughts: response.engine_thoughts,
         timestamp: Date.now() 
       };
 
@@ -234,6 +220,16 @@ export default function Runtime() {
                 msg.role === 'user' ? 'text-zinc-500 italic' : ''
               }`}
             >
+              {msg.engine_thoughts && (
+                <details className="mb-4 text-[10px] text-zinc-500 border border-zinc-900 rounded opacity-70 hover:opacity-100 transition-opacity">
+                  <summary className="cursor-pointer p-2 bg-zinc-950 font-mono uppercase tracking-[0.2em] outline-none">
+                    [ View Engine Logic ]
+                  </summary>
+                  <div className="p-3 bg-black italic border-t border-zinc-900 whitespace-pre-wrap text-zinc-400">
+                    {msg.engine_thoughts}
+                  </div>
+                </details>
+              )}
               {msg.role === 'user' ? (
                 `> ${msg.content}`
               ) : msg.blocks ? (
@@ -266,6 +262,21 @@ export default function Runtime() {
                       return (
                         <div key={bIdx} className="bg-red-500/5 border border-red-500/10 p-4 text-fresh-blood font-bold tracking-tighter uppercase animate-pulse">
                            <ErgodicTextRenderer text={block.content} status={status} />
+                        </div>
+                      );
+                    }
+
+                    if (block.type === 'system_voice') {
+                      return (
+                        <div key={bIdx} className="border border-fresh-blood/20 bg-fresh-blood/5 p-4 relative overflow-hidden group">
+                          <div className="absolute top-0 left-0 w-1 h-full bg-fresh-blood opacity-50" />
+                          <div className="flex items-center gap-2 mb-2">
+                             <div className="w-1.5 h-1.5 bg-fresh-blood rounded-full animate-pulse" />
+                             <span className="text-[10px] uppercase tracking-[0.3em] text-fresh-blood font-bold">The Voice</span>
+                          </div>
+                          <div className="text-zinc-200 font-light italic text-sm">
+                            <ErgodicTextRenderer text={block.content} status={status} />
+                          </div>
                         </div>
                       );
                     }

@@ -71,7 +71,8 @@ export const useForgeStore = create<ForgeState>()(
       partialize: (state) => ({
         ...state,
         messages: state.messages.map((msg) => {
-          const { attachments, ...messageWithoutFiles } = msg;
+          const messageWithoutFiles = { ...msg };
+          delete (messageWithoutFiles as any).attachments;
           return messageWithoutFiles;
         }),
       }),

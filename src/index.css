@@ -44,6 +44,59 @@
     0% { bottom: 100%; }
     100% { bottom: -100px; }
   }
+
+  /* The Voice Markdown Styling */
+  .markdown-voice {
+    @apply leading-relaxed;
+  }
+
+  .markdown-voice p {
+    @apply mb-4 last:mb-0;
+  }
+
+  .markdown-voice blockquote {
+    @apply border-l-2 border-zinc-700 pl-4 py-1 italic text-zinc-400 mb-4;
+  }
+
+  .markdown-voice ul {
+    @apply list-disc list-inside mb-4 space-y-2;
+  }
+
+  .markdown-voice ol {
+    @apply list-decimal list-inside mb-4 space-y-2;
+  }
+
+  .markdown-voice strong {
+    @apply font-bold text-white;
+  }
+
+  .markdown-voice em {
+    @apply italic text-zinc-300;
+  }
+
+  /* Chat Container Refinement */
+  .voice-chat-container {
+    mask-image: linear-gradient(to bottom, transparent 0%, black 5%, black 95%, transparent 100%);
+  }
+
+  /* Hardware Specialist Input Aesthetic */
+  .voice-input-pane {
+    @apply border-t border-zinc-900 bg-zinc-950/40 backdrop-blur-md relative;
+  }
+
+  .voice-input-pane::before {
+    content: '';
+    @apply absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-white/5 to-transparent;
+  }
+
+  .voice-input-wrapper {
+    @apply p-4 border border-white/[0.03] bg-black/40 rounded-xl shadow-2xl transition-all duration-700;
+  }
+
+  .voice-input-wrapper:focus-within {
+    @apply border-white/[0.08] bg-black/60;
+    box-shadow: 0 0 40px rgba(255, 255, 255, 0.02);
+  }
 }
 
 

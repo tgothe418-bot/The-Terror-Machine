@@ -58,6 +58,7 @@ export interface Message {
   timestamp: number;
   attachments?: Attachment[];
   blocks?: NarrativeBlock[];
+  engine_thoughts?: string;
 }
 
 export interface AppState {
@@ -90,6 +91,7 @@ export interface NarrativeBlock {
 }
 
 export interface BicameralOutput {
+  engine_thoughts: string;
   narrative_blocks: NarrativeBlock[];
   logic_state: LogicState;
 }

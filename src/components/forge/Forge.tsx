@@ -19,7 +19,6 @@ export default function Forge() {
     clearHistory, 
     setAvailableReferenceCharacters, 
     addCharacterToCast, 
-    setHasReferenceMaterial,
     selectedCharacters 
   } = useForgeStore();
   const voiceMessages = useVoiceStore((state) => state.messages);
@@ -38,8 +37,6 @@ export default function Forge() {
     const unsub = useForgeStore.persist.onHydrate(() => setHydrated(false));
     const unsubFinish = useForgeStore.persist.onFinishHydration(() => setHydrated(true));
     
-    setHydrated(useForgeStore.persist.hasHydrated());
-
     return () => {
       unsub();
       unsubFinish();
@@ -162,7 +159,7 @@ export default function Forge() {
         timestamp: Date.now(),
       };
       addMessage(assistantMessage);
-    } catch (error) {
+    } catch {
       const errorMessage: Message = {
         role: 'assistant',
         content: "Error: Connection to Architect severed. Verify API configuration.",
@@ -179,6 +176,8 @@ export default function Forge() {
       downloadJson(blueprint, `scenario_${blueprint.title.toLowerCase().replace(/\s+/g, '_')}.json`);
     }
   };
+
+  if (!hydrated) return null;
 
   return (
     <div className="h-screen bg-black text-zinc-100 flex flex-col font-mono selection:bg-white selection:text-black">

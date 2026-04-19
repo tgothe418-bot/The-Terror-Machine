@@ -1,7 +1,6 @@
 import React from 'react';
 import { User, UserPlus, UserMinus, Shield, AlertTriangle, Edit3 } from 'lucide-react';
 import { useForgeStore } from '../../store/useForgeStore';
-import { CharacterProfile } from '../../types';
 import { motion, AnimatePresence } from 'motion/react';
 
 export default function CastManager() {
