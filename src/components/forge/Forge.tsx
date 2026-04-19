@@ -1,18 +1,27 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ArrowLeft, Download, Send, Terminal, Loader2, Paperclip, X, FileText, Image as ImageIcon } from 'lucide-react';
+import { ArrowLeft, Download, Send, Terminal, Loader2, Paperclip, X, FileText, Image as ImageIcon, Users } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import { useForgeStore } from '../../store/useForgeStore';
 import { useVoiceStore } from '../../store/useVoiceStore';
-import { Message, ScenarioBlueprint, Attachment } from '../../types';
+import { Message, ScenarioBlueprint, Attachment, CharacterProfile } from '../../types';
 import { downloadJson } from '../../lib/download';
-import { extractBlueprint } from '../../lib/jsonParser';
+import { extractBlueprint, extractCastData, extractAddedCharacter } from '../../lib/jsonParser';
 import { sendMessageToArchitect, extractStyleProfile } from '../../services/geminiService';
 import { motion, AnimatePresence } from 'motion/react';
 import { Trash2 } from 'lucide-react';
+import CastManager from './CastManager';
 
 export default function Forge() {
   const setPhase = useAppStore((state) => state.setPhase);
-  const { messages, addMessage, clearHistory } = useForgeStore();
+  const { 
+    messages, 
+    addMessage, 
+    clearHistory, 
+    setAvailableReferenceCharacters, 
+    addCharacterToCast, 
+    setHasReferenceMaterial,
+    selectedCharacters 
+  } = useForgeStore();
   const voiceMessages = useVoiceStore((state) => state.messages);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -20,6 +29,7 @@ export default function Forge() {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [isConfirmingClear, setIsConfirmingClear] = useState(false);
   const [hydrated, setHydrated] = useState(false);
+  const [activeTab, setActiveTab] = useState<'chat' | 'cast'>('chat');
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -67,6 +77,7 @@ export default function Forge() {
       });
     }
     setAttachments((prev) => [...prev, ...newAttachments]);
+    setHasReferenceMaterial(true);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -103,10 +114,23 @@ export default function Forge() {
       const responseText = await sendMessageToArchitect([...messages, userMessage], voiceMessages);
       
       const detectedBlueprint = extractBlueprint(responseText) as ScenarioBlueprint;
+      const detectedCast = extractCastData(responseText);
+      const addedChar = extractAddedCharacter(responseText);
+
+      if (detectedCast) {
+        setAvailableReferenceCharacters(detectedCast);
+        setActiveTab('cast');
+      }
+
+      if (addedChar) {
+        addCharacterToCast(addedChar);
+      }
+
       let finalContent = responseText;
 
       if (detectedBlueprint && (detectedBlueprint.title || detectedBlueprint.setting)) {
-        // If the architect missed the style profile, extract it manually from the user's input/files
+        // Ensure cast is attached to blueprint before finalizing
+        detectedBlueprint.cast = selectedCharacters;
         if (!detectedBlueprint.styleProfile) {
           const userText = [...messages, userMessage]
             .filter(m => m.role === 'user')
@@ -175,6 +199,22 @@ export default function Forge() {
             <Terminal className="w-3 h-3 text-zinc-500" />
             <h1 className="text-[10px] font-bold tracking-[0.3em] uppercase text-zinc-400">The Forge // Architect</h1>
           </div>
+          <div className="h-4 w-[1px] bg-zinc-800 mx-2" />
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setActiveTab('chat')}
+              className={`px-3 py-1 text-[8px] uppercase tracking-widest transition-all ${activeTab === 'chat' ? 'bg-white text-black font-bold' : 'text-zinc-500 hover:text-white'}`}
+            >
+              Intelligence
+            </button>
+            <button
+              onClick={() => setActiveTab('cast')}
+              className={`px-3 py-1 text-[8px] uppercase tracking-widest transition-all flex items-center gap-2 ${activeTab === 'cast' ? 'bg-white text-black font-bold' : 'text-zinc-500 hover:text-white'}`}
+            >
+              <Users className="w-2.5 h-2.5" />
+              Cast ({selectedCharacters.length})
+            </button>
+          </div>
         </div>
 
         <div className="flex items-center gap-4">
@@ -224,62 +264,70 @@ export default function Forge() {
         </div>
       </header>
 
-      {/* Chat Area */}
-      <div 
-        ref={scrollRef}
-        className="flex-1 overflow-y-auto p-6 space-y-8 scrollbar-hide"
-      >
-        <AnimatePresence initial={false}>
-          {messages.map((msg, idx) => (
-            <motion.div
-              key={idx}
-              initial={{ opacity: 0, x: msg.role === 'user' ? 10 : -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.3 }}
-              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-            >
-              <div className={`max-w-[80%] space-y-2 ${msg.role === 'user' ? 'text-right' : 'text-left'}`}>
-                <div className="text-[8px] uppercase tracking-widest text-zinc-600">
-                  {msg.role === 'assistant' ? 'Architect' : 'User'} // {new Date(msg.timestamp).toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                </div>
-                <div className={`p-4 border ${msg.role === 'user' ? 'border-zinc-700 bg-zinc-900/30' : 'border-zinc-800 bg-black'} text-sm leading-relaxed whitespace-pre-wrap`}>
-                  {msg.content}
-                  {msg.attachments && msg.attachments.length > 0 && (
-                    <div className="mt-4 flex flex-wrap gap-2 justify-end">
-                      {msg.attachments.map((att, i) => (
-                        <div key={i} className="flex items-center gap-2 px-2 py-1 border border-zinc-800 bg-black/50 text-[10px] uppercase tracking-widest text-zinc-400">
-                          {att.mimeType.startsWith('image/') ? <ImageIcon className="w-3 h-3" /> : <FileText className="w-3 h-3" />}
-                          <span className="max-w-[100px] truncate">{att.name}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </motion.div>
-          ))}
-          {isLoading && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="flex justify-start"
-            >
-              <div className="max-w-[80%] space-y-2">
-                <div className="text-[8px] uppercase tracking-widest text-zinc-600">
-                  Architect // PROCESSING
-                </div>
-                <div className="p-4 border border-zinc-800 bg-black text-sm flex items-center gap-3">
-                  <span className="animate-pulse">[ PROCESSING ]</span>
-                  <div className="flex gap-1">
-                    <div className="w-1 h-1 bg-white animate-[bounce_1s_infinite_0ms]" />
-                    <div className="w-1 h-1 bg-white animate-[bounce_1s_infinite_200ms]" />
-                    <div className="w-1 h-1 bg-white animate-[bounce_1s_infinite_400ms]" />
+      {/* Chat / Cast Area */}
+      <div className="flex-1 overflow-hidden relative flex flex-col">
+        <div 
+          ref={scrollRef}
+          className={`flex-1 overflow-y-auto p-6 space-y-8 scrollbar-hide ${activeTab !== 'chat' ? 'hidden' : ''}`}
+        >
+          <AnimatePresence initial={false}>
+            {messages.map((msg, idx) => (
+              <motion.div
+                key={idx}
+                initial={{ opacity: 0, x: msg.role === 'user' ? 10 : -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.3 }}
+                className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+              >
+                <div className={`max-w-[80%] space-y-2 ${msg.role === 'user' ? 'text-right' : 'text-left'}`}>
+                  <div className="text-[8px] uppercase tracking-widest text-zinc-600">
+                    {msg.role === 'assistant' ? 'Architect' : 'User'} // {new Date(msg.timestamp).toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                  </div>
+                  <div className={`p-4 border ${msg.role === 'user' ? 'border-zinc-700 bg-zinc-900/30' : 'border-zinc-800 bg-black'} text-sm leading-relaxed whitespace-pre-wrap`}>
+                    {msg.content}
+                    {msg.attachments && msg.attachments.length > 0 && (
+                      <div className="mt-4 flex flex-wrap gap-2 justify-end">
+                        {msg.attachments.map((att, i) => (
+                          <div key={i} className="flex items-center gap-2 px-2 py-1 border border-zinc-800 bg-black/50 text-[10px] uppercase tracking-widest text-zinc-400">
+                            {att.mimeType.startsWith('image/') ? <ImageIcon className="w-3 h-3" /> : <FileText className="w-3 h-3" />}
+                            <span className="max-w-[100px] truncate">{att.name}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+              </motion.div>
+            ))}
+            {isLoading && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="flex justify-start"
+              >
+                <div className="max-w-[80%] space-y-2">
+                  <div className="text-[8px] uppercase tracking-widest text-zinc-600">
+                    Architect // PROCESSING
+                  </div>
+                  <div className="p-4 border border-zinc-800 bg-black text-sm flex items-center gap-3">
+                    <span className="animate-pulse">[ PROCESSING ]</span>
+                    <div className="flex gap-1">
+                      <div className="w-1 h-1 bg-white animate-[bounce_1s_infinite_0ms]" />
+                      <div className="w-1 h-1 bg-white animate-[bounce_1s_infinite_200ms]" />
+                      <div className="w-1 h-1 bg-white animate-[bounce_1s_infinite_400ms]" />
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {activeTab === 'cast' && (
+          <div className="flex-1 overflow-y-auto p-6 scrollbar-hide">
+            <CastManager />
+          </div>
+        )}
       </div>
 
       {/* Input Area */}

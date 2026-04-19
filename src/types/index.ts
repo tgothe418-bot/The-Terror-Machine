@@ -16,6 +16,16 @@ export interface StyleVectors {
 
 export type TensionLevel = 'buildup' | 'visceral_climax' | 'aftermath';
 
+export interface CharacterProfile {
+  id: string;
+  name: string;
+  role: string;
+  personality: string;
+  goals: string;
+  traits: string[];
+  isUserCharacter: boolean;
+}
+
 export interface ScenarioBlueprint {
   title: string;
   contentScale: ContentScale;
@@ -32,6 +42,7 @@ export interface ScenarioBlueprint {
     characteristics?: string;
     motivations?: string;
   }>;
+  cast: CharacterProfile[];
   narrativeRules: {
     incitingIncident: string;
     phaseDirectives: Record<TensionLevel, string>;

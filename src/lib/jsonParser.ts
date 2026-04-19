@@ -36,3 +36,44 @@ export function extractBlueprint(responseText: string): any | null {
     return null;
   }
 }
+
+/**
+ * Extracts character profiles from a [CAST_DATA] block in LLM response.
+ */
+export function extractCastData(responseText: string): any[] | null {
+  const match = responseText.match(/\[CAST_DATA\]\s*([\s\S]*?)(?=\n\n|\n\[|$)/i);
+  if (match) {
+    try {
+      // Find the JSON part within the block
+      const jsonStr = match[1].trim();
+      const start = jsonStr.indexOf('[');
+      const end = jsonStr.lastIndexOf(']');
+      if (start !== -1 && end !== -1) {
+        return JSON.parse(jsonStr.substring(start, end + 1));
+      }
+    } catch (e) {
+      return null;
+    }
+  }
+  return null;
+}
+
+/**
+ * Extracts a single character from a [CAST_ADDED] block.
+ */
+export function extractAddedCharacter(responseText: string): any | null {
+  const match = responseText.match(/\[CAST_ADDED\]\s*([\s\S]*?)(?=\n\n|\n\[|$)/i);
+  if (match) {
+    try {
+      const jsonStr = match[1].trim();
+      const start = jsonStr.indexOf('{');
+      const end = jsonStr.lastIndexOf('}');
+      if (start !== -1 && end !== -1) {
+        return JSON.parse(jsonStr.substring(start, end + 1));
+      }
+    } catch (e) {
+      return null;
+    }
+  }
+  return null;
+}
