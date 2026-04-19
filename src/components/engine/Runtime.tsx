@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ArrowLeft, Terminal, Send, Loader2 } from 'lucide-react';
+import { ArrowLeft, Terminal, Send, Loader2, Eye } from 'lucide-react';
 import { useEngineStore } from '../../core/store';
 import { useAppStore } from '../../store/useAppStore';
+import { useVoiceStore } from '../../store/useVoiceStore';
 import { motion, AnimatePresence } from 'motion/react';
 import { Message, NarrativeBlock } from '../../types';
 
@@ -104,10 +105,18 @@ export default function Runtime() {
         gameState // Pass current state (null initially)
       );
       
+      const voiceBlocks = initialResponse.narrative_blocks.filter(b => b.type === 'system_voice');
+      const narrativeBlocks = initialResponse.narrative_blocks.filter(b => b.type !== 'system_voice');
+
+      if (voiceBlocks.length > 0) {
+        const voiceStore = useVoiceStore.getState();
+        voiceBlocks.forEach(b => voiceStore.setVoiceMessage(b.content));
+      }
+
       addMessage({ 
         role: 'assistant', 
-        content: formatBlocks(initialResponse.narrative_blocks), 
-        blocks: initialResponse.narrative_blocks,
+        content: formatBlocks(narrativeBlocks), 
+        blocks: narrativeBlocks,
         timestamp: Date.now() 
       });
       updateGameState(initialResponse.logic_state); // Save logic state silently
@@ -118,24 +127,33 @@ export default function Runtime() {
     }
   };
 
-  const handleCommand = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim() || isLoading) return;
+  const handleCommand = async (e?: React.FormEvent, overrideInput?: string) => {
+    e?.preventDefault();
+    const commandText = overrideInput || input;
+    if (!commandText.trim() || isLoading) return;
 
-    const userMsg: Message = { role: 'user', content: input, timestamp: Date.now() };
+    const userMsg: Message = { role: 'user', content: commandText, timestamp: Date.now() };
     const newMessages = [...messages, userMsg];
     
     addMessage(userMsg);
-    setInput('');
+    if (!overrideInput) setInput('');
     setIsLoading(true);
 
     try {
       const response = await sendMessageToOrchestrator(activeBlueprint!, newMessages, gameState);
       
+      const voiceBlocks = response.narrative_blocks.filter(b => b.type === 'system_voice');
+      const narrativeBlocks = response.narrative_blocks.filter(b => b.type !== 'system_voice');
+
+      if (voiceBlocks.length > 0) {
+        const voiceStore = useVoiceStore.getState();
+        voiceBlocks.forEach(b => voiceStore.setVoiceMessage(b.content));
+      }
+
       const assistantMsg: Message = { 
         role: 'assistant', 
-        content: formatBlocks(response.narrative_blocks), 
-        blocks: response.narrative_blocks,
+        content: formatBlocks(narrativeBlocks), 
+        blocks: narrativeBlocks,
         timestamp: Date.now() 
       };
 
@@ -286,25 +304,37 @@ export default function Runtime() {
 
       {/* Command Input */}
       <div className="p-8 2xl:p-12 border-t border-zinc-900 bg-black">
-        <form onSubmit={handleCommand} className="relative max-w-4xl 2xl:max-w-6xl mx-auto flex items-center gap-4">
-          <span className="text-zinc-500 text-lg 2xl:text-2xl font-bold tracking-widest">{'>'}</span>
-          <input
-            type="text"
-            autoFocus
-            disabled={isLoading}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder={isLoading ? "Processing..." : "Enter command..."}
-            className="flex-1 bg-transparent border-none p-0 text-sm focus:outline-none focus:ring-0 placeholder:text-zinc-800 disabled:opacity-50"
-          />
+        <div className="max-w-4xl 2xl:max-w-6xl mx-auto flex items-center gap-6">
           <button
-            type="submit"
-            disabled={isLoading || !input.trim()}
-            className="text-zinc-700 hover:text-white transition-colors disabled:opacity-50"
+            onClick={() => handleCommand(undefined, '[USER_ACTION: OBSERVE]')}
+            disabled={isLoading}
+            className="flex flex-col items-center gap-1 group text-zinc-700 hover:text-white transition-all disabled:opacity-30"
+            title="Observe / Wait (Advance Simulation)"
           >
-            <Send className="w-4 h-4" />
+            <Eye className="w-5 h-5 group-hover:scale-110 transition-transform" />
+            <span className="text-[8px] uppercase tracking-tighter">Observe</span>
           </button>
-        </form>
+
+          <form onSubmit={(e) => handleCommand(e)} className="flex-1 flex items-center gap-4 relative">
+            <span className="text-zinc-500 text-lg 2xl:text-2xl font-bold tracking-widest">{'>'}</span>
+            <input
+              type="text"
+              autoFocus
+              disabled={isLoading}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder={isLoading ? "Processing..." : "Enter command..."}
+              className="flex-1 bg-transparent border-none p-0 text-sm focus:outline-none focus:ring-0 placeholder:text-zinc-800 disabled:opacity-50"
+            />
+            <button
+              type="submit"
+              disabled={isLoading || !input.trim()}
+              className="text-zinc-700 hover:text-white transition-colors disabled:opacity-50"
+            >
+              <Send className="w-4 h-4" />
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   );

@@ -32,7 +32,8 @@ export const useEngineStore = create<EngineState>()(
           lore_and_memory: {
             established_facts: [],
             permanent_consequences: []
-          }
+          },
+          npc_fixations: []
         } 
       }),
       clearBlueprint: () => set({ activeBlueprint: null, gameState: null, messages: [] }),

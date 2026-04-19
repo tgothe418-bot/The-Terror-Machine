@@ -281,6 +281,7 @@ export async function sendMessageToOrchestrator(
     output.logic_state.inventory = output.logic_state.inventory || updatedState?.inventory || [];
     output.logic_state.psychological_status = output.logic_state.psychological_status || updatedState?.psychological_status || 'Stable';
     output.logic_state.player_role = output.logic_state.player_role || updatedState?.player_role || 'protagonist';
+    output.logic_state.npc_fixations = output.logic_state.npc_fixations || updatedState?.npc_fixations || [];
     
     // Ensure lore_and_memory is preserved or initialized
     if (updatedState) {

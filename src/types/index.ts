@@ -75,9 +75,13 @@ export interface LogicState {
     established_facts: string[];
     permanent_consequences: string[];
   };
+  npc_fixations: {
+    characterId: string;
+    current_thought: string;
+  }[];
 }
 
-export type BlockType = 'prose' | 'dialogue' | 'internal_monologue' | 'environmental_intrusion';
+export type BlockType = 'prose' | 'dialogue' | 'internal_monologue' | 'environmental_intrusion' | 'system_voice';
 
 export interface NarrativeBlock {
   type: BlockType;

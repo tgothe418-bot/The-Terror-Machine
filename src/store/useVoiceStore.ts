@@ -6,6 +6,7 @@ import { idbStorage } from '../lib/idbStorage';
 interface VoiceState {
   messages: Message[];
   addMessage: (message: Message) => void;
+  setVoiceMessage: (content: string) => void;
   clearHistory: () => void;
 }
 
@@ -26,6 +27,10 @@ export const useVoiceStore = create<VoiceState>()(
       addMessage: (message) =>
         set((state) => ({
           messages: [...state.messages, message],
+        })),
+      setVoiceMessage: (content) =>
+        set((state) => ({
+          messages: [...state.messages, { role: 'voice', content, timestamp: Date.now() }],
         })),
       clearHistory: () => set({ 
         messages: [
