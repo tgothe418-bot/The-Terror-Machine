@@ -5,8 +5,13 @@ import { useEngineStore } from '../../core/store';
 import { ScenarioBlueprint } from '../../types';
 import { motion, AnimatePresence } from 'motion/react';
 
-export default function EngineSetup() {
+interface EngineSetupProps {
+  onContinue?: () => void;
+}
+
+export default function EngineSetup({ onContinue }: EngineSetupProps) {
   const setPhase = useAppStore((state) => state.setPhase);
+  const activeBlueprint = useEngineStore((state) => state.activeBlueprint);
   const setBlueprint = useEngineStore((state) => state.setBlueprint);
   const [error, setError] = useState<string | null>(null);
   const [previewBlueprint, setPreviewBlueprint] = useState<ScenarioBlueprint | null>(null);
@@ -76,25 +81,48 @@ export default function EngineSetup() {
               <div className="text-center space-y-4">
                 <h2 className="text-2xl font-light tracking-widest uppercase">Initialize Simulation</h2>
                 <p className="text-zinc-500 text-xs tracking-tight uppercase leading-relaxed">
-                  Upload a strictly-typed Scenario Blueprint to begin the narrative simulation.
+                  Start a fresh nightmare or resume the existing narrative link.
                 </p>
               </div>
 
-              <div 
-                onClick={() => fileInputRef.current?.click()}
-                className="w-full aspect-video border border-dashed border-zinc-800 hover:border-zinc-500 transition-all duration-500 bg-zinc-950/30 flex flex-col items-center justify-center cursor-pointer group"
-              >
-                <input 
-                  type="file" 
-                  ref={fileInputRef}
-                  onChange={handleFileChange}
-                  accept=".json"
-                  className="hidden"
-                />
-                <FileJson className="w-12 h-12 text-zinc-700 group-hover:text-white transition-colors mb-4" />
-                <span className="text-[10px] uppercase tracking-[0.3em] text-zinc-600 group-hover:text-zinc-300">
-                  Select Blueprint File
-                </span>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                {/* Option 1: Continue */}
+                <button
+                  onClick={onContinue}
+                  disabled={!activeBlueprint}
+                  className={`p-8 border flex flex-col items-center justify-center gap-4 transition-all duration-500 group ${
+                    activeBlueprint 
+                      ? 'border-white bg-white/5 hover:bg-white/10 cursor-pointer' 
+                      : 'border-zinc-900 opacity-30 cursor-not-allowed'
+                  }`}
+                >
+                  <Activity className={`w-10 h-10 ${activeBlueprint ? 'text-white animate-pulse' : 'text-zinc-700'}`} />
+                  <div className="text-center">
+                    <span className="text-[10px] uppercase tracking-[0.3em] block mb-1">Resume Link</span>
+                    <span className="text-[8px] text-zinc-500 uppercase tracking-widest">
+                      {activeBlueprint ? `Active: ${activeBlueprint.title}` : 'No Active Session'}
+                    </span>
+                  </div>
+                </button>
+
+                {/* Option 2: Upload New */}
+                <div 
+                  onClick={() => fileInputRef.current?.click()}
+                  className="p-8 border-2 border-dashed border-zinc-800 hover:border-zinc-500 transition-all duration-500 bg-zinc-950/30 flex flex-col items-center justify-center cursor-pointer group"
+                >
+                  <input 
+                    type="file" 
+                    ref={fileInputRef}
+                    onChange={handleFileChange}
+                    accept=".json"
+                    className="hidden"
+                  />
+                  <Upload className="w-10 h-10 text-zinc-700 group-hover:text-white transition-colors mb-4" />
+                  <div className="text-center">
+                    <span className="text-[10px] uppercase tracking-[0.3em] block mb-1">New Blueprint</span>
+                    <span className="text-[8px] text-zinc-500 uppercase tracking-widest">Override existing session</span>
+                  </div>
+                </div>
               </div>
 
               {error && (

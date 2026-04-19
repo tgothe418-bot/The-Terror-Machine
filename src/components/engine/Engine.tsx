@@ -5,6 +5,7 @@ import Runtime from './Runtime';
 
 export default function Engine() {
   const activeBlueprint = useEngineStore((state) => state.activeBlueprint);
+  const [forcingSetup, setForcingSetup] = useState(false);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
@@ -31,9 +32,15 @@ export default function Engine() {
     );
   }
 
+  // Always show Setup if forcing it, OR if no blueprint exists.
+  // This allows the "selection menu" to be the gateway.
+  if (!activeBlueprint || forcingSetup) {
+    return <EngineSetup onContinue={() => setForcingSetup(false)} />;
+  }
+
   return (
     <div className="min-h-screen bg-black text-zinc-100 flex flex-col font-mono selection:bg-white selection:text-black">
-      {!activeBlueprint ? <EngineSetup /> : <Runtime />}
+      <Runtime />
     </div>
   );
 }

@@ -157,6 +157,12 @@ export default function Runtime() {
               <span className="text-[8px] text-zinc-700 uppercase tracking-widest">
                 // {activeBlueprint.contentLevelDescription}
               </span>
+              <button 
+                onClick={() => setPhase('hub')} // Redirecting to hub or we can add a 'switch'
+                className="ml-4 text-[8px] text-zinc-600 hover:text-white uppercase tracking-widest underline decoration-zinc-800"
+              >
+                Change Scenario
+              </button>
             </div>
           </div>
         </div>
