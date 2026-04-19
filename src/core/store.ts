@@ -28,7 +28,11 @@ export const useEngineStore = create<EngineState>()(
           player_injuries: [],
           inventory: [],
           psychological_status: 'Stable',
-          player_role: role
+          player_role: role,
+          lore_and_memory: {
+            established_facts: [],
+            permanent_consequences: []
+          }
         } 
       }),
       clearBlueprint: () => set({ activeBlueprint: null, gameState: null, messages: [] }),

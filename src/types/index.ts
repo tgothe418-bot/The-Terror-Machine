@@ -8,6 +8,14 @@ export interface Attachment {
   data: string; // base64
 }
 
+export interface StyleVectors {
+  sensoryDominance: string[];
+  syntacticCadence: string;
+  thematicCore: string;
+}
+
+export type TensionLevel = 'buildup' | 'visceral_climax' | 'aftermath';
+
 export interface ScenarioBlueprint {
   title: string;
   contentScale: ContentScale;
@@ -26,10 +34,11 @@ export interface ScenarioBlueprint {
   }>;
   narrativeRules: {
     incitingIncident: string;
-    pacingDirectives: string; // Instructions for the Orchestrator
+    phaseDirectives: Record<TensionLevel, string>;
+    currentTensionLevel: TensionLevel;
     keyPlotElements: string[];
   };
-  styleProfile?: string; // A synthesized description of the user's writing style
+  styleProfile?: StyleVectors; // A synthesized description of the user's writing style
 }
 
 export interface Message {
@@ -50,6 +59,10 @@ export interface LogicState {
   inventory: string[];
   psychological_status: string;
   player_role: 'protagonist' | 'antagonist';
+  lore_and_memory: {
+    established_facts: string[];
+    permanent_consequences: string[];
+  };
 }
 
 export interface BicameralOutput {

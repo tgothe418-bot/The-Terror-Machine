@@ -116,7 +116,14 @@ export default function Runtime() {
     try {
       const response = await sendMessageToOrchestrator(activeBlueprint!, newMessages, gameState);
       
-      addMessage({ role: 'assistant', content: response.narrative_text, timestamp: Date.now() });
+      if (response.summarizedHistory) {
+        // If history was summarized, we update the store with the new truncated history
+        // PLUS the new message from the assistant
+        setMessages([...response.summarizedHistory, { role: 'assistant', content: response.narrative_text, timestamp: Date.now() }]);
+      } else {
+        addMessage({ role: 'assistant', content: response.narrative_text, timestamp: Date.now() });
+      }
+      
       updateGameState(response.logic_state); // Sync mechanical reality
       
     } catch (error) {
