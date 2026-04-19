@@ -10,14 +10,15 @@ export default function ErgodicTextRenderer({ text, status }: ErgodicTextRendere
   const isPanic = status.toLowerCase().includes('panic') || status.toLowerCase().includes('terror');
   const isExhausted = status.toLowerCase().includes('exhaustion') || status.toLowerCase().includes('tired');
 
-  // Memoize processed text to prevent random shifts on re-renders (e.g. when typing in input)
+  // Memoize processed text to prevent random shifts on re-renders
   const processedText = useMemo(() => {
     let result = text;
     if (isPanic) {
       const paragraphs = text.split('\n\n');
       result = paragraphs.map((p, i) => {
-        // 30% chance to add extra breaks
-        if (Math.random() > 0.7 && i < paragraphs.length - 1) {
+        // Use paragraph index and text length as a deterministic seed
+        const seedValue = (p.length + i) % 10;
+        if (seedValue > 7 && i < paragraphs.length - 1) {
           return p + '\n\n\n\n';
         }
         return p;

@@ -99,7 +99,8 @@ export async function extractStyleProfile(userText: string): Promise<StyleVector
 
     const text = response.text || "{}";
     try {
-      return JSON.parse(text) as StyleVectors;
+      const cleanText = text.replace(/```json\n?|```/g, '').trim();
+      return JSON.parse(cleanText) as StyleVectors;
     } catch {
       return {
         sensoryDominance: ["Visual", "Cold"],
@@ -145,7 +146,8 @@ async function summarizeHistory(messages: Message[], currentState: LogicState): 
 
     const text = response.text || "{}";
     try {
-      const parsedLore = JSON.parse(text);
+      const cleanText = text.replace(/```json\n?|```/g, '').trim();
+      const parsedLore = JSON.parse(cleanText);
       return {
         established_facts: Array.isArray(parsedLore.established_facts) ? parsedLore.established_facts : [],
         permanent_consequences: Array.isArray(parsedLore.permanent_consequences) ? parsedLore.permanent_consequences : []
@@ -175,8 +177,13 @@ export async function sendMessageToOrchestrator(
   // Phase 4: rolling summarization threshold (e.g. 10 messages)
   const THRESHOLD = 10;
   if (activeHistory.length > THRESHOLD && updatedState) {
-    const toSummarize = activeHistory.slice(0, 6); // Summarize oldest session
-    const remaining = activeHistory.slice(6);
+    let cutIndex = 6;
+    // Ensure we don't split a user-model pair. If index 5 is 'user', shift the cut.
+    if (activeHistory[cutIndex - 1]?.role === 'user') {
+        cutIndex += 1; 
+    }
+    const toSummarize = activeHistory.slice(0, cutIndex);
+    const remaining = activeHistory.slice(cutIndex);
     
     const newLore = await summarizeHistory(toSummarize, updatedState);
     updatedState.lore_and_memory = newLore;
