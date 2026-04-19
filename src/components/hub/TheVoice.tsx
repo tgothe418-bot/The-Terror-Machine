@@ -198,7 +198,7 @@ export default function TheVoice() {
       {/* Chat Area */}
       <div 
         ref={scrollRef}
-        className="flex-1 overflow-y-auto p-8 space-y-12 scrollbar-hide max-w-4xl mx-auto w-full"
+        className="flex-1 overflow-y-auto p-8 2xl:p-16 space-y-12 2xl:space-y-20 scrollbar-hide max-w-4xl 2xl:max-w-6xl mx-auto w-full"
       >
         <AnimatePresence initial={false}>
           {messages.map((msg, idx) => (

@@ -26,7 +26,7 @@ export default function WelcomeScreen() {
       {/* Background scanline effect */}
       <div className="scanline pointer-events-none" />
       
-      <div className="max-w-4xl w-full space-y-16 relative z-10">
+      <div className="max-w-4xl 2xl:max-w-6xl w-full space-y-16 2xl:space-y-24 relative z-10">
         {/* ... existing header ... */}
         <header className="text-center space-y-6">
           <div className="flex justify-center items-center gap-4">

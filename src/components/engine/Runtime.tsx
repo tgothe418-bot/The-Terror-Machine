@@ -183,7 +183,7 @@ export default function Runtime() {
       {/* Narrative Log */}
       <div 
         ref={scrollRef}
-        className="flex-1 overflow-y-auto p-8 space-y-8 scrollbar-hide"
+        className="flex-1 overflow-y-auto p-8 2xl:p-16 space-y-8 2xl:space-y-12 scrollbar-hide max-w-5xl 2xl:max-w-7xl mx-auto w-full"
       >
         <AnimatePresence initial={false}>
           {messages.map((msg, idx) => (
@@ -220,9 +220,9 @@ export default function Runtime() {
       </div>
 
       {/* Command Input */}
-      <div className="p-8 border-t border-zinc-900 bg-black">
-        <form onSubmit={handleCommand} className="relative max-w-4xl mx-auto flex items-center gap-4">
-          <span className="text-zinc-500 text-lg font-bold tracking-widest">{'>'}</span>
+      <div className="p-8 2xl:p-12 border-t border-zinc-900 bg-black">
+        <form onSubmit={handleCommand} className="relative max-w-4xl 2xl:max-w-6xl mx-auto flex items-center gap-4">
+          <span className="text-zinc-500 text-lg 2xl:text-2xl font-bold tracking-widest">{'>'}</span>
           <input
             type="text"
             autoFocus
