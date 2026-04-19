@@ -15,7 +15,7 @@ export default function TheVoice() {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isConfirmingClear, setIsConfirmingClear] = useState(false);
-  const [hydrated, setHydrated] = useState(false);
+  const [hydrated, setHydrated] = useState(() => useVoiceStore.persist.hasHydrated());
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -33,10 +33,7 @@ export default function TheVoice() {
     const unsub = useVoiceStore.persist.onHydrate(() => setHydrated(false));
     const unsubFinish = useVoiceStore.persist.onFinishHydration(() => setHydrated(true));
     
-    // Check if already hydrated
-    if (useVoiceStore.persist.hasHydrated()) {
-      setHydrated(true);
-    }
+    setHydrated(useVoiceStore.persist.hasHydrated());
 
     return () => {
       unsub();

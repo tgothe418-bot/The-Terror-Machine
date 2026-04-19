@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { ArrowLeft, Terminal, Send, Loader2, Eye } from 'lucide-react';
 import { useEngineStore } from '../../core/store';
 import { useAppStore } from '../../store/useAppStore';
@@ -24,7 +24,6 @@ const HEARTBEAT_INTERVAL = 30000; // 30 seconds
 
 export default function Runtime() {
   const activeBlueprint = useEngineStore((state) => state.activeBlueprint);
-  const clearBlueprint = useEngineStore((state) => state.clearBlueprint);
   const gameState = useEngineStore((state) => state.gameState);
   const updateGameState = useEngineStore((state) => state.updateGameState);
   const messages = useEngineStore((state) => state.messages);
@@ -34,7 +33,7 @@ export default function Runtime() {
   const setPhase = useAppStore((state) => state.setPhase);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [lastActivity, setLastActivity] = useState(Date.now());
+  const [lastActivity, setLastActivity] = useState(() => Date.now());
   const [hydrated, setHydrated] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -53,6 +52,42 @@ export default function Runtime() {
     };
   }, []);
 
+  const handleExit = useCallback(() => {
+    // DO NOT clearBlueprint() - maintain session until explicit wipe
+    setPhase('hub');
+  }, [setPhase]);
+
+  const startSimulation = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const initialResponse = await sendMessageToOrchestrator(
+        activeBlueprint!, 
+        [{ role: 'user', content: 'Begin simulation. Establish environment and initial state.', timestamp: Date.now() }],
+        gameState // Pass current state (null initially)
+      );
+      
+      const voiceBlocks = initialResponse.narrative_blocks.filter(b => b.type === 'system_voice');
+      const narrativeBlocks = initialResponse.narrative_blocks.filter(b => b.type !== 'system_voice');
+
+      if (voiceBlocks.length > 0) {
+        const voiceStore = useVoiceStore.getState();
+        voiceBlocks.forEach(b => voiceStore.setVoiceMessage(b.content));
+      }
+
+      addMessage({ 
+        role: 'assistant', 
+        content: formatBlocks(narrativeBlocks), 
+        blocks: narrativeBlocks,
+        timestamp: Date.now() 
+      });
+      updateGameState(initialResponse.logic_state); // Save logic state silently
+    } catch {
+      addMessage({ role: 'assistant', content: '[ SYSTEM ERROR: NEURAL LINK FAILURE. REBOOT REQUIRED. ]', timestamp: Date.now() });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [activeBlueprint, gameState, addMessage, updateGameState]);
+
   // Monitor for idle timeout
   useEffect(() => {
     const checkIdle = setInterval(() => {
@@ -68,7 +103,7 @@ export default function Runtime() {
     }, 10000);
 
     return () => clearInterval(checkIdle);
-  }, [lastActivity]);
+  }, [lastActivity, addMessage, handleExit]);
 
   // Keep-alive heartbeat (visual only to reassure user)
   useEffect(() => {
@@ -94,38 +129,7 @@ export default function Runtime() {
     if (hydrated && activeBlueprint && messages.length === 0) {
       startSimulation();
     }
-  }, [activeBlueprint, hydrated, messages.length]);
-
-  const startSimulation = async () => {
-    setIsLoading(true);
-    try {
-      const initialResponse = await sendMessageToOrchestrator(
-        activeBlueprint!, 
-        [{ role: 'user', content: 'Begin simulation. Establish environment and initial state.', timestamp: Date.now() }],
-        gameState // Pass current state (null initially)
-      );
-      
-      const voiceBlocks = initialResponse.narrative_blocks.filter(b => b.type === 'system_voice');
-      const narrativeBlocks = initialResponse.narrative_blocks.filter(b => b.type !== 'system_voice');
-
-      if (voiceBlocks.length > 0) {
-        const voiceStore = useVoiceStore.getState();
-        voiceBlocks.forEach(b => voiceStore.setVoiceMessage(b.content));
-      }
-
-      addMessage({ 
-        role: 'assistant', 
-        content: formatBlocks(narrativeBlocks), 
-        blocks: narrativeBlocks,
-        timestamp: Date.now() 
-      });
-      updateGameState(initialResponse.logic_state); // Save logic state silently
-    } catch (error) {
-      addMessage({ role: 'assistant', content: '[ SYSTEM ERROR: NEURAL LINK FAILURE. REBOOT REQUIRED. ]', timestamp: Date.now() });
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  }, [activeBlueprint, hydrated, messages.length, startSimulation]);
 
   const handleCommand = async (e?: React.FormEvent, overrideInput?: string) => {
     e?.preventDefault();
@@ -165,16 +169,11 @@ export default function Runtime() {
       
       updateGameState(response.logic_state); // Sync mechanical reality
       
-    } catch (error) {
+    } catch {
       addMessage({ role: 'assistant', content: '[ SYSTEM ERROR: COMMAND PROCESSING FAILURE. ]', timestamp: Date.now() });
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleExit = () => {
-    // DO NOT clearBlueprint() - maintain session until explicit wipe
-    setPhase('hub');
   };
 
   if (!hydrated || !activeBlueprint) return null;

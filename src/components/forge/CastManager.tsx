@@ -1,5 +1,5 @@
 import React from 'react';
-import { User, UserPlus, UserMinus, Shield, Skull, AlertTriangle, Edit3 } from 'lucide-react';
+import { User, UserPlus, UserMinus, Shield, AlertTriangle, Edit3 } from 'lucide-react';
 import { useForgeStore } from '../../store/useForgeStore';
 import { CharacterProfile } from '../../types';
 import { motion, AnimatePresence } from 'motion/react';

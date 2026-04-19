@@ -6,15 +6,13 @@ import Runtime from './Runtime';
 export default function Engine() {
   const activeBlueprint = useEngineStore((state) => state.activeBlueprint);
   const [forcingSetup, setForcingSetup] = useState(false);
-  const [hydrated, setHydrated] = useState(false);
+  const [hydrated, setHydrated] = useState(() => useEngineStore.persist.hasHydrated());
 
   useEffect(() => {
     const unsub = useEngineStore.persist.onHydrate(() => setHydrated(false));
     const unsubFinish = useEngineStore.persist.onFinishHydration(() => setHydrated(true));
     
-    if (useEngineStore.persist.hasHydrated()) {
-      setHydrated(true);
-    }
+    setHydrated(useEngineStore.persist.hasHydrated());
 
     return () => {
       unsub();

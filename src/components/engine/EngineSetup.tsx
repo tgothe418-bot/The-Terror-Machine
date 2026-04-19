@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { ArrowLeft, Upload, FileJson, AlertCircle, Users, Shield, Skull, Activity, Play } from 'lucide-react';
+import { ArrowLeft, Upload, AlertCircle, Users, Shield, Skull, Activity, Play } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import { useEngineStore } from '../../core/store';
 import { ScenarioBlueprint } from '../../types';

@@ -3,7 +3,7 @@ import { ArrowLeft, Download, Send, Terminal, Loader2, Paperclip, X, FileText, I
 import { useAppStore } from '../../store/useAppStore';
 import { useForgeStore } from '../../store/useForgeStore';
 import { useVoiceStore } from '../../store/useVoiceStore';
-import { Message, ScenarioBlueprint, Attachment, CharacterProfile } from '../../types';
+import { Message, ScenarioBlueprint, Attachment } from '../../types';
 import { downloadJson } from '../../lib/download';
 import { extractBlueprint, extractCastData, extractAddedCharacter } from '../../lib/jsonParser';
 import { sendMessageToArchitect, extractStyleProfile } from '../../services/geminiService';
@@ -28,7 +28,7 @@ export default function Forge() {
   const [blueprint, setBlueprint] = useState<ScenarioBlueprint | null>(null);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [isConfirmingClear, setIsConfirmingClear] = useState(false);
-  const [hydrated, setHydrated] = useState(false);
+  const [hydrated, setHydrated] = useState(() => useForgeStore.persist.hasHydrated());
   const [activeTab, setActiveTab] = useState<'chat' | 'cast'>('chat');
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -38,9 +38,7 @@ export default function Forge() {
     const unsub = useForgeStore.persist.onHydrate(() => setHydrated(false));
     const unsubFinish = useForgeStore.persist.onFinishHydration(() => setHydrated(true));
     
-    if (useForgeStore.persist.hasHydrated()) {
-      setHydrated(true);
-    }
+    setHydrated(useForgeStore.persist.hasHydrated());
 
     return () => {
       unsub();
