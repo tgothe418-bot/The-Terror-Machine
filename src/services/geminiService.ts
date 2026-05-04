@@ -287,7 +287,7 @@ export async function sendMessageToOrchestrator(
     const textResponse = response.text || "{}";
     
     // Use custom parser instead of JSON.parse for robustness
-    const parsed = extractBlueprint(textResponse);
+    const parsed = extractBlueprint(textResponse, ['narrative_blocks', 'engine_thoughts', 'logic_state']);
     
     if (!parsed) {
       throw new Error("Orchestrator returned heavily malformed output that could not be parsed.");

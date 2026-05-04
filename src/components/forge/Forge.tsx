@@ -108,7 +108,7 @@ export default function Forge() {
     try {
       const responseText = await sendMessageToArchitect([...messages, userMessage], voiceMessages);
       
-      const detectedBlueprint = extractBlueprint(responseText) as ScenarioBlueprint;
+      const detectedBlueprint = extractBlueprint(responseText, ['title', 'setting']) as ScenarioBlueprint;
       const detectedCast = extractCastData(responseText);
       const addedChar = extractAddedCharacter(responseText);
 
