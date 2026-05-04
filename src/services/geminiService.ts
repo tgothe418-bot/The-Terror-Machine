@@ -18,9 +18,12 @@ export async function sendMessageToArchitect(messageHistory: Message[], voiceCon
     throw new Error("API Key missing. Configure GEMINI_API_KEY in the Secrets panel.");
   }
 
-  // Convert message history to Gemini format
-  const contents = messageHistory.map((msg) => {
-    const parts: any[] = [{ text: msg.content }];
+  // Convert message history to Gemini format and consolidate consecutive roles
+  const rawContents = messageHistory.map((msg) => {
+    const parts: any[] = [];
+    if (msg.content && msg.content.trim()) {
+      parts.push({ text: msg.content });
+    }
     
     if (msg.attachments && msg.attachments.length > 0) {
       msg.attachments.forEach(att => {
@@ -33,11 +36,29 @@ export async function sendMessageToArchitect(messageHistory: Message[], voiceCon
       });
     }
 
+    if (parts.length === 0) {
+      parts.push({ text: "..." });
+    }
+
     return {
-      role: (msg.role === "assistant" || msg.role === "voice") ? "model" : "user",
+      role: (msg.role === "assistant" || msg.role === "voice" || msg.role === "model") ? "model" : "user",
       parts: parts,
     };
   });
+
+  const contents: any[] = [];
+  for (const msg of rawContents) {
+    if (contents.length === 0) {
+      if (msg.role === 'user') contents.push(msg);
+      continue;
+    }
+    const lastMsg = contents[contents.length - 1];
+    if (lastMsg.role === msg.role) {
+      lastMsg.parts.push(...msg.parts);
+    } else {
+      contents.push(msg);
+    }
+  }
 
   // Inject Voice context if provided
   let systemInstruction = ARCHITECT_SYSTEM_PROMPT;
@@ -165,30 +186,21 @@ export async function sendMessageToOrchestrator(
   blueprint: ScenarioBlueprint, 
   messageHistory: Message[],
   currentState: LogicState | null
-): Promise<BicameralOutput & { summarizedHistory?: Message[] }> {
+): Promise<BicameralOutput> {
   if (!apiKey) {
     throw new Error("API Key missing. Configure GEMINI_API_KEY in the Secrets panel.");
   }
 
-  const activeHistory = [...messageHistory];
+  // Phase 4: Slicing the context window to decouple from persistent UI history
+  // and maintain a lean payload. lore_and_memory handles long-form continuity.
+  const activeHistory = messageHistory.slice(-6);
   const updatedState = currentState ? { ...currentState } : null;
-  let historyWasSummarized = false;
 
-  // Phase 4: rolling summarization threshold (e.g. 10 messages)
-  const THRESHOLD = 10;
-  if (activeHistory.length > THRESHOLD && updatedState) {
-    let cutIndex = 6;
-    // Ensure we don't split a user-model pair. If index 5 is 'user', shift the cut.
-    if (activeHistory[cutIndex - 1]?.role === 'user') {
-        cutIndex += 1; 
-    }
-    const toSummarize = activeHistory.slice(0, cutIndex);
-    const remaining = activeHistory.slice(cutIndex);
-    
+  // Still perform rolling summarization if we have a state to update
+  if (messageHistory.length > 10 && updatedState) {
+    const toSummarize = messageHistory.slice(0, -6);
     const newLore = await summarizeHistory(toSummarize, updatedState);
     updatedState.lore_and_memory = newLore;
-    activeHistory = remaining;
-    historyWasSummarized = true;
   }
 
   // Phase 3: Pacing State Machine - Inject only the current pacing directive
@@ -231,14 +243,37 @@ export async function sendMessageToOrchestrator(
       : ''
   }`;
 
-  const contents = activeHistory.map((msg) => ({
-    role: msg.role === "assistant" ? "model" : "user",
-    parts: [{ text: msg.content }],
-  }));
+  const rawContents = activeHistory.map((msg) => {
+    const parts: any[] = [];
+    if (msg.content && msg.content.trim()) {
+      parts.push({ text: msg.content });
+    }
+    if (parts.length === 0) {
+      parts.push({ text: "..." });
+    }
+    return {
+      role: (msg.role === "assistant" || msg.role === "voice" || msg.role === "model") ? "model" : "user",
+      parts: parts,
+    };
+  });
+
+  const contents: any[] = [];
+  for (const msg of rawContents) {
+    if (contents.length === 0) {
+      if (msg.role === 'user') contents.push(msg);
+      continue;
+    }
+    const lastMsg = contents[contents.length - 1];
+    if (lastMsg.role === msg.role) {
+      lastMsg.parts.push(...msg.parts);
+    } else {
+      contents.push(msg);
+    }
+  }
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-flash-latest",
       contents: contents,
       config: {
         systemInstruction: systemInstruction,
@@ -294,10 +329,7 @@ export async function sendMessageToOrchestrator(
       };
     }
 
-    return {
-      ...output,
-      summarizedHistory: historyWasSummarized ? activeHistory : undefined
-    };
+    return output;
   } catch (error) {
     console.error("Gemini API Error (Orchestrator):", error);
     throw error;
@@ -309,8 +341,16 @@ export async function sendMessageToVoice(messageHistory: Message[], forgeContext
     throw new Error("API Key missing. Configure GEMINI_API_KEY in the Secrets panel.");
   }
 
-  const contents = messageHistory.map((msg) => {
-    const parts: any[] = [{ text: msg.content }];
+  // Limit context for "The Voice" to maintain performance and avoid token bloat
+  const historyWindow = messageHistory.slice(-10);
+
+  const rawContents = historyWindow.map((msg) => {
+    const parts: any[] = [];
+    
+    // Only add text part if it's not empty
+    if (msg.content && msg.content.trim()) {
+      parts.push({ text: msg.content });
+    }
     
     if (msg.attachments && msg.attachments.length > 0) {
       msg.attachments.forEach(att => {
@@ -323,11 +363,40 @@ export async function sendMessageToVoice(messageHistory: Message[], forgeContext
       });
     }
 
+    // If no text and no attachments, ensure at least an empty text part exists for safety,
+    // but try to avoid it if possible.
+    if (parts.length === 0) {
+      parts.push({ text: "..." });
+    }
+
     return {
-      role: (msg.role === "assistant" || msg.role === "voice") ? "model" : "user",
+      role: (msg.role === "assistant" || msg.role === "voice" || msg.role === "model") ? "model" : "user",
       parts: parts,
     };
   });
+
+  // Consolidate consecutive messages from the same role and ensure history starts with 'user'
+  const contents: any[] = [];
+  for (const msg of rawContents) {
+    if (contents.length === 0) {
+      if (msg.role === 'user') {
+        contents.push(msg);
+      }
+      // Skip if first message is model (Gemini requires first message as user)
+      continue;
+    }
+
+    const lastMsg = contents[contents.length - 1];
+    if (lastMsg.role === msg.role) {
+      lastMsg.parts.push(...msg.parts);
+    } else {
+      contents.push(msg);
+    }
+  }
+
+  // Final check: if after consolidation we still have no messages (e.g. all were model),
+  // or the last message is from the model, we need to adjust.
+  // In our case, handleSend always adds a user message last, so it should be fine.
 
   // Inject Forge context if provided
   let systemInstruction = VOICE_SYSTEM_PROMPT;
@@ -345,7 +414,7 @@ export async function sendMessageToVoice(messageHistory: Message[], forgeContext
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-flash-latest",
       contents: contents,
       config: {
         systemInstruction: systemInstruction,

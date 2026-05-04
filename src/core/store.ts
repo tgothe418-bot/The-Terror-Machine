@@ -38,7 +38,15 @@ export const useEngineStore = create<EngineState>()(
       }),
       clearBlueprint: () => set({ activeBlueprint: null, gameState: null, messages: [] }),
       updateGameState: (newState) => set({ gameState: newState }),
-      addMessage: (message) => set((state) => ({ messages: [...state.messages, message] })),
+      addMessage: (message) => set((state) => {
+        const currentStatus = state.gameState?.psychological_status || 'Stable';
+        return {
+          messages: [...state.messages, {
+            ...message,
+            frozen_psychological_status: message.frozen_psychological_status || currentStatus
+          }]
+        };
+      }),
       setMessages: (messages) => set({ messages }),
     }),
     {

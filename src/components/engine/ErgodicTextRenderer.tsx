@@ -3,12 +3,12 @@ import { motion } from 'motion/react';
 
 interface ErgodicTextRendererProps {
   text: string;
-  status: string;
+  psychologicalStatus?: string;
 }
 
-export default function ErgodicTextRenderer({ text, status }: ErgodicTextRendererProps) {
-  const isPanic = status.toLowerCase().includes('panic') || status.toLowerCase().includes('terror');
-  const isExhausted = status.toLowerCase().includes('exhaustion') || status.toLowerCase().includes('tired');
+export default function ErgodicTextRenderer({ text, psychologicalStatus = 'Stable' }: ErgodicTextRendererProps) {
+  const isPanic = psychologicalStatus.toLowerCase().includes('panic') || psychologicalStatus.toLowerCase().includes('terror');
+  const isExhausted = psychologicalStatus.toLowerCase().includes('exhaustion') || psychologicalStatus.toLowerCase().includes('tired');
 
   // Memoize processed text to prevent random shifts on re-renders
   const processedText = useMemo(() => {

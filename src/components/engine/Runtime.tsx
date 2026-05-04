@@ -27,11 +27,11 @@ export default function Runtime() {
   const updateGameState = useEngineStore((state) => state.updateGameState);
   const messages = useEngineStore((state) => state.messages);
   const addMessage = useEngineStore((state) => state.addMessage);
-  const setMessages = useEngineStore((state) => state.setMessages);
   
   const setPhase = useAppStore((state) => state.setPhase);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [lastActivity, setLastActivity] = useState<number>(() => Date.now());
   const [hydrated, setHydrated] = useState(() => useEngineStore.persist.hasHydrated());
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -147,12 +147,7 @@ export default function Runtime() {
         timestamp: Date.now() 
       };
 
-      if (response.summarizedHistory) {
-        setMessages([...response.summarizedHistory, assistantMsg]);
-      } else {
-        addMessage(assistantMsg);
-      }
-      
+      addMessage(assistantMsg);
       updateGameState(response.logic_state); // Sync mechanical reality
       
     } catch {
@@ -165,7 +160,11 @@ export default function Runtime() {
   if (!hydrated || !activeBlueprint) return null;
 
   return (
-    <div className="h-screen bg-black text-zinc-100 flex flex-col font-mono selection:bg-white selection:text-black">
+    <div 
+      className="h-screen bg-black text-zinc-100 flex flex-col font-mono selection:bg-white selection:text-black overflow-hidden"
+      onKeyDown={() => setLastActivity(Date.now())}
+      onClick={() => setLastActivity(Date.now())}
+    >
       {/* Header */}
       <header className="h-16 border-b border-zinc-900 flex items-center justify-between px-6 bg-black z-10">
         <div className="flex items-center gap-6">
@@ -235,7 +234,7 @@ export default function Runtime() {
               ) : msg.blocks ? (
                 <div className="space-y-6">
                   {msg.blocks.map((block, bIdx) => {
-                    const status = gameState?.psychological_status || 'Stable';
+                    const status = msg.frozen_psychological_status;
                     
                     if (block.type === 'dialogue') {
                       return (
@@ -244,7 +243,7 @@ export default function Runtime() {
                             {block.speaker || 'Unknown'}
                           </span>
                           <span className="text-white italic">
-                            <ErgodicTextRenderer text={`"${block.content}"`} status={status} />
+                            <ErgodicTextRenderer text={`"${block.content}"`} psychologicalStatus={status} />
                           </span>
                         </div>
                       );
@@ -253,7 +252,7 @@ export default function Runtime() {
                     if (block.type === 'internal_monologue') {
                       return (
                         <div key={bIdx} className="text-zinc-400 italic font-light pl-4">
-                           <ErgodicTextRenderer text={block.content} status={status} />
+                           <ErgodicTextRenderer text={block.content} psychologicalStatus={status} />
                         </div>
                       );
                     }
@@ -261,7 +260,7 @@ export default function Runtime() {
                     if (block.type === 'environmental_intrusion') {
                       return (
                         <div key={bIdx} className="bg-red-500/5 border border-red-500/10 p-4 text-fresh-blood font-bold tracking-tighter uppercase animate-pulse">
-                           <ErgodicTextRenderer text={block.content} status={status} />
+                           <ErgodicTextRenderer text={block.content} psychologicalStatus={status} />
                         </div>
                       );
                     }
@@ -275,7 +274,7 @@ export default function Runtime() {
                              <span className="text-[10px] uppercase tracking-[0.3em] text-fresh-blood font-bold">The Voice</span>
                           </div>
                           <div className="text-zinc-200 font-light italic text-sm">
-                            <ErgodicTextRenderer text={block.content} status={status} />
+                            <ErgodicTextRenderer text={block.content} psychologicalStatus={status} />
                           </div>
                         </div>
                       );
@@ -285,7 +284,7 @@ export default function Runtime() {
                       <div key={bIdx}>
                         <ErgodicTextRenderer 
                           text={block.content} 
-                          status={status} 
+                          psychologicalStatus={status} 
                         />
                       </div>
                     );
@@ -294,7 +293,7 @@ export default function Runtime() {
               ) : (
                 <ErgodicTextRenderer 
                   text={msg.content} 
-                  status={gameState?.psychological_status || 'Stable'} 
+                  psychologicalStatus={msg.frozen_psychological_status} 
                 />
               )}
             </motion.div>

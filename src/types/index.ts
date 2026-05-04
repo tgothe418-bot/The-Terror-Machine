@@ -59,6 +59,7 @@ export interface Message {
   attachments?: Attachment[];
   blocks?: NarrativeBlock[];
   engine_thoughts?: string;
+  frozen_psychological_status?: string;
 }
 
 export interface AppState {
