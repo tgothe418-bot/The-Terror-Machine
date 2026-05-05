@@ -472,7 +472,7 @@ export async function sendMessageToVoice(messageHistory: Message[], forgeContext
       .join('\n');
     
     if (forgeSummary) {
-      systemInstruction += `\n\nCONTEXT FROM THE FORGE (User's nightmare designs): \n${forgeSummary}\n\nUse this context to be supportive and curious about the user's creative process in the Forge, but maintain your friendly, non-clinical personality.`;
+      systemInstruction += `\n\nCONTEXT FROM THE FORGE (User's nightmare designs): \n${forgeSummary}\n\nUse this context to be morbidly curious and atmospheric about the user's creative process in the Forge. Act as a collaborative partner mirroring their intensity, not a polite assistant.`;
     }
   }
 
