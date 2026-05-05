@@ -53,6 +53,14 @@ export default function Forge() {
     }
   }, [messages, isLoading]);
 
+  // Force the UI back to the Chat tab when the interview begins
+  useEffect(() => {
+    if (forgePhase === 'INTERVIEW_PHASE_1') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setActiveTab('chat');
+    }
+  }, [forgePhase]);
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
@@ -361,7 +369,7 @@ export default function Forge() {
                       timestamp: Date.now()
                     };
                     addMessage(generationMessage);
-                    const genRes = await sendMessageToArchitect([...messages, generationMessage], 'GENERATION', voiceMessages);
+                    const genRes = await sendMessageToArchitect([generationMessage], 'GENERATION', voiceMessages);
                     const detectedBlueprint = extractBlueprint(genRes, ['title', 'setting']) as ScenarioBlueprint;
                     if (detectedBlueprint && (detectedBlueprint.title || detectedBlueprint.setting)) {
                       detectedBlueprint.cast = selectedCharacters;

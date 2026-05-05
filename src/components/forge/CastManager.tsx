@@ -28,7 +28,7 @@ export default function CastManager() {
         .flatMap(m => m.attachments!.filter(a => a.mimeType === 'text/markdown' || a.mimeType === 'text/plain')
         .map(a => atob(a.data)));
       
-      const textToExtract = referenceTextMsgs.join('\\n');
+      const textToExtract = referenceTextMsgs.join('\n');
       if (textToExtract) {
         const cast = await extractCastFromReference(textToExtract);
         if (cast.length > 0) {
