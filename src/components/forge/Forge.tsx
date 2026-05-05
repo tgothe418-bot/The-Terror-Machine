@@ -19,7 +19,8 @@ export default function Forge() {
     clearHistory, 
     setAvailableReferenceCharacters, 
     addCharacterToCast, 
-    selectedCharacters 
+    selectedCharacters,
+    setHasReferenceMaterial
   } = useForgeStore();
   const voiceMessages = useVoiceStore((state) => state.messages);
   const [input, setInput] = useState('');
