@@ -11,6 +11,9 @@ interface ForgeState {
   forgePhase: ForgePhase;
   summaryContext: string;
   referenceMaterials: ReferenceMaterial[];
+  extractedSetting: string;
+  extractedThreat: string;
+  extractedStyle: string;
   addMessage: (message: Message) => void;
   clearHistory: () => void;
   setAvailableReferenceCharacters: (characters: CharacterProfile[]) => void;
@@ -20,6 +23,9 @@ interface ForgeState {
   setHasReferenceMaterial: (has: boolean) => void;
   setForgePhase: (phase: ForgePhase) => void;
   setSummaryContext: (context: string) => void;
+  setExtractedSetting: (setting: string) => void;
+  setExtractedThreat: (threat: string) => void;
+  setExtractedStyle: (style: string) => void;
   addReferenceMaterials: (materials: ReferenceMaterial[]) => void;
   removeReferenceMaterial: (id: string) => void;
 }
@@ -44,6 +50,9 @@ export const useForgeStore = create<ForgeState>()(
       forgePhase: 'CAST_EXTRACTION',
       summaryContext: '',
       referenceMaterials: [],
+      extractedSetting: '',
+      extractedThreat: '',
+      extractedStyle: '',
       addMessage: (message) =>
         set((state) => ({
           messages: [...state.messages, message],
@@ -61,7 +70,10 @@ export const useForgeStore = create<ForgeState>()(
         hasReferenceMaterial: false,
         forgePhase: 'CAST_EXTRACTION',
         summaryContext: '',
-        referenceMaterials: []
+        referenceMaterials: [],
+        extractedSetting: '',
+        extractedThreat: '',
+        extractedStyle: '',
       }),
       setAvailableReferenceCharacters: (characters) => set({ availableReferenceCharacters: characters }),
       addCharacterToCast: (character) => set((state) => {
@@ -79,6 +91,9 @@ export const useForgeStore = create<ForgeState>()(
       setHasReferenceMaterial: (has) => set({ hasReferenceMaterial: has }),
       setForgePhase: (phase) => set({ forgePhase: phase }),
       setSummaryContext: (context) => set({ summaryContext: context }),
+      setExtractedSetting: (setting) => set({ extractedSetting: setting }),
+      setExtractedThreat: (threat) => set({ extractedThreat: threat }),
+      setExtractedStyle: (style) => set({ extractedStyle: style }),
       addReferenceMaterials: (materials) => set((state) => ({ 
         referenceMaterials: [...state.referenceMaterials, ...materials] 
       })),

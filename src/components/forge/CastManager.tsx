@@ -15,7 +15,11 @@ export default function CastManager() {
     setAvailableReferenceCharacters,
     forgePhase,
     setForgePhase,
-    referenceMaterials
+    referenceMaterials,
+    setExtractedSetting,
+    setExtractedThreat,
+    setExtractedStyle,
+    addMessage
   } = useForgeStore();
 
   const [isExtracting, setIsExtracting] = useState(false);
@@ -24,14 +28,41 @@ export default function CastManager() {
     setIsExtracting(true);
     try {
       if (referenceMaterials && referenceMaterials.length > 0) {
+        // 1. Fire the Universal Extractor
         const lore = await analyzeReferenceMaterial(referenceMaterials);
+        
+        // 2. Hydrate the Store with all parsed data
         if (lore.extracted_cast && lore.extracted_cast.length > 0) {
           setAvailableReferenceCharacters(lore.extracted_cast);
         }
-        setForgePhase('INTERVIEW_PHASE_1');
+        if (lore.extracted_setting) setExtractedSetting(lore.extracted_setting);
+        if (lore.extracted_threat) setExtractedThreat(lore.extracted_threat);
+        if (lore.extracted_style) setExtractedStyle(lore.extracted_style);
+
+        // 3. Evaluate and Route the State Machine
+        const hasExternalThreat = Boolean(lore.extracted_setting && lore.extracted_threat);
+
+        if (hasExternalThreat) {
+          // Skip Phase 1 entirely
+          addMessage({ 
+            role: 'assistant', 
+            content: `[ SYSTEM: Lore Extracted. Setting and Threat parameters identified from reference material. Bypassing Phase 1. ]`, 
+            timestamp: Date.now() 
+          });
+          setForgePhase('INTERVIEW_PHASE_2');
+        } else {
+          // Proceed normally
+          addMessage({ 
+            role: 'assistant', 
+            content: `[ SYSTEM: Lore Extracted. Awaiting clarification on external threats. ]`, 
+            timestamp: Date.now() 
+          });
+          setForgePhase('INTERVIEW_PHASE_1');
+        }
       }
     } catch (error) {
-      console.error(error);
+      console.error("Extraction Failed:", error);
+      addMessage({ role: 'assistant', content: "[ SYSTEM ERROR: Failed to parse reference material. ]", timestamp: Date.now() });
     } finally {
       setIsExtracting(false);
     }
