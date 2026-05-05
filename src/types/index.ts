@@ -1,5 +1,12 @@
 export type AppPhase = 'hub' | 'forge' | 'engine' | 'voice';
 
+export type ForgePhase = 
+  | 'CAST_EXTRACTION' 
+  | 'INTERVIEW_PHASE_1' 
+  | 'INTERVIEW_PHASE_2' 
+  | 'CONFIRMATION' 
+  | 'GENERATION';
+
 export type ContentScale = 1 | 2 | 3 | 4 | 5 | 6;
 
 export interface Attachment {

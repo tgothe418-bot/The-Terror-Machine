@@ -6,7 +6,7 @@ import { useVoiceStore } from '../../store/useVoiceStore';
 import { Message, ScenarioBlueprint, Attachment } from '../../types';
 import { downloadJson } from '../../lib/download';
 import { extractBlueprint, extractCastData, extractAddedCharacter } from '../../lib/jsonParser';
-import { sendMessageToArchitect, extractStyleProfile } from '../../services/geminiService';
+import { sendMessageToArchitect, extractStyleProfile, summarizeForgeInterview } from '../../services/geminiService';
 import { motion, AnimatePresence } from 'motion/react';
 import { Trash2 } from 'lucide-react';
 import CastManager from './CastManager';
@@ -20,7 +20,10 @@ export default function Forge() {
     setAvailableReferenceCharacters, 
     addCharacterToCast, 
     selectedCharacters,
-    setHasReferenceMaterial
+    setHasReferenceMaterial,
+    forgePhase,
+    setForgePhase,
+    setSummaryContext
   } = useForgeStore();
   const voiceMessages = useVoiceStore((state) => state.messages);
   const [input, setInput] = useState('');
@@ -107,8 +110,15 @@ export default function Forge() {
     setIsLoading(true);
 
     try {
-      const responseText = await sendMessageToArchitect([...messages, userMessage], voiceMessages);
+      const responseText = await sendMessageToArchitect([...messages, userMessage], forgePhase, voiceMessages);
       
+      let finalContent = responseText;
+
+      if (responseText.includes('[READY_FOR_CONFIRMATION]')) {
+        finalContent = responseText.replace('[READY_FOR_CONFIRMATION]', '').trim();
+        setForgePhase('CONFIRMATION');
+      }
+
       const detectedBlueprint = extractBlueprint(responseText, ['title', 'setting']) as ScenarioBlueprint;
       const detectedCast = extractCastData(responseText);
       const addedChar = extractAddedCharacter(responseText);
@@ -121,8 +131,6 @@ export default function Forge() {
       if (addedChar) {
         addCharacterToCast(addedChar);
       }
-
-      let finalContent = responseText;
 
       if (detectedBlueprint && (detectedBlueprint.title || detectedBlueprint.setting)) {
         // Ensure cast is attached to blueprint before finalizing
@@ -328,77 +336,136 @@ export default function Forge() {
         )}
       </div>
 
-      {/* Input Area */}
+          {/* Input Area */}
       <div className="p-6 border-t border-zinc-900 bg-black">
         <div className="max-w-4xl mx-auto space-y-4">
-          {/* Attachments Preview */}
-          <AnimatePresence>
-            {attachments.length > 0 && (
-              <motion.div 
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 10 }}
-                className="flex flex-wrap gap-2"
+          
+          {forgePhase === 'CONFIRMATION' ? (
+            <motion.div 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="w-full"
+            >
+              <button
+                onClick={async () => {
+                  setIsLoading(true);
+                  try {
+                    const ctx = await summarizeForgeInterview(messages);
+                    setSummaryContext(ctx);
+                    setForgePhase('GENERATION');
+                    
+                    // Fire generation request using summary Context
+                    const generationMessage: Message = {
+                      role: 'user',
+                      content: `[ SYSTEM: GENERATE BLUEPRINT ]\nSummary Context:\n${ctx}\n\nSelected Characters:\n${JSON.stringify(selectedCharacters, null, 2)}`,
+                      timestamp: Date.now()
+                    };
+                    addMessage(generationMessage);
+                    const genRes = await sendMessageToArchitect([...messages, generationMessage], 'GENERATION', voiceMessages);
+                    const detectedBlueprint = extractBlueprint(genRes, ['title', 'setting']) as ScenarioBlueprint;
+                    if (detectedBlueprint && (detectedBlueprint.title || detectedBlueprint.setting)) {
+                      detectedBlueprint.cast = selectedCharacters;
+                      setBlueprint(detectedBlueprint);
+                      addMessage({
+                        role: 'assistant',
+                        content: "[ SYSTEM: BLUEPRINT COMPILED AND READY FOR EXTRACTION ]",
+                        timestamp: Date.now()
+                      });
+                    } else {
+                      addMessage({
+                        role: 'assistant',
+                        content: "Error: Failed to generate blueprint.\n" + genRes,
+                        timestamp: Date.now()
+                      });
+                    }
+                  } catch {
+                    addMessage({
+                      role: 'assistant',
+                      content: "Error during generation loop.",
+                      timestamp: Date.now()
+                    });
+                  } finally {
+                    setIsLoading(false);
+                  }
+                }}
+                disabled={isLoading}
+                className="w-full py-4 bg-fresh-blood text-white text-xs uppercase tracking-[0.3em] font-bold hover:bg-red-700 transition-colors shadow-[0_0_20px_rgba(255,0,0,0.2)] disabled:opacity-50"
               >
-                {attachments.map((att, i) => (
-                  <div key={i} className="flex items-center gap-2 px-3 py-1.5 border border-zinc-700 bg-zinc-900 text-[10px] uppercase tracking-widest">
-                    {att.mimeType.startsWith('image/') ? <ImageIcon className="w-3 h-3" /> : <FileText className="w-3 h-3" />}
-                    <span className="max-w-[150px] truncate">{att.name}</span>
-                    <button 
-                      onClick={() => removeAttachment(i)}
-                      className="text-zinc-500 hover:text-white transition-colors"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </div>
-                ))}
-              </motion.div>
-            )}
-          </AnimatePresence>
+                {isLoading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : '[ INITIALIZE BLUEPRINT SUMMARY ]'}
+              </button>
+            </motion.div>
+          ) : (
+            <>
+              {/* Attachments Preview */}
+              <AnimatePresence>
+                {attachments.length > 0 && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 10 }}
+                    className="flex flex-wrap gap-2"
+                  >
+                    {attachments.map((att, i) => (
+                      <div key={i} className="flex items-center gap-2 px-3 py-1.5 border border-zinc-700 bg-zinc-900 text-[10px] uppercase tracking-widest">
+                        {att.mimeType.startsWith('image/') ? <ImageIcon className="w-3 h-3" /> : <FileText className="w-3 h-3" />}
+                        <span className="max-w-[150px] truncate">{att.name}</span>
+                        <button 
+                          onClick={() => removeAttachment(i)}
+                          className="text-zinc-500 hover:text-white transition-colors"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
-          <form onSubmit={handleSend} className="relative flex flex-col gap-2">
-            <div className="relative">
-                  <textarea
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault();
-                        handleSend();
-                      }
-                    }}
-                    disabled={isLoading}
-                    placeholder={isLoading ? "Awaiting Architect..." : "Input parameters or paste reference material..."}
-                    className="w-full bg-zinc-950 border border-zinc-800 p-4 pr-24 text-sm focus:outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500/20 transition-all placeholder:text-zinc-800 disabled:opacity-50 min-h-[100px] resize-none scrollbar-hide"
-                  />
-                  <div className="absolute right-4 bottom-4 flex items-center gap-4">
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={isLoading}
-                      className="text-zinc-700 hover:text-white transition-all duration-300 disabled:opacity-50 hover:scale-110 active:scale-95"
-                      title="Attach Files (JSON, PDF, Images, MD)"
-                    >
-                      <Paperclip className="w-5 h-5" />
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={isLoading || (!input.trim() && attachments.length === 0)}
-                      className="text-zinc-700 hover:text-white transition-all duration-300 disabled:opacity-50 hover:scale-110 active:scale-95"
-                    >
-                      {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
-                    </button>
-                  </div>
-                  <input 
-                    type="file" 
-                    ref={fileInputRef}
-                    onChange={handleFileChange}
-                    multiple
-                    accept=".json,.pdf,image/*,.md,text/markdown"
-                    className="hidden"
-                  />
-            </div>
-          </form>
+              <form onSubmit={handleSend} className="relative flex flex-col gap-2">
+                <div className="relative">
+                      <textarea
+                        value={input}
+                        onChange={(e) => setInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault();
+                            handleSend();
+                          }
+                        }}
+                        disabled={isLoading}
+                        placeholder={isLoading ? "Awaiting Architect..." : "Input parameters or paste reference material..."}
+                        className="w-full bg-zinc-950 border border-zinc-800 p-4 pr-24 text-sm focus:outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500/20 transition-all placeholder:text-zinc-800 disabled:opacity-50 min-h-[100px] resize-none scrollbar-hide"
+                      />
+                      <div className="absolute right-4 bottom-4 flex items-center gap-4">
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={isLoading}
+                          className="text-zinc-700 hover:text-white transition-all duration-300 disabled:opacity-50 hover:scale-110 active:scale-95"
+                          title="Attach Files (JSON, PDF, Images, MD)"
+                        >
+                          <Paperclip className="w-5 h-5" />
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={isLoading || (!input.trim() && attachments.length === 0)}
+                          className="text-zinc-700 hover:text-white transition-all duration-300 disabled:opacity-50 hover:scale-110 active:scale-95"
+                        >
+                          {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+                        </button>
+                      </div>
+                      <input 
+                        type="file" 
+                        ref={fileInputRef}
+                        onChange={handleFileChange}
+                        multiple
+                        accept=".json,.pdf,image/*,.md,text/markdown"
+                        className="hidden"
+                      />
+                </div>
+              </form>
+            </>
+          )}
         </div>
         <div className="mt-4 text-center">
           <p className="text-[8px] text-zinc-800 uppercase tracking-[0.4em]">

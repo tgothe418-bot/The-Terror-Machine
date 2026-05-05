@@ -1,17 +1,47 @@
-import React from 'react';
-import { User, UserPlus, UserMinus, Shield, AlertTriangle, Edit3 } from 'lucide-react';
+import React, { useState } from 'react';
+import { User, UserPlus, UserMinus, Shield, AlertTriangle, Edit3, Fingerprint, Loader2 } from 'lucide-react';
 import { useForgeStore } from '../../store/useForgeStore';
+import { extractCastFromReference } from '../../services/geminiService';
 import { motion, AnimatePresence } from 'motion/react';
 
 export default function CastManager() {
   const { 
+    messages,
     availableReferenceCharacters, 
     selectedCharacters, 
     addCharacterToCast, 
     removeCharacterFromCast, 
     updateCharacterDetails,
-    hasReferenceMaterial 
+    hasReferenceMaterial,
+    setAvailableReferenceCharacters,
+    forgePhase,
+    setForgePhase
   } = useForgeStore();
+
+  const [isExtracting, setIsExtracting] = useState(false);
+
+  const handleExtractCast = async () => {
+    setIsExtracting(true);
+    try {
+      const referenceTextMsgs = messages
+        .filter(m => m.attachments && m.attachments.length > 0)
+        .flatMap(m => m.attachments!.filter(a => a.mimeType === 'text/markdown' || a.mimeType === 'text/plain')
+        .map(a => atob(a.data)));
+      
+      const textToExtract = referenceTextMsgs.join('\\n');
+      if (textToExtract) {
+        const cast = await extractCastFromReference(textToExtract);
+        if (cast.length > 0) {
+          setAvailableReferenceCharacters(cast);
+          setForgePhase('INTERVIEW_PHASE_1');
+        }
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsExtracting(false);
+    }
+  };
 
   const isLimitReached = selectedCharacters.filter(c => !c.isUserCharacter).length >= 5;
 
@@ -23,6 +53,19 @@ export default function CastManager() {
           {selectedCharacters.filter(c => !c.isUserCharacter).length} / 5 NPCs Established
         </span>
       </div>
+
+      {hasReferenceMaterial && forgePhase === 'CAST_EXTRACTION' && availableReferenceCharacters.length === 0 && (
+        <div className="space-y-4">
+          <button 
+            onClick={handleExtractCast}
+            disabled={isExtracting}
+            className="w-full flex items-center justify-center gap-2 p-3 border border-zinc-800 bg-black text-xs uppercase tracking-widest hover:border-white hover:text-white transition-all disabled:opacity-50"
+          >
+            {isExtracting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Fingerprint className="w-4 h-4" />}
+            {isExtracting ? 'Extracting Cast Details...' : 'Parse Characters from Reference'}
+          </button>
+        </div>
+      )}
 
       {hasReferenceMaterial && availableReferenceCharacters.length > 0 && (
         <div className="space-y-4">

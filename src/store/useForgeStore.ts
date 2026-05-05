@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { Message, CharacterProfile } from '../types';
+import { Message, CharacterProfile, ForgePhase } from '../types';
 import { idbStorage } from '../lib/idbStorage';
 
 interface ForgeState {
@@ -8,6 +8,8 @@ interface ForgeState {
   availableReferenceCharacters: CharacterProfile[];
   selectedCharacters: CharacterProfile[];
   hasReferenceMaterial: boolean;
+  forgePhase: ForgePhase;
+  summaryContext: string;
   addMessage: (message: Message) => void;
   clearHistory: () => void;
   setAvailableReferenceCharacters: (characters: CharacterProfile[]) => void;
@@ -15,6 +17,8 @@ interface ForgeState {
   removeCharacterFromCast: (id: string) => void;
   updateCharacterDetails: (id: string, updates: Partial<CharacterProfile>) => void;
   setHasReferenceMaterial: (has: boolean) => void;
+  setForgePhase: (phase: ForgePhase) => void;
+  setSummaryContext: (context: string) => void;
 }
 
 /**
@@ -34,6 +38,8 @@ export const useForgeStore = create<ForgeState>()(
       availableReferenceCharacters: [],
       selectedCharacters: [],
       hasReferenceMaterial: false,
+      forgePhase: 'CAST_EXTRACTION',
+      summaryContext: '',
       addMessage: (message) =>
         set((state) => ({
           messages: [...state.messages, message],
@@ -48,7 +54,9 @@ export const useForgeStore = create<ForgeState>()(
         ],
         availableReferenceCharacters: [],
         selectedCharacters: [],
-        hasReferenceMaterial: false
+        hasReferenceMaterial: false,
+        forgePhase: 'CAST_EXTRACTION',
+        summaryContext: ''
       }),
       setAvailableReferenceCharacters: (characters) => set({ availableReferenceCharacters: characters }),
       addCharacterToCast: (character) => set((state) => {
@@ -64,6 +72,8 @@ export const useForgeStore = create<ForgeState>()(
         selectedCharacters: state.selectedCharacters.map(c => c.id === id ? { ...c, ...updates } : c)
       })),
       setHasReferenceMaterial: (has) => set({ hasReferenceMaterial: has }),
+      setForgePhase: (phase) => set({ forgePhase: phase }),
+      setSummaryContext: (context) => set({ summaryContext: context }),
     }),
     {
       name: 'the-forge-memory',

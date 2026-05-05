@@ -1,8 +1,8 @@
 import { GoogleGenAI } from "@google/genai";
-import { ARCHITECT_SYSTEM_PROMPT } from "../core/prompts/architect";
+import { CAST_EXTRACTION_PROMPT, INTERVIEW_PHASE_1_PROMPT, INTERVIEW_PHASE_2_PROMPT, GENERATION_PROMPT } from "../core/prompts/architect";
 import { ORCHESTRATOR_SYSTEM_PROMPT } from "../core/prompts/orchestrator";
 import { VOICE_SYSTEM_PROMPT } from "../core/prompts/voice";
-import { Message, ScenarioBlueprint, BicameralOutput, LogicState, StyleVectors } from "../types";
+import { Message, ScenarioBlueprint, BicameralOutput, LogicState, StyleVectors, ForgePhase, CharacterProfile } from "../types";
 import { extractBlueprint } from "../lib/jsonParser";
 
 const apiKey = process.env.GEMINI_API_KEY;
@@ -13,7 +13,7 @@ if (!apiKey) {
 
 const ai = new GoogleGenAI({ apiKey: apiKey || "" });
 
-export async function sendMessageToArchitect(messageHistory: Message[], voiceContext?: Message[]) {
+export async function sendMessageToArchitect(messageHistory: Message[], currentPhase: ForgePhase, voiceContext?: Message[]) {
   if (!apiKey) {
     throw new Error("API Key missing. Configure GEMINI_API_KEY in the Secrets panel.");
   }
@@ -60,8 +60,22 @@ export async function sendMessageToArchitect(messageHistory: Message[], voiceCon
     }
   }
 
+  let systemInstruction = "";
+  switch(currentPhase) {
+    case 'INTERVIEW_PHASE_1':
+      systemInstruction = INTERVIEW_PHASE_1_PROMPT;
+      break;
+    case 'INTERVIEW_PHASE_2':
+      systemInstruction = INTERVIEW_PHASE_2_PROMPT;
+      break;
+    case 'GENERATION':
+      systemInstruction = GENERATION_PROMPT;
+      break;
+    default:
+      systemInstruction = INTERVIEW_PHASE_1_PROMPT;
+  }
+
   // Inject Voice context if provided
-  let systemInstruction = ARCHITECT_SYSTEM_PROMPT;
   if (voiceContext && voiceContext.length > 0) {
     const voiceSummary = voiceContext
       .filter(m => m.role === 'user')
@@ -90,6 +104,56 @@ export async function sendMessageToArchitect(messageHistory: Message[], voiceCon
   } catch (error) {
     console.error("Gemini API Error:", error);
     throw error;
+  }
+}
+
+export async function extractCastFromReference(referenceText: string): Promise<CharacterProfile[]> {
+  if (!apiKey) {
+    throw new Error("API Key missing. Configure GEMINI_API_KEY in the Secrets panel.");
+  }
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: referenceText,
+      config: {
+        systemInstruction: CAST_EXTRACTION_PROMPT,
+        temperature: 0.3,
+        responseMimeType: "application/json",
+      },
+    });
+
+    const text = response.text || "[]";
+    try {
+      const cleanText = text.replace(/```json\n?|```/g, '').trim();
+      const parsed = JSON.parse(cleanText);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  } catch (error) {
+    console.error("Cast Extraction Error:", error);
+    return [];
+  }
+}
+
+export async function summarizeForgeInterview(history: Message[]): Promise<string> {
+  if (!apiKey) {
+    throw new Error("API Key missing. Configure GEMINI_API_KEY in the Secrets panel.");
+  }
+  const historyText = history.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n');
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: historyText,
+      config: {
+        systemInstruction: "Condense this interview history into a flat, objective list of established facts, rules, setting details, threats, and psychological parameters.",
+        temperature: 0.5,
+      },
+    });
+    return response.text || "Summary failed.";
+  } catch (error) {
+    console.error("Forge Summary Error:", error);
+    return "Summary failed due to error.";
   }
 }
 
