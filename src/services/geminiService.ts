@@ -4,6 +4,7 @@ import { ORCHESTRATOR_SYSTEM_PROMPT } from "../core/prompts/orchestrator";
 import { VOICE_SYSTEM_PROMPT } from "../core/prompts/voice";
 import { Message, ScenarioBlueprint, BicameralOutput, LogicState, StyleVectors, ForgePhase, ReferenceMaterial, ExtractedLore } from "../types";
 import { extractBlueprint } from "../lib/jsonParser";
+import { useForgeStore } from "../store/useForgeStore";
 
 const apiKey = process.env.GEMINI_API_KEY;
 
@@ -60,8 +61,17 @@ export async function sendMessageToArchitect(messageHistory: Message[], currentP
     }
   }
 
-  let systemInstruction = "";
-  switch(currentPhase) {
+  // 1. Pull the established lore from the Store
+  const { 
+    extractedSetting, 
+    extractedThreat, 
+    extractedStyle, 
+    availableReferenceCharacters 
+  } = useForgeStore.getState();
+
+  // 2. Select the base Persona/Instruction
+  let systemInstruction = '';
+  switch (currentPhase) {
     case 'INTERVIEW_PHASE_1':
       systemInstruction = INTERVIEW_PHASE_1_PROMPT;
       break;
@@ -73,6 +83,38 @@ export async function sendMessageToArchitect(messageHistory: Message[], currentP
       break;
     default:
       systemInstruction = INTERVIEW_PHASE_1_PROMPT;
+  }
+
+  // 3. Assemble the Dynamic Lore Context
+  let loreContext = '\n\n### [ ESTABLISHED WORLD LORE ]\n';
+  let hasLore = false;
+
+  if (extractedSetting) {
+    loreContext += `- SETTING: ${extractedSetting}\n`;
+    hasLore = true;
+  }
+  if (extractedThreat) {
+    loreContext += `- PRIMARY THREAT: ${extractedThreat}\n`;
+    hasLore = true;
+  }
+  if (extractedStyle) {
+    loreContext += `- ATMOSPHERE & STYLE: ${extractedStyle}\n`;
+    hasLore = true;
+  }
+  if (availableReferenceCharacters && availableReferenceCharacters.length > 0) {
+    const castNames = availableReferenceCharacters.map(c => c.name).join(', ');
+    loreContext += `- ESTABLISHED CAST: ${castNames}\n`;
+    hasLore = true;
+  }
+
+  // 4. Inject the Lore into the System Instruction
+  if (hasLore) {
+    if (currentPhase === 'GENERATION') {
+      loreContext += `\nCRITICAL DIRECTIVE: Incorporate this extracted lore seamlessly into the final ScenarioBlueprint JSON.\n`;
+    } else {
+      loreContext += `\nCRITICAL DIRECTIVE: This lore was extracted from the User's uploaded reference materials. Treat it as established canonical fact. Do NOT ask the User to define these elements. Weave this data into your dark, atmospheric dialogue with morbid appreciation.\n`;
+    }
+    systemInstruction += loreContext;
   }
 
   // Inject Voice context if provided
