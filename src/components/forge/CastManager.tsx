@@ -3,7 +3,6 @@ import { User, UserPlus, UserMinus, Shield, AlertTriangle, Edit3, Fingerprint, L
 import { useForgeStore } from '../../store/useForgeStore';
 import { analyzeReferenceMaterial } from '../../services/geminiService';
 import { motion, AnimatePresence } from 'motion/react';
-import { FileDropzone } from './FileDropzone';
 
 export default function CastManager() {
   const { 
@@ -13,12 +12,10 @@ export default function CastManager() {
     removeCharacterFromCast, 
     updateCharacterDetails,
     hasReferenceMaterial,
-    setHasReferenceMaterial,
     setAvailableReferenceCharacters,
     forgePhase,
     setForgePhase,
     referenceMaterials,
-    addReferenceMaterials,
     setExtractedSetting,
     setExtractedThreat,
     setExtractedStyle,
@@ -81,16 +78,6 @@ export default function CastManager() {
           {selectedCharacters.filter(c => !c.isUserCharacter).length} / 5 NPCs Established
         </span>
       </div>
-
-      {/* The Multimodal Ingestion Zone */}
-      {forgePhase === 'CAST_EXTRACTION' && (
-        <div className="border-b border-zinc-900 pb-6 mb-2">
-          <FileDropzone onFilesParsed={(materials) => {
-            addReferenceMaterials(materials);
-            setHasReferenceMaterial(true);
-          }} />
-        </div>
-      )}
 
       {hasReferenceMaterial && forgePhase === 'CAST_EXTRACTION' && availableReferenceCharacters.length === 0 && (
         <div className="space-y-4">

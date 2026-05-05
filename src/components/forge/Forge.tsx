@@ -10,7 +10,6 @@ import { sendMessageToArchitect, extractStyleProfile, summarizeForgeInterview } 
 import { motion, AnimatePresence } from 'motion/react';
 import { Trash2 } from 'lucide-react';
 import CastManager from './CastManager';
-import { parseFile } from '../../lib/fileParser';
 
 export default function Forge() {
   const setPhase = useAppStore((state) => state.setPhase);
@@ -24,8 +23,7 @@ export default function Forge() {
     setHasReferenceMaterial,
     forgePhase,
     setForgePhase,
-    setSummaryContext,
-    addReferenceMaterials
+    setSummaryContext
   } = useForgeStore();
   const voiceMessages = useVoiceStore((state) => state.messages);
   const [input, setInput] = useState('');
@@ -68,32 +66,35 @@ export default function Forge() {
     if (!files) return;
 
     const newAttachments: Attachment[] = [];
-    const newMaterials = [];
+    const allowedTypes = ['image/', 'application/pdf', 'application/json', 'text/markdown', 'text/plain'];
 
     for (let i = 0; i < files.length; i++) {
-        try {
-          // Route through our universal parser
-          const parsed = await parseFile(files[i]);
-          newMaterials.push(parsed);
-          
-          // Map to standard attachments for the chat UI preview
-          newAttachments.push({
-            name: parsed.fileName,
-            mimeType: parsed.mimeType,
-            data: parsed.content,
-          });
-        } catch (err) {
-          console.error("Failed to parse file:", err);
-        }
-    }
+      const file = files[i];
+      const isAllowed = allowedTypes.some(type => file.type.startsWith(type)) || 
+                        file.name.endsWith('.md') || 
+                        file.name.endsWith('.json');
+      
+      if (!isAllowed) continue;
 
-    if (newMaterials.length > 0) {
-      setAttachments((prev) => [...prev, ...newAttachments]);
-      addReferenceMaterials(newMaterials);
-      setHasReferenceMaterial(true);
+      const base64 = await fileToBase64(file);
+      newAttachments.push({
+        name: file.name,
+        mimeType: file.type || (file.name.endsWith('.md') ? 'text/markdown' : 'application/octet-stream'),
+        data: base64.split(',')[1], // Remove prefix
+      });
     }
-    
+    setAttachments((prev) => [...prev, ...newAttachments]);
+    setHasReferenceMaterial(true);
     if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = (error) => reject(error);
+    });
   };
 
   const removeAttachment = (index: number) => {
