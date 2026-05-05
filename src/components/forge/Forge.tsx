@@ -122,6 +122,21 @@ export default function Forge() {
       
       let finalContent = responseText;
 
+      // Phase 1 Transition Handshake
+      if (responseText.includes('[PHASE_1_COMPLETE]')) {
+        const cleanResponse = responseText.replace('[PHASE_1_COMPLETE]', '').trim();
+
+        // Only add to log if there is conversational text attached
+        if (cleanResponse) {
+          addMessage({ role: 'assistant', content: cleanResponse, timestamp: Date.now() });
+        }
+
+        // Advance the state machine to Phase 2
+        setForgePhase('INTERVIEW_PHASE_2');
+        setIsLoading(false);
+        return; // Exit the loop
+      }
+
       if (responseText.includes('[READY_FOR_CONFIRMATION]')) {
         finalContent = responseText.replace('[READY_FOR_CONFIRMATION]', '').trim();
         setForgePhase('CONFIRMATION');
