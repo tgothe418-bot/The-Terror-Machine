@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { Message, CharacterProfile, ForgePhase } from '../types';
+import { Message, CharacterProfile, ForgePhase, ReferenceMaterial } from '../types';
 import { idbStorage } from '../lib/idbStorage';
 
 interface ForgeState {
@@ -10,6 +10,7 @@ interface ForgeState {
   hasReferenceMaterial: boolean;
   forgePhase: ForgePhase;
   summaryContext: string;
+  referenceMaterials: ReferenceMaterial[];
   addMessage: (message: Message) => void;
   clearHistory: () => void;
   setAvailableReferenceCharacters: (characters: CharacterProfile[]) => void;
@@ -19,6 +20,8 @@ interface ForgeState {
   setHasReferenceMaterial: (has: boolean) => void;
   setForgePhase: (phase: ForgePhase) => void;
   setSummaryContext: (context: string) => void;
+  addReferenceMaterials: (materials: ReferenceMaterial[]) => void;
+  removeReferenceMaterial: (id: string) => void;
 }
 
 /**
@@ -40,6 +43,7 @@ export const useForgeStore = create<ForgeState>()(
       hasReferenceMaterial: false,
       forgePhase: 'CAST_EXTRACTION',
       summaryContext: '',
+      referenceMaterials: [],
       addMessage: (message) =>
         set((state) => ({
           messages: [...state.messages, message],
@@ -56,7 +60,8 @@ export const useForgeStore = create<ForgeState>()(
         selectedCharacters: [],
         hasReferenceMaterial: false,
         forgePhase: 'CAST_EXTRACTION',
-        summaryContext: ''
+        summaryContext: '',
+        referenceMaterials: []
       }),
       setAvailableReferenceCharacters: (characters) => set({ availableReferenceCharacters: characters }),
       addCharacterToCast: (character) => set((state) => {
@@ -74,6 +79,12 @@ export const useForgeStore = create<ForgeState>()(
       setHasReferenceMaterial: (has) => set({ hasReferenceMaterial: has }),
       setForgePhase: (phase) => set({ forgePhase: phase }),
       setSummaryContext: (context) => set({ summaryContext: context }),
+      addReferenceMaterials: (materials) => set((state) => ({ 
+        referenceMaterials: [...state.referenceMaterials, ...materials] 
+      })),
+      removeReferenceMaterial: (id) => set((state) => ({
+        referenceMaterials: state.referenceMaterials.filter(m => m.id !== id)
+      })),
     }),
     {
       name: 'the-forge-memory',

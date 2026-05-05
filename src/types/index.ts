@@ -9,6 +9,14 @@ export type ForgePhase =
 
 export type ContentScale = 1 | 2 | 3 | 4 | 5 | 6;
 
+export interface ReferenceMaterial {
+  id: string;
+  type: 'text' | 'image';
+  mimeType: string;
+  content: string; // Raw text for docs, clean Base64 string for images
+  fileName: string;
+}
+
 export interface Attachment {
   name: string;
   mimeType: string;
