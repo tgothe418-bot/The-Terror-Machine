@@ -2,11 +2,12 @@ import React, { useMemo } from 'react';
 import { motion } from 'motion/react';
 
 interface ErgodicTextRendererProps {
+  id?: string;
   text: string;
   psychologicalStatus?: string;
 }
 
-export default function ErgodicTextRenderer({ text, psychologicalStatus = 'Stable' }: ErgodicTextRendererProps) {
+export default function ErgodicTextRenderer({ id, text, psychologicalStatus = 'Stable' }: ErgodicTextRendererProps) {
   const isPanic = psychologicalStatus.toLowerCase().includes('panic') || psychologicalStatus.toLowerCase().includes('terror');
   const isExhausted = psychologicalStatus.toLowerCase().includes('exhaustion') || psychologicalStatus.toLowerCase().includes('tired');
 
@@ -33,7 +34,7 @@ export default function ErgodicTextRenderer({ text, psychologicalStatus = 'Stabl
 
   return (
     <motion.div 
-      key={text}
+      key={id || text.substring(0, 20)} // Use an ID, or safely fallback to a static substring, NEVER the full mutating text
       initial={{ opacity: 0, scale: 0.99 }}
       animate={{ 
         opacity: 1,
@@ -49,6 +50,7 @@ export default function ErgodicTextRenderer({ text, psychologicalStatus = 'Stabl
         opacity: { duration: 1 },
         scale: { duration: 0.5 }
       }}
+      style={{ willChange: isPanic ? 'transform, filter, opacity' : 'auto' }} // Hardware acceleration flag
       className={containerClasses}
     >
       {processedText}
