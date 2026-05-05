@@ -17,6 +17,13 @@ export interface ReferenceMaterial {
   fileName: string;
 }
 
+export interface ExtractedLore {
+  extracted_cast: CharacterProfile[];
+  extracted_setting: string;
+  extracted_threat: string;
+  extracted_style: string;
+}
+
 export interface Attachment {
   name: string;
   mimeType: string;

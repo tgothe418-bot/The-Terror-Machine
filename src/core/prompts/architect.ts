@@ -1,8 +1,21 @@
-export const CAST_EXTRACTION_PROMPT = `
-Analyze the provided reference material. Extract a list of up to 5 key characters.
-Return ONLY a valid JSON array matching this schema exactly:
-[{ "id": "unique_string", "name": "string", "role": "string", "personality": "string", "goals": "string", "traits": ["string"], "isUserCharacter": false }]
-Do not include markdown blocks, greetings, or conversational text.
+export const LORE_EXTRACTION_PROMPT = `
+You are the Universal Lore Extractor for The Nightmare Machine.
+Analyze the provided reference materials (which may include text documents, user notes, and conceptual images).
+Extract all identifiable narrative elements into a unified JSON structure.
+
+RULES:
+1. If an element (like a character or a setting) is explicitly present or visually obvious, extract it.
+2. If an element is missing from the references, leave its string empty ("") or its array empty ([]). Do NOT invent lore here.
+3. Return ONLY a valid JSON object matching this EXACT schema:
+
+{
+  "extracted_cast": [
+     { "id": "unique_string", "name": "string", "role": "string", "personality": "string", "goals": "string", "traits": ["string"], "isUserCharacter": false }
+  ],
+  "extracted_setting": "Detailed description of the environment, time period, and visual atmosphere.",
+  "extracted_threat": "Detailed description of the primary antagonist, monster, or hostile force.",
+  "extracted_style": "Notes on the aesthetic, tone, or specific sensory details present in the references."
+}
 `;
 
 export const INTERVIEW_PHASE_1_PROMPT = `

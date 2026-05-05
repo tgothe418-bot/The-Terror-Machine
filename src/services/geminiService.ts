@@ -1,8 +1,8 @@
 import { GoogleGenAI } from "@google/genai";
-import { CAST_EXTRACTION_PROMPT, INTERVIEW_PHASE_1_PROMPT, INTERVIEW_PHASE_2_PROMPT, GENERATION_PROMPT } from "../core/prompts/architect";
+import { LORE_EXTRACTION_PROMPT, INTERVIEW_PHASE_1_PROMPT, INTERVIEW_PHASE_2_PROMPT, GENERATION_PROMPT } from "../core/prompts/architect";
 import { ORCHESTRATOR_SYSTEM_PROMPT } from "../core/prompts/orchestrator";
 import { VOICE_SYSTEM_PROMPT } from "../core/prompts/voice";
-import { Message, ScenarioBlueprint, BicameralOutput, LogicState, StyleVectors, ForgePhase, CharacterProfile } from "../types";
+import { Message, ScenarioBlueprint, BicameralOutput, LogicState, StyleVectors, ForgePhase, ReferenceMaterial, ExtractedLore } from "../types";
 import { extractBlueprint } from "../lib/jsonParser";
 
 const apiKey = process.env.GEMINI_API_KEY;
@@ -107,34 +107,53 @@ export async function sendMessageToArchitect(messageHistory: Message[], currentP
   }
 }
 
-export async function extractCastFromReference(referenceText: string): Promise<CharacterProfile[]> {
-  if (!apiKey) {
-    throw new Error("API Key missing. Configure GEMINI_API_KEY in the Secrets panel.");
+export const analyzeReferenceMaterial = async (materials: ReferenceMaterial[]): Promise<ExtractedLore> => {
+  if (!materials || materials.length === 0) {
+    throw new Error("No reference materials provided.");
   }
+
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: referenceText,
-      config: {
-        systemInstruction: CAST_EXTRACTION_PROMPT,
-        temperature: 0.3,
-        responseMimeType: "application/json",
-      },
+    // 1. Map our generic ReferenceMaterial objects into Gemini's specific 'Part' interface
+    const multimodalParts = materials.map((mat) => {
+      if (mat.type === 'image') {
+        return {
+          inlineData: {
+            mimeType: mat.mimeType,
+            data: mat.content, // This is the clean base64 string we created in Step 1
+          },
+        };
+      } else {
+        return {
+          text: `--- SOURCE FILE: ${mat.fileName} ---\n${mat.content}\n--- END SOURCE FILE ---`,
+        };
+      }
     });
 
-    const text = response.text || "[]";
-    try {
-      const cleanText = text.replace(/```json\n?|```/g, '').trim();
-      const parsed = JSON.parse(cleanText);
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
-    }
+    // 2. Initialize the model with the Extraction Prompt
+    const response = await ai.models.generateContent({
+      model: 'gemini-1.5-pro-latest', // Pro is required for complex multimodal extraction
+      contents: [
+        "Extract the lore from the following materials.", 
+        ...multimodalParts
+      ],
+      config: {
+        systemInstruction: LORE_EXTRACTION_PROMPT,
+      }
+    });
+
+    const responseText = response.text || "{}";
+
+    // 4. Parse the JSON (Utilizing your existing JSON parser/sanitizer)
+    const cleanJsonString = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+    const extractedData: ExtractedLore = JSON.parse(cleanJsonString);
+
+    return extractedData;
+    
   } catch (error) {
-    console.error("Cast Extraction Error:", error);
-    return [];
+    console.error('Lore Extraction Failed:', error);
+    throw error;
   }
-}
+};
 
 export async function summarizeForgeInterview(history: Message[]): Promise<string> {
   if (!apiKey) {

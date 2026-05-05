@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
 import { User, UserPlus, UserMinus, Shield, AlertTriangle, Edit3, Fingerprint, Loader2 } from 'lucide-react';
 import { useForgeStore } from '../../store/useForgeStore';
-import { extractCastFromReference } from '../../services/geminiService';
+import { analyzeReferenceMaterial } from '../../services/geminiService';
 import { motion, AnimatePresence } from 'motion/react';
 
 export default function CastManager() {
   const { 
-    messages,
     availableReferenceCharacters, 
     selectedCharacters, 
     addCharacterToCast, 
@@ -15,7 +14,8 @@ export default function CastManager() {
     hasReferenceMaterial,
     setAvailableReferenceCharacters,
     forgePhase,
-    setForgePhase
+    setForgePhase,
+    referenceMaterials
   } = useForgeStore();
 
   const [isExtracting, setIsExtracting] = useState(false);
@@ -23,18 +23,12 @@ export default function CastManager() {
   const handleExtractCast = async () => {
     setIsExtracting(true);
     try {
-      const referenceTextMsgs = messages
-        .filter(m => m.attachments && m.attachments.length > 0)
-        .flatMap(m => m.attachments!.filter(a => a.mimeType === 'text/markdown' || a.mimeType === 'text/plain')
-        .map(a => atob(a.data)));
-      
-      const textToExtract = referenceTextMsgs.join('\n');
-      if (textToExtract) {
-        const cast = await extractCastFromReference(textToExtract);
-        if (cast.length > 0) {
-          setAvailableReferenceCharacters(cast);
-          setForgePhase('INTERVIEW_PHASE_1');
+      if (referenceMaterials && referenceMaterials.length > 0) {
+        const lore = await analyzeReferenceMaterial(referenceMaterials);
+        if (lore.extracted_cast && lore.extracted_cast.length > 0) {
+          setAvailableReferenceCharacters(lore.extracted_cast);
         }
+        setForgePhase('INTERVIEW_PHASE_1');
       }
     } catch (error) {
       console.error(error);
