@@ -85,14 +85,16 @@ export default function TheVoice() {
       // Output to Engine if simulation is active
       const engineStore = useEngineStore.getState();
       if (engineStore.activeBlueprint) {
+        // Ensure response content extraction converts the narrative blocks array into clean text strings
+        const combinedProse = response.narrative_blocks
+          ? response.narrative_blocks.map((b: any) => b.content).join('\n')
+          : typeof response === 'string' ? response : '';
+
         engineStore.addMessage({
           role: 'voice',
-          content: response,
+          content: combinedProse,
           timestamp: Date.now(),
-          blocks: [{
-            type: 'system_voice',
-            content: response
-          }]
+          blocks: response.narrative_blocks || [{ type: 'prose', content: combinedProse }]
         });
       }
     } catch (err: any) {

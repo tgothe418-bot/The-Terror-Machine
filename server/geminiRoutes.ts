@@ -4,6 +4,7 @@ import { LORE_EXTRACTION_PROMPT, architectPrompt } from "../src/core/prompts/arc
 import { ORCHESTRATOR_SYSTEM_PROMPT } from "../src/core/prompts/orchestrator";
 import { voicePrompt } from "../src/core/prompts/voice";
 import { extractBlueprint } from "../src/lib/jsonParser";
+import { BicameralOutput } from "../src/types";
 
 const router = express.Router();
 
@@ -386,7 +387,16 @@ router.post("/chat", async (req, res) => {
     output.logic_state.npc_fixations = output.logic_state.npc_fixations || updatedState?.npc_fixations || [];
     
     if (updatedState) {
-      output.logic_state.lore_and_memory = updatedState.lore_and_memory;
+      // Allow the model's newly generated facts and consequences to persist.
+      // Only fallback to client state properties if the model omitted them entirely.
+      output.logic_state.lore_and_memory = {
+        established_facts: output.logic_state.lore_and_memory?.established_facts?.length 
+          ? output.logic_state.lore_and_memory.established_facts 
+          : updatedState.lore_and_memory?.established_facts || [],
+        permanent_consequences: output.logic_state.lore_and_memory?.permanent_consequences?.length 
+          ? output.logic_state.lore_and_memory.permanent_consequences 
+          : updatedState.lore_and_memory?.permanent_consequences || []
+      };
     } else {
       output.logic_state.lore_and_memory = (parsed as any).logic_state?.lore_and_memory || { established_facts: [], permanent_consequences: [] };
     }

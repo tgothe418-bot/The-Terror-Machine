@@ -175,7 +175,15 @@ export default function Forge() {
                 const textAttachments = m.attachments
                   .filter(a => a.mimeType === 'text/markdown' || a.mimeType === 'text/plain')
                   // Decode base64 to include actual text reference
-                  .map(a => atob(a.data)) 
+                  .map(a => {
+                    try {
+                      // Verify data presence and attempt decoding safely
+                      return a.data ? atob(a.data) : '';
+                    } catch (e) {
+                      console.warn("// STYLE EXTRACTION LAYER EXCEPTION // Malformed frame ignored:", e);
+                      return '';
+                    }
+                  })
                   .join('\n');
                 text += '\n' + textAttachments;
               }
