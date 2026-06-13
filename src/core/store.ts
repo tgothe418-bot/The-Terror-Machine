@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { ScenarioBlueprint, LogicState, Message } from '../types';
 import { idbStorage } from '../lib/idbStorage';
+import { distillContext } from '../services/geminiService';
 
 interface EngineState {
   activeBlueprint: ScenarioBlueprint | null;
@@ -27,7 +28,7 @@ export const useEngineStore = create<EngineState>()(
       gameState: null,
       messages: [],
       textBuffer: [],
-      maxBufferTurns: 6,
+      maxBufferTurns: 12,
       worldStateSummary: "The subject is contained. Initial parameters active.",
       setBlueprint: (blueprint, role) => set({ 
         activeBlueprint: blueprint, 
@@ -77,10 +78,26 @@ export const useEngineStore = create<EngineState>()(
           get().pruneContext();
         }
       },
-      pruneContext: () => {
+      pruneContext: async () => {
         const currentBuffer = get().textBuffer;
+        const currentSummary = get().worldStateSummary;
+        
+        // 1. Identify the turns heading to the incinerator
+        const turnsToPrune = currentBuffer.slice(0, 2);
+        
+        // 2. Immediately update the UI/Buffer so the user experiences zero lag
         const remainingBuffer = currentBuffer.slice(2);
         set({ textBuffer: remainingBuffer });
+
+        // 3. Fire the background distillation worker
+        try {
+          const updatedSummary = await distillContext(currentSummary, turnsToPrune);
+          // 4. Silently inject the compressed summary back into the permanent state
+          set({ worldStateSummary: updatedSummary });
+          console.log('// BACKGROUND DISTILLATION COMPLETE //');
+        } catch (error) {
+          console.error('// DISTILLATION WORKER FAILED // Context may be lost.', error);
+        }
       },
       updateWorldStateSummary: (newSummary) => {
         set({ worldStateSummary: newSummary });

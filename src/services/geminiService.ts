@@ -1,5 +1,28 @@
 import { Message, ScenarioBlueprint, BicameralOutput, LogicState, StyleVectors, ForgePhase, ReferenceMaterial, ExtractedLore, AppPhase } from "../types";
 import { useForgeStore } from "../store/useForgeStore";
+import { distillationPrompt } from "../core/prompts/distillation";
+
+export const distillContext = async (currentSummary: string, prunedTurns: Message[]): Promise<string> => {
+  try {
+    const response = await fetch('/api/distill', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        systemPrompt: distillationPrompt,
+        currentSummary,
+        prunedTurns
+      })
+    });
+
+    if (!response.ok) throw new Error('Distillation sequence failed.');
+    
+    const data = await response.json();
+    return data.summary;
+  } catch (error) {
+    console.error('// DISTILLATION CORE ERROR //', error);
+    return currentSummary; 
+  }
+};
 
 export async function sendMessageToArchitect(messageHistory: Message[], currentPhase: ForgePhase, voiceContext?: Message[]) {
   const storeState = useForgeStore.getState();

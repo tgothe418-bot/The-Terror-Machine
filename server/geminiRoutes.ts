@@ -217,6 +217,33 @@ router.post("/extract-style", async (req, res) => {
   }
 });
 
+router.post("/distill", async (req, res) => {
+  try {
+    const { systemPrompt, currentSummary, prunedTurns } = req.body;
+
+    const payloadContent = `
+      CURRENT WORLD SUMMARY:
+      ${currentSummary}
+
+      PRUNED TURNS TO INTEGRATE:
+      ${JSON.stringify(prunedTurns, null, 2)}
+    `;
+
+    const response = await getAiClient().models.generateContent({
+      model: "gemini-3.5-flash",
+      contents: [
+        { role: 'user', parts: [{ text: systemPrompt + '\n\n' + payloadContent }] }
+      ]
+    });
+
+    const compressedSummary = response.text || "";
+    res.json({ summary: compressedSummary.trim() });
+  } catch (error) {
+    console.error('Distillation route error:', error);
+    res.status(500).json({ error: 'Failed to compress context' });
+  }
+});
+
 router.post("/chat", async (req, res) => {
   try {
     const { blueprint, textBuffer, currentState, forgeContext, execution_mode, worldStateSummary } = req.body;
