@@ -101,7 +101,7 @@ export default function TheVoice() {
           ? response.narrative_blocks.map((b: any) => b.content).join('\n')
           : typeof response === 'string' ? response : '';
 
-        engineStore.addMessage({
+        engineStore.addEngineMessage({
           role: 'voice',
           content: combinedProse,
           timestamp: Date.now(),
