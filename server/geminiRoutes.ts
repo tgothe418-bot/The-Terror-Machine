@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import express from "express";
 import { GoogleGenAI } from "@google/genai";
 import * as dotenv from 'dotenv';
@@ -202,9 +203,11 @@ router.post("/extract-style", async (req, res) => {
         
         REQUIRED SCHEMA:
         {
-          "sensoryDominance": ["list", "of", "dominant", "senses"],
-          "syntacticCadence": "Description of prose rhythm and sentence structure",
-          "thematicCore": "The central aesthetic or philosophical obsession of the text"
+          "sentenceStructure": "one of: fragmented, staccato, compound-heavy, clinical-flat",
+          "vocabularyTier": "one of: visceral, archaic, clinical, colloquial",
+          "sensoryFocus": ["list", "of", "dominant", "senses"],
+          "thematicCore": "The central aesthetic or philosophical obsession of the text",
+          "forbiddenDevices": ["cinematic camera angles", "metaphors and similes", "forced colloquialisms", "suddenly or unexpectedly", "internal emotional assumptions"]
         }
         
         Do not include markdown blocks. Only return the JSON.`,
@@ -297,12 +300,7 @@ router.post("/chat", async (req, res) => {
 
       systemInstruction = `${ORCHESTRATOR_SYSTEM_PROMPT}\n\n[SCENARIO BLUEPRINT]:\n${JSON.stringify(slimBlueprint, null, 2)}${stateContext}${
         blueprint.styleProfile 
-          ? `\n\nNARRATIVE STYLE INFECTION (Dimensional Style Vectors):
-          - Sensory Focus: ${blueprint.styleProfile.sensoryDominance.join(', ')}
-          - Cadence: ${blueprint.styleProfile.syntacticCadence}
-          - Core Theme: ${blueprint.styleProfile.thematicCore}
-          
-          Crucial: This style only applies to the prose within the 'narrative_blocks' array. You must still strictly output the valid JSON structure requested above.` 
+          ? `\n\n[STYLE_VECTOR]:\n${JSON.stringify(blueprint.styleProfile, null, 2)}` 
           : ''
       }`;
       

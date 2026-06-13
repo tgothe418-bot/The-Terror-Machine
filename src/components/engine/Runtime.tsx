@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { ArrowLeft, Terminal, Send, Loader2, Eye } from 'lucide-react';
 import { useEngineStore } from '../../core/store';

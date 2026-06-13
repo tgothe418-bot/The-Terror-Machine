@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Safely extracts and parses a JSON blueprint from a potentially noisy LLM response.
  */

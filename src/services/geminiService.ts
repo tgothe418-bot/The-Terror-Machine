@@ -1,4 +1,4 @@
-import { Message, ScenarioBlueprint, BicameralOutput, LogicState, StyleVectors, ForgePhase, ReferenceMaterial, ExtractedLore, AppPhase } from "../types";
+import { Message, ScenarioBlueprint, BicameralOutput, LogicState, ProseStyleVector, ForgePhase, ReferenceMaterial, ExtractedLore, AppPhase } from "../types";
 import { useForgeStore } from "../store/useForgeStore";
 import { distillationPrompt } from "../core/prompts/distillation";
 
@@ -57,7 +57,7 @@ export async function summarizeForgeInterview(history: Message[]): Promise<strin
   return data.text;
 }
 
-export async function extractStyleProfile(userText: string): Promise<StyleVectors> {
+export async function extractStyleProfile(userText: string): Promise<ProseStyleVector> {
   const response = await fetch('/api/extract-style', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

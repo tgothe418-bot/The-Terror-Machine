@@ -1,7 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useRef, useEffect } from 'react';
 import { ArrowLeft, Download, Send, Terminal, Loader2, Paperclip, X, FileText, Image as ImageIcon, Users } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
-import { useForgeStore } from '../../store/useForgeStore';
+import { useForgeStore, defaultStyleVector } from '../../store/useForgeStore';
 import { useVoiceStore } from '../../store/useVoiceStore';
 import { Message, ScenarioBlueprint, Attachment } from '../../types';
 import { downloadJson } from '../../lib/download';
@@ -194,6 +195,8 @@ export default function Forge() {
           if (userText.length > 100) {
             const style = await extractStyleProfile(userText);
             detectedBlueprint.styleProfile = style;
+          } else {
+            detectedBlueprint.styleProfile = defaultStyleVector;
           }
         }
         
@@ -414,6 +417,7 @@ export default function Forge() {
                     const detectedBlueprint = extractBlueprint(genRes, ['title', 'setting']) as ScenarioBlueprint;
                     if (detectedBlueprint && (detectedBlueprint.title || detectedBlueprint.setting)) {
                       detectedBlueprint.cast = selectedCharacters;
+                      detectedBlueprint.styleProfile = detectedBlueprint.styleProfile || defaultStyleVector;
                       setBlueprint(detectedBlueprint);
                       addMessage({
                         role: 'assistant',

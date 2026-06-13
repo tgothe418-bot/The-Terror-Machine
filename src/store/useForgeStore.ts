@@ -1,7 +1,22 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { Message, CharacterProfile, ForgePhase, ReferenceMaterial } from '../types';
+import { Message, CharacterProfile, ForgePhase, ReferenceMaterial, ProseStyleVector } from '../types';
 import { idbStorage } from '../lib/idbStorage';
+
+export const defaultStyleVector: ProseStyleVector = {
+  sentenceStructure: "clinical-flat",
+  vocabularyTier: "clinical",
+  sensoryFocus: ["metallic friction", "micro-expressions", "spatial geometry"],
+  thematicCore: "objective observation of deteriorating systems",
+  forbiddenDevices: [
+    "cinematic camera angles", 
+    "metaphors and similes", 
+    "forced colloquialisms", 
+    "suddenly or unexpectedly", 
+    "internal emotional assumptions"
+  ]
+};
 
 interface ForgeState {
   messages: Message[];

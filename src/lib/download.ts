@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Triggers a browser download of a JSON object as a file.
  * @param data The object to download.

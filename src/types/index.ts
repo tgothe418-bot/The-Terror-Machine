@@ -30,10 +30,12 @@ export interface Attachment {
   data: string; // base64
 }
 
-export interface StyleVectors {
-  sensoryDominance: string[];
-  syntacticCadence: string;
+export interface ProseStyleVector {
+  sentenceStructure: "fragmented" | "staccato" | "compound-heavy" | "clinical-flat";
+  vocabularyTier: "visceral" | "archaic" | "clinical" | "colloquial";
+  sensoryFocus: string[];
   thematicCore: string;
+  forbiddenDevices: string[];
 }
 
 export type TensionLevel = 'buildup' | 'visceral_climax' | 'aftermath';
@@ -71,7 +73,7 @@ export interface ScenarioBlueprint {
     currentTensionLevel: TensionLevel;
     keyPlotElements: string[];
   };
-  styleProfile?: StyleVectors; // A synthesized description of the user's writing style
+  styleProfile?: ProseStyleVector; // A synthesized description of the user's writing style
 }
 
 export interface Message {
