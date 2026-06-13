@@ -424,4 +424,42 @@ router.post("/chat", async (req, res) => {
   }
 });
 
+router.post("/simulate-player", async (req, res) => {
+  try {
+    const { history, logicState } = req.body;
+    
+    // Format the recent history for the ghost player to read
+    const recentHistory = history.slice(-4).map((msg: any) => 
+      `${msg.role === 'user' ? 'ME:' : 'THE ENGINE:'}\n${msg.content}`
+    ).join('\n\n');
+
+    const systemPrompt = `
+      You are the PLAYER in a clinical, atmospheric text-based horror simulation.
+      Your goal is to survive, investigate, and interact with the environment naturally.
+      
+      CURRENT STATE:
+      ${JSON.stringify(logicState, null, 2)}
+      
+      RECENT HISTORY:
+      ${recentHistory}
+
+      DIRECTIVE:
+      Write your next immediate action or dialogue. 
+      Keep it between 1 and 3 sentences. Be natural, occasionally hesitant, and react directly to the Engine's last output.
+      Do NOT include your name, labels, or markdown. Output ONLY the raw text of your action.
+    `;
+
+    const response = await getAiClient().models.generateContent({
+      model: "gemini-3.5-flash", // Use the fastest available tier
+      contents: systemPrompt,
+      config: { temperature: 0.8 },
+    });
+
+    res.json({ action: (response.text || "I look around carefully.").trim() });
+  } catch (error: any) {
+    console.error("Ghost Player Simulation Error:", error);
+    res.status(500).json({ error: "Failed to simulate player turn." });
+  }
+});
+
 export default router;

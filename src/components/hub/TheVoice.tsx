@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { ArrowLeft, Send, Loader2, MessageCircle, Trash2, Paperclip, X } from 'lucide-react';
+import { ArrowLeft, Send, Loader2, MessageCircle, Trash2, Paperclip, X, Download, Copy } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Message, Attachment } from '../../types';
 import { sendChatMessage } from '../../services/geminiService';
@@ -10,6 +10,7 @@ import { useAppStore } from '../../store/useAppStore';
 import { useVoiceStore } from '../../store/useVoiceStore';
 import { useForgeStore } from '../../store/useForgeStore';
 import { useEngineStore } from '../../core/store';
+import { exportConversationToMarkdown } from '../../lib/download';
 
 export default function TheVoice() {
   const setPhase = useAppStore((state) => state.setPhase);
@@ -49,6 +50,15 @@ export default function TheVoice() {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages, isLoading]);
+
+  const handleCopyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      console.log('// BLOCK REPLICATED TO CLIPBOARD //');
+    } catch (err) {
+      console.error('// CLIPBOARD VECTOR CRITICAL ERROR //', err);
+    }
+  };
 
   const handleSend = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -230,7 +240,16 @@ export default function TheVoice() {
                 <Trash2 className="w-4 h-4" />
               </button>
             )}
+            
+            <button 
+              onClick={() => exportConversationToMarkdown(messages, 'session-telemetry')}
+              className="p-2 text-zinc-400 hover:text-zinc-100 transition-colors duration-150 rounded"
+              title="Download session log (.md)"
+            >
+              <Download className="w-4 h-4" />
+            </button>
           </div>
+          <div className="w-[1px] h-4 bg-zinc-800 mx-2" />
           <MessageCircle className="w-3 h-3" />
           <span className="text-[8px] uppercase tracking-[0.3em]">Conversational Link Active</span>
         </div>
@@ -249,7 +268,7 @@ export default function TheVoice() {
               animate={{ opacity: 1, y: 0 }}
               className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}
             >
-              <div className={`max-w-[80%] p-6 text-base leading-relaxed whitespace-pre-wrap transition-all duration-500 backdrop-blur-sm ${
+              <div className={`group relative max-w-[80%] p-6 text-base leading-relaxed whitespace-pre-wrap transition-all duration-500 backdrop-blur-sm ${
                 msg.role === 'user' 
                   ? 'bg-zinc-900/40 text-zinc-300 border border-zinc-800/50 hover:bg-zinc-900/60' 
                   : 'text-zinc-100 font-light italic bg-white/[0.02] border border-white/[0.05] hover:bg-white/[0.04]'
@@ -275,10 +294,21 @@ export default function TheVoice() {
                     ))}
                   </div>
                 )}
-                <div className={`markdown-voice ${msg.role === 'user' ? 'text-zinc-300' : 'text-zinc-100'}`}>
+                <div className={`markdown-voice relative ${msg.role === 'user' ? 'text-zinc-300' : 'text-zinc-100'}`}>
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>
                     {msg.content}
                   </ReactMarkdown>
+
+                  <button 
+                    onClick={() => handleCopyToClipboard(msg.content)}
+                    className={`absolute -right-12 top-0 p-1.5 transition-all duration-200 rounded opacity-0 group-hover:opacity-100
+                      ${msg.role === 'user' 
+                        ? 'text-zinc-500 hover:text-white bg-black/50 border border-zinc-800' 
+                        : 'text-zinc-600 hover:text-white bg-black/50 border border-zinc-800'}`}
+                    title="Copy message contents"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                  </button>
                 </div>
               </div>
             </motion.div>

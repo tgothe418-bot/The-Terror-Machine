@@ -10,9 +10,9 @@ interface EngineState {
   activeBlueprint: ScenarioBlueprint | null;
   gameState: LogicState | null;
   messages: Message[]; // Used for UI display
-  textBuffer: Message[]; // Used for the LLM payload
+  engineTextBuffer: Message[]; // The sliding window specifically for the Engine
   maxBufferTurns: number;
-  worldStateSummary: string;
+  engineWorldStateSummary: string;
   setBlueprint: (blueprint: ScenarioBlueprint, role: 'protagonist' | 'antagonist') => void;
   clearBlueprint: () => void;
   updateGameState: (newState: LogicState) => void;
@@ -21,6 +21,8 @@ interface EngineState {
   ingestTurn: (turn: Message) => void;
   pruneContext: () => void;
   updateWorldStateSummary: (newSummary: string) => void;
+  addEngineTurn: (turn: Message) => void;
+  resetEngine: () => void;
 }
 
 export const useEngineStore = create<EngineState>()(
@@ -29,14 +31,14 @@ export const useEngineStore = create<EngineState>()(
       activeBlueprint: null,
       gameState: null,
       messages: [],
-      textBuffer: [],
+      engineTextBuffer: [],
       maxBufferTurns: 12,
-      worldStateSummary: "The subject is contained. Initial parameters active.",
+      engineWorldStateSummary: "The subject is contained. Initial parameters active.",
       setBlueprint: (blueprint, role) => set({ 
         activeBlueprint: blueprint, 
         messages: [],
-        textBuffer: [],
-        worldStateSummary: "The subject is contained. Initial parameters active.",
+        engineTextBuffer: [],
+        engineWorldStateSummary: "The subject is contained. Initial parameters active.",
         gameState: {
           current_location: blueprint.setting.location,
           player_injuries: [],
@@ -50,7 +52,7 @@ export const useEngineStore = create<EngineState>()(
           npc_fixations: []
         } 
       }),
-      clearBlueprint: () => set({ activeBlueprint: null, gameState: null, messages: [], textBuffer: [], worldStateSummary: "The subject is contained. Initial parameters active." }),
+      clearBlueprint: () => set({ activeBlueprint: null, gameState: null, messages: [], engineTextBuffer: [], engineWorldStateSummary: "The subject is contained. Initial parameters active." }),
       updateGameState: (newState) => set({ gameState: newState }),
       addMessage: (message) => {
         set((state) => {
@@ -63,33 +65,34 @@ export const useEngineStore = create<EngineState>()(
             messages: [...state.messages, msg]
           };
         });
-        get().ingestTurn(message);
+        get().addEngineTurn(message);
       },
-      setMessages: (messages) => set({ messages, textBuffer: messages.slice(-get().maxBufferTurns) }),
-      ingestTurn: (turn) => {
+      setMessages: (messages) => set({ messages, engineTextBuffer: messages.slice(-get().maxBufferTurns) }),
+      ingestTurn: (turn) => get().addEngineTurn(turn),
+      addEngineTurn: (turn) => {
         set((state) => {
           const currentStatus = state.gameState?.psychological_status || 'Stable';
-          const newBuffer = [...state.textBuffer, {
+          const newBuffer = [...state.engineTextBuffer, {
             ...turn,
             frozen_psychological_status: turn.frozen_psychological_status || currentStatus
           }];
-          return { textBuffer: newBuffer };
+          return { engineTextBuffer: newBuffer };
         });
         
-        if (get().textBuffer.length > get().maxBufferTurns) {
+        if (get().engineTextBuffer.length > get().maxBufferTurns) {
           get().pruneContext();
         }
       },
       pruneContext: async () => {
-        const currentBuffer = get().textBuffer;
-        const currentSummary = get().worldStateSummary;
+        const currentBuffer = get().engineTextBuffer;
+        const currentSummary = get().engineWorldStateSummary;
         
         // 1. Isolate the oldest message cluster
         const turnsToPrune = currentBuffer.slice(0, 2);
         const remainingBuffer = currentBuffer.slice(2);
         
         // 2. Clear from active text memory immediately for UI responsiveness
-        set({ textBuffer: remainingBuffer });
+        set({ engineTextBuffer: remainingBuffer });
 
         // 3. Flatten the complex JSON payload into structured plain text
         const flattenedTranscript = flattenTurnsForDistillation(turnsToPrune);
@@ -97,15 +100,30 @@ export const useEngineStore = create<EngineState>()(
         // 4. Dispatch the streamlined text string to the background processing tier
         try {
           const updatedSummary = await distillContext(currentSummary, flattenedTranscript);
-          set({ worldStateSummary: updatedSummary });
+          set({ engineWorldStateSummary: updatedSummary });
           console.log('// BACKGROUND SEMANTIC DISTILLATION lossless pass complete //');
         } catch (error) {
           console.error('// DISTILLATION BACKGROUND FAILURE // Fallback state maintained.', error);
         }
       },
       updateWorldStateSummary: (newSummary) => {
-        set({ worldStateSummary: newSummary });
-      }
+        set({ engineWorldStateSummary: newSummary });
+      },
+      resetEngine: () => set((state) => ({
+        engineTextBuffer: [],
+        engineWorldStateSummary: "The subject is contained. Initial parameters active.",
+        gameState: state.activeBlueprint ? {
+          current_location: state.activeBlueprint.setting.location,
+          player_injuries: [],
+          inventory: [],
+          psychological_status: 'Stable',
+          player_role: state.gameState?.player_role || 'protagonist',
+          current_tension_level: state.activeBlueprint.narrativeRules?.currentTensionLevel || 'buildup',
+          lore_and_memory: { established_facts: [], permanent_consequences: [] },
+          npc_fixations: []
+        } : null,
+        messages: []
+      }))
     }),
     {
       name: 'the-engine-memory',

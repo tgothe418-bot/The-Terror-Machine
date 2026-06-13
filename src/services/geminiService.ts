@@ -85,3 +85,21 @@ export async function sendChatMessage(
   if (!response.ok) throw new Error(await response.text());
   return response.json();
 }
+
+export const fetchSimulatedPlayerAction = async (history: Message[], logicState: LogicState | null): Promise<string> => {
+  try {
+    const response = await fetch('/api/simulate-player', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ history, logicState })
+    });
+
+    if (!response.ok) throw new Error('Ghost player failed to respond.');
+    
+    const data = await response.json();
+    return data.action;
+  } catch (error) {
+    console.error('// AUTOPILOT FAILURE //', error);
+    return "I step forward cautiously."; // Fallback action to keep the loop alive
+  }
+};

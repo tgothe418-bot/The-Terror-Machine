@@ -16,7 +16,7 @@ const formatBlocks = (blocks?: NarrativeBlock[]): string => {
     return block.content;
   }).join('\n\n');
 };
-import { sendChatMessage } from '../../services/geminiService';
+import { sendChatMessage, fetchSimulatedPlayerAction } from '../../services/geminiService';
 import ErgodicTextRenderer from './ErgodicTextRenderer';
 
 const SESSION_TIMEOUT = 60 * 60 * 1000; // 60 minutes
@@ -36,6 +36,11 @@ export default function Runtime() {
   const [lastActivity, setLastActivity] = useState<number>(() => Date.now());
   const [hydrated, setHydrated] = useState(() => useEngineStore.persist.hasHydrated());
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  const [autopilotTarget, setAutopilotTarget] = useState<number>(5);
+  const [isAutopilotRunning, setIsAutopilotRunning] = useState<boolean>(false);
+  const autopilotRef = useRef<boolean>(false); // Ref for immediate abort checking
+
 
   useEffect(() => {
     const unsub = useEngineStore.persist.onHydrate(() => setHydrated(false));
@@ -59,7 +64,7 @@ export default function Runtime() {
         blueprint: activeBlueprint!, 
         textBuffer: [{ role: 'user', content: 'Begin simulation. Establish environment and initial state.', timestamp: Date.now() }],
         currentState: gameState,
-        worldStateSummary: useEngineStore.getState().worldStateSummary,
+        worldStateSummary: useEngineStore.getState().engineWorldStateSummary,
         execution_mode: phase
       });
       
@@ -137,7 +142,7 @@ export default function Runtime() {
     if (!overrideInput) setInput('');
     setIsLoading(true);
 
-    const textBuffer = useEngineStore.getState().textBuffer;
+    const textBuffer = useEngineStore.getState().engineTextBuffer;
     const currentBuffer = [...textBuffer, userMsg];
 
     try {
@@ -145,7 +150,7 @@ export default function Runtime() {
         blueprint: activeBlueprint!, 
         textBuffer: currentBuffer, 
         currentState: gameState,
-        worldStateSummary: useEngineStore.getState().worldStateSummary,
+        worldStateSummary: useEngineStore.getState().engineWorldStateSummary,
         execution_mode: phase
       });
       
@@ -177,6 +182,53 @@ export default function Runtime() {
       setIsLoading(false);
     }
   };
+
+  const runAutopilotSequence = async (turnsRemaining: number) => {
+    if (turnsRemaining <= 0 || !autopilotRef.current) {
+      setIsAutopilotRunning(false);
+      autopilotRef.current = false;
+      console.log("// AUTOPILOT SEQUENCE COMPLETE OR ABORTED //");
+      return;
+    }
+
+    try {
+      // A. Grab current state arrays from your store
+      const currentState = useEngineStore.getState();
+      
+      // B. Fetch the Ghost Player's action
+      const simulatedAction = await fetchSimulatedPlayerAction(
+        currentState.engineTextBuffer || [], 
+        currentState.gameState || null
+      );
+      
+      // C. Inject the simulated action into your standard submission pipeline
+      await handleCommand(undefined, simulatedAction);
+
+      // D. Wait a moment for visual pacing and to prevent API rate-limiting
+      await new Promise(resolve => setTimeout(resolve, 2500));
+
+      // E. Recurse for the next turn
+      runAutopilotSequence(turnsRemaining - 1);
+      
+    } catch (err) {
+      console.error("// AUTOPILOT FATAL ERROR // Loop terminated.", err);
+      setIsAutopilotRunning(false);
+      autopilotRef.current = false;
+    }
+  };
+
+  const handleStartAutopilot = () => {
+    setIsAutopilotRunning(true);
+    autopilotRef.current = true;
+    runAutopilotSequence(autopilotTarget);
+  };
+
+  const handleStopAutopilot = () => {
+    setIsAutopilotRunning(false);
+    autopilotRef.current = false;
+  };
+
+  const resetEngine = useEngineStore(state => state.resetEngine);
 
   if (!hydrated || !activeBlueprint) return null;
 
@@ -219,6 +271,19 @@ export default function Runtime() {
         </div>
 
         <div className="flex items-center gap-2 text-zinc-600">
+          <button 
+            onClick={() => {
+              if (window.confirm("Initialize Engine Wipe? This will reset the current scenario to baseline.")) {
+                setIsLoading(false);
+                resetEngine();
+                hasStarted.current = false;
+              }
+            }}
+            className="px-2 py-1 text-xs font-mono text-red-400 hover:text-red-100 bg-red-900/20 hover:bg-red-900/50 border border-red-900/50 transition-colors duration-150 rounded mr-4"
+            title="Hard Reset Engine"
+          >
+            [ FLUSH STATE ]
+          </button>
           <Terminal className="w-3 h-3" />
           <span className="text-[8px] uppercase tracking-[0.3em]">Simulation Active</span>
         </div>
@@ -350,20 +415,49 @@ export default function Runtime() {
             <input
               type="text"
               autoFocus
-              disabled={isLoading}
+              disabled={isLoading || isAutopilotRunning}
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder={isLoading ? "Processing..." : "Enter command..."}
+              placeholder={isLoading ? "Processing..." : isAutopilotRunning ? "Autopilot active..." : "Enter command..."}
               className="flex-1 bg-transparent border-none p-0 text-sm focus:outline-none focus:ring-0 placeholder:text-zinc-800 disabled:opacity-50"
             />
             <button
               type="submit"
-              disabled={isLoading || !input.trim()}
+              disabled={isLoading || !input.trim() || isAutopilotRunning}
               className="text-zinc-700 hover:text-white transition-colors disabled:opacity-50"
             >
               <Send className="w-4 h-4" />
             </button>
           </form>
+
+          <div className="flex items-center gap-2 p-2 bg-zinc-900 border border-zinc-800 rounded ml-4">
+            <span className="text-xs text-zinc-500 font-mono">AUTOPILOT:</span>
+            <input 
+              type="number" 
+              min="2" max="25" 
+              value={autopilotTarget}
+              onChange={(e) => setAutopilotTarget(Number(e.target.value))}
+              disabled={isAutopilotRunning}
+              className="w-16 bg-black text-zinc-300 text-xs p-1 border border-zinc-700 rounded text-center"
+            />
+            {!isAutopilotRunning ? (
+              <button 
+                onClick={handleStartAutopilot}
+                className="text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-3 py-1 rounded transition-colors"
+                type="button"
+              >
+                ENGAGE
+              </button>
+            ) : (
+              <button 
+                onClick={handleStopAutopilot}
+                className="text-xs bg-red-900/50 hover:bg-red-900 text-red-200 px-3 py-1 border border-red-800/50 rounded transition-colors"
+                type="button"
+              >
+                ABORT
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>
