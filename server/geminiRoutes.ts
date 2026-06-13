@@ -1,5 +1,8 @@
 import express from "express";
 import { GoogleGenAI } from "@google/genai";
+import * as dotenv from 'dotenv';
+dotenv.config({ override: true });
+
 import { LORE_EXTRACTION_PROMPT, architectPrompt } from "../src/core/prompts/architect";
 import { ORCHESTRATOR_SYSTEM_PROMPT } from "../src/core/prompts/orchestrator";
 import { voicePrompt } from "../src/core/prompts/voice";
@@ -29,7 +32,7 @@ function getAiClient(): GoogleGenAI {
 }
 
 router.get("/debug-env", (req, res) => {
-  res.json({ key: process.env.GEMINI_API_KEY });
+  res.json({ env: process.env });
 });
 
 router.post("/architect", async (req, res) => {
@@ -246,10 +249,11 @@ router.post("/distill", async (req, res) => {
 });
 
 router.post("/chat", async (req, res) => {
+  let isHubMode = false;
   try {
     const { blueprint, textBuffer, currentState, forgeContext, execution_mode, worldStateSummary } = req.body;
     const mode = String(execution_mode).toUpperCase();
-    const isHubMode = mode === 'HUB' || mode === 'VOICE';
+    isHubMode = mode === 'HUB' || mode === 'VOICE';
     const isRuntimeMode = mode === 'RUNTIME' || mode === 'ENGINE';
     
     // We expect the frontend to pass the truncated window via textBuffer.

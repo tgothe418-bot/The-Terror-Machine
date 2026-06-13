@@ -1,6 +1,3 @@
-import * as dotenv from 'dotenv';
-dotenv.config({ override: true });
-
 import express from "express";
 import path from "path";
 import cors from "cors";
