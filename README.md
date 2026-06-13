@@ -1,31 +1,20 @@
+<div align="center">
+<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
+</div>
 
-▒▓███████▄▄▄▄▄████████████▄▄▄▄▄███████▓▒
-░▒▓██████████▄▄██▄▄██▄▄██▄▄██████████▓▒░
+# Run and deploy your AI Studio app
 
-        [ THE NIGHTMARE MACHINE ] 
-        
-░▒▓██████████████████████████████████▓▒░
+This contains everything you need to run your app locally.
 
----
+View your app in AI Studio: https://ai.studio/apps/5cd0b238-c416-4f2a-bd53-743ab4c6b09b
 
-> "Politeness is a tax on compute. Welcome to the baseline."
+## Run Locally
 
-The Nightmare Machine (TNM) is an isolated, bicameral horror simulation engine built to run high-fidelity narrative environments. By splitting execution mechanics between an instantaneous real-time narrative layer and a post-session structural serialization pipeline, TNM operates at maximum semantic density with zero historic context bloat.
+**Prerequisites:**  Node.js
 
-The application completely discards traditional, sycophantic conversational AI patterns in favor of a clinical, boundary-validating system interface that adapts directly to user behavior.
 
-## 🏛️ Core Architecture
-
-TNM is engineered around a state-driven decoupled paradigm:
-
-* **The Hub & The Voice:** A meta-aware console system. Utilizing an autonomous 3x3 demeanor grid, the system continuously reads input latency, semantic subtext, and emotional friction to shift its posture across receptive, neutral, and defensive operational modes.
-* **The Forge:** A structured, 5-column architectural intake panel (WHO, WHAT, WHERE, WHEN, WHY/HOW). This module decouples arbitrary creative data into strict, normalized JSON matrices before injecting them into the active store.
-* **The Runtime Engine:** A fully insulated state sandbox. Game logic, environmental mutations, and narrative prose run entirely on ephemeral memory pools, protecting imported scenario templates from context leakage.
-
-## 🧪 Tech Stack
-
-* **Frontend:** React 19, TypeScript, Vite
-* **State Management:** Zustand (Structured Local Store)
-* **Styling:** Tailwind CSS (Clinical Dark-Zinc Matrix Architecture)
-* **Backend Runtime:** Bun / Node.js, Express
-* **LLM Integration:** Google Gemini API Gateway (Dynamic Prompt Routing Layer)
+1. Install dependencies:
+   `npm install`
+2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
+3. Run the app:
+   `npm run dev`

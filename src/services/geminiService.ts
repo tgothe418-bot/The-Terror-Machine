@@ -46,11 +46,12 @@ export async function extractStyleProfile(userText: string): Promise<StyleVector
 
 export async function sendChatMessage(
   payload: {
-    messageHistory: Message[];
+    textBuffer: Message[];
     blueprint?: ScenarioBlueprint;
     currentState?: LogicState | null;
     forgeContext?: Message[];
     execution_mode: AppPhase;
+    worldStateSummary?: string;
   }
 ): Promise<BicameralOutput> {
   const response = await fetch('/api/chat', {

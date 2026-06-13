@@ -56,8 +56,9 @@ export default function Runtime() {
     try {
       const initialResponse = await sendChatMessage({
         blueprint: activeBlueprint!, 
-        messageHistory: [{ role: 'user', content: 'Begin simulation. Establish environment and initial state.', timestamp: Date.now() }],
+        textBuffer: [{ role: 'user', content: 'Begin simulation. Establish environment and initial state.', timestamp: Date.now() }],
         currentState: gameState,
+        worldStateSummary: useEngineStore.getState().worldStateSummary,
         execution_mode: phase
       });
       
@@ -130,17 +131,20 @@ export default function Runtime() {
     if (!commandText.trim() || isLoading) return;
 
     const userMsg: Message = { role: 'user', content: commandText, timestamp: Date.now() };
-    const newMessages = [...messages, userMsg];
     
     addMessage(userMsg);
     if (!overrideInput) setInput('');
     setIsLoading(true);
 
+    const textBuffer = useEngineStore.getState().textBuffer;
+    const currentBuffer = [...textBuffer, userMsg];
+
     try {
       const response = await sendChatMessage({
         blueprint: activeBlueprint!, 
-        messageHistory: newMessages, 
+        textBuffer: currentBuffer, 
         currentState: gameState,
+        worldStateSummary: useEngineStore.getState().worldStateSummary,
         execution_mode: phase
       });
       

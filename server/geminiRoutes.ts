@@ -219,51 +219,16 @@ router.post("/extract-style", async (req, res) => {
 
 router.post("/chat", async (req, res) => {
   try {
-    const { blueprint, messageHistory, currentState, forgeContext, execution_mode } = req.body;
+    const { blueprint, textBuffer, currentState, forgeContext, execution_mode, worldStateSummary } = req.body;
     const mode = String(execution_mode).toUpperCase();
     const isHubMode = mode === 'HUB' || mode === 'VOICE';
     const isRuntimeMode = mode === 'RUNTIME' || mode === 'ENGINE';
     
-    const activeHistory = messageHistory.slice(isHubMode ? -10 : -6);
+    // We expect the frontend to pass the truncated window via textBuffer.
+    // If it's passed unbounded, truncate it here anyway to prevent window bloat.
+    const inputHistory = textBuffer || [];
+    const activeHistory = inputHistory.slice(isHubMode ? -10 : -6);
     const updatedState = currentState ? { ...currentState } : null;
-
-    if (isRuntimeMode && messageHistory.length > 10 && updatedState) {
-      const toSummarize = messageHistory.slice(0, -6);
-      const historyText = toSummarize.map((m: any) => `${m.role.toUpperCase()}: ${m.content}`).join('\n');
-      
-      const summarizeResponse = await getAiClient().models.generateContent({
-        model: "gemini-3.5-flash",
-        contents: `[SYSTEM: NARRATIVE COMPRESSION REQUIRED]
-        Analyze the following narrative history and update the Lore and Memory state.
-        
-        [CURRENT HISTORY]:
-        ${historyText}
-        
-        [CURRENT STATE]:
-        ${JSON.stringify(updatedState.lore_and_memory, null, 2)}
-        
-        OUTPUT JSON:
-        {
-          "established_facts": ["Updated list of absolute truths and lore established in this session"],
-          "permanent_consequences": ["Updated list of physical, environmental, or psychological markers that cannot be undone"]
-        }`,
-        config: {
-          responseMimeType: "application/json",
-          temperature: 0.3,
-        }
-      });
-      const text = summarizeResponse.text || "{}";
-      try {
-        const cleanText = text.replace(/```json\n?|```/g, '').trim();
-        const parsedLore = JSON.parse(cleanText);
-        updatedState.lore_and_memory = {
-          established_facts: Array.isArray(parsedLore.established_facts) ? parsedLore.established_facts : [],
-          permanent_consequences: Array.isArray(parsedLore.permanent_consequences) ? parsedLore.permanent_consequences : []
-        };
-      } catch (err: any) {
-        console.warn("Summarization logic error:", err);
-      }
-    }
 
     let systemInstruction = "";
     let responseMimeType = "text/plain";
@@ -308,6 +273,10 @@ router.post("/chat", async (req, res) => {
           Crucial: This style only applies to the prose within the 'narrative_blocks' array. You must still strictly output the valid JSON structure requested above.` 
           : ''
       }`;
+      
+      if (worldStateSummary) {
+        systemInstruction += `\n\n[CUMULATIVE CHRONOLOGY]:\n${worldStateSummary}`;
+      }
     } else {
       systemInstruction = voicePrompt;
       if (forgeContext && forgeContext.length > 0) {

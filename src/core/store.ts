@@ -6,23 +6,34 @@ import { idbStorage } from '../lib/idbStorage';
 interface EngineState {
   activeBlueprint: ScenarioBlueprint | null;
   gameState: LogicState | null;
-  messages: Message[];
+  messages: Message[]; // Used for UI display
+  textBuffer: Message[]; // Used for the LLM payload
+  maxBufferTurns: number;
+  worldStateSummary: string;
   setBlueprint: (blueprint: ScenarioBlueprint, role: 'protagonist' | 'antagonist') => void;
   clearBlueprint: () => void;
   updateGameState: (newState: LogicState) => void;
   addMessage: (message: Message) => void;
   setMessages: (messages: Message[]) => void;
+  ingestTurn: (turn: Message) => void;
+  pruneContext: () => void;
+  updateWorldStateSummary: (newSummary: string) => void;
 }
 
 export const useEngineStore = create<EngineState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       activeBlueprint: null,
       gameState: null,
       messages: [],
+      textBuffer: [],
+      maxBufferTurns: 6,
+      worldStateSummary: "The subject is contained. Initial parameters active.",
       setBlueprint: (blueprint, role) => set({ 
         activeBlueprint: blueprint, 
         messages: [],
+        textBuffer: [],
+        worldStateSummary: "The subject is contained. Initial parameters active.",
         gameState: {
           current_location: blueprint.setting.location,
           player_injuries: [],
@@ -36,18 +47,44 @@ export const useEngineStore = create<EngineState>()(
           npc_fixations: []
         } 
       }),
-      clearBlueprint: () => set({ activeBlueprint: null, gameState: null, messages: [] }),
+      clearBlueprint: () => set({ activeBlueprint: null, gameState: null, messages: [], textBuffer: [], worldStateSummary: "The subject is contained. Initial parameters active." }),
       updateGameState: (newState) => set({ gameState: newState }),
-      addMessage: (message) => set((state) => {
-        const currentStatus = state.gameState?.psychological_status || 'Stable';
-        return {
-          messages: [...state.messages, {
+      addMessage: (message) => {
+        set((state) => {
+          const currentStatus = state.gameState?.psychological_status || 'Stable';
+          const msg = {
             ...message,
             frozen_psychological_status: message.frozen_psychological_status || currentStatus
-          }]
-        };
-      }),
-      setMessages: (messages) => set({ messages }),
+          };
+          return {
+            messages: [...state.messages, msg]
+          };
+        });
+        get().ingestTurn(message);
+      },
+      setMessages: (messages) => set({ messages, textBuffer: messages.slice(-get().maxBufferTurns) }),
+      ingestTurn: (turn) => {
+        set((state) => {
+          const currentStatus = state.gameState?.psychological_status || 'Stable';
+          const newBuffer = [...state.textBuffer, {
+            ...turn,
+            frozen_psychological_status: turn.frozen_psychological_status || currentStatus
+          }];
+          return { textBuffer: newBuffer };
+        });
+        
+        if (get().textBuffer.length > get().maxBufferTurns) {
+          get().pruneContext();
+        }
+      },
+      pruneContext: () => {
+        const currentBuffer = get().textBuffer;
+        const remainingBuffer = currentBuffer.slice(2);
+        set({ textBuffer: remainingBuffer });
+      },
+      updateWorldStateSummary: (newSummary) => {
+        set({ worldStateSummary: newSummary });
+      }
     }),
     {
       name: 'the-engine-memory',

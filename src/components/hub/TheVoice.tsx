@@ -74,7 +74,7 @@ export default function TheVoice() {
         attachments: msg.attachments
       }));
       const response = await sendChatMessage({
-        messageHistory: chatHistory as any, 
+        textBuffer: chatHistory as any, 
         forgeContext: forgeMessages,
         execution_mode: phase
       });
