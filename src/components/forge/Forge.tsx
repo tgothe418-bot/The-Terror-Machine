@@ -191,13 +191,23 @@ export default function Forge() {
         timestamp: Date.now(),
       };
       addMessage(assistantMessage);
-    } catch {
-      const errorMessage: Message = {
+    } catch (err: any) {
+      console.error(err);
+      const errorMessage = typeof err === 'object' && err !== null && 'message' in err ? err.message : String(err);
+      let parsedMessage = errorMessage;
+      try {
+        const parsed = JSON.parse(errorMessage);
+        if (parsed.error) {
+          parsedMessage = typeof parsed.error === 'string' ? parsed.error : JSON.stringify(parsed.error);
+        }
+      } catch { /* ignore */ }
+
+      const msg: Message = {
         role: 'assistant',
-        content: "Error: Connection to Architect severed. Verify API configuration.",
+        content: `[SYSTEM ERROR] ${parsedMessage}`,
         timestamp: Date.now(),
       };
-      addMessage(errorMessage);
+      addMessage(msg);
     } finally {
       setIsLoading(false);
     }

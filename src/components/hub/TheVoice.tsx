@@ -89,8 +89,18 @@ export default function TheVoice() {
           }]
         });
       }
-    } catch {
-      addMessage({ role: 'voice', content: "I'm sorry, I lost my train of thought for a moment. What were we saying?", timestamp: Date.now() });
+    } catch (err: any) {
+      console.error(err);
+      const errorMessage = typeof err === 'object' && err !== null && 'message' in err ? err.message : String(err);
+      let parsedMessage = errorMessage;
+      try {
+        const parsed = JSON.parse(errorMessage);
+        if (parsed.error) {
+          parsedMessage = typeof parsed.error === 'string' ? parsed.error : JSON.stringify(parsed.error);
+        }
+      } catch { /* ignore */ }
+      
+      addMessage({ role: 'voice', content: `[SYSTEM ERROR] ${parsedMessage}`, timestamp: Date.now() });
     } finally {
       setIsLoading(false);
     }

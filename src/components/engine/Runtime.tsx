@@ -150,8 +150,17 @@ export default function Runtime() {
       addMessage(assistantMsg);
       updateGameState(response.logic_state); // Sync mechanical reality
       
-    } catch {
-      addMessage({ role: 'assistant', content: '[ SYSTEM ERROR: COMMAND PROCESSING FAILURE. ]', timestamp: Date.now() });
+    } catch (err: any) {
+      console.error(err);
+      const errorMessage = typeof err === 'object' && err !== null && 'message' in err ? err.message : String(err);
+      let parsedMessage = errorMessage;
+      try {
+        const parsed = JSON.parse(errorMessage);
+        if (parsed.error) {
+          parsedMessage = typeof parsed.error === 'string' ? parsed.error : JSON.stringify(parsed.error);
+        }
+      } catch { /* ignore */ }
+      addMessage({ role: 'assistant', content: `[ SYSTEM ERROR: ${parsedMessage} ]`, timestamp: Date.now() });
     } finally {
       setIsLoading(false);
     }
