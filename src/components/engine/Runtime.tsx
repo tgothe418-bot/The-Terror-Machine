@@ -26,8 +26,8 @@ export default function Runtime() {
   const activeBlueprint = useEngineStore((state) => state.activeBlueprint);
   const gameState = useEngineStore((state) => state.gameState);
   const updateGameState = useEngineStore((state) => state.updateGameState);
-  const messages = useEngineStore((state) => state.messages);
-  const addMessage = useEngineStore((state) => state.addMessage);
+  const engineMessages = useEngineStore((state) => state.engineMessages);
+  const addEngineMessage = useEngineStore((state) => state.addEngineMessage);
   
   const setPhase = useAppStore((state) => state.setPhase);
   const phase = useAppStore((state) => state.phase);
@@ -70,7 +70,7 @@ export default function Runtime() {
       
       const narrativeBlocks = initialResponse.narrative_blocks;
 
-      addMessage({ 
+      addEngineMessage({ 
         role: 'assistant', 
         content: formatBlocks(narrativeBlocks), 
         blocks: narrativeBlocks,
@@ -79,18 +79,18 @@ export default function Runtime() {
       });
       updateGameState(initialResponse.logic_state); // Save logic state silently
     } catch {
-      addMessage({ role: 'assistant', content: '[ SYSTEM ERROR: NEURAL LINK FAILURE. REBOOT REQUIRED. ]', timestamp: Date.now() });
+      addEngineMessage({ role: 'assistant', content: '[ SYSTEM ERROR: NEURAL LINK FAILURE. REBOOT REQUIRED. ]', timestamp: Date.now() });
     } finally {
       setIsLoading(false);
     }
-  }, [activeBlueprint, gameState, addMessage, updateGameState, phase]);
+  }, [activeBlueprint, gameState, addEngineMessage, updateGameState, phase]);
 
   // Monitor for idle timeout
   useEffect(() => {
     const checkIdle = setInterval(() => {
       const idleTime = Date.now() - lastActivity;
       if (idleTime > SESSION_TIMEOUT) {
-        addMessage({
+        addEngineMessage({
           role: 'assistant',
           content: '[ SYSTEM: NEURAL LINK SEVERED DUE TO PROLONGED INACTIVITY. RETURNING TO HUB. ]',
           timestamp: Date.now()
@@ -100,7 +100,7 @@ export default function Runtime() {
     }, 10000);
 
     return () => clearInterval(checkIdle);
-  }, [lastActivity, addMessage, handleExit]);
+  }, [lastActivity, addEngineMessage, handleExit]);
 
   // Keep-alive heartbeat (visual only to reassure user)
   useEffect(() => {
@@ -114,7 +114,7 @@ export default function Runtime() {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages, isLoading]);
+  }, [engineMessages, isLoading]);
 
   // Note: Activity timestamp is updated via event handlers to avoid cascading renders
 
@@ -122,14 +122,14 @@ export default function Runtime() {
 
   // Initial simulation start
   useEffect(() => {
-    if (hydrated && activeBlueprint && messages.length === 0 && !isLoading && !hasStarted.current) {
+    if (hydrated && activeBlueprint && engineMessages.length === 0 && !isLoading && !hasStarted.current) {
       hasStarted.current = true;
       // Use microtask to avoid synchronous setState in effect
       queueMicrotask(() => {
         startSimulation();
       });
     }
-  }, [activeBlueprint, hydrated, messages.length, startSimulation, isLoading]);
+  }, [activeBlueprint, hydrated, engineMessages.length, startSimulation, isLoading]);
 
   const handleCommand = async (e?: React.FormEvent, overrideInput?: string) => {
     e?.preventDefault();
@@ -138,7 +138,7 @@ export default function Runtime() {
 
     const userMsg: Message = { role: 'user', content: commandText, timestamp: Date.now() };
     
-    addMessage(userMsg);
+    addEngineMessage(userMsg);
     if (!overrideInput) setInput('');
     setIsLoading(true);
 
@@ -164,7 +164,7 @@ export default function Runtime() {
         timestamp: Date.now() 
       };
 
-      addMessage(assistantMsg);
+      addEngineMessage(assistantMsg);
       updateGameState(response.logic_state); // Sync mechanical reality
       
     } catch (err: any) {
@@ -177,7 +177,7 @@ export default function Runtime() {
           parsedMessage = typeof parsed.error === 'string' ? parsed.error : JSON.stringify(parsed.error);
         }
       } catch { /* ignore */ }
-      addMessage({ role: 'assistant', content: `[ SYSTEM ERROR: ${parsedMessage} ]`, timestamp: Date.now() });
+      addEngineMessage({ role: 'assistant', content: `[ SYSTEM ERROR: ${parsedMessage} ]`, timestamp: Date.now() });
     } finally {
       setIsLoading(false);
     }
@@ -295,7 +295,7 @@ export default function Runtime() {
         className="flex-1 overflow-y-auto p-8 2xl:p-16 space-y-8 2xl:space-y-12 scrollbar-hide max-w-5xl 2xl:max-w-7xl mx-auto w-full"
       >
         <AnimatePresence initial={false}>
-          {messages.map((msg, idx) => (
+          {engineMessages.map((msg, idx) => (
             <motion.div
               key={idx}
               initial={{ opacity: 0, y: 5 }}

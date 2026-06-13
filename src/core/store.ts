@@ -9,15 +9,15 @@ import { flattenTurnsForDistillation } from '../lib/jsonParser';
 interface EngineState {
   activeBlueprint: ScenarioBlueprint | null;
   gameState: LogicState | null;
-  messages: Message[]; // Used for UI display
+  engineMessages: Message[]; // Used for UI display
   engineTextBuffer: Message[]; // The sliding window specifically for the Engine
   maxBufferTurns: number;
   engineWorldStateSummary: string;
   setBlueprint: (blueprint: ScenarioBlueprint, role: 'protagonist' | 'antagonist') => void;
   clearBlueprint: () => void;
   updateGameState: (newState: LogicState) => void;
-  addMessage: (message: Message) => void;
-  setMessages: (messages: Message[]) => void;
+  addEngineMessage: (message: Message) => void;
+  setEngineMessages: (messages: Message[]) => void;
   ingestTurn: (turn: Message) => void;
   pruneContext: () => void;
   updateWorldStateSummary: (newSummary: string) => void;
@@ -30,13 +30,13 @@ export const useEngineStore = create<EngineState>()(
     (set, get) => ({
       activeBlueprint: null,
       gameState: null,
-      messages: [],
+      engineMessages: [],
       engineTextBuffer: [],
       maxBufferTurns: 12,
       engineWorldStateSummary: "The subject is contained. Initial parameters active.",
       setBlueprint: (blueprint, role) => set({ 
         activeBlueprint: blueprint, 
-        messages: [],
+        engineMessages: [],
         engineTextBuffer: [],
         engineWorldStateSummary: "The subject is contained. Initial parameters active.",
         gameState: {
@@ -52,9 +52,9 @@ export const useEngineStore = create<EngineState>()(
           npc_fixations: []
         } 
       }),
-      clearBlueprint: () => set({ activeBlueprint: null, gameState: null, messages: [], engineTextBuffer: [], engineWorldStateSummary: "The subject is contained. Initial parameters active." }),
+      clearBlueprint: () => set({ activeBlueprint: null, gameState: null, engineMessages: [], engineTextBuffer: [], engineWorldStateSummary: "The subject is contained. Initial parameters active." }),
       updateGameState: (newState) => set({ gameState: newState }),
-      addMessage: (message) => {
+      addEngineMessage: (message) => {
         set((state) => {
           const currentStatus = state.gameState?.psychological_status || 'Stable';
           const msg = {
@@ -62,12 +62,12 @@ export const useEngineStore = create<EngineState>()(
             frozen_psychological_status: message.frozen_psychological_status || currentStatus
           };
           return {
-            messages: [...state.messages, msg]
+            engineMessages: [...state.engineMessages, msg]
           };
         });
         get().addEngineTurn(message);
       },
-      setMessages: (messages) => set({ messages, engineTextBuffer: messages.slice(-get().maxBufferTurns) }),
+      setEngineMessages: (messages) => set({ engineMessages: messages, engineTextBuffer: messages.slice(-get().maxBufferTurns) }),
       ingestTurn: (turn) => get().addEngineTurn(turn),
       addEngineTurn: (turn) => {
         set((state) => {
@@ -122,7 +122,7 @@ export const useEngineStore = create<EngineState>()(
           lore_and_memory: { established_facts: [], permanent_consequences: [] },
           npc_fixations: []
         } : null,
-        messages: []
+        engineMessages: []
       }))
     }),
     {
