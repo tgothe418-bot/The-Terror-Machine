@@ -275,7 +275,10 @@ router.post("/chat", async (req, res) => {
       
       let currentPacing = "";
       if (blueprint.narrativeRules?.phaseDirectives) {
-        const tension = blueprint.narrativeRules.currentTensionLevel || 'buildup';
+        // Read active state variable first, fallback to blueprint template
+        const tension = updatedState?.current_tension_level 
+          || blueprint.narrativeRules.currentTensionLevel 
+          || 'buildup';
         currentPacing = blueprint.narrativeRules.phaseDirectives[tension] 
           || Object.values(blueprint.narrativeRules.phaseDirectives)[0] 
           || "";
@@ -387,6 +390,10 @@ router.post("/chat", async (req, res) => {
     output.logic_state.psychological_status = output.logic_state.psychological_status || updatedState?.psychological_status || 'Stable';
     output.logic_state.player_role = output.logic_state.player_role || updatedState?.player_role || 'protagonist';
     output.logic_state.npc_fixations = output.logic_state.npc_fixations || updatedState?.npc_fixations || [];
+    output.logic_state.current_tension_level = output.logic_state.current_tension_level 
+      || updatedState?.current_tension_level 
+      || blueprint.narrativeRules.currentTensionLevel 
+      || 'buildup';
     
     if (updatedState) {
       // Allow the model's newly generated facts and consequences to persist.
