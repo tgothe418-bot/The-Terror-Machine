@@ -226,14 +226,14 @@ router.post("/extract-style", async (req, res) => {
 
 router.post("/distill", async (req, res) => {
   try {
-    const { systemPrompt, currentSummary, prunedTurns } = req.body;
+    const { systemPrompt, currentSummary, flattenedTranscript } = req.body;
 
     const payloadContent = `
       CURRENT WORLD SUMMARY:
       ${currentSummary}
 
-      PRUNED TURNS TO INTEGRATE:
-      ${JSON.stringify(prunedTurns, null, 2)}
+      PRUNED EXCHANGES TO INTEGRATE:
+      ${flattenedTranscript}
     `;
 
     const response = await getAiClient().models.generateContent({

@@ -2,7 +2,7 @@ import { Message, ScenarioBlueprint, BicameralOutput, LogicState, ProseStyleVect
 import { useForgeStore } from "../store/useForgeStore";
 import { distillationPrompt } from "../core/prompts/distillation";
 
-export const distillContext = async (currentSummary: string, prunedTurns: Message[]): Promise<string> => {
+export const distillContext = async (currentSummary: string, flattenedTranscript: string): Promise<string> => {
   try {
     const response = await fetch('/api/distill', {
       method: 'POST',
@@ -10,7 +10,7 @@ export const distillContext = async (currentSummary: string, prunedTurns: Messag
       body: JSON.stringify({
         systemPrompt: distillationPrompt,
         currentSummary,
-        prunedTurns
+        flattenedTranscript
       })
     });
 

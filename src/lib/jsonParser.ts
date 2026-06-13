@@ -1,4 +1,33 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { Message } from '../types';
+
+export const flattenTurnsForDistillation = (turns: Message[]): string => {
+  return turns
+    .map((turn) => {
+      const rolePrefix = turn.role === 'user' ? 'USER INPUT:' : 'SYSTEM VOICE OUTPUT:';
+      
+      // If the turn contains structured blocks, extract the content text only
+      if (Array.isArray(turn.blocks)) {
+        const textContent = turn.blocks
+          .map((block: any) => {
+            // Only aggregate narrative content types, skip internal mechanics if necessary
+            if (['prose', 'dialogue', 'internal_monologue', 'environmental_intrusion', 'system_voice'].includes(block.type)) {
+              return block.content;
+            }
+            return '';
+          })
+          .filter(Boolean)
+          .join('\n');
+          
+        return `${rolePrefix}\n${textContent}`;
+      }
+
+      // Fallback if content is a direct string payload
+      return `${rolePrefix}\n${turn.content}`;
+    })
+    .join('\n\n---\n\n');
+};
+
 /**
  * Safely extracts and parses a JSON blueprint from a potentially noisy LLM response.
  */

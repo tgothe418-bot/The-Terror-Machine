@@ -4,6 +4,8 @@ import { ScenarioBlueprint, LogicState, Message } from '../types';
 import { idbStorage } from '../lib/idbStorage';
 import { distillContext } from '../services/geminiService';
 
+import { flattenTurnsForDistillation } from '../lib/jsonParser';
+
 interface EngineState {
   activeBlueprint: ScenarioBlueprint | null;
   gameState: LogicState | null;
@@ -82,21 +84,23 @@ export const useEngineStore = create<EngineState>()(
         const currentBuffer = get().textBuffer;
         const currentSummary = get().worldStateSummary;
         
-        // 1. Identify the turns heading to the incinerator
+        // 1. Isolate the oldest message cluster
         const turnsToPrune = currentBuffer.slice(0, 2);
-        
-        // 2. Immediately update the UI/Buffer so the user experiences zero lag
         const remainingBuffer = currentBuffer.slice(2);
+        
+        // 2. Clear from active text memory immediately for UI responsiveness
         set({ textBuffer: remainingBuffer });
 
-        // 3. Fire the background distillation worker
+        // 3. Flatten the complex JSON payload into structured plain text
+        const flattenedTranscript = flattenTurnsForDistillation(turnsToPrune);
+
+        // 4. Dispatch the streamlined text string to the background processing tier
         try {
-          const updatedSummary = await distillContext(currentSummary, turnsToPrune);
-          // 4. Silently inject the compressed summary back into the permanent state
+          const updatedSummary = await distillContext(currentSummary, flattenedTranscript);
           set({ worldStateSummary: updatedSummary });
-          console.log('// BACKGROUND DISTILLATION COMPLETE //');
+          console.log('// BACKGROUND SEMANTIC DISTILLATION lossless pass complete //');
         } catch (error) {
-          console.error('// DISTILLATION WORKER FAILED // Context may be lost.', error);
+          console.error('// DISTILLATION BACKGROUND FAILURE // Fallback state maintained.', error);
         }
       },
       updateWorldStateSummary: (newSummary) => {
