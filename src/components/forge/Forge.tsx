@@ -23,10 +23,12 @@ export default function Forge() {
     setHasReferenceMaterial,
     forgePhase,
     setForgePhase,
-    setSummaryContext
+    setSummaryContext,
+    who, what, where, when, whyHow,
+    setWho, setWhat, setWhere, setWhen, setWhyHow,
+    clearForgeInputs
   } = useForgeStore();
   const voiceMessages = useVoiceStore((state) => state.messages);
-  const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [blueprint, setBlueprint] = useState<ScenarioBlueprint | null>(null);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
@@ -103,17 +105,23 @@ export default function Forge() {
 
   const handleSend = async (e?: React.FormEvent) => {
     e?.preventDefault();
-    if ((!input.trim() && attachments.length === 0) || isLoading) return;
+    const hasText = who.trim() || what.trim() || where.trim() || when.trim() || whyHow.trim();
+    if ((!hasText && attachments.length === 0) || isLoading) return;
+
+    let combinedInput = '';
+    if (hasText) {
+      combinedInput = `[SYSTEM SUBJECT (WHO)]\n${who}\n\n[CORE CONSTRAINT (WHAT)]\n${what}\n\n[ENCLOSURE ENVIRONMENT (WHERE)]\n${where}\n\n[TEMPORAL ANCHOR (WHEN)]\n${when}\n\n[SYSTEMIC VECTOR DIRECTIVE (WHY/HOW)]\n${whyHow}`;
+    }
 
     const userMessage: Message = {
       role: 'user',
-      content: input,
+      content: combinedInput,
       timestamp: Date.now(),
       attachments: attachments.length > 0 ? [...attachments] : undefined,
     };
 
     addMessage(userMessage);
-    setInput('');
+    clearForgeInputs();
     setAttachments([]);
     setIsLoading(true);
 
@@ -454,55 +462,94 @@ export default function Forge() {
                 )}
               </AnimatePresence>
 
-              <form onSubmit={handleSend} className="relative flex flex-col gap-2">
-                <div className="relative">
-                      <textarea
-                        value={input}
-                        onChange={(e) => setInput(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' && !e.shiftKey) {
-                            e.preventDefault();
-                            handleSend();
-                          }
-                        }}
-                        disabled={isLoading}
-                        placeholder={isLoading ? "Awaiting Architect..." : "Input parameters or paste reference material..."}
-                        className="w-full bg-zinc-950 border border-zinc-800 p-4 pr-24 text-sm focus:outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500/20 transition-all placeholder:text-zinc-800 disabled:opacity-50 min-h-[100px] resize-none scrollbar-hide"
-                      />
-                      <div className="absolute right-4 bottom-4 flex items-center gap-4">
-                        <button
-                          type="button"
-                          onClick={() => fileInputRef.current?.click()}
-                          disabled={isLoading}
-                          className="text-zinc-700 hover:text-white transition-all duration-300 disabled:opacity-50 hover:scale-110 active:scale-95"
-                          title="Attach Files (JSON, PDF, Images, MD)"
-                        >
-                          <Paperclip className="w-5 h-5" />
-                        </button>
-                        <button
-                          type="submit"
-                          disabled={isLoading || (!input.trim() && attachments.length === 0)}
-                          className="text-zinc-700 hover:text-white transition-all duration-300 disabled:opacity-50 hover:scale-110 active:scale-95"
-                        >
-                          {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
-                        </button>
-                      </div>
-                      <input 
-                        type="file" 
-                        ref={fileInputRef}
-                        onChange={handleFileChange}
-                        multiple
-                        accept=".json,.pdf,image/*,.md,text/markdown"
-                        className="hidden"
-                      />
+              <form onSubmit={handleSend} className="relative flex flex-col gap-4">
+                {/* Architect Diagnostic Banner */}
+                <div className="border border-zinc-800 bg-zinc-950/50 p-4 rounded text-xs mb-2 w-full">
+                  <div className="text-red-500 font-bold mb-2 uppercase tracking-widest">// ARCHITECT DIRECTIVE: INTAKE INITIALIZATION</div>
+                  <p className="text-zinc-400 leading-relaxed mb-3">
+                    Welcome to the Forge. This console compiles arbitrary conceptual parameters into a flat, 
+                    functional JSON state matrix. To instantiate an isolated multi-interactor simulation, 
+                    you must explicitly decouple your scenario into five discrete vector layers.
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-zinc-600 text-[11px] border-t border-zinc-900 pt-2">
+                    <div>• SYSTEM CAPACITY: STRICT COMPLIANCE PARSING</div>
+                    <div>• LORE INJECTION: CANONICAL ENFORCEMENT ACTIVE</div>
+                    <div>• EXPECTED OUTPUT: ROOT-LEVEL STATE BLUEPRINT</div>
+                    <div>• TARGET RUNTIME: THE NIGHTMARE MACHINE 2.0</div>
+                  </div>
                 </div>
+
+                {/* 4-Column Upper Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {[
+                    { id: 'who', label: 'SYSTEM SUBJECT (WHO)', placeholder: 'Define the isolated entities, forms, or specimens...', value: who, onChange: setWho },
+                    { id: 'what', label: 'CORE CONSTRAINT (WHAT)', placeholder: 'Set the overarching dilemma, system rule, or conflict...', value: what, onChange: setWhat },
+                    { id: 'where', label: 'ENCLOSURE ENVIRONMENT (WHERE)', placeholder: 'Map out the explicit physical structures...', value: where, onChange: setWhere },
+                    { id: 'when', label: 'TEMPORAL ANCHOR (WHEN)', placeholder: 'Historical era, cosmic coordinate, or baseline...', value: when, onChange: setWhen },
+                  ].map((field) => (
+                    <div key={field.id} className="flex flex-col gap-2 border border-zinc-800 bg-zinc-950 p-3 rounded shadow-inner">
+                      <label className="text-[10px] font-bold tracking-wider text-zinc-500">{field.label}</label>
+                      <textarea
+                        value={field.value}
+                        onChange={(e) => field.onChange(e.target.value)}
+                        placeholder={field.placeholder}
+                        disabled={isLoading}
+                        className="w-full h-32 bg-transparent text-sm text-zinc-200 placeholder-zinc-700 resize-none outline-none focus:text-white transition-colors scrollbar-hide"
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                {/* Broad Structural Baseline Input (Why/How) */}
+                <div className="flex flex-col gap-2 border border-zinc-800 bg-zinc-950 p-4 rounded shadow-inner w-full relative">
+                  <label className="text-[10px] font-bold tracking-wider text-zinc-500">SYSTEMIC VECTOR DIRECTIVE (WHY / HOW)</label>
+                  <textarea
+                    value={whyHow}
+                    onChange={(e) => setWhyHow(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSend();
+                      }
+                    }}
+                    placeholder="Calibrate the initial psychological or logic vectors. Describe the experimental purpose..."
+                    disabled={isLoading}
+                    className="w-full h-24 bg-transparent text-sm text-zinc-200 placeholder-zinc-700 resize-none outline-none focus:text-white transition-colors pr-24 scrollbar-hide"
+                  />
+                  <div className="absolute right-4 bottom-4 flex items-center gap-4 bg-zinc-950 px-2 py-1 rounded">
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isLoading}
+                      className="text-zinc-700 hover:text-white transition-all duration-300 disabled:opacity-50 hover:scale-110 active:scale-95"
+                      title="Attach Files (JSON, PDF, Images, MD)"
+                    >
+                      <Paperclip className="w-5 h-5" />
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isLoading || (!(who.trim() || what.trim() || where.trim() || when.trim() || whyHow.trim()) && attachments.length === 0)}
+                      className="text-zinc-700 hover:text-white transition-all duration-300 disabled:opacity-50 hover:scale-110 active:scale-95"
+                    >
+                      {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+                    </button>
+                  </div>
+                </div>
+                <input 
+                  type="file" 
+                  ref={fileInputRef}
+                  onChange={handleFileChange}
+                  multiple
+                  accept=".json,.pdf,image/*,.md,text/markdown"
+                  className="hidden"
+                />
               </form>
             </>
           )}
         </div>
         <div className="mt-4 text-center">
           <p className="text-[8px] text-zinc-800 uppercase tracking-[0.4em]">
-            {isLoading ? "Neural Link Active // Processing" : "Structural Integrity Verified // Awaiting Input"}
+            {isLoading ? "Neural Link Active // Processing" : "Awaiting Full Matrix Compilation // Structural Integrity Verified"}
           </p>
         </div>
       </div>

@@ -14,6 +14,17 @@ interface ForgeState {
   extractedSetting: string;
   extractedThreat: string;
   extractedStyle: string;
+  who: string;
+  what: string;
+  where: string;
+  when: string;
+  whyHow: string;
+  setWho: (val: string) => void;
+  setWhat: (val: string) => void;
+  setWhere: (val: string) => void;
+  setWhen: (val: string) => void;
+  setWhyHow: (val: string) => void;
+  clearForgeInputs: () => void;
   addMessage: (message: Message) => void;
   clearHistory: () => void;
   setAvailableReferenceCharacters: (characters: CharacterProfile[]) => void;
@@ -53,6 +64,17 @@ export const useForgeStore = create<ForgeState>()(
       extractedSetting: '',
       extractedThreat: '',
       extractedStyle: '',
+      who: '',
+      what: '',
+      where: '',
+      when: '',
+      whyHow: '',
+      setWho: (val) => set({ who: val }),
+      setWhat: (val) => set({ what: val }),
+      setWhere: (val) => set({ where: val }),
+      setWhen: (val) => set({ when: val }),
+      setWhyHow: (val) => set({ whyHow: val }),
+      clearForgeInputs: () => set({ who: '', what: '', where: '', when: '', whyHow: '' }),
       addMessage: (message) =>
         set((state) => ({
           messages: [...state.messages, message],

@@ -4,7 +4,7 @@ import remarkGfm from 'remark-gfm';
 import { ArrowLeft, Send, Loader2, MessageCircle, Trash2, Paperclip, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Message, Attachment } from '../../types';
-import { sendMessageToVoice } from '../../services/geminiService';
+import { sendChatMessage } from '../../services/geminiService';
 import { useAppStore } from '../../store/useAppStore';
 import { useVoiceStore } from '../../store/useVoiceStore';
 import { useForgeStore } from '../../store/useForgeStore';
@@ -12,6 +12,7 @@ import { useEngineStore } from '../../core/store';
 
 export default function TheVoice() {
   const setPhase = useAppStore((state) => state.setPhase);
+  const phase = useAppStore((state) => state.phase);
   const { messages, addMessage, clearHistory } = useVoiceStore();
   const forgeMessages = useForgeStore((state) => state.messages);
   const [input, setInput] = useState('');
@@ -72,8 +73,13 @@ export default function TheVoice() {
         content: msg.content,
         attachments: msg.attachments
       }));
-      const response = await sendMessageToVoice(chatHistory as any, forgeMessages);
-      const voiceMsg: Message = { role: 'voice', content: response, timestamp: Date.now() };
+      const response = await sendChatMessage({
+        messageHistory: chatHistory as any, 
+        forgeContext: forgeMessages,
+        execution_mode: phase
+      });
+      const responseText = response.narrative_blocks && response.narrative_blocks[0] ? response.narrative_blocks.map(b => b.content).join('\n') : "Error: No response";
+      const voiceMsg: Message = { role: 'voice', content: responseText, timestamp: Date.now() };
       addMessage(voiceMsg);
 
       // Output to Engine if simulation is active

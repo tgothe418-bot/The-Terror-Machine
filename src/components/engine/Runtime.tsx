@@ -15,7 +15,7 @@ const formatBlocks = (blocks?: NarrativeBlock[]): string => {
     return block.content;
   }).join('\n\n');
 };
-import { sendMessageToOrchestrator } from '../../services/geminiService';
+import { sendChatMessage } from '../../services/geminiService';
 import ErgodicTextRenderer from './ErgodicTextRenderer';
 
 const SESSION_TIMEOUT = 60 * 60 * 1000; // 60 minutes
@@ -29,6 +29,7 @@ export default function Runtime() {
   const addMessage = useEngineStore((state) => state.addMessage);
   
   const setPhase = useAppStore((state) => state.setPhase);
+  const phase = useAppStore((state) => state.phase);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [lastActivity, setLastActivity] = useState<number>(() => Date.now());
@@ -53,11 +54,12 @@ export default function Runtime() {
   const startSimulation = useCallback(async () => {
     setIsLoading(true);
     try {
-      const initialResponse = await sendMessageToOrchestrator(
-        activeBlueprint!, 
-        [{ role: 'user', content: 'Begin simulation. Establish environment and initial state.', timestamp: Date.now() }],
-        gameState // Pass current state (null initially)
-      );
+      const initialResponse = await sendChatMessage({
+        blueprint: activeBlueprint!, 
+        messageHistory: [{ role: 'user', content: 'Begin simulation. Establish environment and initial state.', timestamp: Date.now() }],
+        currentState: gameState,
+        execution_mode: phase
+      });
       
       const narrativeBlocks = initialResponse.narrative_blocks;
 
@@ -74,7 +76,7 @@ export default function Runtime() {
     } finally {
       setIsLoading(false);
     }
-  }, [activeBlueprint, gameState, addMessage, updateGameState]);
+  }, [activeBlueprint, gameState, addMessage, updateGameState, phase]);
 
   // Monitor for idle timeout
   useEffect(() => {
@@ -135,7 +137,12 @@ export default function Runtime() {
     setIsLoading(true);
 
     try {
-      const response = await sendMessageToOrchestrator(activeBlueprint!, newMessages, gameState);
+      const response = await sendChatMessage({
+        blueprint: activeBlueprint!, 
+        messageHistory: newMessages, 
+        currentState: gameState,
+        execution_mode: phase
+      });
       
       const narrativeBlocks = response.narrative_blocks;
 

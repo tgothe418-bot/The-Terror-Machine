@@ -1,8 +1,8 @@
 import express from "express";
 import { GoogleGenAI } from "@google/genai";
-import { LORE_EXTRACTION_PROMPT, INTERVIEW_PHASE_1_PROMPT, INTERVIEW_PHASE_2_PROMPT, GENERATION_PROMPT } from "../src/core/prompts/architect";
+import { LORE_EXTRACTION_PROMPT, architectPrompt } from "../src/core/prompts/architect";
 import { ORCHESTRATOR_SYSTEM_PROMPT } from "../src/core/prompts/orchestrator";
-import { VOICE_SYSTEM_PROMPT } from "../src/core/prompts/voice";
+import { voicePrompt } from "../src/core/prompts/voice";
 import { extractBlueprint } from "../src/lib/jsonParser";
 
 const router = express.Router();
@@ -77,13 +77,7 @@ router.post("/architect", async (req, res) => {
       }
     }
 
-    let systemInstruction = '';
-    switch (currentPhase) {
-      case 'INTERVIEW_PHASE_1': systemInstruction = INTERVIEW_PHASE_1_PROMPT; break;
-      case 'INTERVIEW_PHASE_2': systemInstruction = INTERVIEW_PHASE_2_PROMPT; break;
-      case 'GENERATION': systemInstruction = GENERATION_PROMPT; break;
-      default: systemInstruction = INTERVIEW_PHASE_1_PROMPT;
-    }
+    let systemInstruction = architectPrompt;
 
     let loreContext = '\n\n### [ ESTABLISHED WORLD LORE ]\n';
     let hasLore = false;
@@ -223,13 +217,17 @@ router.post("/extract-style", async (req, res) => {
   }
 });
 
-router.post("/orchestrator", async (req, res) => {
+router.post("/chat", async (req, res) => {
   try {
-    const { blueprint, messageHistory, currentState } = req.body;
-    const activeHistory = messageHistory.slice(-6);
+    const { blueprint, messageHistory, currentState, forgeContext, execution_mode } = req.body;
+    const mode = String(execution_mode).toUpperCase();
+    const isHubMode = mode === 'HUB' || mode === 'VOICE';
+    const isRuntimeMode = mode === 'RUNTIME' || mode === 'ENGINE';
+    
+    const activeHistory = messageHistory.slice(isHubMode ? -10 : -6);
     const updatedState = currentState ? { ...currentState } : null;
 
-    if (messageHistory.length > 10 && updatedState) {
+    if (isRuntimeMode && messageHistory.length > 10 && updatedState) {
       const toSummarize = messageHistory.slice(0, -6);
       const historyText = toSummarize.map((m: any) => `${m.role.toUpperCase()}: ${m.content}`).join('\n');
       
@@ -267,41 +265,63 @@ router.post("/orchestrator", async (req, res) => {
       }
     }
 
-    let currentPacing = "";
-    if (blueprint.narrativeRules?.phaseDirectives) {
-      const tension = blueprint.narrativeRules.currentTensionLevel || 'buildup';
-      currentPacing = blueprint.narrativeRules.phaseDirectives[tension] 
-        || Object.values(blueprint.narrativeRules.phaseDirectives)[0] 
-        || "";
-    } else if (blueprint.narrativeRules?.pacingDirectives) {
-      currentPacing = blueprint.narrativeRules.pacingDirectives;
-    }
+    let systemInstruction = "";
+    let responseMimeType = "text/plain";
+    let temperature = 0.9;
 
-    const slimBlueprint = {
-      ...blueprint,
-      narrativeRules: {
-        ...blueprint.narrativeRules,
-        pacingDirectives: currentPacing 
+    if (isRuntimeMode) {
+      responseMimeType = "application/json";
+      temperature = 0.8;
+      
+      let currentPacing = "";
+      if (blueprint.narrativeRules?.phaseDirectives) {
+        const tension = blueprint.narrativeRules.currentTensionLevel || 'buildup';
+        currentPacing = blueprint.narrativeRules.phaseDirectives[tension] 
+          || Object.values(blueprint.narrativeRules.phaseDirectives)[0] 
+          || "";
+      } else if (blueprint.narrativeRules?.pacingDirectives) {
+        currentPacing = blueprint.narrativeRules.pacingDirectives;
       }
-    };
-    if (slimBlueprint.narrativeRules) {
-      delete slimBlueprint.narrativeRules.phaseDirectives;
-    }
 
-    const stateContext = updatedState 
-      ? `\n\n[CURRENT LOGIC STATE (ABSOLUTE TRUTH)]:\n${JSON.stringify(updatedState, null, 2)}`
-      : "\n\n[CURRENT LOGIC STATE]: Uninitialized.";
+      const slimBlueprint = {
+        ...blueprint,
+        narrativeRules: {
+          ...blueprint.narrativeRules,
+          pacingDirectives: currentPacing 
+        }
+      };
+      if (slimBlueprint.narrativeRules) {
+        delete slimBlueprint.narrativeRules.phaseDirectives;
+      }
 
-    const systemInstruction = `${ORCHESTRATOR_SYSTEM_PROMPT}\n\n[SCENARIO BLUEPRINT]:\n${JSON.stringify(slimBlueprint, null, 2)}${stateContext}${
-      blueprint.styleProfile 
-        ? `\n\nNARRATIVE STYLE INFECTION (Dimensional Style Vectors):
-        - Sensory Focus: ${blueprint.styleProfile.sensoryDominance.join(', ')}
-        - Cadence: ${blueprint.styleProfile.syntacticCadence}
-        - Core Theme: ${blueprint.styleProfile.thematicCore}
+      const stateContext = updatedState 
+        ? `\n\n[CURRENT LOGIC STATE (ABSOLUTE TRUTH)]:\n${JSON.stringify(updatedState, null, 2)}`
+        : "\n\n[CURRENT LOGIC STATE]: Uninitialized.";
+
+      systemInstruction = `${ORCHESTRATOR_SYSTEM_PROMPT}\n\n[SCENARIO BLUEPRINT]:\n${JSON.stringify(slimBlueprint, null, 2)}${stateContext}${
+        blueprint.styleProfile 
+          ? `\n\nNARRATIVE STYLE INFECTION (Dimensional Style Vectors):
+          - Sensory Focus: ${blueprint.styleProfile.sensoryDominance.join(', ')}
+          - Cadence: ${blueprint.styleProfile.syntacticCadence}
+          - Core Theme: ${blueprint.styleProfile.thematicCore}
+          
+          Crucial: This style only applies to the prose within the 'narrative_blocks' array. You must still strictly output the valid JSON structure requested above.` 
+          : ''
+      }`;
+    } else {
+      systemInstruction = voicePrompt;
+      if (forgeContext && forgeContext.length > 0) {
+        const forgeSummary = forgeContext
+          .filter((m: any) => m.role === 'user')
+          .slice(-5)
+          .map((m: any) => m.content)
+          .join('\n');
         
-        Crucial: This style only applies to the prose within the 'narrative_blocks' array. You must still strictly output the valid JSON structure requested above.` 
-        : ''
-    }`;
+        if (forgeSummary) {
+          systemInstruction += `\n\nCONTEXT FROM THE FORGE (User's nightmare designs): \n${forgeSummary}\n\nUse this context to be morbidly curious and atmospheric about the user's creative process in the Forge. Act as a collaborative partner mirroring their intensity, not a polite assistant.`;
+        }
+      }
+    }
 
     const rawContents = activeHistory.map((msg: any) => {
       const parts: any[] = [];
@@ -329,12 +349,21 @@ router.post("/orchestrator", async (req, res) => {
       contents: contents,
       config: {
         systemInstruction: systemInstruction,
-        temperature: 0.8,
+        temperature,
         topP: 0.95,
         topK: 40,
-        responseMimeType: "application/json",
+        ...(responseMimeType === "application/json" && { responseMimeType })
       },
     });
+
+    if (isHubMode) {
+      res.json({
+        engine_thoughts: '',
+        narrative_blocks: [{ type: 'prose', content: response.text || "Error: No response from The Voice." }],
+        logic_state: {} // Read-only state for hub
+      });
+      return;
+    }
 
     const textResponse = response.text || "{}";
     const parsed = extractBlueprint(textResponse, ['narrative_blocks', 'engine_thoughts', 'logic_state']);
@@ -368,69 +397,12 @@ router.post("/orchestrator", async (req, res) => {
 
     res.json(output);
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-router.post("/voice", async (req, res) => {
-  try {
-    const { messageHistory, forgeContext } = req.body;
-    const historyWindow = messageHistory.slice(-10);
-
-    const rawContents = historyWindow.map((msg: any) => {
-      const parts: any[] = [];
-      if (msg.content && msg.content.trim()) parts.push({ text: msg.content });
-      if (msg.attachments && msg.attachments.length > 0) {
-        msg.attachments.forEach((att: any) => {
-          parts.push({ inlineData: { mimeType: att.mimeType, data: att.data } });
-        });
-      }
-      if (parts.length === 0) parts.push({ text: "..." });
-      return {
-        role: (msg.role === "assistant" || msg.role === "voice" || msg.role === "model") ? "model" : "user",
-        parts: parts,
-      };
-    });
-
-    const contents: any[] = [];
-    for (const msg of rawContents) {
-      if (contents.length === 0) {
-        if (msg.role === 'user') contents.push(msg);
-        continue;
-      }
-      const lastMsg = contents[contents.length - 1];
-      if (lastMsg.role === msg.role) lastMsg.parts.push(...msg.parts);
-      else contents.push(msg);
-    }
-
-    let systemInstruction = VOICE_SYSTEM_PROMPT;
-    if (forgeContext && forgeContext.length > 0) {
-      const forgeSummary = forgeContext
-        .filter((m: any) => m.role === 'user')
-        .slice(-5)
-        .map((m: any) => m.content)
-        .join('\n');
-      
-      if (forgeSummary) {
-        systemInstruction += `\n\nCONTEXT FROM THE FORGE (User's nightmare designs): \n${forgeSummary}\n\nUse this context to be morbidly curious and atmospheric about the user's creative process in the Forge. Act as a collaborative partner mirroring their intensity, not a polite assistant.`;
-      }
-    }
-
-    const response = await getAiClient().models.generateContent({
-      model: "gemini-3.5-flash",
-      contents: contents,
-      config: {
-        systemInstruction: systemInstruction,
-        temperature: 0.9,
-        topP: 0.95,
-        topK: 40,
-      },
-    });
-
-    res.json({ text: response.text || "Error: No response from The Voice." });
-  } catch (error: any) {
-    if (error.message?.includes('SAFETY') || error.message?.includes('candidate')) {
-      res.json({ text: "I'm sorry. I found myself wandering into a corridor of thought that I'm not permitted to explore. Shall we discuss something else?" });
+    if (isHubMode && (error.message?.includes('SAFETY') || error.message?.includes('candidate'))) {
+      res.json({
+         engine_thoughts: '',
+         narrative_blocks: [{ type: 'prose', content: "I'm sorry. I found myself wandering into a corridor of thought that I'm not permitted to explore. Shall we discuss something else?" }],
+         logic_state: {}
+      });
     } else {
       res.status(500).json({ error: error.message });
     }

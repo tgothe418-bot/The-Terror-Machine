@@ -1,4 +1,4 @@
-import { Message, ScenarioBlueprint, BicameralOutput, LogicState, StyleVectors, ForgePhase, ReferenceMaterial, ExtractedLore } from "../types";
+import { Message, ScenarioBlueprint, BicameralOutput, LogicState, StyleVectors, ForgePhase, ReferenceMaterial, ExtractedLore, AppPhase } from "../types";
 import { useForgeStore } from "../store/useForgeStore";
 
 export async function sendMessageToArchitect(messageHistory: Message[], currentPhase: ForgePhase, voiceContext?: Message[]) {
@@ -44,27 +44,20 @@ export async function extractStyleProfile(userText: string): Promise<StyleVector
   return response.json();
 }
 
-export async function sendMessageToOrchestrator(
-  blueprint: ScenarioBlueprint, 
-  messageHistory: Message[],
-  currentState: LogicState | null
+export async function sendChatMessage(
+  payload: {
+    messageHistory: Message[];
+    blueprint?: ScenarioBlueprint;
+    currentState?: LogicState | null;
+    forgeContext?: Message[];
+    execution_mode: AppPhase;
+  }
 ): Promise<BicameralOutput> {
-  const response = await fetch('/api/orchestrator', {
+  const response = await fetch('/api/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ blueprint, messageHistory, currentState })
+    body: JSON.stringify(payload)
   });
   if (!response.ok) throw new Error(await response.text());
   return response.json();
-}
-
-export async function sendMessageToVoice(messageHistory: Message[], forgeContext?: Message[]) {
-  const response = await fetch('/api/voice', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messageHistory, forgeContext })
-  });
-  if (!response.ok) throw new Error(await response.text());
-  const data = await response.json();
-  return data.text;
 }
