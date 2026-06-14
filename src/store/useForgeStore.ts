@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { Message, CharacterProfile, ForgePhase, ReferenceMaterial, ProseStyleVector } from '../types';
+import { Message, CharacterProfile, ForgePhase, ReferenceMaterial, ProseStyleVector, HorrorVector, ExposureTier } from '../types';
 import { idbStorage } from '../lib/idbStorage';
 
 export const defaultStyleVector: ProseStyleVector = {
@@ -18,6 +18,15 @@ export const defaultStyleVector: ProseStyleVector = {
   ]
 };
 
+export interface DraftBlueprint {
+  id?: string;
+  title?: string;
+  premise?: string;
+  startingVector: HorrorVector;
+  startingTier: ExposureTier;
+  environmentalRules?: string;
+}
+
 interface ForgeState {
   messages: Message[];
   availableReferenceCharacters: CharacterProfile[];
@@ -29,6 +38,7 @@ interface ForgeState {
   extractedSetting: string;
   extractedThreat: string;
   extractedStyle: string;
+  draftBlueprint: DraftBlueprint | null;
   who: string;
   what: string;
   where: string;
@@ -40,6 +50,8 @@ interface ForgeState {
   setWhen: (val: string) => void;
   setWhyHow: (val: string) => void;
   clearForgeInputs: () => void;
+  updateDraft: (updates: Partial<DraftBlueprint>) => void;
+  initializeDraft: () => void;
   addMessage: (message: Message) => void;
   clearHistory: () => void;
   setAvailableReferenceCharacters: (characters: CharacterProfile[]) => void;
@@ -84,6 +96,20 @@ export const useForgeStore = create<ForgeState>()(
       where: '',
       when: '',
       whyHow: '',
+      draftBlueprint: null,
+      initializeDraft: () => set({
+        draftBlueprint: {
+          id: crypto.randomUUID(),
+          title: '',
+          premise: '',
+          startingVector: 'COGNITIVE',
+          startingTier: 'LATENT',
+          environmentalRules: ''
+        }
+      }),
+      updateDraft: (updates) => set((state) => ({
+        draftBlueprint: state.draftBlueprint ? { ...state.draftBlueprint, ...updates } : null
+      })),
       setWho: (val) => set({ who: val }),
       setWhat: (val) => set({ what: val }),
       setWhere: (val) => set({ where: val }),
@@ -95,6 +121,7 @@ export const useForgeStore = create<ForgeState>()(
           messages: [...state.messages, message],
         })),
       clearHistory: () => set({ 
+        draftBlueprint: null,
         messages: [
           {
             role: 'assistant',

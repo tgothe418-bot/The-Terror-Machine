@@ -1,8 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import express from "express";
 import { GoogleGenAI } from "@google/genai";
-import * as dotenv from 'dotenv';
-dotenv.config({ override: true });
 
 import { LORE_EXTRACTION_PROMPT, architectPrompt } from "../src/core/prompts/architect";
 import { ORCHESTRATOR_SYSTEM_PROMPT } from "../src/core/prompts/orchestrator";
@@ -17,25 +15,18 @@ let aiClient: GoogleGenAI | null = null;
 
 function getAiClient(): GoogleGenAI {
   if (!aiClient) {
-    const key = process.env.GEMINI_API_KEY;
+    let key = process.env.GEMINI_API_KEY;
     if (!key) {
       throw new Error('GEMINI_API_KEY environment variable is required');
     }
+    console.log("Key length:", key.length, "starts with:", key.substring(0, 4));
+    key = key.trim().replace(/^['"]|['"]$/g, '');
     aiClient = new GoogleGenAI({
       apiKey: key,
-      httpOptions: {
-        headers: {
-          'User-Agent': 'aistudio-build',
-        }
-      }
     });
   }
   return aiClient;
 }
-
-router.get("/debug-env", (req, res) => {
-  res.json({ env: process.env });
-});
 
 router.post("/architect", async (req, res) => {
   try {
@@ -444,7 +435,11 @@ router.post("/chat", async (req, res) => {
          logic_state: {}
       });
     } else {
-      res.status(500).json({ error: error.message });
+      let errorMsg = error.message;
+      if (errorMsg?.includes('API key not valid') || errorMsg?.includes('API_KEY_INVALID')) {
+        errorMsg = 'Invalid Gemini API Key. Please verify your API Key in the AI Studio Settings menu and ensure it does not contain extra spaces or quotes.';
+      }
+      res.status(500).json({ error: errorMsg });
     }
   }
 });

@@ -93,8 +93,17 @@ export default function Runtime() {
         timestamp: Date.now() 
       });
       updateGameState(initialResponse.logic_state); // Save logic state silently
-    } catch {
-      addEngineMessage({ role: 'assistant', content: '[ SYSTEM ERROR: NEURAL LINK FAILURE. REBOOT REQUIRED. ]', timestamp: Date.now() });
+    } catch (err: any) {
+      console.error(err);
+      let parsedMessage = "NEURAL LINK FAILURE. REBOOT REQUIRED.";
+      const errorMessage = typeof err === 'object' && err !== null && 'message' in err ? err.message : String(err);
+      try {
+        const parsed = JSON.parse(errorMessage);
+        if (parsed.error) {
+          parsedMessage = typeof parsed.error === 'string' ? parsed.error : JSON.stringify(parsed.error);
+        }
+      } catch { /* ignore */ }
+      addEngineMessage({ role: 'assistant', content: `[ SYSTEM ERROR: ${parsedMessage} ]`, timestamp: Date.now() });
     } finally {
       setIsLoading(false);
     }

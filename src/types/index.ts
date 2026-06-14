@@ -9,6 +9,10 @@ export type ForgePhase =
 
 export type ContentScale = 1 | 2 | 3 | 4 | 5 | 6;
 
+export type HorrorVector = 'SOMATIC' | 'COGNITIVE' | 'COSMIC' | 'SOCIO_MORAL';
+export type ExposureTier = 'GATEWAY' | 'LATENT' | 'MANIFEST' | 'TERMINAL';
+export type AutopilotVector = 'ADAPTIVE' | 'INSURGENT' | 'PANIC';
+
 export interface ReferenceMaterial {
   id: string;
   type: 'text' | 'image';
@@ -48,12 +52,16 @@ export interface CharacterProfile {
   goals: string;
   traits: string[];
   isUserCharacter: boolean;
+  behaviorVector?: AutopilotVector;
 }
 
 export interface ScenarioBlueprint {
   title: string;
   contentScale: ContentScale;
   contentLevelDescription: string; // e.g. "Spooky Fun - Splatterpunk"
+  startingVector?: HorrorVector;
+  startingTier?: ExposureTier;
+  environmentalRules?: string;
   setting: {
     location: string;
     atmosphere: string; // Sensory constraints
@@ -120,4 +128,9 @@ export interface BicameralOutput {
   engine_thoughts: string;
   narrative_blocks: NarrativeBlock[];
   logic_state: LogicState;
+  suggested_tension?: 'buildup' | 'visceral_climax' | 'aftermath';
+  matrix_mutation?: {
+    next_vector: HorrorVector;
+    next_tier: ExposureTier;
+  };
 }

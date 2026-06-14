@@ -63,6 +63,7 @@ export const useEngineStore = create<EngineState>()(
           inventory: [],
           psychological_status: 'Stable',
           player_role: role,
+          current_tension_level: 'buildup',
           lore_and_memory: {
             established_facts: [],
             permanent_consequences: []

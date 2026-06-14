@@ -12,6 +12,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Trash2 } from 'lucide-react';
 import CastManager from './CastManager';
 
+import { MatrixSelector } from './MatrixSelector';
+
 export default function Forge() {
   const setPhase = useAppStore((state) => state.setPhase);
   const { 
@@ -25,7 +27,7 @@ export default function Forge() {
     forgePhase,
     setForgePhase,
     setSummaryContext,
-    who, what, where, when, whyHow,
+    who, what, where, when, whyHow, draftBlueprint,
     setWho, setWhat, setWhere, setWhen, setWhyHow,
     clearForgeInputs
   } = useForgeStore();
@@ -198,6 +200,12 @@ export default function Forge() {
           } else {
             detectedBlueprint.styleProfile = defaultStyleVector;
           }
+        }
+        
+        if (draftBlueprint) {
+          detectedBlueprint.startingVector = draftBlueprint.startingVector;
+          detectedBlueprint.startingTier = draftBlueprint.startingTier;
+          detectedBlueprint.environmentalRules = draftBlueprint.environmentalRules;
         }
         
         setBlueprint(detectedBlueprint);
@@ -418,6 +426,13 @@ export default function Forge() {
                     if (detectedBlueprint && (detectedBlueprint.title || detectedBlueprint.setting)) {
                       detectedBlueprint.cast = selectedCharacters;
                       detectedBlueprint.styleProfile = detectedBlueprint.styleProfile || defaultStyleVector;
+
+                      if (draftBlueprint) {
+                        detectedBlueprint.startingVector = draftBlueprint.startingVector;
+                        detectedBlueprint.startingTier = draftBlueprint.startingTier;
+                        detectedBlueprint.environmentalRules = draftBlueprint.environmentalRules;
+                      }
+
                       setBlueprint(detectedBlueprint);
                       addMessage({
                         role: 'assistant',
@@ -490,6 +505,9 @@ export default function Forge() {
                     <div>• TARGET RUNTIME: THE NIGHTMARE MACHINE 2.0</div>
                   </div>
                 </div>
+
+                {/* Matrix Selector UI */}
+                <MatrixSelector />
 
                 {/* 4-Column Upper Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
