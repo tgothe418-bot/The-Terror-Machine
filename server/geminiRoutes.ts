@@ -530,6 +530,19 @@ router.post("/gemini/voice", async (req, res) => {
     const rawContents = (history || []).slice(-20).map((msg: any) => {
       const parts: any[] = [];
       if (msg.content && msg.content.trim()) parts.push({ text: msg.content });
+      
+      if (msg.attachments && msg.attachments.length > 0) {
+        for (const att of msg.attachments) {
+          parts.push({
+            inlineData: {
+              mimeType: att.mimeType || 'text/plain',
+              data: att.data
+            }
+          });
+          parts.push({ text: `\n[System Note: The user has attached a file named '${att.name}'. Parse this document to restore context or answer their query.]` });
+        }
+      }
+
       if (parts.length === 0) parts.push({ text: "..." });
       return {
         role: (msg.role === "assistant" || msg.role === "voice" || msg.role === "model") ? "model" : "user",
