@@ -111,6 +111,7 @@ export const useEngineStore = create<EngineState>()(
       },
       resetEngine: () => set((state) => ({
         engineTextBuffer: [],
+        engineMessages: [],
         engineWorldStateSummary: "The subject is contained. Initial parameters active.",
         gameState: state.activeBlueprint ? {
           current_location: state.activeBlueprint.setting.location,

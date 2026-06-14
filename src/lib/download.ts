@@ -77,3 +77,97 @@ export function downloadJson(data: any, filename: string) {
     console.error('Download failed:', error);
   }
 }
+
+export const exportEngineLog = (messages: any[], format: 'md' | 'html', title: string = 'engine-telemetry') => {
+  if (!messages || messages.length === 0) return;
+
+  const timestamp = new Date().toISOString();
+  let content = '';
+  let mimeType = '';
+  let extension = '';
+
+  if (format === 'html') {
+    mimeType = 'text/html;charset=utf-8;';
+    extension = 'html';
+    content = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <title>Engine Telemetry Log - ${timestamp}</title>
+        <style>
+          body { background-color: #000; color: #e5e7eb; font-family: monospace; padding: 2rem; max-width: 800px; margin: 0 auto; line-height: 1.6; }
+          .turn { margin-bottom: 2rem; padding-bottom: 2rem; border-bottom: 1px solid #333; }
+          .user-input { color: #888; font-style: italic; }
+          .block-prose { color: #d1d5db; margin-bottom: 1rem; }
+          .block-dialogue { color: #9ca3af; font-style: italic; margin-bottom: 1rem; padding-left: 1rem; border-left: 2px solid #555; }
+          .block-system_voice { color: #ef4444; font-weight: bold; text-transform: uppercase; margin-bottom: 1rem; letter-spacing: 1px; }
+          .block-engine_thoughts { background-color: #111; color: #6b7280; padding: 1rem; border: 1px dashed #333; margin-bottom: 1rem; font-size: 0.9em; }
+          .meta { color: #555; font-size: 0.8em; margin-bottom: 2rem; }
+        </style>
+      </head>
+      <body>
+        <div class="meta">THE NIGHTMARE MACHINE // ENGINE TELEMETRY<br>Generated: ${timestamp}</div>
+    `;
+
+    messages.forEach((msg) => {
+      content += `<div class="turn">`;
+      if (msg.role === 'user') {
+        content += `<div class="user-input">> ${msg.content}</div>`;
+      } else if (msg.role === 'engine' || msg.role === 'assistant') {
+        // If it's a parsed JSON response with narrative blocks
+        if (msg.blocks && Array.isArray(msg.blocks)) {
+          msg.blocks.forEach((block: any) => {
+             content += `<div class="block-${block.type || 'prose'}">${block.content || JSON.stringify(block)}</div>`;
+          });
+        } else if (Array.isArray(msg.content)) {
+          msg.content.forEach((block: any) => {
+             content += `<div class="block-${block.type || 'prose'}">${block.content || JSON.stringify(block)}</div>`;
+          });
+        } else {
+           content += `<div class="block-prose">${msg.content}</div>`;
+        }
+      }
+      content += `</div>`;
+    });
+    content += `</body></html>`;
+  } else {
+    // Markdown Fallback
+    mimeType = 'text/markdown;charset=utf-8;';
+    extension = 'md';
+    content = `# THE NIGHTMARE MACHINE // ENGINE TELEMETRY\n*Generated: ${timestamp}*\n\n---\n\n`;
+    messages.forEach((msg) => {
+      if (msg.role === 'user') {
+        content += `> ${msg.content}\n\n`;
+      } else if (msg.role === 'engine' || msg.role === 'assistant') {
+        if (msg.blocks && Array.isArray(msg.blocks)) {
+          msg.blocks.forEach((block: any) => {
+            if (block.type === 'system_voice') content += `**[ ${block.content.toUpperCase()} ]**\n\n`;
+            else if (block.type === 'engine_thoughts') content += `\`\`\`json\n// ENGINE LOGIC\n${block.content}\n\`\`\`\n\n`;
+            else content += `${block.content}\n\n`;
+          });
+        } else if (Array.isArray(msg.content)) {
+          msg.content.forEach((block: any) => {
+            if (block.type === 'system_voice') content += `**[ ${block.content.toUpperCase()} ]**\n\n`;
+            else if (block.type === 'engine_thoughts') content += `\`\`\`json\n// ENGINE LOGIC\n${block.content}\n\`\`\`\n\n`;
+            else content += `${block.content}\n\n`;
+          });
+        } else {
+          content += `${msg.content}\n\n`;
+        }
+      }
+      content += `---\n\n`;
+    });
+  }
+
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const downloadLink = document.createElement('a');
+  downloadLink.href = url;
+  downloadLink.setAttribute('download', `${title}-${Date.now()}.${extension}`);
+  document.body.appendChild(downloadLink);
+  downloadLink.click();
+  document.body.removeChild(downloadLink);
+  URL.revokeObjectURL(url);
+};
+
