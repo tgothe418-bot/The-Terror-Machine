@@ -22,6 +22,7 @@ export interface DraftBlueprint {
   id?: string;
   title?: string;
   premise?: string;
+  references?: string[];
   startingVector: HorrorVector;
   startingTier: ExposureTier;
   environmentalRules?: string;
@@ -40,6 +41,9 @@ interface ForgeState {
   extractedThreat: string;
   extractedStyle: string;
   draftBlueprint: DraftBlueprint | null;
+  architectMessages: { role: string, content: string }[];
+  addArchitectMessage: (message: { role: string, content: string }) => void;
+  clearArchitectChat: () => void;
   who: string;
   what: string;
   where: string;
@@ -52,6 +56,7 @@ interface ForgeState {
   setWhyHow: (val: string) => void;
   clearForgeInputs: () => void;
   updateDraft: (updates: Partial<DraftBlueprint>) => void;
+  removeReference: (fileName: string) => void;
   initializeDraft: () => void;
   addMessage: (message: Message) => void;
   clearHistory: () => void;
@@ -92,6 +97,17 @@ export const useForgeStore = create<ForgeState>()(
       extractedSetting: '',
       extractedThreat: '',
       extractedStyle: '',
+      architectMessages: [
+        { role: 'architect', content: "I am the Architect. Tell me what kind of nightmare we are building today." }
+      ],
+      addArchitectMessage: (message) => set((state) => ({ 
+        architectMessages: [...state.architectMessages, message] 
+      })),
+      clearArchitectChat: () => set({ 
+        architectMessages: [
+          { role: 'architect', content: "I am the Architect. Tell me what kind of nightmare we are building today." }
+        ] 
+      }),
       who: '',
       what: '',
       where: '',
@@ -115,6 +131,15 @@ export const useForgeStore = create<ForgeState>()(
           ...updates 
         } as DraftBlueprint
       })),
+      removeReference: (fileName) => set((state) => {
+        if (!state.draftBlueprint) return state;
+        return {
+          draftBlueprint: {
+            ...state.draftBlueprint,
+            references: state.draftBlueprint.references?.filter(ref => ref !== fileName) || []
+          }
+        };
+      }),
       setWho: (val) => set({ who: val }),
       setWhat: (val) => set({ what: val }),
       setWhere: (val) => set({ where: val }),

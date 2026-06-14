@@ -2,20 +2,22 @@ import React, { useState } from 'react';
 import { useForgeStore } from '../../store/useForgeStore';
 
 export const ArchitectChat = () => {
-  const [messages, setMessages] = useState<{role: string, content: string}[]>([
-    { role: 'architect', content: "I am the Architect. Tell me what kind of nightmare we are building today." }
-  ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const updateDraft = useForgeStore(state => state.updateDraft);
+  
+  const messages = useForgeStore(state => state.architectMessages);
+  const addArchitectMessage = useForgeStore(state => state.addArchitectMessage);
 
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return;
     
-    const newHistory = [...messages, { role: 'user', content: input }];
-    setMessages(newHistory);
+    const userMsg = { role: 'user', content: input };
+    addArchitectMessage(userMsg);
     setInput('');
     setIsLoading(true);
+
+    const newHistory = [...messages, userMsg];
 
     try {
       const response = await fetch('/api/architect', {
@@ -26,7 +28,7 @@ export const ArchitectChat = () => {
       
       const data = await response.json();
       
-      setMessages([...newHistory, { role: 'architect', content: data.text }]);
+      addArchitectMessage({ role: 'architect', content: data.text });
 
       // CRITICAL: Auto-fill the Forge form if the Architect compiled a blueprint
       if (data.compiledBlueprint) {

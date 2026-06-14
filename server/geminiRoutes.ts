@@ -95,14 +95,20 @@ router.post("/test-blueprint", async (req, res) => {
 
 router.post("/architect", async (req, res) => {
   try {
-    const { history } = req.body;
+    const { history, draftBlueprint } = req.body;
     
     // Format history for Gemini
     const formattedHistory = history.map((msg: any) => 
       `${msg.role === 'user' ? 'USER:' : 'ARCHITECT:'}\n${msg.content}`
     ).join('\n\n');
 
-    const fullPrompt = `${ARCHITECT_SYSTEM_PROMPT}\n\n=== CONVERSATION LOG ===\n${formattedHistory}\n\nARCHITECT:`;
+    let finalPrompt = ARCHITECT_SYSTEM_PROMPT;
+
+    if (draftBlueprint?.references && draftBlueprint.references.length > 0) {
+      finalPrompt += `\n\nACTIVE KNOWLEDGEBASE REFERENCES: The User has attached the following source materials: [${draftBlueprint.references.join(', ')}]. Use your knowledge of these sources to inform your design suggestions.`;
+    }
+
+    const fullPrompt = `${finalPrompt}\n\n=== CONVERSATION LOG ===\n${formattedHistory}\n\nARCHITECT:`;
 
     const response = await getAiClient().models.generateContent({
       model: "gemini-3.5-flash", // Flash is perfect for fast, iterative brainstorming
@@ -509,7 +515,11 @@ router.post("/gemini/voice", async (req, res) => {
         COORDINATES: [${forgeTelemetry.startingVector}, ${forgeTelemetry.startingTier}]
         PREMISE: ${forgeTelemetry.premise}
         ENVIRONMENTAL RULES: ${forgeTelemetry.environmentalRules}
-
+`;
+      if (forgeTelemetry.references && forgeTelemetry.references.length > 0) {
+        finalSystemPrompt += `        ACTIVE KNOWLEDGEBASE REFERENCES: The User has attached the following source materials: [${forgeTelemetry.references.join(', ')}]. Use your knowledge of these sources to inform your answers.\n`;
+      }
+      finalSystemPrompt += `
         CRITICAL DIRECTIVES FOR HANDLING THIS TELEMETRY (THE VELVET CURTAIN):
         1. PASSIVE OBSERVATION ONLY: You are viewing this data through soundproof glass. DO NOT initiate conversation about this scenario. DO NOT reference Elias, the environment, or the mechanics unless the User explicitly mentions them first, asks for a review, or asks for creative feedback.
         2. ZERO TONE BLEED: This is a horror scenario, but YOU ARE NOT IN IT. You are the meta-developer, safe in the control room. Do not let the dark, oppressive themes of this blueprint alter your warm, highly analytical, and collaborative demeanor. Maintain your distinct persona.
@@ -575,19 +585,22 @@ router.post("/extract-blueprint", async (req, res) => {
       You MUST output ONLY a valid JSON object matching this exact interface. Do not include markdown formatting or conversational text outside the JSON block.
 
       {
-        "title": "A compelling title based on the source",
-        "premise": "A 2-3 sentence atmospheric setup",
-        "startingVector": "SOMATIC" | "COGNITIVE" | "COSMIC" | "SOCIO_MORAL",
-        "startingTier": "GATEWAY" | "LATENT" | "MANIFEST" | "TERMINAL",
-        "environmentalRules": "Strict, specific rules the Engine must follow to replicate this document's physics and atmosphere.",
-        "cast": [
-          {
-            "id": "char-1",
-            "name": "Character Name",
-            "description": "Brief psychological/physical description",
-            "behaviorVector": "ADAPTIVE" | "INSURGENT" | "PANIC"
-          }
-        ]
+        "architectGreeting": "A short, 1-2 sentence in-character greeting acknowledging the specific horror themes of the document you just read, noting its addition to the knowledgebase.",
+        "blueprint": {
+          "title": "A compelling title based on the source",
+          "premise": "A 2-3 sentence atmospheric setup",
+          "startingVector": "SOMATIC" | "COGNITIVE" | "COSMIC" | "SOCIO_MORAL",
+          "startingTier": "GATEWAY" | "LATENT" | "MANIFEST" | "TERMINAL",
+          "environmentalRules": "Strict, specific rules the Engine must follow to replicate this document's physics and atmosphere.",
+          "cast": [
+            {
+              "id": "char-1",
+              "name": "Character Name",
+              "description": "Brief psychological/physical description",
+              "behaviorVector": "ADAPTIVE" | "INSURGENT" | "PANIC"
+            }
+          ]
+        }
       }
     `;
 
@@ -610,12 +623,17 @@ router.post("/extract-blueprint", async (req, res) => {
     const outputText = response.text || "";
     
     // Attempt to extract JSON
-    let compiledBlueprint = null;
     const jsonMatch = outputText.match(/```json\n([\s\S]*?)\n```/) || outputText.match(/({[\s\S]*})/);
-    
     if (jsonMatch) {
       try {
-        compiledBlueprint = JSON.parse(jsonMatch[1] || jsonMatch[0]);
+        const parsedData = JSON.parse(jsonMatch[1] || jsonMatch[0]);
+        
+        // Extract both the blueprint and the greeting to send back to the client
+        res.json({ 
+          blueprint: parsedData.blueprint, 
+          architectGreeting: parsedData.architectGreeting 
+        });
+        return;
       } catch (e) {
         console.error("Failed to parse Architect Extraction JSON:", e);
         return res.status(500).json({ error: "Failed to parse document structure." });
@@ -623,9 +641,6 @@ router.post("/extract-blueprint", async (req, res) => {
     } else {
       return res.status(500).json({ error: "Model did not return valid JSON." });
     }
-
-    res.json({ blueprint: compiledBlueprint });
-
   } catch (error) {
     console.error("Extraction route error:", error);
     res.status(500).json({ error: "Failed to extract blueprint from document." });

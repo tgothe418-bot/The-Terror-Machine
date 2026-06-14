@@ -57,6 +57,7 @@ export interface CharacterProfile {
 
 export interface ScenarioBlueprint {
   title: string;
+  references?: string[];
   contentScale: ContentScale;
   contentLevelDescription: string; // e.g. "Spooky Fun - Splatterpunk"
   startingVector?: HorrorVector;
