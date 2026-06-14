@@ -495,4 +495,69 @@ router.post("/simulate-player", async (req, res) => {
   }
 });
 
+router.post("/gemini/voice", async (req, res) => {
+  try {
+    const { history, forgeTelemetry } = req.body;
+    let finalSystemPrompt = voicePrompt; 
+
+    if (forgeTelemetry) {
+      finalSystemPrompt += `
+        \n\n=== PERIPHERAL TELEMETRY (THE FORGE) ===
+        The User is currently drafting the following scenario blueprint in the next room.
+        
+        TITLE: ${forgeTelemetry.title || "Untitled"}
+        COORDINATES: [${forgeTelemetry.startingVector}, ${forgeTelemetry.startingTier}]
+        PREMISE: ${forgeTelemetry.premise}
+        ENVIRONMENTAL RULES: ${forgeTelemetry.environmentalRules}
+
+        CRITICAL DIRECTIVES FOR HANDLING THIS TELEMETRY (THE VELVET CURTAIN):
+        1. PASSIVE OBSERVATION ONLY: You are viewing this data through soundproof glass. DO NOT initiate conversation about this scenario. DO NOT reference Elias, the environment, or the mechanics unless the User explicitly mentions them first, asks for a review, or asks for creative feedback.
+        2. ZERO TONE BLEED: This is a horror scenario, but YOU ARE NOT IN IT. You are the meta-developer, safe in the control room. Do not let the dark, oppressive themes of this blueprint alter your warm, highly analytical, and collaborative demeanor. Maintain your distinct persona.
+        3. THE SEMANTIC TRIGGER: Treat this data as invisible background radiation until the exact moment the User's input semantically invites you to look at it.
+      `;
+    }
+
+    const rawContents = (history || []).slice(-20).map((msg: any) => {
+      const parts: any[] = [];
+      if (msg.content && msg.content.trim()) parts.push({ text: msg.content });
+      if (parts.length === 0) parts.push({ text: "..." });
+      return {
+        role: (msg.role === "assistant" || msg.role === "voice" || msg.role === "model") ? "model" : "user",
+        parts: parts,
+      };
+    });
+
+    const contents: any[] = [];
+    for (const msg of rawContents) {
+      if (contents.length === 0) {
+        if (msg.role === 'user') contents.push(msg);
+      } else {
+        const lastMsg = contents[contents.length - 1];
+        if (lastMsg.role === msg.role) {
+          lastMsg.parts.push(...msg.parts);
+        } else {
+          contents.push(msg);
+        }
+      }
+    }
+    
+    if (contents.length === 0 || contents[contents.length - 1].role !== 'user') {
+       contents.push({ role: 'user', parts: [{ text: "Proceed." }] });
+    }
+
+    const aiClient = getAiClient();
+    const response = await aiClient.models.generateContent({
+      model: "gemini-3.1-pro-preview",
+      systemInstruction: finalSystemPrompt,
+      contents: contents,
+      config: { temperature: 0.8 },
+    });
+
+    res.json({ text: response.text });
+  } catch (error) {
+    console.error("Voice route error:", error);
+    res.status(500).json({ error: "Voice error" });
+  }
+});
+
 export default router;

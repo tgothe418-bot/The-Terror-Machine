@@ -5,7 +5,6 @@ import remarkGfm from 'remark-gfm';
 import { ArrowLeft, Send, Loader2, MessageCircle, Trash2, Paperclip, X, Download, Copy } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Message, Attachment } from '../../types';
-import { sendVoiceTurn } from '../../services/geminiService';
 import { useAppStore } from '../../store/useAppStore';
 import { useVoiceStore } from '../../store/useVoiceStore';
 import { useForgeStore } from '../../store/useForgeStore';
@@ -14,7 +13,6 @@ import { exportConversationToMarkdown } from '../../lib/download';
 export default function TheVoice() {
   const setPhase = useAppStore((state) => state.setPhase);
   const { messages, addMessage, clearHistory } = useVoiceStore();
-  const forgeMessages = useForgeStore((state) => state.messages);
   const [input, setInput] = useState('');
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -82,8 +80,26 @@ export default function TheVoice() {
         content: msg.content,
         attachments: msg.attachments
       }));
-      const response = await sendVoiceTurn(chatHistory as any, forgeMessages);
-      const responseText = response.narrative_blocks && response.narrative_blocks[0] ? response.narrative_blocks.map(b => b.content).join('\n') : "Error: No response";
+
+      const currentForgeDraft = useForgeStore.getState().draftBlueprint;
+      
+      const telemetryPayload = (currentForgeDraft && currentForgeDraft.premise) 
+        ? currentForgeDraft 
+        : null;
+
+      const response = await fetch('/api/gemini/voice', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          history: chatHistory,
+          forgeTelemetry: telemetryPayload
+        })
+      });
+
+      if (!response.ok) throw new Error(await response.text());
+      const data = await response.json();
+      
+      const responseText = data.text || "Error: No response";
       const voiceMsg: Message = { role: 'voice', content: responseText, timestamp: Date.now() };
       addMessage(voiceMsg);
     } catch (err: any) {
