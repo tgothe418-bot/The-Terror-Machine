@@ -42,3 +42,34 @@ export const parseFile = async (file: File): Promise<ReferenceMaterial> => {
     }
   });
 };
+
+export const fileToBase64 = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      // Remove the Data URL prefix (e.g., "data:application/pdf;base64,")
+      const base64Data = result.split(',')[1];
+      resolve(base64Data);
+    };
+    reader.onerror = error => reject(error);
+    reader.readAsDataURL(file);
+  });
+};
+
+export const parseBlueprintFile = async (file: File): Promise<unknown> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const result = JSON.parse(reader.result as string);
+        resolve(result);
+      } catch (err) {
+        console.error("Parse JSON error", err);
+        reject(new Error("Failed to parse JSON file"));
+      }
+    };
+    reader.onerror = () => reject(new Error("Failed to read file"));
+    reader.readAsText(file);
+  });
+};

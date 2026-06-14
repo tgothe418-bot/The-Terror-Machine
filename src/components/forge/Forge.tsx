@@ -12,6 +12,7 @@ import { Trash2 } from 'lucide-react';
 import CastManager from './CastManager';
 import { ArchitectChat } from './ArchitectChat';
 import { BlueprintTester } from './BlueprintTester';
+import { FileDropzone } from './FileDropzone';
 
 import { MatrixSelector } from './MatrixSelector';
 
@@ -390,6 +391,10 @@ export default function Forge() {
                     <div>• EXPECTED OUTPUT: ROOT-LEVEL STATE BLUEPRINT</div>
                     <div>• TARGET RUNTIME: THE NIGHTMARE MACHINE 2.0</div>
                   </div>
+                </div>
+
+                <div className="my-4">
+                  <FileDropzone />
                 </div>
 
                 {/* Matrix Selector UI */}

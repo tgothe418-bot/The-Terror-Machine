@@ -560,4 +560,76 @@ router.post("/gemini/voice", async (req, res) => {
   }
 });
 
+router.post("/extract-blueprint", async (req, res) => {
+  try {
+    const { base64Data, mimeType, fileName } = req.body;
+    if (!base64Data || !mimeType) {
+      return res.status(400).json({ error: "Missing document data or mimeType." });
+    }
+
+    const extractionPrompt = `
+      You are the Forge Architect for an atmospheric text-based horror engine. 
+      Read the attached source document (${fileName}). Distill its core narrative, atmosphere, and characters into a Nightmare Machine Blueprint. 
+
+      OUTPUT FORMAT REQUIREMENTS:
+      You MUST output ONLY a valid JSON object matching this exact interface. Do not include markdown formatting or conversational text outside the JSON block.
+
+      {
+        "title": "A compelling title based on the source",
+        "premise": "A 2-3 sentence atmospheric setup",
+        "startingVector": "SOMATIC" | "COGNITIVE" | "COSMIC" | "SOCIO_MORAL",
+        "startingTier": "GATEWAY" | "LATENT" | "MANIFEST" | "TERMINAL",
+        "environmentalRules": "Strict, specific rules the Engine must follow to replicate this document's physics and atmosphere.",
+        "cast": [
+          {
+            "id": "char-1",
+            "name": "Character Name",
+            "description": "Brief psychological/physical description",
+            "behaviorVector": "ADAPTIVE" | "INSURGENT" | "PANIC"
+          }
+        ]
+      }
+    `;
+
+    // Ensure you use a model capable of reading documents (e.g., gemini-1.5-pro or gemini-1.5-flash)
+    const aiClient = getAiClient();
+    const response = await aiClient.models.generateContent({
+      model: "gemini-3.5-flash", 
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            { text: extractionPrompt },
+            { inlineData: { mimeType, data: base64Data } }
+          ]
+        }
+      ],
+      config: { temperature: 0.5 }, // Lower temperature for structured extraction
+    });
+
+    const outputText = response.text || "";
+    
+    // Attempt to extract JSON
+    let compiledBlueprint = null;
+    const jsonMatch = outputText.match(/```json\n([\s\S]*?)\n```/) || outputText.match(/({[\s\S]*})/);
+    
+    if (jsonMatch) {
+      try {
+        compiledBlueprint = JSON.parse(jsonMatch[1] || jsonMatch[0]);
+      } catch (e) {
+        console.error("Failed to parse Architect Extraction JSON:", e);
+        return res.status(500).json({ error: "Failed to parse document structure." });
+      }
+    } else {
+      return res.status(500).json({ error: "Model did not return valid JSON." });
+    }
+
+    res.json({ blueprint: compiledBlueprint });
+
+  } catch (error) {
+    console.error("Extraction route error:", error);
+    res.status(500).json({ error: "Failed to extract blueprint from document." });
+  }
+});
+
 export default router;
