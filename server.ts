@@ -1,5 +1,3 @@
-import * as dotenv from 'dotenv';
-dotenv.config({ override: true });
 import express from "express";
 import path from "path";
 import cors from "cors";
@@ -15,6 +13,7 @@ async function startServer() {
   app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
   // API routes FIRST
+  console.log("Key before Vite:", process.env.GEMINI_API_KEY?.substring(0, 15));
   app.use("/api", geminiRoutes);
 
   // Vite middleware for development
@@ -23,6 +22,7 @@ async function startServer() {
       server: { middlewareMode: true },
       appType: "spa",
     });
+    console.log("Key after Vite:", process.env.GEMINI_API_KEY?.substring(0, 15));
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), "dist");

@@ -11,18 +11,24 @@ import { getMatrixRules } from "../src/core/matrix";
 
 const router = express.Router();
 
+const STARTUP_API_KEY = process.env.GEMINI_API_KEY;
+
 let aiClient: GoogleGenAI | null = null;
 
 function getAiClient(): GoogleGenAI {
   if (!aiClient) {
-    let key = process.env.GEMINI_API_KEY;
-    if (!key) {
-      throw new Error('GEMINI_API_KEY environment variable is required');
+    const key = process.env.GEMINI_API_KEY || STARTUP_API_KEY;
+    if (!key || key === "MY_GEMINI_API_KEY") {
+      throw new Error('Please configure your Gemini API Key in the AI Studio Secrets panel.');
     }
-    console.log("Key length:", key.length, "starts with:", key.substring(0, 4));
-    key = key.trim().replace(/^['"]|['"]$/g, '');
-    aiClient = new GoogleGenAI({
-      apiKey: key,
+    const cleanKey = key.trim().replace(/^['"]|['"]$/g, '');
+    aiClient = new GoogleGenAI({ 
+      apiKey: cleanKey,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build'
+        }
+      }
     });
   }
   return aiClient;
@@ -571,15 +577,27 @@ router.post("/gemini/voice", async (req, res) => {
     const aiClient = getAiClient();
     const response = await aiClient.models.generateContent({
       model: "gemini-3.1-pro-preview",
-      systemInstruction: finalSystemPrompt,
       contents: contents,
-      config: { temperature: 0.8 },
+      config: { 
+        temperature: 0.8,
+        systemInstruction: finalSystemPrompt
+      },
     });
 
     res.json({ text: response.text });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Voice route error:", error);
-    res.status(500).json({ error: "Voice error" });
+    
+    // If it's our direct error (like API Key), display it clearly. If it's Gemini's invalid key error, translate it.
+    let displayError = error.message;
+    if (displayError.includes("API key not valid") || displayError.includes("API_KEY_INVALID")) {
+      displayError = "Please configure your Gemini API Key in the AI Studio Secrets panel.";
+    }
+
+    res.status(500).json({ 
+      error: displayError, 
+      details: error.message
+    });
   }
 });
 
