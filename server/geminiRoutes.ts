@@ -9,6 +9,7 @@ import { ORCHESTRATOR_SYSTEM_PROMPT } from "../src/core/prompts/orchestrator";
 import { voicePrompt } from "../src/core/prompts/voice";
 import { extractBlueprint } from "../src/lib/jsonParser";
 import { BicameralOutput } from "../src/types";
+import { getMatrixRules } from "../src/core/matrix";
 
 const router = express.Router();
 
@@ -254,7 +255,7 @@ router.post("/distill", async (req, res) => {
 router.post("/chat", async (req, res) => {
   let isHubMode = false;
   try {
-    const { blueprint, textBuffer, currentState, forgeContext, execution_mode, worldStateSummary } = req.body;
+    const { blueprint, textBuffer, currentState, forgeContext, execution_mode, worldStateSummary, currentVector, currentTier, currentTensionLevel } = req.body;
     const mode = String(execution_mode).toUpperCase();
     isHubMode = mode === 'HUB' || mode === 'VOICE';
     const isRuntimeMode = mode === 'RUNTIME' || mode === 'ENGINE';
@@ -310,6 +311,30 @@ router.post("/chat", async (req, res) => {
       if (worldStateSummary) {
         systemInstruction += `\n\n[CUMULATIVE CHRONOLOGY]:\n${worldStateSummary}`;
       }
+
+      const vector = currentVector || 'COGNITIVE';
+      const tier = currentTier || 'LATENT';
+      const tensionLevel = currentTensionLevel || 'buildup';
+      
+      const coordinateRules = getMatrixRules(vector, tier);
+
+      systemInstruction += `
+    \n\n=== CORE RUNTIME MATRIX COORDINATES ===
+    ACTIVE DOMAIN VECTOR: ${vector}
+    ACTIVE EXPOSURE TIER: ${tier}
+    LOCAL TENSION LEVEL (Intra-Cell Wave): ${tensionLevel}
+    
+    CRITICAL INSTRUCTIONS FOR THIS COORDINATE:
+    ${coordinateRules.instructionVitals}
+    
+    PROHIBITED LITERARY DEVICES & THEMES:
+    ${coordinateRules.prohibitions}
+    
+    OUTPUT FORMAT REQUIREMENTS:
+    You must output a structured JSON payload containing your narrative blocks. 
+    Additionally, you MUST include a "suggested_tension" string ("buildup", "visceral_climax", or "aftermath").
+    If the narrative demands a macro-shift in the genre or severity, include a "matrix_mutation" object with "next_vector" and "next_tier".
+  `;
     } else {
       systemInstruction = voicePrompt;
       if (forgeContext && forgeContext.length > 0) {

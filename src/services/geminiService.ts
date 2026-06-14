@@ -81,7 +81,15 @@ export const sendVoiceTurn = async (textBuffer: Message[], forgeContext?: Messag
   return response.json();
 };
 
-export const sendEngineTurn = async (engineTextBuffer: Message[], logicState: LogicState | null, blueprint: ScenarioBlueprint, worldStateSummary: string): Promise<BicameralOutput> => {
+export const sendEngineTurn = async (
+  engineTextBuffer: Message[], 
+  logicState: LogicState | null, 
+  blueprint: ScenarioBlueprint, 
+  worldStateSummary: string,
+  currentVector: string,
+  currentTier: string,
+  currentTensionLevel: string
+): Promise<BicameralOutput> => {
   const response = await fetch('/api/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -90,7 +98,10 @@ export const sendEngineTurn = async (engineTextBuffer: Message[], logicState: Lo
       textBuffer: engineTextBuffer,
       currentState: logicState,
       blueprint,
-      worldStateSummary
+      worldStateSummary,
+      currentVector,
+      currentTier,
+      currentTensionLevel
     })
   });
   if (!response.ok) throw new Error(await response.text());

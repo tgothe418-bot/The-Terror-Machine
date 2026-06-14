@@ -41,6 +41,7 @@ export default function Runtime() {
   const [isAutopilotRunning, setIsAutopilotRunning] = useState<boolean>(false);
   const autopilotRef = useRef<boolean>(false); // Ref for immediate abort checking
 
+  const userCharName = activeBlueprint?.cast?.find(c => c.isUserCharacter)?.name || 'Protagonist';
 
   useEffect(() => {
     const unsub = useEngineStore.persist.onHydrate(() => setHydrated(false));
@@ -60,12 +61,27 @@ export default function Runtime() {
   const startSimulation = useCallback(async () => {
     setIsLoading(true);
     try {
+      const storeState = useEngineStore.getState();
       const initialResponse = await sendEngineTurn(
         [{ role: 'user', content: 'Begin simulation. Establish environment and initial state.', timestamp: Date.now() }],
         gameState,
         activeBlueprint!,
-        useEngineStore.getState().engineWorldStateSummary
+        storeState.engineWorldStateSummary,
+        storeState.currentVector,
+        storeState.currentTier,
+        storeState.currentTensionLevel 
       );
+      
+      if (initialResponse.suggested_tension) {
+        useEngineStore.getState().updateTension(initialResponse.suggested_tension);
+      }
+      if (initialResponse.matrix_mutation) {
+        const { next_vector, next_tier } = initialResponse.matrix_mutation;
+        if (next_vector && next_tier) {
+          useEngineStore.getState().shiftMatrixCoordinates(next_vector, next_tier);
+          console.log(`// MATRIX SHIFT EXECUTED // Migrated to [${next_vector}, ${next_tier}]`);
+        }
+      }
       
       const narrativeBlocks = initialResponse.narrative_blocks;
 
@@ -142,12 +158,28 @@ export default function Runtime() {
     setIsLoading(true);
 
     try {
+      const storeState = useEngineStore.getState();
       const response = await sendEngineTurn(
-        useEngineStore.getState().engineTextBuffer,
+        storeState.engineTextBuffer,
         gameState,
         activeBlueprint!,
-        useEngineStore.getState().engineWorldStateSummary
+        storeState.engineWorldStateSummary,
+        storeState.currentVector,
+        storeState.currentTier,
+        storeState.currentTensionLevel
       );
+      
+      if (response.suggested_tension) {
+        useEngineStore.getState().updateTension(response.suggested_tension);
+      }
+      
+      if (response.matrix_mutation) {
+        const { next_vector, next_tier } = response.matrix_mutation;
+        if (next_vector && next_tier) {
+          useEngineStore.getState().shiftMatrixCoordinates(next_vector, next_tier);
+          console.log(`// MATRIX SHIFT EXECUTED // Migrated to [${next_vector}, ${next_tier}]`);
+        }
+      }
       
       const narrativeBlocks = response.narrative_blocks;
 
@@ -267,14 +299,14 @@ export default function Runtime() {
 
         <div className="flex items-center gap-3">
           <button 
-            onClick={() => exportEngineLog(engineMessages, 'md')}
+            onClick={() => exportEngineLog(engineMessages, 'md', 'engine-telemetry', activeBlueprint)}
             className="px-2 py-1 text-xs font-mono text-zinc-400 hover:text-zinc-100 bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800 transition-colors rounded"
             title="Export to Markdown"
           >
             [ EXPORT .MD ]
           </button>
           <button 
-            onClick={() => exportEngineLog(engineMessages, 'html')}
+            onClick={() => exportEngineLog(engineMessages, 'html', 'engine-telemetry', activeBlueprint)}
             className="px-2 py-1 text-xs font-mono text-zinc-400 hover:text-zinc-100 bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800 transition-colors rounded"
             title="Export to HTML"
           >
@@ -282,11 +314,7 @@ export default function Runtime() {
           </button>
           <button 
             onClick={() => {
-              if (window.confirm("Initialize Engine Wipe? This will reset the current scenario to baseline.")) {
-                setIsLoading(false);
-                resetEngine();
-                hasStarted.current = false;
-              }
+              resetEngine();
             }}
             className="px-2 py-1 text-xs font-mono text-red-400 hover:text-red-100 bg-red-900/20 hover:bg-red-900/50 border border-red-900/50 transition-colors duration-150 rounded mr-4"
             title="Hard Reset Engine"
@@ -318,16 +346,21 @@ export default function Runtime() {
             >
               {msg.engine_thoughts && (
                 <details className="mb-4 text-[10px] text-zinc-500 border border-zinc-900 rounded opacity-70 hover:opacity-100 transition-opacity">
-                  <summary className="cursor-pointer p-2 bg-zinc-950 font-mono uppercase tracking-[0.2em] outline-none">
-                    [ View Engine Logic ]
+                  <summary className="cursor-pointer p-2 bg-zinc-950 font-mono uppercase tracking-[0.2em] outline-none font-bold text-green-700/70">
+                    [ ENGINE LOGIC ]
                   </summary>
-                  <div className="p-3 bg-black italic border-t border-zinc-900 whitespace-pre-wrap text-zinc-400">
+                  <div className="p-3 bg-black italic border-t border-zinc-900 whitespace-pre-wrap text-green-500/50">
                     {msg.engine_thoughts}
                   </div>
                 </details>
               )}
               {msg.role === 'user' ? (
-                `> ${msg.content}`
+                <div className="border-l-2 border-zinc-700 pl-4 py-1">
+                  <div className="text-[10px] uppercase tracking-widest text-zinc-500 font-mono mb-1 font-bold">
+                    [ USER: {userCharName} ]
+                  </div>
+                  <div>&gt; {msg.content}</div>
+                </div>
               ) : msg.blocks ? (
                 <div className="space-y-6">
                   {msg.blocks.map((block, bIdx) => {
@@ -336,8 +369,8 @@ export default function Runtime() {
                     if (block.type === 'dialogue') {
                       return (
                         <div key={bIdx} className="pl-4 border-l-2 border-zinc-800">
-                          <span className="text-[10px] uppercase tracking-widest text-zinc-600 block mb-1">
-                            {block.speaker || 'Unknown'}
+                          <span className="text-[10px] uppercase tracking-widest text-zinc-600 block mb-1 font-bold">
+                            [ CHARACTER: {block.speaker || 'Unknown'} ]
                           </span>
                           <span className="text-white italic">
                             <ErgodicTextRenderer text={`"${block.content}"`} psychologicalStatus={status} />
@@ -348,7 +381,12 @@ export default function Runtime() {
                     
                     if (block.type === 'internal_monologue') {
                       return (
-                        <div key={bIdx} className="text-zinc-400 italic font-light pl-4">
+                        <div key={bIdx} className="text-zinc-400 italic font-light pl-4 border-l-2 border-zinc-900">
+                          {block.speaker && (
+                            <span className="text-[10px] uppercase tracking-widest text-zinc-600 block mb-1 font-bold">
+                              [ THOUGHT: {block.speaker} ]
+                            </span>
+                          )}
                            <ErgodicTextRenderer text={block.content} psychologicalStatus={status} />
                         </div>
                       );
@@ -368,7 +406,7 @@ export default function Runtime() {
                           <div className="absolute top-0 left-0 w-1 h-full bg-fresh-blood opacity-50" />
                           <div className="flex items-center gap-2 mb-2">
                              <div className="w-1.5 h-1.5 bg-fresh-blood rounded-full animate-pulse" />
-                             <span className="text-[10px] uppercase tracking-[0.3em] text-fresh-blood font-bold">The Voice</span>
+                             <span className="text-[10px] uppercase tracking-[0.3em] text-fresh-blood font-bold">[ THE VOICE ]</span>
                           </div>
                           <div className="text-zinc-200 font-light italic text-sm">
                             <ErgodicTextRenderer text={block.content} psychologicalStatus={status} />

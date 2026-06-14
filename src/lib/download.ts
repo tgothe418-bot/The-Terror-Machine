@@ -78,8 +78,11 @@ export function downloadJson(data: any, filename: string) {
   }
 }
 
-export const exportEngineLog = (messages: any[], format: 'md' | 'html', title: string = 'engine-telemetry') => {
-  if (!messages || messages.length === 0) return;
+export const exportEngineLog = (messages: any[], format: 'md' | 'html', title: string = 'engine-telemetry', blueprint?: any) => {
+  if (!messages || messages.length === 0) {
+    console.warn('// ENGINE EXPORT FAILED // Empty array state passed.');
+    return;
+  }
 
   const timestamp = new Date().toISOString();
   let content = '';
@@ -91,65 +94,167 @@ export const exportEngineLog = (messages: any[], format: 'md' | 'html', title: s
     extension = 'html';
     content = `
       <!DOCTYPE html>
-      <html>
+      <html lang="en">
       <head>
         <meta charset="utf-8">
-        <title>Engine Telemetry Log - ${timestamp}</title>
+        <title>The Nightmare Machine // Telemetry Stream - ${title}</title>
         <style>
-          body { background-color: #000; color: #e5e7eb; font-family: monospace; padding: 2rem; max-width: 800px; margin: 0 auto; line-height: 1.6; }
-          .turn { margin-bottom: 2rem; padding-bottom: 2rem; border-bottom: 1px solid #333; }
-          .user-input { color: #888; font-style: italic; }
-          .block-prose { color: #d1d5db; margin-bottom: 1rem; }
-          .block-dialogue { color: #9ca3af; font-style: italic; margin-bottom: 1rem; padding-left: 1rem; border-left: 2px solid #555; }
-          .block-system_voice { color: #ef4444; font-weight: bold; text-transform: uppercase; margin-bottom: 1rem; letter-spacing: 1px; }
-          .block-engine_thoughts { background-color: #111; color: #6b7280; padding: 1rem; border: 1px dashed #333; margin-bottom: 1rem; font-size: 0.9em; }
-          .meta { color: #555; font-size: 0.8em; margin-bottom: 2rem; }
+          body { 
+            background-color: #000000; 
+            color: #d1d5db; 
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; 
+            padding: 3rem 2rem; 
+            max-width: 900px; 
+            margin: 0 auto; 
+            line-height: 1.7; 
+          }
+          .meta-header { 
+            color: #52525b; 
+            font-size: 0.75rem; 
+            letter-spacing: 0.1em; 
+            border-bottom: 1px solid #18181b; 
+            padding-bottom: 1.5rem; 
+            margin-bottom: 3rem; 
+            text-transform: uppercase;
+          }
+          .turn { 
+            margin-bottom: 3.5rem; 
+            padding-bottom: 1.5rem; 
+          }
+          .user-input { 
+            color: #71717a; 
+            font-size: 0.95rem;
+            margin-bottom: 1.5rem;
+            padding-left: 0.5rem;
+            border-left: 2px solid #27272a;
+          }
+          .block-prose { 
+            color: #e4e4e7; 
+            margin-bottom: 1.25rem; 
+            font-size: 1rem;
+          }
+          .block-dialogue { 
+            color: #a1a1aa; 
+            font-style: italic; 
+            margin-bottom: 1.25rem; 
+            padding-left: 1.25rem; 
+            border-left: 2px solid #3f3f46; 
+          }
+          .block-system_voice { 
+            color: #ef4444; 
+            font-weight: 700; 
+            text-transform: uppercase; 
+            margin-bottom: 1.25rem; 
+            letter-spacing: 0.05em; 
+          }
+          .logic-panel { 
+            background-color: #09090b; 
+            border: 1px dashed #27272a; 
+            margin-top: 1.5rem; 
+            border-radius: 4px;
+            font-size: 0.8rem;
+          }
+          summary {
+            padding: 0.75rem 1rem;
+            color: #52525b;
+            cursor: pointer;
+            user-select: none;
+            font-weight: bold;
+            outline: none;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+          }
+          summary:hover {
+            color: #a1a1aa;
+            background-color: #121214;
+          }
+          .logic-content {
+            padding: 1rem;
+            border-t: 1px dashed #27272a;
+            color: #22c55e;
+            background-color: #020617;
+            overflow-x: auto;
+            white-space: pre-wrap;
+          }
+          .speaker-label { font-size: 0.75rem; font-weight: bold; margin-bottom: 0.25rem; font-family: sans-serif; letter-spacing: 0.05em; text-transform: uppercase; }
+          .speaker-user { color: #60a5fa; } /* Blue */
+          .speaker-character { color: #a78bfa; } /* Purple */
+          .speaker-voice { color: #f87171; } /* Red */
+          .speaker-engine { color: #4ade80; } /* Green */
         </style>
       </head>
       <body>
-        <div class="meta">THE NIGHTMARE MACHINE // ENGINE TELEMETRY<br>Generated: ${timestamp}</div>
+        <div class="meta-header">
+          THE NIGHTMARE MACHINE // RUNTIME CORE TELEMETRY METRICS<br>
+          TRACE CAPTURE ID: ${Date.now()}<br>
+          TIMESTAMP: ${timestamp}
+        </div>
     `;
 
     messages.forEach((msg) => {
       content += `<div class="turn">`;
       if (msg.role === 'user') {
-        content += `<div class="user-input">> ${msg.content}</div>`;
-      } else if (msg.role === 'engine' || msg.role === 'assistant') {
-        // If it's a parsed JSON response with narrative blocks
-        if (msg.blocks && Array.isArray(msg.blocks)) {
-          msg.blocks.forEach((block: any) => {
-             content += `<div class="block-${block.type || 'prose'}">${block.content || JSON.stringify(block)}</div>`;
-          });
-        } else if (Array.isArray(msg.content)) {
-          msg.content.forEach((block: any) => {
-             content += `<div class="block-${block.type || 'prose'}">${block.content || JSON.stringify(block)}</div>`;
-          });
+        const userCharName = blueprint?.cast?.find((c: any) => c.isUserCharacter)?.name || 'Protagonist';
+        content += `<div class="speaker-label speaker-user">[ USER: ${userCharName} ]</div>`;
+        content += `<div class="user-input">&gt; ${msg.content}</div>`;
+      } else {
+        // Parse Engine Array Content
+        const renderBlock = (block: any) => {
+          if (block.type === 'engine_thoughts') return;
+          if (block.type === 'system_voice') {
+            content += `<div class="speaker-label speaker-voice">[ THE VOICE ]</div>`;
+          } else if (block.type === 'dialogue' && block.speaker) {
+            content += `<div class="speaker-label speaker-character">[ CHARACTER: ${block.speaker} ]</div>`;
+          } else if (block.type === 'internal_monologue' && block.speaker) {
+            content += `<div class="speaker-label speaker-character">[ THOUGHT: ${block.speaker} ]</div>`;
+          }
+          content += `<div class="block-${block.type || 'prose'}">${block.content}</div>`;
+        };
+        
+        if (Array.isArray(msg.content)) {
+          msg.content.forEach(renderBlock);
+        } else if (msg.blocks && Array.isArray(msg.blocks)) {
+          msg.blocks.forEach(renderBlock);
         } else {
-           content += `<div class="block-prose">${msg.content}</div>`;
+          content += `<div class="block-prose">${msg.content}</div>`;
+        }
+
+        // Auto-bake interactive dropdown if engine telemetry exists
+        if (msg.engine_thoughts || msg.logic_state) {
+          const logicData = msg.engine_thoughts || msg.logic_state;
+          const displayString = typeof logicData === 'object' 
+            ? JSON.stringify(logicData, null, 2) 
+            : logicData;
+
+          content += `
+            <details class="logic-panel">
+              <summary class="speaker-label speaker-engine">[ VIEW ENGINE LOGIC DATA ]</summary>
+              <pre class="logic-content"><code>${displayString}</code></pre>
+            </details>
+          `;
         }
       }
       content += `</div>`;
     });
     content += `</body></html>`;
   } else {
-    // Markdown Fallback
+    // Markdown Standard Flow
     mimeType = 'text/markdown;charset=utf-8;';
     extension = 'md';
-    content = `# THE NIGHTMARE MACHINE // ENGINE TELEMETRY\n*Generated: ${timestamp}*\n\n---\n\n`;
+    content = `# THE NIGHTMARE MACHINE // METRIC LOG\n*Captured: ${timestamp}*\n\n---\n\n`;
+    
     messages.forEach((msg) => {
       if (msg.role === 'user') {
-        content += `> ${msg.content}\n\n`;
-      } else if (msg.role === 'engine' || msg.role === 'assistant') {
-        if (msg.blocks && Array.isArray(msg.blocks)) {
-          msg.blocks.forEach((block: any) => {
-            if (block.type === 'system_voice') content += `**[ ${block.content.toUpperCase()} ]**\n\n`;
-            else if (block.type === 'engine_thoughts') content += `\`\`\`json\n// ENGINE LOGIC\n${block.content}\n\`\`\`\n\n`;
-            else content += `${block.content}\n\n`;
-          });
-        } else if (Array.isArray(msg.content)) {
-          msg.content.forEach((block: any) => {
-            if (block.type === 'system_voice') content += `**[ ${block.content.toUpperCase()} ]**\n\n`;
-            else if (block.type === 'engine_thoughts') content += `\`\`\`json\n// ENGINE LOGIC\n${block.content}\n\`\`\`\n\n`;
+        const userCharName = blueprint?.cast?.find((c: any) => c.isUserCharacter)?.name || 'Protagonist';
+        content += `**[ USER: ${userCharName} ]**\n> ${msg.content}\n\n`;
+      } else {
+        const blocks = Array.isArray(msg.content) ? msg.content : (msg.blocks || []);
+        if (blocks.length > 0) {
+          blocks.forEach((block: any) => {
+            if (block.type === 'system_voice') content += `**[ THE VOICE ]**\n${block.content}\n\n`;
+            else if (block.type === 'engine_thoughts') content += `\`\`\`json\n// METRIC COMPONENT\n${block.content}\n\`\`\`\n\n`;
+            else if (block.type === 'dialogue' && block.speaker) content += `**[ CHARACTER: ${block.speaker} ]**\n${block.content}\n\n`;
+            else if (block.type === 'internal_monologue' && block.speaker) content += `**[ THOUGHT: ${block.speaker} ]**\n${block.content}\n\n`;
             else content += `${block.content}\n\n`;
           });
         } else {

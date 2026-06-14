@@ -5,6 +5,7 @@ import { idbStorage } from '../lib/idbStorage';
 import { distillContext } from '../services/geminiService';
 
 import { flattenTurnsForDistillation } from '../lib/jsonParser';
+import { HorrorVector, ExposureTier } from './matrix';
 
 interface EngineState {
   activeBlueprint: ScenarioBlueprint | null;
@@ -13,6 +14,11 @@ interface EngineState {
   engineTextBuffer: Message[]; // The sliding window specifically for the Engine
   maxBufferTurns: number;
   engineWorldStateSummary: string;
+  currentVector: 'SOMATIC' | 'COGNITIVE' | 'COSMIC' | 'SOCIO_MORAL';
+  currentTier: 'GATEWAY' | 'LATENT' | 'MANIFEST' | 'TERMINAL';
+  currentTensionLevel: 'buildup' | 'visceral_climax' | 'aftermath';
+  shiftMatrixCoordinates: (vector: HorrorVector, tier: ExposureTier) => void;
+  updateTension: (tension: 'buildup' | 'visceral_climax' | 'aftermath') => void;
   setBlueprint: (blueprint: ScenarioBlueprint, role: 'protagonist' | 'antagonist') => void;
   clearBlueprint: () => void;
   updateGameState: (newState: LogicState) => void;
@@ -34,6 +40,18 @@ export const useEngineStore = create<EngineState>()(
       engineTextBuffer: [],
       maxBufferTurns: 12,
       engineWorldStateSummary: "The subject is contained. Initial parameters active.",
+      currentVector: 'COGNITIVE',
+      currentTier: 'LATENT',
+      currentTensionLevel: 'buildup',
+      shiftMatrixCoordinates: (vector, tier) => set((state) => ({
+        ...state,
+        currentVector: vector,
+        currentTier: tier
+      })),
+      updateTension: (tension) => set((state) => ({
+        ...state,
+        currentTensionLevel: tension
+      })),
       setBlueprint: (blueprint, role) => set({ 
         activeBlueprint: blueprint, 
         engineMessages: [],
@@ -110,20 +128,13 @@ export const useEngineStore = create<EngineState>()(
         set({ engineWorldStateSummary: newSummary });
       },
       resetEngine: () => set((state) => ({
+        ...state,
+        activeBlueprint: null,
+        gameState: null,
         engineTextBuffer: [],
         engineMessages: [],
+        logicState: undefined,
         engineWorldStateSummary: "The subject is contained. Initial parameters active.",
-        gameState: state.activeBlueprint ? {
-          current_location: state.activeBlueprint.setting.location,
-          player_injuries: [],
-          inventory: [],
-          psychological_status: 'Stable',
-          player_role: state.gameState?.player_role || 'protagonist',
-          current_tension_level: state.activeBlueprint.narrativeRules?.currentTensionLevel || 'buildup',
-          lore_and_memory: { established_facts: [], permanent_consequences: [] },
-          npc_fixations: []
-        } : null,
-        engineMessages: []
       }))
     }),
     {
