@@ -1,13 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useRef, useEffect } from 'react';
-import { ArrowLeft, Download, Send, Terminal, Loader2, Paperclip, X, FileText, Image as ImageIcon, Users } from 'lucide-react';
+import { ArrowLeft, Download, Terminal, Loader2, X, FileText, Image as ImageIcon, Users } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import { useForgeStore, defaultStyleVector } from '../../store/useForgeStore';
 import { useVoiceStore } from '../../store/useVoiceStore';
 import { Message, ScenarioBlueprint, Attachment } from '../../types';
-import { downloadJson } from '../../lib/download';
-import { extractBlueprint, extractCastData, extractAddedCharacter } from '../../lib/jsonParser';
-import { sendMessageToArchitect, extractStyleProfile, summarizeForgeInterview } from '../../services/geminiService';
+import { extractBlueprint } from '../../lib/jsonParser';
+import { summarizeForgeInterview } from '../../services/geminiService';
 import { motion, AnimatePresence } from 'motion/react';
 import { Trash2 } from 'lucide-react';
 import CastManager from './CastManager';
@@ -22,20 +21,16 @@ export default function Forge() {
     messages, 
     addMessage, 
     clearHistory, 
-    setAvailableReferenceCharacters, 
-    addCharacterToCast, 
     selectedCharacters,
     setHasReferenceMaterial,
     forgePhase,
     setForgePhase,
     setSummaryContext,
-    who, what, where, when, whyHow, draftBlueprint,
-    setWho, setWhat, setWhere, setWhen, setWhyHow,
-    clearForgeInputs
+    draftBlueprint,
+    updateDraft
   } = useForgeStore();
   const voiceMessages = useVoiceStore((state) => state.messages);
   const [isLoading, setIsLoading] = useState(false);
-  const [blueprint, setBlueprint] = useState<ScenarioBlueprint | null>(null);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [isConfirmingClear, setIsConfirmingClear] = useState(false);
   const [hydrated, setHydrated] = useState(() => useForgeStore.persist.hasHydrated());
@@ -108,144 +103,33 @@ export default function Forge() {
     setAttachments((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const handleSend = async (e?: React.FormEvent) => {
-    e?.preventDefault();
-    const hasText = who.trim() || what.trim() || where.trim() || when.trim() || whyHow.trim();
-    if ((!hasText && attachments.length === 0) || isLoading) return;
-
-    let combinedInput = '';
-    if (hasText) {
-      combinedInput = `[SYSTEM SUBJECT (WHO)]\n${who}\n\n[CORE CONSTRAINT (WHAT)]\n${what}\n\n[ENCLOSURE ENVIRONMENT (WHERE)]\n${where}\n\n[TEMPORAL ANCHOR (WHEN)]\n${when}\n\n[SYSTEMIC VECTOR DIRECTIVE (WHY/HOW)]\n${whyHow}`;
+  const exportBlueprint = () => {
+    const store = useForgeStore.getState();
+    const draft = store.draftBlueprint;
+    
+    if (!draft || !draft.premise) {
+      alert("Cannot export an empty blueprint. Please compile a scenario first.");
+      return;
     }
 
-    const userMessage: Message = {
-      role: 'user',
-      content: combinedInput,
-      timestamp: Date.now(),
-      attachments: attachments.length > 0 ? [...attachments] : undefined,
+    // Sanitize and format the payload
+    const exportPayload = {
+      id: draft.id || crypto.randomUUID(),
+      title: draft.title || "Untitled Nightmare",
+      premise: draft.premise,
+      startingVector: draft.startingVector,
+      startingTier: draft.startingTier,
+      environmentalRules: draft.environmentalRules,
+      cast: draft.cast || []
     };
 
-    addMessage(userMessage);
-    clearForgeInputs();
-    setAttachments([]);
-    setIsLoading(true);
-
-    try {
-      const responseText = await sendMessageToArchitect([...messages, userMessage], forgePhase, voiceMessages);
-      
-      let finalContent = responseText;
-
-      // Phase 1 Transition Handshake
-      if (responseText.includes('[PHASE_1_COMPLETE]')) {
-        const cleanResponse = responseText.replace('[PHASE_1_COMPLETE]', '').trim();
-
-        // Only add to log if there is conversational text attached
-        if (cleanResponse) {
-          addMessage({ role: 'assistant', content: cleanResponse, timestamp: Date.now() });
-        }
-
-        // Advance the state machine to Phase 2
-        setForgePhase('INTERVIEW_PHASE_2');
-        setIsLoading(false);
-        return; // Exit the loop
-      }
-
-      if (responseText.includes('[READY_FOR_CONFIRMATION]')) {
-        finalContent = responseText.replace('[READY_FOR_CONFIRMATION]', '').trim();
-        setForgePhase('CONFIRMATION');
-      }
-
-      const detectedBlueprint = extractBlueprint(responseText, ['title', 'setting']) as ScenarioBlueprint;
-      const detectedCast = extractCastData(responseText);
-      const addedChar = extractAddedCharacter(responseText);
-
-      if (detectedCast) {
-        setAvailableReferenceCharacters(detectedCast);
-        setActiveTab('cast');
-      }
-
-      if (addedChar) {
-        addCharacterToCast(addedChar);
-      }
-
-      if (detectedBlueprint && (detectedBlueprint.title || detectedBlueprint.setting)) {
-        // Ensure cast is attached to blueprint before finalizing
-        detectedBlueprint.cast = selectedCharacters;
-        if (!detectedBlueprint.styleProfile) {
-          const userText = [...messages, userMessage]
-            .filter(m => m.role === 'user')
-            .map(m => {
-              let text = m.content || '';
-              if (m.attachments) {
-                const textAttachments = m.attachments
-                  .filter(a => a.mimeType === 'text/markdown' || a.mimeType === 'text/plain')
-                  // Decode base64 to include actual text reference
-                  .map(a => {
-                    try {
-                      // Verify data presence and attempt decoding safely
-                      return a.data ? atob(a.data) : '';
-                    } catch (e) {
-                      console.warn("// STYLE EXTRACTION LAYER EXCEPTION // Malformed frame ignored:", e);
-                      return '';
-                    }
-                  })
-                  .join('\n');
-                text += '\n' + textAttachments;
-              }
-              return text;
-            })
-            .join('\n');
-          
-          if (userText.length > 100) {
-            const style = await extractStyleProfile(userText);
-            detectedBlueprint.styleProfile = style;
-          } else {
-            detectedBlueprint.styleProfile = defaultStyleVector;
-          }
-        }
-        
-        if (draftBlueprint) {
-          detectedBlueprint.startingVector = draftBlueprint.startingVector;
-          detectedBlueprint.startingTier = draftBlueprint.startingTier;
-          detectedBlueprint.environmentalRules = draftBlueprint.environmentalRules;
-        }
-        
-        setBlueprint(detectedBlueprint);
-        finalContent = "[ SYSTEM: BLUEPRINT COMPILED AND READY FOR EXTRACTION ]";
-      }
-
-      const assistantMessage: Message = {
-        role: 'assistant',
-        content: finalContent,
-        timestamp: Date.now(),
-      };
-      addMessage(assistantMessage);
-    } catch (err: any) {
-      console.error(err);
-      const errorMessage = typeof err === 'object' && err !== null && 'message' in err ? err.message : String(err);
-      let parsedMessage = errorMessage;
-      try {
-        const parsed = JSON.parse(errorMessage);
-        if (parsed.error) {
-          parsedMessage = typeof parsed.error === 'string' ? parsed.error : JSON.stringify(parsed.error);
-        }
-      } catch { /* ignore */ }
-
-      const msg: Message = {
-        role: 'assistant',
-        content: `[SYSTEM ERROR] ${parsedMessage}`,
-        timestamp: Date.now(),
-      };
-      addMessage(msg);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleExport = () => {
-    if (blueprint) {
-      downloadJson(blueprint, `scenario_${blueprint.title.toLowerCase().replace(/\s+/g, '_')}.json`);
-    }
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportPayload, null, 2));
+    const downloadAnchorNode = document.createElement('a');
+    downloadAnchorNode.setAttribute("href", dataStr);
+    downloadAnchorNode.setAttribute("download", `blueprint-${draft.startingVector}-${Date.now()}.json`);
+    document.body.appendChild(downloadAnchorNode); 
+    downloadAnchorNode.click();
+    downloadAnchorNode.remove();
   };
 
   if (!hydrated) return null;
@@ -318,16 +202,16 @@ export default function Forge() {
           </div>
 
           <button
-            onClick={handleExport}
-            disabled={!blueprint}
+            onClick={exportBlueprint}
+            disabled={!draftBlueprint?.premise}
             className={`flex items-center gap-2 px-4 py-2 border transition-all duration-300 text-[10px] tracking-[0.2em] uppercase ${
-              blueprint 
+              draftBlueprint?.premise
                 ? 'border-white bg-white text-black hover:bg-zinc-200 shadow-[0_0_15px_rgba(255,255,255,0.3)]' 
                 : 'border-zinc-800 text-zinc-700 cursor-not-allowed opacity-50'
             }`}
           >
-            <Download className={`w-3 h-3 ${blueprint ? 'animate-bounce' : ''}`} />
-            {blueprint ? 'Export Blueprint' : 'Blueprint Locked'}
+            <Download className={`w-3 h-3 ${draftBlueprint?.premise ? 'animate-bounce' : ''}`} />
+            {draftBlueprint?.premise ? 'Export Blueprint' : 'Blueprint Locked'}
           </button>
         </div>
       </header>
@@ -491,7 +375,7 @@ export default function Forge() {
                 )}
               </AnimatePresence>
 
-              <form onSubmit={handleSend} className="relative flex flex-col gap-4">
+              <div className="relative flex flex-col gap-4">
                 {/* Architect Diagnostic Banner */}
                 <div className="border border-zinc-800 bg-zinc-950/50 p-4 rounded text-xs mb-2 w-full">
                   <div className="text-red-500 font-bold mb-2 uppercase tracking-widest">// ARCHITECT DIRECTIVE: INTAKE INITIALIZATION</div>
@@ -522,60 +406,65 @@ export default function Forge() {
                 </div>
 
                 {/* 4-Column Upper Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {[
-                    { id: 'who', label: 'SYSTEM SUBJECT (WHO)', placeholder: 'Define the isolated entities, forms, or specimens...', value: who, onChange: setWho },
-                    { id: 'what', label: 'CORE CONSTRAINT (WHAT)', placeholder: 'Set the overarching dilemma, system rule, or conflict...', value: what, onChange: setWhat },
-                    { id: 'where', label: 'ENCLOSURE ENVIRONMENT (WHERE)', placeholder: 'Map out the explicit physical structures...', value: where, onChange: setWhere },
-                    { id: 'when', label: 'TEMPORAL ANCHOR (WHEN)', placeholder: 'Historical era, cosmic coordinate, or baseline...', value: when, onChange: setWhen },
-                  ].map((field) => (
-                    <div key={field.id} className="flex flex-col gap-2 border border-zinc-800 bg-zinc-950 p-3 rounded shadow-inner">
-                      <label className="text-[10px] font-bold tracking-wider text-zinc-500">{field.label}</label>
-                      <textarea
-                        value={field.value}
-                        onChange={(e) => field.onChange(e.target.value)}
-                        placeholder={field.placeholder}
-                        disabled={isLoading}
-                        className="w-full h-32 bg-transparent text-sm text-zinc-200 placeholder-zinc-700 resize-none outline-none focus:text-white transition-colors scrollbar-hide"
-                      />
-                    </div>
-                  ))}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
+                  <div className="bg-zinc-950 border border-zinc-800 p-4 rounded flex flex-col">
+                    <label className="text-zinc-500 font-mono text-xs uppercase mb-2">SYSTEM SUBJECT (WHO)</label>
+                    <textarea 
+                      value={draftBlueprint?.cast?.[0]?.description || ''}
+                      onChange={(e) => {
+                        const newCast = [...(draftBlueprint?.cast || [])];
+                        if (newCast.length === 0) {
+                          newCast.push({ id: 'char-1', name: 'Subject 1', description: e.target.value, behaviorVector: 'ADAPTIVE' });
+                        } else {
+                          newCast[0].description = e.target.value;
+                        }
+                        updateDraft({ cast: newCast });
+                      }}
+                      className="flex-1 bg-transparent text-zinc-300 font-mono text-sm resize-none focus:outline-none min-h-[8rem] scrollbar-hide"
+                      placeholder="Define the isolated entities..."
+                    />
+                  </div>
+
+                  <div className="bg-zinc-950 border border-zinc-800 p-4 rounded flex flex-col">
+                    <label className="text-zinc-500 font-mono text-xs uppercase mb-2">CORE CONSTRAINT (WHAT)</label>
+                    <textarea 
+                      value={draftBlueprint?.environmentalRules || ''}
+                      onChange={(e) => updateDraft({ environmentalRules: e.target.value })}
+                      className="flex-1 bg-transparent text-zinc-300 font-mono text-sm resize-none focus:outline-none min-h-[8rem] scrollbar-hide"
+                      placeholder="Set the overarching dilemma..."
+                    />
+                  </div>
+                  
+                  <div className="bg-zinc-950 border border-zinc-800 p-4 rounded flex flex-col">
+                    <label className="text-zinc-500 font-mono text-xs uppercase mb-2">ENCLOSURE ENVIRONMENT (WHERE)</label>
+                    <textarea 
+                      value={draftBlueprint?.title || ''}
+                      onChange={(e) => updateDraft({ title: e.target.value })}
+                      className="flex-1 bg-transparent text-zinc-300 font-mono text-sm resize-none focus:outline-none min-h-[8rem] scrollbar-hide"
+                      placeholder="Map out the explicit physical structures..."
+                    />
+                  </div>
+
+                  <div className="bg-zinc-950 border border-zinc-800 p-4 rounded flex flex-col">
+                    <label className="text-zinc-500 font-mono text-xs uppercase mb-2">TEMPORAL ANCHOR (WHEN)</label>
+                    <textarea 
+                      value={draftBlueprint?.startingTier || ''}
+                      onChange={(e) => updateDraft({ startingTier: e.target.value as any })}
+                      className="flex-1 bg-transparent text-zinc-300 font-mono text-sm resize-none focus:outline-none min-h-[8rem] scrollbar-hide"
+                      placeholder="Historical era..."
+                    />
+                  </div>
                 </div>
 
-                {/* Broad Structural Baseline Input (Why/How) */}
-                <div className="flex flex-col gap-2 border border-zinc-800 bg-zinc-950 p-4 rounded shadow-inner w-full relative">
-                  <label className="text-[10px] font-bold tracking-wider text-zinc-500">SYSTEMIC VECTOR DIRECTIVE (WHY / HOW)</label>
-                  <textarea
-                    value={whyHow}
-                    onChange={(e) => setWhyHow(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault();
-                        handleSend();
-                      }
-                    }}
-                    placeholder="Calibrate the initial psychological or logic vectors. Describe the experimental purpose..."
-                    disabled={isLoading}
-                    className="w-full h-24 bg-transparent text-sm text-zinc-200 placeholder-zinc-700 resize-none outline-none focus:text-white transition-colors pr-24 scrollbar-hide"
+                {/* The Systemic Vector Directive (bottom wide card) */}
+                <div className="bg-zinc-950 border border-zinc-800 p-4 rounded flex flex-col mt-4">
+                  <label className="text-zinc-500 font-mono text-xs uppercase mb-2">SYSTEMIC VECTOR DIRECTIVE (WHY / HOW)</label>
+                  <textarea 
+                    value={draftBlueprint?.premise || ''}
+                    onChange={(e) => updateDraft({ premise: e.target.value })}
+                    className="h-24 bg-transparent text-zinc-300 font-mono text-sm resize-none focus:outline-none scrollbar-hide"
+                    placeholder="Calibrate the initial psychological or logic vectors..."
                   />
-                  <div className="absolute right-4 bottom-4 flex items-center gap-4 bg-zinc-950 px-2 py-1 rounded">
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={isLoading}
-                      className="text-zinc-700 hover:text-white transition-all duration-300 disabled:opacity-50 hover:scale-110 active:scale-95"
-                      title="Attach Files (JSON, PDF, Images, MD)"
-                    >
-                      <Paperclip className="w-5 h-5" />
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={isLoading || (!(who.trim() || what.trim() || where.trim() || when.trim() || whyHow.trim()) && attachments.length === 0)}
-                      className="text-zinc-700 hover:text-white transition-all duration-300 disabled:opacity-50 hover:scale-110 active:scale-95"
-                    >
-                      {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
-                    </button>
-                  </div>
                 </div>
                 <input 
                   type="file" 
@@ -585,14 +474,20 @@ export default function Forge() {
                   accept=".json,.pdf,image/*,.md,text/markdown"
                   className="hidden"
                 />
-              </form>
+              </div>
             </>
           )}
         </div>
-        <div className="mt-4 text-center">
-          <p className="text-[8px] text-zinc-800 uppercase tracking-[0.4em]">
-            {isLoading ? "Neural Link Active // Processing" : "Awaiting Full Matrix Compilation // Structural Integrity Verified"}
-          </p>
+        <div className="flex justify-between items-center mt-4 pt-4 border-t border-zinc-800 px-6 pb-6">
+          <span className="text-zinc-500 font-mono text-xs">
+            STATUS: AWAITING FULL MATRIX COMPILATION // STRUCTURAL INTEGRITY VERIFIED
+          </span>
+          <button 
+            onClick={exportBlueprint}
+            className="px-4 py-2 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 text-xs font-mono border border-zinc-700 rounded transition-colors"
+          >
+            [ EXPORT BLUEPRINT TO ENGINE ]
+          </button>
         </div>
       </div>
     </div>
