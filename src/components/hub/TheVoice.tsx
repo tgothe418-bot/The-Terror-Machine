@@ -9,7 +9,6 @@ import { sendVoiceTurn } from '../../services/geminiService';
 import { useAppStore } from '../../store/useAppStore';
 import { useVoiceStore } from '../../store/useVoiceStore';
 import { useForgeStore } from '../../store/useForgeStore';
-import { useEngineStore } from '../../core/store';
 import { exportConversationToMarkdown } from '../../lib/download';
 
 export default function TheVoice() {
@@ -87,22 +86,6 @@ export default function TheVoice() {
       const responseText = response.narrative_blocks && response.narrative_blocks[0] ? response.narrative_blocks.map(b => b.content).join('\n') : "Error: No response";
       const voiceMsg: Message = { role: 'voice', content: responseText, timestamp: Date.now() };
       addMessage(voiceMsg);
-
-      // Output to Engine if simulation is active
-      const engineStore = useEngineStore.getState();
-      if (engineStore.activeBlueprint) {
-        // Ensure response content extraction converts the narrative blocks array into clean text strings
-        const combinedProse = response.narrative_blocks
-          ? response.narrative_blocks.map((b: any) => b.content).join('\n')
-          : typeof response === 'string' ? response : '';
-
-        engineStore.addEngineMessage({
-          role: 'voice',
-          content: combinedProse,
-          timestamp: Date.now(),
-          blocks: response.narrative_blocks || [{ type: 'prose', content: combinedProse }]
-        });
-      }
     } catch (err: any) {
       console.error(err);
       const errorMessage = typeof err === 'object' && err !== null && 'message' in err ? err.message : String(err);

@@ -140,12 +140,9 @@ export default function Runtime() {
     if (!overrideInput) setInput('');
     setIsLoading(true);
 
-    const textBuffer = useEngineStore.getState().engineTextBuffer;
-    const currentBuffer = [...textBuffer, userMsg];
-
     try {
       const response = await sendEngineTurn(
-        currentBuffer,
+        useEngineStore.getState().engineTextBuffer,
         gameState,
         activeBlueprint!,
         useEngineStore.getState().engineWorldStateSummary
