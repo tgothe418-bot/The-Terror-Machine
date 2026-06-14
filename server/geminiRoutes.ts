@@ -2,7 +2,7 @@
 import express from "express";
 import { GoogleGenAI } from "@google/genai";
 
-import { LORE_EXTRACTION_PROMPT, architectPrompt } from "../src/core/prompts/architect";
+import { LORE_EXTRACTION_PROMPT, architectPrompt, ARCHITECT_SYSTEM_PROMPT } from "../src/core/prompts/architect";
 import { ORCHESTRATOR_SYSTEM_PROMPT } from "../src/core/prompts/orchestrator";
 import { voicePrompt } from "../src/core/prompts/voice";
 import { extractBlueprint } from "../src/lib/jsonParser";
@@ -30,100 +30,48 @@ function getAiClient(): GoogleGenAI {
 
 router.post("/architect", async (req, res) => {
   try {
-    const { messageHistory, currentPhase, voiceContext, storeState } = req.body;
+    const { history } = req.body;
     
-    // storeState replaces useForgeStore.getState()
-    const { 
-      extractedSetting, 
-      extractedThreat, 
-      extractedStyle, 
-      availableReferenceCharacters 
-    } = storeState;
+    // Format history for Gemini
+    const formattedHistory = history.map((msg: any) => 
+      `${msg.role === 'user' ? 'USER:' : 'ARCHITECT:'}\n${msg.content}`
+    ).join('\n\n');
 
-    const rawContents = messageHistory.map((msg: any) => {
-      const parts: any[] = [];
-      if (msg.content && msg.content.trim()) parts.push({ text: msg.content });
-      
-      if (msg.attachments && msg.attachments.length > 0) {
-        msg.attachments.forEach((att: any) => {
-          parts.push({
-            inlineData: { mimeType: att.mimeType, data: att.data }
-          });
-        });
-      }
-
-      if (parts.length === 0) parts.push({ text: "..." });
-
-      return {
-        role: (msg.role === "assistant" || msg.role === "voice" || msg.role === "model") ? "model" : "user",
-        parts: parts,
-      };
-    });
-
-    const contents: any[] = [];
-    for (const msg of rawContents) {
-      if (contents.length === 0) {
-        if (msg.role === 'user') contents.push(msg);
-        continue;
-      }
-      const lastMsg = contents[contents.length - 1];
-      if (lastMsg.role === msg.role) {
-        lastMsg.parts.push(...msg.parts);
-      } else {
-        contents.push(msg);
-      }
-    }
-
-    let systemInstruction = architectPrompt;
-
-    let loreContext = '\n\n### [ ESTABLISHED WORLD LORE ]\n';
-    let hasLore = false;
-
-    if (extractedSetting) { loreContext += `- SETTING: ${extractedSetting}\n`; hasLore = true; }
-    if (extractedThreat) { loreContext += `- PRIMARY THREAT: ${extractedThreat}\n`; hasLore = true; }
-    if (extractedStyle) { loreContext += `- ATMOSPHERE & STYLE: ${extractedStyle}\n`; hasLore = true; }
-    if (availableReferenceCharacters && availableReferenceCharacters.length > 0) {
-      const castNames = availableReferenceCharacters.map((c: any) => c.name).join(', ');
-      loreContext += `- ESTABLISHED CAST: ${castNames}\n`;
-      hasLore = true;
-    }
-
-    if (hasLore) {
-      if (currentPhase === 'GENERATION') {
-        loreContext += `\nCRITICAL DIRECTIVE: Incorporate this extracted lore seamlessly into the final ScenarioBlueprint JSON.\n`;
-      } else {
-        loreContext += `\nCRITICAL DIRECTIVE: This lore was extracted from the User's uploaded reference materials. Treat it as established canonical fact. Do NOT ask the User to define these elements. Weave this data into your dark, atmospheric dialogue with morbid appreciation.\n`;
-      }
-      systemInstruction += loreContext;
-    }
-
-    if (voiceContext && voiceContext.length > 0) {
-      const voiceSummary = voiceContext
-        .filter((m: any) => m.role === 'user')
-        .slice(-5)
-        .map((m: any) => m.content)
-        .join('\n');
-      
-      if (voiceSummary) {
-        systemInstruction += `\n\nCONTEXT FROM THE VOICE (User's recent thoughts): \n${voiceSummary}\n\nUse this context to better understand the user's preferences and subconscious desires for the nightmare.`;
-      }
-    }
+    const fullPrompt = `${ARCHITECT_SYSTEM_PROMPT}\n\n=== CONVERSATION LOG ===\n${formattedHistory}\n\nARCHITECT:`;
 
     const response = await getAiClient().models.generateContent({
-      model: "gemini-3.5-flash",
-      contents: contents,
-      config: {
-        systemInstruction: systemInstruction,
-        temperature: 0.7,
-        topP: 0.95,
-        topK: 40,
-      },
+      model: "gemini-3.5-flash", // Flash is perfect for fast, iterative brainstorming
+      contents: fullPrompt,
+      config: { temperature: 0.7 },
     });
 
-    res.json({ text: response.text || "Error: No response from Architect." });
-  } catch (error: any) {
-    console.error("Architect Error:", error);
-    res.status(500).json({ error: error.message });
+    const outputText = response.text || "";
+    
+    // Attempt to extract JSON if the Architect is compiling
+    let compiledBlueprint = null;
+    let standardMessage = outputText;
+    
+    const jsonMatch = outputText.match(/```json\n([\s\S]*?)\n```/);
+    if (jsonMatch) {
+      try {
+        const parsed = JSON.parse(jsonMatch[1]);
+        if (parsed.is_compiling && parsed.blueprint) {
+          compiledBlueprint = parsed.blueprint;
+          standardMessage = parsed.message || "Blueprint compiled successfully.";
+        }
+      } catch (e) {
+        console.error("Failed to parse Architect JSON:", e);
+      }
+    }
+
+    res.json({ 
+      text: standardMessage,
+      compiledBlueprint 
+    });
+
+  } catch (error) {
+    console.error("Architect route error:", error);
+    res.status(500).json({ error: "Architect failed to respond." });
   }
 });
 

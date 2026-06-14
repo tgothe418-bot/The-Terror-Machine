@@ -25,6 +25,7 @@ export interface DraftBlueprint {
   startingVector: HorrorVector;
   startingTier: ExposureTier;
   environmentalRules?: string;
+  cast?: any[];
 }
 
 interface ForgeState {
@@ -108,7 +109,11 @@ export const useForgeStore = create<ForgeState>()(
         }
       }),
       updateDraft: (updates) => set((state) => ({
-        draftBlueprint: state.draftBlueprint ? { ...state.draftBlueprint, ...updates } : null
+        draftBlueprint: state.draftBlueprint ? { ...state.draftBlueprint, ...updates } : { 
+          startingVector: 'COGNITIVE', 
+          startingTier: 'GATEWAY', 
+          ...updates 
+        } as DraftBlueprint
       })),
       setWho: (val) => set({ who: val }),
       setWhat: (val) => set({ what: val }),

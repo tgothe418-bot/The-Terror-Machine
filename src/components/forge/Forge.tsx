@@ -11,6 +11,7 @@ import { sendMessageToArchitect, extractStyleProfile, summarizeForgeInterview } 
 import { motion, AnimatePresence } from 'motion/react';
 import { Trash2 } from 'lucide-react';
 import CastManager from './CastManager';
+import { ArchitectChat } from './ArchitectChat';
 
 import { MatrixSelector } from './MatrixSelector';
 
@@ -508,6 +509,11 @@ export default function Forge() {
 
                 {/* Matrix Selector UI */}
                 <MatrixSelector />
+
+                {/* Architect Conversation */}
+                <div className="mb-4">
+                  <ArchitectChat />
+                </div>
 
                 {/* 4-Column Upper Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
