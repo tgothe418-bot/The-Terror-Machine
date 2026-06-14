@@ -2,7 +2,7 @@
 import express from "express";
 import { GoogleGenAI } from "@google/genai";
 
-import { LORE_EXTRACTION_PROMPT, architectPrompt, ARCHITECT_SYSTEM_PROMPT } from "../src/core/prompts/architect";
+import { LORE_EXTRACTION_PROMPT, ARCHITECT_SYSTEM_PROMPT } from "../src/core/prompts/architect";
 import { ORCHESTRATOR_SYSTEM_PROMPT } from "../src/core/prompts/orchestrator";
 import { voicePrompt } from "../src/core/prompts/voice";
 import { extractBlueprint } from "../src/lib/jsonParser";
@@ -27,6 +27,71 @@ function getAiClient(): GoogleGenAI {
   }
   return aiClient;
 }
+
+router.post("/test-blueprint", async (req, res) => {
+  try {
+    const { blueprint } = req.body;
+    if (!blueprint) return res.status(400).json({ error: "No blueprint provided." });
+
+    const coordinateRules = getMatrixRules(blueprint.startingVector, blueprint.startingTier);
+
+    const systemPrompt = `
+      You are the ENGINE of a text-based atmospheric horror simulation. 
+      You are performing a DRY-RUN INITIALIZATION for a new scenario.
+
+      === SCENARIO BLUEPRINT ===
+      TITLE: ${blueprint.title}
+      PREMISE: ${blueprint.premise}
+      ENVIRONMENTAL RULES: ${blueprint.environmentalRules}
+      
+      === MATRIX COORDINATES ===
+      VECTOR: ${blueprint.startingVector}
+      TIER: ${blueprint.startingTier}
+      
+      CRITICAL INSTRUCTIONS:
+      ${coordinateRules.instructionVitals}
+      
+      PROHIBITED THEMES:
+      ${coordinateRules.prohibitions}
+
+      DIRECTIVE:
+      Generate the OPENING SCENE of this nightmare. Establish the atmosphere, the sensory baseline, and the immediate physical reality the user is waking up to. Do not provide user choices; just drop them into the world.
+      
+      OUTPUT FORMAT:
+      You MUST output a structured JSON object containing an array of "narrative_blocks" (using types like "prose", "environmental_intrusion", or "system_voice"). 
+      \`\`\`json
+      {
+        "narrative_blocks": [ ... ]
+      }
+      \`\`\`
+    `;
+
+    const response = await getAiClient().models.generateContent({
+      model: "gemini-3.5-flash", // Fast generation for testing
+      contents: systemPrompt,
+      config: { temperature: 0.8 }, // Slightly higher for creative prose generation
+    });
+
+    const outputText = response.text || "";
+    let narrativeBlocks = [];
+
+    const jsonMatch = outputText.match(/```json\n([\s\S]*?)\n```/);
+    if (jsonMatch) {
+      try {
+        const parsed = JSON.parse(jsonMatch[1]);
+        narrativeBlocks = parsed.narrative_blocks || [];
+      } catch (e) {
+        console.error("JSON parse error on test run", e);
+      }
+    }
+
+    res.json({ blocks: narrativeBlocks });
+
+  } catch (error) {
+    console.error("Test Blueprint error:", error);
+    res.status(500).json({ error: "Failed to generate opening scene." });
+  }
+});
 
 router.post("/architect", async (req, res) => {
   try {

@@ -12,6 +12,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Trash2 } from 'lucide-react';
 import CastManager from './CastManager';
 import { ArchitectChat } from './ArchitectChat';
+import { BlueprintTester } from './BlueprintTester';
 
 import { MatrixSelector } from './MatrixSelector';
 
@@ -513,6 +514,11 @@ export default function Forge() {
                 {/* Architect Conversation */}
                 <div className="mb-4">
                   <ArchitectChat />
+                </div>
+                
+                {/* Dry Run Tester */}
+                <div className="mb-4">
+                  <BlueprintTester />
                 </div>
 
                 {/* 4-Column Upper Grid */}
