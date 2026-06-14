@@ -67,6 +67,36 @@ export async function extractStyleProfile(userText: string): Promise<ProseStyleV
   return response.json();
 }
 
+export const sendVoiceTurn = async (textBuffer: Message[], forgeContext?: Message[]): Promise<BicameralOutput> => {
+  const response = await fetch('/api/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ 
+      execution_mode: 'VOICE',
+      textBuffer,
+      forgeContext
+    })
+  });
+  if (!response.ok) throw new Error(await response.text());
+  return response.json();
+};
+
+export const sendEngineTurn = async (engineTextBuffer: Message[], logicState: LogicState | null, blueprint: ScenarioBlueprint, worldStateSummary: string): Promise<BicameralOutput> => {
+  const response = await fetch('/api/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ 
+      execution_mode: 'ENGINE',
+      textBuffer: engineTextBuffer,
+      currentState: logicState,
+      blueprint,
+      worldStateSummary
+    })
+  });
+  if (!response.ok) throw new Error(await response.text());
+  return response.json();
+};
+
 export async function sendChatMessage(
   payload: {
     textBuffer: Message[];

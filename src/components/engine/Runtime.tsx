@@ -16,7 +16,7 @@ const formatBlocks = (blocks?: NarrativeBlock[]): string => {
     return block.content;
   }).join('\n\n');
 };
-import { sendChatMessage, fetchSimulatedPlayerAction } from '../../services/geminiService';
+import { sendEngineTurn, fetchSimulatedPlayerAction } from '../../services/geminiService';
 import ErgodicTextRenderer from './ErgodicTextRenderer';
 
 const SESSION_TIMEOUT = 60 * 60 * 1000; // 60 minutes
@@ -30,7 +30,6 @@ export default function Runtime() {
   const addEngineMessage = useEngineStore((state) => state.addEngineMessage);
   
   const setPhase = useAppStore((state) => state.setPhase);
-  const phase = useAppStore((state) => state.phase);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [lastActivity, setLastActivity] = useState<number>(() => Date.now());
@@ -60,13 +59,12 @@ export default function Runtime() {
   const startSimulation = useCallback(async () => {
     setIsLoading(true);
     try {
-      const initialResponse = await sendChatMessage({
-        blueprint: activeBlueprint!, 
-        textBuffer: [{ role: 'user', content: 'Begin simulation. Establish environment and initial state.', timestamp: Date.now() }],
-        currentState: gameState,
-        worldStateSummary: useEngineStore.getState().engineWorldStateSummary,
-        execution_mode: phase
-      });
+      const initialResponse = await sendEngineTurn(
+        [{ role: 'user', content: 'Begin simulation. Establish environment and initial state.', timestamp: Date.now() }],
+        gameState,
+        activeBlueprint!,
+        useEngineStore.getState().engineWorldStateSummary
+      );
       
       const narrativeBlocks = initialResponse.narrative_blocks;
 
@@ -83,7 +81,7 @@ export default function Runtime() {
     } finally {
       setIsLoading(false);
     }
-  }, [activeBlueprint, gameState, addEngineMessage, updateGameState, phase]);
+  }, [activeBlueprint, gameState, addEngineMessage, updateGameState]);
 
   // Monitor for idle timeout
   useEffect(() => {
@@ -146,13 +144,12 @@ export default function Runtime() {
     const currentBuffer = [...textBuffer, userMsg];
 
     try {
-      const response = await sendChatMessage({
-        blueprint: activeBlueprint!, 
-        textBuffer: currentBuffer, 
-        currentState: gameState,
-        worldStateSummary: useEngineStore.getState().engineWorldStateSummary,
-        execution_mode: phase
-      });
+      const response = await sendEngineTurn(
+        currentBuffer,
+        gameState,
+        activeBlueprint!,
+        useEngineStore.getState().engineWorldStateSummary
+      );
       
       const narrativeBlocks = response.narrative_blocks;
 
