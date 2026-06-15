@@ -120,8 +120,8 @@ export default function Forge() {
       {/* MAIN DASHBOARD GRID */}
       <div className="grid grid-cols-12 gap-8 flex-grow overflow-hidden">
           
-        {/* LEFT COLUMN: Controls, Intake, Matrix (Spans 5 columns) */}
-        <div className="col-span-5 flex flex-col space-y-6 overflow-y-auto pr-2 pb-8 custom-scrollbar">
+        {/* LEFT COLUMN: Expanded Parameter Console & Selectors (Spans 7 columns for direct typing depth) */}
+        <div className="col-span-7 flex flex-col space-y-6 overflow-y-auto pr-4 pb-8 custom-scrollbar">
           
           {/* Intake/Knowledgebase Dropzone */}
           <FileDropzone />
@@ -129,28 +129,14 @@ export default function Forge() {
           {/* Matrix Coordinates */}
           <MatrixSelector />
 
-          {/* Blueprint Tester Button */}
-          <BlueprintTester />
-
-        </div>
-          
-        {/* RIGHT COLUMN: The Architect Chat & Parameter Cards (Spans 7 columns) */}
-        <div className="col-span-7 flex flex-col space-y-6 h-full overflow-hidden">
-          
-          {/* The Chat Area (Flex-grow ensures it takes up available vertical space) */}
-          <div className="flex-grow flex flex-col min-h-[400px]">
-            <ArchitectChat />
-          </div>
-          
-          {/* Parameter Cards (Static bottom area) */}
-          <div className="shrink-0 space-y-4 pb-8 overflow-y-auto custom-scrollbar max-h-[40vh]">
+          {/* EXPANDED PARAMETER CARDS DECK */}
+          <div className="space-y-6 pt-4 border-t border-zinc-900 flex-grow">
             
-            {/* 4-COLUMN PARAMETER GRID */}
-            <div className="grid grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 gap-4">
               
-              {/* 1. WHO */}
-              <div className="bg-zinc-950 border border-zinc-800 p-4 rounded flex flex-col">
-                <label className="text-zinc-500 font-mono text-[10px] uppercase mb-2">SYSTEM SUBJECT (WHO)</label>
+              {/* 1. WHO // SYSTEM SUBJECT */}
+              <div className="bg-zinc-950 border border-zinc-800 focus-within:border-zinc-700 p-4 rounded flex flex-col shadow-lg transition-colors">
+                <label className="text-zinc-500 font-mono text-[10px] uppercase tracking-wider mb-2">SYSTEM SUBJECT (WHO)</label>
                 <textarea 
                   value={draftBlueprint?.cast?.[0]?.description || ''}
                   onChange={(e) => {
@@ -159,56 +145,80 @@ export default function Forge() {
                     updatedCast[0].description = e.target.value;
                     updateDraft({ cast: updatedCast });
                   }}
-                  className="flex-1 bg-transparent text-zinc-300 font-mono text-xs resize-none focus:outline-none custom-scrollbar min-h-[80px]"
-                  placeholder="Define the isolated entities..."
+                  className="w-full bg-transparent text-zinc-300 font-mono text-xs resize-none focus:outline-none custom-scrollbar min-h-[120px] leading-relaxed"
+                  placeholder="Define isolated entities, cognitive boundaries, or target targets..."
                 />
               </div>
 
-              {/* 2. WHAT */}
-              <div className="bg-zinc-950 border border-zinc-800 p-4 rounded flex flex-col">
-                <label className="text-zinc-500 font-mono text-[10px] uppercase mb-2">CORE CONSTRAINT (WHAT)</label>
+              {/* 2. WHAT // CORE CONSTRAINT */}
+              <div className="bg-zinc-950 border border-zinc-800 focus-within:border-zinc-700 p-4 rounded flex flex-col shadow-lg transition-colors">
+                <label className="text-zinc-500 font-mono text-[10px] uppercase tracking-wider mb-2">CORE CONSTRAINT (WHAT)</label>
                 <textarea 
                   value={draftBlueprint?.environmentalRules || ''}
                   onChange={(e) => updateDraft({ environmentalRules: e.target.value })}
-                  className="flex-1 bg-transparent text-zinc-300 font-mono text-xs resize-none focus:outline-none custom-scrollbar min-h-[80px]"
-                  placeholder="Set the overarching dilemma..."
+                  className="w-full bg-transparent text-zinc-300 font-mono text-xs resize-none focus:outline-none custom-scrollbar min-h-[120px] leading-relaxed"
+                  placeholder="Establish structural containment limits or systemic behavioral loops..."
                 />
               </div>
 
-              {/* 3. WHERE */}
-              <div className="bg-zinc-950 border border-zinc-800 p-4 rounded flex flex-col">
-                <label className="text-zinc-500 font-mono text-[10px] uppercase mb-2">ENCLOSURE ENVIRONMENT (WHERE)</label>
+              {/* 3. WHERE // ENCLOSURE ENVIRONMENT */}
+              <div className="bg-zinc-950 border border-zinc-800 focus-within:border-zinc-700 p-4 rounded flex flex-col shadow-lg transition-colors">
+                <label className="text-zinc-500 font-mono text-[10px] uppercase tracking-wider mb-2">ENCLOSURE ENVIRONMENT (WHERE)</label>
                 <textarea 
                   value={draftBlueprint?.title || ''}
                   onChange={(e) => updateDraft({ title: e.target.value })}
-                  className="flex-1 bg-transparent text-zinc-300 font-mono text-xs resize-none focus:outline-none custom-scrollbar min-h-[80px]"
-                  placeholder="Map out the explicit physical structures..."
+                  className="w-full bg-transparent text-zinc-300 font-mono text-xs resize-none focus:outline-none custom-scrollbar min-h-[120px] leading-relaxed"
+                  placeholder="Map out localized architectures, environmental geometry, or matrix space rules..."
                 />
               </div>
 
-              {/* 4. WHEN */}
-              <div className="bg-zinc-950 border border-zinc-800 p-4 rounded flex flex-col relative overflow-hidden">
-                <label className="text-zinc-500 font-mono text-[10px] uppercase mb-2">TEMPORAL ANCHOR (WHEN)</label>
-                <div className="flex-1 flex items-start text-zinc-300 font-mono text-xs">
-                   {draftBlueprint?.startingTier || <span className="text-zinc-600">AWAITING SELECTION...</span>}
+              {/* 4. WHEN // TEMPORAL ANCHOR */}
+              <div className="bg-zinc-950 border border-zinc-800 p-4 rounded flex flex-col justify-between shadow-lg">
+                <div>
+                  <label className="text-zinc-500 font-mono text-[10px] uppercase tracking-wider mb-2">TEMPORAL ANCHOR (WHEN)</label>
+                  <p className="text-zinc-600 font-mono text-[11px] leading-relaxed mt-1">
+                    Initial simulation entry stage. Coordinates are calculated dynamically based on active selection vectors.
+                  </p>
+                </div>
+                <div className="text-zinc-400 font-mono text-xs pt-4 border-t border-zinc-900 flex justify-between items-center">
+                  <span className="text-zinc-600 uppercase text-[9px] tracking-wider">CURRENT SYNC:</span>
+                  <span className="text-cyan-400 tracking-widest font-bold">
+                    {draftBlueprint?.startingTier ? `[ ${draftBlueprint.startingTier} ]` : 'AWAITING SELECTION'}
+                  </span>
                 </div>
               </div>
 
             </div>
 
-            {/* WHY / HOW */}
-            <div className="bg-zinc-950 border border-zinc-800 p-4 rounded flex flex-col">
-              <label className="text-zinc-500 font-mono text-[10px] uppercase mb-2">SYSTEMIC VECTOR DIRECTIVE (WHY / HOW)</label>
+            {/* 5. WHY / HOW // SYSTEMIC VECTOR DIRECTIVE */}
+            <div className="bg-zinc-950 border border-zinc-800 focus-within:border-zinc-700 p-4 rounded flex flex-col shadow-lg transition-colors">
+              <label className="text-zinc-500 font-mono text-[10px] uppercase tracking-widest mb-2">SYSTEMIC VECTOR DIRECTIVE (WHY / HOW)</label>
               <textarea 
                 value={draftBlueprint?.premise || ''}
                 onChange={(e) => updateDraft({ premise: e.target.value })}
-                className="h-20 bg-transparent text-zinc-300 font-mono text-xs resize-none focus:outline-none custom-scrollbar"
-                placeholder="Calibrate the initial psychological or logic vectors..."
+                className="w-full bg-transparent text-zinc-300 font-mono text-xs resize-none focus:outline-none custom-scrollbar min-h-[140px] leading-relaxed"
+                placeholder="Calibrate primary narrative trajectories, logic overrides, or operational vector conditions..."
               />
             </div>
           </div>
 
         </div>
+          
+        {/* RIGHT COLUMN: Unified Utility Tower (Spans 5 columns - Houses Chat & Validation) */}
+        <div className="col-span-5 flex flex-col h-full overflow-hidden space-y-6">
+          
+          {/* Architect Analytical Companion Box */}
+          <div className="flex-1 min-h-[350px] flex flex-col border border-zinc-900 rounded bg-zinc-950/20 shadow-xl overflow-hidden">
+            <ArchitectChat />
+          </div>
+          
+          {/* Atmospheric Validation (Blueprint Tester) Panel */}
+          <div className="shrink-0 border border-zinc-900 rounded bg-zinc-950/30 p-2 shadow-xl">
+            <BlueprintTester />
+          </div>
+
+        </div>
+
       </div>
     </div>
   );
