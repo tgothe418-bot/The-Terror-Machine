@@ -168,6 +168,9 @@ export const useForgeStore = create<ForgeState>()(
         extractedSetting: '',
         extractedThreat: '',
         extractedStyle: '',
+        architectMessages: [
+          { role: 'architect', content: "I am the Architect. Tell me what kind of nightmare we are building today." }
+        ]
       }),
       setAvailableReferenceCharacters: (characters) => set({ availableReferenceCharacters: characters }),
       addCharacterToCast: (character) => set((state) => {

@@ -1,5 +1,6 @@
 {
   "name": "The Nightmare Machine 2.0",
   "description": "A highly scalable, text-based narrative simulation engine for horror stories.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

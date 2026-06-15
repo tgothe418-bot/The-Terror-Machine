@@ -18,7 +18,7 @@ let aiClient: GoogleGenAI | null = null;
 function getAiClient(): GoogleGenAI {
   if (!aiClient) {
     const key = process.env.GEMINI_API_KEY || STARTUP_API_KEY;
-    if (!key || key === "MY_GEMINI_API_KEY") {
+    if (!key) {
       throw new Error('Please configure your Gemini API Key in the AI Studio Secrets panel.');
     }
     const cleanKey = key.trim().replace(/^['"]|['"]$/g, '');
@@ -462,7 +462,7 @@ router.post("/chat", async (req, res) => {
     } else {
       let errorMsg = error.message;
       if (errorMsg?.includes('API key not valid') || errorMsg?.includes('API_KEY_INVALID')) {
-        errorMsg = 'Invalid Gemini API Key. Please verify your API Key in the AI Studio Settings menu and ensure it does not contain extra spaces or quotes.';
+        errorMsg = 'Your Gemini API Key is invalid or has expired. Please verify your API Key in the AI Studio Settings menu.';
       }
       res.status(500).json({ error: errorMsg });
     }
@@ -591,7 +591,7 @@ router.post("/gemini/voice", async (req, res) => {
     // If it's our direct error (like API Key), display it clearly. If it's Gemini's invalid key error, translate it.
     let displayError = error.message;
     if (displayError.includes("API key not valid") || displayError.includes("API_KEY_INVALID")) {
-      displayError = "Please configure your Gemini API Key in the AI Studio Secrets panel.";
+      displayError = "Your Gemini API Key is invalid or has expired. Please verify your API Key in the AI Studio Settings menu.";
     }
 
     res.status(500).json({ 

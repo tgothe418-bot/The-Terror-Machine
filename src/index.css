@@ -97,6 +97,20 @@
     @apply border-white/[0.08] bg-black/60;
     box-shadow: 0 0 40px rgba(255, 255, 255, 0.02);
   }
+
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: #09090b; /* zinc-950 */ 
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #27272a; /* zinc-800 */ 
+    border-radius: 3px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #3f3f46; /* zinc-700 */ 
+  }
 }
 
 
