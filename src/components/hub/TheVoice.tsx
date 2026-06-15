@@ -1,8 +1,7 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { ArrowLeft, Send, Loader2, MessageCircle, Trash2, Paperclip, X, Download, Copy } from 'lucide-react';
+import { ArrowLeft, Trash2, Download, Copy } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Message, Attachment } from '../../types';
 import { useAppStore } from '../../store/useAppStore';
@@ -19,7 +18,6 @@ export default function TheVoice() {
   const [isConfirmingClear, setIsConfirmingClear] = useState(false);
   const [hydrated, setHydrated] = useState(() => useVoiceStore.persist.hasHydrated());
   const scrollRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Auto-resize textarea
@@ -102,7 +100,7 @@ export default function TheVoice() {
       const responseText = data.text || "Error: No response";
       const voiceMsg: Message = { role: 'voice', content: responseText, timestamp: Date.now() };
       addMessage(voiceMsg);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
       const errorMessage = typeof err === 'object' && err !== null && 'message' in err ? err.message : String(err);
       let parsedMessage = errorMessage;
@@ -176,97 +174,93 @@ export default function TheVoice() {
     setAttachments(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
-  };
-
   if (!hydrated) return null;
 
   return (
-    <div className="h-screen bg-black text-zinc-100 flex flex-col font-sans selection:bg-white selection:text-black">
-      {/* Header */}
-      <header className="h-16 border-b border-zinc-900 flex items-center justify-between px-6 bg-black z-10">
-        <div className="flex items-center gap-6">
+    <div className="h-screen w-[95vw] max-w-[1800px] mx-auto flex flex-col pt-8 pb-12 text-zinc-300 font-mono overflow-hidden">
+
+      {/* HEADER AREA */}
+      <div className="mb-6 flex justify-between items-center border-b border-zinc-800 pb-4 shrink-0 px-4">
+        <h2 className="text-zinc-400 text-xl tracking-widest uppercase shadow-black drop-shadow-md">
           <button 
             onClick={() => setPhase('hub')}
-            className="flex items-center gap-2 text-zinc-500 hover:text-white transition-colors uppercase text-[10px] tracking-[0.2em]"
+            className="flex items-center gap-2 text-zinc-500 hover:text-white transition-colors text-[10px] uppercase tracking-widest border border-zinc-800 px-3 py-1 rounded-sm mr-4 inline-flex"
           >
             <ArrowLeft className="w-3 h-3" />
-            Return to Hub
+            HUB
           </button>
-          <div className="h-4 w-[1px] bg-zinc-800" />
-          <div className="flex items-center gap-3">
-            <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
-            <span className="text-[10px] font-bold tracking-[0.3em] uppercase text-white">The Voice</span>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 text-zinc-600">
+          [ THE VOICE // META-DEVELOPMENT ]
+        </h2>
+        <div className="flex items-center gap-4">
           <div className="flex items-center">
             {isConfirmingClear ? (
-              <div className="flex items-center gap-2 mr-4 animate-in fade-in slide-in-from-right-2">
-                <span className="text-[8px] uppercase tracking-widest text-fresh-blood">Clear all memory?</span>
-                <button 
-                  onClick={() => {
-                    clearHistory();
-                    setIsConfirmingClear(false);
-                  }}
-                  className="text-[8px] uppercase tracking-widest text-white hover:underline"
-                >
-                  Yes
-                </button>
-                <button 
-                  onClick={() => setIsConfirmingClear(false)}
-                  className="text-[8px] uppercase tracking-widest text-zinc-500 hover:underline"
-                >
-                  No
-                </button>
+              <div className="flex items-center gap-4 mr-4 animate-in fade-in slide-in-from-right-2 border border-red-900/50 bg-red-950/20 px-3 py-1 rounded-sm">
+                <span className="text-[10px] uppercase tracking-widest text-red-500 font-bold">Purge Memory?</span>
+                <div className="flex items-center gap-3">
+                  <button 
+                    onClick={() => {
+                      clearHistory();
+                      setIsConfirmingClear(false);
+                    }}
+                    className="text-[10px] uppercase tracking-widest text-white hover:text-red-400 transition-colors"
+                  >
+                    Yes
+                  </button>
+                  <span className="text-zinc-700">|</span>
+                  <button 
+                    onClick={() => setIsConfirmingClear(false)}
+                    className="text-[10px] uppercase tracking-widest text-zinc-500 hover:text-white transition-colors"
+                  >
+                    No
+                  </button>
+                </div>
               </div>
             ) : (
               <button
                 onClick={() => setIsConfirmingClear(true)}
-                className="p-2 hover:text-fresh-blood transition-colors mr-4"
-                title="Clear Memory"
+                className="p-2 text-zinc-600 hover:text-red-500 transition-colors mr-2 border border-transparent hover:border-red-900/50 rounded-sm hover:bg-red-950/20"
+                title="Purge Memory"
               >
                 <Trash2 className="w-4 h-4" />
               </button>
             )}
-            
-            <button 
-              onClick={() => exportConversationToMarkdown(messages, 'session-telemetry')}
-              className="p-2 text-zinc-400 hover:text-zinc-100 transition-colors duration-150 rounded"
-              title="Download session log (.md)"
-            >
-              <Download className="w-4 h-4" />
-            </button>
           </div>
-          <div className="w-[1px] h-4 bg-zinc-800 mx-2" />
-          <MessageCircle className="w-3 h-3" />
-          <span className="text-[8px] uppercase tracking-[0.3em]">Conversational Link Active</span>
+          <button 
+            onClick={() => exportConversationToMarkdown(messages, 'session-telemetry')}
+            className="p-2 text-zinc-400 hover:text-zinc-100 transition-colors duration-150 border border-zinc-800 hover:border-zinc-700 rounded mr-4"
+            title="Download session log (.md)"
+          >
+            <Download className="w-4 h-4" />
+          </button>
+          <div className="text-xs text-zinc-600 animate-pulse bg-zinc-900/50 px-3 py-1 rounded border border-zinc-800">
+            {isLoading ? "RECEIVING TRANSMISSION..." : "SYSTEM IDLE"}
+          </div>
         </div>
-      </header>
+      </div>
 
-      {/* Chat Area */}
+      {/* CHAT CONTAINER (Scrollbar pushed to the right edge) */}
       <div 
         ref={scrollRef}
-        className="flex-1 overflow-y-auto p-8 2xl:p-16 space-y-12 2xl:space-y-20 scrollbar-hide max-w-4xl 2xl:max-w-6xl mx-auto w-full voice-chat-container"
+        className="flex-1 overflow-y-auto custom-scrollbar px-4 pb-6 space-y-8"
       >
         <AnimatePresence initial={false}>
-          {messages.map((msg, idx) => (
-            <motion.div
-              key={idx}
+          {messages.map((msg, index) => (
+            <motion.div 
+              key={index} 
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}
             >
-              <div className={`group relative max-w-[80%] p-6 text-base leading-relaxed whitespace-pre-wrap transition-all duration-500 backdrop-blur-sm ${
-                msg.role === 'user' 
-                  ? 'bg-zinc-900/40 text-zinc-300 border border-zinc-800/50 hover:bg-zinc-900/60' 
-                  : 'text-zinc-100 font-light italic bg-white/[0.02] border border-white/[0.05] hover:bg-white/[0.04]'
-              }`}>
+              <span className="text-[10px] text-zinc-600 mb-1 uppercase tracking-wider">
+                {msg.role === 'user' ? 'CONDUCTOR' : 'THE VOICE'}
+              </span>
+              <div 
+                className={`max-w-[75%] p-4 rounded whitespace-pre-wrap leading-relaxed shadow-lg
+                  ${msg.role === 'user' 
+                    ? 'bg-zinc-900 border border-zinc-700 text-zinc-300' 
+                    : 'bg-transparent border-l-2 border-zinc-700 text-zinc-400 pl-4 py-2'
+                  }`}
+              >
                 {msg.attachments && msg.attachments.length > 0 && (
                   <div className="flex flex-wrap gap-2 mb-4">
                     {msg.attachments.map((att, i) => (
@@ -280,7 +274,6 @@ export default function TheVoice() {
                           />
                         ) : (
                           <div className="flex items-center gap-2 px-3 py-2 border border-zinc-800 bg-black/50 text-[10px] uppercase tracking-widest text-zinc-400">
-                            <Paperclip className="w-3 h-3" />
                             <span className="max-w-[150px] truncate">{att.name}</span>
                           </div>
                         )}
@@ -288,11 +281,11 @@ export default function TheVoice() {
                     ))}
                   </div>
                 )}
-                <div className={`markdown-voice relative ${msg.role === 'user' ? 'text-zinc-300' : 'text-zinc-100'}`}>
+                
+                <div className={`markdown-voice relative group ${msg.role === 'user' ? 'text-zinc-300' : 'text-zinc-100'}`}>
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>
                     {msg.content}
                   </ReactMarkdown>
-
                   <button 
                     onClick={() => handleCopyToClipboard(msg.content)}
                     className={`absolute -right-12 top-0 p-1.5 transition-all duration-200 rounded opacity-0 group-hover:opacity-100
@@ -313,92 +306,77 @@ export default function TheVoice() {
               animate={{ opacity: 1 }}
               className="flex items-center gap-2 text-zinc-600 text-[10px] uppercase tracking-widest p-4"
             >
-              <Loader2 className="w-3 h-3 animate-spin" />
               The Voice is listening...
             </motion.div>
           )}
         </AnimatePresence>
       </div>
 
-      {/* Input Area */}
-      <div className="p-8 border-t border-zinc-900 bg-black voice-input-pane">
-        <div className="max-w-4xl mx-auto space-y-4 voice-input-wrapper">
-          {/* Attachment Previews */}
-          <AnimatePresence>
-            {attachments.length > 0 && (
-              <motion.div 
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 10 }}
-                className="flex flex-wrap gap-3 p-4 bg-zinc-950 border border-zinc-900 rounded-lg"
-              >
-                {attachments.map((att, i) => (
-                  <div key={i} className="relative group">
-                    {att.mimeType.startsWith('image/') ? (
-                      <img 
-                        src={`data:${att.mimeType};base64,${att.data}`}
-                        alt="preview"
-                        className="w-20 h-20 object-cover rounded border border-zinc-800"
-                        referrerPolicy="no-referrer"
-                      />
-                    ) : (
-                      <div className="w-20 h-20 flex flex-col items-center justify-center bg-zinc-900 border border-zinc-800 rounded p-2 text-center">
-                        <Paperclip className="w-6 h-6 text-zinc-600 mb-1" />
-                        <span className="text-[8px] text-zinc-500 truncate w-full">{att.name}</span>
-                      </div>
-                    )}
-                    <button 
-                      onClick={() => removeAttachment(i)}
-                      className="absolute -top-2 -right-2 bg-fresh-blood text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </div>
-                ))}
-              </motion.div>
-            )}
-          </AnimatePresence>
+      {/* EXPANDED USER INPUT AREA (The Green Box) */}
+      <div className="px-4 shrink-0 mt-4 relative">
+        
+        {/* Ambient background shadow wrapper to ground the input box */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black to-transparent pointer-events-none -mt-10" />
 
-          <form onSubmit={handleSend} className="relative">
-            <textarea
-              ref={textareaRef}
-              autoFocus
-              disabled={isLoading}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              onPaste={handlePaste}
-              placeholder="Speak your mind... (Shift+Enter for new line)"
-              className="w-full bg-zinc-950 border border-zinc-900 p-6 pr-32 text-sm focus:outline-none focus:border-zinc-700 focus:ring-1 focus:ring-zinc-700/20 placeholder:text-zinc-800 disabled:opacity-50 transition-all resize-none min-h-[80px] scrollbar-hide"
-            />
-            
-            <div className="absolute right-6 bottom-6 flex items-center gap-4">
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="text-zinc-700 hover:text-white transition-all duration-300 hover:scale-110 active:scale-95"
-                title="Upload Files (Images, PDF, JSON, MD)"
-              >
-                <Paperclip className="w-5 h-5" />
-              </button>
-              <button
-                type="submit"
-                disabled={isLoading || (!input.trim() && attachments.length === 0)}
-                className="text-zinc-700 hover:text-white transition-all duration-300 hover:scale-110 active:scale-95 disabled:opacity-50"
-              >
-                <Send className="w-5 h-5" />
-              </button>
-            </div>
+        <div className="relative bg-[#050505] border border-zinc-800 focus-within:border-zinc-600 rounded p-4 flex items-end gap-4 transition-colors shadow-[0_0_25px_rgba(0,0,0,0.8)]">
 
+          {/* FILE ATTACH BUTTON */}
+          <div className="flex flex-col items-center justify-center mb-1 shrink-0">
             <input 
-              type="file"
-              ref={fileInputRef}
-              onChange={handleFileChange}
-              accept="image/*,.pdf,.json,.md,text/markdown"
+              type="file" 
+              id="voice-file-upload"
+              accept=".txt,.md,.pdf,image/*,.json" 
               multiple
+              onChange={handleFileChange} 
               className="hidden"
             />
-          </form>
+            <label 
+              htmlFor="voice-file-upload" 
+              className="cursor-pointer text-zinc-500 hover:text-zinc-300 flex items-center justify-center h-10 w-10 rounded bg-zinc-900 border border-zinc-800 hover:border-zinc-600 transition-colors shadow-inner"
+              title="Attach Memory File"
+            >
+              [+]
+            </label>
+          </div>
+
+          {/* MASSIVE TEXTAREA */}
+          <div className="flex-1 flex flex-col">
+            {attachments.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-2">
+                {attachments.map((att, i) => (
+                  <span key={i} className="text-blue-400/80 font-mono text-xs truncate max-w-[300px] px-2 py-1 bg-blue-900/10 border border-blue-900/30 rounded inline-flex items-center gap-2 group">
+                    <span>🔗 {att.name}</span>
+                    <button type="button" onClick={(e) => { e.preventDefault(); removeAttachment(i); }} className="text-blue-500 hover:text-white" title="Remove">✕</button>
+                  </span>
+                ))}
+              </div>
+            )}
+            <textarea 
+              autoFocus
+              ref={textareaRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                // Submit on Enter, allow line breaks with Shift+Enter
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSend();
+                }
+              }}
+              onPaste={handlePaste}
+              placeholder="Transmit to The Voice... (Shift+Enter for new line)"
+              className="w-full bg-transparent text-sm text-zinc-300 resize-none focus:outline-none custom-scrollbar min-h-[80px] max-h-[30vh] p-2"
+            />
+          </div>
+
+          {/* SEND BUTTON */}
+          <button 
+            onClick={handleSend}
+            disabled={isLoading || (!input.trim() && attachments.length === 0)}
+            className="mb-1 px-6 py-3 bg-zinc-900 hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed text-zinc-400 hover:text-zinc-200 border border-zinc-700 hover:border-zinc-500 rounded transition-colors text-xs font-bold tracking-widest shadow-md"
+          >
+            [ TRANSMIT ]
+          </button>
         </div>
       </div>
     </div>
