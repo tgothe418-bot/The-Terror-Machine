@@ -7,6 +7,14 @@ import { distillContext } from '../services/geminiService';
 import { flattenTurnsForDistillation } from '../lib/jsonParser';
 import { HorrorVector, ExposureTier } from './matrix';
 
+// Add these model definitions to your store fields in src/core/store.ts
+export interface TelemetryMetrics {
+  tension: string;
+  pacing: string;
+  castLedger: Array<{ character_name: string; current_location: string; psychological_status: string }>;
+  engineLogic: string;
+}
+
 interface EngineState {
   activeBlueprint: ScenarioBlueprint | null;
   gameState: LogicState | null;
@@ -17,9 +25,12 @@ interface EngineState {
   currentVector: 'SOMATIC' | 'COGNITIVE' | 'COSMIC' | 'SOCIO_MORAL';
   currentTier: 'GATEWAY' | 'LATENT' | 'MANIFEST' | 'TERMINAL';
   currentTensionLevel: 'buildup' | 'visceral_climax' | 'aftermath';
+  telemetry: TelemetryMetrics | null;
   shiftMatrixCoordinates: (vector: HorrorVector, tier: ExposureTier) => void;
   updateTension: (tension: 'buildup' | 'visceral_climax' | 'aftermath') => void;
+  updateTelemetry: (metrics: TelemetryMetrics) => void;
   setBlueprint: (blueprint: ScenarioBlueprint, role: 'protagonist' | 'antagonist') => void;
+
   clearBlueprint: () => void;
   updateGameState: (newState: LogicState) => void;
   addEngineMessage: (message: Message) => void;
@@ -43,6 +54,7 @@ export const useEngineStore = create<EngineState>()(
       currentVector: 'COGNITIVE',
       currentTier: 'LATENT',
       currentTensionLevel: 'buildup',
+      telemetry: null,
       shiftMatrixCoordinates: (vector, tier) => set((state) => ({
         ...state,
         currentVector: vector,
@@ -52,6 +64,7 @@ export const useEngineStore = create<EngineState>()(
         ...state,
         currentTensionLevel: tension
       })),
+      updateTelemetry: (metrics) => set({ telemetry: metrics }),
       setBlueprint: (blueprint, role) => set({ 
         activeBlueprint: blueprint, 
         engineMessages: [],

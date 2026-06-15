@@ -107,13 +107,15 @@ export const sendEngineTurn = async (
   if (!response.ok) throw new Error(await response.text());
   const parsedResponse: BicameralOutput = await response.json();
 
-  // Extract the store and update the live telemetry:
-  const appStore = (await import('../store/useAppStore')).useAppStore;
-  appStore.getState().setTelemetry({
-    tension: parsedResponse.logic_state?.current_tension_level || 'STANDBY',
-    pacing: (blueprint.narrativeRules?.phaseDirectives?.[parsedResponse.logic_state?.current_tension_level || currentTensionLevel || 'buildup']) || 'STANDBY',
-    castLedger: parsedResponse.logic_state?.cast_ledger || [],
-    engineLogic: parsedResponse.engine_thoughts || 'Awaiting system rationale...'
+  // Extract store pointer to dynamically pipe live diagnostic metrics:
+  const engineStore = (await import('../core/store')).useEngineStore;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rawPayload = parsedResponse as any;
+  engineStore.getState().updateTelemetry({
+    tension: rawPayload.tension || rawPayload.startingVector || parsedResponse.logic_state?.current_tension_level || 'LOW',
+    pacing: rawPayload.pacing || rawPayload.startingTier || (blueprint.narrativeRules?.phaseDirectives?.[parsedResponse.logic_state?.current_tension_level || currentTensionLevel || 'buildup']) || 'CREEPING',
+    castLedger: parsedResponse.logic_state?.cast_ledger || rawPayload.cast_ledger || rawPayload.cast || [],
+    engineLogic: parsedResponse.engine_thoughts || rawPayload.engine_logic || rawPayload.premise || 'System processing...'
   });
 
   return parsedResponse;

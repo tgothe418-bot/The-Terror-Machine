@@ -31,7 +31,7 @@ export default function Runtime() {
   const addEngineMessage = useEngineStore((state) => state.addEngineMessage);
   
   const setPhase = useAppStore((state) => state.setPhase);
-  const telemetry = useAppStore(state => state.telemetry);
+  const telemetry = useEngineStore(state => state.telemetry);
   
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -594,14 +594,14 @@ export default function Runtime() {
               <div className="flex justify-between items-center bg-zinc-950/60 border border-zinc-900 p-3 rounded-sm">
                 <span className="text-zinc-500 text-[10px] uppercase tracking-wider">Tension Level</span>
                 <span className="text-red-500 text-[10px] font-bold tracking-widest uppercase">
-                  {telemetry?.tension || 'STANDBY'}
+                  {telemetry?.tension || 'LOW'}
                 </span>
               </div>
               
               <div className="flex justify-between items-center bg-zinc-950/60 border border-zinc-800/40 p-3 rounded-sm">
                 <span className="text-zinc-500 text-[10px] uppercase tracking-wider">Narrative Pacing</span>
                 <span className="text-cyan-500 text-[10px] font-bold tracking-widest uppercase">
-                   {telemetry?.pacing || 'STANDBY'}
+                   {telemetry?.pacing || 'CREEPING'}
                 </span>
               </div>
             </div>
@@ -613,12 +613,16 @@ export default function Runtime() {
                 {telemetry?.castLedger && telemetry.castLedger.length > 0 ? (
                   telemetry.castLedger.map((member, index) => (
                     <div key={index} className="bg-zinc-950/40 border border-zinc-900 p-3 rounded-sm shadow-md">
-                      <div className="text-zinc-300 text-xs font-bold mb-2 tracking-wide">{member.character_name}</div>
+                      <div className="text-zinc-300 text-xs font-bold mb-2 tracking-wide">
+                        {member.character_name || (member as any).name}
+                      </div>
                       <div className="text-[10px] text-zinc-400 leading-relaxed mb-1 font-mono">
-                        <span className="text-zinc-600 uppercase tracking-wider text-[9px] mr-1">LOC:</span> {member.current_location}
+                        <span className="text-zinc-600 uppercase tracking-wider text-[9px] mr-1">LOC:</span> 
+                        {member.current_location || 'Coordinates tracked internally.'}
                       </div>
                       <div className="text-[10px] text-zinc-400 leading-relaxed font-mono">
-                        <span className="text-zinc-600 uppercase tracking-wider text-[9px] mr-1">PSY:</span> {member.psychological_status}
+                        <span className="text-zinc-600 uppercase tracking-wider text-[9px] mr-1">PSY:</span> 
+                        {member.psychological_status || (member as any).description}
                       </div>
                     </div>
                   ))
