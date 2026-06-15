@@ -144,9 +144,18 @@ export interface Message {
   frozen_psychological_status?: string;
 }
 
+export interface TelemetryState {
+  tension: string;
+  pacing: string;
+  castLedger: Array<{ character_name: string; current_location: string; psychological_status: string }>;
+  engineLogic: string;
+}
+
 export interface AppState {
   phase: AppPhase;
   setPhase: (phase: AppPhase) => void;
+  telemetry: TelemetryState | null;
+  setTelemetry: (telemetry: TelemetryState) => void;
 }
 
 export interface LogicState {

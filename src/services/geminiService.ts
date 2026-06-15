@@ -105,7 +105,18 @@ export const sendEngineTurn = async (
     })
   });
   if (!response.ok) throw new Error(await response.text());
-  return response.json();
+  const parsedResponse: BicameralOutput = await response.json();
+
+  // Extract the store and update the live telemetry:
+  const appStore = (await import('../store/useAppStore')).useAppStore;
+  appStore.getState().setTelemetry({
+    tension: parsedResponse.logic_state?.current_tension_level || 'STANDBY',
+    pacing: (blueprint.narrativeRules?.phaseDirectives?.[parsedResponse.logic_state?.current_tension_level || currentTensionLevel || 'buildup']) || 'STANDBY',
+    castLedger: parsedResponse.logic_state?.cast_ledger || [],
+    engineLogic: parsedResponse.engine_thoughts || 'Awaiting system rationale...'
+  });
+
+  return parsedResponse;
 };
 
 export async function sendChatMessage(
