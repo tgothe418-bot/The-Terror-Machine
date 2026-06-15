@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { ArrowLeft, Terminal, Send, Loader2, Eye } from 'lucide-react';
+import { ArrowLeft, Terminal, Loader2, Eye } from 'lucide-react';
 import { useEngineStore } from '../../core/store';
 import { useAppStore } from '../../store/useAppStore';
 import { motion, AnimatePresence } from 'motion/react';
@@ -455,67 +455,79 @@ export default function Runtime() {
         </AnimatePresence>
       </div>
 
-      {/* Command Input */}
-      <div className="p-8 2xl:p-12 border-t border-zinc-900 bg-black">
-        <div className="max-w-4xl 2xl:max-w-6xl mx-auto flex items-center gap-6">
+      {/* MINIMALIST INPUT CONSOLE */}
+      <div className="w-full shrink-0 pb-8 px-8 relative z-10 bg-black pt-4">
+        <div className="max-w-3xl mx-auto relative flex items-end">
+          
           <button
             onClick={() => handleCommand(undefined, '[USER_ACTION: OBSERVE]')}
-            disabled={isLoading}
-            className="flex flex-col items-center gap-1 group text-zinc-700 hover:text-white transition-all disabled:opacity-30"
+            disabled={isLoading || isAutopilotRunning}
+            className="flex flex-col items-center gap-1 group text-zinc-700 hover:text-white transition-all disabled:opacity-30 mr-6 pb-4"
             title="Observe / Wait (Advance Simulation)"
           >
             <Eye className="w-5 h-5 group-hover:scale-110 transition-transform" />
             <span className="text-[8px] uppercase tracking-tighter">Observe</span>
           </button>
 
-          <form onSubmit={(e) => handleCommand(e)} className="flex-1 flex items-center gap-4 relative">
-            <span className="text-zinc-500 text-lg 2xl:text-2xl font-bold tracking-widest">{'>'}</span>
-            <input
-              type="text"
+          {/* The input container - seamlessly integrated into the void */}
+          <div className="flex-1 relative flex items-end border-b border-zinc-800 focus-within:border-zinc-500 transition-colors duration-1000">
+            <span className="text-[10px] uppercase tracking-widest opacity-50 mr-4 mb-4 shrink-0 font-bold">
+              [ SUBJECT ]
+            </span>
+            
+            <textarea 
               autoFocus
-              disabled={isLoading || isAutopilotRunning}
               value={input}
+              disabled={isLoading || isAutopilotRunning}
               onChange={(e) => setInput(e.target.value)}
-              placeholder={isLoading ? "Processing..." : isAutopilotRunning ? "Autopilot active..." : "Enter command..."}
-              className="flex-1 bg-transparent border-none p-0 text-sm focus:outline-none focus:ring-0 placeholder:text-zinc-800 disabled:opacity-50"
+              onKeyDown={(e) => {
+                // Submit on Enter, allow line breaks with Shift+Enter
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleCommand();
+                }
+              }}
+              placeholder={isLoading ? "Processing..." : isAutopilotRunning ? "Autopilot active..." : "What do you do? (Shift+Enter for new line)"}
+              className="w-full bg-transparent text-sm py-3 resize-none focus:outline-none placeholder:text-zinc-700 min-h-[48px] max-h-[30vh] custom-scrollbar leading-relaxed disabled:opacity-50"
             />
-            <button
-              type="submit"
-              disabled={isLoading || !input.trim() || isAutopilotRunning}
-              className="text-zinc-700 hover:text-white transition-colors disabled:opacity-50"
-            >
-              <Send className="w-4 h-4" />
-            </button>
-          </form>
-
-          <div className="flex items-center gap-2 p-2 bg-zinc-900 border border-zinc-800 rounded ml-4">
-            <span className="text-xs text-zinc-500 font-mono">AUTOPILOT:</span>
-            <input 
-              type="number" 
-              min="2" max="25" 
-              value={autopilotTarget}
-              onChange={(e) => setAutopilotTarget(Number(e.target.value))}
-              disabled={isAutopilotRunning}
-              className="w-16 bg-black text-zinc-300 text-xs p-1 border border-zinc-700 rounded text-center"
-            />
-            {!isAutopilotRunning ? (
-              <button 
-                onClick={handleStartAutopilot}
-                className="text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-3 py-1 rounded transition-colors"
-                type="button"
-              >
-                ENGAGE
-              </button>
-            ) : (
-              <button 
-                onClick={handleStopAutopilot}
-                className="text-xs bg-red-900/50 hover:bg-red-900 text-red-200 px-3 py-1 border border-red-800/50 rounded transition-colors"
-                type="button"
-              >
-                ABORT
-              </button>
-            )}
+            
+            {/* Blinking indicator dot */}
+            <div className="absolute right-0 bottom-4 w-1.5 h-1.5 rounded-full animate-pulse transition-colors duration-1000 bg-zinc-500" />
           </div>
+          
+          <div className="flex flex-col items-center gap-2 p-2 bg-zinc-900/30 border border-zinc-800/50 rounded ml-6 mb-2">
+            <div className="flex items-center gap-2">
+              <span className="text-[9px] text-zinc-500 font-mono tracking-widest uppercase">Autopilot</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <input 
+                type="number" 
+                min="2" max="25" 
+                value={autopilotTarget}
+                onChange={(e) => setAutopilotTarget(Number(e.target.value))}
+                disabled={isAutopilotRunning}
+                className="w-12 bg-black text-zinc-300 text-xs p-1 border border-zinc-700 rounded text-center focus:outline-none"
+              />
+              {!isAutopilotRunning ? (
+                <button 
+                  onClick={handleStartAutopilot}
+                  className="text-[10px] uppercase tracking-wider bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-2 py-1 flex-1 rounded transition-colors"
+                  type="button"
+                >
+                  Engage
+                </button>
+              ) : (
+                <button 
+                  onClick={handleStopAutopilot}
+                  className="text-[10px] uppercase tracking-wider bg-red-900/50 hover:bg-red-900 text-red-200 px-2 py-1 flex-1 border border-red-800/50 rounded transition-colors"
+                  type="button"
+                >
+                  Abort
+                </button>
+              )}
+            </div>
+          </div>
+
         </div>
       </div>
     </div>
