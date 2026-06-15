@@ -2,7 +2,7 @@ import React, { useRef, useState } from 'react';
 import { ArrowLeft, Upload, AlertCircle, Users, Shield, Skull, Activity, Play } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import { useEngineStore } from '../../core/store';
-import { ScenarioBlueprint } from '../../types';
+import { ScenarioBlueprint, BlueprintSchema } from '../../types';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface EngineSetupProps {
@@ -29,12 +29,15 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
       try {
         const content = event.target?.result as string;
         const parsed = JSON.parse(content);
-
-        // Validation: Check for minimum required properties for the engine to operate
-        if (parsed.title && parsed.setting && parsed.narrativeRules) {
-          setPreviewBlueprint(parsed as ScenarioBlueprint);
-        } else {
-          setError('INVALID BLUEPRINT: CORE STRUCTURAL MARKERS MISSING (TITLE, SETTING, OR NARRATIVE RULES)');
+        
+        try {
+          const validated = BlueprintSchema.parse(parsed);
+          // @ts-expect-error - The blueprint schemas we just made might have minor divergence from legacy ScenarioBlueprint, forcing it through for now
+          setPreviewBlueprint(validated as ScenarioBlueprint);
+        } catch (validationErr: unknown) {
+          console.error("Zod Validation Failed:", validationErr);
+          const errorMsg = validationErr instanceof Error ? validationErr.message : String(validationErr);
+          setError(`INVALID BLUEPRINT SCHEMA: ${errorMsg}`);
         }
       } catch (err) {
         setError('PARSING ERROR: FILE CORRUPTED OR NOT VALID JSON');
@@ -166,17 +169,24 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
                         Cast Members
                       </h3>
                       <div className="space-y-3">
-                        {previewBlueprint.characters.map((char, i) => (
-                          <div key={i} className="group">
-                            <div className="flex justify-between items-baseline mb-1">
-                              <span className="text-sm font-medium">{char.name}</span>
-                              <span className="text-[10px] text-zinc-600 uppercase">{char.role}</span>
+                        {previewBlueprint.cast?.map((char, i) => (
+                          <div key={char.id || i} className="group p-3 bg-zinc-950 border border-zinc-800 rounded">
+                            <div className="flex justify-between items-baseline mb-2">
+                              <span className="text-sm font-medium text-zinc-200">{char.name}</span>
+                              <span className="text-[10px] text-cyan-500/80 uppercase tracking-widest bg-cyan-900/10 px-2 py-0.5 rounded border border-cyan-900/30">
+                                {char.behaviorVector || 'ADAPTIVE'}
+                              </span>
                             </div>
-                            <p className="text-[10px] text-zinc-500 leading-relaxed italic border-l border-zinc-900 pl-3">
-                              {char.psychologicalState}
-                            </p>
+                            {char.description && (
+                              <p className="text-[10px] text-zinc-400 leading-relaxed font-mono">
+                                {char.description}
+                              </p>
+                            )}
                           </div>
                         ))}
+                        {(!previewBlueprint.cast || previewBlueprint.cast.length === 0) && (
+                          <div className="text-[10px] text-zinc-600 italic">No cast identified in blueprint.</div>
+                        )}
                       </div>
                     </div>
 

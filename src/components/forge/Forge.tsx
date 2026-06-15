@@ -6,6 +6,7 @@ import { BlueprintTester } from './BlueprintTester';
 import { FileDropzone } from './FileDropzone';
 import { MatrixSelector } from './MatrixSelector';
 import { ArrowLeft, Trash2 } from 'lucide-react';
+import { AutopilotVector } from '../../types';
 
 export default function Forge() {
   const setPhase = useAppStore((state) => state.setPhase);
@@ -134,20 +135,89 @@ export default function Forge() {
             
             <div className="grid grid-cols-2 gap-4">
               
-              {/* 1. WHO // SYSTEM SUBJECT */}
-              <div className="bg-zinc-950 border border-zinc-800 focus-within:border-zinc-700 p-4 rounded flex flex-col shadow-lg transition-colors">
-                <label className="text-zinc-500 font-mono text-[10px] uppercase tracking-wider mb-2">SYSTEM SUBJECT (WHO)</label>
-                <textarea 
-                  value={draftBlueprint?.cast?.[0]?.description || ''}
-                  onChange={(e) => {
-                    const updatedCast = [...(draftBlueprint?.cast || [])];
-                    if (!updatedCast[0]) updatedCast[0] = { id: 'char-1', name: 'Unknown', description: '', behaviorVector: 'ADAPTIVE' };
-                    updatedCast[0].description = e.target.value;
-                    updateDraft({ cast: updatedCast });
-                  }}
-                  className="w-full bg-transparent text-zinc-300 font-mono text-xs resize-none focus:outline-none custom-scrollbar min-h-[120px] leading-relaxed"
-                  placeholder="Define isolated entities, cognitive boundaries, or target targets..."
-                />
+              {/* 1. WHO // MULTI-ENTITY SYSTEM SUBJECTS */}
+              <div className="bg-zinc-950 border border-zinc-800 focus-within:border-zinc-700 p-4 rounded flex flex-col shadow-lg transition-colors h-[250px]">
+                
+                {/* Header & Add Button */}
+                <div className="flex justify-between items-center mb-3 shrink-0">
+                  <label className="text-zinc-500 font-mono text-[10px] uppercase tracking-wider">SYSTEM SUBJECTS (WHO)</label>
+                  <button 
+                    onClick={() => {
+                      const currentCast = draftBlueprint?.cast || [];
+                      updateDraft({ 
+                        cast: [...currentCast, { id: `char-${Date.now()}`, name: 'New Entity', description: '', behaviorVector: 'ADAPTIVE' }] 
+                      });
+                    }}
+                    className="text-[9px] bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 px-2 py-1 rounded border border-zinc-700 transition-colors shadow-sm"
+                  >
+                    [+ ADD ENTITY]
+                  </button>
+                </div>
+
+                {/* Dynamic Roster List */}
+                <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3 pr-2">
+                  {draftBlueprint?.cast?.map((char, index) => (
+                    <div key={char.id} className="p-3 bg-[#050505] border border-zinc-800/80 rounded flex flex-col gap-2 relative group shadow-inner">
+                      
+                      {/* Delete Button (Appears on Hover) */}
+                      <button 
+                        onClick={() => {
+                          const updatedCast = draftBlueprint.cast.filter(c => c.id !== char.id);
+                          updateDraft({ cast: updatedCast });
+                        }}
+                        className="absolute top-2 right-2 text-zinc-700 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity z-10 bg-black/50 rounded px-1"
+                        title="Remove Entity"
+                      >
+                        ✕
+                      </button>
+
+                      <div className="flex gap-3">
+                        <input 
+                          type="text"
+                          value={char.name}
+                          onChange={(e) => {
+                            const updatedCast = [...draftBlueprint.cast];
+                            updatedCast[index].name = e.target.value;
+                            updateDraft({ cast: updatedCast });
+                          }}
+                          className="bg-transparent border-b border-zinc-800 text-zinc-300 font-bold text-xs focus:outline-none w-1/2 focus:border-zinc-500 pb-1"
+                          placeholder="Entity Name"
+                        />
+                        <select
+                          value={char.behaviorVector || 'ADAPTIVE'}
+                          onChange={(e) => {
+                            const updatedCast = [...draftBlueprint.cast];
+                            updatedCast[index].behaviorVector = e.target.value as AutopilotVector;
+                            updateDraft({ cast: updatedCast });
+                          }}
+                          className="bg-zinc-900 border border-zinc-800 text-zinc-400 text-[9px] uppercase tracking-wider p-1 rounded focus:outline-none w-1/2 cursor-pointer"
+                        >
+                          <option value="ADAPTIVE">Vector: ADAPTIVE</option>
+                          <option value="INSURGENT">Vector: INSURGENT</option>
+                          <option value="PANIC">Vector: PANIC</option>
+                        </select>
+                      </div>
+                      
+                      <textarea 
+                        value={char.description}
+                        onChange={(e) => {
+                          const updatedCast = [...draftBlueprint.cast];
+                          updatedCast[index].description = e.target.value;
+                          updateDraft({ cast: updatedCast });
+                        }}
+                        className="w-full bg-transparent text-zinc-400 font-mono text-[10px] resize-none focus:outline-none custom-scrollbar min-h-[40px] leading-relaxed mt-1"
+                        placeholder="Psychological profile, inventory, or narrative vulnerability..."
+                      />
+                    </div>
+                  ))}
+                  
+                  {(!draftBlueprint?.cast || draftBlueprint.cast.length === 0) && (
+                    <div className="flex items-center justify-center h-full text-zinc-700 text-xs italic font-mono border border-dashed border-zinc-800 rounded p-4">
+                      No entities assigned to simulation.
+                    </div>
+                  )}
+                </div>
+
               </div>
 
               {/* 2. WHAT // CORE CONSTRAINT */}

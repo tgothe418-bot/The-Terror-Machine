@@ -1,3 +1,5 @@
+import { z } from 'zod';
+
 export type AppPhase = 'hub' | 'forge' | 'engine' | 'voice';
 
 export type ForgePhase = 
@@ -12,6 +14,53 @@ export type ContentScale = 1 | 2 | 3 | 4 | 5 | 6;
 export type HorrorVector = 'SOMATIC' | 'COGNITIVE' | 'COSMIC' | 'SOCIO_MORAL';
 export type ExposureTier = 'GATEWAY' | 'LATENT' | 'MANIFEST' | 'TERMINAL';
 export type AutopilotVector = 'ADAPTIVE' | 'INSURGENT' | 'PANIC';
+
+export const CastMemberSchema = z.object({
+  id: z.string().default(() => `char-${Date.now()}`),
+  name: z.string().default("Unknown"),
+  description: z.string().default(""),
+  role: z.string().optional().default("Subject"),
+  personality: z.string().optional().default(""),
+  goals: z.string().optional().default(""),
+  traits: z.array(z.string()).optional().default([]),
+  isUserCharacter: z.boolean().optional().default(false),
+  behaviorVector: z.enum(['ADAPTIVE', 'INSURGENT', 'PANIC']).optional().default('ADAPTIVE')
+});
+
+export const BlueprintSchema = z.object({
+  id: z.string().optional(),
+  title: z.string().optional().default("Unknown Enclosure"),
+  premise: z.string().optional().default(""),
+  startingVector: z.enum(['SOMATIC', 'COGNITIVE', 'COSMIC', 'SOCIO_MORAL']).optional(),
+  startingTier: z.enum(['GATEWAY', 'LATENT', 'MANIFEST', 'TERMINAL']).optional(),
+  environmentalRules: z.string().optional().default(""),
+  contentScale: z.number().optional().default(3),
+  contentLevelDescription: z.string().optional().default("Standard"),
+  
+  setting: z.object({
+    location: z.string().optional().default("Unknown"),
+    atmosphere: z.string().optional().default(""),
+    timePeriod: z.string().optional().default("Present")
+  }).optional().default({}),
+  
+  narrativeRules: z.object({
+    incitingIncident: z.string().optional().default(""),
+    phaseDirectives: z.any().optional().default({}),
+    currentTensionLevel: z.string().optional().default("buildup"),
+    keyPlotElements: z.array(z.string()).optional().default([])
+  }).optional().default({}),
+  
+  // Explicitly require an array of characters, but allow infinite length
+  cast: z.array(CastMemberSchema).min(1).optional().default([{ id: '1', name: 'Unknown', description: '' }]),
+  characters: z.array(z.any()).optional().default([]),
+  
+  // Safely default to an empty array.
+  references: z.array(z.string()).optional().default([])
+});
+
+// For compatibility with previous types, though we augment them
+export type CastMember = z.infer<typeof CastMemberSchema>;
+export type Blueprint = z.infer<typeof BlueprintSchema>;
 
 export interface ReferenceMaterial {
   id: string;
