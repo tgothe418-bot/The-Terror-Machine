@@ -3,7 +3,7 @@ import express from "express";
 import { GoogleGenAI } from "@google/genai";
 
 import { LORE_EXTRACTION_PROMPT, ARCHITECT_SYSTEM_PROMPT } from "../src/core/prompts/architect";
-import { ORCHESTRATOR_SYSTEM_PROMPT } from "../src/core/prompts/orchestrator";
+import { buildOrchestratorPrompt } from "../src/core/prompts/orchestrator";
 import { voicePrompt } from "../src/core/prompts/voice";
 import { extractBlueprint } from "../src/lib/jsonParser";
 import { BicameralOutput } from "../src/types";
@@ -314,25 +314,18 @@ router.post("/chat", async (req, res) => {
         delete slimBlueprint.narrativeRules.phaseDirectives;
       }
 
-      const stateContext = updatedState 
-        ? `\n\n[CURRENT LOGIC STATE (ABSOLUTE TRUTH)]:\n${JSON.stringify(updatedState, null, 2)}`
-        : "\n\n[CURRENT LOGIC STATE]: Uninitialized.";
-
-      systemInstruction = `${ORCHESTRATOR_SYSTEM_PROMPT}\n\n[SCENARIO BLUEPRINT]:\n${JSON.stringify(slimBlueprint, null, 2)}${stateContext}${
-        blueprint.styleProfile 
-          ? `\n\n[STYLE_VECTOR]:\n${JSON.stringify(blueprint.styleProfile, null, 2)}` 
-          : ''
-      }`;
-      
-      if (worldStateSummary) {
-        systemInstruction += `\n\n[CUMULATIVE CHRONOLOGY]:\n${worldStateSummary}`;
-      }
-
       const vector = currentVector || 'COGNITIVE';
       const tier = currentTier || 'LATENT';
       const tensionLevel = currentTensionLevel || 'buildup';
       
       const coordinateRules = getMatrixRules(vector, tier);
+
+      const historyString = activeHistory.map((m: any) => `${m.role}: ${m.content}`).join('\n');
+      const accumulatedHistory = worldStateSummary 
+        ? `[CUMULATIVE CHRONOLOGY]:\n${worldStateSummary}\n\n[RECENT LOG]:\n${historyString}` 
+        : historyString;
+
+      systemInstruction = buildOrchestratorPrompt(slimBlueprint as any, accumulatedHistory, updatedState || {} as any);
 
       systemInstruction += `
     \n\n=== CORE RUNTIME MATRIX COORDINATES ===
@@ -409,21 +402,39 @@ router.post("/chat", async (req, res) => {
     }
 
     const textResponse = response.text || "{}";
-    const parsed = extractBlueprint(textResponse, ['narrative_blocks', 'engine_thoughts', 'logic_state']);
-    if (!parsed) throw new Error("Orchestrator returned heavily malformed output that could not be parsed.");
+    const parsed = extractBlueprint(textResponse, []) || {};
     
-    let blocks = Array.isArray((parsed as any).narrative_blocks) ? (parsed as any).narrative_blocks : [];
-    if (blocks.length === 0 && (parsed as any).narrative_text) {
-      blocks = [{ type: 'prose', content: (parsed as any).narrative_text }];
-    } else if (blocks.length === 0 && typeof parsed === 'string') {
-      blocks = [{ type: 'prose', content: parsed }];
+    // Map the new payload to the legacy blocks format so the UI works without breaking
+    let blocks: any[] = [];
+    
+    if (Array.isArray((parsed as any).narrative_blocks)) {
+      blocks = (parsed as any).narrative_blocks;
+    } else {
+      if ((parsed as any).narrative_text) {
+        blocks.push({ type: 'prose', content: (parsed as any).narrative_text });
+      }
+      
+      if (Array.isArray((parsed as any).dialogue) && (parsed as any).dialogue.length > 0) {
+        (parsed as any).dialogue.forEach((d: any) => {
+          blocks.push({ type: 'dialogue', content: d.text, speaker: d.speaker });
+        });
+      }
+      
+      if (blocks.length === 0 && typeof parsed === 'string') {
+        blocks = [{ type: 'prose', content: parsed }];
+      }
     }
 
     const output: BicameralOutput = {
-      engine_thoughts: (parsed as any).engine_thoughts || "",
+      engine_thoughts: (parsed as any).engine_logic || (parsed as any).engine_thoughts || "",
       narrative_blocks: blocks,
       logic_state: (parsed as any).logic_state || {}
     };
+
+    // Inject cast_ledger into logic_state manually so it maps correctly
+    if ((parsed as any).cast_ledger) {
+       output.logic_state.cast_ledger = (parsed as any).cast_ledger;
+    }
 
     output.logic_state.current_location = output.logic_state.current_location || updatedState?.current_location || blueprint.setting.location;
     output.logic_state.player_injuries = output.logic_state.player_injuries || updatedState?.player_injuries || [];

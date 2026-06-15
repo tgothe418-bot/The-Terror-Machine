@@ -156,6 +156,11 @@ export interface LogicState {
   psychological_status: string;
   player_role: 'protagonist' | 'antagonist';
   current_tension_level: TensionLevel;
+  cast_ledger?: Array<{
+    character_name: string;
+    current_location: string;
+    psychological_status: string;
+  }>;
   lore_and_memory: {
     established_facts: string[];
     permanent_consequences: string[];
