@@ -249,71 +249,55 @@ export default function TheVoice() {
               key={index} 
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className={`flex w-full gap-8 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'} group`}
+              className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}
             >
-              
-              {/* 1. THE CORE MESSAGE COLUMN */}
-              <div className={`flex flex-col max-w-[75%] shrink-0 ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-                <span className="text-[10px] text-zinc-600 mb-1 uppercase tracking-wider">
-                  {msg.role === 'user' ? 'CONDUCTOR' : 'THE VOICE'}
-                </span>
-                <div 
-                  className={`p-4 rounded whitespace-pre-wrap leading-relaxed shadow-lg
-                    ${msg.role === 'user' 
-                      ? 'bg-zinc-900 border border-zinc-700 text-zinc-300' 
-                      : 'bg-transparent border-l-2 border-zinc-700 text-zinc-400 pl-4 py-2'
-                    }`}
-                >
-                  {msg.attachments && msg.attachments.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mb-4">
-                      {msg.attachments.map((att, i) => (
-                        <div key={i} className="flex flex-col gap-2">
-                          {att.mimeType.startsWith('image/') ? (
-                            <img 
-                              src={`data:${att.mimeType};base64,${att.data}`}
-                              alt={att.name}
-                              className="max-h-48 rounded border border-zinc-700"
-                              referrerPolicy="no-referrer"
-                            />
-                          ) : (
-                            <div className="flex items-center gap-2 px-3 py-2 border border-zinc-800 bg-black/50 text-[10px] uppercase tracking-widest text-zinc-400">
-                              <span className="max-w-[150px] truncate">{att.name}</span>
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  
-                  <div className={`markdown-voice relative group ${msg.role === 'user' ? 'text-zinc-300' : 'text-zinc-100'}`}>
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                      {msg.content}
-                    </ReactMarkdown>
-                    <button 
-                      onClick={() => handleCopyToClipboard(msg.content)}
-                      className={`absolute -right-12 top-0 p-1.5 transition-all duration-200 rounded opacity-0 group-hover:opacity-100
-                        ${msg.role === 'user' 
-                          ? 'text-zinc-500 hover:text-white bg-black/50 border border-zinc-800' 
-                          : 'text-zinc-600 hover:text-white bg-black/50 border border-zinc-800'}`}
-                      title="Copy message contents"
-                    >
-                      <Copy className="w-3.5 h-3.5" />
-                    </button>
+              <span className="text-[10px] text-zinc-600 mb-1 uppercase tracking-wider">
+                {msg.role === 'user' ? 'CONDUCTOR' : 'THE VOICE'}
+              </span>
+              <div 
+                className={`max-w-[75%] p-4 rounded whitespace-pre-wrap leading-relaxed shadow-lg
+                  ${msg.role === 'user' 
+                    ? 'bg-zinc-900 border border-zinc-700 text-zinc-300' 
+                    : 'bg-transparent border-l-2 border-zinc-700 text-zinc-400 pl-4 py-2'
+                  }`}
+              >
+                {msg.attachments && msg.attachments.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {msg.attachments.map((att, i) => (
+                      <div key={i} className="flex flex-col gap-2">
+                        {att.mimeType.startsWith('image/') ? (
+                          <img 
+                            src={`data:${att.mimeType};base64,${att.data}`}
+                            alt={att.name}
+                            className="max-h-48 rounded border border-zinc-700"
+                            referrerPolicy="no-referrer"
+                          />
+                        ) : (
+                          <div className="flex items-center gap-2 px-3 py-2 border border-zinc-800 bg-black/50 text-[10px] uppercase tracking-widest text-zinc-400">
+                            <span className="max-w-[150px] truncate">{att.name}</span>
+                          </div>
+                        )}
+                      </div>
+                    ))}
                   </div>
+                )}
+                
+                <div className={`markdown-voice relative group ${msg.role === 'user' ? 'text-zinc-300' : 'text-zinc-100'}`}>
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {msg.content}
+                  </ReactMarkdown>
+                  <button 
+                    onClick={() => handleCopyToClipboard(msg.content)}
+                    className={`absolute -right-12 top-0 p-1.5 transition-all duration-200 rounded opacity-0 group-hover:opacity-100
+                      ${msg.role === 'user' 
+                        ? 'text-zinc-500 hover:text-white bg-black/50 border border-zinc-800' 
+                        : 'text-zinc-600 hover:text-white bg-black/50 border border-zinc-800'}`}
+                    title="Copy message contents"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                  </button>
                 </div>
               </div>
-
-              {/* 2. THE AMBIENT MOOD SPACE (The Green Box) */}
-              <div className="flex-1 relative pointer-events-none flex items-center opacity-70 transition-opacity duration-1000">
-                {msg.role !== 'user' ? (
-                  /* The Voice: A subtle, breathing violet/amber burst anchored to the left */
-                  <div className="absolute left-0 w-full h-[150%] max-h-[400px] bg-gradient-to-r from-violet-900/10 via-amber-900/5 to-transparent blur-[80px] animate-[pulse_4s_ease-in-out_infinite]" />
-                ) : (
-                  /* The Conductor: A cold, static structural cyan glow anchored to the right */
-                  <div className="absolute right-0 w-full h-[150%] max-h-[400px] bg-gradient-to-l from-cyan-900/10 to-transparent blur-[80px]" />
-                )}
-              </div>
-
             </motion.div>
           ))}
           {isLoading && (
