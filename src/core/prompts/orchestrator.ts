@@ -1,5 +1,6 @@
 import { Blueprint, LogicState } from '../../types';
 import { useAppStore } from '../../store/useAppStore';
+import { useEngineStore } from '../store';
 
 export const buildOrchestratorPrompt = (
   blueprint: Blueprint,
@@ -19,6 +20,16 @@ export const buildOrchestratorPrompt = (
 
   const currentGraph = useAppStore.getState().spatialGraph;
   const activeNode = currentGraph ? currentGraph.nodes[currentGraph.currentNodeId] : null;
+
+  const engineStore = useEngineStore.getState();
+  const enduringTrauma = engineStore.enduringTrauma || [];
+
+  const traumaLedger = `
+=========================================
+[ PERMANENT TRAUMA LEDGER ]
+The following immutable facts were established in previous Acts. You must enforce these truths and never contradict them:
+${enduringTrauma.length > 0 ? enduringTrauma.map(t => `- ${t}`).join('\n') : "No permanent trauma recorded yet."}
+=========================================`;
 
   const spatialMatrix = activeNode ? `
 <euclidean_spatial_matrix>
@@ -105,6 +116,8 @@ YOUR DIRECTIVE: In your JSON response, you MUST include a "current_phase" key co
     }
   </json_schema_requirement>
 </system_directive>
+
+${traumaLedger}
 
 ${spatialMatrix}
 

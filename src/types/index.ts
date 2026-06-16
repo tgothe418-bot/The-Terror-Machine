@@ -135,7 +135,7 @@ export interface ScenarioBlueprint {
 }
 
 export interface Message {
-  role: 'user' | 'assistant' | 'voice';
+  role: 'user' | 'assistant' | 'voice' | 'system_cinematic';
   content: string;
   timestamp: number;
   attachments?: Attachment[];

@@ -17,12 +17,12 @@ const formatBlocks = (blocks?: NarrativeBlock[]): string => {
   }).join('\n\n');
 };
 import { exportEngineLog } from '../../lib/download';
-import { sendEngineTurn, fetchSimulatedPlayerAction } from '../../services/geminiService';
+import { sendEngineTurn, fetchSimulatedPlayerAction, triggerMemoryForge } from '../../services/geminiService';
 import ErgodicTextRenderer from './ErgodicTextRenderer';
+import { useTelemetryStore } from '../../store/useTelemetryStore';
 
 const SESSION_TIMEOUT = 60 * 60 * 1000; // 60 minutes
-const HEARTBEAT_INTERVAL = 30000; // 30 seconds
-
+// ...
 export default function Runtime() {
   const activeBlueprint = useEngineStore((state) => state.activeBlueprint);
   const gameState = useEngineStore((state) => state.gameState);
@@ -33,7 +33,22 @@ export default function Runtime() {
   const setPhase = useAppStore((state) => state.setPhase);
   const telemetry = useEngineStore(state => state.telemetry);
   const turnCount = useEngineStore(state => state.turnCount);
+  const currentSimulationPhase = useTelemetryStore(state => state.currentPhase);
   
+  const prevPhaseRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (prevPhaseRef.current && prevPhaseRef.current !== currentSimulationPhase) {
+      if ((prevPhaseRef.current === 'LATENT' && currentSimulationPhase === 'MANIFEST') ||
+          (prevPhaseRef.current === 'MANIFEST' && currentSimulationPhase === 'TERMINAL')) {
+        const messagesToDistill = engineMessages.length > 3 ? engineMessages.slice(1, -2) : [];
+        const textToDistill = messagesToDistill.map(m => `${m.role}: ${m.content}`).join('\n');
+        triggerMemoryForge(textToDistill || "The void shifts, remembering nothing.");
+      }
+    }
+    prevPhaseRef.current = currentSimulationPhase;
+  }, [currentSimulationPhase, engineMessages]);
+
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [lastActivity, setLastActivity] = useState<number>(() => Date.now());
@@ -402,6 +417,18 @@ export default function Runtime() {
                     [ USER: {userCharName} ]
                   </div>
                   <div>&gt; {msg.content}</div>
+                </div>
+              ) : msg.role === 'system_cinematic' ? (
+                <div className="border border-green-900/30 bg-green-950/20 p-6 text-center shadow-[inset_0_0_20px_rgba(0,0,0,0.5)] my-12 relative overflow-hidden group">
+                  <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-green-500/50 to-transparent opacity-50" />
+                  <div className="absolute bottom-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-green-500/50 to-transparent opacity-50" />
+                  <div className="absolute left-0 top-0 w-full h-full bg-[repeating-linear-gradient(0deg,transparent,transparent_2px,rgba(0,100,0,0.05)_2px,rgba(0,100,0,0.05)_4px)] pointer-events-none" />
+                  <div className="text-[10px] uppercase tracking-[0.4em] text-green-500/70 font-bold mb-4 font-mono shadow-sm">
+                    [ END OF ACT — MEMORY DISTILLATION COMPLETE ]
+                  </div>
+                  <div className="text-zinc-300 font-serif italic text-lg leading-loose mx-auto max-w-2xl relative z-10">
+                    <ErgodicTextRenderer text={msg.content} psychologicalStatus="Stable" />
+                  </div>
                 </div>
               ) : msg.blocks ? (
                 <div className="space-y-6">

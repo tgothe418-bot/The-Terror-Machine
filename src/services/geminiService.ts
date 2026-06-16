@@ -1,6 +1,6 @@
 import { Message, ScenarioBlueprint, BicameralOutput, LogicState, ProseStyleVector, ForgePhase, ReferenceMaterial, ExtractedLore, AppPhase } from "../types";
 import { useForgeStore } from "../store/useForgeStore";
-import { distillationPrompt } from "../core/prompts/distillation";
+import { DISTILLATION_SYSTEM_PROMPT } from "../core/prompts/distillation";
 
 export const distillContext = async (currentSummary: string, flattenedTranscript: string): Promise<string> => {
   try {
@@ -21,6 +21,36 @@ export const distillContext = async (currentSummary: string, flattenedTranscript
   } catch (error) {
     console.error('// DISTILLATION CORE ERROR //', error);
     return currentSummary; 
+  }
+};
+
+export const triggerMemoryForge = async (chatHistory: string) => {
+  try {
+    console.log("[MEMORY FORGE] Initiating Context Distillation...");
+    
+    // We can use the existing /api/distill or create a new one. Wait, we might need a dedicated endpoint or we can use a generic chat endpoint.
+    // Let's create an endpoint or just use /api/chat with a simple payload?
+    // Let's put a fetch to /api/memory-forge
+    const response = await fetch('/api/memory-forge', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        systemPrompt: DISTILLATION_SYSTEM_PROMPT,
+        chatHistory
+      })
+    });
+
+    if (!response.ok) throw new Error('Memory Forge failed.');
+    
+    const parsed = await response.json();
+    
+    const engineStoreMod = await import('../core/store');
+    const appStore = engineStoreMod.useEngineStore.getState();
+    appStore.executeActBreak(parsed.enduring_trauma || [], parsed.act_summary || "The void shifts, remembering nothing.");
+    
+    console.log("[MEMORY FORGE] Distillation Complete. Context cleared.");
+  } catch (error) {
+    console.error("[MEMORY FORGE] Distillation failed:", error);
   }
 };
 

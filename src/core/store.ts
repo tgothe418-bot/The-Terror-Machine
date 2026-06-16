@@ -42,6 +42,8 @@ interface EngineState {
   updateWorldStateSummary: (newSummary: string) => void;
   addEngineTurn: (turn: Message) => void;
   resetEngine: () => void;
+  enduringTrauma: string[];
+  executeActBreak: (trauma: string[], cinematicSummary: string) => void;
 }
 
 export const useEngineStore = create<EngineState>()(
@@ -58,6 +60,24 @@ export const useEngineStore = create<EngineState>()(
       currentTensionLevel: 'buildup',
       telemetry: null,
       turnCount: 1,
+      enduringTrauma: [],
+      executeActBreak: (trauma, cinematicSummary) => set((state) => {
+        const messages = state.engineMessages || [];
+        const preservedStart = messages.length > 0 ? [messages[0]] : [];
+        const preservedEnd = messages.length > 2 ? messages.slice(-2) : messages;
+
+        const actBreakMessage: Message = {
+          role: 'system_cinematic',
+          content: cinematicSummary,
+          timestamp: Date.now()
+        };
+
+        return {
+          enduringTrauma: [...state.enduringTrauma, ...trauma],
+          engineMessages: [...preservedStart, actBreakMessage, ...preservedEnd],
+          engineTextBuffer: [...preservedEnd]
+        };
+      }),
       incrementTurn: () => set((state) => ({ turnCount: state.turnCount + 1 })),
       shiftMatrixCoordinates: (vector, tier) => set((state) => ({
         ...state,

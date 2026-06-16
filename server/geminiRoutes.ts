@@ -268,6 +268,28 @@ router.post("/distill", async (req, res) => {
   }
 });
 
+router.post("/memory-forge", async (req, res) => {
+  try {
+    const { systemPrompt, chatHistory } = req.body;
+    const response = await getAiClient().models.generateContent({
+      model: "gemini-3.5-flash",
+      contents: [
+        { role: 'user', parts: [{ text: systemPrompt + '\n\n' + chatHistory }] }
+      ],
+      config: {
+        responseMimeType: "application/json"
+      }
+    });
+    
+    const text = response.text || "{}";
+    const cleanText = text.replace(/```json\n?|```/g, '').trim();
+    res.json(JSON.parse(cleanText));
+  } catch (error) {
+    console.error('Memory Forge route error:', error);
+    res.status(500).json({ error: 'Failed to forge memory' });
+  }
+});
+
 router.post("/chat", async (req, res) => {
   let isHubMode = false;
   try {
