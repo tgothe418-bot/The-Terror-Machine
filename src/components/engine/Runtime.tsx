@@ -366,12 +366,15 @@ export default function Runtime() {
         </div>
       </header>
 
-      {/* Narrative Log */}
+      {/* THE VOID (Primary Reading Area Container) */}
+      {/* CORRECTION: Swapping out default scroll utilities for custom-scrollbar / no-scrollbar tracking */}
       <div 
         ref={scrollRef}
-        className={`flex-1 overflow-y-auto p-8 2xl:p-16 space-y-8 2xl:space-y-12 scrollbar-hide max-w-5xl 2xl:max-w-7xl mx-auto w-full transition-all duration-[2500ms] ease-in-out ${isTelemetryOpen ? 'blur-sm opacity-30 pointer-events-none' : 'blur-none opacity-100'}`}
+        className="flex-1 overflow-y-auto no-scrollbar px-8 py-12 scroll-smooth w-full"
       >
-        <AnimatePresence initial={false}>
+        {/* Clamped text container width for optimal reading fidelity */}
+        <div className={`max-w-3xl mx-auto space-y-12 transition-all duration-[2500ms] ease-in-out ${isTelemetryOpen ? 'blur-sm opacity-30 pointer-events-none' : 'blur-none opacity-100'}`}>
+          <AnimatePresence initial={false}>
           {engineMessages.map((msg, idx) => (
             <motion.div
               key={idx}
@@ -482,6 +485,7 @@ export default function Runtime() {
             </motion.div>
           )}
         </AnimatePresence>
+        </div>
       </div>
 
       {/* MINIMALIST INPUT CONSOLE */}
