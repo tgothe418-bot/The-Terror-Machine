@@ -111,6 +111,15 @@
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     background: #3f3f46; /* zinc-700 */ 
   }
+
+  /* Completely strip default system scrollbar visuals while maintaining native scroll physics */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none; /* Safari and Chrome */
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
 }
 
 

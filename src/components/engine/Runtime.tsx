@@ -52,6 +52,20 @@ export default function Runtime() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  // Dynamic body overflow controller to banish default browser scrollbars on open
+  useEffect(() => {
+    if (isTelemetryOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    
+    // Cleanup hook to guarantee scroll restoration if the user exits mid-session
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isTelemetryOpen]);
+
   const [autopilotTarget, setAutopilotTarget] = useState<number>(5);
   const [isAutopilotRunning, setIsAutopilotRunning] = useState<boolean>(false);
   const autopilotRef = useRef<boolean>(false); // Ref for immediate abort checking
@@ -585,7 +599,7 @@ export default function Runtime() {
           </div>
 
           {/* Interactive Metric Scroll Track */}
-          <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-6 font-mono selection:bg-zinc-800">
+          <div className="flex-1 overflow-y-auto no-scrollbar p-6 space-y-6 font-mono selection:bg-zinc-800">
             
             {/* 1. RUNTIME ENGINE STATUS FLAGS */}
             <div className="space-y-3">
