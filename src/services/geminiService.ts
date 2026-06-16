@@ -118,6 +118,7 @@ export const sendEngineTurn = async (
   if (!response.ok) throw new Error(await response.text());
   const parsedResponse: BicameralOutput = await response.json();
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const parsedPhase = (parsedResponse as any).current_phase?.toUpperCase() as 'LATENT' | 'MANIFEST' | 'TERMINAL';
   const validPhases = ['LATENT', 'MANIFEST', 'TERMINAL'];
   if (validPhases.includes(parsedPhase)) {
@@ -187,6 +188,6 @@ export const fetchSimulatedPlayerAction = async (history: Message[], logicState:
     return data.action;
   } catch (error) {
     console.error('// AUTOPILOT FAILURE //', error);
-    return "I step forward cautiously."; // Fallback action to keep the loop alive
+    return "[ SYSTEM OVERRIDE: The spatial geometry resists traversal. The requested pathway is inaccessible. ]"; 
   }
 };

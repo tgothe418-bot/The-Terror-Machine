@@ -6,4 +6,20 @@ export const useAppStore = create<AppState>((set) => ({
   setPhase: (phase: AppPhase) => set({ phase }),
   telemetry: null,
   setTelemetry: (telemetry) => set({ telemetry }),
+  spatialGraph: {
+    regionId: "UNINITIALIZED_REGION",
+    currentNodeId: "NODE_INIT",
+    nodes: {
+      "NODE_INIT": {
+        id: "NODE_INIT",
+        name: "Void",
+        baseDescription: "Awaiting scenario geometry...",
+        connectedNodes: [],
+        state: "SECURE"
+      }
+    }
+  },
+  setCurrentNode: (nodeId) => set((state) => ({
+    spatialGraph: state.spatialGraph ? { ...state.spatialGraph, currentNodeId: nodeId } : null
+  })),
 }));

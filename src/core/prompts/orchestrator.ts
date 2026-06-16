@@ -13,6 +13,9 @@ export const buildOrchestratorPrompt = (
     .map(c => `- ${c.name} (${c.behaviorVector || 'ADAPTIVE'}): ${c.description || ''}`)
     .join('\n');
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const currentPacing = (currentState as any).pacing || 'normal';
+
   return `
 <system_directive>
   <role>Nightmare Machine Orchestrator Engine</role>
@@ -67,9 +70,9 @@ YOUR DIRECTIVE: In your JSON response, you MUST include a "current_phase" key co
       "requested_transition": "String: Next phase if requested or null",
       "cast_ledger": [
         {
-          "character_name": "Name of cast member",
-          "current_location": "Where are they right now?",
-          "psychological_status": "Brief note on their current sanity"
+          "character_name": "Subject Alpha",
+          "current_location": "NODE_01",
+          "psychological_status": "Elevated heart rate; seeking exit."
         }
       ],
       "engine_logic": "Your hidden reasoning for the upcoming narrative actions based on the cast ledger.",
@@ -86,7 +89,7 @@ YOUR DIRECTIVE: In your JSON response, you MUST include a "current_phase" key co
 
 <current_system_state>
   Tension Level: ${currentState.current_tension_level || 'buildup'}
-  Pacing: ${(currentState as any).pacing || 'normal'}
+  Pacing: ${currentPacing}
 </current_system_state>
 
 <recent_history>

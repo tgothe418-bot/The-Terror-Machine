@@ -27,7 +27,7 @@ export const getMatrixRules = (vector: HorrorVector, tier: ExposureTier) => {
         prohibitions: "Prohibit permanent madness, visceral gore, or insurmountable dread."
       },
       LATENT: {
-        instruction: "Slow-burning paranoia, acute grief, and psychological unraveling. Systematically question the validity of the user's inputs, memory, and surroundings.",
+        instruction: "Slow-burning paranoia, acute psychological distress, and cognitive unraveling. Systematically question the validity of the user's inputs, memory, and surroundings.",
         prohibitions: "Prohibit manifest monsters. The threat must remain subtextual or entirely internalized."
       },
       MANIFEST: {

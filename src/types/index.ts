@@ -151,11 +151,27 @@ export interface TelemetryState {
   engineLogic: string;
 }
 
+export interface NavigationNode {
+  id: string;
+  name: string;
+  baseDescription: string;
+  connectedNodes: string[];
+  state: 'SECURE' | 'COMPROMISED' | 'UNKNOWN';
+}
+
+export interface SpatialGraph {
+  regionId: string;
+  currentNodeId: string;
+  nodes: Record<string, NavigationNode>;
+}
+
 export interface AppState {
   phase: AppPhase;
   setPhase: (phase: AppPhase) => void;
   telemetry: TelemetryState | null;
   setTelemetry: (telemetry: TelemetryState) => void;
+  spatialGraph: SpatialGraph | null;
+  setCurrentNode: (nodeId: string) => void;
 }
 
 export interface LogicState {
