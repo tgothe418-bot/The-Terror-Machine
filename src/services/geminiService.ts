@@ -90,36 +90,12 @@ export const sendEngineTurn = async (
   currentTier: string,
   currentTensionLevel: string
 ): Promise<BicameralOutput> => {
-  // 1. Pull the current turn from the store
-  const engineStoreMod = await import('../core/store');
-  const currentTurn = engineStoreMod.useEngineStore.getState().turnCount || 1;
-
-  // 2. Define the strict Metronome rules
-  const pacingMetronome = `
-=========================================
-[ SYSTEM METRONOME: CURRENT TURN IS ${currentTurn} ]
-=========================================
-You must strictly obey the following narrative pacing gates based on the current turn. Do not escalate prematurely, and do not stall when a threshold is crossed.
-
-- TURNS 1-7 (LATENT PHASE): 
-  Strictly environmental and psychological dread. No overt manifestations. Emphasize isolation, sensory unease, and structural decay.
-  
-- TURNS 8-18 (MANIFEST PHASE): 
-  The threat becomes undeniably physical and interactive. Direct sensory attacks, severe somatic anxiety loops, and impossible spatial geometry.
-  
-- TURNS 19+ (TERMINAL PHASE): 
-  Irreversible structural and cognitive collapse. The environment actively consumes the subjects. Complete dissolution of reality.
-
-Enforce the tension and pacing variables in your JSON output to match the phase of Turn ${currentTurn}.
-`;
-
-  const modifiedBlueprint = {
-    ...blueprint,
-    narrativeRules: {
-      ...blueprint.narrativeRules,
-      coreDirectives: (blueprint.narrativeRules?.coreDirectives || '') + '\n\n' + pacingMetronome
-    }
-  };
+  // Pull the current turn from the telemetry store
+  const telemetryStoreMod = await import('../store/useTelemetryStore');
+  const telemetryState = telemetryStoreMod.useTelemetryStore.getState();
+  const momentumIndex = telemetryState.getMomentumIndex();
+  const turnCount = telemetryState.turnCount;
+  const currentPhase = telemetryState.currentPhase;
 
   const response = await fetch('/api/chat', {
     method: 'POST',
@@ -128,17 +104,41 @@ Enforce the tension and pacing variables in your JSON output to match the phase 
       execution_mode: 'ENGINE',
       textBuffer: engineTextBuffer,
       currentState: logicState,
-      blueprint: modifiedBlueprint,
+      blueprint: blueprint,
       worldStateSummary,
       currentVector,
       currentTier,
-      currentTensionLevel
+      currentTensionLevel,
+      // Pass these up
+      momentumIndex,
+      turnCount,
+      currentPhase
     })
   });
   if (!response.ok) throw new Error(await response.text());
   const parsedResponse: BicameralOutput = await response.json();
 
+  const parsedPhase = (parsedResponse as any).current_phase?.toUpperCase() as 'LATENT' | 'MANIFEST' | 'TERMINAL';
+  const validPhases = ['LATENT', 'MANIFEST', 'TERMINAL'];
+  if (validPhases.includes(parsedPhase)) {
+    telemetryStoreMod.useTelemetryStore.getState().updatePhase(parsedPhase);
+  }
+
+  // Record the turn metrics based on the user's input (Calculate urgency and sanity drops)
+  const lastUserMessage = engineTextBuffer.filter(m => m.role === 'user').pop();
+  const userMessage = lastUserMessage?.content || '';
+  const inputLength = userMessage.length;
+  const semanticUrgency = (userMessage.match(/[!A-Z]/g)?.length || 0) / (inputLength || 1) > 0.1 ? 0.9 : 0.4; 
+  const sanityDelta = -2; // Placeholder until cast_ledger diffing is built
+
+  telemetryStoreMod.useTelemetryStore.getState().recordTurn({
+    inputLength,
+    semanticUrgency,
+    sanityDelta
+  });
+
   // Extract store pointer to dynamically pipe live diagnostic metrics:
+  const engineStoreMod = await import('../core/store');
   const engineStore = engineStoreMod.useEngineStore;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const rawPayload = parsedResponse as any;

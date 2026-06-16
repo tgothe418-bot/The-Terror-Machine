@@ -271,7 +271,7 @@ router.post("/distill", async (req, res) => {
 router.post("/chat", async (req, res) => {
   let isHubMode = false;
   try {
-    const { blueprint, textBuffer, currentState, forgeContext, execution_mode, worldStateSummary, currentVector, currentTier, currentTensionLevel } = req.body;
+    const { blueprint, textBuffer, currentState, forgeContext, execution_mode, worldStateSummary, currentVector, currentTier, currentTensionLevel, momentumIndex = 0.5, turnCount = 1, currentPhase = 'LATENT' } = req.body;
     const mode = String(execution_mode).toUpperCase();
     isHubMode = mode === 'HUB' || mode === 'VOICE';
     const isRuntimeMode = mode === 'RUNTIME' || mode === 'ENGINE';
@@ -325,7 +325,7 @@ router.post("/chat", async (req, res) => {
         ? `[CUMULATIVE CHRONOLOGY]:\n${worldStateSummary}\n\n[RECENT LOG]:\n${historyString}` 
         : historyString;
 
-      systemInstruction = buildOrchestratorPrompt(slimBlueprint as any, accumulatedHistory, updatedState || {} as any);
+      systemInstruction = buildOrchestratorPrompt(slimBlueprint as any, accumulatedHistory, updatedState || {} as any, momentumIndex, turnCount, currentPhase);
 
       systemInstruction += `
     \n\n=== CORE RUNTIME MATRIX COORDINATES ===
