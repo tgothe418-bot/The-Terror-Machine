@@ -143,6 +143,43 @@ export const sendEngineTurn = async (
   const engineStore = engineStoreMod.useEngineStore;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const rawPayload = parsedResponse as any;
+
+  // ==== EUCLIDEAN INTERCEPTOR ====
+  const appStoreMod = await import('../store/useAppStore');
+  const appStore = appStoreMod.useAppStore;
+  const currentGraph = appStore.getState().spatialGraph;
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const runtimePayload = parsedResponse as any;
+
+  if (currentGraph && runtimePayload.requested_transition) {
+    const currentNode = currentGraph.nodes[currentGraph.currentNodeId];
+    const targetNodeId = runtimePayload.requested_transition;
+    
+    const isValidEdge = currentNode?.connectedNodes.includes(targetNodeId);
+    const targetNode = currentGraph.nodes[targetNodeId];
+    const isAccessible = targetNode && targetNode.state !== 'LOCKED';
+
+    if (!isValidEdge || !isAccessible) {
+      // EUCLIDEAN REJECTION: The AI hallucinated or the player tried to walk through a wall.
+      console.warn(`[EUCLIDEAN INTERCEPTOR] Denied illegal transition to: ${targetNodeId}`);
+      
+      // Override the payload state to force them back into the current room
+      if (Array.isArray(runtimePayload.cast_ledger)) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        runtimePayload.cast_ledger.forEach((member: any) => {
+          member.current_location = currentNode?.name || "Unknown"; 
+        });
+      }
+      
+      // Append a mechanical failure message directly into the narrative output
+      runtimePayload.narrative_text += "\n\n[ SYSTEM OVERRIDE: The spatial geometry resists traversal. The requested pathway is inaccessible. ]";
+    } else {
+      // Transition Approved. Move the player in the store.
+      appStore.getState().setCurrentNode(targetNodeId);
+    }
+  }
+
   engineStore.getState().updateTelemetry({
     tension: rawPayload.tension || rawPayload.startingVector || parsedResponse.logic_state?.current_tension_level || 'LOW',
     pacing: rawPayload.pacing || rawPayload.startingTier || (blueprint.narrativeRules?.phaseDirectives?.[parsedResponse.logic_state?.current_tension_level || currentTensionLevel || 'buildup']) || 'CREEPING',

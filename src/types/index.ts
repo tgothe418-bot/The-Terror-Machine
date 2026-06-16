@@ -151,18 +151,20 @@ export interface TelemetryState {
   engineLogic: string;
 }
 
-export interface NavigationNode {
+export type NodeState = 'SECURE' | 'OPEN' | 'LOCKED' | 'CORRUPTED';
+
+export interface SpatialNode {
   id: string;
   name: string;
   baseDescription: string;
-  connectedNodes: string[];
-  state: 'SECURE' | 'COMPROMISED' | 'UNKNOWN';
+  connectedNodes: string[]; // Array of accessible Node IDs
+  state: NodeState;
 }
 
 export interface SpatialGraph {
   regionId: string;
+  nodes: Record<string, SpatialNode>;
   currentNodeId: string;
-  nodes: Record<string, NavigationNode>;
 }
 
 export interface AppState {

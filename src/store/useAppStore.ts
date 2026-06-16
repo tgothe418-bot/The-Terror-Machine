@@ -12,7 +12,7 @@ export const useAppStore = create<AppState>((set) => ({
     nodes: {
       "NODE_INIT": {
         id: "NODE_INIT",
-        name: "Void",
+        name: "The Void",
         baseDescription: "Awaiting scenario geometry...",
         connectedNodes: [],
         state: "SECURE"
