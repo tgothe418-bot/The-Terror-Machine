@@ -613,7 +613,12 @@ router.post("/gemini/voice", async (req, res) => {
       contents: contents,
       config: { 
         temperature: 0.8,
-        systemInstruction: finalSystemPrompt
+        systemInstruction: finalSystemPrompt,
+        tools: [
+          {
+            googleSearch: {}, 
+          },
+        ]
       },
     });
 
