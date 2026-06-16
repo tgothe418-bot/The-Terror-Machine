@@ -37,20 +37,22 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
 
   getMomentumIndex: () => {
     const { rollingWindow } = get();
-    if (rollingWindow.length === 0) return 0.5; // Baseline start
+    
+    // --> UPDATE THIS SAFETY CATCH TO RETURN A STRICT FLOAT <--
+    if (!rollingWindow || rollingWindow.length === 0) return 0.50; 
 
-    // Calculate averages
-    const avgLength = rollingWindow.reduce((sum, t) => sum + t.inputLength, 0) / rollingWindow.length;
-    const avgUrgency = rollingWindow.reduce((sum, t) => sum + t.semanticUrgency, 0) / rollingWindow.length;
-    const avgSanityLoss = rollingWindow.reduce((sum, t) => sum + Math.abs(t.sanityDelta), 0) / rollingWindow.length;
+    // Calculate averages with safe division fallback
+    const divisor = rollingWindow.length || 1;
+    const avgLength = rollingWindow.reduce((sum, t) => sum + (t.inputLength || 0), 0) / divisor;
+    const avgUrgency = rollingWindow.reduce((sum, t) => sum + (t.semanticUrgency || 0), 0) / divisor;
+    const avgSanityLoss = rollingWindow.reduce((sum, t) => sum + Math.abs(t.sanityDelta || 0), 0) / divisor;
 
-    // Weights: Length (normalize to ~0-1 assuming 200 chars is long), Urgency (already 0-1), Sanity (assume max drop is 10)
     const normalizedLength = Math.min(avgLength / 200, 1.0);
     const normalizedSanity = Math.min(avgSanityLoss / 10, 1.0);
 
-    // Momentum Formula (Weighted)
     const momentum = (normalizedLength * 0.3) + (avgUrgency * 0.4) + (normalizedSanity * 0.3);
     
-    return parseFloat(momentum.toFixed(2));
+    // Ensure we never return NaN, even if the math somehow fails
+    return isNaN(momentum) ? 0.50 : parseFloat(momentum.toFixed(2));
   }
 }));

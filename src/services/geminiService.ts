@@ -194,6 +194,9 @@ export const sendEngineTurn = async (
       // EUCLIDEAN REJECTION: The AI hallucinated or the player tried to walk through a wall.
       console.warn(`[EUCLIDEAN INTERCEPTOR] Denied illegal transition to: ${targetNodeId}`);
       
+      // Wipe the hanging request
+      runtimePayload.requested_transition = null;
+      
       // Override the payload state to force them back into the current room
       if (Array.isArray(runtimePayload.cast_ledger)) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
