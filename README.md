@@ -1,7 +1,7 @@
 # THE TERROR MACHINE // THE NIGHTMARE MACHINE
 
 <p align="center">
-  <img src="./assets/tnm_logo_1.png" alt="TNM Logo 1" width="800"/>
+  <img src="./assets/TNM_Logo_1.png" alt="TNM Logo 1" width="800"/>
 </p>
 
 An agnostic, state-driven psychological simulation engine built with Node.js, React, Tailwind CSS, Zustand, and the Gemini Pro API. The platform splits cognitive telemetry data from narrative prose, utilizing a multi-layered matrix pipeline to enforce structural horror, mechanical object permanence, and strict spatial geography.
