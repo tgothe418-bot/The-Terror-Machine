@@ -1,26 +1,8 @@
-```text
- _______ _    _ ______ 
-|__   __| |  | |  ____|
-   | |  | |__| | |__   
-   | |  |  __  |  __|  
-   | |  | |  | | |____ 
-   |_|  |_|  |_|______|
-
- _______ ______ _____  _____   ____  _____  
-|__   __|  ____|  __ \|  __ \ / __ \|  __ \ 
-   | |  | |__  | |__) | |__) | |  | | |__) |
-   | |  |  __| |  _  /|  _  /| |  | |  _  / 
-   | |  | |____| | \ \| | \ \| |__| | | \ \ 
-   |_|  |______|_|  \_\_|  \_\\____/|_|  \_\
-
- __  __          _____ _    _ _____ _   _ ______ 
-|  \/  |   /\   / ____| |  | |_   _| \ | |  ____|
-| \  / |  /  \ | |    | |__| | | | |  \| | |__   
-| |\/| | / /\ \| |    |  __  | | | | . ` |  __|  
-| |  | |/ ____ \ |____| |  | |_| |_| |\  | |____ 
-|_|  |_/_/    \_\_____|_|  |_|_____|_| \_|______|
-
 # THE TERROR MACHINE // THE NIGHTMARE MACHINE
+
+<p align="center">
+  <img src="./assets/tnm_logo_1.png" alt="TNM Logo 1" width="800"/>
+</p>
 
 An agnostic, state-driven psychological simulation engine built with Node.js, React, Tailwind CSS, Zustand, and the Gemini Pro API. The platform splits cognitive telemetry data from narrative prose, utilizing a multi-layered matrix pipeline to enforce structural horror, mechanical object permanence, and strict spatial geography.
 
