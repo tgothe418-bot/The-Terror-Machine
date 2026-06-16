@@ -565,13 +565,13 @@ export default function Runtime() {
       </div>
 
       {/* ========================================= */}
-      {/* CORRECTION: FIXED FLOATING DIAGNOSTICS HUD */}
+      {/* DUAL-PANE X-RAY TELEMETRY HUD             */}
       {/* ========================================= */}
       
       {/* Floating HUD Activation Trigger */}
       <button 
         onClick={() => setIsTelemetryOpen(!isTelemetryOpen)}
-        className="absolute top-6 right-6 z-50 font-mono text-[9px] uppercase tracking-widest text-zinc-600 hover:text-zinc-300 transition-colors bg-black/60 backdrop-blur-sm px-3 py-1.5 border border-zinc-900 rounded-sm select-none"
+        className="absolute top-6 right-6 z-50 font-mono text-xs uppercase tracking-widest text-zinc-500 hover:text-zinc-200 transition-colors bg-black/60 backdrop-blur-sm px-4 py-2 border border-zinc-800 rounded-sm select-none shadow-lg"
       >
         {isTelemetryOpen ? '[ CLOSE ]' : '[ TAB ] TELEMETRY'}
       </button>
@@ -579,89 +579,106 @@ export default function Runtime() {
       {/* Screen-locked absolute container block to isolate the overlay from text reflows */}
       <div className={`fixed inset-0 pointer-events-none z-40 overflow-hidden`}>
         
-        {/* Clickable Backdrop Mask - smoothly fades in to protect visual focus */}
+        {/* Clickable Backdrop Mask - Intensified blur to completely isolate focus to the side panels */}
         <div 
           onClick={() => setIsTelemetryOpen(false)}
-          className={`absolute inset-0 bg-black/40 backdrop-blur-xs transition-opacity duration-500 ease-out ${
+          className={`absolute inset-0 bg-black/60 backdrop-blur-md transition-opacity duration-500 ease-out ${
             isTelemetryOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
           }`}
         />
 
-        {/* The Slide-In Panel (Now strictly isolated using fixed right layout mechanics) */}
+        {/* ========================================= */}
+        {/* LEFT PANE: CAST LEDGER & LOCATION INFO    */}
+        {/* ========================================= */}
         <div 
-          className={`absolute top-0 right-0 h-full w-[420px] max-w-full border-l border-zinc-900 bg-black/90 backdrop-blur-xl shadow-[0_0_50px_rgba(0,0,0,0.9)] transform transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] flex flex-col pointer-events-auto ${
+          className={`absolute top-0 left-0 h-full w-[480px] max-w-full border-r border-zinc-800/80 bg-[#050505]/95 backdrop-blur-2xl shadow-[50px_0_50px_rgba(0,0,0,0.5)] transform transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] flex flex-col pointer-events-auto no-scrollbar ${
+            isTelemetryOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}
+        >
+          {/* Header Console Bar */}
+          <div className="p-8 border-b border-zinc-800/80 bg-zinc-900/20 shrink-0 select-none">
+            <h3 className="text-zinc-400 text-sm font-mono tracking-widest uppercase mb-1">Subject Telemetry</h3>
+            <div className="text-zinc-500 text-xs tracking-wider uppercase font-mono flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-cyan-500 animate-pulse" />
+              Tracking: Active
+            </div>
+          </div>
+
+          {/* Expanded Cast Ledger Scroll Track */}
+          <div className="flex-1 overflow-y-auto no-scrollbar p-8 space-y-6 font-mono selection:bg-zinc-800">
+            <h4 className="text-zinc-500 text-xs tracking-widest uppercase border-b border-zinc-800 pb-2">Cast Ledger [ Live Map ]</h4>
+            <div className="space-y-4">
+              {telemetry?.castLedger && telemetry.castLedger.length > 0 ? (
+                telemetry.castLedger.map((member, index) => (
+                  <div key={index} className="bg-zinc-950/40 border border-zinc-800/60 p-5 rounded-sm shadow-md">
+                    <div className="text-zinc-200 text-sm font-bold mb-3 tracking-wide">{member.character_name || (member as any).name}</div>
+                    <div className="text-xs text-zinc-400 leading-relaxed mb-3 font-mono">
+                      <span className="text-cyan-600/80 uppercase tracking-widest text-[10px] mr-2">LOC:</span> 
+                      {member.current_location || 'Coordinates tracked internally.'}
+                    </div>
+                    <div className="text-xs text-zinc-400 leading-relaxed font-mono">
+                      <span className="text-red-600/80 uppercase tracking-widest text-[10px] mr-2">PSY:</span> 
+                      {member.psychological_status || (member as any).description}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-zinc-600 text-xs uppercase tracking-widest text-center py-6 border border-dashed border-zinc-800 rounded-sm bg-zinc-950/20">
+                  Awaiting target metrics...
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* ========================================= */}
+        {/* RIGHT PANE: ENGINE SCENARIO & VARIABLES   */}
+        {/* ========================================= */}
+        <div 
+          className={`absolute top-0 right-0 h-full w-[480px] max-w-full border-l border-zinc-800/80 bg-[#050505]/95 backdrop-blur-2xl shadow-[-50px_0_50px_rgba(0,0,0,0.5)] transform transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] flex flex-col pointer-events-auto no-scrollbar ${
             isTelemetryOpen ? 'translate-x-0' : 'translate-x-full'
           }`}
         >
           {/* Header Console Bar */}
-          <div className="p-6 border-b border-zinc-900/60 bg-zinc-950/40 shrink-0">
-            <h3 className="text-zinc-500 text-xs font-mono tracking-widest uppercase mb-1">System Diagnostics</h3>
-            <div className="text-zinc-400 text-[9px] tracking-wider uppercase font-mono flex items-center gap-2">
+          <div className="p-8 border-b border-zinc-800/80 bg-zinc-900/20 shrink-0 select-none">
+            <h3 className="text-zinc-400 text-sm font-mono tracking-widest uppercase mb-1">System Diagnostics</h3>
+            <div className="text-zinc-500 text-xs tracking-wider uppercase font-mono flex items-center gap-2">
               <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-              Telemetry Stream: <span className="text-zinc-500">Active</span>
+              Engine Stream: Active
             </div>
           </div>
 
-          {/* Interactive Metric Scroll Track */}
-          <div className="flex-1 overflow-y-auto no-scrollbar p-6 space-y-6 font-mono selection:bg-zinc-800">
+          {/* Expanded Engine Data Scroll Track */}
+          <div className="flex-1 overflow-y-auto no-scrollbar p-8 space-y-8 font-mono selection:bg-zinc-800">
             
-            {/* 1. RUNTIME ENGINE STATUS FLAGS */}
-            <div className="space-y-3">
-              <h4 className="text-zinc-600 text-[9px] tracking-widest uppercase border-b border-zinc-900 pb-1.5">Active Variables</h4>
-              
-              <div className="flex justify-between items-center bg-zinc-950/60 border border-zinc-900 p-3 rounded-sm">
-                <span className="text-zinc-500 text-[10px] uppercase tracking-wider">Tension Level</span>
-                <span className="text-red-500 text-[10px] font-bold tracking-widest uppercase">
+            {/* Active Variables Section */}
+            <div className="space-y-4">
+              <h4 className="text-zinc-500 text-xs tracking-widest uppercase border-b border-zinc-800 pb-2">Active Variables</h4>
+              <div className="flex justify-between items-center bg-zinc-950/60 border border-zinc-800/60 p-4 rounded-sm">
+                <span className="text-zinc-400 text-xs uppercase tracking-wider">Tension Level</span>
+                <span className="text-red-500 text-xs font-bold tracking-widest uppercase">
                   {telemetry?.tension || 'LOW'}
                 </span>
               </div>
-              
-              <div className="flex justify-between items-center bg-zinc-950/60 border border-zinc-800/40 p-3 rounded-sm">
-                <span className="text-zinc-500 text-[10px] uppercase tracking-wider">Narrative Pacing</span>
-                <span className="text-cyan-500 text-[10px] font-bold tracking-widest uppercase">
+              <div className="flex justify-between items-center bg-zinc-950/60 border border-zinc-800/60 p-4 rounded-sm">
+                <span className="text-zinc-400 text-xs uppercase tracking-wider">Narrative Pacing</span>
+                <span className="text-cyan-500 text-xs font-bold tracking-widest uppercase">
                    {telemetry?.pacing || 'CREEPING'}
                 </span>
               </div>
             </div>
 
-            {/* 2. SYSTEM ARCHITECTURE METADATA MAP */}
-            <div className="space-y-3">
-              <h4 className="text-zinc-600 text-[9px] tracking-widest uppercase border-b border-zinc-900 pb-1.5">Cast Ledger [ Live Map ]</h4>
-              <div className="space-y-3">
-                {telemetry?.castLedger && telemetry.castLedger.length > 0 ? (
-                  telemetry.castLedger.map((member, index) => (
-                    <div key={index} className="bg-zinc-950/40 border border-zinc-900 p-3 rounded-sm shadow-md">
-                      <div className="text-zinc-300 text-xs font-bold mb-2 tracking-wide">
-                        {member.character_name || (member as any).name}
-                      </div>
-                      <div className="text-[10px] text-zinc-400 leading-relaxed mb-1 font-mono">
-                        <span className="text-zinc-600 uppercase tracking-wider text-[9px] mr-1">LOC:</span> 
-                        {member.current_location || 'Coordinates tracked internally.'}
-                      </div>
-                      <div className="text-[10px] text-zinc-400 leading-relaxed font-mono">
-                        <span className="text-zinc-600 uppercase tracking-wider text-[9px] mr-1">PSY:</span> 
-                        {member.psychological_status || (member as any).description}
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-zinc-600 text-[10px] uppercase tracking-widest text-center py-4 border border-dashed border-zinc-900 rounded-sm bg-zinc-950/20">
-                    Awaiting target metrics...
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* 3. LOGIC REASONING TEXT CONSOLE */}
-            <div className="space-y-3 pb-4">
-              <h4 className="text-zinc-600 text-[9px] tracking-widest uppercase border-b border-zinc-900 pb-1.5">Engine Rationale</h4>
-              <div className="bg-black/80 border border-zinc-900 p-4 rounded-sm text-[10px] text-zinc-400 leading-relaxed italic shadow-inner whitespace-pre-wrap font-mono">
+            {/* Engine Rationale Section */}
+            <div className="space-y-4 pb-4">
+              <h4 className="text-zinc-500 text-xs tracking-widest uppercase border-b border-zinc-800 pb-2">Engine Rationale</h4>
+              <div className="bg-[#020202] border border-zinc-800 p-6 rounded-sm text-xs text-zinc-300 leading-relaxed italic shadow-[inset_0_0_20px_rgba(0,0,0,0.8)] whitespace-pre-wrap font-mono">
                 {telemetry?.engineLogic || 'Awaiting structural system rationale...'}
               </div>
             </div>
 
           </div>
         </div>
+        
       </div>
     </div>
   );
