@@ -90,6 +90,37 @@ export const sendEngineTurn = async (
   currentTier: string,
   currentTensionLevel: string
 ): Promise<BicameralOutput> => {
+  // 1. Pull the current turn from the store
+  const engineStoreMod = await import('../core/store');
+  const currentTurn = engineStoreMod.useEngineStore.getState().turnCount || 1;
+
+  // 2. Define the strict Metronome rules
+  const pacingMetronome = `
+=========================================
+[ SYSTEM METRONOME: CURRENT TURN IS ${currentTurn} ]
+=========================================
+You must strictly obey the following narrative pacing gates based on the current turn. Do not escalate prematurely, and do not stall when a threshold is crossed.
+
+- TURNS 1-7 (LATENT PHASE): 
+  Strictly environmental and psychological dread. No overt manifestations. Emphasize isolation, sensory unease, and structural decay.
+  
+- TURNS 8-18 (MANIFEST PHASE): 
+  The threat becomes undeniably physical and interactive. Direct sensory attacks, severe somatic anxiety loops, and impossible spatial geometry.
+  
+- TURNS 19+ (TERMINAL PHASE): 
+  Irreversible structural and cognitive collapse. The environment actively consumes the subjects. Complete dissolution of reality.
+
+Enforce the tension and pacing variables in your JSON output to match the phase of Turn ${currentTurn}.
+`;
+
+  const modifiedBlueprint = {
+    ...blueprint,
+    narrativeRules: {
+      ...blueprint.narrativeRules,
+      coreDirectives: (blueprint.narrativeRules?.coreDirectives || '') + '\n\n' + pacingMetronome
+    }
+  };
+
   const response = await fetch('/api/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -97,7 +128,7 @@ export const sendEngineTurn = async (
       execution_mode: 'ENGINE',
       textBuffer: engineTextBuffer,
       currentState: logicState,
-      blueprint,
+      blueprint: modifiedBlueprint,
       worldStateSummary,
       currentVector,
       currentTier,
@@ -108,7 +139,7 @@ export const sendEngineTurn = async (
   const parsedResponse: BicameralOutput = await response.json();
 
   // Extract store pointer to dynamically pipe live diagnostic metrics:
-  const engineStore = (await import('../core/store')).useEngineStore;
+  const engineStore = engineStoreMod.useEngineStore;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const rawPayload = parsedResponse as any;
   engineStore.getState().updateTelemetry({
@@ -117,6 +148,8 @@ export const sendEngineTurn = async (
     castLedger: parsedResponse.logic_state?.cast_ledger || rawPayload.cast_ledger || rawPayload.cast || [],
     engineLogic: parsedResponse.engine_thoughts || rawPayload.engine_logic || rawPayload.premise || 'System processing...'
   });
+
+  engineStore.getState().incrementTurn();
 
   return parsedResponse;
 };

@@ -32,6 +32,7 @@ export default function Runtime() {
   
   const setPhase = useAppStore((state) => state.setPhase);
   const telemetry = useEngineStore(state => state.telemetry);
+  const turnCount = useEngineStore(state => state.turnCount);
   
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -654,6 +655,12 @@ export default function Runtime() {
             {/* Active Variables Section */}
             <div className="space-y-4">
               <h4 className="text-zinc-500 text-xs tracking-widest uppercase border-b border-zinc-800 pb-2">Active Variables</h4>
+              <div className="flex justify-between items-center bg-zinc-950/80 border border-zinc-800/80 p-4 rounded-sm shadow-inner mb-2">
+                <span className="text-zinc-300 text-xs uppercase tracking-widest font-bold">Simulation Turn</span>
+                <span className="text-white text-sm font-bold tracking-widest bg-zinc-900 px-3 py-1 rounded border border-zinc-700">
+                  [ {turnCount || 1} ]
+                </span>
+              </div>
               <div className="flex justify-between items-center bg-zinc-950/60 border border-zinc-800/60 p-4 rounded-sm">
                 <span className="text-zinc-400 text-xs uppercase tracking-wider">Tension Level</span>
                 <span className="text-red-500 text-xs font-bold tracking-widest uppercase">

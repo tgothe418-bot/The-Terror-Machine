@@ -26,6 +26,8 @@ interface EngineState {
   currentTier: 'GATEWAY' | 'LATENT' | 'MANIFEST' | 'TERMINAL';
   currentTensionLevel: 'buildup' | 'visceral_climax' | 'aftermath';
   telemetry: TelemetryMetrics | null;
+  turnCount: number;
+  incrementTurn: () => void;
   shiftMatrixCoordinates: (vector: HorrorVector, tier: ExposureTier) => void;
   updateTension: (tension: 'buildup' | 'visceral_climax' | 'aftermath') => void;
   updateTelemetry: (metrics: TelemetryMetrics) => void;
@@ -55,6 +57,8 @@ export const useEngineStore = create<EngineState>()(
       currentTier: 'LATENT',
       currentTensionLevel: 'buildup',
       telemetry: null,
+      turnCount: 1,
+      incrementTurn: () => set((state) => ({ turnCount: state.turnCount + 1 })),
       shiftMatrixCoordinates: (vector, tier) => set((state) => ({
         ...state,
         currentVector: vector,
