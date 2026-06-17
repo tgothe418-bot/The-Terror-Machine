@@ -766,4 +766,39 @@ router.post("/extract-blueprint", async (req, res) => {
   }
 });
 
+router.post('/test-scene', async (req, res) => {
+  try {
+    const { blueprint } = req.body;
+
+    if (!blueprint) {
+      return res.status(400).json({ error: 'Blueprint is required' });
+    }
+
+    const prompt = `
+    You are the core engine of "The Terror Machine", an advanced narrative simulation.
+    Your task is to write the opening scene (2-3 paragraphs) of a new session based strictly on the provided blueprint.
+    
+    CRITICAL INSTRUCTIONS:
+    1. Use the PROTAGONIST's framing directive and sensory biases.
+    2. Address the player directly as 'You'.
+    3. Start the user in the first node of the Euclidean Topology Grid.
+    4. Establish the atmosphere immediately without summarizing the background or lore.
+    5. Do NOT include choices, menus, or meta-text. Output only the raw narrative text.
+    
+    BLUEPRINT:
+    \${JSON.stringify(blueprint, null, 2)}
+    `;
+
+    const aiClient = getAiClient();
+    const response = await aiClient.models.generateContent({
+      model: "gemini-3.5-flash", 
+      contents: prompt
+    });
+    res.json({ text: response.text });
+  } catch (error) {
+    console.error('Error generating test scene:', error);
+    res.status(500).json({ error: 'Failed to generate test scene' });
+  }
+});
+
 export default router;

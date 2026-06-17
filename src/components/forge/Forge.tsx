@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import {  useForgeState, forgeActions, getForgeState, useForgeStoreInternal  } from '../../store/useForgeStore';
+import {  useForgeState, forgeActions, useForgeStoreInternal  } from '../../store/useForgeStore';
 import { useAppStore } from '../../store/useAppStore';
 import { ArchitectChat } from './ArchitectChat';
 import { NarrativeLens } from './NarrativeLens';
@@ -27,35 +27,6 @@ export default function Forge() {
       unsubFinish();
     };
   }, []);
-
-  const exportBlueprint = () => {
-    const store = getForgeState();
-    const draft = store.draftBlueprint;
-    
-    if (!draft || !draft.premise) {
-      alert("Cannot export an empty blueprint. Please compile a scenario first.");
-      return;
-    }
-
-    // Sanitize and format the payload
-    const exportPayload = {
-      id: draft.id || crypto.randomUUID(),
-      title: draft.title || "Untitled Nightmare",
-      premise: draft.premise,
-      startingVector: draft.startingVector,
-      startingTier: draft.startingTier,
-      environmentalRules: draft.environmentalRules,
-      cast: draft.cast || []
-    };
-
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportPayload, null, 2));
-    const downloadAnchorNode = document.createElement('a');
-    downloadAnchorNode.setAttribute("href", dataStr);
-    downloadAnchorNode.setAttribute("download", `blueprint-${draft.startingVector}-${Date.now()}.json`);
-    document.body.appendChild(downloadAnchorNode); 
-    downloadAnchorNode.click();
-    downloadAnchorNode.remove();
-  };
 
   if (!hydrated) return null;
 
@@ -109,8 +80,8 @@ export default function Forge() {
             )}
           </div>
           <button 
-            onClick={exportBlueprint}
-            className="px-4 py-2 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 text-xs font-mono border border-zinc-700 rounded transition-colors"
+            onClick={() => setPhase('engine')}
+            className="px-4 py-2 bg-zinc-900 border border-zinc-700 text-zinc-400 font-mono text-xs hover:bg-zinc-800 hover:text-cyan-400 transition-colors"
           >
             [ EXPORT BLUEPRINT TO ENGINE ]
           </button>
