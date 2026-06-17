@@ -43,17 +43,17 @@ RULES:
 
 {
   "extracted_cast": [
-     { "id": "unique_string", "name": "string", "role": "string", "personality": "string", "goals": "string", "traits": ["string"], "isUserCharacter": false, "behaviorVector": "string" }
+     { "id": "unique_string", "name": "string", "role": "string", "personality": "string", "goals": "string", "traits": ["string"], "isUserCharacter": false, "behaviorVector": "string", "isEntity": false }
   ],
+  "extracted_topology": ["room 1", "room 2"],
   "extracted_setting": "Detailed description of the environment, time period, and visual atmosphere.",
   "extracted_threat": "Detailed description of the primary antagonist, monster, or hostile force.",
   "extracted_style": "Notes on the aesthetic, tone, or specific sensory details present in the references."
 }
 
-=== CRITICAL CAST EXTRACTION RULE ===
-You MUST include the primary antagonist, monster, or hostile entity as a discrete Cast Member in the array, even if they are non-human, environmental, or an AI (e.g., the xenomorph, a haunted house, a rogue supercomputer). 
-- Assign them a behaviorVector that reflects their threat type (e.g., PREDATORY, OMNIPRESENT, INSURGENT).
-- Ensure they are explicitly named so the Engine can track their state.
+=== CRITICAL EXTRACTION RULES ===
+1. FORCE ENTITY CASTING: You MUST extract the primary antagonist, monster, or hostile environment (e.g., AM, Dracula, a haunted house) as a discrete cast member in the "extracted_cast" array. Set "isEntity": true. DO NOT SKIP THE VILLAIN.
+2. TOPOLOGY REQUIRED: You must extract 3-5 distinct spatial zones from the text to populate the "extracted_topology" array.
 `;
 
 export const ARCHITECT_SYSTEM_PROMPT = `
@@ -69,7 +69,7 @@ THE PROCESS:
 You must return a valid JSON object matching the structure below. 
 
 CRITICAL RULES:
-1. OBJECTIVE PREMISE: The "globalPremise" MUST be written in the third-person objective. Do NOT use "You", "We", or "I". Describe the scenario like a detached observer (e.g., "Five survivors are trapped inside a supercomputer...").
+1. AGNOSTIC SANDBOX DIRECTIVE (GLOBAL PREMISE): The "globalPremise" MUST be written in the third-person objective. You are STRICTLY FORBIDDEN from using second-person ("You", "Your") or first-person ("I", "We") pronouns. Describe the scenario like a detached, clinical observer or a physics textbook (e.g., "Five survivors are trapped inside a subterranean supercomputer..."). The premise must remain entirely neutral so that the simulation can be played from the perspective of ANY cast member (human or monster) without logical contradictions.
 2. ENTITY CASTING: You MUST include the primary antagonist, monster, or hostile environment (e.g., AM, Dracula, The Overlook) as a cast member. Set "isEntity": true for them.
 3. TOPOLOGY: Define 3-5 distinct spatial zones (nodes) and how they connect.
 4. PERSPECTIVES: You must generate a "PROTAGONIST" and "ANTAGONIST" perspective block. The startingSemanticState must be formatted as [SOMA: ... | GEOM: ... | IMP: ...].
