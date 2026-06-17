@@ -20,6 +20,7 @@ export interface AuthoritativeBlueprint {
   topology: { nodes: string[] };
   constraints: string[];
   terminalConditions: TerminalConditions;
+  cast?: any[];
 }
 
 // Add this helper function to format the memory
@@ -64,12 +65,21 @@ export const compileStateToDenseOntology = (
     .map(c => `ENTITY_ID:${c.id}(${c.name})=>STATUS:${c.psychological_status}`)
     .join(';');
 
+  // Extract the specific character data based on the user's UI selection
+  const linkedCharacter = blueprint.cast?.find(c => c.role === currentState.activeNeuralLink) 
+    || blueprint.cast?.[0]; // Fallback just in case
+
+  const neuralLinkTag = linkedCharacter 
+    ? `[USER_NEURAL_LINK:: ROLE: ${currentState.activeNeuralLink} | IDENTITY: ${linkedCharacter.name} | VECTOR: ${linkedCharacter.behaviorVector || 'UNKNOWN'}]`
+    : `[USER_NEURAL_LINK:: UNASSIGNED]`;
+
   const terminalBoundariesTag = formatTerminalConditions(blueprint.terminalConditions);
   const currentStateTag = formatActiveMemoryTag(currentState.activeMemory);
 
   // Re-assemble into an immutable, flat system string block
   return [
     `[CORE_ONTOLOGY::${blueprint.identity.title.toUpperCase()}_v${blueprint.identity.version}]`,
+    neuralLinkTag,
     denseTopology,
     `[CRITICAL_CONSTRAINTS::${denseConstraints}]`,
     `[TRAUMA_STATE_LEDGER::${denseTrauma}]`,

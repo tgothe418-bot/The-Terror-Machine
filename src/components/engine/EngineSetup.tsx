@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import { ArrowLeft, Upload, AlertCircle, Users, Shield, Skull, Activity, Play } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import { useEngineStore } from '../../core/store';
+import { forgeActions } from '../../store/useForgeStore';
 import { ScenarioBlueprint, BlueprintSchema } from '../../types';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -54,6 +55,7 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
 
   const handleStart = () => {
     if (previewBlueprint) {
+      forgeActions.setActiveNeuralLink(selectedRole.toUpperCase() as 'PROTAGONIST' | 'ANTAGONIST');
       setBlueprint(previewBlueprint, selectedRole);
     }
   };

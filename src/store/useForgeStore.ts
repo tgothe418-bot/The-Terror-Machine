@@ -67,6 +67,7 @@ export interface ForgeState {
   where: string;
   when: string;
   whyHow: string;
+  activeNeuralLink: 'PROTAGONIST' | 'ANTAGONIST';
 }
 
 const initialState: ForgeState = {
@@ -103,7 +104,8 @@ const initialState: ForgeState = {
   where: '',
   when: '',
   whyHow: '',
-  draftBlueprint: null
+  draftBlueprint: null,
+  activeNeuralLink: 'PROTAGONIST'
 };
 
 export const useForgeStoreInternal = create<ForgeState & { actions: any }>()(
@@ -233,7 +235,8 @@ export const useForgeStoreInternal = create<ForgeState & { actions: any }>()(
         })),
         removeReferenceMaterial: (id: string) => set((state: ForgeState) => ({
           referenceMaterials: state.referenceMaterials.filter(m => m.id !== id)
-        }))
+        })),
+        setActiveNeuralLink: (role: 'PROTAGONIST' | 'ANTAGONIST') => set({ activeNeuralLink: role })
       }
     }),
     {
