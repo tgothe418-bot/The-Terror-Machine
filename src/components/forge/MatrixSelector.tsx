@@ -1,14 +1,13 @@
 import React from 'react';
-import { useForgeStore } from '../../store/useForgeStore';
+import {  useForgeState, forgeActions, getForgeState  } from '../../store/useForgeStore';
 import { HorrorVector, ExposureTier } from '../../types';
 
 const VECTORS: HorrorVector[] = ['SOMATIC', 'COGNITIVE', 'COSMIC', 'SOCIO_MORAL'];
 const TIERS: ExposureTier[] = ['GATEWAY', 'LATENT', 'MANIFEST', 'TERMINAL'];
 
 export const MatrixSelector = () => {
-  const draftBlueprint = useForgeStore(state => state.draftBlueprint);
-  const updateDraft = useForgeStore(state => state.updateDraft);
-  const initializeDraft = useForgeStore(state => state.initializeDraft);
+  const draftBlueprint = useForgeState(state => state.draftBlueprint);
+  const { updateDraft, initializeDraft } = forgeActions;
 
   React.useEffect(() => {
     if (!draftBlueprint) {

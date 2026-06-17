@@ -39,11 +39,9 @@ export interface DraftBlueprint {
   cast?: any[];
 }
 
-interface ForgeState {
+export interface ForgeState {
   castLedger: CastMember[];
-  addCastMember: (member: Omit<CastMember, 'id'>) => void;
-  updateCastMember: (id: string, updates: Partial<CastMember>) => void;
-  removeCastMember: (id: string) => void;
+  spatialNodes: string[];
   messages: Message[];
   availableReferenceCharacters: CharacterProfile[];
   selectedCharacters: CharacterProfile[];
@@ -56,183 +54,172 @@ interface ForgeState {
   extractedStyle: string;
   draftBlueprint: DraftBlueprint | null;
   architectMessages: { role: string, content: string }[];
-  addArchitectMessage: (message: { role: string, content: string }) => void;
-  clearArchitectChat: () => void;
   who: string;
   what: string;
   where: string;
   when: string;
   whyHow: string;
-  setWho: (val: string) => void;
-  setWhat: (val: string) => void;
-  setWhere: (val: string) => void;
-  setWhen: (val: string) => void;
-  setWhyHow: (val: string) => void;
-  clearForgeInputs: () => void;
-  updateDraft: (updates: Partial<DraftBlueprint>) => void;
-  removeReference: (fileName: string) => void;
-  initializeDraft: () => void;
-  addMessage: (message: Message) => void;
-  clearHistory: () => void;
-  setAvailableReferenceCharacters: (characters: CharacterProfile[]) => void;
-  addCharacterToCast: (character: CharacterProfile) => void;
-  removeCharacterFromCast: (id: string) => void;
-  updateCharacterDetails: (id: string, updates: Partial<CharacterProfile>) => void;
-  setHasReferenceMaterial: (has: boolean) => void;
-  setForgePhase: (phase: ForgePhase) => void;
-  setSummaryContext: (context: string) => void;
-  setExtractedSetting: (setting: string) => void;
-  setExtractedThreat: (threat: string) => void;
-  setExtractedStyle: (style: string) => void;
-  addReferenceMaterials: (materials: ReferenceMaterial[]) => void;
-  removeReferenceMaterial: (id: string) => void;
 }
 
-/**
- * Zustand store for The Forge's persistent memory.
- * Uses IndexedDB via idb-keyval for asynchronous, non-blocking storage.
- */
-export const useForgeStore = create<ForgeState>()(
+const initialState: ForgeState = {
+  castLedger: [],
+  spatialNodes: ['NODE_INIT'],
+  messages: [
+    {
+      role: 'assistant',
+      content: 'Forge Initialized. Architect online. Describe the foundation of your nightmare.',
+      timestamp: Date.now(),
+    },
+  ],
+  availableReferenceCharacters: [],
+  selectedCharacters: [],
+  hasReferenceMaterial: false,
+  forgePhase: 'CAST_EXTRACTION',
+  summaryContext: '',
+  referenceMaterials: [],
+  extractedSetting: '',
+  extractedThreat: '',
+  extractedStyle: '',
+  architectMessages: [
+    { role: 'architect', content: "I am the Architect. Tell me what kind of nightmare we are building today." }
+  ],
+  who: '',
+  what: '',
+  where: '',
+  when: '',
+  whyHow: '',
+  draftBlueprint: null
+};
+
+export const useForgeStoreInternal = create<ForgeState & { actions: any }>()(
   persist(
     (set) => ({
-      castLedger: [],
-      addCastMember: (member) => set((state) => ({
-        castLedger: [...state.castLedger, { ...member, id: crypto.randomUUID() }]
-      })),
-      updateCastMember: (id, updates) => set((state) => ({
-        castLedger: state.castLedger.map(m => m.id === id ? { ...m, ...updates } : m)
-      })),
-      removeCastMember: (id) => set((state) => ({
-        castLedger: state.castLedger.filter(m => m.id !== id)
-      })),
-      messages: [
-        {
-          role: 'assistant',
-          content: 'Forge Initialized. Architect online. Describe the foundation of your nightmare.',
-          timestamp: Date.now(),
-        },
-      ],
-      availableReferenceCharacters: [],
-      selectedCharacters: [],
-      hasReferenceMaterial: false,
-      forgePhase: 'CAST_EXTRACTION',
-      summaryContext: '',
-      referenceMaterials: [],
-      extractedSetting: '',
-      extractedThreat: '',
-      extractedStyle: '',
-      architectMessages: [
-        { role: 'architect', content: "I am the Architect. Tell me what kind of nightmare we are building today." }
-      ],
-      addArchitectMessage: (message) => set((state) => ({ 
-        architectMessages: [...state.architectMessages, message] 
-      })),
-      clearArchitectChat: () => set({ 
-        architectMessages: [
-          { role: 'architect', content: "I am the Architect. Tell me what kind of nightmare we are building today." }
-        ] 
-      }),
-      who: '',
-      what: '',
-      where: '',
-      when: '',
-      whyHow: '',
-      draftBlueprint: null,
-      initializeDraft: () => set({
-        draftBlueprint: {
-          id: crypto.randomUUID(),
-          title: '',
-          premise: '',
-          startingVector: 'COGNITIVE',
-          startingTier: 'LATENT',
-          environmentalRules: ''
-        }
-      }),
-      updateDraft: (updates) => set((state) => ({
-        draftBlueprint: state.draftBlueprint ? { ...state.draftBlueprint, ...updates } : { 
-          startingVector: 'COGNITIVE', 
-          startingTier: 'GATEWAY', 
-          ...updates 
-        } as DraftBlueprint
-      })),
-      removeReference: (fileName) => set((state) => {
-        if (!state.draftBlueprint) return state;
-        return {
-          draftBlueprint: {
-            ...state.draftBlueprint,
-            references: state.draftBlueprint.references?.filter(ref => ref !== fileName) || []
-          }
-        };
-      }),
-      setWho: (val) => set({ who: val }),
-      setWhat: (val) => set({ what: val }),
-      setWhere: (val) => set({ where: val }),
-      setWhen: (val) => set({ when: val }),
-      setWhyHow: (val) => set({ whyHow: val }),
-      clearForgeInputs: () => set({ who: '', what: '', where: '', when: '', whyHow: '' }),
-      addMessage: (message) =>
-        set((state) => ({
-          messages: [...state.messages, message],
+      ...initialState,
+      actions: {
+        addCastMember: (member: Omit<CastMember, 'id'>) => set((state: ForgeState) => ({
+          castLedger: [...state.castLedger, { ...member, id: crypto.randomUUID() }]
         })),
-      clearHistory: () => set({ 
-        draftBlueprint: null,
-        messages: [
-          {
-            role: 'assistant',
-            content: 'Forge Reset. Architect online. Describe the foundation of your nightmare.',
-            timestamp: Date.now(),
-          },
-        ],
-        availableReferenceCharacters: [],
-        selectedCharacters: [],
-        hasReferenceMaterial: false,
-        forgePhase: 'CAST_EXTRACTION',
-        summaryContext: '',
-        referenceMaterials: [],
-        extractedSetting: '',
-        extractedThreat: '',
-        extractedStyle: '',
-        architectMessages: [
-          { role: 'architect', content: "I am the Architect. Tell me what kind of nightmare we are building today." }
-        ]
-      }),
-      setAvailableReferenceCharacters: (characters) => set({ availableReferenceCharacters: characters }),
-      addCharacterToCast: (character) => set((state) => {
-        const npcCount = state.selectedCharacters.filter(c => !c.isUserCharacter).length;
-        if (!character.isUserCharacter && npcCount >= 5) return state;
-        if (state.selectedCharacters.find(c => c.id === character.id)) return state;
-        return { selectedCharacters: [...state.selectedCharacters, character] };
-      }),
-      removeCharacterFromCast: (id) => set((state) => ({
-        selectedCharacters: state.selectedCharacters.filter(c => c.id !== id)
-      })),
-      updateCharacterDetails: (id, updates) => set((state) => ({
-        selectedCharacters: state.selectedCharacters.map(c => c.id === id ? { ...c, ...updates } : c)
-      })),
-      setHasReferenceMaterial: (has) => set({ hasReferenceMaterial: has }),
-      setForgePhase: (phase) => set({ forgePhase: phase }),
-      setSummaryContext: (context) => set({ summaryContext: context }),
-      setExtractedSetting: (setting) => set({ extractedSetting: setting }),
-      setExtractedThreat: (threat) => set({ extractedThreat: threat }),
-      setExtractedStyle: (style) => set({ extractedStyle: style }),
-      addReferenceMaterials: (materials) => set((state) => ({ 
-        referenceMaterials: [...state.referenceMaterials, ...materials] 
-      })),
-      removeReferenceMaterial: (id) => set((state) => ({
-        referenceMaterials: state.referenceMaterials.filter(m => m.id !== id)
-      })),
+        updateCastMember: (id: string, updates: Partial<CastMember>) => set((state: ForgeState) => ({
+          castLedger: state.castLedger.map(m => m.id === id ? { ...m, ...updates } : m)
+        })),
+        removeCastMember: (id: string) => set((state: ForgeState) => ({
+          castLedger: state.castLedger.filter(m => m.id !== id)
+        })),
+        resetStore: () => set(initialState),
+        addArchitectMessage: (message: any) => set((state: ForgeState) => ({ 
+          architectMessages: [...state.architectMessages, message] 
+        })),
+        clearArchitectChat: () => set({ 
+          architectMessages: [
+            { role: 'architect', content: "I am the Architect. Tell me what kind of nightmare we are building today." }
+          ] 
+        }),
+        initializeDraft: () => set({
+          draftBlueprint: {
+            id: crypto.randomUUID(),
+            title: '',
+            premise: '',
+            startingVector: 'COGNITIVE',
+            startingTier: 'LATENT',
+            environmentalRules: ''
+          }
+        }),
+        updateDraft: (updates: any) => set((state: ForgeState) => ({
+          draftBlueprint: state.draftBlueprint ? { ...state.draftBlueprint, ...updates } : { 
+            startingVector: 'COGNITIVE', 
+            startingTier: 'GATEWAY', 
+            ...updates 
+          } as DraftBlueprint
+        })),
+        removeReference: (fileName: string) => set((state: ForgeState) => {
+          if (!state.draftBlueprint) return state;
+          return {
+            draftBlueprint: {
+              ...state.draftBlueprint,
+              references: state.draftBlueprint.references?.filter(ref => ref !== fileName) || []
+            }
+          };
+        }),
+        setWho: (val: string) => set({ who: val }),
+        setWhat: (val: string) => set({ what: val }),
+        setWhere: (val: string) => set({ where: val }),
+        setWhen: (val: string) => set({ when: val }),
+        setWhyHow: (val: string) => set({ whyHow: val }),
+        clearForgeInputs: () => set({ who: '', what: '', where: '', when: '', whyHow: '' }),
+        addMessage: (message: Message) =>
+          set((state: ForgeState) => ({
+            messages: [...state.messages, message],
+          })),
+        clearHistory: () => set({ 
+          ...initialState
+        }),
+        setAvailableReferenceCharacters: (characters: CharacterProfile[]) => set({ availableReferenceCharacters: characters }),
+        addCharacterToCast: (character: CharacterProfile) => set((state: ForgeState) => {
+          const npcCount = state.selectedCharacters.filter(c => !c.isUserCharacter).length;
+          if (!character.isUserCharacter && npcCount >= 5) return state;
+          if (state.selectedCharacters.find(c => c.id === character.id)) return state;
+          return { selectedCharacters: [...state.selectedCharacters, character] };
+        }),
+        removeCharacterFromCast: (id: string) => set((state: ForgeState) => ({
+          selectedCharacters: state.selectedCharacters.filter(c => c.id !== id)
+        })),
+        updateCharacterDetails: (id: string, updates: Partial<CharacterProfile>) => set((state: ForgeState) => ({
+          selectedCharacters: state.selectedCharacters.map(c => c.id === id ? { ...c, ...updates } : c)
+        })),
+        setHasReferenceMaterial: (has: boolean) => set({ hasReferenceMaterial: has }),
+        setForgePhase: (phase: ForgePhase) => set({ forgePhase: phase }),
+        setSummaryContext: (context: string) => set({ summaryContext: context }),
+        setExtractedSetting: (setting: string) => set({ extractedSetting: setting }),
+        setExtractedThreat: (threat: string) => set({ extractedThreat: threat }),
+        setExtractedStyle: (style: string) => set({ extractedStyle: style }),
+        addReferenceMaterials: (materials: ReferenceMaterial[]) => set((state: ForgeState) => ({ 
+          referenceMaterials: [...state.referenceMaterials, ...materials] 
+        })),
+        removeReferenceMaterial: (id: string) => set((state: ForgeState) => ({
+          referenceMaterials: state.referenceMaterials.filter(m => m.id !== id)
+        }))
+      }
     }),
     {
       name: 'the-forge-memory',
       storage: createJSONStorage(() => idbStorage),
-      partialize: (state) => ({
-        ...state,
-        messages: state.messages.map((msg) => {
-          const messageWithoutFiles = { ...msg };
-          delete (messageWithoutFiles as any).attachments;
-          return messageWithoutFiles;
-        }),
-      }),
+      partialize: (state) => {
+        const { actions, ...rest } = state;
+        const stateWithoutActions = rest as any;
+        return {
+          ...stateWithoutActions,
+          messages: stateWithoutActions.messages.map((msg: any) => {
+            const messageWithoutFiles = { ...msg };
+            delete messageWithoutFiles.attachments;
+            return messageWithoutFiles;
+          }),
+        };
+      },
     }
   )
 );
+
+// We define a hook that replicates what zustand normally returns, but strips actions.
+export function useForgeState<T>(selector: (state: ForgeState) => T): T;
+export function useForgeState(): Readonly<ForgeState>;
+export function useForgeState<T>(selector?: (state: ForgeState) => T) {
+  return useForgeStoreInternal((state) => {
+    const { actions, ...readOnlyState } = state;
+    if (selector) {
+      return selector(readOnlyState as ForgeState);
+    }
+    return readOnlyState as Readonly<ForgeState>;
+  });
+}
+
+// Ensure all previous code utilizing useForgeStore maps either to useForgeState or to forgeActions.
+export const forgeActions = useForgeStoreInternal.getState().actions;
+export const getForgeState = () => {
+    const { actions, ...readOnlyState } = useForgeStoreInternal.getState();
+    return readOnlyState as Readonly<ForgeState>;
+};
+
+
+// Exporting useForgeStore temporarily mapping directly to useForgeState mapped to older usages, 
+// wait, if I export useForgeStore exactly as useForgeState, the actions won't be there, 
+// so compilation will fail wherever actions were destructured. I need to update all consumers.

@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { useForgeStore, CastRole } from '../../store/useForgeStore';
+import { useForgeState, forgeActions, CastRole } from '../../store/useForgeStore';
 
 export const CastManager: React.FC = () => {
-  const { castLedger, addCastMember, removeCastMember } = useForgeStore();
+  const { castLedger } = useForgeState();
+  const { addCastMember, removeCastMember } = forgeActions;
   
   const [name, setName] = useState('');
   const [role, setRole] = useState<CastRole>('PROTAGONIST');

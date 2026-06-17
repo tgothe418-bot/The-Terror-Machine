@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useForgeStore } from '../../store/useForgeStore';
+import {  useForgeState, forgeActions, getForgeState  } from '../../store/useForgeStore';
 import { useAppStore } from '../../store/useAppStore';
 import { ArchitectChat } from './ArchitectChat';
 import { BlueprintTester } from './BlueprintTester';
@@ -10,18 +10,15 @@ import { AutopilotVector } from '../../types';
 
 export default function Forge() {
   const setPhase = useAppStore((state) => state.setPhase);
-  const { 
-    draftBlueprint,
-    updateDraft,
-    clearHistory
-  } = useForgeStore();
-  const [hydrated, setHydrated] = useState(() => useForgeStore.persist.hasHydrated());
+  const { draftBlueprint } = useForgeState();
+  const { updateDraft, clearHistory } = forgeActions;
+  const [hydrated, setHydrated] = useState(() => useForgeState.persist.hasHydrated());
   const [isConfirmingClear, setIsConfirmingClear] = useState(false);
 
   // Handle hydration
   useEffect(() => {
-    const unsub = useForgeStore.persist.onHydrate(() => setHydrated(false));
-    const unsubFinish = useForgeStore.persist.onFinishHydration(() => setHydrated(true));
+    const unsub = useForgeState.persist.onHydrate(() => setHydrated(false));
+    const unsubFinish = useForgeState.persist.onFinishHydration(() => setHydrated(true));
     
     return () => {
       unsub();
@@ -30,7 +27,7 @@ export default function Forge() {
   }, []);
 
   const exportBlueprint = () => {
-    const store = useForgeStore.getState();
+    const store = getForgeState();
     const draft = store.draftBlueprint;
     
     if (!draft || !draft.premise) {

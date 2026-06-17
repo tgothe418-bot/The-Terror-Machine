@@ -2,14 +2,14 @@ import React, { useState } from 'react';
 import { Hammer, Play, Ghost, Target, Activity, AlertTriangle, RefreshCw } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import { useVoiceStore } from '../../store/useVoiceStore';
-import { useForgeStore } from '../../store/useForgeStore';
+import {  useForgeState, forgeActions, getForgeState  } from '../../store/useForgeStore';
 import { useEngineStore } from '../../core/store';
 import { motion, AnimatePresence } from 'motion/react';
 
 export default function WelcomeScreen() {
   const setPhase = useAppStore((state) => state.setPhase);
   const clearVoice = useVoiceStore((state) => state.clearHistory);
-  const clearForge = useForgeStore((state) => state.clearHistory);
+  const { clearHistory: clearForge } = forgeActions;
   const clearEngine = useEngineStore((state) => state.clearBlueprint);
   
   const [isConfirmingReset, setIsConfirmingReset] = useState(false);

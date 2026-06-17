@@ -1,13 +1,12 @@
 import React, { useState } from 'react';
-import { useForgeStore } from '../../store/useForgeStore';
+import {  useForgeState, forgeActions, getForgeState  } from '../../store/useForgeStore';
 
 export const ArchitectChat = () => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const updateDraft = useForgeStore(state => state.updateDraft);
+  const { updateDraft, addArchitectMessage } = forgeActions;
   
-  const messages = useForgeStore(state => state.architectMessages);
-  const addArchitectMessage = useForgeStore(state => state.addArchitectMessage);
+  const messages = useForgeState(state => state.architectMessages);
 
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return;

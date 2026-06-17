@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { useForgeStore } from '../../store/useForgeStore'; 
+import {  useForgeState, forgeActions, getForgeState  } from '../../store/useForgeStore'; 
 
 export const BlueprintTester = () => {
-  const draftBlueprint = useForgeStore((state) => state.draftBlueprint);
+  const draftBlueprint = useForgeState((state) => state.draftBlueprint);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [testBlocks, setTestBlocks] = useState<any[]>([]);
   const [isTesting, setIsTesting] = useState(false);

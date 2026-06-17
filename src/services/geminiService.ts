@@ -1,5 +1,5 @@
 import { Message, ScenarioBlueprint, BicameralOutput, LogicState, ProseStyleVector, ForgePhase, ReferenceMaterial, ExtractedLore, AppPhase } from "../types";
-import { useForgeStore } from "../store/useForgeStore";
+import {  useForgeState, forgeActions, getForgeState  } from '../store/useForgeStore';
 import { DISTILLATION_SYSTEM_PROMPT } from "../core/prompts/distillation";
 
 export const distillContext = async (currentSummary: string, flattenedTranscript: string): Promise<string> => {
@@ -55,7 +55,7 @@ export const triggerMemoryForge = async (chatHistory: string) => {
 };
 
 export async function sendMessageToArchitect(messageHistory: Message[], currentPhase: ForgePhase, voiceContext?: Message[]) {
-  const storeState = useForgeStore.getState();
+  const storeState = getForgeState();
   const response = await fetch('/api/architect', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

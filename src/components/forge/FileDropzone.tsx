@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useForgeStore } from '../../store/useForgeStore'; 
+import {  useForgeState, forgeActions, getForgeState  } from '../../store/useForgeStore'; 
 import { fileToBase64, parseBlueprintFile } from '../../lib/fileParser'; 
 
 export const FileDropzone = () => {
@@ -7,10 +7,8 @@ export const FileDropzone = () => {
   const [loadingMsg, setLoadingMsg] = useState('');
   const [error, setError] = useState('');
   
-  const draftBlueprint = useForgeStore(state => state.draftBlueprint);
-  const updateDraft = useForgeStore(state => state.updateDraft);
-  const removeReference = useForgeStore(state => state.removeReference);
-  const addArchitectMessage = useForgeStore(state => state.addArchitectMessage);
+  const draftBlueprint = useForgeState(state => state.draftBlueprint);
+  const { updateDraft, removeReference, addArchitectMessage } = forgeActions;
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -23,7 +21,7 @@ export const FileDropzone = () => {
     try {
       // 1. JSON Blueprint Native Load
       if (file.type === 'application/json') {
-        const blueprint = await parseBlueprintFile(file) as Partial<ReturnType<typeof useForgeStore.getState>['draftBlueprint']>;
+        const blueprint = await parseBlueprintFile(file) as Partial<ReturnType<typeof getForgeState>['draftBlueprint']>;
         updateDraft(blueprint || {});
         setIsProcessing(false);
         return;

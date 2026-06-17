@@ -1,15 +1,15 @@
 import { expect, test, beforeEach } from 'vitest';
 import 'fake-indexeddb/auto';
-import { useForgeStore } from './useForgeStore';
+import {  useForgeState, forgeActions, getForgeState, useForgeStoreInternal  } from './useForgeStore';
 
 beforeEach(() => {
   // Reset the store before each test run
-  useForgeStore.setState({ selectedCharacters: [] });
+  useForgeStoreInternal.setState({ selectedCharacters: [] });
 });
 
 test('should add a character to the cast', () => {
   // 1. Arrange: Get the action from the store
-  const { addCharacterToCast } = useForgeStore.getState();
+  const { addCharacterToCast } = forgeActions;
   
   const testChar = {
     id: '1',
@@ -22,10 +22,10 @@ test('should add a character to the cast', () => {
   };
 
   // 2. Act: Execute the function
-  addCharacterToCast(testChar);
+  addCharacterToCast(testChar as any);
 
   // 3. Assert: Verify the state changed correctly
-  const state = useForgeStore.getState();
+  const state = getForgeState();
   expect(state.selectedCharacters.length).toBe(1);
   expect(state.selectedCharacters[0].name).toBe('Test Victim');
 });

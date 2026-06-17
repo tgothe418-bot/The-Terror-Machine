@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Message, Attachment } from '../../types';
 import { useAppStore } from '../../store/useAppStore';
 import { useVoiceStore } from '../../store/useVoiceStore';
-import { useForgeStore } from '../../store/useForgeStore';
+import {  useForgeState, forgeActions, getForgeState  } from '../../store/useForgeStore';
 import { exportConversationToMarkdown } from '../../lib/download';
 
 export default function TheVoice() {
@@ -79,7 +79,7 @@ export default function TheVoice() {
         attachments: msg.attachments
       }));
 
-      const currentForgeDraft = useForgeStore.getState().draftBlueprint;
+      const currentForgeDraft = getForgeState().draftBlueprint;
       
       const telemetryPayload = (currentForgeDraft && currentForgeDraft.premise) 
         ? currentForgeDraft 
