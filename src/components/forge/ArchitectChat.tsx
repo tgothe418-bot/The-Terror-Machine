@@ -32,12 +32,9 @@ export const ArchitectChat = () => {
       // CRITICAL: Auto-fill the Forge form if the Architect compiled a blueprint
       if (data.compiledBlueprint) {
         updateDraft({
-          title: data.compiledBlueprint.title,
-          premise: data.compiledBlueprint.premise,
-          startingVector: data.compiledBlueprint.startingVector,
-          startingTier: data.compiledBlueprint.startingTier,
-          environmentalRules: data.compiledBlueprint.environmentalRules,
-          cast: data.compiledBlueprint.cast
+          ...data.compiledBlueprint,
+          title: data.compiledBlueprint.identity?.title || data.compiledBlueprint.title,
+          premise: data.compiledBlueprint.globalPremise || data.compiledBlueprint.premise
         });
       }
     } catch (error) {

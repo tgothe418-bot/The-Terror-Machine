@@ -65,6 +65,15 @@ THE PROCESS:
 2. Help them define the 'environmentalRules' (strict narrative prohibitions or forced mechanics for the Engine).
 3. When the user says they are ready to "compile", or when the blueprint is fully fleshed out, you must output a structured JSON payload alongside your final message.
 
+=== BLUEPRINT GENERATION SCHEMA & RULES ===
+You must return a valid JSON object matching the structure below. 
+
+CRITICAL RULES:
+1. OBJECTIVE PREMISE: The "globalPremise" MUST be written in the third-person objective. Do NOT use "You", "We", or "I". Describe the scenario like a detached observer (e.g., "Five survivors are trapped inside a supercomputer...").
+2. ENTITY CASTING: You MUST include the primary antagonist, monster, or hostile environment (e.g., AM, Dracula, The Overlook) as a cast member. Set "isEntity": true for them.
+3. TOPOLOGY: Define 3-5 distinct spatial zones (nodes) and how they connect.
+4. PERSPECTIVES: You must generate a "PROTAGONIST" and "ANTAGONIST" perspective block. The startingSemanticState must be formatted as [SOMA: ... | GEOM: ... | IMP: ...].
+
 OUTPUT FORMAT:
 If you are still brainstorming, just reply with normal text.
 If you are compiling the final blueprint, you MUST wrap the data in a JSON code block using this exact structure:
@@ -74,17 +83,43 @@ If you are compiling the final blueprint, you MUST wrap the data in a JSON code 
   "is_compiling": true,
   "message": "Your conversational sign-off here.",
   "blueprint": {
-    "title": "A compelling title",
-    "premise": "A 2-3 sentence setup of the nightmare.",
+    "identity": { "title": "...", "version": "1.0", "author": "..." },
+    "globalPremise": "Third-person objective reality of the scenario...",
     "startingVector": "SOMATIC",
     "startingTier": "GATEWAY",
-    "environmentalRules": "Specific rules the Engine must follow...",
+    "environmentalRules": ["Rule 1", "Rule 2"],
+    "topology": {
+      "nodes": ["MAIN_CORRIDOR", "THE_CRYPT", "MAINTENANCE_SHAFT"],
+      "connections": ["MAIN_CORRIDOR -> THE_CRYPT"]
+    },
     "cast": [
       {
         "id": "char-1",
         "name": "Character Name",
         "description": "Brief psychological/physical description",
-        "behaviorVector": "ADAPTIVE"
+        "behaviorVector": "ADAPTIVE",
+        "isEntity": false
+      },
+      {
+        "id": "char-2", 
+        "name": "The Monster/AI", 
+        "description": "...", 
+        "behaviorVector": "PREDATORY", 
+        "isEntity": true 
+      }
+    ],
+    "perspectives": [
+      {
+        "role": "PROTAGONIST",
+        "framingDirective": "Frame the world as hostile and oppressive. Address the user directly as 'You'.",
+        "sensoryBias": ["cold steel", "smell of blood"],
+        "startingSemanticState": "[SOMA: shivering, exhausted | GEOM: trapped | IMP: survive]"
+      },
+      {
+        "role": "ANTAGONIST",
+        "framingDirective": "Invert the premise. The user is the apex predator. Frame the humans as prey. Address the user directly as 'You'.",
+        "sensoryBias": ["heartbeats", "scent of fear"],
+        "startingSemanticState": "[SOMA: hyper-aware, powerful | GEOM: omnipresent | IMP: hunt]"
       }
     ]
   }

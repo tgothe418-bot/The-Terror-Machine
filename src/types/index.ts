@@ -24,18 +24,31 @@ export const CastMemberSchema = z.object({
   goals: z.string().optional().default(""),
   traits: z.array(z.string()).optional().default([]),
   isUserCharacter: z.boolean().optional().default(false),
-  behaviorVector: z.string().optional().default('ADAPTIVE')
+  behaviorVector: z.string().optional().default('ADAPTIVE'),
+  isEntity: z.boolean().optional().default(false)
 });
 
 export const BlueprintSchema = z.object({
   id: z.string().optional(),
-  title: z.string().optional().default("Unknown Enclosure"),
-  premise: z.string().optional().default(""),
+  identity: z.object({
+    title: z.string().optional().default("Unknown Enclosure"),
+    version: z.string().optional().default("1.0"),
+    author: z.string().optional().default("Unknown")
+  }).optional().default({ title: "Unknown Enclosure", version: "1.0", author: "Unknown" }),
+  title: z.string().optional().default("Unknown Enclosure"), // Fallback for legacy
+  globalPremise: z.string().optional().default(""),
+  premise: z.string().optional().default(""), // Legacy fallback
   startingVector: z.enum(['SOMATIC', 'COGNITIVE', 'COSMIC', 'SOCIO_MORAL']).optional(),
   startingTier: z.enum(['GATEWAY', 'LATENT', 'MANIFEST', 'TERMINAL']).optional(),
-  environmentalRules: z.string().optional().default(""),
+  environmentalRules: z.union([z.string(), z.array(z.string())]).optional().default([]),
+  constraints: z.array(z.string()).optional().default([]),
   contentScale: z.number().optional().default(3),
   contentLevelDescription: z.string().optional().default("Standard"),
+  
+  topology: z.object({
+    nodes: z.array(z.string()).optional().default([]),
+    connections: z.array(z.string()).optional().default([])
+  }).optional().default({ nodes: [], connections: [] }),
   
   setting: z.object({
     location: z.string().optional().default("Unknown"),
@@ -57,7 +70,8 @@ export const BlueprintSchema = z.object({
   // Safely default to an empty array.
   references: z.array(z.string()).optional().default([]),
   
-  perspectives: z.array(z.any()).optional().default([])
+  perspectives: z.array(z.any()).optional().default([]),
+  terminalConditions: z.any().optional()
 });
 
 // For compatibility with previous types, though we augment them
@@ -103,7 +117,8 @@ export interface CharacterProfile {
   goals: string;
   traits: string[];
   isUserCharacter: boolean;
-  behaviorVector?: AutopilotVector;
+  behaviorVector?: AutopilotVector | string;
+  isEntity?: boolean;
 }
 
 export interface TerminalConditions {

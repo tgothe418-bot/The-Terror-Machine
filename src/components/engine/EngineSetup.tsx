@@ -178,17 +178,24 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
                             <div 
                               key={char.id || i}
                               onClick={() => forgeActions.setActiveCharacterId(char.id)}
-                              className={`p-3 border cursor-pointer transition-colors ${
+                              className={`p-4 border cursor-pointer transition-all duration-200 ${
                                 activeCharacterId === char.id 
-                                  ? 'border-red-500 bg-red-950/20' 
-                                  : 'border-zinc-800 hover:border-zinc-600 bg-zinc-950'
+                                  ? 'border-red-500 bg-red-950/20 shadow-[0_0_15px_rgba(239,68,68,0.1)]' 
+                                  : 'border-zinc-800 hover:border-zinc-600 bg-black opacity-60 hover:opacity-100'
                               }`}
                             >
                               <div className="flex justify-between items-center mb-2">
-                                <h3 className="text-sm text-zinc-100 font-bold">{char.name}</h3>
-                                <span className="text-[10px] uppercase font-mono text-cyan-600 px-2 py-1 border border-cyan-900 rounded bg-cyan-950/30">
-                                  {char.behaviorVector || char.behavioralVector || 'ADAPTIVE'}
-                                </span>
+                                <h3 className={`font-bold ${activeCharacterId === char.id ? 'text-red-400' : 'text-zinc-100'}`}>
+                                  {char.name}
+                                </h3>
+                                <div className="flex gap-2 items-center">
+                                  {char.isEntity && (
+                                    <span className="text-[10px] text-red-500 border border-red-900 px-1 font-mono uppercase">ENTITY</span>
+                                  )}
+                                  <span className="text-[10px] uppercase font-mono text-cyan-600 px-2 py-1 border border-cyan-900 rounded bg-cyan-950/30">
+                                    {char.behaviorVector || char.behavioralVector || 'ADAPTIVE'}
+                                  </span>
+                                </div>
                               </div>
                               {char.description && (
                                 <p className="text-[10px] text-zinc-400 leading-relaxed font-mono">

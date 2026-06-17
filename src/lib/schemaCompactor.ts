@@ -18,12 +18,27 @@ export interface TerminalConditions {
 }
 
 export interface AuthoritativeBlueprint {
-  identity: { title: string; version: string; thematicAnchor: string };
-  topology: { nodes: string[] };
-  constraints: string[];
-  terminalConditions: TerminalConditions;
-  cast?: any[];
+  identity: {
+    title: string;
+    version: string;
+    author: string;
+  };
+  globalPremise: string;
+  environmentalRules: string[];
+  topology?: {
+    nodes: string[];
+    connections: string[];
+  };
+  terminalConditions: any; // Keep existing structure
+  cast: {
+    id: string;
+    name: string;
+    description: string;
+    behaviorVector: string;
+    isEntity?: boolean; 
+  }[];
   perspectives?: SubjectivePerspective[];
+  constraints?: string[];
 }
 
 // Add this helper function to format the memory
@@ -58,9 +73,10 @@ export const compileStateToDenseOntology = (
   blueprint: AuthoritativeBlueprint,
   currentState: ForgeState
 ): string => {
-  const denseTopology = `SPATIAL_BOUNDS::[${blueprint.topology.nodes.join(',')}]`;
+  const denseTopology = `SPATIAL_BOUNDS::[${blueprint.topology?.nodes?.join(',') || ''}]`;
   
-  const denseConstraints = blueprint.constraints
+  const rules = blueprint.constraints || blueprint.environmentalRules || [];
+  const denseConstraints = rules
     .map((rule, idx) => `RULE_${idx}:${rule}`)
     .join('|');
 
@@ -70,7 +86,7 @@ export const compileStateToDenseOntology = (
 
   // Extract the specific character data based on the user's UI selection
   const linkedCharacter = blueprint.cast?.find(c => c.id === currentState.activeCharacterId) 
-    || blueprint.cast?.find(c => c.role === currentState.activeNeuralLink)
+    || blueprint.cast?.find((c: any) => c.role === currentState.activeNeuralLink)
     || blueprint.cast?.[0]; // Fallback just in case
 
   const neuralLinkTag = linkedCharacter 

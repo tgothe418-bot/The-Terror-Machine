@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {  useForgeState, forgeActions, getForgeState, useForgeStoreInternal  } from '../../store/useForgeStore';
 import { useAppStore } from '../../store/useAppStore';
 import { ArchitectChat } from './ArchitectChat';
+import { NarrativeLens } from './NarrativeLens';
 import { BlueprintTester } from './BlueprintTester';
 import { FileDropzone } from './FileDropzone';
 import { MatrixSelector } from './MatrixSelector';
@@ -279,9 +280,11 @@ export default function Forge() {
         <div className="col-span-5 flex flex-col h-full overflow-hidden space-y-6">
           
           {/* Architect Analytical Companion Box */}
-          <div className="flex-1 min-h-[350px] flex flex-col border border-zinc-900 rounded bg-zinc-950/20 shadow-xl overflow-hidden">
+          <div className="flex-1 min-h-[300px] flex flex-col border border-zinc-900 rounded bg-zinc-950/20 shadow-xl overflow-hidden">
             <ArchitectChat />
           </div>
+          
+          <NarrativeLens />
           
           {/* Atmospheric Validation (Blueprint Tester) Panel */}
           <div className="shrink-0 border border-zinc-900 rounded bg-zinc-950/30 p-2 shadow-xl">

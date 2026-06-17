@@ -33,11 +33,15 @@ export interface DraftBlueprint {
   id?: string;
   title?: string;
   premise?: string;
+  globalPremise?: string;
   references?: string[];
   startingVector: HorrorVector;
   startingTier: ExposureTier;
-  environmentalRules?: string;
+  environmentalRules?: string | string[];
   cast?: any[];
+  perspectives?: any[];
+  topology?: any;
+  identity?: any;
 }
 
 export interface EntityMemoryState {
