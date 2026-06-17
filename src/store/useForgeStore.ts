@@ -151,6 +151,18 @@ export const useForgeStoreInternal = create<ForgeState & { actions: any }>()(
         updateActiveMemory: (updates: Partial<EntityMemoryState>) => set((state: ForgeState) => ({
           activeMemory: { ...state.activeMemory, ...updates }
         })),
+        commitSemanticTags: (parsedTags: Record<string, string[]>) => set((state: ForgeState) => {
+          const nextMemory = { ...state.activeMemory };
+          
+          if (parsedTags['SOMA']) nextMemory.somaticState = parsedTags['SOMA'];
+          // GEOM mapped to relationalWeb based on instructions
+          if (parsedTags['GEOM']) nextMemory.relationalWeb = parsedTags['GEOM'];
+          if (parsedTags['IMP']) nextMemory.tacticalImperative = parsedTags['IMP'].join(' ');
+          
+          // Optionally map SYS if there's a systemFlags on EntityMemoryState.
+          // The EntityMemoryState doesn't have systemFlags right now, let's just ignore it or add it if necessary.
+          return { activeMemory: nextMemory };
+        }),
         addArchitectMessage: (message: any) => set((state: ForgeState) => ({ 
           architectMessages: [...state.architectMessages, message] 
         })),

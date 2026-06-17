@@ -1,21 +1,36 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import { motion } from 'motion/react';
+import { extractSemanticTags } from '../../lib/tagParser';
+import { forgeActions } from '../../store/useForgeStore';
 
 interface ErgodicTextRendererProps {
   id?: string;
   text: string;
   psychologicalStatus?: string;
+  isStreaming?: boolean;
 }
 
-export default function ErgodicTextRenderer({ id, text, psychologicalStatus = 'Stable' }: ErgodicTextRendererProps) {
+export default function ErgodicTextRenderer({ id, text, psychologicalStatus = 'Stable', isStreaming = false }: ErgodicTextRendererProps) {
   const isPanic = psychologicalStatus.toLowerCase().includes('panic') || psychologicalStatus.toLowerCase().includes('terror');
   const isExhausted = psychologicalStatus.toLowerCase().includes('exhaustion') || psychologicalStatus.toLowerCase().includes('tired');
 
+  // 1. Visually mask the brackets in real-time as they stream in
+  const parsed = useMemo(() => extractSemanticTags(text), [text]);
+  const displayText = parsed.cleanText;
+
+  useEffect(() => {
+    // 2. Commit the extracted tags ONLY when the stream finishes
+    if (!isStreaming && parsed.tags) {
+      forgeActions.commitSemanticTags(parsed.tags);
+      console.log("[STREAM CLEAVER] State committed asynchronously:", parsed.tags);
+    }
+  }, [parsed.tags, isStreaming]);
+
   // Memoize processed text to prevent random shifts on re-renders
   const processedText = useMemo(() => {
-    let result = text;
+    let result = displayText;
     if (isPanic) {
-      const paragraphs = text.split('\n\n');
+      const paragraphs = displayText.split('\n\n');
       result = paragraphs.map((p, i) => {
         // Use paragraph index and text length as a deterministic seed
         const seedValue = (p.length + i) % 10;
@@ -26,7 +41,7 @@ export default function ErgodicTextRenderer({ id, text, psychologicalStatus = 'S
       }).join('\n\n');
     }
     return result;
-  }, [text, isPanic]);
+  }, [displayText, isPanic]);
 
   const containerClasses = `text-sm leading-relaxed whitespace-pre-wrap transition-colors duration-1000 ${
     isExhausted ? 'text-zinc-400' : 'text-zinc-100'

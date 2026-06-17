@@ -31,7 +31,7 @@ export const distillContext = async (currentSummary: string, flattenedTranscript
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        systemPrompt: distillationPrompt,
+        systemPrompt: DISTILLATION_SYSTEM_PROMPT,
         currentSummary,
         flattenedTranscript
       })
