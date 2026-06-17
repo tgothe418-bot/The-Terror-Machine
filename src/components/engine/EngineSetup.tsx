@@ -56,6 +56,7 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
   const handleStart = () => {
     if (previewBlueprint) {
       forgeActions.setActiveNeuralLink(selectedRole.toUpperCase() as 'PROTAGONIST' | 'ANTAGONIST');
+      forgeActions.startSimulation(previewBlueprint);
       setBlueprint(previewBlueprint, selectedRole);
     }
   };

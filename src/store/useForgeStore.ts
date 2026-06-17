@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { Message, CharacterProfile, ForgePhase, ReferenceMaterial, ProseStyleVector, HorrorVector, ExposureTier } from '../types';
 import { idbStorage } from '../lib/idbStorage';
+import { extractSemanticTags } from '../lib/tagParser';
 
 export const defaultStyleVector: ProseStyleVector = {
   sentenceStructure: "clinical-flat",
@@ -236,7 +237,34 @@ export const useForgeStoreInternal = create<ForgeState & { actions: any }>()(
         removeReferenceMaterial: (id: string) => set((state: ForgeState) => ({
           referenceMaterials: state.referenceMaterials.filter(m => m.id !== id)
         })),
-        setActiveNeuralLink: (role: 'PROTAGONIST' | 'ANTAGONIST') => set({ activeNeuralLink: role })
+        setActiveNeuralLink: (role: 'PROTAGONIST' | 'ANTAGONIST') => set({ activeNeuralLink: role }),
+        startSimulation: (blueprint: any) => set((state: ForgeState) => {
+          const activePerspective = blueprint?.perspectives?.find(
+            (p: any) => p.role === state.activeNeuralLink
+          );
+          
+          let initialSomatic: string[] = [];
+          let initialGeOM: string[] = [];
+          let initialImp = "";
+
+          if (activePerspective?.startingSemanticState) {
+            const parsed = extractSemanticTags(activePerspective.startingSemanticState);
+            if (parsed.tags) {
+               initialSomatic = parsed.tags['SOMA'] || [];
+               initialGeOM = parsed.tags['GEOM'] || [];
+               initialImp = parsed.tags['IMP'] ? parsed.tags['IMP'].join(' ') : "";
+            }
+          }
+
+          return {
+            activeMemory: {
+              somaticState: initialSomatic,
+              relationalWeb: initialGeOM,
+              tacticalImperative: initialImp,
+              systemFlags: []
+            }
+          };
+        })
       }
     }),
     {

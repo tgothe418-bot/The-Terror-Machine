@@ -24,7 +24,7 @@ export const CastMemberSchema = z.object({
   goals: z.string().optional().default(""),
   traits: z.array(z.string()).optional().default([]),
   isUserCharacter: z.boolean().optional().default(false),
-  behaviorVector: z.enum(['ADAPTIVE', 'INSURGENT', 'PANIC']).optional().default('ADAPTIVE')
+  behaviorVector: z.string().optional().default('ADAPTIVE')
 });
 
 export const BlueprintSchema = z.object({
@@ -55,7 +55,9 @@ export const BlueprintSchema = z.object({
   characters: z.array(z.any()).optional().default([]),
   
   // Safely default to an empty array.
-  references: z.array(z.string()).optional().default([])
+  references: z.array(z.string()).optional().default([]),
+  
+  perspectives: z.array(z.any()).optional().default([])
 });
 
 // For compatibility with previous types, though we augment them
@@ -119,6 +121,13 @@ export interface TerminalConditions {
   };
 }
 
+export interface SubjectivePerspective {
+  role: 'PROTAGONIST' | 'ANTAGONIST' | 'DIRECTOR';
+  framingDirective: string;     // Purely atmospheric/colorful instructions for the prose
+  sensoryBias: string[];        // What the engine should focus on visually/aurally
+  startingSemanticState: string;// The strict mechanical tag block for Turn 1
+}
+
 export interface ScenarioBlueprint {
   title: string;
   references?: string[];
@@ -148,6 +157,7 @@ export interface ScenarioBlueprint {
     keyPlotElements: string[];
   };
   styleProfile?: ProseStyleVector; // A synthesized description of the user's writing style
+  perspectives?: SubjectivePerspective[];
 }
 
 export interface Message {

@@ -1,5 +1,7 @@
 import { ForgeState } from '../store/useForgeStore';
 
+import { SubjectivePerspective } from '../types';
+
 export interface TerminalConditions {
   somaticTerminal: {
     fatalThresholdTags: string[]; // e.g., ["exsanguinated", "concussed_unconscious"]
@@ -21,6 +23,7 @@ export interface AuthoritativeBlueprint {
   constraints: string[];
   terminalConditions: TerminalConditions;
   cast?: any[];
+  perspectives?: SubjectivePerspective[];
 }
 
 // Add this helper function to format the memory

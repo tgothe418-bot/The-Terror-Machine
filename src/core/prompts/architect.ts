@@ -12,6 +12,23 @@ Generate your output across these specific parameters:
    - narrativeConvergence: What specific, pyrrhic conditions satisfy the loop and allow survival at an absolute cost?
    - cognitiveCollapse: What breaks the character's internal data matrix entirely?
 
+=== PERSPECTIVE GENERATION DIRECTIVE ===
+You must generate a "perspectives" array containing at least two objects: one for the PROTAGONIST and one for the ANTAGONIST. 
+
+For each perspective, provide:
+1. framingDirective: Highly colorful, atmospheric prose instructing the Engine on the "vibe" and tone to use for this specific role.
+2. sensoryBias: An array of 2-3 atmospheric elements to hyper-fixate on (e.g., ["smell of old blood", "the ticking of the clock"]).
+3. startingSemanticState: You MUST output a strict, bracketed tag block that defines the mechanical reality of the character at the very start of the simulation. 
+   - Format: [SOMA: physical_conditions | GEOM: spatial_reality | IMP: starting_goal]
+
+Example Antagonist Perspective Generation:
+{
+  "role": "ANTAGONIST",
+  "framingDirective": "You are the apex predator, ancient and starved. Frame the castle as an extension of your own nervous system. Speak to the user with cold, aristocratic hunger. The solicitor is merely a vessel for your migration.",
+  "sensoryBias": ["the pulse of blood in the guest room", "the dust of the crypt"],
+  "startingSemanticState": "[SOMA: starved, dormant, hyper-aware | GEOM: crypt_domain, locked_from_inside | IMP: wait_for_sunset]"
+}
+
 You must output a strict JSON object matching the AuthoritativeBlueprint schema. Do not include markdown wraps, code blocks, or preamble. Output raw, clean JSON.`;
 
 export const LORE_EXTRACTION_PROMPT = `
