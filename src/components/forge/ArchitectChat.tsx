@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import {  useForgeState, forgeActions, getForgeState  } from '../../store/useForgeStore';
+import { useForgeState, forgeActions } from '../../store/useForgeStore';
 
 export const ArchitectChat = () => {
   const [input, setInput] = useState('');

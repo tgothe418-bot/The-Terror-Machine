@@ -1,6 +1,6 @@
 import { expect, test, beforeEach } from 'vitest';
 import 'fake-indexeddb/auto';
-import {  useForgeState, forgeActions, getForgeState, useForgeStoreInternal  } from './useForgeStore';
+import { useForgeStoreInternal, forgeActions, getForgeState } from './useForgeStore';
 
 beforeEach(() => {
   // Reset the store before each test run

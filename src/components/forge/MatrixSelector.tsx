@@ -1,5 +1,5 @@
 import React from 'react';
-import {  useForgeState, forgeActions, getForgeState  } from '../../store/useForgeStore';
+import { useForgeState, forgeActions } from '../../store/useForgeStore';
 import { HorrorVector, ExposureTier } from '../../types';
 
 const VECTORS: HorrorVector[] = ['SOMATIC', 'COGNITIVE', 'COSMIC', 'SOCIO_MORAL'];

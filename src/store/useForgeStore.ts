@@ -229,8 +229,8 @@ export const useForgeStoreInternal = create<ForgeState & { actions: any }>()(
       name: 'the-forge-memory',
       storage: createJSONStorage(() => idbStorage),
       partialize: (state) => {
-        const { actions, ...rest } = state;
-        const stateWithoutActions = rest as any;
+        const stateWithoutActions = { ...state } as any;
+        delete stateWithoutActions.actions;
         return {
           ...stateWithoutActions,
           messages: stateWithoutActions.messages.map((msg: any) => {
@@ -249,19 +249,20 @@ export function useForgeState<T>(selector: (state: ForgeState) => T): T;
 export function useForgeState(): Readonly<ForgeState>;
 export function useForgeState<T>(selector?: (state: ForgeState) => T) {
   return useForgeStoreInternal((state) => {
-    const { actions, ...readOnlyState } = state;
     if (selector) {
-      return selector(readOnlyState as ForgeState);
+      return selector(state as ForgeState);
     }
-    return readOnlyState as Readonly<ForgeState>;
+    return state as Readonly<ForgeState>;
   });
 }
+
+// Add persist property so that we can call useForgeState.persist.hasHydrated()
+(useForgeState as any).persist = useForgeStoreInternal.persist;
 
 // Ensure all previous code utilizing useForgeStore maps either to useForgeState or to forgeActions.
 export const forgeActions = useForgeStoreInternal.getState().actions;
 export const getForgeState = () => {
-    const { actions, ...readOnlyState } = useForgeStoreInternal.getState();
-    return readOnlyState as Readonly<ForgeState>;
+    return useForgeStoreInternal.getState() as Readonly<ForgeState>;
 };
 
 

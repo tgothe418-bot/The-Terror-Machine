@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Hammer, Play, Ghost, Target, Activity, AlertTriangle, RefreshCw } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import { useVoiceStore } from '../../store/useVoiceStore';
-import {  useForgeState, forgeActions, getForgeState  } from '../../store/useForgeStore';
+import { forgeActions } from '../../store/useForgeStore';
 import { useEngineStore } from '../../core/store';
 import { motion, AnimatePresence } from 'motion/react';
 

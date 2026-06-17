@@ -1,9 +1,25 @@
 import { ForgeState } from '../store/useForgeStore';
 
+export interface TerminalConditions {
+  somaticTerminal: {
+    fatalThresholdTags: string[]; // e.g., ["exsanguinated", "concussed_unconscious"]
+    narrativeResolution: string;   // The cold-archive text when physical shell fails
+  };
+  narrativeConvergence: {
+    requiredStateFlags: string[];  // e.g., ["grid_severed", "sacrifice_recorded"]
+    resolutionSequence: string;    // The pyrrhic closure description (e.g., the Mina Hark resolution)
+  };
+  cognitiveCollapse: {
+    maxWebDensity: number;         // Threshold of reality-breaking entries before fracturing
+    collapseResolution: string;    // The text when the internal matrix shatters into the environment
+  };
+}
+
 export interface AuthoritativeBlueprint {
-  identity: { title: string; version: string };
+  identity: { title: string; version: string; thematicAnchor: string };
   topology: { nodes: string[] };
   constraints: string[];
+  terminalConditions: TerminalConditions;
 }
 
 /**

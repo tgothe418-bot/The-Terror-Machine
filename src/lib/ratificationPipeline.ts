@@ -26,7 +26,7 @@ export const ratifyEngineProposal = (
     if (!jsonMatch) return rawModelOutput; // Return prose directly if no state mutation was attempted
     
     parsedProposal = JSON.parse(jsonMatch[0]);
-  } catch (error) {
+  } catch {
     console.error('[RATIFICATION FAILURE] Output syntax corrupted. Stripping state payload.');
     return rawModelOutput;
   }

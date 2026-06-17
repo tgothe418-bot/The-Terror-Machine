@@ -104,6 +104,21 @@ export interface CharacterProfile {
   behaviorVector?: AutopilotVector;
 }
 
+export interface TerminalConditions {
+  somaticTerminal: {
+    fatalThresholdTags: string[]; // e.g., ["exsanguinated", "concussed_unconscious"]
+    narrativeResolution: string;   // The cold-archive text when physical shell fails
+  };
+  narrativeConvergence: {
+    requiredStateFlags: string[];  // e.g., ["grid_severed", "sacrifice_recorded"]
+    resolutionSequence: string;    // The pyrrhic closure description (e.g., the Mina Hark resolution)
+  };
+  cognitiveCollapse: {
+    maxWebDensity: number;         // Threshold of reality-breaking entries before fracturing
+    collapseResolution: string;    // The text when the internal matrix shatters into the environment
+  };
+}
+
 export interface ScenarioBlueprint {
   title: string;
   references?: string[];
@@ -117,6 +132,7 @@ export interface ScenarioBlueprint {
     atmosphere: string; // Sensory constraints
     timePeriod: string;
   };
+  terminalConditions?: TerminalConditions;
   characters: Array<{
     name: string;
     role: string;

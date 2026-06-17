@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Message, Attachment } from '../../types';
 import { useAppStore } from '../../store/useAppStore';
 import { useVoiceStore } from '../../store/useVoiceStore';
-import {  useForgeState, forgeActions, getForgeState  } from '../../store/useForgeStore';
+import { getForgeState } from '../../store/useForgeStore';
 import { exportConversationToMarkdown } from '../../lib/download';
 
 export default function TheVoice() {

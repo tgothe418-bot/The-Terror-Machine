@@ -3,6 +3,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { ArrowLeft, Terminal, Loader2, Eye } from 'lucide-react';
 import { useEngineStore } from '../../core/store';
 import { useAppStore } from '../../store/useAppStore';
+import { useForgeState } from '../../store/useForgeStore';
 import { motion, AnimatePresence } from 'motion/react';
 import { Message, NarrativeBlock } from '../../types';
 
@@ -56,6 +57,50 @@ export default function Runtime() {
   const [hydrated, setHydrated] = useState(() => useEngineStore.persist.hasHydrated());
   const scrollRef = useRef<HTMLDivElement>(null);
   const [isTelemetryOpen, setIsTelemetryOpen] = useState(false);
+  const [isTerminated, setIsTerminated] = useState(false);
+
+  const activeMemory = useForgeState(state => state.activeMemory);
+
+  // terminal conditions check
+  useEffect(() => {
+    if (!activeBlueprint?.terminalConditions || isTerminated) return;
+
+    const tc = activeBlueprint.terminalConditions;
+    let resolved = false;
+    let resolutionText = '';
+
+    // 1. Somatic Terminal
+    if (tc.somaticTerminal?.fatalThresholdTags?.some(tag => activeMemory.somaticState.includes(tag))) {
+      resolved = true;
+      resolutionText = tc.somaticTerminal.narrativeResolution;
+    } 
+    // 2. Cognitive Collapse
+    else if (tc.cognitiveCollapse && activeMemory.relationalWeb.length >= tc.cognitiveCollapse.maxWebDensity) {
+      resolved = true;
+      resolutionText = tc.cognitiveCollapse.collapseResolution;
+    }
+    // 3. Narrative Convergence
+    else if (
+        tc.narrativeConvergence?.requiredStateFlags?.length > 0 && 
+        tc.narrativeConvergence.requiredStateFlags.every(flag => activeMemory.relationalWeb.includes(flag))
+    ) {
+      resolved = true;
+      resolutionText = tc.narrativeConvergence.resolutionSequence;
+    }
+
+    if (resolved) {
+      queueMicrotask(() => {
+        setIsTerminated(true);
+        addEngineMessage({
+          role: 'system_cinematic',
+          content: `[ TERMINAL CONDITION REACHED ]\n\n${resolutionText}`,
+          timestamp: Date.now()
+        });
+      });
+      console.log('// SIMULATION HALTED: TERMINAL CONDITION MET //');
+    }
+
+  }, [activeMemory, activeBlueprint?.terminalConditions, isTerminated, addEngineMessage]);
 
   // Hijack the TAB key to toggle the X-Ray HUD
   useEffect(() => {
@@ -524,7 +569,7 @@ export default function Runtime() {
           
           <button
             onClick={() => handleCommand(undefined, '[USER_ACTION: OBSERVE]')}
-            disabled={isLoading || isAutopilotRunning}
+            disabled={isLoading || isAutopilotRunning || isTerminated}
             className="flex flex-col items-center gap-1 group text-zinc-700 hover:text-white transition-all disabled:opacity-30 mr-6 pb-4"
             title="Observe / Wait (Advance Simulation)"
           >
@@ -541,7 +586,7 @@ export default function Runtime() {
             <textarea 
               autoFocus
               value={input}
-              disabled={isLoading || isAutopilotRunning}
+              disabled={isLoading || isAutopilotRunning || isTerminated}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => {
                 // Submit on Enter, allow line breaks with Shift+Enter
@@ -550,7 +595,7 @@ export default function Runtime() {
                   handleCommand();
                 }
               }}
-              placeholder={isLoading ? "Processing..." : isAutopilotRunning ? "Autopilot active..." : "What do you do? (Shift+Enter for new line)"}
+              placeholder={isTerminated ? "TERMINAL CONDITION REACHED" : (isLoading ? "Processing..." : isAutopilotRunning ? "Autopilot active..." : "What do you do? (Shift+Enter for new line)")}
               className="w-full bg-transparent text-sm py-3 resize-none focus:outline-none placeholder:text-zinc-700 min-h-[48px] max-h-[30vh] custom-scrollbar leading-relaxed disabled:opacity-50"
             />
             
