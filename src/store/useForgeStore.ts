@@ -43,6 +43,7 @@ export interface EntityMemoryState {
   tacticalImperative: string; // The immediate, shifting goal
   somaticState: string[];     // Physical truths (e.g., "broken arm", "bleeding")
   relationalWeb: string[];    // Environmental/Entity knowledge
+  systemFlags?: string[];
 }
 
 export interface ForgeState {
@@ -155,12 +156,10 @@ export const useForgeStoreInternal = create<ForgeState & { actions: any }>()(
           const nextMemory = { ...state.activeMemory };
           
           if (parsedTags['SOMA']) nextMemory.somaticState = parsedTags['SOMA'];
-          // GEOM mapped to relationalWeb based on instructions
           if (parsedTags['GEOM']) nextMemory.relationalWeb = parsedTags['GEOM'];
           if (parsedTags['IMP']) nextMemory.tacticalImperative = parsedTags['IMP'].join(' ');
+          if (parsedTags['SYS']) nextMemory.systemFlags = parsedTags['SYS'];
           
-          // Optionally map SYS if there's a systemFlags on EntityMemoryState.
-          // The EntityMemoryState doesn't have systemFlags right now, let's just ignore it or add it if necessary.
           return { activeMemory: nextMemory };
         }),
         addArchitectMessage: (message: any) => set((state: ForgeState) => ({ 

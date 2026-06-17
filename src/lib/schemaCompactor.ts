@@ -22,6 +22,20 @@ export interface AuthoritativeBlueprint {
   terminalConditions: TerminalConditions;
 }
 
+// Add this helper function to format the memory
+const formatActiveMemoryTag = (memory: ForgeState['activeMemory']): string => {
+  if (!memory) return '[CURRENT_STATE:: NOMINAL]';
+
+  const parts = [];
+  if (memory.somaticState?.length) parts.push(`SOMA: ${memory.somaticState.join(', ')}`);
+  if (memory.relationalWeb?.length) parts.push(`GEOM: ${memory.relationalWeb.join(', ')}`);
+  if (memory.tacticalImperative) parts.push(`IMP: ${memory.tacticalImperative}`);
+  if (memory.systemFlags?.length) parts.push(`SYS: ${memory.systemFlags.join(', ')}`);
+
+  const denseString = parts.filter(Boolean).join(' | ');
+  return denseString ? `[CURRENT_STATE:: ${denseString}]` : '[CURRENT_STATE:: NOMINAL]';
+};
+
 /**
  * Strips away loose structural JSON syntax noise and flattens the blueprint
  * state into highly dense, semantic facts designed to anchor the model's attention heads.
@@ -40,13 +54,7 @@ export const compileStateToDenseOntology = (
     .map(c => `ENTITY_ID:${c.id}(${c.name})=>STATUS:${c.psychological_status}`)
     .join(';');
 
-  // ─── NEW: MULTI-VECTOR MEMORY EXTRACTION ───
-  const mem = currentState.activeMemory;
-  const denseMemory = [
-    `TACTICAL_IMPERATIVE::${mem.tacticalImperative}`,
-    `SOMATIC_STATE::[${mem.somaticState.join(', ')}]`,
-    `RELATIONAL_WEB::[${mem.relationalWeb.join(' | ')}]`
-  ].join('\n');
+  const currentStateTag = formatActiveMemoryTag(currentState.activeMemory);
 
   // Re-assemble into an immutable, flat system string block
   return [
@@ -54,6 +62,6 @@ export const compileStateToDenseOntology = (
     denseTopology,
     `[CRITICAL_CONSTRAINTS::${denseConstraints}]`,
     `[TRAUMA_STATE_LEDGER::${denseTrauma}]`,
-    `[ACTIVE_MEMORY_VECTORS]\n${denseMemory}`
+    currentStateTag
   ].join('\n\n');
 };
