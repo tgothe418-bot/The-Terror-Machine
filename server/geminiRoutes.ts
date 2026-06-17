@@ -653,20 +653,56 @@ router.post("/extract-blueprint", async (req, res) => {
       OUTPUT FORMAT REQUIREMENTS:
       You MUST output ONLY a valid JSON object matching this exact interface. Do not include markdown formatting or conversational text outside the JSON block.
 
+      CRITICAL EXTRACTION RULES:
+      1. AGNOSTIC SANDBOX: The "globalPremise" MUST be written in the third-person objective. Do NOT use "You", "We", or "I". Describe the scenario like a detached, clinical observer.
+      2. FORCE ENTITY CASTING: You MUST extract the primary antagonist, monster, or hostile environment (e.g., AM, Dracula, The Overlook) as a discrete cast member in the "cast" array. Set "isEntity": true. DO NOT SKIP THE VILLAIN.
+      3. TOPOLOGY REQUIRED: You must extract 3-5 distinct spatial zones from the text for "topology.nodes".
+      4. PERSPECTIVES: Generate a "PROTAGONIST" and "ANTAGONIST" perspective block. The startingSemanticState must be formatted as [SOMA: ... | GEOM: ... | IMP: ...].
+
       {
         "architectGreeting": "A short, 1-2 sentence in-character greeting acknowledging the specific horror themes of the document you just read, noting its addition to the knowledgebase.",
         "blueprint": {
-          "title": "A compelling title based on the source",
-          "premise": "A 2-3 sentence atmospheric setup",
-          "startingVector": "SOMATIC" | "COGNITIVE" | "COSMIC" | "SOCIO_MORAL",
-          "startingTier": "GATEWAY" | "LATENT" | "MANIFEST" | "TERMINAL",
-          "environmentalRules": "Strict, specific rules the Engine must follow to replicate this document's physics and atmosphere.",
+          "identity": {
+            "title": "A compelling title based on the source",
+            "version": "1.0.0",
+            "author": "Extracted"
+          },
+          "globalPremise": "Third-person objective reality of the scenario...",
+          "startingVector": "SOMATIC",
+          "startingTier": "GATEWAY",
+          "environmentalRules": ["Strict rule 1", "Strict rule 2"],
+          "topology": {
+            "nodes": ["MAIN_CORRIDOR", "THE_CRYPT", "MAINTENANCE_SHAFT"],
+            "connections": ["MAIN_CORRIDOR -> THE_CRYPT"]
+          },
           "cast": [
             {
               "id": "char-1",
-              "name": "Character Name",
+              "name": "Human Character",
               "description": "Brief psychological/physical description",
-              "behaviorVector": "ADAPTIVE" | "INSURGENT" | "PANIC"
+              "behaviorVector": "ADAPTIVE",
+              "isEntity": false
+            },
+            {
+              "id": "char-2",
+              "name": "The Monster/AI",
+              "description": "Brief description of the threat",
+              "behaviorVector": "PREDATORY",
+              "isEntity": true
+            }
+          ],
+          "perspectives": [
+            {
+              "role": "PROTAGONIST",
+              "framingDirective": "Frame the world as hostile. Address the user directly as 'You'.",
+              "sensoryBias": ["cold steel", "smell of blood"],
+              "startingSemanticState": "[SOMA: shivering | GEOM: trapped | IMP: survive]"
+            },
+            {
+              "role": "ANTAGONIST",
+              "framingDirective": "Invert the premise. The user is the apex predator. Address the user directly as 'You'.",
+              "sensoryBias": ["heartbeats", "scent of fear"],
+              "startingSemanticState": "[SOMA: hyper-aware | GEOM: omnipresent | IMP: hunt]"
             }
           ]
         }
