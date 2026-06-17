@@ -5,6 +5,7 @@ import { ArchitectChat } from './ArchitectChat';
 import { BlueprintTester } from './BlueprintTester';
 import { FileDropzone } from './FileDropzone';
 import { MatrixSelector } from './MatrixSelector';
+import { SpatialManager } from './SpatialManager';
 import { ArrowLeft, Trash2 } from 'lucide-react';
 import { AutopilotVector } from '../../types';
 
@@ -126,6 +127,9 @@ export default function Forge() {
           
           {/* Matrix Coordinates */}
           <MatrixSelector />
+
+          {/* Spatial Topology Matrix */}
+          <SpatialManager />
 
           {/* EXPANDED PARAMETER CARDS DECK */}
           <div className="space-y-6 pt-4 border-t border-zinc-900 flex-grow">

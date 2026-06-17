@@ -41,7 +41,7 @@ export interface DraftBlueprint {
 
 export interface ForgeState {
   castLedger: CastMember[];
-  spatialNodes: string[];
+  topology: Record<string, string[]>;
   messages: Message[];
   availableReferenceCharacters: CharacterProfile[];
   selectedCharacters: CharacterProfile[];
@@ -63,7 +63,9 @@ export interface ForgeState {
 
 const initialState: ForgeState = {
   castLedger: [],
-  spatialNodes: ['NODE_INIT'],
+  topology: {
+    'NODE_INIT': []
+  },
   messages: [
     {
       role: 'assistant',
@@ -106,6 +108,34 @@ export const useForgeStoreInternal = create<ForgeState & { actions: any }>()(
           castLedger: state.castLedger.filter(m => m.id !== id)
         })),
         resetStore: () => set(initialState),
+        addSpatialNode: (nodeId: string) => set((state: ForgeState) => {
+          if (state.topology[nodeId]) return state; // Prevent duplicates
+          return { topology: { ...state.topology, [nodeId]: [] } };
+        }),
+        removeSpatialNode: (nodeId: string) => set((state: ForgeState) => {
+          const newTopology = { ...state.topology };
+          delete newTopology[nodeId];
+          // Clean up orphaned edges
+          Object.keys(newTopology).forEach(key => {
+            newTopology[key] = newTopology[key].filter(id => id !== nodeId);
+          });
+          return { topology: newTopology };
+        }),
+        toggleSpatialEdge: (nodeA: string, nodeB: string) => set((state: ForgeState) => {
+          const edgesA = state.topology[nodeA] || [];
+          const isConnected = edgesA.includes(nodeB);
+          
+          return {
+            topology: {
+              ...state.topology,
+              [nodeA]: isConnected ? edgesA.filter(id => id !== nodeB) : [...edgesA, nodeB],
+              // Bi-directional constraint enforcement
+              [nodeB]: isConnected 
+                ? (state.topology[nodeB] || []).filter(id => id !== nodeA)
+                : [...(state.topology[nodeB] || []), nodeA]
+            }
+          };
+        }),
         addArchitectMessage: (message: any) => set((state: ForgeState) => ({ 
           architectMessages: [...state.architectMessages, message] 
         })),
