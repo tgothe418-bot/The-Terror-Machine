@@ -1,6 +1,29 @@
 import { Message, ScenarioBlueprint, BicameralOutput, LogicState, ProseStyleVector, ForgePhase, ReferenceMaterial, ExtractedLore, AppPhase } from "../types";
 import {  useForgeState, forgeActions, getForgeState  } from '../store/useForgeStore';
-import { DISTILLATION_SYSTEM_PROMPT } from "../core/prompts/distillation";
+import { DISTILLATION_SYSTEM_PROMPT, DISTILLATION_PROMPT } from "../core/prompts/distillation";
+
+export const generateCinematicSummary = async (excisedMessages: Message[]): Promise<string> => {
+  const conversationText = excisedMessages
+    .map(m => `${m.role === 'user' ? 'SUBJECT' : 'ENGINE'}: ${m.content}`)
+    .join('\n\n');
+
+  try {
+    const response = await fetch('/api/gemini/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        prompt: `${DISTILLATION_PROMPT}\n${conversationText}` 
+      })
+    });
+    
+    if (!response.ok) throw new Error('Distillation failed');
+    const data = await response.json();
+    return data.text;
+  } catch (error) {
+    console.error("[DISTILLATION ERROR] Falling back to static marker.", error);
+    return "The timeline fractures, memories compressing into a dense, inescapable dread. Time dilates, stripping away the immediate past to leave only the heavy, somatic weight of what has already transpired.";
+  }
+};
 
 export const distillContext = async (currentSummary: string, flattenedTranscript: string): Promise<string> => {
   try {

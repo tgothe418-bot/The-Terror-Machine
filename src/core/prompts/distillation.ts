@@ -11,3 +11,12 @@ You must return a strict JSON object matching this schema:
   "act_summary": "The 4-5 sentence cinematic summary."
 }
 `;
+
+export const DISTILLATION_PROMPT = `You are the structural narrator of a psychological simulation.
+The following narrative block is being removed from active memory to prevent cognitive overload.
+
+Write a dense, atmospheric, 4-5 sentence paragraph summarizing the events, emotional shifts, and physical actions that occurred in this block. 
+Write in the third-person, matching the clinical, inevitable tone of the simulation. Do not use dialogue.
+
+[ EXCISED NARRATIVE BLOCK ]:
+`;

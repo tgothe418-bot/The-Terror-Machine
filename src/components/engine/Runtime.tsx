@@ -17,6 +17,7 @@ const formatBlocks = (blocks?: NarrativeBlock[]): string => {
   }).join('\n\n');
 };
 import { exportEngineLog } from '../../lib/download';
+import { executeContextCleaver } from '../../lib/contextCleaver';
 import { sendEngineTurn, fetchSimulatedPlayerAction, triggerMemoryForge } from '../../services/geminiService';
 import ErgodicTextRenderer from './ErgodicTextRenderer';
 import { useTelemetryStore } from '../../store/useTelemetryStore';
@@ -207,21 +208,31 @@ export default function Runtime() {
     if (!commandText.trim() || isLoading) return;
 
     const userMsg: Message = { role: 'user', content: commandText, timestamp: Date.now() };
-    
+
     addEngineMessage(userMsg);
     if (!overrideInput) setInput('');
     setIsLoading(true);
 
     try {
       const storeState = useEngineStore.getState();
+      
+      // Phase 3: Context Cleaver & Distillation
+      const cleansedMessages = await executeContextCleaver(storeState.engineMessages);
+      if (cleansedMessages.length !== storeState.engineMessages.length) {
+        useEngineStore.getState().setEngineMessages(cleansedMessages);
+      }
+
+      // Refresh storeState after possible mutation
+      const activeStoreState = useEngineStore.getState();
+
       const response = await sendEngineTurn(
-        storeState.engineTextBuffer,
+        activeStoreState.engineTextBuffer,
         gameState,
         activeBlueprint!,
-        storeState.engineWorldStateSummary,
-        storeState.currentVector,
-        storeState.currentTier,
-        storeState.currentTensionLevel
+        activeStoreState.engineWorldStateSummary,
+        activeStoreState.currentVector,
+        activeStoreState.currentTier,
+        activeStoreState.currentTensionLevel
       );
       
       if (response.suggested_tension) {
