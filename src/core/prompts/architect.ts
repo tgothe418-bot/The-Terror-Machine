@@ -43,12 +43,17 @@ RULES:
 
 {
   "extracted_cast": [
-     { "id": "unique_string", "name": "string", "role": "string", "personality": "string", "goals": "string", "traits": ["string"], "isUserCharacter": false }
+     { "id": "unique_string", "name": "string", "role": "string", "personality": "string", "goals": "string", "traits": ["string"], "isUserCharacter": false, "behaviorVector": "string" }
   ],
   "extracted_setting": "Detailed description of the environment, time period, and visual atmosphere.",
   "extracted_threat": "Detailed description of the primary antagonist, monster, or hostile force.",
   "extracted_style": "Notes on the aesthetic, tone, or specific sensory details present in the references."
 }
+
+=== CRITICAL CAST EXTRACTION RULE ===
+You MUST include the primary antagonist, monster, or hostile entity as a discrete Cast Member in the array, even if they are non-human, environmental, or an AI (e.g., the xenomorph, a haunted house, a rogue supercomputer). 
+- Assign them a behaviorVector that reflects their threat type (e.g., PREDATORY, OMNIPRESENT, INSURGENT).
+- Ensure they are explicitly named so the Engine can track their state.
 `;
 
 export const ARCHITECT_SYSTEM_PROMPT = `

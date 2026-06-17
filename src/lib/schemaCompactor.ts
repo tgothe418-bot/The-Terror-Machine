@@ -69,7 +69,8 @@ export const compileStateToDenseOntology = (
     .join(';');
 
   // Extract the specific character data based on the user's UI selection
-  const linkedCharacter = blueprint.cast?.find(c => c.role === currentState.activeNeuralLink) 
+  const linkedCharacter = blueprint.cast?.find(c => c.id === currentState.activeCharacterId) 
+    || blueprint.cast?.find(c => c.role === currentState.activeNeuralLink)
     || blueprint.cast?.[0]; // Fallback just in case
 
   const neuralLinkTag = linkedCharacter 

@@ -2,7 +2,7 @@ import React, { useRef, useState } from 'react';
 import { ArrowLeft, Upload, AlertCircle, Users, Shield, Skull, Activity, Play } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import { useEngineStore } from '../../core/store';
-import { forgeActions } from '../../store/useForgeStore';
+import { forgeActions, useForgeState } from '../../store/useForgeStore';
 import { ScenarioBlueprint, BlueprintSchema } from '../../types';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -12,6 +12,7 @@ interface EngineSetupProps {
 
 export default function EngineSetup({ onContinue }: EngineSetupProps) {
   const setPhase = useAppStore((state) => state.setPhase);
+  const activeCharacterId = useForgeState((state) => state.activeCharacterId);
   const activeBlueprint = useEngineStore((state) => state.activeBlueprint);
   const setBlueprint = useEngineStore((state) => state.setBlueprint);
   const [error, setError] = useState<string | null>(null);
@@ -35,6 +36,7 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
           const validated = BlueprintSchema.parse(parsed);
           // @ts-expect-error - The blueprint schemas we just made might have minor divergence from legacy ScenarioBlueprint, forcing it through for now
           setPreviewBlueprint(validated as ScenarioBlueprint);
+          forgeActions.setActiveCharacterId(validated.cast?.[0]?.id || null);
         } catch (validationErr: unknown) {
           console.error("Zod Validation Failed:", validationErr);
           const errorMsg = validationErr instanceof Error ? validationErr.message : String(validationErr);
@@ -171,26 +173,34 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
                         <Users className="w-3 h-3" />
                         Cast Members
                       </h3>
-                      <div className="space-y-3">
-                        {previewBlueprint.cast?.map((char, i) => (
-                          <div key={char.id || i} className="group p-3 bg-zinc-950 border border-zinc-800 rounded">
-                            <div className="flex justify-between items-baseline mb-2">
-                              <span className="text-sm font-medium text-zinc-200">{char.name}</span>
-                              <span className="text-[10px] text-cyan-500/80 uppercase tracking-widest bg-cyan-900/10 px-2 py-0.5 rounded border border-cyan-900/30">
-                                {char.behaviorVector || 'ADAPTIVE'}
-                              </span>
+                        <div className="grid grid-cols-1 gap-3">
+                          {previewBlueprint.cast?.map((char, i) => (
+                            <div 
+                              key={char.id || i}
+                              onClick={() => forgeActions.setActiveCharacterId(char.id)}
+                              className={`p-3 border cursor-pointer transition-colors ${
+                                activeCharacterId === char.id 
+                                  ? 'border-red-500 bg-red-950/20' 
+                                  : 'border-zinc-800 hover:border-zinc-600 bg-zinc-950'
+                              }`}
+                            >
+                              <div className="flex justify-between items-center mb-2">
+                                <h3 className="text-sm text-zinc-100 font-bold">{char.name}</h3>
+                                <span className="text-[10px] uppercase font-mono text-cyan-600 px-2 py-1 border border-cyan-900 rounded bg-cyan-950/30">
+                                  {char.behaviorVector || char.behavioralVector || 'ADAPTIVE'}
+                                </span>
+                              </div>
+                              {char.description && (
+                                <p className="text-[10px] text-zinc-400 leading-relaxed font-mono">
+                                  {char.description}
+                                </p>
+                              )}
                             </div>
-                            {char.description && (
-                              <p className="text-[10px] text-zinc-400 leading-relaxed font-mono">
-                                {char.description}
-                              </p>
-                            )}
-                          </div>
-                        ))}
+                          ))}
+                        </div>
                         {(!previewBlueprint.cast || previewBlueprint.cast.length === 0) && (
                           <div className="text-[10px] text-zinc-600 italic">No cast identified in blueprint.</div>
                         )}
-                      </div>
                     </div>
 
                     <div>

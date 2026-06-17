@@ -69,6 +69,7 @@ export interface ForgeState {
   when: string;
   whyHow: string;
   activeNeuralLink: 'PROTAGONIST' | 'ANTAGONIST';
+  activeCharacterId: string | null;
 }
 
 const initialState: ForgeState = {
@@ -106,7 +107,8 @@ const initialState: ForgeState = {
   when: '',
   whyHow: '',
   draftBlueprint: null,
-  activeNeuralLink: 'PROTAGONIST'
+  activeNeuralLink: 'PROTAGONIST',
+  activeCharacterId: null
 };
 
 export const useForgeStoreInternal = create<ForgeState & { actions: any }>()(
@@ -238,6 +240,7 @@ export const useForgeStoreInternal = create<ForgeState & { actions: any }>()(
           referenceMaterials: state.referenceMaterials.filter(m => m.id !== id)
         })),
         setActiveNeuralLink: (role: 'PROTAGONIST' | 'ANTAGONIST') => set({ activeNeuralLink: role }),
+        setActiveCharacterId: (id: string | null) => set({ activeCharacterId: id }),
         startSimulation: (blueprint: any) => set((state: ForgeState) => {
           const activePerspective = blueprint?.perspectives?.find(
             (p: any) => p.role === state.activeNeuralLink
