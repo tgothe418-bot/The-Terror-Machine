@@ -236,12 +236,11 @@ export default function Forge() {
               {/* 3. WHERE // ENCLOSURE ENVIRONMENT */}
               <div className="bg-zinc-950 border border-zinc-800 focus-within:border-zinc-700 p-4 rounded flex flex-col shadow-lg transition-colors">
                 <label className="text-zinc-500 font-mono text-[10px] uppercase tracking-wider mb-2">ENCLOSURE ENVIRONMENT (WHERE)</label>
-                <textarea 
-                  value={draftBlueprint?.title || ''}
-                  onChange={(e) => updateDraft({ title: e.target.value })}
-                  className="w-full bg-transparent text-zinc-300 font-mono text-xs resize-none focus:outline-none custom-scrollbar min-h-[120px] leading-relaxed"
-                  placeholder="Map out localized architectures, environmental geometry, or matrix space rules..."
-                />
+                <div className="text-zinc-400 text-sm font-mono whitespace-pre-wrap h-full overflow-y-auto min-h-[120px]">
+                  {Array.isArray(draftBlueprint?.environmentalRules) && draftBlueprint?.environmentalRules.length 
+                    ? draftBlueprint.environmentalRules.map((rule: string) => `• ${rule}`).join('\n') 
+                    : draftBlueprint?.environmentalRules || "Map out localized architectures, environmental geometry, or matrix space rules..."}
+                </div>
               </div>
 
               {/* 4. WHEN // TEMPORAL ANCHOR */}
@@ -265,12 +264,9 @@ export default function Forge() {
             {/* 5. WHY / HOW // SYSTEMIC VECTOR DIRECTIVE */}
             <div className="bg-zinc-950 border border-zinc-800 focus-within:border-zinc-700 p-4 rounded flex flex-col shadow-lg transition-colors">
               <label className="text-zinc-500 font-mono text-[10px] uppercase tracking-widest mb-2">SYSTEMIC VECTOR DIRECTIVE (WHY / HOW)</label>
-              <textarea 
-                value={draftBlueprint?.premise || ''}
-                onChange={(e) => updateDraft({ premise: e.target.value })}
-                className="w-full bg-transparent text-zinc-300 font-mono text-xs resize-none focus:outline-none custom-scrollbar min-h-[140px] leading-relaxed"
-                placeholder="Calibrate primary narrative trajectories, logic overrides, or operational vector conditions..."
-              />
+              <div className="text-zinc-400 text-sm font-mono whitespace-pre-wrap min-h-[140px]">
+                {draftBlueprint?.globalPremise || draftBlueprint?.premise || "Calibrate primary narrative trajectories, logic overrides, or operational vector conditions..."}
+              </div>
             </div>
           </div>
 

@@ -663,6 +663,7 @@ router.post("/extract-blueprint", async (req, res) => {
          - For Cosmic Horror: use biases like "geometric distortion", "unseen watchers", "creeping dread".
          - For Cyber-Horror: use biases like "thermal tracking", "omnipresent surveillance", "mechanical hum".
          Extract 3-4 perceptual lenses that perfectly match the uploaded scenario.
+      6. COMPREHENSIVE CASTING: You must extract ALL main characters and entities from the text. Do not arbitrarily stop at 3 or 4. Whether the source material features a large ensemble, a single protagonist and a haunted house, or a sprawling crew, your "cast" array MUST reflect the entire primary cast list. Exhaust the list.
 
       {
         "architectGreeting": "A short, 1-2 sentence in-character greeting acknowledging the specific horror themes of the document you just read, noting its addition to the knowledgebase.",
