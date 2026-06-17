@@ -658,6 +658,11 @@ router.post("/extract-blueprint", async (req, res) => {
       2. FORCE ENTITY CASTING: You MUST extract the primary antagonist, monster, or hostile environment (e.g., AM, Dracula, The Overlook) as a discrete cast member in the "cast" array. Set "isEntity": true. DO NOT SKIP THE VILLAIN.
       3. TOPOLOGY REQUIRED: You must extract 3-5 distinct spatial zones from the text for "topology.nodes".
       4. PERSPECTIVES: Generate a "PROTAGONIST" and "ANTAGONIST" perspective block. The startingSemanticState must be formatted as [SOMA: ... | GEOM: ... | IMP: ...].
+      5. DYNAMIC SENSORY FILTERS: The "sensoryBias" array must be dynamically generated based strictly on the subgenre and tone of the source text. 
+         - For a Slasher: use biases like "predatory focus", "heavy footfalls", "spatial isolation".
+         - For Cosmic Horror: use biases like "geometric distortion", "unseen watchers", "creeping dread".
+         - For Cyber-Horror: use biases like "thermal tracking", "omnipresent surveillance", "mechanical hum".
+         Extract 3-4 perceptual lenses that perfectly match the uploaded scenario.
 
       {
         "architectGreeting": "A short, 1-2 sentence in-character greeting acknowledging the specific horror themes of the document you just read, noting its addition to the knowledgebase.",
@@ -694,15 +699,23 @@ router.post("/extract-blueprint", async (req, res) => {
           "perspectives": [
             {
               "role": "PROTAGONIST",
-              "framingDirective": "Frame the world as hostile. Address the user directly as 'You'.",
-              "sensoryBias": ["cold steel", "smell of blood"],
-              "startingSemanticState": "[SOMA: shivering | GEOM: trapped | IMP: survive]"
+              "framingDirective": "Frame the world as hostile and threatening. Address the user directly as 'You'. Tailor the psychological threat to the specific genre of the source material.",
+              "sensoryBias": [
+                "<extract thematic sensory focus 1>", 
+                "<extract thematic sensory focus 2>", 
+                "<extract thematic sensory focus 3>"
+              ],
+              "startingSemanticState": "[SOMA: <state> | GEOM: <state> | IMP: <state>]"
             },
             {
               "role": "ANTAGONIST",
-              "framingDirective": "Invert the premise. The user is the apex predator. Address the user directly as 'You'.",
-              "sensoryBias": ["heartbeats", "scent of fear"],
-              "startingSemanticState": "[SOMA: hyper-aware | GEOM: omnipresent | IMP: hunt]"
+              "framingDirective": "Invert the premise. The user is the apex predator, entity, or environment. Address the user directly as 'You'.",
+              "sensoryBias": [
+                "<extract thematic sensory focus 1>", 
+                "<extract thematic sensory focus 2>", 
+                "<extract thematic sensory focus 3>"
+              ],
+              "startingSemanticState": "[SOMA: <state> | GEOM: <state> | IMP: <state>]"
             }
           ]
         }
