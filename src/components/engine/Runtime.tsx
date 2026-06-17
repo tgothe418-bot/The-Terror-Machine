@@ -22,7 +22,8 @@ import ErgodicTextRenderer from './ErgodicTextRenderer';
 import { useTelemetryStore } from '../../store/useTelemetryStore';
 
 const SESSION_TIMEOUT = 60 * 60 * 1000; // 60 minutes
-// ...
+const HEARTBEAT_INTERVAL = 30000; // 30 seconds
+
 export default function Runtime() {
   const activeBlueprint = useEngineStore((state) => state.activeBlueprint);
   const gameState = useEngineStore((state) => state.gameState);

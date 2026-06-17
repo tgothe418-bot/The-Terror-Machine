@@ -18,6 +18,16 @@ export const defaultStyleVector: ProseStyleVector = {
   ]
 };
 
+export type CastRole = 'PROTAGONIST' | 'ANTAGONIST' | 'SENTINEL' | 'ENTITY' | 'OBSERVER';
+
+export interface CastMember {
+  id: string;
+  name: string;
+  role: CastRole;
+  psychological_status: string;
+  starting_location: string;
+}
+
 export interface DraftBlueprint {
   id?: string;
   title?: string;
@@ -30,6 +40,10 @@ export interface DraftBlueprint {
 }
 
 interface ForgeState {
+  castLedger: CastMember[];
+  addCastMember: (member: Omit<CastMember, 'id'>) => void;
+  updateCastMember: (id: string, updates: Partial<CastMember>) => void;
+  removeCastMember: (id: string) => void;
   messages: Message[];
   availableReferenceCharacters: CharacterProfile[];
   selectedCharacters: CharacterProfile[];
@@ -81,6 +95,16 @@ interface ForgeState {
 export const useForgeStore = create<ForgeState>()(
   persist(
     (set) => ({
+      castLedger: [],
+      addCastMember: (member) => set((state) => ({
+        castLedger: [...state.castLedger, { ...member, id: crypto.randomUUID() }]
+      })),
+      updateCastMember: (id, updates) => set((state) => ({
+        castLedger: state.castLedger.map(m => m.id === id ? { ...m, ...updates } : m)
+      })),
+      removeCastMember: (id) => set((state) => ({
+        castLedger: state.castLedger.filter(m => m.id !== id)
+      })),
       messages: [
         {
           role: 'assistant',
