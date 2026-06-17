@@ -36,6 +36,16 @@ const formatActiveMemoryTag = (memory: ForgeState['activeMemory']): string => {
   return denseString ? `[CURRENT_STATE:: ${denseString}]` : '[CURRENT_STATE:: NOMINAL]';
 };
 
+const formatTerminalConditions = (terminals: AuthoritativeBlueprint['terminalConditions']): string => {
+  if (!terminals) return '';
+  return [
+    `[TERMINAL_BOUNDARIES]`,
+    `FATAL_SOMATIC_THRESHOLDS: ${terminals.somaticTerminal?.fatalThresholdTags?.join(', ') || 'N/A'}`,
+    `NARRATIVE_CONVERGENCE_REQUIREMENTS: ${terminals.narrativeConvergence?.requiredStateFlags?.join(', ') || 'N/A'}`,
+    `MAX_COGNITIVE_DENSITY: ${terminals.cognitiveCollapse?.maxWebDensity || 'N/A'} active GEOM/RELATIONAL anomalies.`
+  ].join('\n');
+};
+
 /**
  * Strips away loose structural JSON syntax noise and flattens the blueprint
  * state into highly dense, semantic facts designed to anchor the model's attention heads.
@@ -54,6 +64,7 @@ export const compileStateToDenseOntology = (
     .map(c => `ENTITY_ID:${c.id}(${c.name})=>STATUS:${c.psychological_status}`)
     .join(';');
 
+  const terminalBoundariesTag = formatTerminalConditions(blueprint.terminalConditions);
   const currentStateTag = formatActiveMemoryTag(currentState.activeMemory);
 
   // Re-assemble into an immutable, flat system string block
@@ -62,6 +73,7 @@ export const compileStateToDenseOntology = (
     denseTopology,
     `[CRITICAL_CONSTRAINTS::${denseConstraints}]`,
     `[TRAUMA_STATE_LEDGER::${denseTrauma}]`,
+    terminalBoundariesTag,
     currentStateTag
   ].join('\n\n');
 };

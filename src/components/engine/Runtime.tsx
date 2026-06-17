@@ -58,39 +58,37 @@ export default function Runtime() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [isTelemetryOpen, setIsTelemetryOpen] = useState(false);
   const [isTerminated, setIsTerminated] = useState(false);
+  const [terminalResolution, setTerminalResolution] = useState<string | null>(null);
 
   const activeMemory = useForgeState(state => state.activeMemory);
+  const systemFlags = activeMemory.systemFlags;
 
   // terminal conditions check
   useEffect(() => {
-    if (!activeBlueprint?.terminalConditions || isTerminated) return;
+    if (!systemFlags || systemFlags.length === 0 || isTerminated) return;
 
-    const tc = activeBlueprint.terminalConditions;
+    const tc = activeBlueprint?.terminalConditions;
+    if (!tc) return;
+
     let resolved = false;
     let resolutionText = '';
 
-    // 1. Somatic Terminal
-    if (tc.somaticTerminal?.fatalThresholdTags?.some(tag => activeMemory.somaticState.includes(tag))) {
+    // Evaluate the flag and pull the hardcoded resolution text
+    if (systemFlags.includes('SOMATIC_TERMINAL')) {
       resolved = true;
       resolutionText = tc.somaticTerminal.narrativeResolution;
-    } 
-    // 2. Cognitive Collapse
-    else if (tc.cognitiveCollapse && activeMemory.relationalWeb.length >= tc.cognitiveCollapse.maxWebDensity) {
-      resolved = true;
-      resolutionText = tc.cognitiveCollapse.collapseResolution;
-    }
-    // 3. Narrative Convergence
-    else if (
-        tc.narrativeConvergence?.requiredStateFlags?.length > 0 && 
-        tc.narrativeConvergence.requiredStateFlags.every(flag => activeMemory.relationalWeb.includes(flag))
-    ) {
+    } else if (systemFlags.includes('NARRATIVE_CONVERGENCE')) {
       resolved = true;
       resolutionText = tc.narrativeConvergence.resolutionSequence;
+    } else if (systemFlags.includes('COGNITIVE_COLLAPSE')) {
+      resolved = true;
+      resolutionText = tc.cognitiveCollapse.collapseResolution;
     }
 
     if (resolved) {
       queueMicrotask(() => {
         setIsTerminated(true);
+        setTerminalResolution(resolutionText);
         addEngineMessage({
           role: 'system_cinematic',
           content: `[ TERMINAL CONDITION REACHED ]\n\n${resolutionText}`,
@@ -100,7 +98,7 @@ export default function Runtime() {
       console.log('// SIMULATION HALTED: TERMINAL CONDITION MET //');
     }
 
-  }, [activeMemory, activeBlueprint?.terminalConditions, isTerminated, addEngineMessage]);
+  }, [systemFlags, activeBlueprint?.terminalConditions, isTerminated, addEngineMessage]);
 
   // Hijack the TAB key to toggle the X-Ray HUD
   useEffect(() => {
@@ -564,6 +562,18 @@ export default function Runtime() {
       </div>
 
       {/* MINIMALIST INPUT CONSOLE */}
+      {isTerminated ? (
+        <div className="w-full shrink-0 pb-8 px-8 relative z-10 bg-black pt-4">
+          <div className="max-w-3xl mx-auto relative border-t border-red-900 bg-red-950/20 p-6 mt-4 text-center rounded">
+            <div className="text-red-500 font-bold tracking-[0.3em] uppercase mb-2">
+              [ SIMULATION TERMINATED ]
+            </div>
+            <p className="text-zinc-400 font-serif text-sm">
+              {terminalResolution}
+            </p>
+          </div>
+        </div>
+      ) : (
       <div className="w-full shrink-0 pb-8 px-8 relative z-10 bg-black pt-4">
         <div className="max-w-3xl mx-auto relative flex items-end">
           
@@ -638,6 +648,7 @@ export default function Runtime() {
 
         </div>
       </div>
+      )}
 
       {/* ========================================= */}
       {/* DUAL-PANE X-RAY TELEMETRY HUD             */}
