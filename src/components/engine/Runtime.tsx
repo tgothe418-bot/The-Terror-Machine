@@ -17,7 +17,6 @@ const formatBlocks = (blocks?: NarrativeBlock[]): string => {
   }).join('\n\n');
 };
 import { exportEngineLog } from '../../lib/download';
-import { executeContextCleaver } from '../../lib/contextCleaver';
 import { sendEngineTurn, fetchSimulatedPlayerAction, triggerMemoryForge } from '../../services/geminiService';
 import ErgodicTextRenderer from './ErgodicTextRenderer';
 import { useTelemetryStore } from '../../store/useTelemetryStore';
@@ -214,15 +213,6 @@ export default function Runtime() {
     setIsLoading(true);
 
     try {
-      const storeState = useEngineStore.getState();
-      
-      // Phase 3: Context Cleaver & Distillation
-      const cleansedMessages = await executeContextCleaver(storeState.engineMessages);
-      if (cleansedMessages.length !== storeState.engineMessages.length) {
-        useEngineStore.getState().setEngineMessages(cleansedMessages);
-      }
-
-      // Refresh storeState after possible mutation
       const activeStoreState = useEngineStore.getState();
 
       const response = await sendEngineTurn(

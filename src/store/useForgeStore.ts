@@ -39,9 +39,16 @@ export interface DraftBlueprint {
   cast?: any[];
 }
 
+export interface EntityMemoryState {
+  tacticalImperative: string; // The immediate, shifting goal
+  somaticState: string[];     // Physical truths (e.g., "broken arm", "bleeding")
+  relationalWeb: string[];    // Environmental/Entity knowledge
+}
+
 export interface ForgeState {
   castLedger: CastMember[];
   topology: Record<string, string[]>;
+  activeMemory: EntityMemoryState;
   messages: Message[];
   availableReferenceCharacters: CharacterProfile[];
   selectedCharacters: CharacterProfile[];
@@ -65,6 +72,11 @@ const initialState: ForgeState = {
   castLedger: [],
   topology: {
     'NODE_INIT': []
+  },
+  activeMemory: {
+    tacticalImperative: "Survive and assess the immediate surroundings.",
+    somaticState: ["Baseline health"],
+    relationalWeb: ["Subject is isolated."]
   },
   messages: [
     {
@@ -136,6 +148,9 @@ export const useForgeStoreInternal = create<ForgeState & { actions: any }>()(
             }
           };
         }),
+        updateActiveMemory: (updates: Partial<EntityMemoryState>) => set((state: ForgeState) => ({
+          activeMemory: { ...state.activeMemory, ...updates }
+        })),
         addArchitectMessage: (message: any) => set((state: ForgeState) => ({ 
           architectMessages: [...state.architectMessages, message] 
         })),
