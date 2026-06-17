@@ -4,7 +4,6 @@ export interface AuthoritativeBlueprint {
   identity: { title: string; version: string };
   topology: { nodes: string[] };
   constraints: string[];
-  traumaLedger: Array<{ name: string; condition: string }>;
 }
 
 /**
@@ -25,11 +24,20 @@ export const compileStateToDenseOntology = (
     .map(c => `ENTITY_ID:${c.id}(${c.name})=>STATUS:${c.psychological_status}`)
     .join(';');
 
+  // ─── NEW: MULTI-VECTOR MEMORY EXTRACTION ───
+  const mem = currentState.activeMemory;
+  const denseMemory = [
+    `TACTICAL_IMPERATIVE::${mem.tacticalImperative}`,
+    `SOMATIC_STATE::[${mem.somaticState.join(', ')}]`,
+    `RELATIONAL_WEB::[${mem.relationalWeb.join(' | ')}]`
+  ].join('\n');
+
   // Re-assemble into an immutable, flat system string block
   return [
     `[CORE_ONTOLOGY::${blueprint.identity.title.toUpperCase()}_v${blueprint.identity.version}]`,
     denseTopology,
     `[CRITICAL_CONSTRAINTS::${denseConstraints}]`,
-    `[TRAUMA_STATE_LEDGER::${denseTrauma}]`
-  ].join('\n');
+    `[TRAUMA_STATE_LEDGER::${denseTrauma}]`,
+    `[ACTIVE_MEMORY_VECTORS]\n${denseMemory}`
+  ].join('\n\n');
 };
