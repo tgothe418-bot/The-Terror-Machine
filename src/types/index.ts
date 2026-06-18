@@ -257,6 +257,29 @@ export interface NarrativeBlock {
   speaker?: string; // Optional: Only used if type is 'dialogue' or 'internal_monologue'
 }
 
+export interface ValidationReceipt {
+  accepted: boolean;
+  rejected_fields: string[];
+  repair_notes: string[];
+}
+
+export interface RatifiedEngineFrame {
+  narrative_blocks: NarrativeBlock[];
+  engine_thoughts: string;
+  logic_state: {
+    current_phase: string;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    requested_transition?: any;
+    suggested_tension?: number | string;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    matrix_mutation?: any;
+    terminal_flags?: string[];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    cast_ledger?: any[];
+  };
+  validation: ValidationReceipt;
+}
+
 export interface BicameralOutput {
   engine_thoughts: string;
   narrative_blocks: NarrativeBlock[];

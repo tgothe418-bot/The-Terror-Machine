@@ -1,6 +1,7 @@
-import { Message, ScenarioBlueprint, BicameralOutput, LogicState, ProseStyleVector, ForgePhase, ReferenceMaterial, ExtractedLore, AppPhase } from "../types";
+import { Message, ScenarioBlueprint, BicameralOutput, LogicState, ProseStyleVector, ForgePhase, ReferenceMaterial, ExtractedLore, AppPhase, RatifiedEngineFrame } from "../types";
 import { getForgeState } from '../store/useForgeStore';
 import { DISTILLATION_SYSTEM_PROMPT, DISTILLATION_PROMPT } from "../core/prompts/distillation";
+import { validateEngineFrame } from '../lib/ratificationPipeline';
 
 export const generateCinematicSummary = async (excisedMessages: Message[]): Promise<string> => {
   const conversationText = excisedMessages
@@ -142,7 +143,7 @@ export const sendEngineTurn = async (
   currentVector: string,
   currentTier: string,
   currentTensionLevel: string
-): Promise<BicameralOutput> => {
+): Promise<RatifiedEngineFrame> => {
   // Pull the current turn from the telemetry store
   const telemetryStoreMod = await import('../store/useTelemetryStore');
   const telemetryState = telemetryStoreMod.useTelemetryStore.getState();
@@ -169,13 +170,11 @@ export const sendEngineTurn = async (
     })
   });
   if (!response.ok) throw new Error(await response.text());
-  const parsedResponse: BicameralOutput = await response.json();
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const parsedPhase = (parsedResponse as any).current_phase?.toUpperCase() as 'LATENT' | 'MANIFEST' | 'TERMINAL';
-  const validPhases = ['LATENT', 'MANIFEST', 'TERMINAL'];
-  if (validPhases.includes(parsedPhase)) {
-    telemetryStoreMod.useTelemetryStore.getState().updatePhase(parsedPhase);
+  
+  const rawData = await response.json();
+  const ratifiedFrame = validateEngineFrame(rawData);
+  if (!ratifiedFrame.validation.accepted) {
+    console.warn("Ratification Warnings:", ratifiedFrame.validation.repair_notes);
   }
 
   // Record the turn metrics based on the user's input (Calculate urgency and sanity drops)
@@ -191,23 +190,24 @@ export const sendEngineTurn = async (
     sanityDelta
   });
 
+  const parsedPhase = ratifiedFrame.logic_state.current_phase?.toUpperCase() as 'LATENT' | 'MANIFEST' | 'TERMINAL';
+  const validPhases = ['LATENT', 'MANIFEST', 'TERMINAL'];
+  if (validPhases.includes(parsedPhase)) {
+    telemetryStoreMod.useTelemetryStore.getState().updatePhase(parsedPhase);
+  }
+
   // Extract store pointer to dynamically pipe live diagnostic metrics:
   const engineStoreMod = await import('../core/store');
   const engineStore = engineStoreMod.useEngineStore;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const rawPayload = parsedResponse as any;
 
   // ==== EUCLIDEAN INTERCEPTOR ====
   const appStoreMod = await import('../store/useAppStore');
   const appStore = appStoreMod.useAppStore;
   const currentGraph = appStore.getState().spatialGraph;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const runtimePayload = parsedResponse as any;
-
-  if (currentGraph && runtimePayload.requested_transition) {
+  if (currentGraph && ratifiedFrame.logic_state.requested_transition) {
     const currentNode = currentGraph.nodes[currentGraph.currentNodeId];
-    const targetNodeId = runtimePayload.requested_transition;
+    const targetNodeId = ratifiedFrame.logic_state.requested_transition;
     
     const isValidEdge = currentNode?.connectedNodes.includes(targetNodeId);
     const targetNode = currentGraph.nodes[targetNodeId];
@@ -218,18 +218,21 @@ export const sendEngineTurn = async (
       console.warn(`[EUCLIDEAN INTERCEPTOR] Denied illegal transition to: ${targetNodeId}`);
       
       // Wipe the hanging request
-      runtimePayload.requested_transition = null;
+      ratifiedFrame.logic_state.requested_transition = null;
       
       // Override the payload state to force them back into the current room
-      if (Array.isArray(runtimePayload.cast_ledger)) {
+      if (Array.isArray(ratifiedFrame.logic_state.cast_ledger)) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        runtimePayload.cast_ledger.forEach((member: any) => {
+        ratifiedFrame.logic_state.cast_ledger.forEach((member: any) => {
           member.current_location = currentNode?.name || "Unknown"; 
         });
       }
       
       // Append a mechanical failure message directly into the narrative output
-      runtimePayload.narrative_text += "\n\n[ SYSTEM OVERRIDE: The spatial geometry resists traversal. The requested pathway is inaccessible. ]";
+      ratifiedFrame.narrative_blocks.push({
+        type: 'environmental_intrusion',
+        content: "[ SYSTEM OVERRIDE: The spatial geometry resists traversal. The requested pathway is inaccessible. ]"
+      });
     } else {
       // Transition Approved. Move the player in the store.
       appStore.getState().setCurrentNode(targetNodeId);
@@ -237,15 +240,15 @@ export const sendEngineTurn = async (
   }
 
   engineStore.getState().updateTelemetry({
-    tension: rawPayload.tension || rawPayload.startingVector || parsedResponse.logic_state?.current_tension_level || 'LOW',
-    pacing: rawPayload.pacing || rawPayload.startingTier || (blueprint.narrativeRules?.phaseDirectives?.[parsedResponse.logic_state?.current_tension_level || currentTensionLevel || 'buildup']) || 'CREEPING',
-    castLedger: parsedResponse.logic_state?.cast_ledger || rawPayload.cast_ledger || rawPayload.cast || [],
-    engineLogic: parsedResponse.engine_thoughts || rawPayload.engine_logic || rawPayload.premise || 'System processing...'
+    tension: rawData.tension || rawData.startingVector || ratifiedFrame.logic_state.suggested_tension || ratifiedFrame.logic_state.current_phase || 'LOW',
+    pacing: rawData.pacing || rawData.startingTier || (blueprint.narrativeRules?.phaseDirectives?.[currentTensionLevel || 'buildup']) || 'CREEPING',
+    castLedger: ratifiedFrame.logic_state.cast_ledger || [],
+    engineLogic: ratifiedFrame.engine_thoughts || 'System processing...'
   });
 
   engineStore.getState().incrementTurn();
 
-  return parsedResponse;
+  return ratifiedFrame;
 };
 
 export async function sendChatMessage(

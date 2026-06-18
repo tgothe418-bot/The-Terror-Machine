@@ -22,6 +22,7 @@ test('should add a character to the cast', () => {
   };
 
   // 2. Act: Execute the function
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   addCharacterToCast(testChar as any);
 
   // 3. Assert: Verify the state changed correctly

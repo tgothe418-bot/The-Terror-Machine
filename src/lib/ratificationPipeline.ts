@@ -2,6 +2,7 @@ import { forgeActions } from '../store/useForgeStore';
 
 interface StateProposal {
   proposedLocationId?: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   somaticMutations?: Array<{ entityId: string; updates: any }>;
   narrativeProse: string;
 }
@@ -14,6 +15,56 @@ const VALID_SPATIAL_GRAPH: Record<string, string[]> = {
   'NODE_03': ['NODE_01']
 };
 
+import { RatifiedEngineFrame } from '../types';
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const validateEngineFrame = (rawPayload: any): RatifiedEngineFrame => {
+  const rejected: string[] = [];
+  const notes: string[] = [];
+
+  // 1. Structural Check
+  if (!rawPayload || typeof rawPayload !== 'object') {
+    return createFailedFrame("CRITICAL_ERROR", "Payload is completely malformed.");
+  }
+
+  // 2. Extract and Normalize
+  const blocks = rawPayload.narrative_blocks || [];
+  const logic = rawPayload.logic_state || {};
+  const thoughts = rawPayload.engine_thoughts || rawPayload.engine_logic || "";
+
+  // 3. Validation Logic
+  if (blocks.length === 0) {
+    rejected.push("narrative_blocks");
+    notes.push("Warning: Engine returned zero narrative blocks.");
+  }
+
+  const accepted = rejected.length === 0;
+
+  return {
+    narrative_blocks: blocks,
+    engine_thoughts: thoughts,
+    logic_state: {
+      current_phase: logic.current_phase || "MAINTENANCE",
+      requested_transition: logic.requested_transition,
+      suggested_tension: logic.suggested_tension,
+      matrix_mutation: logic.matrix_mutation,
+      terminal_flags: logic.terminal_flags || [],
+      cast_ledger: logic.cast_ledger || []
+    },
+    validation: {
+      accepted,
+      rejected_fields: rejected,
+      repair_notes: notes
+    }
+  };
+};
+
+const createFailedFrame = (errorType: string, note: string): RatifiedEngineFrame => ({
+  narrative_blocks: [{ type: 'system_voice', content: "[ SYSTEM FAILURE: UNABLE TO RENDER REALITY CONSTRUCT ]" }],
+  engine_thoughts: "FATAL PARSE ERROR.",
+  logic_state: { current_phase: "SYSTEM_FAILURE" },
+  validation: { accepted: false, rejected_fields: [errorType], repair_notes: [note] }
+});
 export const ratifyEngineProposal = (
   currentLocationId: string, 
   rawModelOutput: string

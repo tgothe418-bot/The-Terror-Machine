@@ -29,6 +29,7 @@ export interface AuthoritativeBlueprint {
     nodes: string[];
     connections: string[];
   };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   terminalConditions: any; // Keep existing structure
   cast: {
     id: string;
@@ -86,6 +87,7 @@ export const compileStateToDenseOntology = (
 
   // Extract the specific character data based on the user's UI selection
   const linkedCharacter = blueprint.cast?.find(c => c.id === currentState.activeCharacterId) 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     || blueprint.cast?.find((c: any) => c.role === currentState.activeNeuralLink)
     || blueprint.cast?.[0]; // Fallback just in case
 

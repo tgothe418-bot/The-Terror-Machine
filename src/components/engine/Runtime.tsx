@@ -161,11 +161,12 @@ export default function Runtime() {
         storeState.currentTensionLevel 
       );
       
-      if (initialResponse.suggested_tension) {
-        useEngineStore.getState().updateTension(initialResponse.suggested_tension);
+      if (initialResponse.logic_state.suggested_tension) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        useEngineStore.getState().updateTension(String(initialResponse.logic_state.suggested_tension) as any);
       }
-      if (initialResponse.matrix_mutation) {
-        const { next_vector, next_tier } = initialResponse.matrix_mutation;
+      if (initialResponse.logic_state.matrix_mutation) {
+        const { next_vector, next_tier } = initialResponse.logic_state.matrix_mutation;
         if (next_vector && next_tier) {
           useEngineStore.getState().shiftMatrixCoordinates(next_vector, next_tier);
           console.log(`// MATRIX SHIFT EXECUTED // Migrated to [${next_vector}, ${next_tier}]`);
@@ -181,7 +182,7 @@ export default function Runtime() {
         engine_thoughts: initialResponse.engine_thoughts,
         timestamp: Date.now() 
       });
-      updateGameState(initialResponse.logic_state); // Save logic state silently
+      updateGameState(initialResponse.logic_state as any); // Save logic state silently
     } catch (err: any) {
       console.error(err);
       let parsedMessage = "NEURAL LINK FAILURE. REBOOT REQUIRED.";
@@ -268,12 +269,13 @@ export default function Runtime() {
         activeStoreState.currentTensionLevel
       );
       
-      if (response.suggested_tension) {
-        useEngineStore.getState().updateTension(response.suggested_tension);
+      if (response.logic_state.suggested_tension) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        useEngineStore.getState().updateTension(String(response.logic_state.suggested_tension) as any);
       }
       
-      if (response.matrix_mutation) {
-        const { next_vector, next_tier } = response.matrix_mutation;
+      if (response.logic_state.matrix_mutation) {
+        const { next_vector, next_tier } = response.logic_state.matrix_mutation;
         if (next_vector && next_tier) {
           useEngineStore.getState().shiftMatrixCoordinates(next_vector, next_tier);
           console.log(`// MATRIX SHIFT EXECUTED // Migrated to [${next_vector}, ${next_tier}]`);
@@ -291,7 +293,7 @@ export default function Runtime() {
       };
 
       addEngineMessage(assistantMsg);
-      updateGameState(response.logic_state); // Sync mechanical reality
+      updateGameState(response.logic_state as any); // Sync mechanical reality
       
     } catch (err: any) {
       console.error(err);
