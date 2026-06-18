@@ -25,18 +25,20 @@ export const validateEngineFrame = (rawPayload: any): RatifiedEngineFrame => {
 
   // 1. Structural Check
   if (!rawPayload || typeof rawPayload !== 'object') {
-    return createFailedFrame("CRITICAL_ERROR", "Payload is completely malformed.");
+    return createFailedFrame("CRITICAL_ERROR", "Payload is completely malformed or undefined.");
   }
 
   // 2. Extract and Normalize
-  const blocks = rawPayload.narrative_blocks || [];
+  const blocks = Array.isArray(rawPayload.narrative_blocks) ? rawPayload.narrative_blocks : [];
   const logic = rawPayload.logic_state || {};
   const thoughts = rawPayload.engine_thoughts || rawPayload.engine_logic || "";
 
   // 3. Validation Logic
   if (blocks.length === 0) {
     rejected.push("narrative_blocks");
-    notes.push("Warning: Engine returned zero narrative blocks.");
+    notes.push("Warning: Engine returned zero narrative blocks. Injecting fallback.");
+    // Provide a safe fallback so the UI never crashes on an empty render
+    blocks.push({ type: "system_voice", content: "[The simulation stalls. A cold silence fills the void.]" });
   }
 
   // 4. The Ratification Tripwire 
@@ -57,14 +59,14 @@ export const validateEngineFrame = (rawPayload: any): RatifiedEngineFrame => {
 
   return {
     narrative_blocks: blocks,
-    engine_thoughts: thoughts,
+    engine_thoughts: String(thoughts),
     logic_state: {
       current_phase: logic.current_phase || "MAINTENANCE",
-      requested_transition: logic.requested_transition,
+      requested_transition: logic.requested_transition || null,
       suggested_tension: logic.suggested_tension,
-      matrix_mutation: logic.matrix_mutation,
-      terminal_flags: logic.terminal_flags || [],
-      cast_ledger: logic.cast_ledger || []
+      matrix_mutation: logic.matrix_mutation || null,
+      terminal_flags: Array.isArray(logic.terminal_flags) ? logic.terminal_flags : [],
+      cast_ledger: Array.isArray(logic.cast_ledger) ? logic.cast_ledger : []
     },
     validation: {
       accepted,
@@ -77,7 +79,11 @@ export const validateEngineFrame = (rawPayload: any): RatifiedEngineFrame => {
 const createFailedFrame = (errorType: string, note: string): RatifiedEngineFrame => ({
   narrative_blocks: [{ type: 'system_voice', content: "[ SYSTEM FAILURE: UNABLE TO RENDER REALITY CONSTRUCT ]" }],
   engine_thoughts: "FATAL PARSE ERROR.",
-  logic_state: { current_phase: "SYSTEM_FAILURE" },
+  logic_state: { 
+    current_phase: "SYSTEM_FAILURE",
+    terminal_flags: [],
+    cast_ledger: []
+  },
   validation: { accepted: false, rejected_fields: [errorType], repair_notes: [note] }
 });
 export const ratifyEngineProposal = (
