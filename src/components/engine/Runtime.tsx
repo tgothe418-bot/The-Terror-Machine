@@ -162,7 +162,6 @@ export default function Runtime() {
       );
       
       if (initialResponse.logic_state.suggested_tension) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         useEngineStore.getState().updateTension(String(initialResponse.logic_state.suggested_tension) as any);
       }
       if (initialResponse.logic_state.matrix_mutation) {
@@ -270,7 +269,6 @@ export default function Runtime() {
       );
       
       if (response.logic_state.suggested_tension) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         useEngineStore.getState().updateTension(String(response.logic_state.suggested_tension) as any);
       }
       

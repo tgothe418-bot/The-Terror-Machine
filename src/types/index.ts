@@ -207,15 +207,8 @@ export type NodeState = 'SECURE' | 'OPEN' | 'LOCKED' | 'CORRUPTED';
 export interface SpatialNode {
   id: string;
   name: string;
-  baseDescription: string;
+  description: string;
   connectedNodes: string[]; // Array of accessible Node IDs
-  state: NodeState;
-}
-
-export interface SpatialGraph {
-  regionId: string;
-  nodes: Record<string, SpatialNode>;
-  currentNodeId: string;
 }
 
 export interface AppState {
@@ -223,8 +216,13 @@ export interface AppState {
   setPhase: (phase: AppPhase) => void;
   telemetry: TelemetryState | null;
   setTelemetry: (telemetry: TelemetryState) => void;
-  spatialGraph: SpatialGraph | null;
+  spatialGraph: SpatialNode[];
+  currentNodeId: string | null;
   setCurrentNode: (nodeId: string) => void;
+  isShattered: boolean;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  initializeSimulation: (forgeTopology: any) => void;
+  triggerShatter: () => void;
 }
 
 export interface LogicState {

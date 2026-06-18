@@ -204,21 +204,31 @@ export const sendEngineTurn = async (
   const appStoreMod = await import('../store/useAppStore');
   const appStore = appStoreMod.useAppStore;
   const currentGraph = appStore.getState().spatialGraph;
+  const currentNodeId = appStore.getState().currentNodeId;
+  const isShattered = appStore.getState().isShattered;
 
-  if (currentGraph && ratifiedFrame.logic_state.requested_transition) {
-    const currentNode = currentGraph.nodes[currentGraph.currentNodeId];
+  if (currentGraph && currentGraph.length > 0 && ratifiedFrame.logic_state.requested_transition) {
     const targetNodeId = ratifiedFrame.logic_state.requested_transition;
+    const currentNode = currentGraph.find(n => n.id === currentNodeId);
     
     const isValidEdge = currentNode?.connectedNodes.includes(targetNodeId);
-    const targetNode = currentGraph.nodes[targetNodeId];
-    const isAccessible = targetNode && targetNode.state !== 'LOCKED';
 
-    if (!isValidEdge || !isAccessible) {
+    if (isShattered) {
+      ratifiedFrame.logic_state.matrix_mutation = {
+         type: "SURREAL_TRANSITION",
+         contradictionMode: "authored_paradox",
+         note: "Skepticism breached. Euclidean laws bypassed."
+      };
+      appStore.getState().setCurrentNode(targetNodeId);
+    } else if (!isValidEdge) {
       // EUCLIDEAN REJECTION: The AI hallucinated or the player tried to walk through a wall.
       console.warn(`[EUCLIDEAN INTERCEPTOR] Denied illegal transition to: ${targetNodeId}`);
       
-      // Wipe the hanging request
-      ratifiedFrame.logic_state.requested_transition = null;
+      ratifiedFrame.validation.accepted = false;
+      ratifiedFrame.validation.rejected_fields.push("requested_transition");
+      ratifiedFrame.validation.repair_notes.push(`Transition to ${targetNodeId} denied. Path does not exist in spatial graph.`);
+      
+      delete ratifiedFrame.logic_state.requested_transition;
       
       // Override the payload state to force them back into the current room
       if (Array.isArray(ratifiedFrame.logic_state.cast_ledger)) {
