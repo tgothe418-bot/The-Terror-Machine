@@ -218,11 +218,11 @@ export interface AppState {
   setTelemetry: (telemetry: TelemetryState) => void;
   spatialGraph: SpatialNode[];
   currentNodeId: string | null;
-  setCurrentNode: (nodeId: string) => void;
   isShattered: boolean;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  initializeSimulation: (forgeTopology: any) => void;
+  compileTopology: (forgeTopology: any, startNodeId: string) => void;
   triggerShatter: () => void;
+  setCurrentNodeId: (nodeId: string) => void;
 }
 
 export interface LogicState {

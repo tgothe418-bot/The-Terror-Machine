@@ -9,7 +9,14 @@ import { useVoiceStore } from '../../store/useVoiceStore';
 import { getForgeState } from '../../store/useForgeStore';
 import { exportConversationToMarkdown } from '../../lib/download';
 
-export default function TheVoice() {
+export interface TheVoiceProps {
+  engineState?: {
+    currentNode?: string;
+    isShattered?: boolean;
+  };
+}
+
+export default function TheVoice({ engineState }: TheVoiceProps = {}) {
   const setPhase = useAppStore((state) => state.setPhase);
   const { messages, addMessage, clearHistory } = useVoiceStore();
   const [input, setInput] = useState('');
@@ -90,7 +97,8 @@ export default function TheVoice() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           history: chatHistory,
-          forgeTelemetry: telemetryPayload
+          forgeTelemetry: telemetryPayload,
+          engineState
         })
       });
 

@@ -15,7 +15,6 @@ const VALID_SPATIAL_GRAPH: Record<string, string[]> = {
   'NODE_03': ['NODE_01']
 };
 
-import { useAppStore } from '../store/useAppStore';
 import { RatifiedEngineFrame } from '../types';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -39,20 +38,6 @@ export const validateEngineFrame = (rawPayload: any): RatifiedEngineFrame => {
     notes.push("Warning: Engine returned zero narrative blocks. Injecting fallback.");
     // Provide a safe fallback so the UI never crashes on an empty render
     blocks.push({ type: "system_voice", content: "[The simulation stalls. A cold silence fills the void.]" });
-  }
-
-  // 4. The Ratification Tripwire 
-  const castLedger = logic.cast_ledger || [];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const userRecord = castLedger.find((c: any) => c.isUserCharacter === true || c.role === 'Protagonist' || c.role === 'Subject'); 
-
-  if (userRecord && userRecord.skepticism !== undefined && userRecord.skepticism <= 0.0) {
-    useAppStore.getState().triggerShatter();
-    
-    logic.terminal_flags = logic.terminal_flags || [];
-    if (!logic.terminal_flags.includes("ONTOLOGICAL_SHATTER")) {
-       logic.terminal_flags.push("ONTOLOGICAL_SHATTER");
-    }
   }
 
   const accepted = rejected.length === 0;

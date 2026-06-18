@@ -20,6 +20,8 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
   const [selectedRole, setSelectedRole] = useState<'protagonist' | 'antagonist'>('protagonist');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const compileTopology = useAppStore((state) => state.compileTopology);
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -57,6 +59,10 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
 
   const handleStart = () => {
     if (previewBlueprint) {
+      if (previewBlueprint.topology && previewBlueprint.topology.nodes && previewBlueprint.topology.nodes.length > 0) {
+        const startNodeId = previewBlueprint.topology.nodes[0];
+        compileTopology(previewBlueprint.topology, startNodeId);
+      }
       forgeActions.setActiveNeuralLink(selectedRole.toUpperCase() as 'PROTAGONIST' | 'ANTAGONIST');
       forgeActions.startSimulation(previewBlueprint);
       setBlueprint(previewBlueprint, selectedRole);

@@ -12,7 +12,7 @@ import { AutopilotVector } from '../../types';
 
 export default function Forge() {
   const setPhase = useAppStore((state) => state.setPhase);
-  const initializeSimulation = useAppStore((state) => state.initializeSimulation);
+  const compileTopology = useAppStore((state) => state.compileTopology);
   const { draftBlueprint } = useForgeState();
   const { updateDraft, clearHistory } = forgeActions;
   const [hydrated, setHydrated] = useState(() => useForgeStoreInternal.persist.hasHydrated());
@@ -82,7 +82,8 @@ export default function Forge() {
           </div>
           <button 
             onClick={() => {
-              initializeSimulation(draftBlueprint?.topology);
+              const startNodeid = draftBlueprint?.topology?.nodes?.[0] || 'NODE_INIT';
+              compileTopology(draftBlueprint?.topology, startNodeid);
               setPhase('engine');
             }}
             className="px-4 py-2 bg-zinc-900 border border-zinc-700 text-zinc-400 font-mono text-xs hover:bg-zinc-800 hover:text-cyan-400 transition-colors"

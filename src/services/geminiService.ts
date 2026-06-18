@@ -207,6 +207,21 @@ export const sendEngineTurn = async (
   const currentNodeId = appStore.getState().currentNodeId;
   const isShattered = appStore.getState().isShattered;
 
+  // --- A. THE RATIFICATION TRIPWIRE (SHATTER TRIGGER) ---
+  const castLedger = ratifiedFrame.logic_state.cast_ledger || [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const userRecord = castLedger.find((c: any) => c.isUserCharacter || c.role === 'Subject') || castLedger[0];
+
+  if (userRecord && typeof userRecord.skepticism === 'number' && userRecord.skepticism <= 0.0 && !isShattered) {
+    appStore.getState().triggerShatter();
+    
+    ratifiedFrame.logic_state.terminal_flags = ratifiedFrame.logic_state.terminal_flags || [];
+    if (!ratifiedFrame.logic_state.terminal_flags.includes("ONTOLOGICAL_SHATTER")) {
+      ratifiedFrame.logic_state.terminal_flags.push("ONTOLOGICAL_SHATTER");
+    }
+  }
+
+  // --- B. SPATIAL VALIDATOR ---
   if (currentGraph && currentGraph.length > 0 && ratifiedFrame.logic_state.requested_transition) {
     const targetNodeId = ratifiedFrame.logic_state.requested_transition;
     const currentNode = currentGraph.find(n => n.id === currentNodeId);
@@ -219,8 +234,8 @@ export const sendEngineTurn = async (
          contradictionMode: "authored_paradox",
          note: "Skepticism breached. Euclidean laws bypassed."
       };
-      appStore.getState().setCurrentNode(targetNodeId);
-    } else if (!isValidEdge) {
+      appStore.getState().setCurrentNodeId(targetNodeId);
+    } else if (!isValidEdge && currentNodeId !== targetNodeId) {
       // EUCLIDEAN REJECTION: The AI hallucinated or the player tried to walk through a wall.
       console.warn(`[EUCLIDEAN INTERCEPTOR] Denied illegal transition to: ${targetNodeId}`);
       
@@ -245,7 +260,7 @@ export const sendEngineTurn = async (
       });
     } else {
       // Transition Approved. Move the player in the store.
-      appStore.getState().setCurrentNode(targetNodeId);
+      appStore.getState().setCurrentNodeId(targetNodeId);
     }
   }
 

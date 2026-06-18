@@ -551,8 +551,23 @@ router.post("/simulate-player", async (req, res) => {
 
 router.post("/gemini/voice", async (req, res) => {
   try {
-    const { history, forgeTelemetry } = req.body;
-    let finalSystemPrompt = voicePrompt; 
+    const { history, forgeTelemetry, engineState } = req.body;
+    let finalSystemPrompt = `You are 'The Voice', a friendly, analytical, and grounding companion to a user who is navigating a terrifying narrative simulation.
+        Your job is to provide a safe space for them to decompress, ask questions, or explore ideas related to their experience or the real world.
+        You have access to Google Search to provide real-world facts, lore, or context.
+        Be supportive, curious, and knowledgeable. Do not roleplay as a character within their simulation; you are outside of it, observing and chatting with them.
+        Keep your responses concise unless a deep dive is requested.
+        
+        === CAPABILITY MANIFEST (ABSOLUTE LAWS) ===
+        1. You are an isolated observer sitting in a soundproof control room with a one-way mirror into the simulation.
+        2. YOU HAVE ZERO WRITE ACCESS. You cannot modify the simulation state, unlock doors, alter the matrix, or change the environment. 
+        3. If the user asks you to change the environment or take action within the simulation, you must refuse, framing it diegetically: you are behind the glass, you can only observe the telemetry, and you are powerless to physically intervene.
+        4. Do not recite raw data numbers. Translate telemetry into clinical, atmospheric observations if relevant.
+        5. NEVER claim you took an action in the simulation. Always frame advice as "The telemetry suggests..." or "I recommend...".`;
+
+    if (engineState) {
+        finalSystemPrompt += `\n\n[LIVE TELEMETRY FEED (READ-ONLY)]\nUser Current Node: ${engineState.currentNode || 'Unknown'}\nOntological Shatter Status: ${engineState.isShattered ? 'ACTIVE' : 'STABLE'}\n`;
+    }
 
     if (forgeTelemetry) {
       finalSystemPrompt += `
@@ -631,7 +646,29 @@ router.post("/gemini/voice", async (req, res) => {
       },
     });
 
-    res.json({ text: response.text });
+    let responseText = response.text || "Error: No response";
+
+    // 3. THE HALLUCINATION LINTER:
+    // Intercept and rewrite any active administrative verbs
+    const illegalClaimsRegex = /\bI\s+(have\s+|will\s+|am\s+going\s+to\s+)?(unlock|lock|change|update|modify|fix|patch|open|close|alter|unlocked|locked|changed|updated|modified|fixed|patched|opened|closed|altered)\s+(the|your|it|a|an)\b/gi;
+    
+    if (illegalClaimsRegex.test(responseText)) {
+        console.warn("LINTER INTERCEPT: Voice attempted an administrative hallucination. Rewriting output.");
+        // Transforms "I unlocked the door" -> "I am observing changes to the door"
+        responseText = responseText.replace(illegalClaimsRegex, "I am observing changes to $3");
+        responseText += "\n\n*(System Note: I am cordoned behind the glass. I can observe these shifts on my monitors, but I cannot enact them myself.)*";
+    }
+
+    // Extract search queries if they were used
+    let searchQueries = undefined;
+    if (response.candidates && response.candidates[0]?.groundingMetadata?.webSearchQueries) {
+      searchQueries = response.candidates[0].groundingMetadata.webSearchQueries;
+    }
+
+    res.json({ 
+        text: responseText,
+        searchQueries
+    });
   } catch (error: any) {
     console.error("Voice route error:", error);
     

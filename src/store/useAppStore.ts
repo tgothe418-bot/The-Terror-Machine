@@ -6,14 +6,14 @@ export const useAppStore = create<AppState>((set) => ({
   setPhase: (phase: AppPhase) => set({ phase }),
   telemetry: null,
   setTelemetry: (telemetry) => set({ telemetry }),
-  spatialGraph: [{ id: "NODE_INIT", name: "Void", description: "Empty", connectedNodes: [] }],
+  spatialGraph: [],
   currentNodeId: "NODE_INIT",
-  setCurrentNode: (nodeId) => set(() => ({
+  setCurrentNodeId: (nodeId) => set(() => ({
     currentNodeId: nodeId
   })),
   isShattered: false,
   triggerShatter: () => set({ isShattered: true }),
-  initializeSimulation: (forgeTopology) => {
+  compileTopology: (forgeTopology, startNodeId) => {
     // Compile the raw Forge topology into the clean runtime graph
     const nodesList = Array.isArray(forgeTopology?.nodes) ? forgeTopology.nodes : [];
     const connectionsList = Array.isArray(forgeTopology?.connections) ? forgeTopology.connections : [];
@@ -33,6 +33,6 @@ export const useAppStore = create<AppState>((set) => ({
       };
     });
 
-    set({ spatialGraph: compiledGraph, isShattered: false, currentNodeId: compiledGraph[0]?.id || "NODE_INIT" });
+    set({ spatialGraph: compiledGraph, isShattered: false, currentNodeId: startNodeId || compiledGraph[0]?.id || "NODE_INIT" });
   }
 }));
