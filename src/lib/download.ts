@@ -78,6 +78,16 @@ export function downloadJson(data: any, filename: string) {
   }
 }
 
+const escapeHtml = (unsafe: string): string => {
+  if (!unsafe) return "";
+  return String(unsafe)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+};
+
 export const exportEngineLog = (messages: any[], format: 'md' | 'html', title: string = 'engine-telemetry', blueprint?: any) => {
   if (!messages || messages.length === 0) {
     console.warn('// ENGINE EXPORT FAILED // Empty array state passed.');
@@ -97,7 +107,7 @@ export const exportEngineLog = (messages: any[], format: 'md' | 'html', title: s
       <html lang="en">
       <head>
         <meta charset="utf-8">
-        <title>The Nightmare Machine // Telemetry Stream - ${title}</title>
+        <title>The Nightmare Machine // Telemetry Stream - ${escapeHtml(title)}</title>
         <style>
           body { 
             background-color: #000000; 
@@ -195,8 +205,8 @@ export const exportEngineLog = (messages: any[], format: 'md' | 'html', title: s
       content += `<div class="turn">`;
       if (msg.role === 'user') {
         const userCharName = blueprint?.cast?.find((c: any) => c.isUserCharacter)?.name || 'Protagonist';
-        content += `<div class="speaker-label speaker-user">[ USER: ${userCharName} ]</div>`;
-        content += `<div class="user-input">&gt; ${msg.content}</div>`;
+        content += `<div class="speaker-label speaker-user">[ USER: ${escapeHtml(userCharName)} ]</div>`;
+        content += `<div class="user-input">&gt; ${escapeHtml(msg.content)}</div>`;
       } else {
         // Parse Engine Array Content
         const renderBlock = (block: any) => {
@@ -204,11 +214,11 @@ export const exportEngineLog = (messages: any[], format: 'md' | 'html', title: s
           if (block.type === 'system_voice') {
             content += `<div class="speaker-label speaker-voice">[ THE VOICE ]</div>`;
           } else if (block.type === 'dialogue' && block.speaker) {
-            content += `<div class="speaker-label speaker-character">[ CHARACTER: ${block.speaker} ]</div>`;
+            content += `<div class="speaker-label speaker-character">[ CHARACTER: ${escapeHtml(block.speaker)} ]</div>`;
           } else if (block.type === 'internal_monologue' && block.speaker) {
-            content += `<div class="speaker-label speaker-character">[ THOUGHT: ${block.speaker} ]</div>`;
+            content += `<div class="speaker-label speaker-character">[ THOUGHT: ${escapeHtml(block.speaker)} ]</div>`;
           }
-          content += `<div class="block-${block.type || 'prose'}">${block.content}</div>`;
+          content += `<div class="block-${block.type || 'prose'}">${escapeHtml(block.content)}</div>`;
         };
         
         if (Array.isArray(msg.content)) {
@@ -216,7 +226,7 @@ export const exportEngineLog = (messages: any[], format: 'md' | 'html', title: s
         } else if (msg.blocks && Array.isArray(msg.blocks)) {
           msg.blocks.forEach(renderBlock);
         } else {
-          content += `<div class="block-prose">${msg.content}</div>`;
+          content += `<div class="block-prose">${escapeHtml(msg.content)}</div>`;
         }
 
         // Auto-bake interactive dropdown if engine telemetry exists
@@ -224,12 +234,12 @@ export const exportEngineLog = (messages: any[], format: 'md' | 'html', title: s
           const logicData = msg.engine_thoughts || msg.logic_state;
           const displayString = typeof logicData === 'object' 
             ? JSON.stringify(logicData, null, 2) 
-            : logicData;
+            : String(logicData);
 
           content += `
             <details class="logic-panel">
               <summary class="speaker-label speaker-engine">[ VIEW ENGINE LOGIC DATA ]</summary>
-              <pre class="logic-content"><code>${displayString}</code></pre>
+              <pre class="logic-content"><code>${escapeHtml(displayString)}</code></pre>
             </details>
           `;
         }
