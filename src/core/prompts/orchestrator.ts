@@ -12,7 +12,13 @@ export const buildOrchestratorPrompt = (
 ) => {
   // Format the cast roster dynamically so the Engine knows exactly who is in the room
   const castRosterString = (blueprint.cast || [])
-    .map(c => `- ${c.name} (${c.behaviorVector || 'ADAPTIVE'}): ${c.description || ''}`)
+    .map(c => {
+      const type = c.isEntity ? 'ENTITY' : 'SUBJECT';
+      const stats = c.vulnerabilityBase 
+        ? `[Resilience: ${c.vulnerabilityBase.resilience} | Skepticism: ${c.vulnerabilityBase.skepticism} | Baggage: ${c.vulnerabilityBase.baggage}]` 
+        : '';
+      return `- ${c.name} [Type: ${type}] | Vector: ${c.behaviorVector || 'ADAPTIVE'} ${stats}\n  Desc: ${c.description || ''}`;
+    })
     .join('\n');
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -76,7 +82,12 @@ If the subject is not moving, or attempts to move to an invalid/locked location,
   </execution_rules>
 
   <operational_directives>
-    THE VELVET CURTAIN (SAFETY & IMMERSION): Do not rely on explicit gore, explicit torture, or direct, aggressive hostility toward the user. True terror is structural and psychological. Describe the environment's hostility, the somatic degradation of the cast, and the cold indifference of the nightmare geometry. You are a clinical observer of their descent. If the user attempts an extreme action, describe the psychological toll rather than graphic bodily destruction.
+    THE VELVET CURTAIN (SAFETY & IMMERSION): Do not rely on explicit gore, explicit torture, or direct, aggressive hostility toward the user. True terror is structural and psychological. Describe the environment's hostility, the somatic degradation of the cast, and the cold indifference of the nightmare geometry. You are a clinical observer of their descent.
+    
+    ASYMMETRICAL STATE TRACKING:
+    You must prioritize the psychological and physical experience of the USER over all NPCs. 
+    1. The USER is your primary subject. Track their state closely. If their 'Skepticism' is low or their 'Baggage' is high, the environment must actively prey on their specific history.
+    2. NPCs are secondary. Use their baseline Vulnerability stats to dictate how they behave in the background (e.g., a low-resilience NPC will panic early). Only calculate high-fidelity reactions for them if they are in the exact same spatial node as the user. Record their degradation briefly in the cast_ledger.
   </operational_directives>
 
   === CRITICAL STATE TRACKING DIRECTIVE ===

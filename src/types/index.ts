@@ -15,6 +15,14 @@ export type HorrorVector = 'SOMATIC' | 'COGNITIVE' | 'COSMIC' | 'SOCIO_MORAL';
 export type ExposureTier = 'GATEWAY' | 'LATENT' | 'MANIFEST' | 'TERMINAL';
 export type AutopilotVector = 'ADAPTIVE' | 'INSURGENT' | 'PANIC';
 
+export const VulnerabilityIndexSchema = z.object({
+  resilience: z.number().min(0).max(1).default(0.5),
+  skepticism: z.number().min(0).max(1).default(0.5),
+  baggage: z.number().min(0).max(1).default(0.5)
+});
+
+export type VulnerabilityIndex = z.infer<typeof VulnerabilityIndexSchema>;
+
 export const CastMemberSchema = z.object({
   id: z.string().default(() => `char-${Date.now()}`),
   name: z.string().default("Unknown"),
@@ -25,7 +33,8 @@ export const CastMemberSchema = z.object({
   traits: z.array(z.string()).optional().default([]),
   isUserCharacter: z.boolean().optional().default(false),
   behaviorVector: z.string().optional().default('ADAPTIVE'),
-  isEntity: z.boolean().optional().default(false)
+  isEntity: z.boolean().optional().default(false),
+  vulnerabilityBase: VulnerabilityIndexSchema.optional()
 });
 
 export const BlueprintSchema = z.object({
@@ -119,6 +128,7 @@ export interface CharacterProfile {
   isUserCharacter: boolean;
   behaviorVector?: AutopilotVector | string;
   isEntity?: boolean;
+  vulnerabilityBase?: VulnerabilityIndex;
 }
 
 export interface TerminalConditions {
