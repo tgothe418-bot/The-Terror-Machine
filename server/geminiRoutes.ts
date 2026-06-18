@@ -450,10 +450,11 @@ router.post("/chat", async (req, res) => {
     const logicState: any = (parsed as any).logic_state || {};
 
     // Merge dropped orchestration signals into logic_state
-    if ((parsed as any).current_phase) logicState.current_phase = (parsed as any).current_phase;
-    if ((parsed as any).requested_transition) logicState.requested_transition = (parsed as any).requested_transition;
-    if ((parsed as any).suggested_tension) logicState.suggested_tension = (parsed as any).suggested_tension;
-    if ((parsed as any).matrix_mutation) logicState.matrix_mutation = (parsed as any).matrix_mutation;
+    if ((parsed as any).current_phase !== undefined) logicState.current_phase = (parsed as any).current_phase;
+    if ((parsed as any).requested_transition !== undefined) logicState.requested_transition = (parsed as any).requested_transition;
+    if ((parsed as any).suggested_tension !== undefined) logicState.suggested_tension = (parsed as any).suggested_tension;
+    if ((parsed as any).matrix_mutation !== undefined) logicState.matrix_mutation = (parsed as any).matrix_mutation;
+    if ((parsed as any).terminal_flags !== undefined) logicState.terminal_flags = (parsed as any).terminal_flags;
 
     const output: BicameralOutput = {
       engine_thoughts: (parsed as any).engine_logic || (parsed as any).engine_thoughts || "",

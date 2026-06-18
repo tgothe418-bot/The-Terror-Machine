@@ -12,16 +12,16 @@ async function startServer() {
   app.set("trust proxy", 1);
   
   app.use(cors({ 
-    origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
-    methods: ['GET', 'POST']
+    origin: process.env.CORS_ORIGIN || ['http://localhost:5173', 'http://localhost:3000'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
   }));
-  app.use(express.json({ limit: "2mb" }));
-  app.use(express.urlencoded({ extended: true, limit: "2mb" }));
+  app.use(express.json({ limit: "5mb" }));
+  app.use(express.urlencoded({ extended: true, limit: "5mb" }));
 
   const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // Limit each IP to 100 requests per window
-    message: 'Too many requests from this IP, please try again later.',
+    max: 200, // Generous enough for intense gameplay, strict enough to block scripts
+    message: { error: 'Cognitive bandwidth exceeded. The anomaly is resting. Try again shortly.' },
     validate: { xForwardedForHeader: false }
   });
 

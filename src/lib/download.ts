@@ -78,8 +78,8 @@ export function downloadJson(data: any, filename: string) {
   }
 }
 
-const escapeHtml = (unsafe: string): string => {
-  if (!unsafe) return "";
+export const escapeHtml = (unsafe: string | null | undefined): string => {
+  if (unsafe == null) return "";
   return String(unsafe)
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
