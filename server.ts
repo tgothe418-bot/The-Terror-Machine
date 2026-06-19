@@ -3,7 +3,9 @@ import path from "path";
 import cors from "cors";
 import rateLimit from "express-rate-limit";
 import { createServer as createViteServer } from "vite";
-import geminiRoutes from "./server/geminiRoutes";
+import chatRoutes from "./server/routes/chat";
+import voiceRoutes from "./server/routes/voice";
+import forgeRoutes from "./server/routes/forge";
 
 async function startServer() {
   const app = express();
@@ -26,7 +28,9 @@ async function startServer() {
   });
 
   // API routes FIRST
-  app.use("/api", apiLimiter, geminiRoutes);
+  app.use("/api", apiLimiter, chatRoutes);
+  app.use("/api", apiLimiter, voiceRoutes);
+  app.use("/api", apiLimiter, forgeRoutes);
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
