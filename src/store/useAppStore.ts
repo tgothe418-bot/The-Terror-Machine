@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { AppState, AppPhase } from '../types';
 import { calculateDecayState } from '../lib/ratificationPipeline';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+import { engineReducer, initialEngineState } from '../core/engine/reducer';
 
 export const useAppStore = create<AppState>((set) => ({
   phase: 'hub',
