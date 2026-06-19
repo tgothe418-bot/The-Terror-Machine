@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { AppState, AppPhase } from '../types';
+import { calculateDecayState } from '../lib/ratificationPipeline';
 
 export const useAppStore = create<AppState>((set) => ({
   phase: 'hub',
@@ -13,6 +14,22 @@ export const useAppStore = create<AppState>((set) => ({
   })),
   isShattered: false,
   triggerShatter: () => set({ isShattered: true }),
+  decayMetrics: {
+    currentStage: 'STABLE',
+    coherenceRating: 1.0,
+    divergenceMode: 'NONE'
+  },
+  updateDecayMetrics: (skepticism) => {
+    const nextMetrics = calculateDecayState(skepticism);
+    
+    set(() => {
+      const isShatteredNow = nextMetrics.currentStage === 'SHATTERED';
+      return {
+        decayMetrics: nextMetrics,
+        isShattered: isShatteredNow
+      };
+    });
+  },
   compileTopology: (forgeTopology, startNodeId) => {
     // Compile the raw Forge topology into the clean runtime graph
     const nodesList = Array.isArray(forgeTopology?.nodes) ? forgeTopology.nodes : [];

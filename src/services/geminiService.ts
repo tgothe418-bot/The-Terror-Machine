@@ -205,62 +205,72 @@ export const sendEngineTurn = async (
   const appStore = appStoreMod.useAppStore;
   const currentGraph = appStore.getState().spatialGraph;
   const currentNodeId = appStore.getState().currentNodeId;
-  const isShattered = appStore.getState().isShattered;
 
-  // --- A. THE RATIFICATION TRIPWIRE (SHATTER TRIGGER) ---
+  // --- A. THE DYNAMIC METRICS EVALUATOR ---
   const castLedger = ratifiedFrame.logic_state.cast_ledger || [];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const userRecord = castLedger.find((c: any) => c.isUserCharacter || c.role === 'Subject') || castLedger[0];
 
-  if (userRecord && typeof userRecord.skepticism === 'number' && userRecord.skepticism <= 0.0 && !isShattered) {
-    appStore.getState().triggerShatter();
-    
-    ratifiedFrame.logic_state.terminal_flags = ratifiedFrame.logic_state.terminal_flags || [];
-    if (!ratifiedFrame.logic_state.terminal_flags.includes("ONTOLOGICAL_SHATTER")) {
-      ratifiedFrame.logic_state.terminal_flags.push("ONTOLOGICAL_SHATTER");
-    }
-  }
+  const currentSkepticism = (userRecord && typeof userRecord.skepticism === 'number') ? userRecord.skepticism : 1.0;
 
-  // --- B. SPATIAL VALIDATOR ---
+  // Process through our mathematical engine scale
+  appStore.getState().updateDecayMetrics(currentSkepticism);
+  const activeDecay = appStore.getState().decayMetrics;
+
+  // Inject structural context metadata down to the LLM orchestration pipeline dynamically
+  ratifiedFrame.logic_state.matrix_mutation = ratifiedFrame.logic_state.matrix_mutation || {};
+  ratifiedFrame.logic_state.matrix_mutation.decay_context = {
+    stage: activeDecay.currentStage,
+    coherence: activeDecay.coherenceRating,
+    divergence_protocol: activeDecay.divergenceMode
+  };
+
+  // --- B. SPATIAL VALIDATOR (BASED ON COHERENCE RATING) ---
   if (currentGraph && currentGraph.length > 0 && ratifiedFrame.logic_state.requested_transition) {
     const targetNodeId = ratifiedFrame.logic_state.requested_transition;
     const currentNode = currentGraph.find(n => n.id === currentNodeId);
     
-    const isValidEdge = currentNode?.connectedNodes.includes(targetNodeId);
+    const isConnected = currentNode?.connectedNodes.includes(targetNodeId) || false;
 
-    if (isShattered) {
-      ratifiedFrame.logic_state.matrix_mutation = {
-         type: "SURREAL_TRANSITION",
-         contradictionMode: "authored_paradox",
-         note: "Skepticism breached. Euclidean laws bypassed."
-      };
+    if (activeDecay.currentStage === 'SHATTERED') {
+      // Stage 4: Space fully breaks down
       appStore.getState().setCurrentNodeId(targetNodeId);
-    } else if (!isValidEdge && currentNodeId !== targetNodeId) {
-      // EUCLIDEAN REJECTION: The AI hallucinated or the player tried to walk through a wall.
-      console.warn(`[EUCLIDEAN INTERCEPTOR] Denied illegal transition to: ${targetNodeId}`);
-      
-      ratifiedFrame.validation.accepted = false;
-      ratifiedFrame.validation.rejected_fields.push("requested_transition");
-      ratifiedFrame.validation.repair_notes.push(`Transition to ${targetNodeId} denied. Path does not exist in spatial graph.`);
-      
-      delete ratifiedFrame.logic_state.requested_transition;
-      
-      // Override the payload state to force them back into the current room
-      if (Array.isArray(ratifiedFrame.logic_state.cast_ledger)) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ratifiedFrame.logic_state.cast_ledger.forEach((member: any) => {
-          member.current_location = currentNode?.name || "Unknown"; 
+    } else if (activeDecay.currentStage === 'UNSTABLE') {
+      // Stage 3: Space is unreliable. Introduce a probability shift.
+      // 30% chance an invalid spatial request succeeds anyway as a structural aberration
+      if (!isConnected && Math.random() > activeDecay.coherenceRating) {
+        appStore.getState().setCurrentNodeId(targetNodeId);
+        ratifiedFrame.logic_state.matrix_mutation.spatial_anomaly = true;
+      } else if (isConnected) {
+        appStore.getState().setCurrentNodeId(targetNodeId);
+      } else {
+        // Failed verification
+        ratifiedFrame.logic_state.requested_transition = null;
+      }
+    } else {
+      // Stage 1 & 2: Space remains structurally fixed. Valid paths only.
+      if (isConnected || currentNodeId === targetNodeId) {
+        appStore.getState().setCurrentNodeId(targetNodeId);
+      } else {
+        console.warn(`[EUCLIDEAN INTERCEPTOR] Denied transition to: ${targetNodeId}`);
+        ratifiedFrame.validation.accepted = false;
+        ratifiedFrame.validation.rejected_fields.push("requested_transition");
+        ratifiedFrame.validation.repair_notes.push(`Transition to ${targetNodeId} denied. Path does not exist in spatial graph.`);
+        
+        ratifiedFrame.logic_state.requested_transition = null;
+        
+        if (Array.isArray(ratifiedFrame.logic_state.cast_ledger)) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ratifiedFrame.logic_state.cast_ledger.forEach((member: any) => {
+            member.current_location = currentNode?.name || "Unknown"; 
+          });
+        }
+        
+        ratifiedFrame.narrative_blocks.push({
+          type: 'environmental_intrusion',
+          content: "[ SYSTEM OVERRIDE: The spatial geometry resists traversal. The requested pathway is inaccessible. ]"
         });
       }
-      
-      // Append a mechanical failure message directly into the narrative output
-      ratifiedFrame.narrative_blocks.push({
-        type: 'environmental_intrusion',
-        content: "[ SYSTEM OVERRIDE: The spatial geometry resists traversal. The requested pathway is inaccessible. ]"
-      });
-    } else {
-      // Transition Approved. Move the player in the store.
-      appStore.getState().setCurrentNodeId(targetNodeId);
     }
   }
 

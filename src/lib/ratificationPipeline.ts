@@ -15,7 +15,29 @@ const VALID_SPATIAL_GRAPH: Record<string, string[]> = {
   'NODE_03': ['NODE_01']
 };
 
-import { RatifiedEngineFrame } from '../types';
+import { RatifiedEngineFrame, DecayThreshold, DecayState } from '../types';
+
+export const DECAY_SCALE: DecayThreshold[] = [
+  { stage: 'STABLE', maxSkepticism: 1.0, minSkepticism: 0.61, environmentalCoherence: 1.0, narrativeDivergence: 'NONE' },
+  { stage: 'FRAYING', maxSkepticism: 0.6, minSkepticism: 0.31, environmentalCoherence: 0.7, narrativeDivergence: 'LATENT_AMBIGUITY' },
+  { stage: 'UNSTABLE', maxSkepticism: 0.3, minSkepticism: 0.01, environmentalCoherence: 0.3, narrativeDivergence: 'STRUCTURAL_DISTORTION' },
+  { stage: 'SHATTERED', maxSkepticism: 0.0, minSkepticism: 0.0, environmentalCoherence: 0.0, narrativeDivergence: 'TOPOLOGICAL_PARADOX' }
+];
+
+export const calculateDecayState = (skepticism: number): DecayState => {
+  // Normalize boundaries
+  const normalizedSkepticism = Math.max(0.0, Math.min(1.0, skepticism));
+  
+  const threshold = DECAY_SCALE.find(
+    t => normalizedSkepticism >= t.minSkepticism && normalizedSkepticism <= t.maxSkepticism
+  ) || DECAY_SCALE[0];
+
+  return {
+    currentStage: threshold.stage,
+    coherenceRating: threshold.environmentalCoherence,
+    divergenceMode: threshold.narrativeDivergence
+  };
+};
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const validateEngineFrame = (rawPayload: any): RatifiedEngineFrame => {

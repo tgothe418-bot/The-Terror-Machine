@@ -204,6 +204,22 @@ export interface TelemetryState {
 
 export type NodeState = 'SECURE' | 'OPEN' | 'LOCKED' | 'CORRUPTED';
 
+export type DecayStageId = 'STABLE' | 'FRAYING' | 'UNSTABLE' | 'SHATTERED';
+
+export interface DecayThreshold {
+  stage: DecayStageId;
+  maxSkepticism: number;
+  minSkepticism: number;
+  environmentalCoherence: number; // 1.0 = Rigidly Euclidean, 0.0 = Complete Void
+  narrativeDivergence: 'NONE' | 'LATENT_AMBIGUITY' | 'STRUCTURAL_DISTORTION' | 'TOPOLOGICAL_PARADOX';
+}
+
+export interface DecayState {
+  currentStage: DecayStageId;
+  coherenceRating: number;
+  divergenceMode: string;
+}
+
 export interface SpatialNode {
   id: string;
   name: string;
@@ -219,6 +235,8 @@ export interface AppState {
   spatialGraph: SpatialNode[];
   currentNodeId: string | null;
   isShattered: boolean;
+  decayMetrics: DecayState;
+  updateDecayMetrics: (skepticism: number) => void;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   compileTopology: (forgeTopology: any, startNodeId: string) => void;
   triggerShatter: () => void;
