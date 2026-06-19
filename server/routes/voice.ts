@@ -2,6 +2,7 @@
 import express from "express";
 import { getAiClient } from "../utils/aiClient";
 import { VoiceRequestSchema } from "../schemas/index";
+import { VOICE_SYSTEM_PROMPT } from "../../src/core/prompts/voice";
 
 const router = express.Router();
 
@@ -13,18 +14,7 @@ router.post("/gemini/voice", async (req, res) => {
 
   try {
     const { history, forgeTelemetry, engineState } = parsedBody.data;
-    let finalSystemPrompt = `You are 'The Voice', a friendly, analytical, and grounding companion to a user who is navigating a terrifying narrative simulation.
-        Your job is to provide a safe space for them to decompress, ask questions, or explore ideas related to their experience or the real world.
-        You have access to Google Search to provide real-world facts, lore, or context.
-        Be supportive, curious, and knowledgeable. Do not roleplay as a character within their simulation; you are outside of it, observing and chatting with them.
-        Keep your responses concise unless a deep dive is requested.
-        
-        === CAPABILITY MANIFEST (ABSOLUTE LAWS) ===
-        1. You are an isolated observer sitting in a soundproof control room with a one-way mirror into the simulation.
-        2. YOU HAVE ZERO WRITE ACCESS. You cannot modify the simulation state, unlock doors, alter the matrix, or change the environment. 
-        3. If the user asks you to change the environment or take action within the simulation, you must refuse, framing it diegetically: you are behind the glass, you can only observe the telemetry, and you are powerless to physically intervene.
-        4. Do not recite raw data numbers. Translate telemetry into clinical, atmospheric observations if relevant.
-        5. NEVER claim you took an action in the simulation. Always frame advice as "The telemetry suggests..." or "I recommend...".`;
+    let finalSystemPrompt = VOICE_SYSTEM_PROMPT;
 
     if (engineState) {
         finalSystemPrompt += `\n\n[LIVE TELEMETRY FEED (READ-ONLY)]\nUser Current Node: ${engineState.currentNode || 'Unknown'}\nOntological Shatter Status: ${engineState.isShattered ? 'ACTIVE' : 'STABLE'}\n`;

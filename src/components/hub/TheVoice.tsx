@@ -72,21 +72,50 @@ export default function TheVoice({ engineState }: TheVoiceProps = {}) {
       attachments: attachments.length > 0 ? [...attachments] : undefined
     };
     
+    // Original history with the new message
     const currentHistory = [...messages, userMsg];
     
+    // Add to UI state directly
     addMessage(userMsg);
     setInput('');
     setAttachments([]);
     setIsLoading(true);
 
     try {
-      const chatHistory = currentHistory.map(msg => ({
-        role: msg.role === 'voice' ? 'assistant' : msg.role,
-        content: msg.content,
-        attachments: msg.attachments
-      }));
+      const appState = useAppStore.getState();
+      const forgeState = getForgeState();
 
-      const currentForgeDraft = getForgeState().draftBlueprint;
+      const telemetryFeed = `
+[LIVE TELEMETRY FEED - FOR YOUR EYES ONLY]
+--- ENGINE STATUS ---
+Current Phase: ${appState.phase || 'IDLE'}
+Turn Count: ${appState.turnCount || 0}
+Trauma Ledger Entries: ${appState.traumaLedger?.length || 0}
+Active Node: ${appState.currentNodeId || 'None'}
+
+--- FORGE STATUS ---
+Loaded Blueprint: ${forgeState.blueprint?.identity?.title || 'None'}
+Cast Size: ${forgeState.blueprint?.cast?.length || 0}
+------------------------------------------
+`;
+
+      const chatHistory = currentHistory.map((msg, index) => {
+        // If this is the newly added last message, prepend the telemetry feed
+        if (index === currentHistory.length - 1) {
+           return {
+             role: msg.role === 'voice' ? 'assistant' : msg.role,
+             content: `${telemetryFeed}\n\n[USER AUDIO FEED]: ${msg.content}`,
+             attachments: msg.attachments
+           };
+        }
+        return {
+          role: msg.role === 'voice' ? 'assistant' : msg.role,
+          content: msg.content,
+          attachments: msg.attachments
+        };
+      });
+
+      const currentForgeDraft = forgeState.draftBlueprint;
       
       const telemetryPayload = (currentForgeDraft && currentForgeDraft.premise) 
         ? currentForgeDraft 
