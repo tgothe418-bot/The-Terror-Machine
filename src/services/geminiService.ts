@@ -316,6 +316,16 @@ export const sendEngineTurn = async (
       frame: ratifiedFrame as Record<string, unknown>
   });
 
+  // Evaluate for Orchestrator Phase Shift
+  const evaluatePhaseShift = (await import('../core/orchestrator')).evaluatePhaseShift;
+  const currentState = appStore.getState();
+  const potentialPhaseShift = evaluatePhaseShift(currentState);
+
+  if (potentialPhaseShift) {
+    appStore.getState().dispatch(potentialPhaseShift);
+    console.log(`[ORCHESTRATOR] Phase Shift Triggered: ${potentialPhaseShift.from} -> ${potentialPhaseShift.to}`);
+  }
+
   return ratifiedFrame;
 };
 
