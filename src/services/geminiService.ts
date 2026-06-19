@@ -151,15 +151,32 @@ export const sendEngineTurn = async (
   const turnCount = telemetryState.turnCount;
   const currentPhase = telemetryState.currentPhase;
 
+  const appStoreMod = await import('../store/useAppStore');
+  const appStore = appStoreMod.useAppStore;
+  const state = appStore.getState();
+  
+  // 1. NON-DESTRUCTIVE SLICE: Grab only the last 10 turns for the active context window
+  // The full state.history remains untouched for the React UI to render
+  const activeWindowLimit = 10;
+  const slidingWindowHistory = engineTextBuffer.slice(-activeWindowLimit);
+
+  // 2. CONSTRUCT SYSTEM CONTEXT: Inject the distilled trauma above the sliding window
+  // This ensures the LLM remembers the emotional weight of previous phases without the token bloat
+  const systemMemoryContext = state.traumaLedger.length > 0 
+    ? `[SYSTEM MEMORY - PREVIOUS TRAUMA LOGS]\n${state.traumaLedger.join('\n')}\n\n`
+    : '';
+
+  const enhancedWorldStateSummary = systemMemoryContext + worldStateSummary;
+
   const response = await fetch('/api/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ 
       execution_mode: 'ENGINE',
-      textBuffer: engineTextBuffer,
+      textBuffer: slidingWindowHistory,
       currentState: logicState,
       blueprint: blueprint,
-      worldStateSummary,
+      worldStateSummary: enhancedWorldStateSummary,
       currentVector,
       currentTier,
       currentTensionLevel,
@@ -194,9 +211,6 @@ export const sendEngineTurn = async (
   const validPhases = ['LATENT', 'MANIFEST', 'TERMINAL'];
   
   // ==== EUCLIDEAN INTERCEPTOR ====
-  const appStoreMod = await import('../store/useAppStore');
-  const appStore = appStoreMod.useAppStore;
-  
   if (validPhases.includes(parsedPhase)) {
     telemetryStoreMod.useTelemetryStore.getState().updatePhase(parsedPhase);
     const existingPhase = appStore.getState().phase;
