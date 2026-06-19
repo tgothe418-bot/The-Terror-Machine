@@ -11,6 +11,6 @@ module.exports = {
   parser: '@typescript-eslint/parser',
   plugins: ['react-refresh'],
   rules: {
-    '@typescript-eslint/no-explicit-any': 'warn', // Flags places where you abandoned TypeScript
+    '@typescript-eslint/no-explicit-any': 'error', // Flags places where you abandoned TypeScript
   },
 }

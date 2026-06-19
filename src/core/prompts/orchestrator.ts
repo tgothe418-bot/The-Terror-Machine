@@ -24,8 +24,9 @@ export const buildOrchestratorPrompt = (
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const currentPacing = (currentState as any).pacing || 'normal';
 
-  const currentGraph = useAppStore.getState().spatialGraph;
-  const activeNode = currentGraph ? currentGraph.nodes[currentGraph.currentNodeId] : null;
+  const appState = useAppStore.getState();
+  const currentGraph = appState.spatialGraph || [];
+  const activeNode = currentGraph.find((n) => n.id === appState.currentNodeId) || null;
 
   const engineStore = useEngineStore.getState();
   const enduringTrauma = engineStore.enduringTrauma || [];
