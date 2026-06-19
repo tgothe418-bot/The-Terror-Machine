@@ -4,7 +4,7 @@ import { z } from 'zod';
 export const EngineTurnRequestSchema = z.object({
   sessionId: z.string().optional(),
   turnId: z.string().optional(),
-  history: z.array(z.any()), // We can tighten this further later
+  history: z.array(z.any()).optional(), // We can tighten this further later
   blueprint: z.any().optional(),
   currentState: z.any().optional(),
   forgeContext: z.array(z.any()).optional(),

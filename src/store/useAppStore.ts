@@ -27,7 +27,7 @@ export const useAppStore = create<AppStore>((set) => ({
   ...initialEngineState,
   
   // Legacy phase setter (still needed if UI expects AppPhase, but our reducer uses Phase)
-  setPhase: (phase: AppPhase) => set({ phase: phase as 'HUB' | 'FORGE' | 'LATENT' | 'MANIFEST' | 'TERMINAL' | 'TERMINATED' }),
+  setPhase: (phase: AppPhase) => set({ phase: phase as 'HUB' | 'FORGE' | 'LATENT' | 'MANIFEST' | 'TERMINAL' | 'TERMINATED' | 'VOICE' | 'ENGINE' }),
   
   telemetry: null,
   setTelemetry: (telemetry) => set({ telemetry }),

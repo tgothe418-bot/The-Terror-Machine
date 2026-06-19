@@ -1,4 +1,4 @@
-export type Phase = 'HUB' | 'FORGE' | 'LATENT' | 'MANIFEST' | 'TERMINAL' | 'TERMINATED';
+export type Phase = 'HUB' | 'FORGE' | 'LATENT' | 'MANIFEST' | 'TERMINAL' | 'TERMINATED' | 'VOICE' | 'ENGINE';
 export type DecayStage = 'STABLE' | 'FRAYING' | 'UNSTABLE' | 'SHATTERED';
 
 export interface DecayState {
