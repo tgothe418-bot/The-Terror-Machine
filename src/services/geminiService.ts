@@ -166,7 +166,28 @@ export const sendEngineTurn = async (
     ? `[SYSTEM MEMORY - PREVIOUS TRAUMA LOGS]\n${state.traumaLedger.join('\n')}\n\n`
     : '';
 
-  const enhancedWorldStateSummary = systemMemoryContext + worldStateSummary;
+  const forgeStoreMod = await import('../store/useForgeStore');
+  const forgeState = forgeStoreMod.useForgeStoreInternal.getState();
+  const activeCharacterId = forgeState.activeCharacterId;
+
+  // --- NEW: IDENTITY LOCK LOGIC ---
+  // Find the user's selected character from the active blueprint
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const activeCharacter = (blueprint as any)?.cast?.find(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (c: any) => c.id === activeCharacterId
+  );
+
+  let identityLock = '';
+  if (activeCharacter) {
+    identityLock = `[IDENTITY LOCK]\n` +
+      `The User is explicitly playing as: ${activeCharacter.name}.\n` +
+      `Character Profile: ${activeCharacter.description}\n` +
+      `Behavior Vector: ${activeCharacter.behaviorVector || activeCharacter.behavioralVector || 'ADAPTIVE'}\n` +
+      `CRITICAL DIRECTIVE: You must frame ALL second-person ('You') prose, sensory descriptions, and internal logic strictly from ${activeCharacter.name}'s perspective. Do NOT address the user as any other character.\n\n`;
+  }
+
+  const enhancedWorldStateSummary = systemMemoryContext + identityLock + worldStateSummary;
 
   const response = await fetch('/api/chat', {
     method: 'POST',
