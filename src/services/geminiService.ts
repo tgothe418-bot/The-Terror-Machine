@@ -192,17 +192,28 @@ export const sendEngineTurn = async (
 
   const parsedPhase = ratifiedFrame.logic_state.current_phase?.toUpperCase() as 'LATENT' | 'MANIFEST' | 'TERMINAL';
   const validPhases = ['LATENT', 'MANIFEST', 'TERMINAL'];
+  
+  // ==== EUCLIDEAN INTERCEPTOR ====
+  const appStoreMod = await import('../store/useAppStore');
+  const appStore = appStoreMod.useAppStore;
+  
   if (validPhases.includes(parsedPhase)) {
     telemetryStoreMod.useTelemetryStore.getState().updatePhase(parsedPhase);
+    const existingPhase = appStore.getState().phase;
+    if (existingPhase?.toUpperCase() !== parsedPhase) {
+        appStore.getState().dispatch({ 
+            type: 'PHASE_CHANGED', 
+            from: existingPhase as 'LATENT' | 'MANIFEST' | 'TERMINAL', 
+            to: parsedPhase as 'LATENT' | 'MANIFEST' | 'TERMINAL', 
+            timestamp: Date.now() 
+        });
+    }
   }
 
   // Extract store pointer to dynamically pipe live diagnostic metrics:
   const engineStoreMod = await import('../core/store');
   const engineStore = engineStoreMod.useEngineStore;
 
-  // ==== EUCLIDEAN INTERCEPTOR ====
-  const appStoreMod = await import('../store/useAppStore');
-  const appStore = appStoreMod.useAppStore;
   const currentGraph = appStore.getState().spatialGraph;
   const currentNodeId = appStore.getState().currentNodeId;
 
@@ -216,6 +227,14 @@ export const sendEngineTurn = async (
   // Process through our mathematical engine scale
   appStore.getState().updateDecayMetrics(currentSkepticism);
   const activeDecay = appStore.getState().decayMetrics;
+  
+  appStore.getState().dispatch({ 
+      type: 'DECAY_UPDATED', 
+      newDecayState: {
+          stage: activeDecay.currentStage as 'STABLE' | 'FRAYING' | 'UNSTABLE' | 'SHATTERED',
+          coherence: activeDecay.coherenceRating
+      }
+  });
 
   // Inject structural context metadata down to the LLM orchestration pipeline dynamically
   ratifiedFrame.logic_state.matrix_mutation = ratifiedFrame.logic_state.matrix_mutation || {};
@@ -234,25 +253,27 @@ export const sendEngineTurn = async (
 
     if (activeDecay.currentStage === 'SHATTERED') {
       // Stage 4: Space fully breaks down
-      appStore.getState().setCurrentNodeId(targetNodeId);
+      appStore.getState().dispatch({ type: 'TRANSITION_ACCEPTED', fromNodeId: currentNodeId || '', toNodeId: targetNodeId });
     } else if (activeDecay.currentStage === 'UNSTABLE') {
       // Stage 3: Space is unreliable. Introduce a probability shift.
       // 30% chance an invalid spatial request succeeds anyway as a structural aberration
       if (!isConnected && Math.random() > activeDecay.coherenceRating) {
-        appStore.getState().setCurrentNodeId(targetNodeId);
+        appStore.getState().dispatch({ type: 'TRANSITION_ACCEPTED', fromNodeId: currentNodeId || '', toNodeId: targetNodeId });
         ratifiedFrame.logic_state.matrix_mutation.spatial_anomaly = true;
       } else if (isConnected) {
-        appStore.getState().setCurrentNodeId(targetNodeId);
+        appStore.getState().dispatch({ type: 'TRANSITION_ACCEPTED', fromNodeId: currentNodeId || '', toNodeId: targetNodeId });
       } else {
         // Failed verification
+        appStore.getState().dispatch({ type: 'TRANSITION_REJECTED', fromNodeId: currentNodeId || '', attemptedNodeId: targetNodeId, reason: 'Failed UNSTABLE coherence check' });
         ratifiedFrame.logic_state.requested_transition = null;
       }
     } else {
       // Stage 1 & 2: Space remains structurally fixed. Valid paths only.
       if (isConnected || currentNodeId === targetNodeId) {
-        appStore.getState().setCurrentNodeId(targetNodeId);
+        appStore.getState().dispatch({ type: 'TRANSITION_ACCEPTED', fromNodeId: currentNodeId || '', toNodeId: targetNodeId });
       } else {
         console.warn(`[EUCLIDEAN INTERCEPTOR] Denied transition to: ${targetNodeId}`);
+        appStore.getState().dispatch({ type: 'TRANSITION_REJECTED', fromNodeId: currentNodeId || '', attemptedNodeId: targetNodeId, reason: 'Path does not exist in spatial graph' });
         ratifiedFrame.validation.accepted = false;
         ratifiedFrame.validation.rejected_fields.push("requested_transition");
         ratifiedFrame.validation.repair_notes.push(`Transition to ${targetNodeId} denied. Path does not exist in spatial graph.`);
@@ -276,12 +297,24 @@ export const sendEngineTurn = async (
 
   engineStore.getState().updateTelemetry({
     tension: rawData.tension || rawData.startingVector || ratifiedFrame.logic_state.suggested_tension || ratifiedFrame.logic_state.current_phase || 'LOW',
-    pacing: rawData.pacing || rawData.startingTier || (blueprint.narrativeRules?.phaseDirectives?.[currentTensionLevel || 'buildup']) || 'CREEPING',
+    pacing: rawData.pacing || rawData.startingTier || (blueprint.narrativeRules?.phaseDirectives?.[currentTensionLevel as 'buildup' | 'visceral_climax' | 'aftermath' || 'buildup']) || 'CREEPING',
     castLedger: ratifiedFrame.logic_state.cast_ledger || [],
     engineLogic: ratifiedFrame.engine_thoughts || 'System processing...'
   });
 
-  engineStore.getState().incrementTurn();
+  appStore.getState().dispatch({ 
+    type: 'TURN_SUBMITTED', 
+    turnId: crypto.randomUUID(), 
+    text: userMessage, 
+    timestamp: Date.now() 
+  });
+  
+  // also fire frame ratified
+  appStore.getState().dispatch({
+      type: 'FRAME_RATIFIED',
+      turnId: crypto.randomUUID(),
+      frame: ratifiedFrame as Record<string, unknown>
+  });
 
   return ratifiedFrame;
 };

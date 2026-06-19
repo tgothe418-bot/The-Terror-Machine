@@ -1,26 +1,51 @@
 import { create } from 'zustand';
-import { AppState, AppPhase } from '../types';
+import { AppPhase, SpatialNode, TelemetryState } from '../types';
 import { calculateDecayState } from '../lib/ratificationPipeline';
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import { engineReducer, initialEngineState } from '../core/engine/reducer';
+import { EngineEvent } from '../core/engine/events';
+import { engineReducer, initialEngineState, EngineState } from '../core/engine/reducer';
 
-export const useAppStore = create<AppState>((set) => ({
-  phase: 'hub',
-  setPhase: (phase: AppPhase) => set({ phase }),
+export interface AppStore extends EngineState {
+  setPhase: (phase: AppPhase) => void;
+  telemetry: TelemetryState | null;
+  setTelemetry: (telemetry: TelemetryState) => void;
+  spatialGraph: SpatialNode[];
+  isShattered: boolean;
+  decayMetrics: {
+    currentStage: string;
+    coherenceRating: number;
+    divergenceMode: string;
+  };
+  updateDecayMetrics: (skepticism: number) => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  compileTopology: (forgeTopology: any, startNodeId: string) => void;
+  triggerShatter: () => void;
+  setCurrentNodeId: (nodeId: string) => void;
+  dispatch: (event: EngineEvent) => void;
+}
+
+export const useAppStore = create<AppStore>((set) => ({
+  ...initialEngineState,
+  
+  // Legacy phase setter (still needed if UI expects AppPhase, but our reducer uses Phase)
+  setPhase: (phase: AppPhase) => set({ phase: phase as 'HUB' | 'FORGE' | 'LATENT' | 'MANIFEST' | 'TERMINAL' | 'TERMINATED' }),
+  
   telemetry: null,
   setTelemetry: (telemetry) => set({ telemetry }),
+  
   spatialGraph: [],
-  currentNodeId: "NODE_INIT",
   setCurrentNodeId: (nodeId) => set(() => ({
     currentNodeId: nodeId
   })),
+  
   isShattered: false,
   triggerShatter: () => set({ isShattered: true }),
+  
   decayMetrics: {
     currentStage: 'STABLE',
     coherenceRating: 1.0,
     divergenceMode: 'NONE'
   },
+  
   updateDecayMetrics: (skepticism) => {
     const nextMetrics = calculateDecayState(skepticism);
     
@@ -32,6 +57,7 @@ export const useAppStore = create<AppState>((set) => ({
       };
     });
   },
+  
   compileTopology: (forgeTopology, startNodeId) => {
     // Compile the raw Forge topology into the clean runtime graph
     const nodesList = Array.isArray(forgeTopology?.nodes) ? forgeTopology.nodes : [];
@@ -53,5 +79,24 @@ export const useAppStore = create<AppState>((set) => ({
     });
 
     set({ spatialGraph: compiledGraph, isShattered: false, currentNodeId: startNodeId || compiledGraph[0]?.id || "NODE_INIT" });
+  },
+
+  dispatch: (event: EngineEvent) => {
+    set((state) => {
+      // Isolate the EngineState properties
+      const currentEngineState: EngineState = {
+        phase: state.phase,
+        currentNodeId: state.currentNodeId,
+        decay: state.decay,
+        turnCount: state.turnCount,
+        traumaLedger: state.traumaLedger,
+      };
+      
+      // Calculate the new state
+      const nextEngineState = engineReducer(currentEngineState, event);
+      
+      // Merge the new state back into the Zustand store
+      return { ...state, ...nextEngineState };
+    });
   }
 }));
