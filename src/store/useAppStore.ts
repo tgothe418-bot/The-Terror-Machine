@@ -91,6 +91,7 @@ export const useAppStore = create<AppStore>((set) => ({
         turnCount: state.turnCount,
         traumaLedger: state.traumaLedger,
         activeMemory: state.activeMemory,
+        history: state.history || [],
       };
       
       // Calculate the new state

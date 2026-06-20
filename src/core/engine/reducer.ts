@@ -35,7 +35,7 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
       return {
         ...state,
         history: [
-          ...state.history,
+          ...(state.history || []),
           { 
             id: crypto.randomUUID(), 
             role: 'user', 
@@ -49,7 +49,7 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
       return {
         ...state,
         history: [
-          ...state.history,
+          ...(state.history || []),
           {
             id: crypto.randomUUID(),
             role: 'system',
@@ -63,7 +63,7 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
       return {
         ...state,
         history: [
-          ...state.history,
+          ...(state.history || []),
           {
             ...event.message,
             id: event.message.id || crypto.randomUUID(),
@@ -91,7 +91,7 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
       return {
         ...state,
         history: [
-          ...state.history,
+          ...(state.history || []),
           { 
             id: crypto.randomUUID(), 
             role: 'engine', 

@@ -151,7 +151,7 @@ export default function Runtime() {
     try {
       const storeState = useEngineStore.getState();
       const initialResponse = await sendEngineTurn(
-        [{ role: 'user', content: 'Begin simulation. Establish environment and initial state.', timestamp: Date.now() }],
+        'Begin simulation. Establish environment and initial state.',
         gameState,
         activeBlueprint!,
         storeState.engineWorldStateSummary,
@@ -423,7 +423,9 @@ export default function Runtime() {
         {/* Clamped text container width for optimal reading fidelity */}
         <div className={`max-w-3xl mx-auto space-y-12 transition-all duration-[2500ms] ease-in-out ${isTelemetryOpen ? 'blur-sm opacity-30 pointer-events-none' : 'blur-none opacity-100'}`}>
           <AnimatePresence initial={false}>
-          {engineMessages.map((msg, idx) => (
+          {engineMessages.map((msg, idx) => {
+            const safeContent = typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content || '');
+            return (
             <motion.div
               key={idx}
               initial={{ opacity: 0, y: 5 }}
@@ -448,7 +450,7 @@ export default function Runtime() {
                   <div className="text-[10px] uppercase tracking-widest text-zinc-500 font-mono mb-1 font-bold">
                     [ USER: {userCharName} ]
                   </div>
-                  <div>&gt; {msg.content}</div>
+                  <div>&gt; {safeContent}</div>
                 </div>
               ) : msg.role === 'system_cinematic' ? (
                 <div className="border border-green-900/30 bg-green-950/20 p-6 text-center shadow-[inset_0_0_20px_rgba(0,0,0,0.5)] my-12 relative overflow-hidden group">
@@ -459,13 +461,14 @@ export default function Runtime() {
                     [ END OF ACT — MEMORY DISTILLATION COMPLETE ]
                   </div>
                   <div className="text-zinc-300 font-serif italic text-lg leading-loose mx-auto max-w-2xl relative z-10">
-                    <ErgodicTextRenderer text={msg.content} psychologicalStatus="Stable" />
+                    <ErgodicTextRenderer text={safeContent} psychologicalStatus="Stable" />
                   </div>
                 </div>
               ) : msg.blocks ? (
                 <div className="space-y-6">
                   {msg.blocks.map((block, bIdx) => {
                     const status = msg.frozen_psychological_status;
+                    const safeBlockContent = typeof block.content === 'string' ? block.content : JSON.stringify(block.content || '');
                     
                     if (block.type === 'dialogue') {
                       return (
@@ -474,7 +477,7 @@ export default function Runtime() {
                             [ CHARACTER: {block.speaker || 'Unknown'} ]
                           </span>
                           <span className="text-white italic">
-                            <ErgodicTextRenderer text={`"${block.content}"`} psychologicalStatus={status} />
+                            <ErgodicTextRenderer text={`"${safeBlockContent}"`} psychologicalStatus={status} />
                           </span>
                         </div>
                       );
@@ -488,7 +491,7 @@ export default function Runtime() {
                               [ THOUGHT: {block.speaker} ]
                             </span>
                           )}
-                           <ErgodicTextRenderer text={block.content} psychologicalStatus={status} />
+                           <ErgodicTextRenderer text={safeBlockContent} psychologicalStatus={status} />
                         </div>
                       );
                     }
@@ -496,7 +499,7 @@ export default function Runtime() {
                     if (block.type === 'environmental_intrusion') {
                       return (
                         <div key={bIdx} className="bg-red-500/5 border border-red-500/10 p-4 text-fresh-blood font-bold tracking-tighter uppercase animate-pulse">
-                           <ErgodicTextRenderer text={block.content} psychologicalStatus={status} />
+                           <ErgodicTextRenderer text={safeBlockContent} psychologicalStatus={status} />
                         </div>
                       );
                     }
@@ -510,7 +513,7 @@ export default function Runtime() {
                              <span className="text-[10px] uppercase tracking-[0.3em] text-fresh-blood font-bold">[ THE VOICE ]</span>
                           </div>
                           <div className="text-zinc-200 font-light italic text-sm">
-                            <ErgodicTextRenderer text={block.content} psychologicalStatus={status} />
+                            <ErgodicTextRenderer text={safeBlockContent} psychologicalStatus={status} />
                           </div>
                         </div>
                       );
@@ -519,7 +522,7 @@ export default function Runtime() {
                     return (
                       <div key={bIdx}>
                         <ErgodicTextRenderer 
-                          text={block.content} 
+                          text={safeBlockContent} 
                           psychologicalStatus={status} 
                         />
                       </div>
@@ -528,12 +531,13 @@ export default function Runtime() {
                 </div>
               ) : (
                 <ErgodicTextRenderer 
-                  text={msg.content} 
+                  text={safeContent} 
                   psychologicalStatus={msg.frozen_psychological_status} 
                 />
               )}
             </motion.div>
-          ))}
+            );
+          })}
           {isLoading && (
             <motion.div
               initial={{ opacity: 0 }}

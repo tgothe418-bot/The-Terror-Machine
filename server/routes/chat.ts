@@ -93,7 +93,8 @@ router.post("/chat", async (req, res) => {
 
     const rawContents = activeHistory.map((msg: any) => {
       const parts: any[] = [];
-      if (msg.content && msg.content.trim()) parts.push({ text: msg.content });
+      const safeContent = typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content || '');
+      if (safeContent && safeContent.trim()) parts.push({ text: safeContent });
       if (parts.length === 0) parts.push({ text: "..." });
       return {
         role: (msg.role === "assistant" || msg.role === "voice" || msg.role === "model") ? "model" : "user",
@@ -210,6 +211,8 @@ router.post("/chat", async (req, res) => {
       let errorMsg = error.message;
       if (errorMsg?.includes('API key not valid') || errorMsg?.includes('API_KEY_INVALID')) {
         errorMsg = 'Your Gemini API Key is invalid or has expired. Please verify your API Key in the AI Studio Settings menu.';
+      } else if (errorMsg?.includes('RESOURCE_EXHAUSTED') || errorMsg?.includes('429')) {
+        errorMsg = "API Quota Exceeded. You have reached your billing limit or rate limit for the Gemini API.";
       }
       res.status(500).json({ error: errorMsg });
     }
