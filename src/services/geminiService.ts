@@ -1,4 +1,4 @@
-import { Message, ScenarioBlueprint, BicameralOutput, LogicState, ProseStyleVector, ForgePhase, ReferenceMaterial, ExtractedLore, AppPhase, RatifiedEngineFrame } from "../types";
+import { Message, ScenarioBlueprint, BicameralOutput, LogicState, ProseStyleVector, ForgePhase, ReferenceMaterial, ExtractedLore, AppPhase, RatifiedEngineFrame, TopologyEdge } from "../types";
 import { getForgeState } from '../store/useForgeStore';
 import { DISTILLATION_SYSTEM_PROMPT, DISTILLATION_PROMPT } from "../core/prompts/distillation";
 import { validateEngineFrame } from '../lib/ratificationPipeline';
@@ -319,46 +319,27 @@ export const sendEngineTurn = async (
     divergence_protocol: activeDecay.divergenceMode
   };
 
-  // --- B. SPATIAL VALIDATOR (BASED ON COHERENCE RATING) ---
-  if (currentGraph && currentGraph.length > 0 && ratifiedFrame.logic_state.requested_transition) {
-    const targetNodeId = ratifiedFrame.logic_state.requested_transition;
-    const currentNode = currentGraph.find(n => n.id === currentNodeId);
-    
-    const isConnected = currentNode?.connectedNodes.includes(targetNodeId) || false;
+  // --- B. EUCLIDEAN SPATIAL VALIDATOR (EDGE-AWARE) ---
+  const requestedNode = ratifiedFrame.logic_state.requested_transition;
 
-    if (activeDecay.currentStage === 'SHATTERED') {
-      // Stage 4: Space fully breaks down
-      appStore.getState().dispatch({ type: 'TRANSITION_ACCEPTED', fromNodeId: currentNodeId || '', toNodeId: targetNodeId });
-      appStore.getState().dispatch({ type: 'SYSTEM_MESSAGE', payload: `[SYSTEM: SPATIAL SHIFT. User has entered node: ${targetNodeId}]` });
-    } else if (activeDecay.currentStage === 'UNSTABLE') {
-      // Stage 3: Space is unreliable. Introduce a probability shift.
-      // 30% chance an invalid spatial request succeeds anyway as a structural aberration
-      if (!isConnected && Math.random() > activeDecay.coherenceRating) {
-        appStore.getState().dispatch({ type: 'TRANSITION_ACCEPTED', fromNodeId: currentNodeId || '', toNodeId: targetNodeId });
-        appStore.getState().dispatch({ type: 'SYSTEM_MESSAGE', payload: `[SYSTEM: ABERRANT SPATIAL SHIFT. User forced into node: ${targetNodeId}]` });
-        ratifiedFrame.logic_state.matrix_mutation.spatial_anomaly = true;
-      } else if (isConnected) {
-        appStore.getState().dispatch({ type: 'TRANSITION_ACCEPTED', fromNodeId: currentNodeId || '', toNodeId: targetNodeId });
-        appStore.getState().dispatch({ type: 'SYSTEM_MESSAGE', payload: `[SYSTEM: SPATIAL SHIFT. User has entered node: ${targetNodeId}]` });
-      } else {
-        // Failed verification
-        appStore.getState().dispatch({ type: 'TRANSITION_REJECTED', fromNodeId: currentNodeId || '', attemptedNodeId: targetNodeId, reason: 'Failed UNSTABLE coherence check' });
-        ratifiedFrame.logic_state.requested_transition = null;
-      }
-    } else {
-      // Stage 1 & 2: Space remains structurally fixed. Valid paths only.
-      if (isConnected || currentNodeId === targetNodeId) {
-        appStore.getState().dispatch({ type: 'TRANSITION_ACCEPTED', fromNodeId: currentNodeId || '', toNodeId: targetNodeId });
-        appStore.getState().dispatch({ type: 'SYSTEM_MESSAGE', payload: `[SYSTEM: SPATIAL SHIFT. User has entered node: ${targetNodeId}]` });
-      } else {
-        console.warn(`[EUCLIDEAN INTERCEPTOR] Denied transition to: ${targetNodeId}`);
-        appStore.getState().dispatch({ type: 'TRANSITION_REJECTED', fromNodeId: currentNodeId || '', attemptedNodeId: targetNodeId, reason: 'Path does not exist in spatial graph' });
+  if (requestedNode) {
+    const systemFlags = engineStore.getState().gameState?.lore_and_memory?.established_facts || [];
+    
+    // 1. Find the specific edge connecting the current room to the target
+    const edgeRule = blueprint?.topology?.connections?.find(
+      (e: TopologyEdge) => e.from === currentNodeId && e.to === requestedNode
+    );
+
+    if (!edgeRule) {
+      if (currentNodeId !== requestedNode) {
+        console.warn(`[EUCLIDEAN INTERCEPTOR] Blocked impossible transition: ${currentNodeId} to ${requestedNode}.`);
+        appStore.getState().dispatch({ type: 'TRANSITION_REJECTED', fromNodeId: currentNodeId || '', attemptedNodeId: requestedNode, reason: 'Path does not exist in spatial graph' });
         ratifiedFrame.validation.accepted = false;
         ratifiedFrame.validation.rejected_fields.push("requested_transition");
-        ratifiedFrame.validation.repair_notes.push(`Transition to ${targetNodeId} denied. Path does not exist in spatial graph.`);
-        
+        ratifiedFrame.validation.repair_notes.push(`Transition to ${requestedNode} denied. Path does not exist in spatial graph.`);
         ratifiedFrame.logic_state.requested_transition = null;
         
+        const currentNode = currentGraph?.find(n => n.id === currentNodeId);
         if (Array.isArray(ratifiedFrame.logic_state.cast_ledger)) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           ratifiedFrame.logic_state.cast_ledger.forEach((member: any) => {
@@ -370,6 +351,37 @@ export const sendEngineTurn = async (
           type: 'environmental_intrusion',
           content: "[ SYSTEM OVERRIDE: The spatial geometry resists traversal. The requested pathway is inaccessible. ]"
         });
+      }
+    } else {
+      // 2. Validate Edge Conditions
+      const missingRequirements = edgeRule.requires?.filter(
+        (req: string) => !systemFlags.includes(req)
+      ) || [];
+
+      if (!edgeRule.userInitiated && missingRequirements.length > 0) {
+        console.warn(`[EUCLIDEAN INTERCEPTOR] Blocked ${edgeRule.kind} transition. Missing flags: ${missingRequirements.join(', ')}`);
+        appStore.getState().dispatch({ type: 'TRANSITION_REJECTED', fromNodeId: currentNodeId || '', attemptedNodeId: requestedNode, reason: `Blocked ${edgeRule.kind}. Missing: ${missingRequirements.join(', ')}` });
+        ratifiedFrame.validation.accepted = false;
+        ratifiedFrame.validation.rejected_fields.push("requested_transition");
+        ratifiedFrame.validation.repair_notes.push(`Transition to ${requestedNode} denied. Missing flags: ${missingRequirements.join(', ')}`);
+        ratifiedFrame.logic_state.requested_transition = null;
+        
+        const currentNode = currentGraph?.find(n => n.id === currentNodeId);
+        if (Array.isArray(ratifiedFrame.logic_state.cast_ledger)) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ratifiedFrame.logic_state.cast_ledger.forEach((member: any) => {
+            member.current_location = currentNode?.name || "Unknown"; 
+          });
+        }
+        
+        ratifiedFrame.narrative_blocks.push({
+          type: 'environmental_intrusion',
+          content: `[ SYSTEM OVERRIDE: Access denied. Missing requirement tags. ]`
+        });
+      } else {
+        console.log(`[EUCLIDEAN INTERCEPTOR] Authorized ${edgeRule.kind} transition: ${currentNodeId} -> ${requestedNode}`);
+        appStore.getState().dispatch({ type: 'TRANSITION_ACCEPTED', fromNodeId: currentNodeId || '', toNodeId: requestedNode });
+        appStore.getState().dispatch({ type: 'SYSTEM_MESSAGE', payload: `[SYSTEM: SPATIAL SHIFT. User has entered node: ${requestedNode}]` });
       }
     }
   }

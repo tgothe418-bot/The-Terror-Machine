@@ -1,11 +1,12 @@
 import { z } from 'zod';
+import { BlueprintSchema } from '../../src/types';
 
 // Chat & Engine Request Schema
 export const EngineTurnRequestSchema = z.object({
   sessionId: z.string().optional(),
   turnId: z.string().optional(),
   history: z.array(z.any()).optional(), // We can tighten this further later
-  blueprint: z.any().optional(),
+  blueprint: BlueprintSchema.optional(),
   currentState: z.any().optional(),
   forgeContext: z.array(z.any()).optional(),
   execution_mode: z.string().optional(),
@@ -25,7 +26,7 @@ export const SimulatePlayerRequestSchema = z.object({
 });
 
 export const TestSceneRequestSchema = z.object({
-  blueprint: z.any().optional(),
+  blueprint: BlueprintSchema.optional(),
 });
 
 // Voice Request Schema

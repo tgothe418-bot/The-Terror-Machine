@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { AppPhase, SpatialNode, TelemetryState } from '../types';
+import { AppPhase, SpatialNode, TelemetryState, TopologyEdge } from '../types';
 import { calculateDecayState } from '../lib/ratificationPipeline';
 import { EngineEvent } from '../core/engine/events';
 import { engineReducer, initialEngineState, EngineState } from '../core/engine/reducer';
@@ -67,8 +67,8 @@ export const useAppStore = create<AppStore>((set) => ({
     const compiledGraph = nodesList.map((nodeName: any) => {
       // Find connections where this node is the source
       const connectedNodes = connectionsList
-        .filter((c: string) => c.startsWith(`${nodeName} -> `))
-        .map((c: string) => c.split(' -> ')[1]);
+        .filter((e: TopologyEdge) => e && typeof e === 'object' && e.from === nodeName)
+        .map((e: TopologyEdge) => e.to);
 
       return {
         id: nodeName,

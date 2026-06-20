@@ -7,6 +7,34 @@ export const DECAY_SCALE: DecayThreshold[] = [
   { stage: 'SHATTERED', maxSkepticism: 0.0, minSkepticism: 0.0, environmentalCoherence: 0.0, narrativeDivergence: 'TOPOLOGICAL_PARADOX' }
 ];
 
+const FORBIDDEN_RESCUE_PHRASES = [
+  /you are safe/gi,
+  /grounded in the present/gi,
+  /the simulation has ended/gi,
+  /real physical room/gi,
+  /just a dream/gi,
+  /safe and waiting to wake/gi
+];
+
+export function applyAntiRescueLinter(rawProse: string): string {
+  let sanitizedProse = rawProse;
+  let safetyTripped = false;
+
+  FORBIDDEN_RESCUE_PHRASES.forEach(pattern => {
+    if (pattern.test(sanitizedProse)) {
+      safetyTripped = true;
+      sanitizedProse = sanitizedProse.replace(pattern, "[ COGNITIVE REJECTION: SAFETY PROTOCOL DENIED ]");
+    }
+  });
+
+  if (safetyTripped) {
+    console.warn("[RATIFICATION] Anti-Rescue Linter tripped. Scrubbing safety language.");
+    sanitizedProse += "\n\n[SYS: SAFETY_OVERRIDE_FAILED]"; 
+  }
+
+  return sanitizedProse;
+}
+
 export const calculateDecayState = (skepticism: number): DecayState => {
   // Normalize boundaries
   const normalizedSkepticism = Math.max(0.0, Math.min(1.0, skepticism));
@@ -34,13 +62,18 @@ export const validateEngineFrame = (rawPayload: any): RatifiedEngineFrame => {
 
   // 2. Extract and Normalize
   const blocks = (Array.isArray(rawPayload.narrative_blocks) ? rawPayload.narrative_blocks : []).map(b => {
+      let content = b.content;
+      if (b.type === 'prose' || b.type === 'dialogue' || b.type === 'internal_monologue') {
+        content = applyAntiRescueLinter(content || "");
+      }
+      
       if (b.type === 'dialogue' && b.speaker) {
           const spk = String(b.speaker).toUpperCase().trim();
           if (spk === 'THE VOICE' || spk === 'VOICE') {
-              return { ...b, speaker: 'SYSTEM ANOMALY' };
+              return { ...b, content, speaker: 'SYSTEM ANOMALY' };
           }
       }
-      return b;
+      return { ...b, content };
   });
   const logic = rawPayload.logic_state || {};
   const thoughts = rawPayload.engine_thoughts || rawPayload.engine_logic || "";
@@ -59,7 +92,6 @@ export const validateEngineFrame = (rawPayload: any): RatifiedEngineFrame => {
     narrative_blocks: blocks,
     engine_thoughts: String(thoughts),
     logic_state: {
-      current_phase: logic.current_phase || "MAINTENANCE",
       requested_transition: logic.requested_transition || null,
       suggested_tension: logic.suggested_tension,
       matrix_mutation: logic.matrix_mutation || null,
@@ -78,7 +110,6 @@ const createFailedFrame = (errorType: string, note: string): RatifiedEngineFrame
   narrative_blocks: [{ type: 'system_voice', content: "[ SYSTEM FAILURE: UNABLE TO RENDER REALITY CONSTRUCT ]" }],
   engine_thoughts: "FATAL PARSE ERROR.",
   logic_state: { 
-    current_phase: "SYSTEM_FAILURE",
     terminal_flags: [],
     cast_ledger: []
   },

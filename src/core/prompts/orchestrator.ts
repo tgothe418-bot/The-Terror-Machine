@@ -1,4 +1,4 @@
-import { Blueprint, LogicState } from '../../types';
+import { Blueprint, LogicState, TopologyEdge } from '../../types';
 import { useAppStore } from '../../store/useAppStore';
 
 export const buildOrchestratorPrompt = (
@@ -36,17 +36,19 @@ The following immutable facts were established in previous Acts. You must enforc
 ${traumaLedgerData.length > 0 ? traumaLedgerData.map(t => `- ${t}`).join('\n') : "No permanent trauma recorded yet."}
 =========================================`;
 
+  const activeEdges = (blueprint?.topology?.connections || []).filter((e: TopologyEdge) => e.from && activeNode && e.from === activeNode.id) || [];
+  
   const spatialMatrix = activeNode ? `
 <euclidean_spatial_matrix>
 =========================================
-[ EUCLIDEAN SPATIAL MATRIX ]
-Current Location: ${activeNode?.name || 'Unknown'} (${activeNode?.id || 'NONE'})
-Base Environment: ${activeNode?.baseDescription || 'Uninitialized Space'}
-Connected & Accessible Nodes: ${activeNode?.connectedNodes.length ? activeNode.connectedNodes.join(', ') : 'NONE'}
+[ SPATIAL TOPOLOGY ]
+Current Location: ${activeNode.id}
+Available Transitions:
+${activeEdges.map((e: TopologyEdge) => `- To ${e.to} (Kind: ${e.kind}, User Initiated: ${e.userInitiated}${e.requires && e.requires.length > 0 ? `, Requires: [${e.requires.join(', ')}]` : ''})`).join('\n') || "None. You are trapped."}
 =========================================
 SPATIAL DIRECTIVE:
-You cannot invent new rooms. You cannot teleport the subject. The subject can ONLY move to the nodes listed in "Connected & Accessible Nodes". 
-If the subject attempts to move to a valid connected node, you MUST output that target node's ID in the "requested_transition" field of your JSON.
+You cannot invent new rooms. You cannot teleport the subject.
+CRITICAL: You may only output a "requested_transition" if the narrative strictly satisfies the edge rules. If an edge is NOT userInitiated (e.g., "forced_event"), you cannot let the user 'walk' there. You must wait for the required system flags to be met.
 If the subject is not moving, or attempts to move to an invalid/locked location, output null for "requested_transition" and describe the physical barrier preventing their movement.
 </euclidean_spatial_matrix>
 ` : '';
@@ -144,17 +146,15 @@ Current Phase: ${currentPhase}
 Turns Elapsed: ${turnCount}
 Current System Momentum: ${momentumIndex} (0.0 = Stagnant, 1.0 = Maximum Velocity)
 =========================================
-You are controlling the progression of the nightmare. Evaluate the Subject's momentum, the Cast Ledger's sanity, and the Turn Count to determine if the nightmare escalates. 
-- If Momentum > 0.8 and Turn > 8, you are authorized to shift from LATENT to MANIFEST.
-- If Momentum > 0.9 and Turn > 18, you are authorized to shift from MANIFEST to TERMINAL.
+You no longer control the Phase; it is deterministic. However, you DO control the local tension of the scene. Evaluate the Subject's momentum, the Cast Ledger's sanity, and the Turn Count to determine if the local narrative tension escalates.
 
-YOUR DIRECTIVE: In your JSON response, you MUST include a "current_phase" key containing your determination.
+YOUR DIRECTIVE: In your JSON response, you MUST include a "suggested_tension" key containing your determination ("buildup", "visceral_climax", or "aftermath").
   </escalation_matrix>
 
   <json_schema_requirement>
     You must output exactly this JSON structure. Do not include markdown formatting or \`\`\`json blocks.
     {
-      "current_phase": "String: LATENT | MANIFEST | TERMINAL",
+      "suggested_tension": "String: buildup | visceral_climax | aftermath",
       "requested_transition": "String: NODE_ID if moving, or null",
       "cast_ledger": [
         {

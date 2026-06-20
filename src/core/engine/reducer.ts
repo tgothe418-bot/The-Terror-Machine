@@ -77,6 +77,21 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
       
       const isTerminal = newTags?.SYS?.includes('SOMATIC_TERMINAL') || newTags?.SYS?.includes('COGNITIVE_COLLAPSE');
 
+      let calculatedPhase = state.phase;
+      
+      // Pure mathematical deterministic phase shift
+      if (state.turnCount >= 18 || state.traumaLedger.length >= 5) {
+        calculatedPhase = 'TERMINAL';
+      } else if (state.turnCount >= 8 || state.traumaLedger.length >= 2) {
+        calculatedPhase = 'MANIFEST';
+      } else if (state.phase === 'HUB' || state.phase === 'FORGE' || state.phase === 'VOICE') {
+        // preserve non-runtime phases
+      } else {
+        calculatedPhase = 'LATENT';
+      }
+
+      if (isTerminal) calculatedPhase = 'TERMINATED';
+
       const narrativeBlocks = event.payload.narrative_blocks;
       const formatBlocks = (blocks?: Record<string, unknown>[]): string => {
         if (!blocks || !Array.isArray(blocks)) return '';
@@ -107,7 +122,7 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
           somaState: newTags?.SOMA || [],
           geomState: newTags?.GEOM || []
         },
-        phase: isTerminal ? 'TERMINAL' : state.phase
+        phase: calculatedPhase
       };
     }
 

@@ -15,6 +15,39 @@ export type HorrorVector = 'SOMATIC' | 'COGNITIVE' | 'COSMIC' | 'SOCIO_MORAL';
 export type ExposureTier = 'GATEWAY' | 'LATENT' | 'MANIFEST' | 'TERMINAL';
 export type AutopilotVector = 'ADAPTIVE' | 'INSURGENT' | 'PANIC';
 
+export type EdgeKind = 
+  | "physical" 
+  | "forced_event" 
+  | "memory_reconstruction" 
+  | "historical_reference" 
+  | "terminal_ejection"
+  | "authored_paradox";
+
+export interface TopologyEdge {
+  from: string;
+  to: string;
+  kind: EdgeKind;
+  requires?: string[];
+  userInitiated: boolean;
+}
+
+export const EdgeKindSchema = z.enum([
+  "physical", 
+  "forced_event", 
+  "memory_reconstruction", 
+  "historical_reference", 
+  "terminal_ejection",
+  "authored_paradox"
+]);
+
+export const TopologyEdgeSchema = z.object({
+  from: z.string(),
+  to: z.string(),
+  kind: EdgeKindSchema,
+  requires: z.array(z.string()).optional(),
+  userInitiated: z.boolean()
+});
+
 export const VulnerabilityIndexSchema = z.object({
   resilience: z.number().min(0).max(1).default(0.5),
   skepticism: z.number().min(0).max(1).default(0.5),
@@ -56,7 +89,7 @@ export const BlueprintSchema = z.object({
   
   topology: z.object({
     nodes: z.array(z.string()).optional().default([]),
-    connections: z.array(z.string()).optional().default([])
+    connections: z.array(TopologyEdgeSchema).optional().default([])
   }).optional().default({ nodes: [], connections: [] }),
   
   setting: z.object({
@@ -284,10 +317,9 @@ export interface RatifiedEngineFrame {
   narrative_blocks: NarrativeBlock[];
   engine_thoughts: string;
   logic_state: {
-    current_phase: string;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     requested_transition?: any;
-    suggested_tension?: number | string;
+    suggested_tension?: "buildup" | "visceral_climax" | "aftermath";
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     matrix_mutation?: any;
     terminal_flags?: string[];
