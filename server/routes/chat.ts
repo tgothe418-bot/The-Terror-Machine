@@ -19,6 +19,11 @@ router.post("/chat", async (req, res) => {
   let isHubMode = false;
   try {
     const { blueprint, textBuffer, currentState, execution_mode, worldStateSummary, currentVector, currentTier, currentTensionLevel, momentumIndex = 0.5, turnCount = 1, currentPhase = 'LATENT' } = parsedBody.data;
+    
+    if (!blueprint) {
+      return res.status(400).json({ error: "Blueprint is required" });
+    }
+
     const mode = String(execution_mode).toUpperCase();
     isHubMode = mode === 'HUB' || mode === 'VOICE';
     const isRuntimeMode = mode === 'RUNTIME' || mode === 'ENGINE';
@@ -177,12 +182,14 @@ router.post("/chat", async (req, res) => {
       return;
     }
 
-    const textResponse = response.text || "{}";
+    const rawText = response.text || "{}";
+    const cleanedText = rawText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+
     let parsed: any;
     try {
-      parsed = JSON.parse(textResponse);
+      parsed = JSON.parse(cleanedText);
     } catch {
-      parsed = extractBlueprint(textResponse, []) || {};
+      parsed = extractBlueprint(cleanedText, []) || {};
     }
     
     let blocks: any[] = [];

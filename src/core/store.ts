@@ -3,7 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { ScenarioBlueprint, LogicState, Message } from '../types';
 import { idbStorage } from '../lib/idbStorage';
 import { distillContext } from '../services/geminiService';
-import { normalizeBlueprint } from '../store/useAppStore';
+import { useAppStore, normalizeBlueprint } from '../store/useAppStore';
 
 import { flattenTurnsForDistillation } from '../lib/jsonParser';
 import { HorrorVector, ExposureTier } from './matrix';
@@ -78,6 +78,21 @@ export const useEngineStore = create<EngineState>()(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const userChar = normalizedCast.find((c: any) => c.id === activeCharId) || normalizedCast[0];
         
+        // Hard reset useAppStore
+        const startNodeId = normalizedBlueprint.topology?.nodes?.[0] || "UNKNOWN";
+        useAppStore.setState({
+          history: [], 
+          traumaLedger: [], 
+          motifLedger: {}, 
+          pacingLedger: { failedEscapeAttempts: 0, memoryAnchorsRemaining: 3, spatialContradictions: 0 }, 
+          timelineRevision: 0, 
+          lastDistilledRevision: -1, 
+          activeMemory: { systemFlags: [], somaState: [], geomState: [] }, 
+          phase: "LATENT", 
+          turnCount: 0,
+          currentNodeId: startNodeId
+        });
+
         set({ 
           activeBlueprint: normalizedBlueprint, 
           engineMessages: [],

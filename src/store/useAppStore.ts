@@ -32,15 +32,13 @@ export function normalizeBlueprint(raw: any): any {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const normalizedConnections = rawConnections.map((conn: any) => {
     if (typeof conn === 'string') {
-      const parts = conn.split('->').map(s => s.trim());
-      if (parts.length === 2 && parts[0] && parts[1]) {
-         return {
-           from: parts[0],
-           to: parts[1],
-           kind: "physical",
-           userInitiated: true
-         };
-      }
+      const parts = conn.split('->').map((s: string) => s.trim());
+      return {
+        from: parts[0] || "",
+        to: parts[1] || "",
+        kind: "physical",
+        userInitiated: true
+      };
     }
     return conn;
   });
