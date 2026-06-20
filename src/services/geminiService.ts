@@ -82,7 +82,8 @@ export const triggerMemoryForge = async (chatHistory: string, dispatchedAtRevisi
       type: 'ACT_DISTILLED', 
       trauma: parsed.enduring_trauma || [], 
       summary: parsed.act_summary || "The void shifts, remembering nothing.",
-      dispatchedAtRevision
+      dispatchedAtRevision,
+      sessionId: appStore.sessionId || "unknown"
     });
     
     console.log("[MEMORY FORGE] Distillation Complete. Context cleared.");
@@ -367,8 +368,11 @@ export const sendEngineTurn = async (
         }
         
         ratifiedFrame.narrative_blocks.push({
-          type: 'environmental_intrusion',
-          content: "[ SYSTEM OVERRIDE: The spatial geometry resists traversal. The requested pathway is inaccessible. ]"
+          type: 'TRANSITION_REJECTED',
+          requested: requestedNode,
+          reason: 'NODE_NOT_IN_ACTIVE_TOPOLOGY',
+          visibleToModel: false,
+          visibleToTelemetry: true
         });
       }
     } else {
@@ -394,8 +398,11 @@ export const sendEngineTurn = async (
         }
         
         ratifiedFrame.narrative_blocks.push({
-          type: 'environmental_intrusion',
-          content: `[ SYSTEM OVERRIDE: Access denied. Missing requirement tags. ]`
+          type: 'TRANSITION_REJECTED',
+          requested: requestedNode,
+          reason: `MISSING_REQUIREMENTS: ${missingRequirements.join(', ')}`,
+          visibleToModel: false,
+          visibleToTelemetry: true
         });
       } else {
         console.log(`[EUCLIDEAN INTERCEPTOR] Authorized ${edgeRule.kind} transition: ${currentNodeId} -> ${requestedNode}`);

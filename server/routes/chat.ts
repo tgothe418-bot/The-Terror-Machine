@@ -3,7 +3,7 @@ import express from "express";
 import { Type } from "@google/genai";
 import { getAiClient } from "../utils/aiClient";
 import { buildOrchestratorPrompt } from "../../src/core/prompts/orchestrator";
-import { extractBlueprint } from "../../src/lib/jsonParser";
+import { cleanJsonText } from "../../src/lib/jsonParser";
 import { BicameralOutput } from "../../src/types";
 import { getMatrixRules } from "../../src/core/matrix";
 import { EngineTurnRequestSchema, SimulatePlayerRequestSchema, TestSceneRequestSchema } from "../schemas/index";
@@ -21,7 +21,7 @@ router.post("/chat", async (req, res) => {
     const { blueprint, textBuffer, currentState, execution_mode, worldStateSummary, currentVector, currentTier, currentTensionLevel, momentumIndex = 0.5, turnCount = 1, currentPhase = 'LATENT' } = parsedBody.data;
     
     if (!blueprint) {
-      return res.status(400).json({ error: "Blueprint is required" });
+      return res.status(400).json({ error: "INVALID_BLUEPRINT" });
     }
 
     const mode = String(execution_mode).toUpperCase();
@@ -69,12 +69,11 @@ router.post("/chat", async (req, res) => {
       
       const coordinateRules = getMatrixRules(vector, tier);
 
-      const historyString = activeHistory.map((m: any) => `${m.role}: ${m.content}`).join('\n');
-      const accumulatedHistory = worldStateSummary 
-        ? `[CUMULATIVE CHRONOLOGY]:\n${worldStateSummary}\n\n[RECENT LOG]:\n${historyString}` 
-        : historyString;
+      const modifiedHistory = worldStateSummary 
+        ? [{ role: 'system_cinematic', content: `[CUMULATIVE CHRONOLOGY]:\n${worldStateSummary}` }, ...activeHistory]
+        : activeHistory;
 
-      systemInstruction = buildOrchestratorPrompt(slimBlueprint as any, accumulatedHistory, updatedState || {} as any, momentumIndex, turnCount, currentPhase);
+      systemInstruction = buildOrchestratorPrompt(slimBlueprint as any, modifiedHistory as any, updatedState || {} as any, momentumIndex, turnCount, currentPhase);
 
       systemInstruction += `\n\n=== CORE RUNTIME MATRIX COORDINATES ===
     ACTIVE DOMAIN VECTOR: ${vector}
@@ -183,14 +182,9 @@ router.post("/chat", async (req, res) => {
     }
 
     const rawText = response.text || "{}";
-    const cleanedText = rawText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    const cleanedText = cleanJsonText(rawText);
 
-    let parsed: any;
-    try {
-      parsed = JSON.parse(cleanedText);
-    } catch {
-      parsed = extractBlueprint(cleanedText, []) || {};
-    }
+    const parsed: any = JSON.parse(cleanedText);
     
     let blocks: any[] = [];
     
@@ -267,7 +261,17 @@ router.post("/chat", async (req, res) => {
       output.logic_state.lore_and_memory = (parsed as any).logic_state?.lore_and_memory || { established_facts: [], permanent_consequences: [] };
     }
 
-    res.json(output);
+    const finalOutput = {
+      ...output,
+      debugReceipt: {
+        acceptedBlueprintId: blueprint.id,
+        acceptedBlueprintTitle: blueprint.identity?.title,
+        activeCharacterId: req.body.currentState?.player_character_id,
+        currentNode: req.body.currentState?.currentNodeId
+      }
+    };
+
+    res.json(finalOutput);
   } catch (error: any) {
     if (isHubMode && (error.message?.includes('SAFETY') || error.message?.includes('candidate'))) {
       res.json({

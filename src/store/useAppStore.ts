@@ -37,7 +37,8 @@ export function normalizeBlueprint(raw: any): any {
         from: parts[0] || "",
         to: parts[1] || "",
         kind: "physical",
-        userInitiated: true
+        userInitiated: true,
+        legacyUpgraded: true
       };
     }
     return conn;

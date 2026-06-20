@@ -29,6 +29,7 @@ export interface TopologyEdge {
   kind: EdgeKind;
   requires?: string[];
   userInitiated: boolean;
+  legacyUpgraded?: boolean;
 }
 
 export const EdgeKindSchema = z.enum([
@@ -45,7 +46,8 @@ export const TopologyEdgeSchema = z.object({
   to: z.string(),
   kind: EdgeKindSchema,
   requires: z.array(z.string()).optional(),
-  userInitiated: z.boolean()
+  userInitiated: z.boolean(),
+  legacyUpgraded: z.boolean().optional()
 });
 
 export const VulnerabilityIndexSchema = z.object({
@@ -227,6 +229,8 @@ export interface Message {
   blocks?: NarrativeBlock[];
   engine_thoughts?: string;
   frozen_psychological_status?: string;
+  visibleToModel?: boolean;
+  visibleToTelemetry?: boolean;
 }
 
 export interface TelemetryState {
@@ -300,12 +304,16 @@ export interface LogicState {
   }[];
 }
 
-export type BlockType = 'prose' | 'dialogue' | 'internal_monologue' | 'environmental_intrusion' | 'system_voice';
+export type BlockType = 'prose' | 'dialogue' | 'internal_monologue' | 'environmental_intrusion' | 'system_voice' | 'TRANSITION_REJECTED';
 
 export interface NarrativeBlock {
   type: BlockType;
-  content: string;
+  content?: string;
   speaker?: string; // Optional: Only used if type is 'dialogue' or 'internal_monologue'
+  requested?: string;
+  reason?: string;
+  visibleToModel?: boolean;
+  visibleToTelemetry?: boolean;
 }
 
 export interface ValidationReceipt {

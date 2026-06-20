@@ -2,6 +2,8 @@ import { EngineEvent, Phase, DecayState } from './events';
 import { Message } from '../../types';
 
 export interface EngineState {
+  sessionId?: string;
+  blueprintId?: string;
   phase: Phase;
   currentNodeId: string | null;
   decay: DecayState;
@@ -24,6 +26,8 @@ export interface EngineState {
 }
 
 export const initialEngineState: EngineState = {
+  sessionId: "",
+  blueprintId: "",
   phase: 'HUB',
   currentNodeId: null,
   decay: { stage: 'STABLE', coherence: 1.0 },
@@ -144,9 +148,11 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
           if ((block.type === 'dialogue' || block.type === 'internal_monologue') && block.speaker) {
             return `${String(block.speaker).toUpperCase()}: ${String(block.content)}`;
           }
-          return String(block.content);
+          return String(block.content || '');
         }).join('\n\n');
       };
+
+      const hasHiddenBlocks = Array.isArray(narrativeBlocks) && narrativeBlocks.some((b: Record<string, unknown>) => b.visibleToModel === false);
 
       return {
         ...state,
@@ -158,7 +164,8 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
             content: formatBlocks(narrativeBlocks), 
             blocks: narrativeBlocks,
             engine_thoughts: event.payload.engine_thoughts,
-            timestamp: Date.now() 
+            timestamp: Date.now(),
+            visibleToModel: hasHiddenBlocks ? false : true
           }
         ],
         activeMemory: {
@@ -211,6 +218,11 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
       };
 
     case 'ACT_DISTILLED': {
+      if (event.sessionId !== state.sessionId) {
+        // Silently discard memory leak from previous session
+        return state;
+      }
+
       if (event.dispatchedAtRevision < state.lastDistilledRevision) {
         // Reject stale memory summary to prevent timeline corruption
         return state;

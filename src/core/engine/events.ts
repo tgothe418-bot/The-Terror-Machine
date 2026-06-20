@@ -22,5 +22,5 @@ export type EngineEvent =
   | { type: 'TOPOLOGY_COMPILED'; graph: Record<string, unknown>[] } 
   | { type: 'TRANSITION_ACCEPTED'; fromNodeId: string; toNodeId: string }
   | { type: 'TRANSITION_REJECTED'; fromNodeId: string; attemptedNodeId: string; reason: string }
-  | { type: 'ACT_DISTILLED'; trauma: string[]; summary: string; dispatchedAtRevision: number }
+  | { type: 'ACT_DISTILLED'; trauma: string[]; summary: string; dispatchedAtRevision: number; sessionId: string }
   | { type: 'DECAY_UPDATED'; newDecayState: DecayState };

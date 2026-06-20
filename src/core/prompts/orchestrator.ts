@@ -1,9 +1,9 @@
-import { Blueprint, LogicState, TopologyEdge } from '../../types';
+import { Blueprint, LogicState, TopologyEdge, Message } from '../../types';
 import { useAppStore } from '../../store/useAppStore';
 
 export const buildOrchestratorPrompt = (
   blueprint: Blueprint,
-  history: string,
+  history: Message[],
   currentState: LogicState,
   momentumIndex: number,
   turnCount: number,
@@ -67,6 +67,11 @@ CRITICAL: You may only output a "requested_transition" if the narrative strictly
 If the subject is not moving, or attempts to move to an invalid/locked location, output null for "requested_transition" and describe the physical barrier preventing their movement.
 </euclidean_spatial_matrix>
 ` : '';
+
+  const formattedHistory = history
+    .filter(m => m.visibleToModel !== false)
+    .map(m => `${m.role}: ${m.content}`)
+    .join('\n');
 
   return `
 <system_directive>
@@ -205,7 +210,7 @@ ${spatialMatrix}
 </current_system_state>
 
 <recent_history>
-${history}
+${formattedHistory}
 </recent_history>
   `.trim();
 };

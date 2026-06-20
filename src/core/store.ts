@@ -81,6 +81,8 @@ export const useEngineStore = create<EngineState>()(
         // Hard reset useAppStore
         const startNodeId = normalizedBlueprint.topology?.nodes?.[0] || "UNKNOWN";
         useAppStore.setState({
+          sessionId: crypto.randomUUID(),
+          blueprintId: normalizedBlueprint.id || "unknown",
           history: [], 
           traumaLedger: [], 
           motifLedger: {}, 
