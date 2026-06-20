@@ -15,6 +15,7 @@ export interface AppStore extends EngineState {
   requestActTransition: (targetActId: string) => void;
   commitActTransition: (newBlueprintId: string, packet: CarryoverPacket) => void;
   executeTemporalShift: (receipt: TemporalShiftReceipt) => void;
+  loadCampaignManifest: (manifest: CampaignManifest) => void;
 
   setPhase: (phase: AppPhase) => void;
   telemetry: TelemetryState | null;
@@ -110,6 +111,11 @@ export const useAppStore = create<AppStore>((set) => ({
     }],
     turnCount: state.turnCount + 1
   })),
+
+  loadCampaignManifest: (manifest: CampaignManifest) => set({
+    activeCampaign: manifest,
+    currentActId: manifest.initialActId
+  }),
 
   // Legacy phase setter (still needed if UI expects AppPhase, but our reducer uses Phase)
   setPhase: (phase: AppPhase) => set({ phase: phase as 'HUB' | 'FORGE' | 'LATENT' | 'MANIFEST' | 'TERMINAL' | 'TERMINATED' | 'VOICE' | 'ENGINE' }),

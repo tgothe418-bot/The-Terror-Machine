@@ -1,4 +1,5 @@
 import { ReferenceMaterial } from '../types';
+import { useAppStore } from '../store/useAppStore';
 
 export const parseFile = async (file: File): Promise<ReferenceMaterial> => {
   return new Promise((resolve, reject) => {
@@ -72,4 +73,41 @@ export const parseBlueprintFile = async (file: File): Promise<unknown> => {
     reader.onerror = () => reject(new Error("Failed to read file"));
     reader.readAsText(file);
   });
+};
+
+export const parseCampaignFile = async (file: File): Promise<unknown> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const result = JSON.parse(reader.result as string);
+        
+        // Basic validation for CampaignManifest
+        if (!result.id || !result.title || !result.initialActId || !Array.isArray(result.acts) || !Array.isArray(result.edges)) {
+          throw new Error("Invalid campaign manifest structure.");
+        }
+        
+        // Validate all blueprintId values in acts are strings and not empty
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        result.acts.forEach((act: any) => {
+          if (typeof act.blueprintId !== 'string' || act.blueprintId.trim() === '') {
+            throw new Error(`Act ${act.actId} has an invalid or missing blueprintId.`);
+          }
+        });
+        
+        resolve(result);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } catch (err: any) {
+        console.error("Parse Campaign error", err);
+        reject(new Error(err.message || "Failed to parse Campaign file"));
+      }
+    };
+    reader.onerror = () => reject(new Error("Failed to read file"));
+    reader.readAsText(file);
+  });
+};
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const loadCampaignManifestAction = (manifest: any) => {
+  useAppStore.getState().loadCampaignManifest(manifest);
 };
