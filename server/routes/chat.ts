@@ -140,7 +140,15 @@ router.post("/chat", async (req, res) => {
     let blocks: any[] = [];
     
     if (Array.isArray((parsed as any).narrative_blocks)) {
-      blocks = (parsed as any).narrative_blocks;
+      blocks = (parsed as any).narrative_blocks.map((b: any) => {
+        if (b.type === 'dialogue' && b.speaker) {
+          const spk = b.speaker.toUpperCase().trim();
+          if (spk === 'THE VOICE' || spk === 'VOICE') {
+            b.speaker = 'SYSTEM ANOMALY';
+          }
+        }
+        return b;
+      });
     } else {
       if ((parsed as any).narrative_text) {
         blocks.push({ type: 'prose', content: (parsed as any).narrative_text });
@@ -148,7 +156,12 @@ router.post("/chat", async (req, res) => {
       
       if (Array.isArray((parsed as any).dialogue) && (parsed as any).dialogue.length > 0) {
         (parsed as any).dialogue.forEach((d: any) => {
-          blocks.push({ type: 'dialogue', content: d.text, speaker: d.speaker });
+          let spk = d.speaker || 'Unknown';
+          const spkUpper = spk.toUpperCase().trim();
+          if (spkUpper === 'THE VOICE' || spkUpper === 'VOICE') {
+            spk = 'SYSTEM ANOMALY';
+          }
+          blocks.push({ type: 'dialogue', content: d.text, speaker: spk });
         });
       }
       
@@ -160,7 +173,7 @@ router.post("/chat", async (req, res) => {
     const logicState: any = (parsed as any).logic_state || {};
 
     if ((parsed as any).current_phase !== undefined) logicState.current_phase = (parsed as any).current_phase;
-    if ((parsed as any).transition_proposal !== undefined) logicState.transition_proposal = (parsed as any).transition_proposal;
+    if ((parsed as any).requested_transition !== undefined) logicState.requested_transition = (parsed as any).requested_transition;
     if ((parsed as any).suggested_tension !== undefined) logicState.suggested_tension = (parsed as any).suggested_tension;
     if ((parsed as any).matrix_mutation !== undefined) logicState.matrix_mutation = (parsed as any).matrix_mutation;
     if ((parsed as any).terminal_flags !== undefined) logicState.terminal_flags = (parsed as any).terminal_flags;

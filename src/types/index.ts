@@ -249,6 +249,7 @@ export interface LogicState {
   inventory: string[];
   psychological_status: string;
   player_role: 'protagonist' | 'antagonist';
+  player_character_id?: string;
   current_tension_level: TensionLevel;
   cast_ledger?: Array<{
     character_name: string;

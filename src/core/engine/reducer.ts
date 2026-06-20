@@ -143,11 +143,24 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
         decay: event.newDecayState,
       };
 
-    case 'ACT_DISTILLED':
+    case 'ACT_DISTILLED': {
+      const messages = state.history || [];
+      const preservedStart = messages.length > 0 ? [messages[0]] : [];
+      const preservedEnd = messages.length > 2 ? messages.slice(-2) : messages;
+
+      const actBreakMessage: Message = {
+        id: crypto.randomUUID(),
+        role: 'system_cinematic',
+        content: event.summary,
+        timestamp: Date.now()
+      };
+
       return {
         ...state,
         traumaLedger: [...state.traumaLedger, ...event.trauma],
+        history: [...preservedStart, actBreakMessage, ...preservedEnd]
       };
+    }
 
     // Default catch for unhandled events
     default:

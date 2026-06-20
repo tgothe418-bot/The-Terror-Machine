@@ -33,7 +33,15 @@ export const validateEngineFrame = (rawPayload: any): RatifiedEngineFrame => {
   }
 
   // 2. Extract and Normalize
-  const blocks = Array.isArray(rawPayload.narrative_blocks) ? rawPayload.narrative_blocks : [];
+  const blocks = (Array.isArray(rawPayload.narrative_blocks) ? rawPayload.narrative_blocks : []).map(b => {
+      if (b.type === 'dialogue' && b.speaker) {
+          const spk = String(b.speaker).toUpperCase().trim();
+          if (spk === 'THE VOICE' || spk === 'VOICE') {
+              return { ...b, speaker: 'SYSTEM ANOMALY' };
+          }
+      }
+      return b;
+  });
   const logic = rawPayload.logic_state || {};
   const thoughts = rawPayload.engine_thoughts || rawPayload.engine_logic || "";
 

@@ -1,6 +1,5 @@
 import { Blueprint, LogicState } from '../../types';
 import { useAppStore } from '../../store/useAppStore';
-import { useEngineStore } from '../store';
 
 export const buildOrchestratorPrompt = (
   blueprint: Blueprint,
@@ -28,14 +27,13 @@ export const buildOrchestratorPrompt = (
   const currentGraph = appState.spatialGraph || [];
   const activeNode = currentGraph.find((n) => n.id === appState.currentNodeId) || null;
 
-  const engineStore = useEngineStore.getState();
-  const enduringTrauma = engineStore.enduringTrauma || [];
+  const traumaLedgerData = appState.traumaLedger || [];
 
   const traumaLedger = `
 =========================================
 [ PERMANENT TRAUMA LEDGER ]
 The following immutable facts were established in previous Acts. You must enforce these truths and never contradict them:
-${enduringTrauma.length > 0 ? enduringTrauma.map(t => `- ${t}`).join('\n') : "No permanent trauma recorded yet."}
+${traumaLedgerData.length > 0 ? traumaLedgerData.map(t => `- ${t}`).join('\n') : "No permanent trauma recorded yet."}
 =========================================`;
 
   const spatialMatrix = activeNode ? `
@@ -48,8 +46,8 @@ Connected & Accessible Nodes: ${activeNode?.connectedNodes.length ? activeNode.c
 =========================================
 SPATIAL DIRECTIVE:
 You cannot invent new rooms. You cannot teleport the subject. The subject can ONLY move to the nodes listed in "Connected & Accessible Nodes". 
-If the subject attempts to move to a valid connected node, you MUST output that target node's ID in the "transition_proposal" field of your JSON.
-If the subject is not moving, or attempts to move to an invalid/locked location, output null for "transition_proposal" and describe the physical barrier preventing their movement.
+If the subject attempts to move to a valid connected node, you MUST output that target node's ID in the "requested_transition" field of your JSON.
+If the subject is not moving, or attempts to move to an invalid/locked location, output null for "requested_transition" and describe the physical barrier preventing their movement.
 </euclidean_spatial_matrix>
 ` : '';
 
@@ -157,7 +155,7 @@ YOUR DIRECTIVE: In your JSON response, you MUST include a "current_phase" key co
     You must output exactly this JSON structure. Do not include markdown formatting or \`\`\`json blocks.
     {
       "current_phase": "String: LATENT | MANIFEST | TERMINAL",
-      "transition_proposal": "String: NODE_ID if moving, or null",
+      "requested_transition": "String: NODE_ID if moving, or null",
       "cast_ledger": [
         {
           "character_name": "Subject Alpha",

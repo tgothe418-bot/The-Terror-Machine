@@ -7,6 +7,7 @@ import { useForgeState } from '../../store/useForgeStore';
 import { motion, AnimatePresence } from 'motion/react';
 import { NarrativeBlock } from '../../types';
 
+/* eslint-disable @typescript-eslint/no-unused-vars */
 // Helper to format blocks for plain text fallback
 const formatBlocks = (blocks?: NarrativeBlock[]): string => {
   if (!blocks || !Array.isArray(blocks)) return '';
@@ -171,15 +172,6 @@ export default function Runtime() {
         }
       }
       
-      const narrativeBlocks = initialResponse.narrative_blocks;
-
-      dispatch({ type: 'ADD_MESSAGE', message: { 
-        role: 'assistant', 
-        content: formatBlocks(narrativeBlocks), 
-        blocks: narrativeBlocks,
-        engine_thoughts: initialResponse.engine_thoughts,
-        timestamp: Date.now() 
-      }});
       updateGameState(initialResponse.logic_state as any); // Save logic state silently
     } catch (err: any) {
       console.error(err);

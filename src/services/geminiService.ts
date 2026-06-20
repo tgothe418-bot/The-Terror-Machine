@@ -68,9 +68,13 @@ export const triggerMemoryForge = async (chatHistory: string) => {
     
     const parsed = await response.json();
     
-    const engineStoreMod = await import('../core/store');
-    const appStore = engineStoreMod.useEngineStore.getState();
-    appStore.executeActBreak(parsed.enduring_trauma || [], parsed.act_summary || "The void shifts, remembering nothing.");
+    const appStoreMod = await import('../store/useAppStore');
+    const appStore = appStoreMod.useAppStore.getState();
+    appStore.dispatch({ 
+      type: 'ACT_DISTILLED', 
+      trauma: parsed.enduring_trauma || [], 
+      summary: parsed.act_summary || "The void shifts, remembering nothing." 
+    });
     
     console.log("[MEMORY FORGE] Distillation Complete. Context cleared.");
   } catch (error) {
@@ -178,17 +182,15 @@ export const sendEngineTurn = async (
     ? `[SYSTEM MEMORY - PREVIOUS TRAUMA LOGS]\n${state.traumaLedger.join('\n')}\n\n`
     : '';
 
-  const forgeStoreMod = await import('../store/useForgeStore');
-  const forgeState = forgeStoreMod.useForgeStoreInternal.getState();
-  const activeCharacterId = forgeState.activeCharacterId;
-
   // --- NEW: IDENTITY LOCK LOGIC ---
-  // Find the user's selected character from the active blueprint
+  // Find the user's selected character from the active state
+  const activeCharacterId = logicState?.player_character_id;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const activeCharacter = (blueprint as any)?.cast?.find(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (c: any) => c.id === activeCharacterId
-  );
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ) || (blueprint as any)?.cast?.[0]; // Safe fallback since logicState might not be hydrated
 
   let identityLock = '';
   if (activeCharacter) {
@@ -318,8 +320,8 @@ export const sendEngineTurn = async (
   };
 
   // --- B. SPATIAL VALIDATOR (BASED ON COHERENCE RATING) ---
-  if (currentGraph && currentGraph.length > 0 && ratifiedFrame.logic_state.transition_proposal) {
-    const targetNodeId = ratifiedFrame.logic_state.transition_proposal;
+  if (currentGraph && currentGraph.length > 0 && ratifiedFrame.logic_state.requested_transition) {
+    const targetNodeId = ratifiedFrame.logic_state.requested_transition;
     const currentNode = currentGraph.find(n => n.id === currentNodeId);
     
     const isConnected = currentNode?.connectedNodes.includes(targetNodeId) || false;
@@ -341,7 +343,7 @@ export const sendEngineTurn = async (
       } else {
         // Failed verification
         appStore.getState().dispatch({ type: 'TRANSITION_REJECTED', fromNodeId: currentNodeId || '', attemptedNodeId: targetNodeId, reason: 'Failed UNSTABLE coherence check' });
-        ratifiedFrame.logic_state.transition_proposal = null;
+        ratifiedFrame.logic_state.requested_transition = null;
       }
     } else {
       // Stage 1 & 2: Space remains structurally fixed. Valid paths only.
@@ -352,10 +354,10 @@ export const sendEngineTurn = async (
         console.warn(`[EUCLIDEAN INTERCEPTOR] Denied transition to: ${targetNodeId}`);
         appStore.getState().dispatch({ type: 'TRANSITION_REJECTED', fromNodeId: currentNodeId || '', attemptedNodeId: targetNodeId, reason: 'Path does not exist in spatial graph' });
         ratifiedFrame.validation.accepted = false;
-        ratifiedFrame.validation.rejected_fields.push("transition_proposal");
+        ratifiedFrame.validation.rejected_fields.push("requested_transition");
         ratifiedFrame.validation.repair_notes.push(`Transition to ${targetNodeId} denied. Path does not exist in spatial graph.`);
         
-        ratifiedFrame.logic_state.transition_proposal = null;
+        ratifiedFrame.logic_state.requested_transition = null;
         
         if (Array.isArray(ratifiedFrame.logic_state.cast_ledger)) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { ScenarioBlueprint, LogicState, Message } from '../types';
 import { idbStorage } from '../lib/idbStorage';
 import { distillContext } from '../services/geminiService';
+import { useForgeStoreInternal } from '../store/useForgeStore';
 
 import { flattenTurnsForDistillation } from '../lib/jsonParser';
 import { HorrorVector, ExposureTier } from './matrix';
@@ -42,8 +43,6 @@ interface EngineState {
   updateWorldStateSummary: (newSummary: string) => void;
   addEngineTurn: (turn: Message) => void;
   resetEngine: () => void;
-  enduringTrauma: string[];
-  executeActBreak: (trauma: string[], cinematicSummary: string) => void;
 }
 
 export const useEngineStore = create<EngineState>()(
@@ -60,24 +59,6 @@ export const useEngineStore = create<EngineState>()(
       currentTensionLevel: 'buildup',
       telemetry: null,
       turnCount: 1,
-      enduringTrauma: [],
-      executeActBreak: (trauma, cinematicSummary) => set((state) => {
-        const messages = state.engineMessages || [];
-        const preservedStart = messages.length > 0 ? [messages[0]] : [];
-        const preservedEnd = messages.length > 2 ? messages.slice(-2) : messages;
-
-        const actBreakMessage: Message = {
-          role: 'system_cinematic',
-          content: cinematicSummary,
-          timestamp: Date.now()
-        };
-
-        return {
-          enduringTrauma: [...state.enduringTrauma, ...trauma],
-          engineMessages: [...preservedStart, actBreakMessage, ...preservedEnd],
-          engineTextBuffer: [...preservedEnd]
-        };
-      }),
       incrementTurn: () => set((state) => ({ turnCount: state.turnCount + 1 })),
       shiftMatrixCoordinates: (vector, tier) => set((state) => ({
         ...state,
@@ -89,25 +70,45 @@ export const useEngineStore = create<EngineState>()(
         currentTensionLevel: tension
       })),
       updateTelemetry: (metrics) => set({ telemetry: metrics }),
-      setBlueprint: (blueprint, role) => set({ 
-        activeBlueprint: blueprint, 
-        engineMessages: [],
-        engineTextBuffer: [],
-        engineWorldStateSummary: "The subject is contained. Initial parameters active.",
-        gameState: {
-          current_location: blueprint.setting.location,
-          player_injuries: [],
-          inventory: [],
-          psychological_status: 'Stable',
-          player_role: role,
-          current_tension_level: 'buildup',
-          lore_and_memory: {
-            established_facts: [],
-            permanent_consequences: []
+      setBlueprint: (blueprint, role) => {
+        // Enforce active character properly or fallback to first
+        const activeCharId = useForgeStoreInternal.getState().activeCharacterId;
+        const normalizedCast = blueprint.cast || [];
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const userChar = normalizedCast.find((c: any) => c.id === activeCharId) || normalizedCast[0];
+        
+        const normalizedBlueprint = {
+          ...blueprint,
+          identity: {
+            ...blueprint.identity,
+            title: blueprint.identity?.title || blueprint.title || "Untitled Sequence"
           },
-          npc_fixations: []
-        } 
-      }),
+          title: blueprint.identity?.title || blueprint.title || "Untitled Sequence",
+          premise: blueprint.globalPremise || blueprint.premise || "Unknown premise",
+          globalPremise: blueprint.globalPremise || blueprint.premise || "Unknown premise",
+        };
+
+        set({ 
+          activeBlueprint: normalizedBlueprint, 
+          engineMessages: [],
+          engineTextBuffer: [],
+          engineWorldStateSummary: "The subject is contained. Initial parameters active.",
+          gameState: {
+            current_location: normalizedBlueprint.setting?.location || 'Unknown',
+            player_injuries: [],
+            inventory: [],
+            psychological_status: 'Stable',
+            player_role: role,
+            player_character_id: userChar?.id,
+            current_tension_level: 'buildup',
+            lore_and_memory: {
+              established_facts: [],
+              permanent_consequences: []
+            },
+            npc_fixations: []
+          } 
+        });
+      },
       clearBlueprint: () => set({ activeBlueprint: null, gameState: null, engineMessages: [], engineTextBuffer: [], engineWorldStateSummary: "The subject is contained. Initial parameters active." }),
       updateGameState: (newState) => set({ gameState: newState }),
       addEngineMessage: (message) => {
