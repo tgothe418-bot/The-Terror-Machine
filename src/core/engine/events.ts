@@ -10,6 +10,8 @@ export interface DecayState {
 export type EngineEvent =
   | { type: 'SIMULATION_STARTED'; initialNodeId: string }
   | { type: 'TURN_SUBMITTED'; turnId: string; text: string; timestamp: number }
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+  | { type: 'TURN_RESOLVED'; payload: any }
   | { type: 'FRAME_RATIFIED'; turnId: string; frame: Record<string, unknown> } // We will type 'frame' to the Zod schema later
   | { type: 'PHASE_CHANGED'; from: Phase; to: Phase; timestamp: number }
   | { type: 'TOPOLOGY_COMPILED'; graph: Record<string, unknown>[] } 

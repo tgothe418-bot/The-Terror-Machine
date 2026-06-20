@@ -1,7 +1,5 @@
-import React, { useMemo, useEffect } from 'react';
+import React, { useMemo } from 'react';
 import { motion } from 'motion/react';
-import { extractSemanticTags } from '../../lib/tagParser';
-import { forgeActions } from '../../store/useForgeStore';
 
 interface ErgodicTextRendererProps {
   id?: string;
@@ -10,21 +8,11 @@ interface ErgodicTextRendererProps {
   isStreaming?: boolean;
 }
 
-export default function ErgodicTextRenderer({ id, text, psychologicalStatus = 'Stable', isStreaming = false }: ErgodicTextRendererProps) {
+export default function ErgodicTextRenderer({ id, text, psychologicalStatus = 'Stable' }: ErgodicTextRendererProps) {
   const isPanic = psychologicalStatus.toLowerCase().includes('panic') || psychologicalStatus.toLowerCase().includes('terror');
   const isExhausted = psychologicalStatus.toLowerCase().includes('exhaustion') || psychologicalStatus.toLowerCase().includes('tired');
 
-  // 1. Visually mask the brackets in real-time as they stream in
-  const parsed = useMemo(() => extractSemanticTags(text), [text]);
-  const displayText = parsed.cleanText;
-
-  useEffect(() => {
-    // 2. Commit the extracted tags ONLY when the stream finishes
-    if (!isStreaming && parsed.tags) {
-      forgeActions.commitSemanticTags(parsed.tags);
-      console.log("[STREAM CLEAVER] State committed asynchronously:", parsed.tags);
-    }
-  }, [parsed.tags, isStreaming]);
+  const displayText = text;
 
   // Memoize processed text to prevent random shifts on re-renders
   const processedText = useMemo(() => {

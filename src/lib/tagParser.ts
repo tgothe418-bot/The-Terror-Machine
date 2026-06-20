@@ -1,31 +1,18 @@
-export interface ParsedSemanticTags {
-  cleanText: string;
-  tags: Record<string, string[]> | null;
-}
-
-export const extractSemanticTags = (rawText: string): ParsedSemanticTags => {
-  // Regex: Find the last occurrence of brackets containing text
-  const match = rawText.match(/\[(.*?)\](?=[^[]*$)/);
+export function extractEngineTags(rawProse: string) {
+  const tagRegex = /\[(SOMA|GEOM|SYS|IMP):\s*(.*?)\]/g;
+  const tags: Record<string, string[]> = { SOMA: [], GEOM: [], SYS: [], IMP: [] };
   
-  if (!match) {
-    return { cleanText: rawText.trim(), tags: null };
+  let cleanProse = rawProse;
+  let match;
+
+  while ((match = tagRegex.exec(rawProse)) !== null) {
+    const type = match[1];
+    const values = match[2].split(',').map(v => v.trim());
+    tags[type].push(...values);
   }
 
-  // Strip the tags from the prose so the user never sees them
-  const cleanText = rawText.replace(match[0], '').trim();
-  const tagString = match[1];
-  const parsedTags: Record<string, string[]> = {};
+  // Remove the tags from the text so the UI gets clean prose
+  cleanProse = rawProse.replace(tagRegex, '').trim();
 
-  // Split into categories (e.g., SOMA: a, b | GEOM: c)
-  const segments = tagString.split('|');
-  
-  segments.forEach(segment => {
-    const [key, value] = segment.split(':');
-    if (key && value) {
-      // Map comma-separated values into arrays
-      parsedTags[key.trim()] = value.split(',').map(v => v.trim());
-    }
-  });
-
-  return { cleanText, tags: parsedTags };
-};
+  return { cleanProse, tags };
+}

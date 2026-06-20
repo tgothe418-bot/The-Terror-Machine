@@ -6,6 +6,11 @@ export interface EngineState {
   decay: DecayState;
   turnCount: number;
   traumaLedger: string[];
+  activeMemory: {
+    systemFlags: string[];
+    somaState: string[];
+    geomState: string[];
+  };
 }
 
 export const initialEngineState: EngineState = {
@@ -14,10 +19,32 @@ export const initialEngineState: EngineState = {
   decay: { stage: 'STABLE', coherence: 1.0 },
   turnCount: 0,
   traumaLedger: [],
+  activeMemory: {
+    systemFlags: [],
+    somaState: [],
+    geomState: []
+  }
 };
 
 export function engineReducer(state: EngineState, event: EngineEvent): EngineState {
   switch (event.type) {
+    case 'TURN_RESOLVED': {
+      const newTags = event.payload.semanticTags;
+      
+      const isTerminal = newTags?.SYS?.includes('SOMATIC_TERMINAL') || newTags?.SYS?.includes('COGNITIVE_COLLAPSE');
+
+      return {
+        ...state,
+        activeMemory: {
+          ...state.activeMemory,
+          systemFlags: newTags?.SYS || [],
+          somaState: newTags?.SOMA || [],
+          geomState: newTags?.GEOM || []
+        },
+        phase: isTerminal ? 'TERMINAL' : state.phase
+      };
+    }
+
     case 'SIMULATION_STARTED':
       return {
         ...state,

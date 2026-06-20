@@ -237,6 +237,26 @@ export const sendEngineTurn = async (
   const parsedPhase = ratifiedFrame.logic_state.current_phase?.toUpperCase() as 'LATENT' | 'MANIFEST' | 'TERMINAL';
   const validPhases = ['LATENT', 'MANIFEST', 'TERMINAL'];
   
+  // ==== SEMANTIC TAG PARSING ====
+  const { extractEngineTags } = await import('../lib/tagParser');
+  const aggregatedTags: Record<string, string[]> = { SOMA: [], GEOM: [], SYS: [], IMP: [] };
+  
+  ratifiedFrame.narrative_blocks.forEach(block => {
+    if (block.content) {
+      const { cleanProse, tags } = extractEngineTags(block.content);
+      block.content = cleanProse; // Output the scrubbed text
+      
+      // Merge tags safely
+      if (tags) {
+        Object.keys(tags).forEach(key => {
+          if (aggregatedTags[key]) {
+            aggregatedTags[key].push(...tags[key]);
+          }
+        });
+      }
+    }
+  });
+
   // ==== EUCLIDEAN INTERCEPTOR ====
   if (validPhases.includes(parsedPhase)) {
     telemetryStoreMod.useTelemetryStore.getState().updatePhase(parsedPhase);
@@ -359,6 +379,15 @@ export const sendEngineTurn = async (
       type: 'FRAME_RATIFIED',
       turnId: crypto.randomUUID(),
       frame: ratifiedFrame as Record<string, unknown>
+  });
+
+  // dispatch TURN_RESOLVED to apply tags
+  appStore.getState().dispatch({
+    type: 'TURN_RESOLVED',
+    payload: {
+      ...ratifiedFrame,
+      semanticTags: aggregatedTags
+    }
   });
 
   // Evaluate for Orchestrator Phase Shift

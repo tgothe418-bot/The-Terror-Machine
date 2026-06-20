@@ -3,7 +3,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { Message, CharacterProfile, ForgePhase, ReferenceMaterial, ProseStyleVector, HorrorVector, ExposureTier } from '../types';
 import { idbStorage } from '../lib/idbStorage';
-import { extractSemanticTags } from '../lib/tagParser';
+import { extractEngineTags } from '../lib/tagParser';
 
 export const defaultStyleVector: ProseStyleVector = {
   sentenceStructure: "clinical-flat",
@@ -255,11 +255,11 @@ export const useForgeStoreInternal = create<ForgeState & { actions: any }>()(
           let initialImp = "";
 
           if (activePerspective?.startingSemanticState) {
-            const parsed = extractSemanticTags(activePerspective.startingSemanticState);
-            if (parsed.tags) {
-               initialSomatic = parsed.tags['SOMA'] || [];
-               initialGeOM = parsed.tags['GEOM'] || [];
-               initialImp = parsed.tags['IMP'] ? parsed.tags['IMP'].join(' ') : "";
+            const { tags } = extractEngineTags(activePerspective.startingSemanticState);
+            if (tags) {
+               initialSomatic = tags['SOMA'] || [];
+               initialGeOM = tags['GEOM'] || [];
+               initialImp = tags['IMP'] ? tags['IMP'].join(' ') : "";
             }
           }
 
