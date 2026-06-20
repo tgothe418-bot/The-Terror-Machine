@@ -1,10 +1,21 @@
 import { create } from 'zustand';
-import { AppPhase, SpatialNode, TelemetryState, TopologyEdge } from '../types';
+import { AppPhase, SpatialNode, TelemetryState, TopologyEdge, CampaignManifest, CarryoverPacket, TemporalShiftReceipt, NarrativeVelocity } from '../types';
 import { calculateDecayState } from '../lib/ratificationPipeline';
 import { EngineEvent } from '../core/engine/events';
 import { engineReducer, initialEngineState, EngineState } from '../core/engine/reducer';
 
 export interface AppStore extends EngineState {
+  isTransitioning: boolean;
+  activeCampaign: CampaignManifest | null;
+  currentActId: string | null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  suspendedActs: Record<string, any>;
+  narrativeVelocity: NarrativeVelocity;
+
+  requestActTransition: (targetActId: string) => void;
+  commitActTransition: (newBlueprintId: string, packet: CarryoverPacket) => void;
+  executeTemporalShift: (receipt: TemporalShiftReceipt) => void;
+
   setPhase: (phase: AppPhase) => void;
   telemetry: TelemetryState | null;
   setTelemetry: (telemetry: TelemetryState) => void;
@@ -63,6 +74,43 @@ export function normalizeBlueprint(raw: any): any {
 export const useAppStore = create<AppStore>((set) => ({
   ...initialEngineState,
   
+  isTransitioning: false,
+  activeCampaign: null,
+  currentActId: null,
+  suspendedActs: {},
+  narrativeVelocity: "slow_burn",
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  requestActTransition: (targetActId: string) => set({ isTransitioning: true }),
+
+  commitActTransition: (newBlueprintId: string, packet: CarryoverPacket) => set((state) => ({
+    history: [{ 
+      id: crypto.randomUUID(), 
+      timestamp: Date.now(),
+      role: 'system_cinematic', 
+      content: `ACT TRANSITION COMPLETE. Establish new environment. Scars permitted: ${packet.allowedScars.length}`,
+      visibleToModel: true,
+      visibleToTelemetry: true
+    }],
+    activeMemory: { ...state.activeMemory, systemFlags: [] },
+    turnCount: 0,
+    currentNodeId: "", // Reset to empty or entry node
+    isTransitioning: false,
+    currentActId: newBlueprintId
+  })),
+
+  executeTemporalShift: (receipt: TemporalShiftReceipt) => set((state) => ({
+    history: [{ 
+      id: crypto.randomUUID(), 
+      timestamp: Date.now(),
+      role: 'system_cinematic', 
+      content: `TEMPORAL SHIFT: ${receipt.elapsedTime} has passed. Preserved facts: ${receipt.preservedFacts.join(', ')}. Changed: ${receipt.changedFacts.join(', ')}.`,
+      visibleToModel: true,
+      visibleToTelemetry: true
+    }],
+    turnCount: state.turnCount + 1
+  })),
+
   // Legacy phase setter (still needed if UI expects AppPhase, but our reducer uses Phase)
   setPhase: (phase: AppPhase) => set({ phase: phase as 'HUB' | 'FORGE' | 'LATENT' | 'MANIFEST' | 'TERMINAL' | 'TERMINATED' | 'VOICE' | 'ENGINE' }),
   

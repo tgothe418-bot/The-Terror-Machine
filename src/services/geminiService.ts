@@ -164,6 +164,14 @@ export const sendEngineTurn = async (
   currentTier: string,
   currentTensionLevel: string
 ): Promise<RatifiedEngineFrame> => {
+  const appStoreMod = await import('../store/useAppStore');
+  const appStore = appStoreMod.useAppStore;
+  const state = appStore.getState();
+
+  if (state.isTransitioning) {
+    throw new Error("ENGINE_LOCKED: Act transition in progress.");
+  }
+
   if (currentMemoryForgeController) {
     currentMemoryForgeController.abort();
   }
@@ -174,10 +182,6 @@ export const sendEngineTurn = async (
   const momentumIndex = telemetryState.getMomentumIndex();
   const turnCount = telemetryState.turnCount;
   const currentPhase = telemetryState.currentPhase;
-
-  const appStoreMod = await import('../store/useAppStore');
-  const appStore = appStoreMod.useAppStore;
-  const state = appStore.getState();
   
   // 1. Dispatch user input to global store immediately (UI updates to show what user typed)
   state.dispatch({ type: 'USER_ACTION', payload: userInput });
