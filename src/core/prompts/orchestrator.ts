@@ -28,13 +28,22 @@ export const buildOrchestratorPrompt = (
   const activeNode = currentGraph.find((n) => n.id === appState.currentNodeId) || null;
 
   const traumaLedgerData = appState.traumaLedger || [];
+  const motifLedger = appState.motifLedger || {};
+
+  const saturatedMotifs = Object.entries(motifLedger)
+    .filter(([, count]) => typeof count === 'number' && count >= 3)
+    .map(([motif]) => motif);
+
+  const motifInstruction = saturatedMotifs.length > 0
+    ? `\nCRITICAL PACING DIRECTIVE: The following motifs/tags are SATURATED and have lost their psychological impact: [ ${saturatedMotifs.join(', ')} ]. YOU ARE STRICTLY FORBIDDEN from using these. Escalate to new sensory distortions.\n`
+    : "";
 
   const traumaLedger = `
 =========================================
 [ PERMANENT TRAUMA LEDGER ]
 The following immutable facts were established in previous Acts. You must enforce these truths and never contradict them:
 ${traumaLedgerData.length > 0 ? traumaLedgerData.map(t => `- ${t}`).join('\n') : "No permanent trauma recorded yet."}
-=========================================`;
+=========================================${motifInstruction}`;
 
   const activeEdges = (blueprint?.topology?.connections || []).filter((e: TopologyEdge) => e.from && activeNode && e.from === activeNode.id) || [];
   

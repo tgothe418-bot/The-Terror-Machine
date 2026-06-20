@@ -339,7 +339,14 @@ router.post("/extract-blueprint", async (req, res) => {
           "environmentalRules": ["Strict rule 1", "Strict rule 2"],
           "topology": {
             "nodes": ["MAIN_CORRIDOR", "THE_CRYPT", "MAINTENANCE_SHAFT"],
-            "connections": ["MAIN_CORRIDOR -> THE_CRYPT"]
+            "connections": [
+              {
+                "from": "MAIN_CORRIDOR",
+                "to": "THE_CRYPT",
+                "kind": "physical",
+                "userInitiated": true
+              }
+            ]
           },
           "cast": [
             {

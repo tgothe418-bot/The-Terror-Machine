@@ -12,6 +12,9 @@ export interface EngineState {
     somaState: string[];
     geomState: string[];
   };
+  motifLedger: Record<string, number>;
+  timelineRevision: number;
+  lastDistilledRevision: number;
   history: Message[];
 }
 
@@ -26,6 +29,9 @@ export const initialEngineState: EngineState = {
     somaState: [],
     geomState: []
   },
+  motifLedger: {},
+  timelineRevision: 0,
+  lastDistilledRevision: -1,
   history: []
 };
 
@@ -77,6 +83,21 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
       
       const isTerminal = newTags?.SYS?.includes('SOMATIC_TERMINAL') || newTags?.SYS?.includes('COGNITIVE_COLLAPSE');
 
+      const newMotifLedger = { ...state.motifLedger };
+      const allTags = [
+        ...(newTags?.SYS || []),
+        ...(newTags?.SOMA || []),
+        ...(newTags?.GEOM || [])
+      ];
+      allTags.forEach((tag: string) => {
+        newMotifLedger[tag] = (newMotifLedger[tag] || 0) + 1;
+      });
+      const suggestedTension = event.payload?.logic_state?.suggested_tension;
+      if (suggestedTension) {
+        const tensionTag = `TENSION_${String(suggestedTension).toUpperCase()}`;
+        newMotifLedger[tensionTag] = (newMotifLedger[tensionTag] || 0) + 1;
+      }
+
       let calculatedPhase = state.phase;
       
       // Pure mathematical deterministic phase shift
@@ -122,6 +143,8 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
           somaState: newTags?.SOMA || [],
           geomState: newTags?.GEOM || []
         },
+        motifLedger: newMotifLedger,
+        timelineRevision: state.timelineRevision + 1,
         phase: calculatedPhase
       };
     }
@@ -159,6 +182,11 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
       };
 
     case 'ACT_DISTILLED': {
+      if (event.dispatchedAtRevision < state.lastDistilledRevision) {
+        // Reject stale memory summary to prevent timeline corruption
+        return state;
+      }
+
       const messages = state.history || [];
       const preservedStart = messages.length > 0 ? [messages[0]] : [];
       const preservedEnd = messages.length > 2 ? messages.slice(-2) : messages;
@@ -172,6 +200,7 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
 
       return {
         ...state,
+        lastDistilledRevision: event.dispatchedAtRevision,
         traumaLedger: [...state.traumaLedger, ...event.trauma],
         history: [...preservedStart, actBreakMessage, ...preservedEnd]
       };

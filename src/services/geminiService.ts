@@ -48,7 +48,7 @@ export const distillContext = async (currentSummary: string, flattenedTranscript
   }
 };
 
-export const triggerMemoryForge = async (chatHistory: string) => {
+export const triggerMemoryForge = async (chatHistory: string, dispatchedAtRevision: number) => {
   try {
     console.log("[MEMORY FORGE] Initiating Context Distillation...");
     
@@ -73,7 +73,8 @@ export const triggerMemoryForge = async (chatHistory: string) => {
     appStore.dispatch({ 
       type: 'ACT_DISTILLED', 
       trauma: parsed.enduring_trauma || [], 
-      summary: parsed.act_summary || "The void shifts, remembering nothing." 
+      summary: parsed.act_summary || "The void shifts, remembering nothing.",
+      dispatchedAtRevision
     });
     
     console.log("[MEMORY FORGE] Distillation Complete. Context cleared.");

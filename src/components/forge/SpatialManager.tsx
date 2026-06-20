@@ -1,4 +1,5 @@
 import { useForgeState } from '../../store/useForgeStore';
+import { TopologyEdge } from '../../types';
 
 export const SpatialManager = () => {
   const blueprint = useForgeState((state) => state.draftBlueprint);
@@ -27,9 +28,10 @@ export const SpatialManager = () => {
       {topology.connections && topology.connections.length > 0 && (
         <div className="mt-4 p-3 border border-zinc-800 bg-black">
           <div className="text-zinc-600 text-xs font-mono mb-2">KNOWN VECTORS:</div>
-          {topology.connections.map((conn: string, i: number) => (
-             <div key={i} className="text-zinc-400 text-xs font-mono">- {conn}</div>
-          ))}
+          {topology.connections.map((conn: TopologyEdge | string, i: number) => {
+             const displayStr = typeof conn === 'string' ? conn : `${conn.from} -> ${conn.to} (${conn.kind})`;
+             return <div key={i} className="text-zinc-400 text-xs font-mono">- {displayStr}</div>
+          })}
         </div>
       )}
     </div>

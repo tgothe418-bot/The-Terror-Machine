@@ -1,6 +1,6 @@
 import { ForgeState } from '../store/useForgeStore';
 
-import { SubjectivePerspective } from '../types';
+import { TopologyEdge, SubjectivePerspective } from '../types';
 
 export interface TerminalConditions {
   somaticTerminal: {
@@ -27,7 +27,7 @@ export interface AuthoritativeBlueprint {
   environmentalRules: string[];
   topology?: {
     nodes: string[];
-    connections: string[];
+    connections: TopologyEdge[];
   };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   terminalConditions: any; // Keep existing structure

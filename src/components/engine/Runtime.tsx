@@ -46,7 +46,9 @@ export default function Runtime() {
           (prevPhaseRef.current === 'MANIFEST' && currentSimulationPhase === 'TERMINAL')) {
         const messagesToDistill = engineMessages.length > 3 ? engineMessages.slice(1, -2) : [];
         const textToDistill = messagesToDistill.map(m => `${m.role}: ${m.content}`).join('\n');
-        triggerMemoryForge(textToDistill || "The void shifts, remembering nothing.");
+        
+        const currentRevision = useAppStore.getState().timelineRevision;
+        triggerMemoryForge(textToDistill || "The void shifts, remembering nothing.", currentRevision);
       }
     }
     prevPhaseRef.current = currentSimulationPhase;

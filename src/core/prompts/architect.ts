@@ -95,7 +95,14 @@ If you are compiling the final blueprint, you MUST wrap the data in a JSON code 
     "environmentalRules": ["Rule 1", "Rule 2"],
     "topology": {
       "nodes": ["MAIN_CORRIDOR", "THE_CRYPT", "MAINTENANCE_SHAFT"],
-      "connections": ["MAIN_CORRIDOR -> THE_CRYPT"]
+      "connections": [
+        {
+          "from": "MAIN_CORRIDOR",
+          "to": "THE_CRYPT",
+          "kind": "physical",
+          "userInitiated": true
+        }
+      ]
     },
     "cast": [
       {
