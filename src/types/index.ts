@@ -30,6 +30,7 @@ export interface TopologyEdge {
   requires?: string[];
   userInitiated: boolean;
   legacyUpgraded?: boolean;
+  authority?: EdgeAuthority;
 }
 
 export const EdgeKindSchema = z.enum([
@@ -348,3 +349,155 @@ export interface BicameralOutput {
     next_tier: ExposureTier;
   };
 }
+
+// --- CORE DEFINITIONS ---
+export type EnginePhase = "LATENT" | "MANIFEST" | "TERMINAL";
+export type EdgeAuthority = "user" | "engine" | "system";
+export type TransitionSource = "user_command" | "llm_request" | "engine_rule" | "system_script";
+export type NarrativeVelocity = "slow_burn" | "tightening" | "accelerating" | "fever_pitch" | "terminal_sprint";
+
+export interface BlueprintNode {
+  id: string;
+  name?: string;
+  description?: string;
+  decayStates?: Partial<Record<EnginePhase, NodeDecayState>>;
+}
+
+// --- CAMPAIGN & MACRO-TOPOLOGY ---
+export interface CampaignActRef {
+  actId: string;
+  blueprintId: string;
+  blueprintRef: string; // The URL or asset path to lazy-load the JSON
+  title: string;
+  entryNodeId?: string;
+  defaultPerspectiveCharacterId?: string;
+}
+
+export interface CampaignEdge {
+  id: string;
+  fromActId: string;
+  toActId: string;
+  kind: "clean_cut" | "sequel_continuity" | "screen_memory" | "trauma_bridge" | "temporal_jump" | "possession_shift" | "terminal_ejection" | "contamination_breach";
+  triggerFlags: string[];
+  targetEntryNodeId?: string;
+  authority: EdgeAuthority;
+  carryoverPolicyId: string;
+}
+
+export interface CampaignManifest {
+  id: string;
+  title: string;
+  version: string;
+  author?: string;
+  initialActId: string;
+  acts: CampaignActRef[];
+  edges: CampaignEdge[];
+  carryoverPolicies: CarryoverPolicy[];
+}
+
+// --- TRANSITIONS & RECEIPTS ---
+export interface ActTransitionTransaction {
+  transitionId: string;
+  sessionId: string;
+  fromActId: string;
+  toActId: string;
+  sourceBlueprintId: string;
+  sourceStartRevision: number;
+  sourceEndRevision: number;
+  status: "requested" | "distilling" | "distilled" | "committing" | "committed" | "failed";
+}
+
+export interface TemporalShiftReceipt {
+  fromNodeId: string;
+  toNodeId: string;
+  elapsedTime: string; // e.g., "8 hours"
+  preservedFacts: string[];
+  changedFacts: string[];
+  characterStateDeltas: string[];
+  forbiddenRetcons: string[];
+}
+
+export interface IdentityTransition {
+  fromCharacterId: string;
+  toCharacterId: string;
+  kind: "perspective_cut" | "possession" | "revelation" | "identity_erasure";
+  authority: EdgeAuthority;
+  triggerFlags: string[];
+}
+
+// --- MEMORY & CARRYOVER ---
+export type TraumaScope = "local_act" | "campaign" | "contamination" | "quarantined";
+export type TraumaVisibility = "hidden" | "somatic_echo" | "symbolic_motif" | "vague_memory" | "explicit_recollection";
+
+export interface TraumaEntry {
+  id: string;
+  sourceActId?: string;
+  sourceBlueprintId?: string;
+  text: string;
+  tags: string[];
+  scope: TraumaScope;
+  visibility: TraumaVisibility;
+}
+
+export interface CarryoverPolicy {
+  id: string;
+  allowedScopes: TraumaScope[];
+  defaultVisibility: TraumaVisibility;
+  forbiddenNames: string[];
+  forbiddenPlaces: string[];
+}
+
+export interface CarryoverPacket {
+  allowedScars: TraumaEntry[];
+  allowedMotifs: string[];
+  forbiddenNames: string[];
+  forbiddenPlaces: string[];
+  revealMode: "subconscious" | "symbolic" | "literal";
+  revealRate: "none" | "slow" | "moderate" | "aggressive";
+}
+
+// --- STATE SCHISM (RUNTIME) ---
+export interface ActRuntimeState {
+  actId: string;
+  blueprintId: string;
+  turnCount: number;
+  currentPhase: EnginePhase;
+  systemFlags: string[];
+  currentNode: string;
+  activeCharacterId: string;
+  pacingLedger: {
+    failedEscapeAttempts: number;
+    memoryAnchorsRemaining: number;
+    spatialContradictions: number;
+  };
+  narrativeVelocity: NarrativeVelocity;
+}
+
+export interface CampaignRuntimeState {
+  campaignId: string;
+  sessionId: string;
+  currentActId: string;
+  traumaLedger: TraumaEntry[];
+  motifLedger: Record<string, number>;
+  globalFlags: string[]; 
+  suspendedActs: Record<string, Partial<ActRuntimeState>>; 
+}
+
+export interface PlayerContinuity {
+  campaignSessionId: string;
+  carriedScars: TraumaEntry[];
+}
+
+export interface CharacterIdentity {
+  actId: string;
+  activeCharacterId: string;
+  perspectiveRole: "protagonist" | "witness" | "antagonist" | "possessed";
+}
+
+export interface NodeDecayState {
+  hiddenPromptDescription: string;
+  visibleTags?: string[];
+  requiredFlags?: string[];
+  forbiddenBeforeFlags?: string[];
+}
+
