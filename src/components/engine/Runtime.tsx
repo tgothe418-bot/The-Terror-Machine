@@ -5,7 +5,7 @@ import { useEngineStore } from '../../core/store';
 import { useAppStore } from '../../store/useAppStore';
 import { useForgeState } from '../../store/useForgeStore';
 import { motion, AnimatePresence } from 'motion/react';
-import { Message, NarrativeBlock } from '../../types';
+import { NarrativeBlock } from '../../types';
 
 // Helper to format blocks for plain text fallback
 const formatBlocks = (blocks?: NarrativeBlock[]): string => {
@@ -29,8 +29,8 @@ export default function Runtime() {
   const activeBlueprint = useEngineStore((state) => state.activeBlueprint);
   const gameState = useEngineStore((state) => state.gameState);
   const updateGameState = useEngineStore((state) => state.updateGameState);
-  const engineMessages = useEngineStore((state) => state.engineMessages);
-  const addEngineMessage = useEngineStore((state) => state.addEngineMessage);
+  const engineMessages = useAppStore((state) => state.history);
+  const dispatch = useAppStore((state) => state.dispatch);
   
   const setPhase = useAppStore((state) => state.setPhase);
   const telemetry = useEngineStore(state => state.telemetry);
@@ -89,16 +89,15 @@ export default function Runtime() {
       queueMicrotask(() => {
         setIsTerminated(true);
         setTerminalResolution(resolutionText);
-        addEngineMessage({
-          role: 'system_cinematic',
-          content: `[ TERMINAL CONDITION REACHED ]\n\n${resolutionText}`,
-          timestamp: Date.now()
+        dispatch({
+          type: 'SYSTEM_MESSAGE',
+          payload: `[ TERMINAL CONDITION REACHED ]\n\n${resolutionText}`
         });
       });
       console.log('// SIMULATION HALTED: TERMINAL CONDITION MET //');
     }
 
-  }, [systemFlags, activeBlueprint?.terminalConditions, isTerminated, addEngineMessage]);
+  }, [systemFlags, activeBlueprint?.terminalConditions, isTerminated, dispatch]);
 
   // Hijack the TAB key to toggle the X-Ray HUD
   useEffect(() => {
@@ -174,13 +173,13 @@ export default function Runtime() {
       
       const narrativeBlocks = initialResponse.narrative_blocks;
 
-      addEngineMessage({ 
+      dispatch({ type: 'ADD_MESSAGE', message: { 
         role: 'assistant', 
         content: formatBlocks(narrativeBlocks), 
         blocks: narrativeBlocks,
         engine_thoughts: initialResponse.engine_thoughts,
         timestamp: Date.now() 
-      });
+      }});
       updateGameState(initialResponse.logic_state as any); // Save logic state silently
     } catch (err: any) {
       console.error(err);
@@ -192,28 +191,28 @@ export default function Runtime() {
           parsedMessage = typeof parsed.error === 'string' ? parsed.error : JSON.stringify(parsed.error);
         }
       } catch { /* ignore */ }
-      addEngineMessage({ role: 'assistant', content: `[ SYSTEM ERROR: ${parsedMessage} ]`, timestamp: Date.now() });
+      dispatch({ type: 'ADD_MESSAGE', message: { role: 'assistant', content: `[ SYSTEM ERROR: ${parsedMessage} ]`, timestamp: Date.now() }});
     } finally {
       setIsLoading(false);
     }
-  }, [activeBlueprint, gameState, addEngineMessage, updateGameState]);
+  }, [activeBlueprint, gameState, dispatch, updateGameState]);
 
   // Monitor for idle timeout
   useEffect(() => {
     const checkIdle = setInterval(() => {
       const idleTime = Date.now() - lastActivity;
       if (idleTime > SESSION_TIMEOUT) {
-        addEngineMessage({
+        dispatch({ type: 'ADD_MESSAGE', message: {
           role: 'assistant',
           content: '[ SYSTEM: NEURAL LINK SEVERED DUE TO PROLONGED INACTIVITY. RETURNING TO HUB. ]',
           timestamp: Date.now()
-        });
+        }});
         setTimeout(() => handleExit(), 3000);
       }
     }, 10000);
 
     return () => clearInterval(checkIdle);
-  }, [lastActivity, addEngineMessage, handleExit]);
+  }, [lastActivity, dispatch, handleExit]);
 
   // Keep-alive heartbeat (visual only to reassure user)
   useEffect(() => {
@@ -249,9 +248,6 @@ export default function Runtime() {
     const commandText = overrideInput || input;
     if (!commandText.trim() || isLoading) return;
 
-    const userMsg: Message = { role: 'user', content: commandText, timestamp: Date.now() };
-
-    addEngineMessage(userMsg);
     if (!overrideInput) setInput('');
     setIsLoading(true);
 
@@ -259,7 +255,7 @@ export default function Runtime() {
       const activeStoreState = useEngineStore.getState();
 
       const response = await sendEngineTurn(
-        activeStoreState.engineTextBuffer,
+        commandText,
         gameState,
         activeBlueprint!,
         activeStoreState.engineWorldStateSummary,
@@ -280,17 +276,7 @@ export default function Runtime() {
         }
       }
       
-      const narrativeBlocks = response.narrative_blocks;
-
-      const assistantMsg: Message = { 
-        role: 'assistant', 
-        content: formatBlocks(narrativeBlocks), 
-        blocks: narrativeBlocks,
-        engine_thoughts: response.engine_thoughts,
-        timestamp: Date.now() 
-      };
-
-      addEngineMessage(assistantMsg);
+      // TURN_RESOLVED is now dispatched from GeminiService and will handle history update
       updateGameState(response.logic_state as any); // Sync mechanical reality
       
     } catch (err: any) {
@@ -303,7 +289,7 @@ export default function Runtime() {
           parsedMessage = typeof parsed.error === 'string' ? parsed.error : JSON.stringify(parsed.error);
         }
       } catch { /* ignore */ }
-      addEngineMessage({ role: 'assistant', content: `[ SYSTEM ERROR: ${parsedMessage} ]`, timestamp: Date.now() });
+      dispatch({ type: 'ADD_MESSAGE', message: { role: 'assistant', content: `[ SYSTEM ERROR: ${parsedMessage} ]`, timestamp: Date.now() }});
     } finally {
       setIsLoading(false);
     }
@@ -320,10 +306,11 @@ export default function Runtime() {
     try {
       // A. Grab current state arrays from your store
       const currentState = useEngineStore.getState();
+      const appState = useAppStore.getState();
       
       // B. Fetch the Ghost Player's action
       const simulatedAction = await fetchSimulatedPlayerAction(
-        currentState.engineTextBuffer || [], 
+        appState.history || [], 
         currentState.gameState || null
       );
       

@@ -1,3 +1,5 @@
+import { Message } from '../../types';
+
 export type Phase = 'HUB' | 'FORGE' | 'LATENT' | 'MANIFEST' | 'TERMINAL' | 'TERMINATED' | 'VOICE' | 'ENGINE';
 export type DecayStage = 'STABLE' | 'FRAYING' | 'UNSTABLE' | 'SHATTERED';
 
@@ -9,6 +11,9 @@ export interface DecayState {
 // The definitive list of all legal engine events
 export type EngineEvent =
   | { type: 'SIMULATION_STARTED'; initialNodeId: string }
+  | { type: 'USER_ACTION'; payload: string }
+  | { type: 'SYSTEM_MESSAGE'; payload: string }
+  | { type: 'ADD_MESSAGE'; message: Message }
   | { type: 'TURN_SUBMITTED'; turnId: string; text: string; timestamp: number }
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
   | { type: 'TURN_RESOLVED'; payload: any }

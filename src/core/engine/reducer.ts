@@ -1,4 +1,5 @@
 import { EngineEvent, Phase, DecayState } from './events';
+import { Message } from '../../types';
 
 export interface EngineState {
   phase: Phase;
@@ -11,6 +12,7 @@ export interface EngineState {
     somaState: string[];
     geomState: string[];
   };
+  history: Message[];
 }
 
 export const initialEngineState: EngineState = {
@@ -23,18 +25,82 @@ export const initialEngineState: EngineState = {
     systemFlags: [],
     somaState: [],
     geomState: []
-  }
+  },
+  history: []
 };
 
 export function engineReducer(state: EngineState, event: EngineEvent): EngineState {
   switch (event.type) {
+    case 'USER_ACTION':
+      return {
+        ...state,
+        history: [
+          ...state.history,
+          { 
+            id: crypto.randomUUID(), 
+            role: 'user', 
+            content: event.payload as string, 
+            timestamp: Date.now() 
+          }
+        ]
+      };
+
+    case 'SYSTEM_MESSAGE':
+      return {
+        ...state,
+        history: [
+          ...state.history,
+          {
+            id: crypto.randomUUID(),
+            role: 'system',
+            content: event.payload,
+            timestamp: Date.now()
+          }
+        ]
+      };
+
+    case 'ADD_MESSAGE':
+      return {
+        ...state,
+        history: [
+          ...state.history,
+          {
+            ...event.message,
+            id: event.message.id || crypto.randomUUID(),
+            timestamp: event.message.timestamp || Date.now()
+          }
+        ]
+      };
+
     case 'TURN_RESOLVED': {
       const newTags = event.payload.semanticTags;
       
       const isTerminal = newTags?.SYS?.includes('SOMATIC_TERMINAL') || newTags?.SYS?.includes('COGNITIVE_COLLAPSE');
 
+      const narrativeBlocks = event.payload.narrative_blocks;
+      const formatBlocks = (blocks?: Record<string, unknown>[]): string => {
+        if (!blocks || !Array.isArray(blocks)) return '';
+        return blocks.map(block => {
+          if ((block.type === 'dialogue' || block.type === 'internal_monologue') && block.speaker) {
+            return `${String(block.speaker).toUpperCase()}: ${String(block.content)}`;
+          }
+          return String(block.content);
+        }).join('\n\n');
+      };
+
       return {
         ...state,
+        history: [
+          ...state.history,
+          { 
+            id: crypto.randomUUID(), 
+            role: 'engine', 
+            content: formatBlocks(narrativeBlocks), 
+            blocks: narrativeBlocks,
+            engine_thoughts: event.payload.engine_thoughts,
+            timestamp: Date.now() 
+          }
+        ],
         activeMemory: {
           ...state.activeMemory,
           systemFlags: newTags?.SYS || [],

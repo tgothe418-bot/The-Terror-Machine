@@ -136,7 +136,7 @@ export const sendVoiceTurn = async (textBuffer: Message[], forgeContext?: Messag
 };
 
 export const sendEngineTurn = async (
-  engineTextBuffer: Message[], 
+  userInput: string,
   logicState: LogicState | null, 
   blueprint: ScenarioBlueprint, 
   worldStateSummary: string,
@@ -155,12 +155,24 @@ export const sendEngineTurn = async (
   const appStore = appStoreMod.useAppStore;
   const state = appStore.getState();
   
-  // 1. NON-DESTRUCTIVE SLICE: Grab only the last 10 turns for the active context window
-  // The full state.history remains untouched for the React UI to render
-  const activeWindowLimit = 10;
-  const slidingWindowHistory = engineTextBuffer.slice(-activeWindowLimit);
+  // 1. Dispatch user input to global store immediately (UI updates to show what user typed)
+  state.dispatch({ type: 'USER_ACTION', payload: userInput });
 
-  // 2. CONSTRUCT SYSTEM CONTEXT: Inject the distilled trauma above the sliding window
+  // 2. THE CONTEXT CLEAVER: Build a temporary array for the LLM
+  // We want the establishing context (Turn 0) + the last 3 turns to prevent token bloat
+  const fullHistory = appStore.getState().history;
+  const turnZero = fullHistory[0];
+  const activeWindowLimit = 3; 
+  
+  // Grab the most recent turns
+  const recentHistory = fullHistory.slice(-activeWindowLimit);
+
+  // Combine them cleanly without duplicating Turn 0 if the total history is very short
+  const slidingWindowHistory = turnZero && recentHistory.some(h => h.id === turnZero.id)
+    ? recentHistory
+    : turnZero ? [turnZero, ...recentHistory] : recentHistory;
+
+  // 3. CONSTRUCT SYSTEM CONTEXT: Inject the distilled trauma above the sliding window
   // This ensures the LLM remembers the emotional weight of previous phases without the token bloat
   const systemMemoryContext = state.traumaLedger.length > 0 
     ? `[SYSTEM MEMORY - PREVIOUS TRAUMA LOGS]\n${state.traumaLedger.join('\n')}\n\n`
@@ -222,7 +234,7 @@ export const sendEngineTurn = async (
   }
 
   // Record the turn metrics based on the user's input (Calculate urgency and sanity drops)
-  const lastUserMessage = engineTextBuffer.filter(m => m.role === 'user').pop();
+  const lastUserMessage = fullHistory.filter(m => m.role === 'user').pop();
   const userMessage = lastUserMessage?.content || '';
   const inputLength = userMessage.length;
   const semanticUrgency = (userMessage.match(/[!A-Z]/g)?.length || 0) / (inputLength || 1) > 0.1 ? 0.9 : 0.4; 
@@ -315,17 +327,17 @@ export const sendEngineTurn = async (
     if (activeDecay.currentStage === 'SHATTERED') {
       // Stage 4: Space fully breaks down
       appStore.getState().dispatch({ type: 'TRANSITION_ACCEPTED', fromNodeId: currentNodeId || '', toNodeId: targetNodeId });
-      engineStore.getState().addEngineMessage({ role: 'system', content: `[SYSTEM: SPATIAL SHIFT. User has entered node: ${targetNodeId}]`, timestamp: Date.now() });
+      appStore.getState().dispatch({ type: 'SYSTEM_MESSAGE', payload: `[SYSTEM: SPATIAL SHIFT. User has entered node: ${targetNodeId}]` });
     } else if (activeDecay.currentStage === 'UNSTABLE') {
       // Stage 3: Space is unreliable. Introduce a probability shift.
       // 30% chance an invalid spatial request succeeds anyway as a structural aberration
       if (!isConnected && Math.random() > activeDecay.coherenceRating) {
         appStore.getState().dispatch({ type: 'TRANSITION_ACCEPTED', fromNodeId: currentNodeId || '', toNodeId: targetNodeId });
-        engineStore.getState().addEngineMessage({ role: 'system', content: `[SYSTEM: ABERRANT SPATIAL SHIFT. User forced into node: ${targetNodeId}]`, timestamp: Date.now() });
+        appStore.getState().dispatch({ type: 'SYSTEM_MESSAGE', payload: `[SYSTEM: ABERRANT SPATIAL SHIFT. User forced into node: ${targetNodeId}]` });
         ratifiedFrame.logic_state.matrix_mutation.spatial_anomaly = true;
       } else if (isConnected) {
         appStore.getState().dispatch({ type: 'TRANSITION_ACCEPTED', fromNodeId: currentNodeId || '', toNodeId: targetNodeId });
-        engineStore.getState().addEngineMessage({ role: 'system', content: `[SYSTEM: SPATIAL SHIFT. User has entered node: ${targetNodeId}]`, timestamp: Date.now() });
+        appStore.getState().dispatch({ type: 'SYSTEM_MESSAGE', payload: `[SYSTEM: SPATIAL SHIFT. User has entered node: ${targetNodeId}]` });
       } else {
         // Failed verification
         appStore.getState().dispatch({ type: 'TRANSITION_REJECTED', fromNodeId: currentNodeId || '', attemptedNodeId: targetNodeId, reason: 'Failed UNSTABLE coherence check' });
@@ -335,7 +347,7 @@ export const sendEngineTurn = async (
       // Stage 1 & 2: Space remains structurally fixed. Valid paths only.
       if (isConnected || currentNodeId === targetNodeId) {
         appStore.getState().dispatch({ type: 'TRANSITION_ACCEPTED', fromNodeId: currentNodeId || '', toNodeId: targetNodeId });
-        engineStore.getState().addEngineMessage({ role: 'system', content: `[SYSTEM: SPATIAL SHIFT. User has entered node: ${targetNodeId}]`, timestamp: Date.now() });
+        appStore.getState().dispatch({ type: 'SYSTEM_MESSAGE', payload: `[SYSTEM: SPATIAL SHIFT. User has entered node: ${targetNodeId}]` });
       } else {
         console.warn(`[EUCLIDEAN INTERCEPTOR] Denied transition to: ${targetNodeId}`);
         appStore.getState().dispatch({ type: 'TRANSITION_REJECTED', fromNodeId: currentNodeId || '', attemptedNodeId: targetNodeId, reason: 'Path does not exist in spatial graph' });
