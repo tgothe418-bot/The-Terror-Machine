@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { ArrowLeft, Upload, AlertCircle, Users, Shield, Skull, Activity, Play } from 'lucide-react';
-import { useAppStore } from '../../store/useAppStore';
+import { useAppStore, normalizeBlueprint } from '../../store/useAppStore';
 import { useEngineStore } from '../../core/store';
 import { forgeActions, useForgeState } from '../../store/useForgeStore';
 import { ScenarioBlueprint, BlueprintSchema } from '../../types';
@@ -35,7 +35,8 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
         const parsed = JSON.parse(content);
         
         try {
-          const validated = BlueprintSchema.parse(parsed);
+          const normalized = normalizeBlueprint(parsed);
+          const validated = BlueprintSchema.parse(normalized);
           // @ts-expect-error - The blueprint schemas we just made might have minor divergence from legacy ScenarioBlueprint, forcing it through for now
           setPreviewBlueprint(validated as ScenarioBlueprint);
           forgeActions.setActiveCharacterId(validated.cast?.[0]?.id || null);

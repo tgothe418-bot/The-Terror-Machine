@@ -108,9 +108,9 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
         newMotifLedger[tensionTag] = (newMotifLedger[tensionTag] || 0) + 1;
       }
 
-      let memoryAnchors = state.pacingLedger.memoryAnchorsRemaining;
-      let escapeAttempts = state.pacingLedger.failedEscapeAttempts;
-      let contradictions = state.pacingLedger.spatialContradictions;
+      let memoryAnchors = state.pacingLedger?.memoryAnchorsRemaining ?? 3;
+      let escapeAttempts = state.pacingLedger?.failedEscapeAttempts ?? 0;
+      let contradictions = state.pacingLedger?.spatialContradictions ?? 0;
 
       if (newTags?.SYS?.includes('MEMORY_DECAY') || newTags?.SOMA?.includes('AMNESIA')) {
         memoryAnchors = Math.max(0, memoryAnchors - 1);

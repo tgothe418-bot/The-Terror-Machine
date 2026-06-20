@@ -28,8 +28,29 @@ export function normalizeBlueprint(raw: any): any {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const protagonistId = raw.userCharacterId || raw.perspectives?.find((p: any) => p.role === "PROTAGONIST")?.subjectCharacterId || "char-ricky";
   
+  const rawConnections = raw.topology?.connections || [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const normalizedConnections = rawConnections.map((conn: any) => {
+    if (typeof conn === 'string') {
+      const parts = conn.split('->').map(s => s.trim());
+      if (parts.length === 2 && parts[0] && parts[1]) {
+         return {
+           from: parts[0],
+           to: parts[1],
+           kind: "physical",
+           userInitiated: true
+         };
+      }
+    }
+    return conn;
+  });
+
   return {
     ...raw,
+    topology: {
+      ...raw.topology,
+      connections: normalizedConnections
+    },
     identity: {
       ...raw.identity,
       title: raw.identity?.title || "Unknown"
@@ -108,6 +129,14 @@ export const useAppStore = create<AppStore>((set) => ({
         turnCount: state.turnCount,
         traumaLedger: state.traumaLedger,
         activeMemory: state.activeMemory,
+        motifLedger: state.motifLedger || {},
+        pacingLedger: state.pacingLedger || {
+          failedEscapeAttempts: 0,
+          memoryAnchorsRemaining: 3,
+          spatialContradictions: 0
+        },
+        timelineRevision: state.timelineRevision || 0,
+        lastDistilledRevision: state.lastDistilledRevision === undefined ? -1 : state.lastDistilledRevision,
         history: state.history || [],
       };
       

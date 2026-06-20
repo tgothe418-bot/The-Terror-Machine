@@ -1,12 +1,20 @@
 import { z } from 'zod';
 import { BlueprintSchema } from '../../src/types';
+import { normalizeBlueprint } from '../../src/store/useAppStore';
+
+const NormalizedBlueprintSchema = z.preprocess((val) => {
+  if (val && typeof val === 'object') {
+    return normalizeBlueprint(val);
+  }
+  return val;
+}, BlueprintSchema);
 
 // Chat & Engine Request Schema
 export const EngineTurnRequestSchema = z.object({
   sessionId: z.string().optional(),
   turnId: z.string().optional(),
   history: z.array(z.any()).optional(), // We can tighten this further later
-  blueprint: BlueprintSchema.optional(),
+  blueprint: NormalizedBlueprintSchema.optional(),
   currentState: z.any().optional(),
   forgeContext: z.array(z.any()).optional(),
   execution_mode: z.string().optional(),
@@ -26,7 +34,7 @@ export const SimulatePlayerRequestSchema = z.object({
 });
 
 export const TestSceneRequestSchema = z.object({
-  blueprint: BlueprintSchema.optional(),
+  blueprint: NormalizedBlueprintSchema.optional(),
 });
 
 // Voice Request Schema
