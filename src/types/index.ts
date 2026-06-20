@@ -91,6 +91,7 @@ export const BlueprintSchema = z.object({
     nodes: z.array(z.string()).optional().default([]),
     connections: z.array(TopologyEdgeSchema).optional().default([])
   }).optional().default({ nodes: [], connections: [] }),
+  userCharacterId: z.string().optional(),
   
   setting: z.object({
     location: z.string().optional().default("Unknown"),

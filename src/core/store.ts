@@ -3,7 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { ScenarioBlueprint, LogicState, Message } from '../types';
 import { idbStorage } from '../lib/idbStorage';
 import { distillContext } from '../services/geminiService';
-import { useForgeStoreInternal } from '../store/useForgeStore';
+import { normalizeBlueprint } from '../store/useAppStore';
 
 import { flattenTurnsForDistillation } from '../lib/jsonParser';
 import { HorrorVector, ExposureTier } from './matrix';
@@ -71,23 +71,13 @@ export const useEngineStore = create<EngineState>()(
       })),
       updateTelemetry: (metrics) => set({ telemetry: metrics }),
       setBlueprint: (blueprint, role) => {
-        // Enforce active character properly or fallback to first
-        const activeCharId = useForgeStoreInternal.getState().activeCharacterId;
-        const normalizedCast = blueprint.cast || [];
+        // Normalize blueprint before saving
+        const normalizedBlueprint = normalizeBlueprint(blueprint);
+        const activeCharId = normalizedBlueprint.userCharacterId;
+        const normalizedCast = normalizedBlueprint.cast || [];
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const userChar = normalizedCast.find((c: any) => c.id === activeCharId) || normalizedCast[0];
         
-        const normalizedBlueprint = {
-          ...blueprint,
-          identity: {
-            ...blueprint.identity,
-            title: blueprint.identity?.title || blueprint.title || "Untitled Sequence"
-          },
-          title: blueprint.identity?.title || blueprint.title || "Untitled Sequence",
-          premise: blueprint.globalPremise || blueprint.premise || "Unknown premise",
-          globalPremise: blueprint.globalPremise || blueprint.premise || "Unknown premise",
-        };
-
         set({ 
           activeBlueprint: normalizedBlueprint, 
           engineMessages: [],

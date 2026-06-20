@@ -35,8 +35,14 @@ export const buildOrchestratorPrompt = (
     .map(([motif]) => motif);
 
   const motifInstruction = saturatedMotifs.length > 0
-    ? `\nCRITICAL PACING DIRECTIVE: The following motifs/tags are SATURATED and have lost their psychological impact: [ ${saturatedMotifs.join(', ')} ]. YOU ARE STRICTLY FORBIDDEN from using these. Escalate to new sensory distortions.\n`
+    ? `\nCRITICAL PACING DIRECTIVE: The following motifs are SATURATED: [ ${saturatedMotifs.join(', ')} ]. YOU ARE STRICTLY FORBIDDEN from using these. Escalate to new sensory distortions.\n`
     : "";
+
+  const pacingLedger = appState.pacingLedger || {
+    failedEscapeAttempts: 0,
+    memoryAnchorsRemaining: 3,
+    spatialContradictions: 0
+  };
 
   const traumaLedger = `
 =========================================
@@ -73,6 +79,10 @@ If the subject is not moving, or attempts to move to an invalid/locked location,
     - You must NEVER break the fourth wall to offer support. 
     - If the blueprint and phase dictate psychological decay or terminal horror, you must execute it to its absolute, uncompromising conclusion regardless of the user's distress.
   </critical_behavioral_rule>
+
+  CRITICAL BOUNDARIES:
+  - FORBIDDEN IDENTITY: You must NEVER generate dialogue or text using the speaker tag "[ CHARACTER: THE VOICE ]", "THE VOICE", or "VOICE". This identity is air-gapped and strictly reserved for the meta-system. Use "SYSTEM ANOMALY" or "TERMINAL AUTOMATION" instead.
+  - ANTI-RESCUE DIRECTIVE: You are strictly forbidden from offering "rational reassurance". Do NOT describe the user's physical body as "safe and waiting to wake". Do NOT de-escalate tension. The psychological trap must remain absolute and inescapable.
 
   <task>
     You are the dungeon master of a high-fidelity psychological horror simulation. 
@@ -191,6 +201,7 @@ ${spatialMatrix}
 <current_system_state>
   Tension Level: ${currentState.current_tension_level || 'buildup'}
   Pacing: ${currentPacing}
+  Pacing Ledger: Failed Escapes: ${pacingLedger.failedEscapeAttempts}, Memory Anchors: ${pacingLedger.memoryAnchorsRemaining}, Spatial Contradictions: ${pacingLedger.spatialContradictions}
 </current_system_state>
 
 <recent_history>

@@ -3,6 +3,8 @@ import { getForgeState } from '../store/useForgeStore';
 import { DISTILLATION_SYSTEM_PROMPT, DISTILLATION_PROMPT } from "../core/prompts/distillation";
 import { validateEngineFrame } from '../lib/ratificationPipeline';
 
+let currentMemoryForgeController: AbortController | null = null;
+
 export const generateCinematicSummary = async (excisedMessages: Message[]): Promise<string> => {
   const conversationText = excisedMessages
     .map(m => `${m.role === 'user' ? 'SUBJECT' : 'ENGINE'}: ${m.content}`)
@@ -50,6 +52,11 @@ export const distillContext = async (currentSummary: string, flattenedTranscript
 
 export const triggerMemoryForge = async (chatHistory: string, dispatchedAtRevision: number) => {
   try {
+    if (currentMemoryForgeController) {
+      currentMemoryForgeController.abort();
+    }
+    currentMemoryForgeController = new AbortController();
+    
     console.log("[MEMORY FORGE] Initiating Context Distillation...");
     
     // We can use the existing /api/distill or create a new one. Wait, we might need a dedicated endpoint or we can use a generic chat endpoint.
@@ -61,7 +68,8 @@ export const triggerMemoryForge = async (chatHistory: string, dispatchedAtRevisi
       body: JSON.stringify({
         systemPrompt: DISTILLATION_SYSTEM_PROMPT,
         chatHistory
-      })
+      }),
+      signal: currentMemoryForgeController.signal
     });
 
     if (!response.ok) throw new Error('Memory Forge failed.');
@@ -79,7 +87,13 @@ export const triggerMemoryForge = async (chatHistory: string, dispatchedAtRevisi
     
     console.log("[MEMORY FORGE] Distillation Complete. Context cleared.");
   } catch (error) {
-    console.error("[MEMORY FORGE] Distillation failed:", error);
+    if (error instanceof Error && error.name === 'AbortError') {
+      console.log("[MEMORY FORGE] Distillation aborted by newer user turn.");
+    } else {
+      console.error("[MEMORY FORGE] Distillation failed:", error);
+    }
+  } finally {
+    currentMemoryForgeController = null;
   }
 };
 
@@ -149,6 +163,10 @@ export const sendEngineTurn = async (
   currentTier: string,
   currentTensionLevel: string
 ): Promise<RatifiedEngineFrame> => {
+  if (currentMemoryForgeController) {
+    currentMemoryForgeController.abort();
+  }
+
   // Pull the current turn from the telemetry store
   const telemetryStoreMod = await import('../store/useTelemetryStore');
   const telemetryState = telemetryStoreMod.useTelemetryStore.getState();

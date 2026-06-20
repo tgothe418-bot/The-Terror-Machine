@@ -23,6 +23,23 @@ export interface AppStore extends EngineState {
   dispatch: (event: EngineEvent) => void;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function normalizeBlueprint(raw: any): any {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const protagonistId = raw.userCharacterId || raw.perspectives?.find((p: any) => p.role === "PROTAGONIST")?.subjectCharacterId || "char-ricky";
+  
+  return {
+    ...raw,
+    identity: {
+      ...raw.identity,
+      title: raw.identity?.title || "Unknown"
+    },
+    title: raw.identity?.title || "Unknown",
+    premise: raw.globalPremise || "",
+    userCharacterId: protagonistId
+  };
+}
+
 export const useAppStore = create<AppStore>((set) => ({
   ...initialEngineState,
   

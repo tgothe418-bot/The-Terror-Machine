@@ -2,5 +2,13 @@
   "name": "The Nightmare Machine 2.0",
   "description": "A highly scalable, text-based narrative simulation engine for horror stories.",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"],
+  "topology": {
+    "connections": [
+      { "from": "BLUE_CONCOURSE_LOUNGE", "to": "THE_JAUNT_VOID", "kind": "forced_event", "userInitiated": false, "requires": ["SEDATION_FAILED"] },
+      { "from": "CARUNE_BARN_LABORATORY", "to": "THE_JAUNT_VOID", "kind": "historical_reference", "userInitiated": false },
+      { "from": "THE_JAUNT_VOID", "to": "WHITEHEAD_CITY_RECOVERY_ROOM", "kind": "terminal_ejection", "userInitiated": false, "requires": ["SUBJECTIVE_ETERNITY_REACHED"] }
+    ]
+  },
+  "userCharacterId": "char-ricky"
 }

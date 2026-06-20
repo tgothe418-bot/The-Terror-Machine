@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import express from "express";
+import { Type } from "@google/genai";
 import { getAiClient } from "../utils/aiClient";
 import { buildOrchestratorPrompt } from "../../src/core/prompts/orchestrator";
 import { extractBlueprint } from "../../src/lib/jsonParser";
@@ -113,6 +114,45 @@ router.post("/chat", async (req, res) => {
       else contents.push(msg);
     }
 
+    const jsonSchema: any = {
+      type: Type.OBJECT,
+      properties: {
+        engine_thoughts: { type: Type.STRING },
+        narrative_blocks: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              type: { type: Type.STRING },
+              content: { type: Type.STRING },
+              speaker: { type: Type.STRING }
+            },
+            required: ["type", "content"]
+          }
+        },
+        logic_state: {
+          type: Type.OBJECT,
+          properties: {
+            requested_transition: { type: Type.STRING },
+            suggested_tension: { type: Type.STRING },
+            terminal_flags: { type: Type.ARRAY, items: { type: Type.STRING } },
+            matrix_mutation: { 
+              type: Type.OBJECT, 
+              properties: { next_vector: { type: Type.STRING }, next_tier: { type: Type.STRING } }
+            },
+            cast_ledger: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: { character_name: { type: Type.STRING }, current_location: { type: Type.STRING }, psychological_status: { type: Type.STRING } }
+              }
+            }
+          }
+        }
+      },
+      required: ["engine_thoughts", "narrative_blocks", "logic_state"]
+    };
+
     const response = await getAiClient().models.generateContent({
       model: "gemini-3.5-flash",
       contents: contents,
@@ -121,7 +161,10 @@ router.post("/chat", async (req, res) => {
         temperature,
         topP: 0.95,
         topK: 40,
-        ...(responseMimeType === "application/json" && { responseMimeType })
+        ...(responseMimeType === "application/json" && { 
+          responseMimeType,
+          responseSchema: jsonSchema
+        })
       },
     });
 
@@ -135,7 +178,12 @@ router.post("/chat", async (req, res) => {
     }
 
     const textResponse = response.text || "{}";
-    const parsed = extractBlueprint(textResponse, []) || {};
+    let parsed: any;
+    try {
+      parsed = JSON.parse(textResponse);
+    } catch {
+      parsed = extractBlueprint(textResponse, []) || {};
+    }
     
     let blocks: any[] = [];
     

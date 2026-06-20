@@ -13,6 +13,11 @@ export interface EngineState {
     geomState: string[];
   };
   motifLedger: Record<string, number>;
+  pacingLedger: {
+    failedEscapeAttempts: number;
+    memoryAnchorsRemaining: number;
+    spatialContradictions: number;
+  };
   timelineRevision: number;
   lastDistilledRevision: number;
   history: Message[];
@@ -30,6 +35,11 @@ export const initialEngineState: EngineState = {
     geomState: []
   },
   motifLedger: {},
+  pacingLedger: {
+    failedEscapeAttempts: 0,
+    memoryAnchorsRemaining: 3,
+    spatialContradictions: 0
+  },
   timelineRevision: 0,
   lastDistilledRevision: -1,
   history: []
@@ -98,6 +108,20 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
         newMotifLedger[tensionTag] = (newMotifLedger[tensionTag] || 0) + 1;
       }
 
+      let memoryAnchors = state.pacingLedger.memoryAnchorsRemaining;
+      let escapeAttempts = state.pacingLedger.failedEscapeAttempts;
+      let contradictions = state.pacingLedger.spatialContradictions;
+
+      if (newTags?.SYS?.includes('MEMORY_DECAY') || newTags?.SOMA?.includes('AMNESIA')) {
+        memoryAnchors = Math.max(0, memoryAnchors - 1);
+      }
+      if (newTags?.SYS?.includes('ESCAPE_FAILED')) {
+        escapeAttempts += 1;
+      }
+      if (newTags?.GEOM?.includes('CONTRADICTION')) {
+        contradictions += 1;
+      }
+
       let calculatedPhase = state.phase;
       
       // Pure mathematical deterministic phase shift
@@ -144,6 +168,11 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
           geomState: newTags?.GEOM || []
         },
         motifLedger: newMotifLedger,
+        pacingLedger: {
+          failedEscapeAttempts: escapeAttempts,
+          memoryAnchorsRemaining: memoryAnchors,
+          spatialContradictions: contradictions
+        },
         timelineRevision: state.timelineRevision + 1,
         phase: calculatedPhase
       };
