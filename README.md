@@ -32,7 +32,7 @@ The application is structured across three primary infrastructural pillars to ha
 ---
 
 ## 🛠️ Tech Stack
-*   **Frontend Framework:** React 18, TypeScript, Vite
+*   **Frontend Framework:** React 19, TypeScript, Vite
 *   **State Management:** Zustand
 *   **Styling:** Tailwind CSS
 *   **API Layer:** Google Gemini API (Grounding Tools + Structured JSON Outputs)
