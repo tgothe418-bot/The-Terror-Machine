@@ -187,7 +187,13 @@ export const sendEngineTurn = async (
       `CRITICAL DIRECTIVE: You must frame ALL second-person ('You') prose, sensory descriptions, and internal logic strictly from ${activeCharacter.name}'s perspective. Do NOT address the user as any other character.\n\n`;
   }
 
-  const enhancedWorldStateSummary = systemMemoryContext + identityLock + worldStateSummary;
+  // Inject Spatial Context into Prompt
+  const activeNodeId = state.currentNodeId;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const activeNodeData = state.spatialGraph?.find((n: any) => n.id === activeNodeId)?.name || activeNodeId;
+  const spatialContext = `[CURRENT LOCATION: ${activeNodeData}]\nYou are bound by the environmental rules of this specific location.\n\n`;
+
+  const enhancedWorldStateSummary = systemMemoryContext + spatialContext + identityLock + worldStateSummary;
 
   const response = await fetch('/api/chat', {
     method: 'POST',
@@ -280,8 +286,8 @@ export const sendEngineTurn = async (
   };
 
   // --- B. SPATIAL VALIDATOR (BASED ON COHERENCE RATING) ---
-  if (currentGraph && currentGraph.length > 0 && ratifiedFrame.logic_state.requested_transition) {
-    const targetNodeId = ratifiedFrame.logic_state.requested_transition;
+  if (currentGraph && currentGraph.length > 0 && ratifiedFrame.logic_state.transition_proposal) {
+    const targetNodeId = ratifiedFrame.logic_state.transition_proposal;
     const currentNode = currentGraph.find(n => n.id === currentNodeId);
     
     const isConnected = currentNode?.connectedNodes.includes(targetNodeId) || false;
@@ -289,31 +295,35 @@ export const sendEngineTurn = async (
     if (activeDecay.currentStage === 'SHATTERED') {
       // Stage 4: Space fully breaks down
       appStore.getState().dispatch({ type: 'TRANSITION_ACCEPTED', fromNodeId: currentNodeId || '', toNodeId: targetNodeId });
+      engineStore.getState().addEngineMessage({ role: 'system', content: `[SYSTEM: SPATIAL SHIFT. User has entered node: ${targetNodeId}]`, timestamp: Date.now() });
     } else if (activeDecay.currentStage === 'UNSTABLE') {
       // Stage 3: Space is unreliable. Introduce a probability shift.
       // 30% chance an invalid spatial request succeeds anyway as a structural aberration
       if (!isConnected && Math.random() > activeDecay.coherenceRating) {
         appStore.getState().dispatch({ type: 'TRANSITION_ACCEPTED', fromNodeId: currentNodeId || '', toNodeId: targetNodeId });
+        engineStore.getState().addEngineMessage({ role: 'system', content: `[SYSTEM: ABERRANT SPATIAL SHIFT. User forced into node: ${targetNodeId}]`, timestamp: Date.now() });
         ratifiedFrame.logic_state.matrix_mutation.spatial_anomaly = true;
       } else if (isConnected) {
         appStore.getState().dispatch({ type: 'TRANSITION_ACCEPTED', fromNodeId: currentNodeId || '', toNodeId: targetNodeId });
+        engineStore.getState().addEngineMessage({ role: 'system', content: `[SYSTEM: SPATIAL SHIFT. User has entered node: ${targetNodeId}]`, timestamp: Date.now() });
       } else {
         // Failed verification
         appStore.getState().dispatch({ type: 'TRANSITION_REJECTED', fromNodeId: currentNodeId || '', attemptedNodeId: targetNodeId, reason: 'Failed UNSTABLE coherence check' });
-        ratifiedFrame.logic_state.requested_transition = null;
+        ratifiedFrame.logic_state.transition_proposal = null;
       }
     } else {
       // Stage 1 & 2: Space remains structurally fixed. Valid paths only.
       if (isConnected || currentNodeId === targetNodeId) {
         appStore.getState().dispatch({ type: 'TRANSITION_ACCEPTED', fromNodeId: currentNodeId || '', toNodeId: targetNodeId });
+        engineStore.getState().addEngineMessage({ role: 'system', content: `[SYSTEM: SPATIAL SHIFT. User has entered node: ${targetNodeId}]`, timestamp: Date.now() });
       } else {
         console.warn(`[EUCLIDEAN INTERCEPTOR] Denied transition to: ${targetNodeId}`);
         appStore.getState().dispatch({ type: 'TRANSITION_REJECTED', fromNodeId: currentNodeId || '', attemptedNodeId: targetNodeId, reason: 'Path does not exist in spatial graph' });
         ratifiedFrame.validation.accepted = false;
-        ratifiedFrame.validation.rejected_fields.push("requested_transition");
+        ratifiedFrame.validation.rejected_fields.push("transition_proposal");
         ratifiedFrame.validation.repair_notes.push(`Transition to ${targetNodeId} denied. Path does not exist in spatial graph.`);
         
-        ratifiedFrame.logic_state.requested_transition = null;
+        ratifiedFrame.logic_state.transition_proposal = null;
         
         if (Array.isArray(ratifiedFrame.logic_state.cast_ledger)) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any

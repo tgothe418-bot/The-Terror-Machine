@@ -48,8 +48,8 @@ Connected & Accessible Nodes: ${activeNode?.connectedNodes.length ? activeNode.c
 =========================================
 SPATIAL DIRECTIVE:
 You cannot invent new rooms. You cannot teleport the subject. The subject can ONLY move to the nodes listed in "Connected & Accessible Nodes". 
-If the subject attempts to move to a valid connected node, you MUST output that target node's ID in the "requested_transition" field of your JSON.
-If the subject is not moving, or attempts to move to an invalid/locked location, output null for "requested_transition" and describe the physical barrier preventing their movement.
+If the subject attempts to move to a valid connected node, you MUST output that target node's ID in the "transition_proposal" field of your JSON.
+If the subject is not moving, or attempts to move to an invalid/locked location, output null for "transition_proposal" and describe the physical barrier preventing their movement.
 </euclidean_spatial_matrix>
 ` : '';
 
@@ -148,7 +148,7 @@ YOUR DIRECTIVE: In your JSON response, you MUST include a "current_phase" key co
     You must output exactly this JSON structure. Do not include markdown formatting or \`\`\`json blocks.
     {
       "current_phase": "String: LATENT | MANIFEST | TERMINAL",
-      "requested_transition": "String: NODE_ID if moving, or null",
+      "transition_proposal": "String: NODE_ID if moving, or null",
       "cast_ledger": [
         {
           "character_name": "Subject Alpha",
