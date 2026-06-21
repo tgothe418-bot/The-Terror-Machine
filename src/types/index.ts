@@ -515,6 +515,17 @@ export interface SystemLogicIntervention {
   directive_injected?: boolean;
 }
 
+export interface PerspectiveShiftReceipt {
+  type: "perspective_shift";
+  previousRole: PlayerRole;
+  nextRole: PlayerRole;
+  previousCharacterId: string | null;
+  nextCharacterId: string | null;
+  sceneFacts: string[]; // Objective state extractions
+  activeNodeId: string;
+  directive: string;
+}
+
 export interface UITranscriptMessage {
   id: string;
   role: "user" | "system" | "narrative" | "director";

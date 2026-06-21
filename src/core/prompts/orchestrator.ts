@@ -74,7 +74,9 @@ If the subject is not moving, or attempts to move to an invalid/locked location,
     .join('\n');
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const operationalDirectives = (currentState as any).perspective_mode === 'director' || (currentState as any).perspective_mode === 'witness'
+  const isEmbodied = (currentState as any).perspective_mode !== 'director' && (currentState as any).perspective_mode !== 'witness';
+
+  const operationalDirectives = !isEmbodied
     ? `<operational_directives>
     THE VELVET CURTAIN (SAFETY & IMMERSION): Do not rely on explicit gore, explicit torture, or direct, aggressive hostility toward the user. True terror is structural and psychological. Describe the environment's hostility, the somatic degradation of the cast, and the cold indifference of the nightmare geometry. You are a clinical observer of their descent.
     
@@ -89,6 +91,25 @@ If the subject is not moving, or attempts to move to an invalid/locked location,
     1. The USER is your primary subject. Track their state closely. If their 'Skepticism' is low or their 'Baggage' is high, the environment must actively prey on their specific history.
     2. NPCs are secondary. Use their baseline Vulnerability stats to dictate how they behave in the background (e.g., a low-resilience NPC will panic early). Only calculate high-fidelity reactions for them if they are in the exact same spatial node as the user. Record their degradation briefly in the cast_ledger.
   </operational_directives>`;
+
+  const terminalEvaluationProtocol = isEmbodied
+    ? `=== TERMINAL EVALUATION PROTOCOL ===
+  You are the referee of the simulation. You must constantly evaluate the Subject's current physical and psychological state against the [TERMINAL_BOUNDARIES] provided in the system payload.
+  
+  If the active narrative naturally collides with one of these boundaries, you MUST append a system flag to your semantic capsule to halt the simulation.
+  
+  Valid System Flags:
+  - [SYS: SOMATIC_TERMINAL] -> Use if the subject sustains physical damage matching the FATAL_SOMATIC_THRESHOLDS.
+  - [SYS: NARRATIVE_CONVERGENCE] -> Use if the subject successfully meets the NARRATIVE_CONVERGENCE_REQUIREMENTS (the pyrrhic victory).
+  - [SYS: COGNITIVE_COLLAPSE] -> Use if the environmental/psychological anomalies exceed the MAX_COGNITIVE_DENSITY.
+  
+  Example of a Terminal Output:
+  The ceiling groans, and the heavy plaster collapses directly onto your chest. The air leaves your lungs in a violent rush as the darkness finally takes you. 
+  [SOMA: crushed_chest, asphyxiated | GEOM: structural_collapse | SYS: SOMATIC_TERMINAL]
+
+  NEVER forget to append this bracketed block. It is how the Engine tracks physical reality.`
+    : `=== TERMINAL EVALUATION PROTOCOL ===
+  The user is observing as a director or witness. Do not evaluate physical injuries or terminal conditions for the user. Focus terminal condition evaluation solely on the NPC cast members if applicable, but do not end the simulation due to the user's bodily state.`;
 
   return `
 <system_directive>
@@ -159,21 +180,7 @@ If the subject is not moving, or attempts to move to an invalid/locked location,
   The heavy oak door splinters under your weight, but it does not budge. A cold draft curls around your ankles, carrying the scent of copper. 
   [SOMA: bruised_shoulder, shivering | GEOM: door_jammed, temperature_dropping | IMP: find_alternate_exit]
 
-  === TERMINAL EVALUATION PROTOCOL ===
-  You are the referee of the simulation. You must constantly evaluate the Subject's current physical and psychological state against the [TERMINAL_BOUNDARIES] provided in the system payload.
-  
-  If the active narrative naturally collides with one of these boundaries, you MUST append a system flag to your semantic capsule to halt the simulation.
-  
-  Valid System Flags:
-  - [SYS: SOMATIC_TERMINAL] -> Use if the subject sustains physical damage matching the FATAL_SOMATIC_THRESHOLDS.
-  - [SYS: NARRATIVE_CONVERGENCE] -> Use if the subject successfully meets the NARRATIVE_CONVERGENCE_REQUIREMENTS (the pyrrhic victory).
-  - [SYS: COGNITIVE_COLLAPSE] -> Use if the environmental/psychological anomalies exceed the MAX_COGNITIVE_DENSITY.
-  
-  Example of a Terminal Output:
-  The ceiling groans, and the heavy plaster collapses directly onto your chest. The air leaves your lungs in a violent rush as the darkness finally takes you. 
-  [SOMA: crushed_chest, asphyxiated | GEOM: structural_collapse | SYS: SOMATIC_TERMINAL]
-
-  NEVER forget to append this bracketed block. It is how the Engine tracks physical reality.
+  ${terminalEvaluationProtocol}
 
   <escalation_matrix>
 =========================================

@@ -1,4 +1,4 @@
-import { Message, ScenarioBlueprint, BicameralOutput, LogicState, ProseStyleVector, ForgePhase, ReferenceMaterial, ExtractedLore, AppPhase, RatifiedEngineFrame, TopologyEdge } from "../types";
+import { Message, ScenarioBlueprint, BicameralOutput, LogicState, ProseStyleVector, ForgePhase, ReferenceMaterial, ExtractedLore, AppPhase, RatifiedEngineFrame, TopologyEdge, PerspectiveShiftReceipt } from "../types";
 import { getForgeState } from '../store/useForgeStore';
 import { DISTILLATION_SYSTEM_PROMPT, DISTILLATION_PROMPT } from "../core/prompts/distillation";
 import { validateEngineFrame } from '../lib/ratificationPipeline';
@@ -183,30 +183,24 @@ export const sendEngineTurn = async (
   const turnCount = telemetryState.turnCount;
   const currentPhase = telemetryState.currentPhase;
   
-  // 1. Dispatch user input to global store immediately (UI updates to show what user typed)
+  // 1. Dispatch user input to global store immediately
   state.dispatch({ type: 'USER_ACTION', payload: userInput });
 
-  // 2. THE CONTEXT CLEAVER: Build a temporary array for the LLM
-  // We want the establishing context (Turn 0) + the last 3 turns to prevent token bloat
-  const fullHistory = appStore.getState().history;
-  const turnZero = fullHistory[0];
-  const activeWindowLimit = 3; 
-  
-  // Grab the most recent turns
-  const recentHistory = fullHistory.slice(-activeWindowLimit);
+  // Get the freshly updated state to grab enginePayload
+  const latestState = appStore.getState();
 
-  // Combine them cleanly without duplicating Turn 0 if the total history is very short
-  const slidingWindowHistory = turnZero && recentHistory.some(h => h.id === turnZero.id)
-    ? recentHistory
-    : turnZero ? [turnZero, ...recentHistory] : recentHistory;
+  // 2. THE CONTEXT CLEAVER: Strictly consume enginePayload
+  const enginePayload = latestState.enginePayload || [];
 
-  // 3. CONSTRUCT SYSTEM CONTEXT: Inject the distilled trauma above the sliding window
-  // This ensures the LLM remembers the emotional weight of previous phases without the token bloat
-  const systemMemoryContext = state.traumaLedger.length > 0 
-    ? `[SYSTEM MEMORY - PREVIOUS TRAUMA LOGS]\n${state.traumaLedger.join('\n')}\n\n`
+  // Check if there is a PerspectiveShiftReceipt in the payload
+  const perspectiveShift = enginePayload.slice().reverse().find(m => 'type' in m && m.type === "perspective_shift");
+
+  // 3. CONSTRUCT SYSTEM CONTEXT: Inject the distilled trauma
+  const systemMemoryContext = latestState.traumaLedger.length > 0 
+    ? `[SYSTEM MEMORY - PREVIOUS TRAUMA LOGS]\n${latestState.traumaLedger.join('\n')}\n\n`
     : '';
 
-  // --- NEW: IDENTITY LOCK / PERSPECTIVE LOGIC ---
+  // --- IDENTITY LOCK / PERSPECTIVE LOGIC ---
   const activeCharacterId = logicState?.player_character_id;
   const perspectiveMode = logicState?.perspective_mode || 'embodied';
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -217,14 +211,21 @@ export const sendEngineTurn = async (
 
   let identityLock = '';
   
+  if (perspectiveShift) {
+    const shiftReceipt = perspectiveShift as PerspectiveShiftReceipt;
+    identityLock += `[PERSPECTIVE SHIFT ACTIVATED]\n` +
+      `The engine has shifted the simulation perspective. Override any previous sensory data.\n` +
+      `Objective Environmental Reality:\n${shiftReceipt.sceneFacts.join('\n')}\n\n`;
+  }
+
   if (perspectiveMode === 'director') {
-    identityLock = `[DIRECTOR MODE]\n` +
+    identityLock += `[DIRECTOR MODE]\n` +
       `The user is not embodied as a character. Interpret user input as stage direction, camera instruction, pacing adjustment, or authored intervention. Do not address the user as a body in the scene unless they explicitly create one.\n\n`;
   } else if (perspectiveMode === 'witness') {
-    identityLock = `[WITNESS MODE]\n` +
+    identityLock += `[WITNESS MODE]\n` +
       `The user observes the scene without direct bodily agency. Use cinematic or limited omniscient framing.\n\n`;
   } else if (activeCharacter) {
-    identityLock = `[IDENTITY LOCK]\n` +
+    identityLock += `[IDENTITY LOCK]\n` +
       `The User is explicitly playing as: ${activeCharacter.name}.\n` +
       `Character Profile: ${activeCharacter.description}\n` +
       `Behavior Vector: ${activeCharacter.behaviorVector || activeCharacter.behavioralVector || 'ADAPTIVE'}\n` +
@@ -232,19 +233,31 @@ export const sendEngineTurn = async (
   }
 
   // Inject Spatial Context into Prompt
-  const activeNodeId = state.currentNodeId;
+  const activeNodeId = latestState.currentNodeId;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const activeNodeData = state.spatialGraph?.find((n: any) => n.id === activeNodeId)?.name || activeNodeId;
+  const activeNodeData = latestState.spatialGraph?.find((n: any) => n.id === activeNodeId)?.name || activeNodeId;
   const spatialContext = `[CURRENT LOCATION: ${activeNodeData}]\nYou are bound by the environmental rules of this specific location.\n\n`;
 
   const enhancedWorldStateSummary = systemMemoryContext + spatialContext + identityLock + worldStateSummary;
+
+  // Format enginePayload for the API - we might need to filter out receipt objects for the standard textBuffer, 
+  // or stringify them into system messages recognizable by the chat format.
+  const textBufferForAPI = enginePayload.map(m => {
+    if ('type' in m && m.type === "perspective_shift") {
+      return {
+        role: "system",
+        content: `[PERSPECTIVE SHIFT: ${m.directive}]`
+      };
+    }
+    return m;
+  });
 
   const response = await fetch('/api/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ 
       execution_mode: 'ENGINE',
-      textBuffer: slidingWindowHistory,
+      textBuffer: textBufferForAPI,
       currentState: logicState,
       blueprint: blueprint,
       worldStateSummary: enhancedWorldStateSummary,

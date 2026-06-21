@@ -1,9 +1,10 @@
 import { create } from 'zustand';
-import { AppPhase, SpatialNode, TelemetryState, TopologyEdge, CampaignManifest, CarryoverPacket, TemporalShiftReceipt, NarrativeVelocity, UITranscriptMessage, TurnSnapshot } from '../types';
+import { AppPhase, SpatialNode, TelemetryState, TopologyEdge, CampaignManifest, CarryoverPacket, TemporalShiftReceipt, NarrativeVelocity, UITranscriptMessage, TurnSnapshot, PerspectiveShiftReceipt, Message, PlayerRole } from '../types';
 import { calculateDecayState } from '../lib/ratificationPipeline';
 import { EngineEvent } from '../core/engine/events';
 import { engineReducer, initialEngineState, EngineState } from '../core/engine/reducer';
 import { reconcileStateFromEdit } from '../services/geminiService';
+import { useEngineStore, resolvePerspectiveBinding } from '../core/store';
 
 export interface AppStore extends EngineState {
   isTransitioning: boolean;
@@ -15,9 +16,9 @@ export interface AppStore extends EngineState {
 
   // --- PHASE V: MEMORY SCHISM ---
   uiTranscript: UITranscriptMessage[];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  enginePayload: any[];
+  enginePayload: (Message | PerspectiveShiftReceipt)[];
   turnSnapshot: TurnSnapshot | null;
+  shiftPerspective: (newRole: PlayerRole) => void;
   setTurnSnapshot: (snapshot: TurnSnapshot | null) => void;
 
   editTranscriptMessage: (id: string, newContent: string) => void;
@@ -103,6 +104,55 @@ export const useAppStore = create<AppStore>((set, get) => ({
   enginePayload: [],
   turnSnapshot: null,
   setTurnSnapshot: (snapshot: TurnSnapshot | null) => set({ turnSnapshot: snapshot }),
+  shiftPerspective: (newRole: PlayerRole) => {
+    const engineStoreState = useEngineStore.getState();
+    const blueprint = engineStoreState.activeBlueprint;
+    if (!blueprint) return;
+
+    const { playerRole, characterId, perspectiveMode } = resolvePerspectiveBinding(blueprint, newRole);
+    const gameState = engineStoreState.gameState;
+    
+    if (gameState) {
+      engineStoreState.updateGameState({
+        ...gameState,
+        player_role: playerRole,
+        player_character_id: characterId,
+        perspective_mode: perspectiveMode
+      });
+    }
+
+    const castLedger = gameState?.cast_ledger || [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const sceneFacts = castLedger.map((c: any) => `[${c.character_name}] is in state: [${c.psychological_status}] at ${c.current_location}`);
+    
+    // Also node state summary if needed, we'll keep it simple:
+    const activeNodeId = get().currentNodeId || "UNKNOWN";
+
+    const receipt: PerspectiveShiftReceipt = {
+      type: "perspective_shift",
+      previousRole: gameState?.player_role || "protagonist",
+      nextRole: playerRole,
+      previousCharacterId: gameState?.player_character_id || null,
+      nextCharacterId: characterId,
+      sceneFacts,
+      activeNodeId,
+      directive: `System shift to role: ${playerRole}`
+    };
+
+    set((state) => {
+      const cosmeticMessage: UITranscriptMessage = {
+        id: crypto.randomUUID(),
+        role: "system",
+        content: "--- PERSPECTIVE SHIFT ---",
+        cosmetic: true
+      };
+
+      return {
+        enginePayload: [receipt],
+        uiTranscript: [...state.uiTranscript, cosmeticMessage]
+      };
+    });
+  },
   editTranscriptMessage: async (id: string, newContent: string) => {
     set((state) => ({
       uiTranscript: state.uiTranscript.map(msg => 
@@ -255,11 +305,15 @@ export const useAppStore = create<AppStore>((set, get) => ({
       const nextEngineState = engineReducer(currentEngineState, event);
       
       const newUITranscript = [...state.uiTranscript];
+      let newEnginePayload = [...state.enginePayload];
+      
       if (nextEngineState.history && currentEngineState.history) {
         const addedCount = nextEngineState.history.length - currentEngineState.history.length;
         if (addedCount > 0) {
           const addedMessages = nextEngineState.history.slice(currentEngineState.history.length);
           addedMessages.forEach(msg => {
+            newEnginePayload.push(msg);
+            
             let role: "director" | "system" | "narrative" = "system";
             if (msg.role === "user") role = "director";
             else if (msg.role === "model" || msg.role === "assistant" || msg.role === "system_cinematic") role = "narrative";
@@ -286,8 +340,10 @@ export const useAppStore = create<AppStore>((set, get) => ({
         }
       }
       
+      newEnginePayload = newEnginePayload.slice(-10);
+      
       // Merge the new state back into the Zustand store
-      return { ...state, ...nextEngineState, uiTranscript: newUITranscript };
+      return { ...state, ...nextEngineState, uiTranscript: newUITranscript, enginePayload: newEnginePayload };
     });
   }
 }));
