@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { AppPhase, SpatialNode, TelemetryState, TopologyEdge, CampaignManifest, CarryoverPacket, TemporalShiftReceipt, NarrativeVelocity } from '../types';
+import { AppPhase, SpatialNode, TelemetryState, TopologyEdge, CampaignManifest, CarryoverPacket, TemporalShiftReceipt, NarrativeVelocity, UITranscriptMessage, TurnSnapshot } from '../types';
 import { calculateDecayState } from '../lib/ratificationPipeline';
 import { EngineEvent } from '../core/engine/events';
 import { engineReducer, initialEngineState, EngineState } from '../core/engine/reducer';
@@ -11,6 +11,13 @@ export interface AppStore extends EngineState {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   suspendedActs: Record<string, any>;
   narrativeVelocity: NarrativeVelocity;
+
+  // --- PHASE V: MEMORY SCHISM ---
+  uiTranscript: UITranscriptMessage[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  enginePayload: any[];
+  turnSnapshot: TurnSnapshot | null;
+  setTurnSnapshot: (snapshot: TurnSnapshot | null) => void;
 
   requestActTransition: (targetActId: string) => void;
   commitActTransition: (newBlueprintId: string, packet: CarryoverPacket) => void;
@@ -80,6 +87,12 @@ export const useAppStore = create<AppStore>((set) => ({
   currentActId: null,
   suspendedActs: {},
   narrativeVelocity: "slow_burn",
+
+  // --- PHASE V: MEMORY SCHISM ---
+  uiTranscript: [],
+  enginePayload: [],
+  turnSnapshot: null,
+  setTurnSnapshot: (snapshot: TurnSnapshot | null) => set({ turnSnapshot: snapshot }),
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   requestActTransition: (targetActId: string) => set({ isTransitioning: true }),

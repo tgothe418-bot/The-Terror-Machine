@@ -501,3 +501,24 @@ export interface NodeDecayState {
   forbiddenBeforeFlags?: string[];
 }
 
+// --- PHASE V: MEMORY SCHISM ---
+
+export interface SystemLogicIntervention {
+  type: "state_collision" | "narrative_override" | "engine_rule";
+  trigger: string;
+  mutation: string;
+  directive_injected?: boolean;
+}
+
+export interface UITranscriptMessage {
+  id: string;
+  role: "user" | "system" | "narrative" | "director";
+  content: string;
+  systemLogic?: SystemLogicIntervention[];
+  isEdited?: boolean;
+}
+
+export interface TurnSnapshot {
+  timestamp: number;
+  preservedActState: Partial<ActRuntimeState>;
+}
