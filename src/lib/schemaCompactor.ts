@@ -89,7 +89,7 @@ export const compileStateToDenseOntology = (
   const linkedCharacter = blueprint.cast?.find(c => c.id === currentState.activeCharacterId) 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     || blueprint.cast?.find((c: any) => c.role === currentState.activeNeuralLink)
-    || blueprint.cast?.[0]; // Fallback just in case
+    || null;
 
   const neuralLinkTag = linkedCharacter 
     ? `[USER_NEURAL_LINK:: ROLE: ${currentState.activeNeuralLink} | IDENTITY: ${linkedCharacter.name} | VECTOR: ${linkedCharacter.behaviorVector || 'UNKNOWN'}]`

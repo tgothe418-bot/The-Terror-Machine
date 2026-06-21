@@ -16,12 +16,12 @@ export type ExposureTier = 'GATEWAY' | 'LATENT' | 'MANIFEST' | 'TERMINAL';
 export type AutopilotVector = 'ADAPTIVE' | 'INSURGENT' | 'PANIC';
 
 export type EdgeKind = 
-  | "physical" 
-  | "forced_event" 
-  | "memory_reconstruction" 
-  | "historical_reference" 
-  | "terminal_ejection"
-  | "authored_paradox";
+  | "PHYSICAL" 
+  | "FORCED_EVENT" 
+  | "MEMORY_RECONSTRUCTION" 
+  | "HISTORICAL_REFERENCE" 
+  | "TERMINAL_EJECTION"
+  | "AUTHORED_PARADOX";
 
 export interface TopologyEdge {
   from: string;
@@ -34,12 +34,12 @@ export interface TopologyEdge {
 }
 
 export const EdgeKindSchema = z.enum([
-  "physical", 
-  "forced_event", 
-  "memory_reconstruction", 
-  "historical_reference", 
-  "terminal_ejection",
-  "authored_paradox"
+  "PHYSICAL", 
+  "FORCED_EVENT", 
+  "MEMORY_RECONSTRUCTION", 
+  "HISTORICAL_REFERENCE", 
+  "TERMINAL_EJECTION",
+  "AUTHORED_PARADOX"
 ]);
 
 export const TopologyEdgeSchema = z.object({
@@ -282,13 +282,17 @@ export interface AppState {
   setCurrentNodeId: (nodeId: string) => void;
 }
 
+export type PlayerRole = "protagonist" | "antagonist" | "director" | "witness" | "possessed";
+export type PerspectiveMode = "embodied" | "entity_embodied" | "director" | "witness";
+
 export interface LogicState {
   current_location: string;
   player_injuries: string[];
   inventory: string[];
   psychological_status: string;
-  player_role: 'protagonist' | 'antagonist';
-  player_character_id?: string;
+  player_role: PlayerRole;
+  player_character_id?: string | null;
+  perspective_mode: PerspectiveMode;
   current_tension_level: TensionLevel;
   cast_ledger?: Array<{
     character_name: string;
@@ -464,7 +468,8 @@ export interface ActRuntimeState {
   currentPhase: EnginePhase;
   systemFlags: string[];
   currentNode: string;
-  activeCharacterId: string;
+  activeCharacterId: string | null;
+  perspective_mode?: PerspectiveMode;
   pacingLedger: {
     failedEscapeAttempts: number;
     memoryAnchorsRemaining: number;
@@ -516,6 +521,8 @@ export interface UITranscriptMessage {
   content: string;
   systemLogic?: SystemLogicIntervention[];
   isEdited?: boolean;
+  cosmetic?: boolean;
+  reconciliationStatus?: 'pending' | 'synced' | 'failed';
 }
 
 export interface TurnSnapshot {

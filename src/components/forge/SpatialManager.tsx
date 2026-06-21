@@ -1,10 +1,43 @@
 import { forgeActions, useForgeState } from '../../store/useForgeStore';
-import { TopologyEdge, EdgeAuthority } from '../../types';
+import { TopologyEdge, EdgeAuthority, EdgeKind } from '../../types';
 
 export const SpatialManager = () => {
   const blueprint = useForgeState((state) => state.draftBlueprint);
   const topology = blueprint?.topology;
   const { updateDraft } = forgeActions;
+
+  const handleKindChange = (index: number, newKind: EdgeKind) => {
+    if (!topology || !topology.connections) return;
+    
+    // Create deep copy to update
+    const updatedConnections = [...topology.connections];
+    const targetEdge = updatedConnections[index];
+    
+    // Normalize if it's currently a string
+    if (typeof targetEdge === 'string') {
+      const parts = targetEdge.split('->').map(s => s.trim());
+      updatedConnections[index] = {
+        from: parts[0] || "",
+        to: parts[1] || "",
+        kind: newKind,
+        userInitiated: true,
+        legacyUpgraded: true,
+        authority: 'user'
+      };
+    } else {
+      updatedConnections[index] = {
+        ...targetEdge,
+        kind: newKind
+      };
+    }
+    
+    updateDraft({
+      topology: {
+        ...topology,
+        connections: updatedConnections
+      }
+    });
+  };
 
   const handleAuthorityChange = (index: number, newAuthority: EdgeAuthority) => {
     if (!topology || !topology.connections) return;
@@ -19,7 +52,7 @@ export const SpatialManager = () => {
       updatedConnections[index] = {
         from: parts[0] || "",
         to: parts[1] || "",
-        kind: "physical",
+        kind: "PHYSICAL",
         userInitiated: true,
         legacyUpgraded: true,
         authority: newAuthority
@@ -66,6 +99,7 @@ export const SpatialManager = () => {
             {topology.connections.map((conn: TopologyEdge | string, i: number) => {
                const displayStr = typeof conn === 'string' ? conn : `${conn.from} -> ${conn.to}`;
                const authority = typeof conn === 'object' && conn.authority ? conn.authority : 'user';
+               const edgeKind = typeof conn === 'object' && conn.kind ? conn.kind : 'PHYSICAL';
                
                return (
                  <div key={i} className="flex items-center justify-between group py-1 border-b border-zinc-800/50 last:border-0 hover:bg-zinc-900/30 px-2 transition-colors">
@@ -77,15 +111,29 @@ export const SpatialManager = () => {
                        </span>
                      )}
                    </div>
-                   <select 
-                     value={authority}
-                     onChange={(e) => handleAuthorityChange(i, e.target.value as EdgeAuthority)}
-                     className="bg-zinc-900 border border-zinc-800 text-[10px] text-zinc-500 rounded px-1 py-0.5 outline-none focus:border-cyan-500 opacity-60 group-hover:opacity-100 transition-opacity uppercase"
-                   >
-                     <option value="user">USER</option>
-                     <option value="engine">ENGINE</option>
-                     <option value="system">SYSTEM</option>
-                   </select>
+                   <div className="flex gap-2">
+                     <select 
+                       value={edgeKind}
+                       onChange={(e) => handleKindChange(i, e.target.value as EdgeKind)}
+                       className="bg-zinc-900 border border-zinc-800 text-[10px] text-zinc-500 rounded px-1 py-0.5 outline-none focus:border-cyan-500 opacity-60 group-hover:opacity-100 transition-opacity uppercase"
+                     >
+                       <option value="PHYSICAL">PHYSICAL</option>
+                       <option value="FORCED_EVENT">FORCED_EVENT</option>
+                       <option value="MEMORY_RECONSTRUCTION">MEMORY_RECONSTRUCTION</option>
+                       <option value="HISTORICAL_REFERENCE">HISTORICAL_REFERENCE</option>
+                       <option value="TERMINAL_EJECTION">TERMINAL_EJECTION</option>
+                       <option value="AUTHORED_PARADOX">AUTHORED_PARADOX</option>
+                     </select>
+                     <select 
+                       value={authority}
+                       onChange={(e) => handleAuthorityChange(i, e.target.value as EdgeAuthority)}
+                       className="bg-zinc-900 border border-zinc-800 text-[10px] text-zinc-500 rounded px-1 py-0.5 outline-none focus:border-cyan-500 opacity-60 group-hover:opacity-100 transition-opacity uppercase"
+                     >
+                       <option value="user">USER</option>
+                       <option value="engine">ENGINE</option>
+                       <option value="system">SYSTEM</option>
+                     </select>
+                   </div>
                  </div>
                );
             })}

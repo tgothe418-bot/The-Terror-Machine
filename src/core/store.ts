@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { ScenarioBlueprint, LogicState, Message } from '../types';
+import { ScenarioBlueprint, LogicState, Message, PlayerRole, PerspectiveMode } from '../types';
 import { idbStorage } from '../lib/idbStorage';
 import { distillContext } from '../services/geminiService';
 import { useAppStore, normalizeBlueprint } from '../store/useAppStore';
@@ -32,7 +32,7 @@ interface EngineState {
   shiftMatrixCoordinates: (vector: HorrorVector, tier: ExposureTier) => void;
   updateTension: (tension: 'buildup' | 'visceral_climax' | 'aftermath') => void;
   updateTelemetry: (metrics: TelemetryMetrics) => void;
-  setBlueprint: (blueprint: ScenarioBlueprint, role: 'protagonist' | 'antagonist') => void;
+  setBlueprint: (blueprint: ScenarioBlueprint, role: PlayerRole) => void;
 
   clearBlueprint: () => void;
   updateGameState: (newState: LogicState) => void;
@@ -43,6 +43,44 @@ interface EngineState {
   updateWorldStateSummary: (newSummary: string) => void;
   addEngineTurn: (turn: Message) => void;
   resetEngine: () => void;
+}
+
+export function resolvePerspectiveBinding(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  blueprint: any, // Use your strict RuntimeBlueprint type
+  role: PlayerRole
+): { playerRole: PlayerRole; characterId: string | null; perspectiveMode: PerspectiveMode } {
+  const normalizedRole = role.toUpperCase();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const perspective = blueprint.perspectives?.find((p: any) => String(p.role).toUpperCase() === normalizedRole);
+
+  if (role === "director" || role === "witness") {
+    return { playerRole: role, characterId: null, perspectiveMode: role };
+  }
+
+  if (perspective?.subjectCharacterId) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const isEntity = blueprint.cast?.find((c: any) => c.id === perspective.subjectCharacterId)?.isEntity;
+    return { 
+      playerRole: role, 
+      characterId: perspective.subjectCharacterId, 
+      perspectiveMode: isEntity ? "entity_embodied" : "embodied" 
+    };
+  }
+
+  if (role === "antagonist") {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const entity = blueprint.cast?.find((c: any) => c.isEntity === true);
+    return { playerRole: role, characterId: entity?.id ?? null, perspectiveMode: "entity_embodied" };
+  }
+
+  if (role === "protagonist") {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const mortal = blueprint.cast?.find((c: any) => c.isEntity !== true);
+    return { playerRole: role, characterId: mortal?.id ?? null, perspectiveMode: "embodied" };
+  }
+
+  return { playerRole: role, characterId: null, perspectiveMode: "witness" };
 }
 
 export const useEngineStore = create<EngineState>()(
@@ -73,10 +111,7 @@ export const useEngineStore = create<EngineState>()(
       setBlueprint: (blueprint, role) => {
         // Normalize blueprint before saving
         const normalizedBlueprint = normalizeBlueprint(blueprint);
-        const activeCharId = normalizedBlueprint.userCharacterId;
-        const normalizedCast = normalizedBlueprint.cast || [];
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const userChar = normalizedCast.find((c: any) => c.id === activeCharId) || normalizedCast[0];
+        const { playerRole, characterId, perspectiveMode } = resolvePerspectiveBinding(normalizedBlueprint, role);
         
         // Hard reset useAppStore
         const startNodeId = normalizedBlueprint.topology?.nodes?.[0] || "UNKNOWN";
@@ -105,8 +140,9 @@ export const useEngineStore = create<EngineState>()(
             player_injuries: [],
             inventory: [],
             psychological_status: 'Stable',
-            player_role: role,
-            player_character_id: userChar?.id,
+            player_role: playerRole,
+            player_character_id: characterId,
+            perspective_mode: perspectiveMode,
             current_tension_level: 'buildup',
             lore_and_memory: {
               established_facts: [],

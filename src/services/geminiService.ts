@@ -206,18 +206,24 @@ export const sendEngineTurn = async (
     ? `[SYSTEM MEMORY - PREVIOUS TRAUMA LOGS]\n${state.traumaLedger.join('\n')}\n\n`
     : '';
 
-  // --- NEW: IDENTITY LOCK LOGIC ---
-  // Find the user's selected character from the active state
+  // --- NEW: IDENTITY LOCK / PERSPECTIVE LOGIC ---
   const activeCharacterId = logicState?.player_character_id;
+  const perspectiveMode = logicState?.perspective_mode || 'embodied';
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const activeCharacter = (blueprint as any)?.cast?.find(
+  const activeCharacter = activeCharacterId ? (blueprint as any)?.cast?.find(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (c: any) => c.id === activeCharacterId
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ) || (blueprint as any)?.cast?.[0]; // Safe fallback since logicState might not be hydrated
+  ) : null;
 
   let identityLock = '';
-  if (activeCharacter) {
+  
+  if (perspectiveMode === 'director') {
+    identityLock = `[DIRECTOR MODE]\n` +
+      `The user is not embodied as a character. Interpret user input as stage direction, camera instruction, pacing adjustment, or authored intervention. Do not address the user as a body in the scene unless they explicitly create one.\n\n`;
+  } else if (perspectiveMode === 'witness') {
+    identityLock = `[WITNESS MODE]\n` +
+      `The user observes the scene without direct bodily agency. Use cinematic or limited omniscient framing.\n\n`;
+  } else if (activeCharacter) {
     identityLock = `[IDENTITY LOCK]\n` +
       `The User is explicitly playing as: ${activeCharacter.name}.\n` +
       `Character Profile: ${activeCharacter.description}\n` +
@@ -318,8 +324,10 @@ export const sendEngineTurn = async (
 
   // --- A. THE DYNAMIC METRICS EVALUATOR ---
   const castLedger = ratifiedFrame.logic_state.cast_ledger || [];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const userRecord = castLedger.find((c: any) => c.isUserCharacter || c.role === 'Subject') || castLedger[0];
+  const userRecord = activeCharacterId 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ? castLedger.find((c: any) => c.id === activeCharacterId) 
+    : null;
 
   const currentSkepticism = (userRecord && typeof userRecord.skepticism === 'number') ? userRecord.skepticism : 1.0;
 

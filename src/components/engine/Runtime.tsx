@@ -249,7 +249,9 @@ export default function Runtime() {
   const [isAutopilotRunning, setIsAutopilotRunning] = useState<boolean>(false);
   const autopilotRef = useRef<boolean>(false); // Ref for immediate abort checking
 
-  const userCharName = activeBlueprint?.cast?.find(c => c.isUserCharacter)?.name || 'Protagonist';
+  const userCharName = gameState?.player_character_id 
+    ? activeBlueprint?.cast?.find((c) => c.id === gameState.player_character_id)?.name || 'Protagonist'
+    : (gameState?.perspective_mode ? gameState.perspective_mode.toUpperCase() : 'UNKNOWN');
 
   useEffect(() => {
     const unsub = useEngineStore.persist.onHydrate(() => setHydrated(false));

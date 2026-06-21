@@ -47,7 +47,7 @@ export interface AppStore extends EngineState {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function normalizeBlueprint(raw: any): any {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const protagonistId = raw.userCharacterId || raw.perspectives?.find((p: any) => p.role === "PROTAGONIST")?.subjectCharacterId || "char-ricky";
+  const protagonistId = raw.userCharacterId || raw.perspectives?.find((p: any) => p.role === "PROTAGONIST")?.subjectCharacterId || undefined;
   
   const rawConnections = raw.topology?.connections || [];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -62,7 +62,15 @@ export function normalizeBlueprint(raw: any): any {
         legacyUpgraded: true
       };
     }
-    return conn;
+    const safeConn = { ...conn };
+    if (safeConn.kind === 'spatial' || !safeConn.kind || safeConn.kind === 'physical') {
+      safeConn.kind = 'PHYSICAL';
+    } else if (safeConn.kind === 'narrative' || safeConn.kind === 'forced_event') {
+      safeConn.kind = 'FORCED_EVENT';
+    } else {
+      safeConn.kind = String(safeConn.kind).toUpperCase();
+    }
+    return safeConn;
   });
 
   return {
@@ -81,7 +89,7 @@ export function normalizeBlueprint(raw: any): any {
   };
 }
 
-export const useAppStore = create<AppStore>((set) => ({
+export const useAppStore = create<AppStore>((set, get) => ({
   ...initialEngineState,
   
   isTransitioning: false,

@@ -12,6 +12,8 @@ import { AutopilotVector } from '../../types';
 
 import { CampaignTopologyPanel } from './CampaignTopologyPanel';
 
+import { BlueprintSchema } from '../../types';
+
 export default function Forge() {
   const setPhase = useAppStore((state) => state.setPhase);
   const { draftBlueprint } = useForgeState();
@@ -19,6 +21,7 @@ export default function Forge() {
   const [hydrated, setHydrated] = useState(() => useForgeStoreInternal.persist.hasHydrated());
   const [isConfirmingClear, setIsConfirmingClear] = useState(false);
   const [activeTab, setActiveTab] = useState<'blueprint' | 'campaign'>('blueprint');
+  const [exportError, setExportError] = useState<string | null>(null);
 
   // Handle hydration
   useEffect(() => {
@@ -99,24 +102,47 @@ export default function Forge() {
           <button 
             onClick={() => {
               if (draftBlueprint) {
-                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(draftBlueprint, null, 2));
-                const downloadAnchorNode = document.createElement('a');
-                downloadAnchorNode.setAttribute("href", dataStr);
-                
-                const safeTitle = (draftBlueprint.title || "blueprint").replace(/[\\s\\W]+/g, '_').toLowerCase();
-                const safeRefs = (draftBlueprint.references && draftBlueprint.references.length > 0)
-                  ? draftBlueprint.references.map(r => r.replace(/[\\s\\W]+/g, '_').toLowerCase()).join('_') + '_'
-                  : '';
-                
-                downloadAnchorNode.setAttribute("download", `${safeRefs}${safeTitle}.json`);
-                document.body.appendChild(downloadAnchorNode); // required for firefox
-                downloadAnchorNode.click();
-                downloadAnchorNode.remove();
+                try {
+                  setExportError(null);
+                  BlueprintSchema.parse(draftBlueprint);
+                  
+                  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(draftBlueprint, null, 2));
+                  const downloadAnchorNode = document.createElement('a');
+                  downloadAnchorNode.setAttribute("href", dataStr);
+                  
+                  const safeTitle = (draftBlueprint.title || "blueprint").replace(/[\\s\\W]+/g, '_').toLowerCase();
+                  const safeRefs = (draftBlueprint.references && draftBlueprint.references.length > 0)
+                    ? draftBlueprint.references.map(r => r.replace(/[\\s\\W]+/g, '_').toLowerCase()).join('_') + '_'
+                    : '';
+                  
+                  downloadAnchorNode.setAttribute("download", `${safeRefs}${safeTitle}.json`);
+                  document.body.appendChild(downloadAnchorNode); // required for firefox
+                  downloadAnchorNode.click();
+                  downloadAnchorNode.remove();
+                } catch (e: unknown) {
+                  const error = e as { errors?: unknown, message?: string };
+                  if (error.errors) {
+                    setExportError(JSON.stringify(error.errors, null, 2));
+                  } else {
+                    setExportError(error.message || String(error));
+                  }
+                }
               }
             }}
-            className="px-4 py-2 bg-zinc-900 border border-zinc-700 text-zinc-400 font-mono text-xs hover:bg-zinc-800 hover:text-cyan-400 transition-colors"
+            className="px-4 py-2 bg-zinc-900 border border-zinc-700 text-zinc-400 font-mono text-xs hover:bg-zinc-800 hover:text-cyan-400 transition-colors relative"
           >
             [ EXPORT BLUEPRINT TO ENGINE ]
+            
+            {exportError && (
+              <div className="absolute top-full mt-2 right-0 bg-red-950/90 border border-red-900 text-red-400 text-xs font-mono p-4 rounded z-50 max-w-lg max-h-96 overflow-y-auto w-max text-left shadow-2xl backdrop-blur-md">
+                <div className="flex justify-between items-center mb-4 font-bold shrink-0 border-b border-red-900/50 pb-2">
+                  <span className="text-red-500 uppercase tracking-widest">[ EXPORT VALIDATION FAILED ]</span>
+                  <button onClick={(e) => { e.stopPropagation(); setExportError(null); }} className="text-red-500 hover:text-white px-2 py-1 bg-red-900/30 rounded">✕</button>
+                </div>
+                <pre className="whitespace-pre-wrap leading-relaxed text-[10px]">{exportError}</pre>
+                <div className="mt-4 pt-2 border-t border-red-900/50 text-red-500/80 italic">Fix the highlighted discrepancies in the Forge UI before exporting.</div>
+              </div>
+            )}
           </button>
         </div>
       </div>

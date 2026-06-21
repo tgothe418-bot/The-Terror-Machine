@@ -9,6 +9,7 @@ export const CastManager: React.FC = () => {
   const [role, setRole] = useState<CastRole>('PROTAGONIST');
   const [status, setStatus] = useState('');
   const [location, setLocation] = useState('NODE_INIT');
+  const [isEntity, setIsEntity] = useState(false);
 
   const handleAdd = (e: React.FormEvent) => {
     e.preventDefault();
@@ -18,11 +19,13 @@ export const CastManager: React.FC = () => {
       name,
       role,
       psychological_status: status || 'Baseline.',
-      starting_location: location || 'NODE_INIT'
+      starting_location: location || 'NODE_INIT',
+      isEntity
     });
     
     setName('');
     setStatus('');
+    setIsEntity(false);
   };
 
   return (
@@ -62,6 +65,19 @@ export const CastManager: React.FC = () => {
             className="bg-zinc-900 border border-zinc-700 p-2 text-sm focus:outline-none focus:border-zinc-500"
           />
 
+          <div className="flex items-center gap-2">
+            <input 
+              type="checkbox" 
+              id="isEntityToggle"
+              checked={isEntity}
+              onChange={(e) => setIsEntity(e.target.checked)}
+              className="w-4 h-4 rounded border-zinc-700 bg-zinc-900 checked:bg-cyan-600 focus:ring-cyan-500"
+            />
+            <label htmlFor="isEntityToggle" className="text-sm font-mono text-zinc-400">
+              Is Antagonistic Entity (isEntity flag)
+            </label>
+          </div>
+
           <textarea 
             placeholder="Initial Psychological Status & Somatic Baseline..." 
             value={status}
@@ -91,6 +107,11 @@ export const CastManager: React.FC = () => {
             <div className="flex items-baseline gap-3 mb-2">
               <span className="text-lg font-bold text-zinc-100">{member.name}</span>
               <span className="text-[10px] tracking-widest text-zinc-500">[{member.role}]</span>
+              {Boolean((member as unknown as { isEntity?: boolean }).isEntity) && (
+                <span className="text-[9px] bg-red-900/40 text-red-400 px-1 py-0.5 rounded uppercase tracking-widest border border-red-900/50">
+                  ENTITY FLAG
+                </span>
+              )}
             </div>
             <p className="text-xs text-zinc-400 mb-2">
               <span className="text-zinc-600">LOC:</span> {member.starting_location}
