@@ -3,6 +3,7 @@ import { AppPhase, SpatialNode, TelemetryState, TopologyEdge, CampaignManifest, 
 import { calculateDecayState } from '../lib/ratificationPipeline';
 import { EngineEvent } from '../core/engine/events';
 import { engineReducer, initialEngineState, EngineState } from '../core/engine/reducer';
+import { reconcileStateFromEdit } from '../services/geminiService';
 
 export interface AppStore extends EngineState {
   isTransitioning: boolean;
@@ -19,6 +20,7 @@ export interface AppStore extends EngineState {
   turnSnapshot: TurnSnapshot | null;
   setTurnSnapshot: (snapshot: TurnSnapshot | null) => void;
 
+  editTranscriptMessage: (id: string, newContent: string) => void;
   requestActTransition: (targetActId: string) => void;
   commitActTransition: (newBlueprintId: string, packet: CarryoverPacket) => void;
   executeTemporalShift: (receipt: TemporalShiftReceipt) => void;
@@ -93,6 +95,41 @@ export const useAppStore = create<AppStore>((set) => ({
   enginePayload: [],
   turnSnapshot: null,
   setTurnSnapshot: (snapshot: TurnSnapshot | null) => set({ turnSnapshot: snapshot }),
+  editTranscriptMessage: async (id: string, newContent: string) => {
+    set((state) => ({
+      uiTranscript: state.uiTranscript.map(msg => 
+        msg.id === id ? { ...msg, content: newContent, isEdited: true } : msg
+      )
+    }));
+
+    const state = get();
+    const targetMsg = state.uiTranscript.find(m => m.id === id);
+    if (!targetMsg) return;
+
+    if (targetMsg.role === "director") {
+       if (state.turnSnapshot?.preservedActState) {
+          set((s) => ({
+             ...s.turnSnapshot!.preservedActState 
+          }));
+       }
+    } else if (targetMsg.role === "narrative") {
+       if (targetMsg.systemLogic && targetMsg.systemLogic.length > 0) {
+          const currentStateSummary = {
+             currentNodeId: state.currentNodeId,
+             activeMemory: state.activeMemory,
+             pacingLedger: state.pacingLedger,
+             phase: state.phase
+          };
+          const patch = await reconcileStateFromEdit(newContent, targetMsg.systemLogic, currentStateSummary);
+          if (patch && Object.keys(patch).length > 0) {
+             set((s) => ({
+                 ...s,
+                 ...patch
+             }));
+          }
+       }
+    }
+  },
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   requestActTransition: (targetActId: string) => set({ isTransitioning: true }),
@@ -209,8 +246,40 @@ export const useAppStore = create<AppStore>((set) => ({
       // Calculate the new state
       const nextEngineState = engineReducer(currentEngineState, event);
       
+      const newUITranscript = [...state.uiTranscript];
+      if (nextEngineState.history && currentEngineState.history) {
+        const addedCount = nextEngineState.history.length - currentEngineState.history.length;
+        if (addedCount > 0) {
+          const addedMessages = nextEngineState.history.slice(currentEngineState.history.length);
+          addedMessages.forEach(msg => {
+            let role: "director" | "system" | "narrative" = "system";
+            if (msg.role === "user") role = "director";
+            else if (msg.role === "model" || msg.role === "assistant" || msg.role === "system_cinematic") role = "narrative";
+            
+            const systemLogic: SystemLogicIntervention[] = [];
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            if ((msg as any).engine_thoughts) {
+              systemLogic.push({
+                type: "engine_rule",
+                trigger: "Engine Inference",
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                mutation: typeof (msg as any).engine_thoughts === 'string' ? (msg as any).engine_thoughts : JSON.stringify((msg as any).engine_thoughts)
+              });
+            }
+
+            newUITranscript.push({
+               id: msg.id || crypto.randomUUID(),
+               role,
+               content: msg.content,
+               systemLogic: systemLogic.length > 0 ? systemLogic : undefined,
+               isEdited: false
+            });
+          });
+        }
+      }
+      
       // Merge the new state back into the Zustand store
-      return { ...state, ...nextEngineState };
+      return { ...state, ...nextEngineState, uiTranscript: newUITranscript };
     });
   }
 }));

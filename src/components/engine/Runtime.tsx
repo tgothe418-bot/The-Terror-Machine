@@ -26,11 +26,128 @@ import { useTelemetryStore } from '../../store/useTelemetryStore';
 const SESSION_TIMEOUT = 60 * 60 * 1000; // 60 minutes
 const HEARTBEAT_INTERVAL = 30000; // 30 seconds
 
+import { Edit2, Check, X } from 'lucide-react';
+import type { UITranscriptMessage } from '../../types';
+
+const TranscriptMessageItem = ({ msg, onEdit, userCharName }: { msg: UITranscriptMessage, onEdit: (id: string, text: string) => void, userCharName: string }) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editContent, setEditContent] = useState(msg.content);
+
+  const handleSave = () => {
+    onEdit(msg.id, editContent);
+    setIsEditing(false);
+  };
+
+  const handleCancel = () => {
+    setEditContent(msg.content);
+    setIsEditing(false);
+  };
+
+  const getBorderColor = () => {
+    if (msg.role === 'director') return 'border-l-2 border-zinc-700 pl-4';
+    if (msg.role === 'narrative') return 'border-l-2 border-zinc-800 pl-4';
+    if (msg.role === 'system') return 'border-l-2 border-red-900/50 pl-4 bg-red-950/20 py-2';
+    return 'border-l-2 border-zinc-800 pl-4';
+  };
+
+  const getHeader = () => {
+    if (msg.role === 'director') return `[ DIRECTOR: ${userCharName} ]`;
+    if (msg.role === 'narrative') return `[ NARRATIVE ]`;
+    if (msg.role === 'system') return `[ SYSTEM DIRECTIVE ]`;
+    return '';
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 5 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className={`text-sm leading-relaxed whitespace-pre-wrap group relative ${getBorderColor()}`}
+    >
+      <div className="flex items-center gap-2 mb-1">
+        <span className="text-[10px] uppercase tracking-widest text-zinc-500 font-mono font-bold">
+          {getHeader()}
+        </span>
+        {msg.isEdited && (
+          <span className="text-[8px] uppercase tracking-widest text-zinc-600 font-mono italic">
+            (Edited)
+          </span>
+        )}
+        {!isEditing && (
+          <button
+            onClick={() => setIsEditing(true)}
+            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-zinc-600 hover:text-zinc-300 ml-auto"
+            title="Edit Message"
+          >
+            <Edit2 className="w-3 h-3" />
+          </button>
+        )}
+      </div>
+
+      {isEditing ? (
+        <div className="flex flex-col gap-2 mt-2">
+          <textarea
+            value={editContent}
+            onChange={(e) => setEditContent(e.target.value)}
+            className="w-full bg-zinc-950 text-gray-200 border border-zinc-700 p-2 text-xs font-mono rounded resize-y min-h-[100px] focus:outline-none focus:border-zinc-500"
+          />
+          <div className="flex items-center gap-2 justify-end">
+            <button onClick={handleCancel} className="p-1 hover:bg-zinc-800 rounded text-zinc-500 transition-colors">
+              <X className="w-4 h-4" />
+            </button>
+            <button onClick={handleSave} className="p-1 hover:bg-green-900/50 rounded text-green-500 transition-colors">
+              <Check className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className={`text-zinc-300 ${msg.role === 'director' ? 'italic' : ''} ${msg.role === 'system' ? 'text-red-400 font-mono' : ''}`}>
+          <ErgodicTextRenderer text={msg.content} psychologicalStatus="Stable" />
+        </div>
+      )}
+
+      {msg.systemLogic && msg.systemLogic.length > 0 && (
+        <details className="mt-4 text-xs text-amber-500/70 border border-zinc-900 rounded opacity-70 hover:opacity-100 transition-opacity">
+          <summary className="cursor-pointer p-2 bg-zinc-950 font-mono uppercase tracking-[0.2em] outline-none font-bold">
+            ⚙️ SYSTEM INTERVENTION
+          </summary>
+          <div className="p-3 bg-black border-t border-zinc-900 space-y-2">
+            {msg.systemLogic.map((logic, idx) => (
+              <div key={idx} className="font-mono bg-black/50 p-2 rounded flex flex-col gap-1 text-[10px]">
+                <div className="flex gap-2">
+                  <span className="text-zinc-500">TYPE:</span>
+                  <span className="text-amber-400">{logic.type}</span>
+                </div>
+                <div className="flex gap-2">
+                  <span className="text-zinc-500">TRIGGER:</span>
+                  <span className="text-amber-400">{logic.trigger}</span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-zinc-500">MUTATION:</span>
+                  <span className="text-amber-300 whitespace-pre-wrap">{logic.mutation}</span>
+                </div>
+                {logic.directive_injected !== undefined && (
+                  <div className="flex gap-2">
+                    <span className="text-zinc-500">INJECTED:</span>
+                    <span className="text-amber-400">{logic.directive_injected ? 'TRUE' : 'FALSE'}</span>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </details>
+      )}
+    </motion.div>
+  );
+};
+
 export default function Runtime() {
   const activeBlueprint = useEngineStore((state) => state.activeBlueprint);
   const gameState = useEngineStore((state) => state.gameState);
   const updateGameState = useEngineStore((state) => state.updateGameState);
   const engineMessages = useAppStore((state) => state.history);
+  const uiTranscript = useAppStore((state) => state.uiTranscript);
+  const editTranscriptMessage = useAppStore((state) => state.editTranscriptMessage);
   const dispatch = useAppStore((state) => state.dispatch);
   
   const setPhase = useAppStore((state) => state.setPhase);
@@ -417,121 +534,14 @@ export default function Runtime() {
         {/* Clamped text container width for optimal reading fidelity */}
         <div className={`max-w-3xl mx-auto space-y-12 transition-all duration-[2500ms] ease-in-out ${isTelemetryOpen ? 'blur-sm opacity-30 pointer-events-none' : 'blur-none opacity-100'}`}>
           <AnimatePresence initial={false}>
-          {engineMessages.map((msg, idx) => {
-            const safeContent = typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content || '');
-            return (
-            <motion.div
-              key={idx}
-              initial={{ opacity: 0, y: 5 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3 }}
-              className={`text-sm leading-relaxed whitespace-pre-wrap ${
-                msg.role === 'user' ? 'text-zinc-500 italic' : ''
-              }`}
-            >
-              {msg.engine_thoughts && (
-                <details className="mb-4 text-[10px] text-zinc-500 border border-zinc-900 rounded opacity-70 hover:opacity-100 transition-opacity">
-                  <summary className="cursor-pointer p-2 bg-zinc-950 font-mono uppercase tracking-[0.2em] outline-none font-bold text-green-700/70">
-                    [ ENGINE LOGIC ]
-                  </summary>
-                  <div className="p-3 bg-black italic border-t border-zinc-900 whitespace-pre-wrap text-green-500/50">
-                    {msg.engine_thoughts}
-                  </div>
-                </details>
-              )}
-              {msg.role === 'user' ? (
-                <div className="border-l-2 border-zinc-700 pl-4 py-1">
-                  <div className="text-[10px] uppercase tracking-widest text-zinc-500 font-mono mb-1 font-bold">
-                    [ USER: {userCharName} ]
-                  </div>
-                  <div>&gt; {safeContent}</div>
-                </div>
-              ) : msg.role === 'system_cinematic' ? (
-                <div className="border border-green-900/30 bg-green-950/20 p-6 text-center shadow-[inset_0_0_20px_rgba(0,0,0,0.5)] my-12 relative overflow-hidden group">
-                  <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-green-500/50 to-transparent opacity-50" />
-                  <div className="absolute bottom-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-green-500/50 to-transparent opacity-50" />
-                  <div className="absolute left-0 top-0 w-full h-full bg-[repeating-linear-gradient(0deg,transparent,transparent_2px,rgba(0,100,0,0.05)_2px,rgba(0,100,0,0.05)_4px)] pointer-events-none" />
-                  <div className="text-[10px] uppercase tracking-[0.4em] text-green-500/70 font-bold mb-4 font-mono shadow-sm">
-                    [ END OF ACT — MEMORY DISTILLATION COMPLETE ]
-                  </div>
-                  <div className="text-zinc-300 font-serif italic text-lg leading-loose mx-auto max-w-2xl relative z-10">
-                    <ErgodicTextRenderer text={safeContent} psychologicalStatus="Stable" />
-                  </div>
-                </div>
-              ) : msg.blocks ? (
-                <div className="space-y-6">
-                  {msg.blocks.map((block, bIdx) => {
-                    const status = msg.frozen_psychological_status;
-                    const safeBlockContent = typeof block.content === 'string' ? block.content : JSON.stringify(block.content || '');
-                    
-                    if (block.type === 'dialogue') {
-                      return (
-                        <div key={bIdx} className="pl-4 border-l-2 border-zinc-800">
-                          <span className="text-[10px] uppercase tracking-widest text-zinc-600 block mb-1 font-bold">
-                            [ CHARACTER: {block.speaker || 'Unknown'} ]
-                          </span>
-                          <span className="text-white italic">
-                            <ErgodicTextRenderer text={`"${safeBlockContent}"`} psychologicalStatus={status} />
-                          </span>
-                        </div>
-                      );
-                    }
-                    
-                    if (block.type === 'internal_monologue') {
-                      return (
-                        <div key={bIdx} className="text-zinc-400 italic font-light pl-4 border-l-2 border-zinc-900">
-                          {block.speaker && (
-                            <span className="text-[10px] uppercase tracking-widest text-zinc-600 block mb-1 font-bold">
-                              [ THOUGHT: {block.speaker} ]
-                            </span>
-                          )}
-                           <ErgodicTextRenderer text={safeBlockContent} psychologicalStatus={status} />
-                        </div>
-                      );
-                    }
-
-                    if (block.type === 'environmental_intrusion') {
-                      return (
-                        <div key={bIdx} className="bg-red-500/5 border border-red-500/10 p-4 text-fresh-blood font-bold tracking-tighter uppercase animate-pulse">
-                           <ErgodicTextRenderer text={safeBlockContent} psychologicalStatus={status} />
-                        </div>
-                      );
-                    }
-
-                    if (block.type === 'system_voice') {
-                      return (
-                        <div key={bIdx} className="border border-fresh-blood/20 bg-fresh-blood/5 p-4 relative overflow-hidden group">
-                          <div className="absolute top-0 left-0 w-1 h-full bg-fresh-blood opacity-50" />
-                          <div className="flex items-center gap-2 mb-2">
-                             <div className="w-1.5 h-1.5 bg-fresh-blood rounded-full animate-pulse" />
-                             <span className="text-[10px] uppercase tracking-[0.3em] text-fresh-blood font-bold">[ THE VOICE ]</span>
-                          </div>
-                          <div className="text-zinc-200 font-light italic text-sm">
-                            <ErgodicTextRenderer text={safeBlockContent} psychologicalStatus={status} />
-                          </div>
-                        </div>
-                      );
-                    }
-
-                    return (
-                      <div key={bIdx}>
-                        <ErgodicTextRenderer 
-                          text={safeBlockContent} 
-                          psychologicalStatus={status} 
-                        />
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <ErgodicTextRenderer 
-                  text={safeContent} 
-                  psychologicalStatus={msg.frozen_psychological_status} 
-                />
-              )}
-            </motion.div>
-            );
-          })}
+          {uiTranscript.map((msg, idx) => (
+            <TranscriptMessageItem 
+              key={msg.id || idx} 
+              msg={msg} 
+              onEdit={editTranscriptMessage} 
+              userCharName={userCharName} 
+            />
+          ))}
           {isLoading && (
             <motion.div
               initial={{ opacity: 0 }}

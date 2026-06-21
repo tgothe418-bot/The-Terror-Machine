@@ -366,4 +366,27 @@ router.post('/test-scene', async (req, res) => {
   }
 });
 
+router.post('/reconcile', async (req, res) => {
+  try {
+    const { editedText, previousLogic, currentState } = req.body;
+    const { RECONCILER_SYSTEM_PROMPT } = await import("../../src/core/prompts/reconciler");
+    
+    const response = await getAiClient().models.generateContent({
+      model: "gemini-3.5-flash",
+      contents: `EDITED TEXT:\n${editedText}\n\nPREVIOUS SYSTEM LOGIC MUTATIONS:\n${JSON.stringify(previousLogic)}\n\nCURRENT STATE:\n${JSON.stringify(currentState)}`,
+      config: {
+        systemInstruction: RECONCILER_SYSTEM_PROMPT,
+        responseMimeType: "application/json",
+      }
+    });
+
+    const parsedText = response.text() || "{}";
+    const cleaned = cleanJsonText(parsedText);
+    res.json(JSON.parse(cleaned));
+  } catch (error) {
+    console.error("Reconciliation error:", error);
+    res.status(500).json({ error: "Failed to reconcile state", details: String(error) });
+  }
+});
+
 export default router;

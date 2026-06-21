@@ -495,3 +495,22 @@ export const fetchSimulatedPlayerAction = async (history: Message[], logicState:
     return "[ SYSTEM OVERRIDE: The spatial geometry resists traversal. The requested pathway is inaccessible. ]"; 
   }
 };
+
+import type { SystemLogicIntervention } from '../types';
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const reconcileStateFromEdit = async (editedText: string, previousLogic: SystemLogicIntervention[], currentState: any) => {
+  try {
+    const response = await fetch('/api/reconcile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ editedText, previousLogic, currentState })
+    });
+
+    if (!response.ok) throw new Error('Failed to reconcile state from edit.');
+    
+    return await response.json();
+  } catch (error) {
+    console.error('// RECONCILIATION FAILURE //', error);
+    return {};
+  }
+};
