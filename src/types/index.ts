@@ -294,6 +294,7 @@ export interface LogicState {
   player_character_id?: string | null;
   perspective_mode: PerspectiveMode;
   current_tension_level: TensionLevel;
+  dynamic_conditions?: Record<string, unknown>;
   cast_ledger?: Array<{
     character_name: string;
     current_location: string;

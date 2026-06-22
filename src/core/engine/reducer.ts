@@ -23,6 +23,47 @@ export interface EngineState {
   timelineRevision: number;
   lastDistilledRevision: number;
   history: Message[];
+  nodeState?: {
+    dynamic_conditions?: Record<string, unknown>;
+  };
+}
+
+export function applyReconciliationPatch(currentState: EngineState & Record<string, unknown>, patch: Record<string, unknown>): EngineState & Record<string, unknown> {
+  if (!patch) return currentState;
+  
+  const newState = { ...currentState };
+  const validKeys = [
+    'activeMemory', 'pacingLedger', 'traumaLedger', 'motifLedger', 
+    'phase', 'turnCount', 'currentNodeId', 'decay', 'castLedger',
+    'systemFlags', 'narrativeVelocity', 'nodeState'
+  ];
+  
+  const dynamicConditions: Record<string, unknown> = { ...currentState.nodeState?.dynamic_conditions };
+  
+  for (const key in patch) {
+    if (key === 'castLedger' && currentState.gameState) {
+      if (!newState.gameState) newState.gameState = { ...(currentState.gameState as Record<string, unknown>) };
+      (newState.gameState as Record<string, unknown>).cast_ledger = patch.castLedger;
+    } else if (validKeys.includes(key)) {
+      if (typeof patch[key] === 'object' && patch[key] !== null && !Array.isArray(patch[key])) {
+        newState[key] = { ...(currentState[key] as Record<string, unknown>), ...(patch[key] as Record<string, unknown>) };
+      } else {
+        newState[key] = patch[key];
+      }
+    } else {
+      // Unrecognized hallucinated flags go here
+      dynamicConditions[key] = patch[key];
+    }
+  }
+  
+  if (Object.keys(dynamicConditions).length > 0) {
+    newState.nodeState = {
+      ...newState.nodeState,
+      dynamic_conditions: dynamicConditions
+    };
+  }
+  
+  return newState;
 }
 
 export const initialEngineState: EngineState = {

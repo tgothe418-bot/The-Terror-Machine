@@ -29,7 +29,7 @@ const HEARTBEAT_INTERVAL = 30000; // 30 seconds
 import { Edit2, Check, X } from 'lucide-react';
 import type { UITranscriptMessage } from '../../types';
 
-const TranscriptMessageItem = ({ msg, onEdit, userCharName }: { msg: UITranscriptMessage, onEdit: (id: string, text: string) => void, userCharName: string }) => {
+const TranscriptMessageItem = ({ msg, onEdit, onForceCosmetic, userCharName }: { msg: UITranscriptMessage, onEdit: (id: string, text: string) => void, onForceCosmetic: (id: string) => void, userCharName: string }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(msg.content);
 
@@ -64,7 +64,7 @@ const TranscriptMessageItem = ({ msg, onEdit, userCharName }: { msg: UITranscrip
       transition={{ duration: 0.3 }}
       className={`text-sm leading-relaxed whitespace-pre-wrap group relative ${getBorderColor()}`}
     >
-      <div className="flex items-center gap-2 mb-1">
+      <div className="flex items-center gap-2 mb-1 flex-wrap">
         <span className="text-[10px] uppercase tracking-widest text-zinc-500 font-mono font-bold">
           {getHeader()}
         </span>
@@ -72,6 +72,29 @@ const TranscriptMessageItem = ({ msg, onEdit, userCharName }: { msg: UITranscrip
           <span className="text-[8px] uppercase tracking-widest text-zinc-600 font-mono italic">
             (Edited)
           </span>
+        )}
+        {msg.reconciliationStatus === 'pending' && (
+          <span className="text-[8px] uppercase tracking-widest text-blue-500 font-mono border border-blue-900/50 px-1 rounded bg-blue-900/20 animate-pulse">
+            Reconciling...
+          </span>
+        )}
+        {msg.reconciliationStatus === 'synced' && (
+          <span className="text-[8px] uppercase tracking-widest text-green-500 font-mono border border-green-900/50 px-1 rounded bg-green-900/20">
+            Synced
+          </span>
+        )}
+        {msg.reconciliationStatus === 'failed' && (
+          <div className="flex items-center gap-2">
+            <span className="text-[8px] uppercase tracking-widest text-amber-500 font-mono border border-amber-900/50 px-1 rounded bg-amber-900/20">
+              ⚠️ Sync Failed
+            </span>
+            <button 
+              onClick={() => onForceCosmetic(msg.id)}
+              className="text-[8px] uppercase tracking-widest text-zinc-400 font-mono border border-zinc-700 px-1 rounded bg-zinc-900 hover:text-white transition-colors"
+            >
+              Force Accept as Cosmetic
+            </button>
+          </div>
         )}
         {!isEditing && (
           <button
@@ -148,6 +171,7 @@ export default function Runtime() {
   const engineMessages = useAppStore((state) => state.history);
   const uiTranscript = useAppStore((state) => state.uiTranscript);
   const editTranscriptMessage = useAppStore((state) => state.editTranscriptMessage);
+  const forceAcceptCosmetic = useAppStore((state) => state.forceAcceptCosmetic);
   const dispatch = useAppStore((state) => state.dispatch);
   
   const setPhase = useAppStore((state) => state.setPhase);
@@ -541,6 +565,7 @@ export default function Runtime() {
               key={msg.id || idx} 
               msg={msg} 
               onEdit={editTranscriptMessage} 
+              onForceCosmetic={forceAcceptCosmetic}
               userCharName={userCharName} 
             />
           ))}

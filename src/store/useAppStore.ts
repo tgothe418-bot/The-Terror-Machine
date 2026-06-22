@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { AppPhase, SpatialNode, TelemetryState, TopologyEdge, CampaignManifest, CarryoverPacket, TemporalShiftReceipt, NarrativeVelocity, UITranscriptMessage, TurnSnapshot, PerspectiveShiftReceipt, Message, PlayerRole } from '../types';
 import { calculateDecayState } from '../lib/ratificationPipeline';
 import { EngineEvent } from '../core/engine/events';
-import { engineReducer, initialEngineState, EngineState } from '../core/engine/reducer';
+import { engineReducer, initialEngineState, EngineState, applyReconciliationPatch } from '../core/engine/reducer';
 import { reconcileStateFromEdit } from '../services/geminiService';
 import { useEngineStore, resolvePerspectiveBinding } from '../core/store';
 
@@ -15,6 +15,7 @@ export interface AppStore extends EngineState {
   narrativeVelocity: NarrativeVelocity;
 
   // --- PHASE V: MEMORY SCHISM ---
+  reconciliationRevision: number;
   uiTranscript: UITranscriptMessage[];
   enginePayload: (Message | PerspectiveShiftReceipt)[];
   turnSnapshot: TurnSnapshot | null;
@@ -22,6 +23,7 @@ export interface AppStore extends EngineState {
   setTurnSnapshot: (snapshot: TurnSnapshot | null) => void;
 
   editTranscriptMessage: (id: string, newContent: string) => void;
+  forceAcceptCosmetic: (id: string) => void;
   requestActTransition: (targetActId: string) => void;
   commitActTransition: (newBlueprintId: string, packet: CarryoverPacket) => void;
   executeTemporalShift: (receipt: TemporalShiftReceipt) => void;
@@ -100,6 +102,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   narrativeVelocity: "slow_burn",
 
   // --- PHASE V: MEMORY SCHISM ---
+  reconciliationRevision: 0,
   uiTranscript: [],
   enginePayload: [],
   turnSnapshot: null,
@@ -123,10 +126,17 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
     const castLedger = gameState?.cast_ledger || [];
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sceneFacts = castLedger.map((c: any) => `[${c.character_name}] is in state: [${c.psychological_status}] at ${c.current_location}`);
+    const sceneFacts = castLedger.map((c: any) => `[ACTOR] ${c.character_name} -> Status: ${c.psychological_status}`);
     
     // Also node state summary if needed, we'll keep it simple:
     const activeNodeId = get().currentNodeId || "UNKNOWN";
+    
+    const nodeStateContext = gameState?.dynamic_conditions 
+      ? Object.entries(gameState.dynamic_conditions).map(([k, v]) => `[STAGE] ${activeNodeId} -> Active Condition: ${k}=${JSON.stringify(v)}`) 
+      : [];
+
+    sceneFacts.push(...nodeStateContext);
+    sceneFacts.push(`[CAMERA] -> Perspective shifted to ${playerRole}`);
 
     const receipt: PerspectiveShiftReceipt = {
       type: "perspective_shift",
@@ -153,12 +163,24 @@ export const useAppStore = create<AppStore>((set, get) => ({
       };
     });
   },
+  forceAcceptCosmetic: (id: string) => {
+     set((state) => ({
+        uiTranscript: state.uiTranscript.map(msg => 
+           msg.id === id ? { ...msg, cosmetic: true, reconciliationStatus: "synced" as const } : msg
+        )
+     }));
+  },
   editTranscriptMessage: async (id: string, newContent: string) => {
-    set((state) => ({
-      uiTranscript: state.uiTranscript.map(msg => 
-        msg.id === id ? { ...msg, content: newContent, isEdited: true } : msg
-      )
-    }));
+    let currentRevision = 0;
+    set((state) => {
+      currentRevision = state.reconciliationRevision + 1;
+      return {
+        reconciliationRevision: currentRevision,
+        uiTranscript: state.uiTranscript.map(msg => 
+          msg.id === id ? { ...msg, content: newContent, isEdited: true, reconciliationStatus: "pending" as const } : msg
+        )
+      };
+    });
 
     const state = get();
     const targetMsg = state.uiTranscript.find(m => m.id === id);
@@ -166,9 +188,15 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
     if (targetMsg.role === "director") {
        if (state.turnSnapshot?.preservedActState) {
-          set((s) => ({
-             ...s.turnSnapshot!.preservedActState 
-          }));
+          set((s) => {
+             if (s.reconciliationRevision !== currentRevision) return s;
+             return {
+                ...s.turnSnapshot!.preservedActState,
+                uiTranscript: s.uiTranscript.map(msg => 
+                  msg.id === id ? { ...msg, reconciliationStatus: "synced" as const } : msg
+                )
+             };
+          });
        }
     } else if (targetMsg.role === "narrative") {
        if (targetMsg.systemLogic && targetMsg.systemLogic.length > 0) {
@@ -178,13 +206,45 @@ export const useAppStore = create<AppStore>((set, get) => ({
              pacingLedger: state.pacingLedger,
              phase: state.phase
           };
-          const patch = await reconcileStateFromEdit(newContent, targetMsg.systemLogic, currentStateSummary);
-          if (patch && Object.keys(patch).length > 0) {
-             set((s) => ({
-                 ...s,
-                 ...patch
-             }));
+          
+          try {
+            const patch = await reconcileStateFromEdit(newContent, targetMsg.systemLogic, currentStateSummary);
+            
+            const freshState = get();
+            if (freshState.reconciliationRevision !== currentRevision) {
+               return; // State moved on, discard.
+            }
+
+            if (patch && Object.keys(patch).length > 0) {
+               set((s) => ({
+                   ...applyReconciliationPatch(s, patch),
+                   uiTranscript: s.uiTranscript.map(msg => 
+                      msg.id === id ? { ...msg, reconciliationStatus: "synced" as const } : msg
+                   )
+               }));
+            } else {
+               set((s) => ({
+                   uiTranscript: s.uiTranscript.map(msg => 
+                      msg.id === id ? { ...msg, reconciliationStatus: "synced" as const } : msg
+                   )
+               }));
+            }
+          } catch {
+            set((s) => {
+                if (s.reconciliationRevision !== currentRevision) return s;
+                return {
+                   uiTranscript: s.uiTranscript.map(msg => 
+                      msg.id === id ? { ...msg, reconciliationStatus: "failed" as const } : msg
+                   )
+                };
+            });
           }
+       } else {
+         set((s) => ({
+             uiTranscript: s.uiTranscript.map(msg => 
+                msg.id === id ? { ...msg, reconciliationStatus: "synced" as const } : msg
+             )
+         }));
        }
     }
   },
