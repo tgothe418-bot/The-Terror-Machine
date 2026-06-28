@@ -294,25 +294,8 @@ export const sendEngineTurn = async (
   const parsedPhase = ratifiedFrame.logic_state.current_phase?.toUpperCase() as 'LATENT' | 'MANIFEST' | 'TERMINAL';
   const validPhases = ['LATENT', 'MANIFEST', 'TERMINAL'];
   
-  // ==== SEMANTIC TAG PARSING ====
-  const { extractEngineTags } = await import('../lib/tagParser');
+  // Semantic Tag parsing was removed as per the new strictly typed structured output mandate.
   const aggregatedTags: Record<string, string[]> = { SOMA: [], GEOM: [], SYS: [], IMP: [] };
-  
-  ratifiedFrame.narrative_blocks.forEach(block => {
-    if (block.content) {
-      const { cleanProse, tags } = extractEngineTags(block.content);
-      block.content = cleanProse; // Output the scrubbed text
-      
-      // Merge tags safely
-      if (tags) {
-        Object.keys(tags).forEach(key => {
-          if (aggregatedTags[key]) {
-            aggregatedTags[key].push(...tags[key]);
-          }
-        });
-      }
-    }
-  });
 
   // ==== EUCLIDEAN INTERCEPTOR ====
   if (validPhases.includes(parsedPhase)) {

@@ -1,0 +1,41 @@
+import { z } from 'zod';
+
+export const NarrativeBlockSchema = z.object({
+  id: z.string().uuid(),
+  type: z.enum(["exposition", "dialogue", "sensory", "system_alert"]),
+  speaker: z.string().nullable().optional(),
+  content: z.string().min(1),
+  emotional_weight: z.number().min(-1).max(1).optional()
+});
+
+export const CastMemberSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  skepticism: z.number().min(0).max(1),
+  resilience: z.number().min(0).max(1),
+  isUserCharacter: z.boolean()
+});
+
+export const LogicStateSchema = z.object({
+  current_phase: z.string(),
+  requested_transition: z.string().nullable().optional(),
+  suggested_tension: z.number().min(0).max(10),
+  terminal_flags: z.array(z.string()),
+  matrix_mutation: z.object({
+    type: z.string(),
+    contradictionMode: z.string(),
+    note: z.string()
+  }).nullable().optional(),
+  cast_ledger: z.array(CastMemberSchema)
+});
+
+export const RatifiedEngineFrameSchema = z.object({
+  engine_thoughts: z.string().describe("Internal orchestrator reasoning. Hidden from user."),
+  narrative_blocks: z.array(NarrativeBlockSchema).min(1),
+  logic_state: LogicStateSchema
+});
+
+// Export inferred types for frontend/backend syncing
+export type RatifiedEngineFrame = z.infer<typeof RatifiedEngineFrameSchema>;
+export type LogicState = z.infer<typeof LogicStateSchema>;
+export type NarrativeBlock = z.infer<typeof NarrativeBlockSchema>;

@@ -285,63 +285,30 @@ export interface AppState {
 export type PlayerRole = "protagonist" | "antagonist" | "director" | "witness" | "possessed";
 export type PerspectiveMode = "embodied" | "entity_embodied" | "director" | "witness";
 
-export interface LogicState {
-  current_location: string;
-  player_injuries: string[];
-  inventory: string[];
-  psychological_status: string;
-  player_role: PlayerRole;
-  player_character_id?: string | null;
-  perspective_mode: PerspectiveMode;
-  current_tension_level: TensionLevel;
-  dynamic_conditions?: Record<string, unknown>;
-  cast_ledger?: Array<{
-    character_name: string;
-    current_location: string;
-    psychological_status: string;
-  }>;
-  lore_and_memory: {
-    established_facts: string[];
-    permanent_consequences: string[];
-  };
-  npc_fixations: {
-    characterId: string;
-    current_thought: string;
-  }[];
-}
-
-export type BlockType = 'prose' | 'dialogue' | 'internal_monologue' | 'environmental_intrusion' | 'system_voice' | 'TRANSITION_REJECTED';
-
 export interface NarrativeBlock {
-  type: BlockType;
-  content?: string;
-  speaker?: string; // Optional: Only used if type is 'dialogue' or 'internal_monologue'
-  requested?: string;
-  reason?: string;
-  visibleToModel?: boolean;
-  visibleToTelemetry?: boolean;
+  id: string;
+  type: "exposition" | "dialogue" | "sensory" | "system_alert";
+  speaker?: string | null;
+  content: string;
+  emotional_weight?: number;
 }
 
-export interface ValidationReceipt {
-  accepted: boolean;
-  rejected_fields: string[];
-  repair_notes: string[];
+export interface LogicState {
+  current_phase: string;
+  requested_transition?: string | null;
+  suggested_tension: number;
+  terminal_flags: string[];
+  matrix_mutation?: {
+    type: string;
+    contradictionMode: string;
+    note: string;
+  } | null;
 }
 
 export interface RatifiedEngineFrame {
-  narrative_blocks: NarrativeBlock[];
   engine_thoughts: string;
-  logic_state: {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    requested_transition?: any;
-    suggested_tension?: "buildup" | "visceral_climax" | "aftermath";
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    matrix_mutation?: any;
-    terminal_flags?: string[];
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    cast_ledger?: any[];
-  };
-  validation: ValidationReceipt;
+  narrative_blocks: NarrativeBlock[];
+  logic_state: LogicState;
 }
 
 export interface BicameralOutput {

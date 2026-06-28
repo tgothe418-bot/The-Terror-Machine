@@ -5,7 +5,6 @@ import { idbStorage } from '../lib/idbStorage';
 import { distillContext } from '../services/geminiService';
 import { useAppStore, normalizeBlueprint } from '../store/useAppStore';
 
-import { flattenTurnsForDistillation } from '../lib/jsonParser';
 import { HorrorVector, ExposureTier } from './matrix';
 
 // Add these model definitions to your store fields in src/core/store.ts
@@ -195,7 +194,7 @@ export const useEngineStore = create<EngineState>()(
         set({ engineTextBuffer: remainingBuffer });
 
         // 3. Flatten the complex JSON payload into structured plain text
-        const flattenedTranscript = flattenTurnsForDistillation(turnsToPrune);
+        const flattenedTranscript = turnsToPrune.map(t => typeof t.content === 'string' ? t.content : JSON.stringify(t.content)).join('\n');
 
         // 4. Dispatch the streamlined text string to the background processing tier
         try {
