@@ -22,10 +22,6 @@ router.post("/chat", async (req, res) => {
   let isHubMode = false;
   try {
     const { blueprint, textBuffer, currentState, execution_mode, worldStateSummary, currentVector, currentTier, currentTensionLevel, momentumIndex = 0.5, turnCount = 1, currentPhase = 'LATENT' } = parsedBody.data;
-    
-    if (!blueprint) {
-      return res.status(400).json({ error: "INVALID_BLUEPRINT" });
-    }
 
     const mode = String(execution_mode).toUpperCase();
     isHubMode = mode === 'HUB' || mode === 'VOICE';
@@ -120,9 +116,15 @@ router.post("/chat", async (req, res) => {
     ${coordinateRules.instructionVitals}
     
     PROHIBITED LITERARY DEVICES & THEMES:
-    ${coordinateRules.prohibitions}
+    ${coordinateRules.prohibitions}`;
+
+      if (turnCount === 0 || (activeHistory.length === 1 && typeof activeHistory[0].content === 'string' && activeHistory[0].content.includes('Begin simulation'))) {
+        systemInstruction += `\n\n=== INDUCTION SPARK (ZERO-TURN INITIALIZATION) ===
+    The user has just entered the simulation. Bypass standard user-action semantic parsing for this turn.
+    Directly describe the current location, apply the starting escalation matrix lens, and establish the initial atmosphere based on the coordinates.`;
+      }
     
-    OUTPUT FORMAT REQUIREMENTS:
+      systemInstruction += `\n\nOUTPUT FORMAT REQUIREMENTS:
     You must output a structured JSON payload containing your narrative blocks. 
     Additionally, you MUST include a "suggested_tension" string ("buildup", "visceral_climax", or "aftermath").
     If the narrative demands a macro-shift in the genre or severity, include a "matrix_mutation" object with "next_vector" and "next_tier".`;

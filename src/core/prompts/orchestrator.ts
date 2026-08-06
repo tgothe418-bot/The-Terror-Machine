@@ -2,7 +2,7 @@ import { Blueprint, LogicState, TopologyEdge, Message } from '../../types';
 import { useAppStore } from '../../store/useAppStore';
 
 export const buildOrchestratorPrompt = (
-  blueprint: Blueprint,
+  blueprint: Blueprint | null,
   history: Message[],
   currentState: LogicState,
   momentumIndex: number,
@@ -10,7 +10,7 @@ export const buildOrchestratorPrompt = (
   currentPhase: string
 ) => {
   // Format the cast roster dynamically so the Engine knows exactly who is in the room
-  const castRosterString = (blueprint.cast || [])
+  const castRosterString = (blueprint?.cast || [])
     .map(c => {
       const type = c.isEntity ? 'ENTITY' : 'SUBJECT';
       const stats = c.vulnerabilityBase 
@@ -135,10 +135,10 @@ If the subject is not moving, or attempts to move to an invalid/locked location,
   </task>
 
   <enclosure_parameters>
-    <title>${blueprint.title || 'Unknown'}</title>
-    <premise>${blueprint.premise || ''}</premise>
+    <title>${blueprint?.title || 'Unknown'}</title>
+    <premise>${blueprint?.premise || ''}</premise>
     <environmental_rules>
-      ${blueprint.environmentalRules || ''}
+      ${blueprint?.environmentalRules || ''}
     </environmental_rules>
   </enclosure_parameters>
 

@@ -158,7 +158,7 @@ export const sendVoiceTurn = async (textBuffer: Message[], forgeContext?: Messag
 export const sendEngineTurn = async (
   userInput: string,
   logicState: LogicState | null, 
-  blueprint: ScenarioBlueprint, 
+  blueprint: ScenarioBlueprint | null, 
   worldStateSummary: string,
   currentVector: string,
   currentTier: string,

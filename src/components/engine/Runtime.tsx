@@ -173,6 +173,7 @@ export default function Runtime() {
   const editTranscriptMessage = useAppStore((state) => state.editTranscriptMessage);
   const forceAcceptCosmetic = useAppStore((state) => state.forceAcceptCosmetic);
   const dispatch = useAppStore((state) => state.dispatch);
+  const appPhase = useAppStore((state) => state.phase);
   
   const setPhase = useAppStore((state) => state.setPhase);
   const telemetry = useEngineStore(state => state.telemetry);
@@ -371,14 +372,15 @@ export default function Runtime() {
 
   // Initial simulation start
   useEffect(() => {
-    if (hydrated && activeBlueprint && engineMessages.length === 0 && !isLoading && !hasStarted.current) {
+    const isReady = activeBlueprint || appPhase === 'ENGINE' || appPhase === 'LATENT';
+    if (hydrated && isReady && engineMessages.length === 0 && !isLoading && !hasStarted.current) {
       hasStarted.current = true;
       // Use microtask to avoid synchronous setState in effect
       queueMicrotask(() => {
         startSimulation();
       });
     }
-  }, [activeBlueprint, hydrated, engineMessages.length, startSimulation, isLoading]);
+  }, [activeBlueprint, hydrated, engineMessages.length, startSimulation, isLoading, appPhase]);
 
   const handleCommand = async (e?: React.FormEvent, overrideInput?: string) => {
     e?.preventDefault();
@@ -560,10 +562,10 @@ export default function Runtime() {
         {/* Clamped text container width for optimal reading fidelity */}
         <div className={`max-w-3xl mx-auto space-y-12 transition-all duration-[2500ms] ease-in-out ${isTelemetryOpen ? 'blur-sm opacity-30 pointer-events-none' : 'blur-none opacity-100'}`}>
           <AnimatePresence initial={false}>
-          {uiTranscript.map((msg, idx) => (
+          {engineMessages.map((msg, idx) => (
             <TranscriptMessageItem 
               key={msg.id || idx} 
-              msg={msg} 
+              msg={msg as any} 
               onEdit={editTranscriptMessage} 
               onForceCosmetic={forceAcceptCosmetic}
               userCharName={userCharName} 
