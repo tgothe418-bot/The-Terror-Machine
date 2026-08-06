@@ -1,88 +1,66 @@
 {
-  "id": "bundle_haunted_house_01",
-  "name": "The Forgotten Estate",
-  "lens": {
-    "id": "lens_grief_decay",
-    "core_conflict": "Acceptance of inevitable decay vs. desperate preservation of the past.",
-    "atmospheric_qualities": [
-      "Stifling silence punctuated by structural groans",
-      "Smell of old dust and dried roses",
-      "Muted, desaturated lighting as if the sun itself is dying"
-    ],
-    "escalation_constraints": {
-      "LATENT": ["Eerie and suggestive", "Distant sounds", "Subtle shifts in geometry"],
-      "REACTIVE": ["Direct responses to user investigation", "Close whispers", "Objects moving when unobserved"],
-      "TRANSGRESSIVE": ["Reality-warping", "Aggressive boundary testing", "Physical spaces becoming hostile"],
-      "BLACKOUT": ["Visceral, claustrophobic, and merciless", "Absolute hostility", "Severe psychological and physical violation"]
-    }
-  },
-  "spatial_motifs": [
+  "environment_id": "env_transgressive_dreamscape",
+  "title": "The Somnambulist's Construct",
+  "base_lens": "The environment feels fundamentally wrong, as if the physical space is a malignant, breathing organism. Physics are unreliable. The prose should be visceral, claustrophobic, and entirely grounded in immediate, uncomfortable sensory details.",
+  "motifs": [
     {
-      "id": "motif_rotunda",
-      "name": "The Rotunda",
-      "architectural_style": "Victorian neo-classical with peeling gilded accents",
-      "sensory_signature": "Echoing footsteps, oppressive vertical space, smell of damp wood",
+      "id": "motif_ashen_boiler_room",
+      "name": "The Ashen Boiler Room",
+      "architectural_style": "Industrial Decay / Subconscious Hellscape",
+      "sensory_signature": "Oppressive, localized heat. The rhythmic, deafening clang of unseen pipes mimicking a slow heartbeat. The air tastes of sulfur, rust, and old copper.",
       "structural_anomalies": [
-        "The ceiling fresco depicts figures whose eyes seem to track movement",
-        "The curvature of the walls feels slightly tighter than physically possible"
+        "Pipes that bleed a thick, viscous sludge instead of water.",
+        "Furnaces that cast shadows completely detached from the physical objects in the room."
       ],
-      "possible_exits": ["Hallway to the East Wing", "Staircase descending into dark", "Heavy oak door to the Study"]
+      "possible_exits": ["north", "down", "inward"]
     },
     {
-      "id": "motif_overgrown_foyer",
-      "name": "The Overgrown Foyer",
-      "architectural_style": "Grand entrance hall reclaimed by aggressive flora",
-      "sensory_signature": "Humid air, rustling leaves in an indoor draft, squelching floorboards",
+      "id": "motif_liminal_suburbia",
+      "name": "The Warped Foyer",
+      "architectural_style": "1980s Suburban / Corrupted Domestic",
+      "sensory_signature": "Muted, deadened acoustics like a soundproofed room. The smell of stale cigarette smoke and ozone. Yellowed floral wallpaper that induces a slight optical migraine when viewed directly.",
       "structural_anomalies": [
-        "Vines that pulsate faintly with a heartbeat rhythm",
-        "Mirrors completely obscured by pale, web-like fungus"
+        "Doorways that stretch and recede geometrically as they are approached.",
+        "A static-filled television screen reflecting a room that is slightly different than the one currently occupied."
       ],
-      "possible_exits": ["The Rotunda", "The Solarium", "The Servant Quarters"]
+      "possible_exits": ["hallway", "upstairs", "basement_stairs"]
     },
     {
-      "id": "motif_forgotten_study",
-      "name": "The Dust-Choked Study",
-      "architectural_style": "Wood-paneled library with floor-to-ceiling bookshelves",
-      "sensory_signature": "Dry, abrasive air, smell of decaying paper and old leather",
+      "id": "motif_occult_subbasement",
+      "name": "The Ritual Cellar",
+      "architectural_style": "Earthen Foundation / Transgressive Occult",
+      "sensory_signature": "Freezing ambient temperature. The crunch of dry earth and pulverized bone underfoot. A low, continuous sub-bass frequency that vibrates in the teeth.",
       "structural_anomalies": [
-        "Books with no titles that cannot be opened",
-        "A fireplace filled with ash that remains slightly warm"
+        "Asymmetric, non-Euclidean geometry carved into the foundation walls.",
+        "Light sources that seem to be swallowed by the corners of the room rather than illuminating them."
       ],
-      "possible_exits": ["The Rotunda", "A hidden door behind a bookcase"]
+      "possible_exits": ["up", "crawlspace"]
     }
   ],
-  "entity_archetypes": [
+  "entities": [
     {
-      "id": "entity_the_mourner",
-      "designation": "The Mourning Shade",
-      "denial_vector": "Grief-Driven Denial",
-      "manifestation_triggers": [
-        "Loud noises disrupting the silence",
-        "Interacting with personal artifacts or letters"
-      ],
-      "sensory_tell": "A sudden drop in temperature and the faint sound of suppressed weeping",
+      "id": "entity_the_parasite",
+      "designation": "The Dream Parasite",
+      "denial_vector": "Psychological inversion. The entity weaponizes the User's actions by mutating the environment to reflect guilt, dread, and surrealistic logic.",
+      "manifestation_triggers": ["Logical mapping", "Loud noises", "Structural destruction"],
+      "sensory_tell": "The sudden smell of burning hair and a sharp, painful drop in atmospheric pressure.",
       "escalation_matrix": {
-        "LATENT": "Remains unseen, auditory phenomena only (weeping, pacing).",
-        "REACTIVE": "Interacts with objects the user touches, slamming doors to protect artifacts.",
-        "TRANSGRESSIVE": "Distorts the room's geometry to trap the user near points of grief.",
-        "BLACKOUT": "Direct psychological assault, forcing sensory hallucinations of the user's own past grief."
-      }
-    },
-    {
-      "id": "entity_the_architect",
-      "designation": "The Obsessive Architect",
-      "denial_vector": "Perfectionism through Stagnation",
-      "manifestation_triggers": [
-        "Noticing structural anomalies",
-        "Attempting to alter the layout or open locked doors"
-      ],
-      "sensory_tell": "The rhythmic scratching of a drafting compass on parchment, echoing from nowhere",
-      "escalation_matrix": {
-        "LATENT": "Subtle shifts in room dimensions, doors disappearing when you look away.",
-        "REACTIVE": "Locks exits actively, drops blueprints that map impossible spaces.",
-        "TRANSGRESSIVE": "Aggressive manipulation of gravity and spatial continuity, creating infinite loops.",
-        "BLACKOUT": "Attempts to physically merge the user into the architecture of the house."
+        "LATENT": "Passive environmental hostility. Doors lock. Footsteps echo out of sync. Shadows lengthen unnaturally. Prose is eerie and suggestive.",
+        "REACTIVE": "Direct spatial manipulation. Rooms loop. Inanimate objects shift when unobserved. Whispers mimic the User. Prose is tense and disorienting.",
+        "TRANSGRESSIVE": "Aggressive reality-warping. Architecture assaults the senses. Walls bleed. Staircases turn into fleshy inclines. Prose is visceral and uncomfortable.",
+        "BLACKOUT": "Terminal State. Total systemic collapse. The environment crushes inward. Complete sensory deprivation followed by absolute nightmare logic. Prose is final and merciless."
       }
     }
-  ]
+  ],
+  "terminal_motifs": [
+    {
+      "id": "terminal_shattered_threshold",
+      "name": "The Shattered Threshold",
+      "architectural_style": "Ruptured Reality",
+      "sensory_signature": "Blinding, cold white light piercing through a splintered wooden frame. The roaring sound of a vacuum. The smell of fresh rain cutting through the decay.",
+      "structural_anomalies": ["The doorway exists suspended in a void of falling ash."],
+      "possible_exits": ["wake_up"]
+    }
+  ],
+  "max_rooms": 12
 }

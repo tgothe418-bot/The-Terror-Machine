@@ -9,6 +9,7 @@ export interface EngineState {
   currentNodeId: string | null;
   decay: DecayState;
   turnCount: number;
+  roomsGenerated: number;
   traumaLedger: string[];
   activeMemory: {
     systemFlags: string[];
@@ -36,7 +37,7 @@ export function applyReconciliationPatch(currentState: EngineState & Record<stri
   const validKeys = [
     'activeMemory', 'pacingLedger', 'traumaLedger', 'motifLedger', 
     'phase', 'escalation_state', 'turnCount', 'currentNodeId', 'decay', 'castLedger',
-    'systemFlags', 'narrativeVelocity', 'nodeState'
+    'systemFlags', 'narrativeVelocity', 'nodeState', 'roomsGenerated'
   ];
   
   const dynamicConditions: Record<string, unknown> = { ...currentState.nodeState?.dynamic_conditions };
@@ -75,6 +76,7 @@ export const initialEngineState: EngineState = {
   currentNodeId: null,
   decay: { stage: 'STABLE', coherence: 1.0 },
   turnCount: 0,
+  roomsGenerated: 0,
   traumaLedger: [],
   activeMemory: {
     systemFlags: [],
@@ -199,6 +201,11 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
 
       const hasHiddenBlocks = Array.isArray(narrativeBlocks) && narrativeBlocks.some((b: Record<string, unknown>) => b.visibleToModel === false);
 
+      let newRoomsGenerated = state.roomsGenerated;
+      if (event.payload.logic_state?.matrix_mutation?.increment_rooms) {
+        newRoomsGenerated = (newRoomsGenerated || 0) + 1;
+      }
+
       return {
         ...state,
         history: [
@@ -227,7 +234,8 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
         },
         timelineRevision: state.timelineRevision + 1,
         phase: calculatedPhase,
-        escalation_state: newEscalationState
+        escalation_state: newEscalationState,
+        roomsGenerated: newRoomsGenerated
       };
     }
 

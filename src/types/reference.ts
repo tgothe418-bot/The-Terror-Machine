@@ -19,17 +19,12 @@ export interface EntityArchetype {
   escalation_matrix: Record<EscalationTier, string>;
 }
 
-export interface ThematicLens {
-  id: string;
-  core_conflict: string;
-  atmospheric_qualities: string[];
-  escalation_constraints: Record<EscalationTier, string[]>;
-}
-
 export interface AdLibBundle {
-  id: string;
-  name: string;
-  lens: ThematicLens;
-  spatial_motifs: SpatialMotif[];
-  entity_archetypes: EntityArchetype[];
+  environment_id: string;
+  title: string;
+  base_lens: string;
+  motifs: SpatialMotif[];
+  entities: EntityArchetype[];
+  terminal_motifs: SpatialMotif[];
+  max_rooms: number;
 }

@@ -299,10 +299,16 @@ export interface LogicState {
   suggested_tension: number;
   terminal_flags: string[];
   escalation_state?: string;
+  intent_classification?: string;
+  intent_synergy?: "SUCCESS" | "FAILURE" | "N/A";
   matrix_mutation?: {
     type: string;
     contradictionMode: string;
     note: string;
+    increment_rooms?: boolean;
+    new_adlib_node?: Record<string, unknown>;
+    adlib_prompt_injection?: string;
+    original_requested_transition?: string | null;
   } | null;
 }
 

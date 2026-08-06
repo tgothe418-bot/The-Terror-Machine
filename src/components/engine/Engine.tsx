@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useEngineStore } from '../../core/store';
+import { useAppStore } from '../../store/useAppStore';
 import EngineSetup from './EngineSetup';
 import Runtime from './Runtime';
 
 export default function Engine() {
   const activeBlueprint = useEngineStore((state) => state.activeBlueprint);
+  const phase = useAppStore((state) => state.phase);
   const [forcingSetup, setForcingSetup] = useState(false);
   const [hydrated, setHydrated] = useState(() => useEngineStore.persist.hasHydrated());
 
@@ -28,9 +30,8 @@ export default function Engine() {
     );
   }
 
-  // Always show Setup if forcing it, OR if no blueprint exists.
-  // This allows the "selection menu" to be the gateway.
-  if (!activeBlueprint || forcingSetup) {
+  // Always show Setup if forcing it, OR if no blueprint exists AND we aren't in Ad-Lib.
+  if ((!activeBlueprint && phase !== 'ENGINE' && phase !== 'LATENT') || forcingSetup) {
     return <EngineSetup onContinue={() => setForcingSetup(false)} />;
   }
 

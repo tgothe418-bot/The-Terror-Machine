@@ -35,32 +35,7 @@ router.post("/chat", async (req, res) => {
     const activeHistory = inputHistory.slice(isHubMode ? -10 : -6);
     const updatedState = currentState ? { ...currentState } : null;
     
-    // --- TRANSGRESSION LEDGER: LIGHTWEIGHT SEMANTIC PARSER ---
     let currentEscalation = updatedState?.escalation_state || 'LATENT';
-    const lastMessage = activeHistory.length > 0 ? activeHistory[activeHistory.length - 1] : null;
-    
-    if (lastMessage && lastMessage.role === 'user') {
-      const userInput = (lastMessage.content || '').toLowerCase();
-      const aggressiveKeywords = ['break', 'smash', 'kick', 'punch', 'attack', 'kill', 'destroy', 'yell', 'scream', 'run', 'force', 'burn'];
-      const transgressiveKeywords = ['ignore', 'defy', 'fuck', 'shit', 'jump out', 'shoot', 'stab', 'cut', 'rip'];
-      
-      let transgressionScore = 0;
-      aggressiveKeywords.forEach(kw => { if (userInput.includes(kw)) transgressionScore += 1; });
-      transgressiveKeywords.forEach(kw => { if (userInput.includes(kw)) transgressionScore += 2; });
-      
-      if (transgressionScore >= 2 && currentEscalation === 'LATENT') {
-        currentEscalation = 'REACTIVE';
-      } else if (transgressionScore >= 3 && currentEscalation === 'REACTIVE') {
-        currentEscalation = 'TRANSGRESSIVE';
-      } else if (transgressionScore >= 4 && currentEscalation === 'TRANSGRESSIVE') {
-        currentEscalation = 'BLACKOUT';
-      }
-      
-      if (updatedState) {
-        updatedState.escalation_state = currentEscalation;
-      }
-    }
-    // ---------------------------------------------------------
 
     let systemInstruction = "";
     let responseMimeType = "text/plain";
@@ -78,18 +53,18 @@ router.post("/chat", async (req, res) => {
           const bundleData = fs.readFileSync(bundlePath, 'utf8');
           const bundle = JSON.parse(bundleData);
           
-          const lensConstraints = bundle.lens?.escalation_constraints?.[currentEscalation] || [];
-          const entityArchetypes = bundle.entity_archetypes || [];
+          const baseLens = bundle.base_lens || "";
+          const entities = bundle.entities || [];
           
           let entityDirectives = "";
-          entityArchetypes.forEach((entity: any) => {
+          entities.forEach((entity: any) => {
             if (entity.escalation_matrix && entity.escalation_matrix[currentEscalation]) {
               entityDirectives += `- ${entity.designation}: ${entity.escalation_matrix[currentEscalation]}\n`;
             }
           });
 
           escalationPrompt = `\n\n=== ESCALATION MATRIX (TIER: ${currentEscalation}) ===\n`;
-          escalationPrompt += `THEMATIC LENS CONSTRAINTS:\n- ${lensConstraints.join('\n- ')}\n\n`;
+          escalationPrompt += `THEMATIC LENS: ${baseLens}\n\n`;
           escalationPrompt += `ENTITY BEHAVIORAL IMPERATIVES:\n${entityDirectives}\n`;
           escalationPrompt += `CRITICAL DIRECTIVE: You MUST adapt the prose tone and physical constraints to match this escalation tier immediately.\n`;
         } catch (err) {
@@ -286,6 +261,49 @@ router.post("/chat", async (req, res) => {
     if ((parsed as any).suggested_tension !== undefined) logicState.suggested_tension = (parsed as any).suggested_tension;
     if ((parsed as any).matrix_mutation !== undefined) logicState.matrix_mutation = (parsed as any).matrix_mutation;
     if ((parsed as any).terminal_flags !== undefined) logicState.terminal_flags = (parsed as any).terminal_flags;
+    if ((parsed as any).intent_classification !== undefined) logicState.intent_classification = (parsed as any).intent_classification;
+    if ((parsed as any).intent_synergy !== undefined) logicState.intent_synergy = (parsed as any).intent_synergy;
+
+    // --- DETERMINISTIC ESCALATION RATCHET ---
+    const intentClass = logicState.intent_classification;
+    const synergy = logicState.intent_synergy;
+    const tiers = ['LATENT', 'REACTIVE', 'TRANSGRESSIVE', 'BLACKOUT'];
+    let tierIdx = tiers.indexOf(currentEscalation);
+
+    if (tierIdx < 3 && tierIdx !== -1 && intentClass) {
+       const escalationVectors = ['FLIGHT', 'DENIAL', 'FIXATION', 'EXPOSURE'];
+       
+       if (escalationVectors.includes(intentClass) || synergy === 'FAILURE') {
+           tierIdx = Math.min(3, tierIdx + 1);
+       } else if (synergy === 'SUCCESS') {
+           tierIdx = Math.max(0, tierIdx - 1);
+       }
+    }
+    
+    currentEscalation = tiers[tierIdx !== -1 ? tierIdx : 0];
+    logicState.escalation_state = currentEscalation;
+
+    try {
+        const bundlePath = path.join(process.cwd(), 'src/data/references/haunted_house.json');
+        const bundleData = fs.readFileSync(bundlePath, 'utf8');
+        const bundle = JSON.parse(bundleData);
+        const entities = bundle.entities || [];
+        
+        let matrixString = "";
+        entities.forEach((entity: any) => {
+            if (entity.escalation_matrix && entity.escalation_matrix[currentEscalation]) {
+                matrixString += entity.escalation_matrix[currentEscalation] + " ";
+            }
+        });
+
+        if (matrixString) {
+            logicState.matrix_mutation = logicState.matrix_mutation || {};
+            logicState.matrix_mutation.note = matrixString.trim();
+        }
+    } catch (e) {
+        console.error("Failed to append matrix string to logic state:", e);
+    }
+    // ----------------------------------------
 
     // --- AD-LIB BLIND ENTRY: JIT SPATIAL MATERIALIZATION ---
     if (logicState.requested_transition && logicState.requested_transition.startsWith('unmaterialized_')) {
@@ -293,10 +311,33 @@ router.post("/chat", async (req, res) => {
         const bundlePath = path.join(process.cwd(), 'src/data/references/haunted_house.json');
         const bundleData = fs.readFileSync(bundlePath, 'utf8');
         const bundle = JSON.parse(bundleData);
-        const motifs = bundle.spatial_motifs;
+        
+        const roomsGenerated = updatedState?.roomsGenerated || 0;
+        const maxRooms = bundle.max_rooms || 12;
+        
+        let motifs = bundle.motifs;
+        if ((roomsGenerated >= maxRooms || currentEscalation === 'BLACKOUT') && bundle.terminal_motifs) {
+            motifs = bundle.terminal_motifs;
+        }
+
         const selectedMotif = motifs[Math.floor(Math.random() * motifs.length)];
         
         const newNodeId = `node_${crypto.randomUUID()}`;
+        
+        const exits = selectedMotif.possible_exits.map((exit: string) => ({
+            targetNodeId: `unmaterialized_${crypto.randomUUID()}`,
+            description: exit,
+            isOpen: true
+        }));
+
+        // RECIPROCAL EDGE
+        if (updatedState?.currentNodeId) {
+            exits.push({
+                targetNodeId: updatedState.currentNodeId,
+                description: 'The way you came',
+                isOpen: true
+            });
+        }
         
         const newAdLibNode = {
           id: newNodeId,
@@ -304,17 +345,13 @@ router.post("/chat", async (req, res) => {
           name: selectedMotif.name,
           description: selectedMotif.sensory_signature,
           sensoryProfile: [],
-          exits: selectedMotif.possible_exits.map((exit: string) => ({
-            targetNodeId: `unmaterialized_${crypto.randomUUID()}`,
-            description: exit,
-            isOpen: true
-          })),
+          exits: exits,
           environmentalHazards: [],
           linkedCharacters: [],
           structuralAnomalies: selectedMotif.structural_anomalies
         };
 
-        const adLibPromptInjection = `[JIT MATERIALIZATION] The player has crossed into a new sector: ${selectedMotif.name}. SENSORY SIGNATURE: ${selectedMotif.sensory_signature}. ANOMALIES: ${selectedMotif.structural_anomalies.join(', ')}. ATMOSPHERE: ${bundle.lens.atmospheric_qualities.join('. ')}. Frame all incoming prose with this sensory reality.`;
+        const adLibPromptInjection = `[JIT MATERIALIZATION] The player has crossed into a new sector: ${selectedMotif.name}. SENSORY SIGNATURE: ${selectedMotif.sensory_signature}. ANOMALIES: ${selectedMotif.structural_anomalies.join(', ')}. ATMOSPHERE: ${bundle.base_lens}. Frame all incoming prose with this sensory reality.`;
         console.log("=== EXACT PROMPT CONTEXT INJECTION ===");
         console.log(adLibPromptInjection);
 
@@ -323,6 +360,7 @@ router.post("/chat", async (req, res) => {
         logicState.matrix_mutation.adlib_prompt_injection = adLibPromptInjection;
         logicState.matrix_mutation.original_requested_transition = logicState.requested_transition;
         logicState.requested_transition = newNodeId;
+        logicState.matrix_mutation.increment_rooms = true;
 
       } catch (err) {
         console.error("Ad-Lib JIT Materialization Error:", err);

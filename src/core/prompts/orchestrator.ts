@@ -191,14 +191,21 @@ Current System Momentum: ${momentumIndex} (0.0 = Stagnant, 1.0 = Maximum Velocit
 =========================================
 You no longer control the Phase; it is deterministic. However, you DO control the local tension of the scene. Evaluate the Subject's momentum, the Cast Ledger's sanity, and the Turn Count to determine if the local narrative tension escalates.
 
-YOUR DIRECTIVE: In your JSON response, you MUST include a "suggested_tension" key containing your determination ("buildup", "visceral_climax", or "aftermath").
+YOUR DIRECTIVE: In your JSON response, you MUST include a "suggested_tension" key containing your determination (an integer between 0 and 10).
+Additionally, you MUST classify the user's latest input into one of the following Intent Classifications:
+- Escalation Vectors: FLIGHT, DENIAL, FIXATION, EXPOSURE
+- De-Escalation Vectors: CONCEALMENT, MISDIRECTION, SUBVERSION
+
+When the User attempts a De-Escalation action (CONCEALMENT, MISDIRECTION, SUBVERSION), you MUST evaluate it against the active entity's mechanics (if any). If the action logically counters the entity's mechanics, intent_synergy is "SUCCESS". If it relies on a flawed premise (e.g. hiding from a psychic threat), it is "FAILURE". For Escalation actions, intent_synergy can be "N/A".
   </escalation_matrix>
 
   <json_schema_requirement>
     You must output exactly this JSON structure. Do not include markdown formatting or \`\`\`json blocks.
     {
-      "suggested_tension": "String: buildup | visceral_climax | aftermath",
+      "suggested_tension": 5,
       "requested_transition": "String: NODE_ID if moving, or null",
+      "intent_classification": "String: FLIGHT | DENIAL | FIXATION | EXPOSURE | CONCEALMENT | MISDIRECTION | SUBVERSION",
+      "intent_synergy": "String: SUCCESS | FAILURE | N/A",
       "cast_ledger": [
         {
           "character_name": "Subject Alpha",

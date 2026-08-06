@@ -22,10 +22,13 @@ export const LogicStateSchema = z.object({
   suggested_tension: z.number().min(0).max(10),
   terminal_flags: z.array(z.string()),
   escalation_state: z.string().optional(),
+  intent_classification: z.string().optional(),
+  intent_synergy: z.enum(["SUCCESS", "FAILURE", "N/A"]).optional(),
   matrix_mutation: z.object({
     type: z.string(),
     contradictionMode: z.string(),
-    note: z.string()
+    note: z.string(),
+    increment_rooms: z.boolean().optional()
   }).nullable().optional(),
   cast_ledger: z.array(CastMemberSchema)
 });
