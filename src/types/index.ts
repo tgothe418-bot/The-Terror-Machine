@@ -298,6 +298,7 @@ export interface LogicState {
   requested_transition?: string | null;
   suggested_tension: number;
   terminal_flags: string[];
+  escalation_state?: string;
   matrix_mutation?: {
     type: string;
     contradictionMode: string;

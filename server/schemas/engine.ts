@@ -21,6 +21,7 @@ export const LogicStateSchema = z.object({
   requested_transition: z.string().nullable().optional(),
   suggested_tension: z.number().min(0).max(10),
   terminal_flags: z.array(z.string()),
+  escalation_state: z.string().optional(),
   matrix_mutation: z.object({
     type: z.string(),
     contradictionMode: z.string(),

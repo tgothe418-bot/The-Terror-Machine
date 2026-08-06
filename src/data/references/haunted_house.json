@@ -8,7 +8,13 @@
       "Stifling silence punctuated by structural groans",
       "Smell of old dust and dried roses",
       "Muted, desaturated lighting as if the sun itself is dying"
-    ]
+    ],
+    "escalation_constraints": {
+      "LATENT": ["Eerie and suggestive", "Distant sounds", "Subtle shifts in geometry"],
+      "REACTIVE": ["Direct responses to user investigation", "Close whispers", "Objects moving when unobserved"],
+      "TRANSGRESSIVE": ["Reality-warping", "Aggressive boundary testing", "Physical spaces becoming hostile"],
+      "BLACKOUT": ["Visceral, claustrophobic, and merciless", "Absolute hostility", "Severe psychological and physical violation"]
+    }
   },
   "spatial_motifs": [
     {
@@ -54,7 +60,13 @@
         "Loud noises disrupting the silence",
         "Interacting with personal artifacts or letters"
       ],
-      "sensory_tell": "A sudden drop in temperature and the faint sound of suppressed weeping"
+      "sensory_tell": "A sudden drop in temperature and the faint sound of suppressed weeping",
+      "escalation_matrix": {
+        "LATENT": "Remains unseen, auditory phenomena only (weeping, pacing).",
+        "REACTIVE": "Interacts with objects the user touches, slamming doors to protect artifacts.",
+        "TRANSGRESSIVE": "Distorts the room's geometry to trap the user near points of grief.",
+        "BLACKOUT": "Direct psychological assault, forcing sensory hallucinations of the user's own past grief."
+      }
     },
     {
       "id": "entity_the_architect",
@@ -64,7 +76,13 @@
         "Noticing structural anomalies",
         "Attempting to alter the layout or open locked doors"
       ],
-      "sensory_tell": "The rhythmic scratching of a drafting compass on parchment, echoing from nowhere"
+      "sensory_tell": "The rhythmic scratching of a drafting compass on parchment, echoing from nowhere",
+      "escalation_matrix": {
+        "LATENT": "Subtle shifts in room dimensions, doors disappearing when you look away.",
+        "REACTIVE": "Locks exits actively, drops blueprints that map impossible spaces.",
+        "TRANSGRESSIVE": "Aggressive manipulation of gravity and spatial continuity, creating infinite loops.",
+        "BLACKOUT": "Attempts to physically merge the user into the architecture of the house."
+      }
     }
   ]
 }

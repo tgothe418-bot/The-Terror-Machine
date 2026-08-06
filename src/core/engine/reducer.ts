@@ -5,6 +5,7 @@ export interface EngineState {
   sessionId?: string;
   blueprintId?: string;
   phase: Phase;
+  escalation_state: 'LATENT' | 'REACTIVE' | 'TRANSGRESSIVE' | 'BLACKOUT';
   currentNodeId: string | null;
   decay: DecayState;
   turnCount: number;
@@ -34,7 +35,7 @@ export function applyReconciliationPatch(currentState: EngineState & Record<stri
   const newState = { ...currentState };
   const validKeys = [
     'activeMemory', 'pacingLedger', 'traumaLedger', 'motifLedger', 
-    'phase', 'turnCount', 'currentNodeId', 'decay', 'castLedger',
+    'phase', 'escalation_state', 'turnCount', 'currentNodeId', 'decay', 'castLedger',
     'systemFlags', 'narrativeVelocity', 'nodeState'
   ];
   
@@ -70,6 +71,7 @@ export const initialEngineState: EngineState = {
   sessionId: "",
   blueprintId: "",
   phase: 'HUB',
+  escalation_state: 'LATENT',
   currentNodeId: null,
   decay: { stage: 'STABLE', coherence: 1.0 },
   turnCount: 0,
@@ -182,6 +184,8 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
 
       if (isTerminal) calculatedPhase = 'TERMINATED';
 
+      const newEscalationState = event.payload.logic_state?.escalation_state || state.escalation_state || 'LATENT';
+
       const narrativeBlocks = event.payload.narrative_blocks;
       const formatBlocks = (blocks?: Record<string, unknown>[]): string => {
         if (!blocks || !Array.isArray(blocks)) return '';
@@ -222,7 +226,8 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
           spatialContradictions: contradictions
         },
         timelineRevision: state.timelineRevision + 1,
-        phase: calculatedPhase
+        phase: calculatedPhase,
+        escalation_state: newEscalationState
       };
     }
 

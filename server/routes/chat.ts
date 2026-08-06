@@ -34,6 +34,33 @@ router.post("/chat", async (req, res) => {
     const inputHistory = textBuffer || [];
     const activeHistory = inputHistory.slice(isHubMode ? -10 : -6);
     const updatedState = currentState ? { ...currentState } : null;
+    
+    // --- TRANSGRESSION LEDGER: LIGHTWEIGHT SEMANTIC PARSER ---
+    let currentEscalation = updatedState?.escalation_state || 'LATENT';
+    const lastMessage = activeHistory.length > 0 ? activeHistory[activeHistory.length - 1] : null;
+    
+    if (lastMessage && lastMessage.role === 'user') {
+      const userInput = (lastMessage.content || '').toLowerCase();
+      const aggressiveKeywords = ['break', 'smash', 'kick', 'punch', 'attack', 'kill', 'destroy', 'yell', 'scream', 'run', 'force', 'burn'];
+      const transgressiveKeywords = ['ignore', 'defy', 'fuck', 'shit', 'jump out', 'shoot', 'stab', 'cut', 'rip'];
+      
+      let transgressionScore = 0;
+      aggressiveKeywords.forEach(kw => { if (userInput.includes(kw)) transgressionScore += 1; });
+      transgressiveKeywords.forEach(kw => { if (userInput.includes(kw)) transgressionScore += 2; });
+      
+      if (transgressionScore >= 2 && currentEscalation === 'LATENT') {
+        currentEscalation = 'REACTIVE';
+      } else if (transgressionScore >= 3 && currentEscalation === 'REACTIVE') {
+        currentEscalation = 'TRANSGRESSIVE';
+      } else if (transgressionScore >= 4 && currentEscalation === 'TRANSGRESSIVE') {
+        currentEscalation = 'BLACKOUT';
+      }
+      
+      if (updatedState) {
+        updatedState.escalation_state = currentEscalation;
+      }
+    }
+    // ---------------------------------------------------------
 
     let systemInstruction = "";
     let responseMimeType = "text/plain";
@@ -43,6 +70,34 @@ router.post("/chat", async (req, res) => {
       responseMimeType = "application/json";
       temperature = 0.8;
       
+      // --- ESCALATION MATRIX INJECTION (The Mirror Effect) ---
+      let escalationPrompt = "";
+      if (currentEscalation) {
+        try {
+          const bundlePath = path.join(process.cwd(), 'src/data/references/haunted_house.json');
+          const bundleData = fs.readFileSync(bundlePath, 'utf8');
+          const bundle = JSON.parse(bundleData);
+          
+          const lensConstraints = bundle.lens?.escalation_constraints?.[currentEscalation] || [];
+          const entityArchetypes = bundle.entity_archetypes || [];
+          
+          let entityDirectives = "";
+          entityArchetypes.forEach((entity: any) => {
+            if (entity.escalation_matrix && entity.escalation_matrix[currentEscalation]) {
+              entityDirectives += `- ${entity.designation}: ${entity.escalation_matrix[currentEscalation]}\n`;
+            }
+          });
+
+          escalationPrompt = `\n\n=== ESCALATION MATRIX (TIER: ${currentEscalation}) ===\n`;
+          escalationPrompt += `THEMATIC LENS CONSTRAINTS:\n- ${lensConstraints.join('\n- ')}\n\n`;
+          escalationPrompt += `ENTITY BEHAVIORAL IMPERATIVES:\n${entityDirectives}\n`;
+          escalationPrompt += `CRITICAL DIRECTIVE: You MUST adapt the prose tone and physical constraints to match this escalation tier immediately.\n`;
+        } catch (err) {
+          console.error("Failed to load escalation matrix:", err);
+        }
+      }
+      // --------------------------------------------------------
+
       let currentPacing = "";
       if (blueprint?.narrativeRules?.phaseDirectives) {
         const tension = updatedState?.current_tension_level 
@@ -77,6 +132,8 @@ router.post("/chat", async (req, res) => {
         : activeHistory;
 
       systemInstruction = buildOrchestratorPrompt(slimBlueprint as any, modifiedHistory as any, updatedState || {} as any, momentumIndex, turnCount, currentPhase);
+
+      systemInstruction += escalationPrompt;
 
       systemInstruction += `\n\n=== CORE RUNTIME MATRIX COORDINATES ===
     ACTIVE DOMAIN VECTOR: ${vector}
@@ -278,6 +335,10 @@ router.post("/chat", async (req, res) => {
       narrative_blocks: blocks,
       logic_state: logicState
     };
+
+    if (currentEscalation) {
+       output.logic_state.escalation_state = currentEscalation;
+    }
 
     if ((parsed as any).cast_ledger) {
        output.logic_state.cast_ledger = (parsed as any).cast_ledger;
