@@ -1,5 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import express from "express";
+import fs from "fs";
+import path from "path";
+import crypto from "crypto";
 import { Type } from "@google/genai";
 import { getAiClient } from "../utils/aiClient";
 import { buildOrchestratorPrompt } from "../../src/core/prompts/orchestrator";
@@ -226,6 +229,49 @@ router.post("/chat", async (req, res) => {
     if ((parsed as any).suggested_tension !== undefined) logicState.suggested_tension = (parsed as any).suggested_tension;
     if ((parsed as any).matrix_mutation !== undefined) logicState.matrix_mutation = (parsed as any).matrix_mutation;
     if ((parsed as any).terminal_flags !== undefined) logicState.terminal_flags = (parsed as any).terminal_flags;
+
+    // --- AD-LIB BLIND ENTRY: JIT SPATIAL MATERIALIZATION ---
+    if (logicState.requested_transition && logicState.requested_transition.startsWith('unmaterialized_')) {
+      try {
+        const bundlePath = path.join(process.cwd(), 'src/data/references/haunted_house.json');
+        const bundleData = fs.readFileSync(bundlePath, 'utf8');
+        const bundle = JSON.parse(bundleData);
+        const motifs = bundle.spatial_motifs;
+        const selectedMotif = motifs[Math.floor(Math.random() * motifs.length)];
+        
+        const newNodeId = `node_${crypto.randomUUID()}`;
+        
+        const newAdLibNode = {
+          id: newNodeId,
+          type: 'physical',
+          name: selectedMotif.name,
+          description: selectedMotif.sensory_signature,
+          sensoryProfile: [],
+          exits: selectedMotif.possible_exits.map((exit: string) => ({
+            targetNodeId: `unmaterialized_${crypto.randomUUID()}`,
+            description: exit,
+            isOpen: true
+          })),
+          environmentalHazards: [],
+          linkedCharacters: [],
+          structuralAnomalies: selectedMotif.structural_anomalies
+        };
+
+        const adLibPromptInjection = `[JIT MATERIALIZATION] The player has crossed into a new sector: ${selectedMotif.name}. SENSORY SIGNATURE: ${selectedMotif.sensory_signature}. ANOMALIES: ${selectedMotif.structural_anomalies.join(', ')}. ATMOSPHERE: ${bundle.lens.atmospheric_qualities.join('. ')}. Frame all incoming prose with this sensory reality.`;
+        console.log("=== EXACT PROMPT CONTEXT INJECTION ===");
+        console.log(adLibPromptInjection);
+
+        logicState.matrix_mutation = logicState.matrix_mutation || {};
+        logicState.matrix_mutation.new_adlib_node = newAdLibNode;
+        logicState.matrix_mutation.adlib_prompt_injection = adLibPromptInjection;
+        logicState.matrix_mutation.original_requested_transition = logicState.requested_transition;
+        logicState.requested_transition = newNodeId;
+
+      } catch (err) {
+        console.error("Ad-Lib JIT Materialization Error:", err);
+      }
+    }
+    // -------------------------------------------------------
 
     const output: BicameralOutput = {
       engine_thoughts: (parsed as any).engine_logic || (parsed as any).engine_thoughts || "",

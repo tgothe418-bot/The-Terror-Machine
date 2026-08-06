@@ -1,0 +1,70 @@
+{
+  "id": "bundle_haunted_house_01",
+  "name": "The Forgotten Estate",
+  "lens": {
+    "id": "lens_grief_decay",
+    "core_conflict": "Acceptance of inevitable decay vs. desperate preservation of the past.",
+    "atmospheric_qualities": [
+      "Stifling silence punctuated by structural groans",
+      "Smell of old dust and dried roses",
+      "Muted, desaturated lighting as if the sun itself is dying"
+    ]
+  },
+  "spatial_motifs": [
+    {
+      "id": "motif_rotunda",
+      "name": "The Rotunda",
+      "architectural_style": "Victorian neo-classical with peeling gilded accents",
+      "sensory_signature": "Echoing footsteps, oppressive vertical space, smell of damp wood",
+      "structural_anomalies": [
+        "The ceiling fresco depicts figures whose eyes seem to track movement",
+        "The curvature of the walls feels slightly tighter than physically possible"
+      ],
+      "possible_exits": ["Hallway to the East Wing", "Staircase descending into dark", "Heavy oak door to the Study"]
+    },
+    {
+      "id": "motif_overgrown_foyer",
+      "name": "The Overgrown Foyer",
+      "architectural_style": "Grand entrance hall reclaimed by aggressive flora",
+      "sensory_signature": "Humid air, rustling leaves in an indoor draft, squelching floorboards",
+      "structural_anomalies": [
+        "Vines that pulsate faintly with a heartbeat rhythm",
+        "Mirrors completely obscured by pale, web-like fungus"
+      ],
+      "possible_exits": ["The Rotunda", "The Solarium", "The Servant Quarters"]
+    },
+    {
+      "id": "motif_forgotten_study",
+      "name": "The Dust-Choked Study",
+      "architectural_style": "Wood-paneled library with floor-to-ceiling bookshelves",
+      "sensory_signature": "Dry, abrasive air, smell of decaying paper and old leather",
+      "structural_anomalies": [
+        "Books with no titles that cannot be opened",
+        "A fireplace filled with ash that remains slightly warm"
+      ],
+      "possible_exits": ["The Rotunda", "A hidden door behind a bookcase"]
+    }
+  ],
+  "entity_archetypes": [
+    {
+      "id": "entity_the_mourner",
+      "designation": "The Mourning Shade",
+      "denial_vector": "Grief-Driven Denial",
+      "manifestation_triggers": [
+        "Loud noises disrupting the silence",
+        "Interacting with personal artifacts or letters"
+      ],
+      "sensory_tell": "A sudden drop in temperature and the faint sound of suppressed weeping"
+    },
+    {
+      "id": "entity_the_architect",
+      "designation": "The Obsessive Architect",
+      "denial_vector": "Perfectionism through Stagnation",
+      "manifestation_triggers": [
+        "Noticing structural anomalies",
+        "Attempting to alter the layout or open locked doors"
+      ],
+      "sensory_tell": "The rhythmic scratching of a drafting compass on parchment, echoing from nowhere"
+    }
+  ]
+}

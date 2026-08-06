@@ -138,6 +138,25 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
                     <span className="text-[8px] text-zinc-500 uppercase tracking-widest">Override existing session</span>
                   </div>
                 </div>
+                
+                {/* Option 3: Ad-Lib Mode */}
+                <div 
+                  onClick={() => {
+                    import('../../data/references/haunted_house.json').then((module) => {
+                      import('../../lib/adLibGenerator').then(({ bootstrapBlindEntry }) => {
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        bootstrapBlindEntry(module.default as any);
+                      });
+                    });
+                  }}
+                  className="md:col-span-2 p-8 border border-zinc-800 hover:border-red-900 transition-all duration-500 bg-zinc-950/30 flex flex-col items-center justify-center cursor-pointer group hover:bg-red-950/20 shadow-[inset_0_0_20px_rgba(0,0,0,0.5)]"
+                >
+                  <Skull className="w-10 h-10 text-zinc-700 group-hover:text-red-500 transition-colors mb-4" />
+                  <div className="text-center">
+                    <span className="text-[10px] uppercase tracking-[0.3em] block mb-1 text-zinc-300 group-hover:text-white font-bold">Enter the House (Ad-Lib Mode)</span>
+                    <span className="text-[8px] text-zinc-500 uppercase tracking-widest group-hover:text-red-400">Bypass Forge // JIT Procedural Generation</span>
+                  </div>
+                </div>
               </div>
 
               {error && (

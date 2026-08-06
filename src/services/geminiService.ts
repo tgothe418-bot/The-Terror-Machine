@@ -347,6 +347,19 @@ export const sendEngineTurn = async (
     divergence_protocol: activeDecay.divergenceMode
   };
 
+  // --- JIT AD-LIB MATERIALIZATION INJECTION ---
+  if (ratifiedFrame.logic_state.matrix_mutation.new_adlib_node) {
+    const newNode = ratifiedFrame.logic_state.matrix_mutation.new_adlib_node;
+    appStore.getState().spatialGraph.push(newNode);
+    
+    // Also push a system message to history to carry the prompt injection forward
+    appStore.getState().dispatch({ 
+      type: 'SYSTEM_MESSAGE', 
+      payload: ratifiedFrame.logic_state.matrix_mutation.adlib_prompt_injection 
+    });
+  }
+  // --------------------------------------------
+
   // --- B. EUCLIDEAN SPATIAL VALIDATOR (EDGE-AWARE) ---
   const requestedNode = ratifiedFrame.logic_state.requested_transition;
 
@@ -358,7 +371,8 @@ export const sendEngineTurn = async (
       (e: TopologyEdge) => e.from === currentNodeId && e.to === requestedNode
     );
 
-    if (!edgeRule) {
+    // Bypass Euclidean check if this was a JIT materialized node
+    if (!edgeRule && !ratifiedFrame.logic_state.matrix_mutation.new_adlib_node) {
       if (currentNodeId !== requestedNode) {
         console.warn(`[EUCLIDEAN INTERCEPTOR] Blocked impossible transition: ${currentNodeId} to ${requestedNode}.`);
         appStore.getState().dispatch({ type: 'TRANSITION_REJECTED', fromNodeId: currentNodeId || '', attemptedNodeId: requestedNode, reason: 'Path does not exist in spatial graph' });
@@ -385,11 +399,11 @@ export const sendEngineTurn = async (
       }
     } else {
       // 2. Validate Edge Conditions
-      const missingRequirements = edgeRule.requires?.filter(
+      const missingRequirements = edgeRule?.requires?.filter(
         (req: string) => !systemFlags.includes(req)
       ) || [];
 
-      if (!edgeRule.userInitiated && missingRequirements.length > 0) {
+      if (edgeRule && !edgeRule.userInitiated && missingRequirements.length > 0) {
         console.warn(`[EUCLIDEAN INTERCEPTOR] Blocked ${edgeRule.kind} transition. Missing flags: ${missingRequirements.join(', ')}`);
         appStore.getState().dispatch({ type: 'TRANSITION_REJECTED', fromNodeId: currentNodeId || '', attemptedNodeId: requestedNode, reason: `Blocked ${edgeRule.kind}. Missing: ${missingRequirements.join(', ')}` });
         ratifiedFrame.validation.accepted = false;
@@ -413,7 +427,8 @@ export const sendEngineTurn = async (
           visibleToTelemetry: true
         });
       } else {
-        console.log(`[EUCLIDEAN INTERCEPTOR] Authorized ${edgeRule.kind} transition: ${currentNodeId} -> ${requestedNode}`);
+        const transitionKind = edgeRule?.kind || 'adlib_spatial';
+        console.log(`[EUCLIDEAN INTERCEPTOR] Authorized ${transitionKind} transition: ${currentNodeId} -> ${requestedNode}`);
         appStore.getState().dispatch({ type: 'TRANSITION_ACCEPTED', fromNodeId: currentNodeId || '', toNodeId: requestedNode });
         appStore.getState().dispatch({ type: 'SYSTEM_MESSAGE', payload: `[SYSTEM: SPATIAL SHIFT. User has entered node: ${requestedNode}]` });
       }
