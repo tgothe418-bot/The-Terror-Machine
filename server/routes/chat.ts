@@ -49,12 +49,13 @@ router.post("/chat", async (req, res) => {
       let escalationPrompt = "";
       if (currentEscalation) {
         try {
-          const bundlePath = path.join(process.cwd(), 'src/data/references/haunted_house.json');
+          const aestheticName = updatedState?.aesthetic || 'gothic';
+          const bundlePath = path.join(process.cwd(), `src/data/references/aesthetics/${aestheticName}.json`);
           const bundleData = fs.readFileSync(bundlePath, 'utf8');
           const bundle = JSON.parse(bundleData);
           
           const baseLens = bundle.base_lens || "";
-          const entities = bundle.entities || [];
+          const entities = updatedState?.activeEntities || bundle.entities || [];
           
           let entityDirectives = "";
           entities.forEach((entity: any) => {
@@ -284,10 +285,11 @@ router.post("/chat", async (req, res) => {
     logicState.escalation_state = currentEscalation;
 
     try {
-        const bundlePath = path.join(process.cwd(), 'src/data/references/haunted_house.json');
+        const aestheticName = updatedState?.aesthetic || 'gothic';
+        const bundlePath = path.join(process.cwd(), `src/data/references/aesthetics/${aestheticName}.json`);
         const bundleData = fs.readFileSync(bundlePath, 'utf8');
         const bundle = JSON.parse(bundleData);
-        const entities = bundle.entities || [];
+        const entities = updatedState?.activeEntities || bundle.entities || [];
         
         let matrixString = "";
         entities.forEach((entity: any) => {
@@ -308,12 +310,13 @@ router.post("/chat", async (req, res) => {
     // --- AD-LIB BLIND ENTRY: JIT SPATIAL MATERIALIZATION ---
     if (logicState.requested_transition && logicState.requested_transition.startsWith('unmaterialized_')) {
       try {
-        const bundlePath = path.join(process.cwd(), 'src/data/references/haunted_house.json');
+        const aestheticName = updatedState?.aesthetic || 'gothic';
+        const bundlePath = path.join(process.cwd(), `src/data/references/aesthetics/${aestheticName}.json`);
         const bundleData = fs.readFileSync(bundlePath, 'utf8');
         const bundle = JSON.parse(bundleData);
         
         const roomsGenerated = updatedState?.roomsGenerated || 0;
-        const maxRooms = bundle.max_rooms || 12;
+        const maxRooms = updatedState?.maxRooms || bundle.max_rooms || 12;
         
         let motifs = bundle.motifs;
         if ((roomsGenerated >= maxRooms || currentEscalation === 'BLACKOUT') && bundle.terminal_motifs) {

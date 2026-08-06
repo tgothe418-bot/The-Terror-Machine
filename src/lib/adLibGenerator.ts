@@ -2,7 +2,7 @@ import { AdLibBundle, SpatialMotif } from '../types/reference';
 import { useAppStore } from '../store/useAppStore';
 import { RatifiedEngineFrame, SpatialNode } from '../types';
 
-export function bootstrapBlindEntry(bundle: AdLibBundle) {
+export function bootstrapBlindEntry(bundle: AdLibBundle, size: number, aesthetic: string, tone: string) {
   const entryNode: SpatialMotif = bundle.motifs[Math.floor(Math.random() * bundle.motifs.length)];
   const nodeId = crypto.randomUUID();
 
@@ -24,7 +24,7 @@ export function bootstrapBlindEntry(bundle: AdLibBundle) {
       current_phase: "LATENT",
       suggested_tension: 3,
       terminal_flags: [],
-      escalation_state: "LATENT"
+      escalation_state: tone
     }
   };
 
@@ -44,16 +44,32 @@ export function bootstrapBlindEntry(bundle: AdLibBundle) {
     structuralAnomalies: entryNode.structural_anomalies
   };
 
+  const activeEntities = bundle.entities.filter(entity => 
+    entity.compatible_aesthetics && entity.compatible_aesthetics.includes(aesthetic)
+  );
+
   const appStore = useAppStore.getState();
   
   // Hydrate runtime state
   useAppStore.setState({ 
     spatialGraph: [spatialNode],
     currentNodeId: nodeId,
-    roomsGenerated: 1
+    roomsGenerated: 1,
+    maxRooms: size,
+    aesthetic: aesthetic,
+    escalation_state: tone as 'LATENT' | 'REACTIVE' | 'TRANSGRESSIVE' | 'BLACKOUT',
+    activeEntities: activeEntities
   });
 
   appStore.processRatifiedFrame(initialFrame);
   appStore.dispatch({ type: 'SIMULATION_STARTED', initialNodeId: nodeId });
+  appStore.dispatch({ 
+    type: 'TURN_RESOLVED', 
+    payload: {
+      engine_thoughts: initialFrame.engine_thoughts,
+      narrative_blocks: initialFrame.narrative_blocks,
+      logic_state: initialFrame.logic_state
+    } 
+  });
   appStore.setPhase('ENGINE'); 
 }

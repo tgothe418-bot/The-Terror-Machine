@@ -1,0 +1,112 @@
+{
+  "environment_id": "env_transgressive_dreamscape",
+  "title": "The Somnambulist's Construct",
+  "base_lens": "The environment feels fundamentally wrong, as if the physical space is a malignant, breathing organism. Physics are unreliable. The prose should be visceral, claustrophobic, and entirely grounded in immediate, uncomfortable sensory details.",
+  "motifs": [
+    {
+      "id": "motif_ashen_boiler_room",
+      "name": "The Ashen Boiler Room",
+      "architectural_style": "Industrial Decay / Subconscious Hellscape",
+      "sensory_signature": "Oppressive, localized heat. The rhythmic, deafening clang of unseen pipes mimicking a slow heartbeat. The air tastes of sulfur, rust, and old copper.",
+      "structural_anomalies": [
+        "Pipes that bleed a thick, viscous sludge instead of water.",
+        "Furnaces that cast shadows completely detached from the physical objects in the room."
+      ],
+      "possible_exits": [
+        "north",
+        "down",
+        "inward"
+      ]
+    },
+    {
+      "id": "motif_liminal_suburbia",
+      "name": "The Warped Foyer",
+      "architectural_style": "1980s Suburban / Corrupted Domestic",
+      "sensory_signature": "Muted, deadened acoustics like a soundproofed room. The smell of stale cigarette smoke and ozone. Yellowed floral wallpaper that induces a slight optical migraine when viewed directly.",
+      "structural_anomalies": [
+        "Doorways that stretch and recede geometrically as they are approached.",
+        "A static-filled television screen reflecting a room that is slightly different than the one currently occupied."
+      ],
+      "possible_exits": [
+        "hallway",
+        "upstairs",
+        "basement_stairs"
+      ]
+    },
+    {
+      "id": "motif_occult_subbasement",
+      "name": "The Ritual Cellar",
+      "architectural_style": "Earthen Foundation / Transgressive Occult",
+      "sensory_signature": "Freezing ambient temperature. The crunch of dry earth and pulverized bone underfoot. A low, continuous sub-bass frequency that vibrates in the teeth.",
+      "structural_anomalies": [
+        "Asymmetric, non-Euclidean geometry carved into the foundation walls.",
+        "Light sources that seem to be swallowed by the corners of the room rather than illuminating them."
+      ],
+      "possible_exits": [
+        "up",
+        "crawlspace"
+      ]
+    }
+  ],
+  "entities": [
+    {
+      "id": "entity_the_parasite",
+      "designation": "The Dream Parasite",
+      "denial_vector": "Psychological inversion. The entity weaponizes the User's actions by mutating the environment to reflect guilt, dread, and surrealistic logic.",
+      "manifestation_triggers": [
+        "Logical mapping",
+        "Loud noises",
+        "Structural destruction"
+      ],
+      "sensory_tell": "The sudden smell of burning hair and a sharp, painful drop in atmospheric pressure.",
+      "escalation_matrix": {
+        "LATENT": "Passive environmental hostility. Doors lock. Footsteps echo out of sync. Shadows lengthen unnaturally. Prose is eerie and suggestive.",
+        "REACTIVE": "Direct spatial manipulation. Rooms loop. Inanimate objects shift when unobserved. Whispers mimic the User. Prose is tense and disorienting.",
+        "TRANSGRESSIVE": "Aggressive reality-warping. Architecture assaults the senses. Walls bleed. Staircases turn into fleshy inclines. Prose is visceral and uncomfortable.",
+        "BLACKOUT": "Terminal State. Total systemic collapse. The environment crushes inward. Complete sensory deprivation followed by absolute nightmare logic. Prose is final and merciless."
+      },
+      "compatible_aesthetics": [
+        "gothic",
+        "occult",
+        "industrial",
+        "liminal"
+      ]
+    },
+    {
+      "id": "entity_static_watcher",
+      "designation": "The Broadcast Anomaly",
+      "denial_vector": "Cognitive dissonance. It exploits modern context, forcing the user to doubt the timeline and their own memory through distorted media playback.",
+      "manifestation_triggers": [
+        "Looking at screens",
+        "Lingering in one place",
+        "Attempting to find an exit"
+      ],
+      "sensory_tell": "A low-frequency hum like an old CRT monitor, accompanied by the smell of ozone and melting plastic.",
+      "escalation_matrix": {
+        "LATENT": "Flickering lights, faint static sounds from non-existent speakers, subtle distortions in reflective surfaces.",
+        "REACTIVE": "Monitors or windows display looped, unsettling imagery from the user's recent past, slightly altered.",
+        "TRANSGRESSIVE": "The environment itself begins to glitch and tear like a corrupted video file. Audio is painfully loud and distorted.",
+        "BLACKOUT": "Complete sensory hijacking. The user is trapped within a looping, inescapable broadcast of their own failures."
+      },
+      "compatible_aesthetics": [
+        "liminal",
+        "industrial"
+      ]
+    }
+  ],
+  "terminal_motifs": [
+    {
+      "id": "terminal_shattered_threshold",
+      "name": "The Shattered Threshold",
+      "architectural_style": "Ruptured Reality",
+      "sensory_signature": "Blinding, cold white light piercing through a splintered wooden frame. The roaring sound of a vacuum. The smell of fresh rain cutting through the decay.",
+      "structural_anomalies": [
+        "The doorway exists suspended in a void of falling ash."
+      ],
+      "possible_exits": [
+        "wake_up"
+      ]
+    }
+  ],
+  "max_rooms": 12
+}

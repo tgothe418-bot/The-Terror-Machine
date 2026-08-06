@@ -258,7 +258,13 @@ export const sendEngineTurn = async (
     body: JSON.stringify({ 
       execution_mode: 'ENGINE',
       textBuffer: textBufferForAPI,
-      currentState: logicState,
+      currentState: { 
+        ...(logicState || {}), 
+        activeEntities: latestState.activeEntities,
+        aesthetic: latestState.aesthetic,
+        roomsGenerated: latestState.roomsGenerated,
+        maxRooms: latestState.maxRooms
+      },
       blueprint: blueprint,
       worldStateSummary: enhancedWorldStateSummary,
       currentVector,

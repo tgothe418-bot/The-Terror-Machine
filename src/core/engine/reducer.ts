@@ -1,5 +1,6 @@
 import { EngineEvent, Phase, DecayState } from './events';
 import { Message } from '../../types';
+import { EntityArchetype } from '../../types/reference';
 
 export interface EngineState {
   sessionId?: string;
@@ -10,6 +11,9 @@ export interface EngineState {
   decay: DecayState;
   turnCount: number;
   roomsGenerated: number;
+  maxRooms?: number;
+  aesthetic?: string;
+  activeEntities?: EntityArchetype[];
   traumaLedger: string[];
   activeMemory: {
     systemFlags: string[];
@@ -37,7 +41,7 @@ export function applyReconciliationPatch(currentState: EngineState & Record<stri
   const validKeys = [
     'activeMemory', 'pacingLedger', 'traumaLedger', 'motifLedger', 
     'phase', 'escalation_state', 'turnCount', 'currentNodeId', 'decay', 'castLedger',
-    'systemFlags', 'narrativeVelocity', 'nodeState', 'roomsGenerated'
+    'systemFlags', 'narrativeVelocity', 'nodeState', 'roomsGenerated', 'maxRooms', 'aesthetic', 'activeEntities'
   ];
   
   const dynamicConditions: Record<string, unknown> = { ...currentState.nodeState?.dynamic_conditions };
