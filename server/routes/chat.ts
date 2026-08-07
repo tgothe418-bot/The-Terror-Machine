@@ -13,6 +13,27 @@ import { EngineTurnRequestSchema, SimulatePlayerRequestSchema, TestSceneRequestS
 
 const router = express.Router();
 
+router.post("/init", async (req, res) => {
+  const { setup } = req.body;
+  try {
+    const initPrompt = `
+      System Command: Initialize simulation. 
+      Aesthetic: ${setup?.aesthetic || 'liminal'}
+      Tone: ${setup?.tone || 'dread'}
+      
+      Action: Describe the initial root node architecture. Do not address the user. Do not await input. Establish immediate atmospheric dread using the provided aesthetic.
+    `;
+    const response = await getAiClient().models.generateContent({
+      model: "gemini-3.5-flash",
+      contents: initPrompt
+    });
+    return res.json({ prose: response.text });
+  } catch (error: any) {
+    console.error("Init Error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 router.post("/chat", async (req, res) => {
   const parsedBody = EngineTurnRequestSchema.safeParse(req.body);
   if (!parsedBody.success) {

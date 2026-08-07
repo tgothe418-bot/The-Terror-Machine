@@ -126,13 +126,12 @@ export function normalizeBlueprint(raw: any): any {
       };
     }
     const safeConn = { ...conn };
-    if (safeConn.kind === 'spatial' || !safeConn.kind || safeConn.kind === 'physical') {
-      safeConn.kind = 'PHYSICAL';
-    } else if (safeConn.kind === 'narrative' || safeConn.kind === 'forced_event') {
-      safeConn.kind = 'FORCED_EVENT';
-    } else {
-      safeConn.kind = String(safeConn.kind).toUpperCase();
-    }
+    const validKinds = ["PHYSICAL", "FORCED_EVENT", "MEMORY_RECONSTRUCTION", "HISTORICAL_REFERENCE", "TERMINAL_EJECTION", "AUTHORED_PARADOX"];
+    let upperKind = String(safeConn.kind || 'PHYSICAL').toUpperCase();
+    if (upperKind === 'SPATIAL') upperKind = 'PHYSICAL';
+    if (upperKind === 'NARRATIVE') upperKind = 'FORCED_EVENT';
+    if (!validKinds.includes(upperKind)) upperKind = 'PHYSICAL';
+    safeConn.kind = upperKind;
     return safeConn;
   });
 

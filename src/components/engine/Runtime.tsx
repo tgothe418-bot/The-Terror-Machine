@@ -296,44 +296,36 @@ export default function Runtime() {
   const startSimulation = useCallback(async () => {
     setIsLoading(true);
     try {
-      const storeState = useEngineStore.getState();
-      const initialResponse = await sendEngineTurn(
-        'Begin simulation. Establish environment and initial state.',
-        gameState,
-        activeBlueprint!,
-        storeState.engineWorldStateSummary,
-        storeState.currentVector,
-        storeState.currentTier,
-        storeState.currentTensionLevel 
-      );
-      
-      if (initialResponse.logic_state.suggested_tension) {
-        useEngineStore.getState().updateTension(String(initialResponse.logic_state.suggested_tension) as any);
+      const response = await fetch('/api/init', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: "SYSTEM_INIT",
+          setup: {
+            aesthetic: activeBlueprint?.aesthetic || 'liminal',
+            tone: activeBlueprint?.tone || 'dread'
+          }
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Backend rejected spark. Status: ${response.status}`);
       }
-      if (initialResponse.logic_state.matrix_mutation) {
-        const { next_vector, next_tier } = initialResponse.logic_state.matrix_mutation;
-        if (next_vector && next_tier) {
-          useEngineStore.getState().shiftMatrixCoordinates(next_vector, next_tier);
-          console.log(`// MATRIX SHIFT EXECUTED // Migrated to [${next_vector}, ${next_tier}]`);
-        }
-      }
+
+      const data = await response.json();
       
-      updateGameState(initialResponse.logic_state as any); // Save logic state silently
+      dispatch({ 
+        type: 'ADD_MESSAGE', 
+        message: { role: 'assistant', content: data.prose, timestamp: Date.now() }
+      });
+
     } catch (err: any) {
       console.error(err);
-      let parsedMessage = "NEURAL LINK FAILURE. REBOOT REQUIRED.";
-      const errorMessage = typeof err === 'object' && err !== null && 'message' in err ? err.message : String(err);
-      try {
-        const parsed = JSON.parse(errorMessage);
-        if (parsed.error) {
-          parsedMessage = typeof parsed.error === 'string' ? parsed.error : JSON.stringify(parsed.error);
-        }
-      } catch { /* ignore */ }
-      dispatch({ type: 'ADD_MESSAGE', message: { role: 'assistant', content: `[ SYSTEM ERROR: ${parsedMessage} ]`, timestamp: Date.now() }});
+      dispatch({ type: 'ADD_MESSAGE', message: { role: 'assistant', content: `[CRITICAL ENGINE FAILURE]: ${err.message}. The house refused to open.`, timestamp: Date.now() }});
     } finally {
       setIsLoading(false);
     }
-  }, [activeBlueprint, gameState, dispatch, updateGameState]);
+  }, [activeBlueprint, dispatch]);
 
   // Monitor for idle timeout
   useEffect(() => {
@@ -372,15 +364,12 @@ export default function Runtime() {
 
   // Initial simulation start
   useEffect(() => {
-    const isReady = activeBlueprint || appPhase === 'ENGINE' || appPhase === 'LATENT';
-    if (hydrated && isReady && engineMessages.length === 0 && !isLoading && !hasStarted.current) {
+    // Only fire if the log is empty AND the ref hasn't been flipped
+    if (engineMessages.length === 0 && !hasStarted.current) {
       hasStarted.current = true;
-      // Use microtask to avoid synchronous setState in effect
-      queueMicrotask(() => {
-        startSimulation();
-      });
+      startSimulation();
     }
-  }, [activeBlueprint, hydrated, engineMessages.length, startSimulation, isLoading, appPhase]);
+  }, [engineMessages.length, startSimulation]);
 
   const handleCommand = async (e?: React.FormEvent, overrideInput?: string) => {
     e?.preventDefault();
@@ -428,7 +417,7 @@ export default function Runtime() {
           parsedMessage = typeof parsed.error === 'string' ? parsed.error : JSON.stringify(parsed.error);
         }
       } catch { /* ignore */ }
-      dispatch({ type: 'ADD_MESSAGE', message: { role: 'assistant', content: `[ SYSTEM ERROR: ${parsedMessage} ]`, timestamp: Date.now() }});
+      dispatch({ type: 'ADD_MESSAGE', message: { role: 'assistant', content: `[CRITICAL ENGINE FAILURE]: ${parsedMessage}. The house refused to open.`, timestamp: Date.now() }});
     } finally {
       setIsLoading(false);
     }
