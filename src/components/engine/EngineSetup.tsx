@@ -5,6 +5,7 @@ import { useEngineStore } from '../../core/store';
 import { forgeActions, useForgeState } from '../../store/useForgeStore';
 import { ScenarioBlueprint, BlueprintSchema } from '../../types';
 import { motion, AnimatePresence } from 'motion/react';
+import { generateAdLibCampaign } from '../../lib/adLibGenerator';
 
 interface EngineSetupProps {
   onContinue?: () => void;
@@ -21,7 +22,23 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
   const [adLibSize, setAdLibSize] = useState<number>(12);
   const [adLibAesthetic, setAdLibAesthetic] = useState<string>('gothic');
   const [adLibTone, setAdLibTone] = useState<string>('LATENT');
+  const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleStartHauntedHouse = async () => {
+    setIsGenerating(true);
+    try {
+      await generateAdLibCampaign({
+        aesthetic: adLibAesthetic,
+        scale: adLibSize,
+        tone: adLibTone,
+      });
+    } catch (err) {
+      console.error("Failed to generate Haunted House mode:", err);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   const compileTopology = useAppStore((state) => state.compileTopology);
 
@@ -191,17 +208,11 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
                   </div>
 
                   <button
-                    onClick={() => {
-                      import(`../../data/references/aesthetics/${adLibAesthetic}.json`).then((module) => {
-                        import('../../lib/adLibGenerator').then(({ bootstrapBlindEntry }) => {
-                          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                          bootstrapBlindEntry(module.default as any, adLibSize, adLibAesthetic, adLibTone);
-                        });
-                      });
-                    }}
-                    className="mt-4 border border-red-900/50 hover:border-red-500 hover:bg-red-950/30 text-red-500 px-8 py-3 text-[10px] tracking-[0.2em] uppercase transition-all duration-300"
+                    disabled={isGenerating}
+                    onClick={handleStartHauntedHouse}
+                    className="mt-4 border border-red-900/50 hover:border-red-500 hover:bg-red-950/30 text-red-500 px-8 py-3 text-[10px] tracking-[0.2em] uppercase transition-all duration-300 disabled:opacity-50 cursor-pointer"
                   >
-                    Enter the House
+                    {isGenerating ? 'Generating Architecture...' : 'Enter the House'}
                   </button>
                 </div>
               </div>

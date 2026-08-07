@@ -471,7 +471,21 @@ export default function Runtime() {
 
   const resetEngine = useEngineStore(state => state.resetEngine);
 
-  if (!hydrated || !activeBlueprint) return null;
+  if (!hydrated) return null;
+
+  const spatialGraph = useAppStore.getState().spatialGraph;
+  const currentNodeId = useAppStore.getState().currentNodeId;
+  const currentNode = spatialGraph?.find(
+    (n) => n.id === currentNodeId
+  ) || spatialGraph?.[0];
+
+  if (!currentNode && engineMessages.length === 0 && !activeBlueprint) {
+    return (
+      <div className="flex items-center justify-center h-full min-h-screen bg-black text-red-600 font-mono text-center p-8">
+        [ENGINE STALL]: UNABLE TO RESOLVE ROOT NODE TOPOLOGY. CHECK AD-LIB GENERATOR.
+      </div>
+    );
+  }
 
   return (
     <div 
@@ -492,14 +506,14 @@ export default function Runtime() {
           <div className="h-4 w-[1px] bg-zinc-800" />
           <div className="flex flex-col">
             <h1 className="text-[10px] font-bold tracking-[0.3em] uppercase text-white">
-              {activeBlueprint.title}
+              {activeBlueprint?.title || "Haunted House Ad-Lib"}
             </h1>
             <div className="flex items-center gap-2">
               <span className="text-[8px] text-zinc-500 uppercase tracking-widest">
-                Scale: {activeBlueprint.contentScale}
+                Scale: {activeBlueprint?.contentScale || 12}
               </span>
               <span className="text-[8px] text-zinc-700 uppercase tracking-widest">
-                // {activeBlueprint.contentLevelDescription}
+                // {activeBlueprint?.contentLevelDescription || "Procedural Architecture"}
               </span>
               <button 
                 onClick={() => setPhase('hub')} // Redirecting to hub or we can add a 'switch'
@@ -513,14 +527,14 @@ export default function Runtime() {
 
         <div className="flex items-center gap-3">
           <button 
-            onClick={() => exportEngineLog(engineMessages, 'md', 'engine-telemetry', activeBlueprint)}
+            onClick={() => exportEngineLog(engineMessages, 'md', 'engine-telemetry', activeBlueprint || undefined)}
             className="px-2 py-1 text-xs font-mono text-zinc-400 hover:text-zinc-100 bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800 transition-colors rounded"
             title="Export to Markdown"
           >
             [ EXPORT .MD ]
           </button>
           <button 
-            onClick={() => exportEngineLog(engineMessages, 'html', 'engine-telemetry', activeBlueprint)}
+            onClick={() => exportEngineLog(engineMessages, 'html', 'engine-telemetry', activeBlueprint || undefined)}
             className="px-2 py-1 text-xs font-mono text-zinc-400 hover:text-zinc-100 bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800 transition-colors rounded"
             title="Export to HTML"
           >
