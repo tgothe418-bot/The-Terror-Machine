@@ -73,13 +73,13 @@ router.post("/chat", async (req, res) => {
       let currentPacing = "";
       if (blueprint?.narrativeRules?.phaseDirectives) {
         const tension = updatedState?.current_tension_level 
-          || blueprint.narrativeRules.currentTensionLevel 
+          || blueprint?.narrativeRules?.currentTensionLevel 
           || 'buildup';
-        currentPacing = blueprint.narrativeRules.phaseDirectives[tension] 
-          || Object.values(blueprint.narrativeRules.phaseDirectives)[0] 
+        currentPacing = blueprint?.narrativeRules?.phaseDirectives[tension] 
+          || Object.values(blueprint?.narrativeRules?.phaseDirectives)[0] 
           || "";
       } else if (blueprint?.narrativeRules?.pacingDirectives) {
-        currentPacing = blueprint.narrativeRules.pacingDirectives;
+        currentPacing = blueprint?.narrativeRules?.pacingDirectives;
       }
 
       const slimBlueprint = {
@@ -154,6 +154,10 @@ router.post("/chat", async (req, res) => {
       const lastMsg = contents[contents.length - 1];
       if (lastMsg.role === msg.role) lastMsg.parts.push(...msg.parts);
       else contents.push(msg);
+    }
+
+    if (contents.length === 0) {
+      contents.push({ role: 'user', parts: [{ text: '[SYSTEM COMMAND]: Initialize.' }] });
     }
 
     const jsonSchema: any = {
@@ -414,8 +418,8 @@ router.post("/chat", async (req, res) => {
     const finalOutput = {
       ...output,
       debugReceipt: {
-        acceptedBlueprintId: blueprint.id,
-        acceptedBlueprintTitle: blueprint.identity?.title,
+        acceptedBlueprintId: blueprint?.id,
+        acceptedBlueprintTitle: blueprint?.identity?.title,
         activeCharacterId: req.body.currentState?.player_character_id,
         currentNode: req.body.currentState?.currentNodeId
       }

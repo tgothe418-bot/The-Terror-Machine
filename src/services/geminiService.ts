@@ -265,7 +265,7 @@ export const sendEngineTurn = async (
         roomsGenerated: latestState.roomsGenerated,
         maxRooms: latestState.maxRooms
       },
-      blueprint: blueprint,
+      blueprint: blueprint || undefined,
       worldStateSummary: enhancedWorldStateSummary,
       currentVector,
       currentTier,
@@ -285,7 +285,7 @@ export const sendEngineTurn = async (
   }
 
   // Record the turn metrics based on the user's input (Calculate urgency and sanity drops)
-  const lastUserMessage = fullHistory.filter(m => m.role === 'user').pop();
+  const lastUserMessage = latestState.history.filter(m => m.role === 'user').pop();
   const userMessage = lastUserMessage?.content || '';
   const inputLength = userMessage.length;
   const semanticUrgency = (userMessage.match(/[!A-Z]/g)?.length || 0) / (inputLength || 1) > 0.1 ? 0.9 : 0.4; 
@@ -443,7 +443,7 @@ export const sendEngineTurn = async (
 
   engineStore.getState().updateTelemetry({
     tension: rawData.tension || rawData.startingVector || ratifiedFrame.logic_state.suggested_tension || ratifiedFrame.logic_state.current_phase || 'LOW',
-    pacing: rawData.pacing || rawData.startingTier || (blueprint.narrativeRules?.phaseDirectives?.[currentTensionLevel as 'buildup' | 'visceral_climax' | 'aftermath' || 'buildup']) || 'CREEPING',
+    pacing: rawData.pacing || rawData.startingTier || (blueprint?.narrativeRules?.phaseDirectives?.[currentTensionLevel as 'buildup' | 'visceral_climax' | 'aftermath' || 'buildup']) || 'CREEPING',
     castLedger: ratifiedFrame.logic_state.cast_ledger || [],
     engineLogic: ratifiedFrame.engine_thoughts || 'System processing...'
   });
