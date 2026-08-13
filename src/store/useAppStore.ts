@@ -44,6 +44,8 @@ export interface AppStore extends EngineState {
   dispatch: (event: EngineEvent) => void;
 
   isGenerating: boolean;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  injectGeneratedNode: (sourceNodeId: string, exitDirection: string, newNodeDef: any) => void;
   currentPhase: string;
   tensionLevel: number;
   storyLog: NarrativeBlock[];
@@ -96,6 +98,47 @@ export const useAppStore = create<AppStore>((set) => ({
   storyLog: [],
 
   setGenerating: (status: boolean) => set({ isGenerating: status }),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  injectGeneratedNode: (sourceNodeId: string, exitDirection: string, newNodeDef: any) => set((state) => {
+    if (!state.spatialGraph) return state;
+    
+    // Create actual SpatialNode from newNodeDef
+    const newNode: SpatialNode = {
+      id: newNodeDef.id,
+      name: newNodeDef.geometry || "Unmapped Region",
+      description: newNodeDef.hazards?.join(' ') || "",
+      connectedNodes: [],
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      exits: newNodeDef.exitVectors?.map((ev: any) => ({
+        targetNodeId: ev.targetNodeId,
+        description: ev.direction,
+        isOpen: true
+      })) || []
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any;
+    
+    const updatedGraph = state.spatialGraph.map(node => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if (node.id === sourceNodeId && (node as any).exits) {
+        return {
+          ...node,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          exits: (node as any).exits.map((exit: any) => {
+            if (exit.description === exitDirection) {
+              return { ...exit, targetNodeId: newNodeDef.id };
+            }
+            return exit;
+          })
+        };
+      }
+      return node;
+    });
+    
+    return {
+      spatialGraph: [...updatedGraph, newNode],
+      currentNodeId: newNodeDef.id
+    };
+  }),
 
   processRatifiedFrame: (frame: RatifiedEngineFrame) => set((state) => ({
     // Append new narrative blocks to the continuous history

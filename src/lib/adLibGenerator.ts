@@ -49,7 +49,7 @@ export function generateAdLibCampaign(params: GenerateAdLibParams = {}) {
     description: entryNode?.sensory_signature || "An uncertain entry point.",
     sensoryProfile: [],
     exits: (entryNode?.possible_exits || ["forward"]).map(exit => ({
-      targetNodeId: `unmaterialized_${crypto.randomUUID()}`,
+      targetNodeId: 'NODE_UNMAPPED',
       description: exit,
       isOpen: true
     })),
@@ -78,7 +78,7 @@ export function generateAdLibCampaign(params: GenerateAdLibParams = {}) {
       description: fallbackMotif.sensory_signature,
       sensoryProfile: [],
       exits: fallbackMotif.possible_exits.map(exit => ({
-        targetNodeId: `unmaterialized_${crypto.randomUUID()}`,
+        targetNodeId: 'NODE_UNMAPPED',
         description: exit,
         isOpen: true
       })),

@@ -118,7 +118,7 @@ const createFailedFrame = (errorType: string, note: string): RatifiedEngineFrame
 
 import { useAppStore } from '../store/useAppStore';
 
-export const executeRatificationPipeline = async (prompt: string) => {
+export const executeRatificationPipeline = async (userAction: string, basePrompt: string) => {
   // Capture shallow clone/snapshot of spatial/threat state
   const state = useAppStore.getState();
   const stateSnapshot = {
@@ -128,10 +128,30 @@ export const executeRatificationPipeline = async (prompt: string) => {
     decayMetrics: state.decayMetrics ? { ...state.decayMetrics } : undefined,
   };
 
+  let finalPrompt = basePrompt;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const currentNode = state.spatialGraph?.find((n: any) => n.id === state.currentNodeId);
+  let matchingExitDirection: string | null = null;
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  if (currentNode && (currentNode as any).exits) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const exits = (currentNode as any).exits;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const attemptedExit = exits.find((exit: any) => 
+      userAction.toLowerCase().includes(exit.description.toLowerCase())
+    );
+    
+    if (attemptedExit && (attemptedExit.targetNodeId === 'NODE_UNMAPPED' || attemptedExit.targetNodeId.startsWith('unmaterialized_'))) {
+      matchingExitDirection = attemptedExit.description;
+      finalPrompt += `\n\nSYSTEM OVERRIDE: The user is entering an unmapped threshold. You MUST set \`isExpansion: true\` in your JSON response and fully populate the \`newNodeDef\` object with a unique \`id\`, \`geometry\`, \`hazards\`, and new \`exitVectors\` (all pointing to 'NODE_UNMAPPED').`;
+    }
+  }
+
   const response = await fetch('/api/ratify', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompt })
+    body: JSON.stringify({ prompt: finalPrompt })
   });
 
   if (response.status === 406) {
@@ -166,5 +186,13 @@ export const executeRatificationPipeline = async (prompt: string) => {
     throw new Error(`HTTP error! status: ${response.status}`);
   }
 
-  return await response.json();
+  const validatedEvent = await response.json();
+
+  // Intercept the topologyDelta for JIT expansion
+  if (validatedEvent.topologyDelta?.isExpansion && validatedEvent.topologyDelta.newNodeDef && matchingExitDirection && state.currentNodeId) {
+    // Patch the graph before returning
+    useAppStore.getState().injectGeneratedNode(state.currentNodeId, matchingExitDirection, validatedEvent.topologyDelta.newNodeDef);
+  }
+
+  return validatedEvent;
 };
