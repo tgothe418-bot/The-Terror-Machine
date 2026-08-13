@@ -6,6 +6,7 @@ import { createServer as createViteServer } from "vite";
 import chatRoutes from "./server/routes/chat";
 import voiceRoutes from "./server/routes/voice";
 import forgeRoutes from "./server/routes/forge";
+import ratificationRoutes from "./server/routes/ratification";
 
 async function startServer() {
   const app = express();
@@ -31,6 +32,7 @@ async function startServer() {
   app.use("/api", apiLimiter, chatRoutes);
   app.use("/api", apiLimiter, voiceRoutes);
   app.use("/api", apiLimiter, forgeRoutes);
+  app.use("/api", apiLimiter, ratificationRoutes);
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
