@@ -156,10 +156,7 @@ export const executeRatificationPipeline = async (userAction: string) => {
   }
 
   // Distill the history to a compressed array instead of full prose
-  const recentHistory = state.storyLog.slice(-6).map(block => ({
-    role: block.type === 'user_action' ? 'user' : (block.type === 'system_voice' ? 'system' : 'model'),
-    content: block.content
-  }));
+  const recentHistory = state.storyLog.slice(-6).map(block => `[${block.type.toUpperCase()}]: ${block.content.substring(0, 60)}...`).join('\n');
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const currentNode = state.spatialGraph?.find((n: any) => n.id === state.currentNodeId);
@@ -182,13 +179,12 @@ export const executeRatificationPipeline = async (userAction: string) => {
   const payload = {
     userAction,
     recentHistory,
-    stateSnapshot: {
+    systemDirective: physicsMatrix.generativeDirective,
+    isExpansionExpected: !!matchingExitDirection,
+    stateContext: {
       currentNodeId: state.currentNodeId,
-      nodeGeometry: currentNode?.description || "Unknown enclosure",
-      availableExits: currentNode?.exits?.map((e: any) => e.description) || [],
       currentPhase: state.currentPhase,
       tensionLevel: currentTension,
-      turnCount: 0,
       reconciliationRevision: state.reconciliationRevision
     }
   };
