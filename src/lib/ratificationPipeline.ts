@@ -117,6 +117,8 @@ const createFailedFrame = (errorType: string, note: string): RatifiedEngineFrame
 });
 
 import { useAppStore } from '../store/useAppStore';
+import { calculatePhysicsState } from '../core/matrix/physicsMatrix';
+import { reconcilePerception } from '../core/memory/reconciler';
 
 export const executeRatificationPipeline = async (userAction: string, basePrompt: string) => {
   // Capture shallow clone/snapshot of spatial/threat state
@@ -128,7 +130,45 @@ export const executeRatificationPipeline = async (userAction: string, basePrompt
     decayMetrics: state.decayMetrics ? { ...state.decayMetrics } : undefined,
   };
 
-  let finalPrompt = basePrompt;
+  const currentTension = state.tensionLevel || 0;
+  const currentCoherence = state.decayMetrics?.coherenceRating ?? 1.0;
+  const physicsMatrix = calculatePhysicsState(currentTension, currentCoherence);
+
+  // Phase 5: Reconcile perception against active user action
+  const reconciliation = reconcilePerception(
+    userAction,
+    state.storyLog,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (state as any).activeRole || 'PROTAGONIST',
+    physicsMatrix.realityState
+  );
+
+  // If the user tries to interact with a hallucination, collapse the perception locally
+  if (reconciliation.isHallucinationCollision && reconciliation.correctedProse) {
+    useAppStore.setState((prev) => ({
+      reconciliationRevision: prev.reconciliationRevision + reconciliation.revisionIncrement,
+      storyLog: [
+        ...prev.storyLog,
+        { type: 'system_voice', content: reconciliation.correctedProse }
+      ]
+    }));
+
+    return {
+      stateDeltas: { frictionModifier: 1, threatScaleShift: 0, panicTrigger: false },
+      topologyDelta: { isExpansion: false },
+      narrativeMandate: {
+        outcome: 'FAILURE',
+        realityState: physicsMatrix.realityState,
+        sensoryPriority: reconciliation.correctedProse,
+        pacingRule: 'SUDDEN_STOP'
+      }
+    };
+  }
+
+  let finalPrompt = `${basePrompt}\n\n[SYSTEM DIRECTIVE: ${physicsMatrix.generativeDirective}]`;
+  if (state.reconciliationRevision > 0) {
+    finalPrompt += `\n[MEMORY REVISION REVISION_ID: ${state.reconciliationRevision}. The user's perceptions have recently fractured.]`;
+  }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const currentNode = state.spatialGraph?.find((n: any) => n.id === state.currentNodeId);
   let matchingExitDirection: string | null = null;
