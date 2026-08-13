@@ -6,38 +6,33 @@ export const turnRouter = Router();
 
 turnRouter.post('/', async (req, res) => {
   try {
-    const parsedRequest = TurnRequestSchema.parse(req.body);
-    const { userAction, recentHistory, systemDirective, isExpansionExpected, stateContext } = parsedRequest;
+    const parsed = TurnRequestSchema.parse(req.body);
+    const { userAction, recentHistory, stateSnapshot } = parsed;
 
-    // Construct the dense, highly-optimized prompt
-    let prompt = `[STATE: ${stateContext.currentPhase === 'INIT' ? 'INITIALIZATION' : 'IN_PROGRESS'}]
-[TENSION: ${stateContext.tensionLevel}]
-[NODE: ${stateContext.currentNodeId || 'UNKNOWN'}]
+    const historyText = recentHistory
+      .map(h => `[${h.role.toUpperCase()}]: ${h.content}`)
+      .join('\n');
 
-${systemDirective}
+    const prompt = `[SYSTEM STATE]
+PHASE: ${stateSnapshot.currentPhase}
+TENSION: ${stateSnapshot.tensionLevel}/10
+TURN: ${stateSnapshot.turnCount}
+NODE_ID: ${stateSnapshot.currentNodeId || 'UNMAPPED'}
+GEOMETRY: ${stateSnapshot.nodeGeometry}
+EXITS: ${stateSnapshot.availableExits.join(', ') || 'NONE'}
 
-[STYLE DIRECTIVE: Clinical, visceral, objective. Eradicate metaphor/exposition. Max 2 prose blocks. Do not repeat recent sensory markers.]
+[STYLE DIRECTIVE: Clinical, visceral, objective horror. Eradicate metaphor. Max 2 prose blocks.]
 
 --- RECENT HISTORY ---
-${recentHistory}
+${historyText}
 --- END HISTORY ---
 
 [USER ACTION]: ${userAction}`;
 
-    if (isExpansionExpected) {
-      prompt += `\n\n[SYSTEM OVERRIDE: Threshold entry detected. You MUST set \`isExpansion: true\` and populate \`newNodeDef\`.]`;
-    }
-
-    if (stateContext.reconciliationRevision > 0) {
-      prompt += `\n[MEMORY REVISION ID: ${stateContext.reconciliationRevision}. User perception fractured.]`;
-    }
-
-    // Call the LLM with strict Zod schema enforcement
-    const engineResponse = await generateStructuredResponse(prompt, TurnResultSchema);
-
-    res.json(engineResponse);
+    const result = await generateStructuredResponse(prompt, TurnResultSchema);
+    res.json(result);
   } catch (error) {
-    console.error('[API /turn] Error:', error);
+    console.error('[API /turn] Validation or Generation Error:', error);
     res.status(400).json({ error: 'Turn processing failed', details: error });
   }
 });
