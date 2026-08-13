@@ -564,58 +564,9 @@ router.post('/reconcile', async (req, res) => {
   }
 });
 
-import { generateEngineTurn } from '../utils/aiClient';
-import { RatifiedEngineFrameSchema } from '../schemas/engine';
 
-router.post('/generate', async (req, res) => {
-  try {
-    const { prompt, history } = req.body;
 
-    if (!prompt) {
-      return res.status(400).json({ error: "Prompt payload is required." });
-    }
 
-    // 1. Generate strictly typed JSON via Gemini
-    const rawJsonResponse = await generateEngineTurn(prompt, history);
-    
-    // 2. Parse the JSON
-    let parsedPayload;
-    try {
-      parsedPayload = JSON.parse(rawJsonResponse || "{}");
-    } catch {
-      console.error("Fatal: Gemini returned invalid JSON.", rawJsonResponse);
-      return res.status(502).json({ error: "Simulation matrix destabilized (Parse Error)." });
-    }
-
-    // 3. Ratify the state against our Zod schema
-    const ratificationResult = RatifiedEngineFrameSchema.safeParse(parsedPayload);
-
-    if (!ratificationResult.success) {
-      console.error("Ratification failed. Schema mismatch:", ratificationResult.error.format());
-      
-      // Fallback state for graceful degradation
-      return res.status(200).json({
-        engine_thoughts: "Ratification pipeline intercepted a malformed ontological state.",
-        narrative_blocks: [{
-          id: crypto.randomUUID(),
-          type: "system_alert",
-          content: "[ ERR: EUCLIDEAN GEOMETRY VIOLATION. RECALIBRATING... ]"
-        }],
-        logic_state: {
-          current_phase: "MAINTENANCE",
-          suggested_tension: 10,
-          terminal_flags: ["RATIFICATION_BREACH"]
-        }
-      });
-    }
-
-    // 4. Transmit perfectly ratified frame to the frontend
-    return res.status(200).json(ratificationResult.data);
-
-  } catch (error: any) {
-    console.error("Critical routing failure:", error.message);
-    res.status(500).json({ error: "Internal Server Error during generation sequence." });
-  }
-});
+// Removed /generate route in favor of /turn
 
 export default router;

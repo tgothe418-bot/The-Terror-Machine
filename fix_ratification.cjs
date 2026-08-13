@@ -1,4 +1,6 @@
-import { RatifiedEngineFrame, DecayThreshold, DecayState } from '../types';
+const fs = require('fs');
+
+const originalTop = `import { RatifiedEngineFrame, DecayThreshold, DecayState } from '../types';
 
 export const DECAY_SCALE: DecayThreshold[] = [
   { stage: 'STABLE', maxSkepticism: 1.0, minSkepticism: 0.61, environmentalCoherence: 1.0, narrativeDivergence: 'NONE' },
@@ -27,7 +29,7 @@ export function applyAntiRescueLinter(rawProse: string): string {
   });
   if (safetyTripped) {
     console.warn("[RATIFICATION] Anti-Rescue Linter tripped. Scrubbing safety language.");
-    sanitizedProse += "\n\n[SYS: SAFETY_OVERRIDE_FAILED]"; 
+    sanitizedProse += "\\n\\n[SYS: SAFETY_OVERRIDE_FAILED]"; 
   }
   return sanitizedProse;
 }
@@ -110,104 +112,8 @@ const createFailedFrame = (errorType: string, note: string): RatifiedEngineFrame
     cast_ledger: []
   },
   validation: { accepted: false, rejected_fields: [errorType], repair_notes: [note] }
-});
-import { useAppStore } from '../store/useAppStore';
-import { calculatePhysicsState } from '../core/matrix/physicsMatrix';
-import { reconcilePerception } from '../core/memory/reconciler';
+});\n`;
 
-export const executeRatificationPipeline = async (userAction: string) => {
-  const state = useAppStore.getState();
-  
-  const stateSnapshot = {
-    spatialGraph: state.spatialGraph ? [...state.spatialGraph] : [],
-    currentNodeId: state.currentNodeId,
-    escalation_state: state.escalation_state,
-    decayMetrics: state.decayMetrics ? { ...state.decayMetrics } : undefined,
-  };
+let currentContent = fs.readFileSync('src/lib/ratificationPipeline.ts', 'utf8');
 
-  const currentTension = state.tensionLevel || 0;
-  const currentCoherence = state.decayMetrics?.coherenceRating ?? 1.0;
-  const physicsMatrix = calculatePhysicsState(currentTension, currentCoherence);
-
-  const reconciliation = reconcilePerception(
-    userAction,
-    state.storyLog,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (state as any).activeRole || 'PROTAGONIST',
-    physicsMatrix.realityState
-  );
-
-  if (reconciliation.isHallucinationCollision && reconciliation.correctedProse) {
-    useAppStore.setState((prev) => ({
-      reconciliationRevision: prev.reconciliationRevision + reconciliation.revisionIncrement,
-      storyLog: [...prev.storyLog, { type: 'system_voice', content: reconciliation.correctedProse }]
-    }));
-
-    return {
-      narrative_blocks: [{ type: 'system_voice', content: reconciliation.correctedProse }],
-      logic_state: {
-        current_phase: state.currentPhase,
-        suggested_tension: currentTension,
-        intent_classification: 'HALLUCINATION_COLLISION',
-        terminal_flags: []
-      },
-      topologyDelta: { isExpansion: false }
-    };
-  }
-
-  // Distill the history to a compressed array instead of full prose
-  const recentHistory = state.storyLog.slice(-6).map(block => `[${block.type.toUpperCase()}]: ${block.content.substring(0, 60)}...`).join('\n');
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const currentNode = state.spatialGraph?.find((n: any) => n.id === state.currentNodeId);
-  let matchingExitDirection: string | null = null;
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  if (currentNode && (currentNode as any).exits) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const exits = (currentNode as any).exits;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const attemptedExit = exits.find((exit: any) => 
-      userAction.toLowerCase().includes(exit.description.toLowerCase())
-    );
-    
-    if (attemptedExit && (attemptedExit.targetNodeId === 'NODE_UNMAPPED' || attemptedExit.targetNodeId.startsWith('unmaterialized_'))) {
-      matchingExitDirection = attemptedExit.description;
-    }
-  }
-
-  const payload = {
-    userAction,
-    recentHistory,
-    systemDirective: physicsMatrix.generativeDirective,
-    isExpansionExpected: !!matchingExitDirection,
-    stateContext: {
-      currentNodeId: state.currentNodeId,
-      currentPhase: state.currentPhase,
-      tensionLevel: currentTension,
-      reconciliationRevision: state.reconciliationRevision
-    }
-  };
-
-  const response = await fetch('/api/turn', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  });
-
-  if (!response.ok) {
-    if (response.status === 406) {
-      useAppStore.setState(stateSnapshot);
-      throw new Error('COGNITIVE_REJECTION');
-    }
-    throw new Error(`HTTP error! status: ${response.status}`);
-  }
-
-  const validatedEvent = await response.json();
-
-  if (validatedEvent.topologyDelta?.isExpansion && validatedEvent.topologyDelta.newNodeDef && matchingExitDirection && state.currentNodeId) {
-    useAppStore.getState().injectGeneratedNode(state.currentNodeId, matchingExitDirection, validatedEvent.topologyDelta.newNodeDef);
-  }
-
-  return validatedEvent;
-};
+fs.writeFileSync('src/lib/ratificationPipeline.ts', originalTop + currentContent);

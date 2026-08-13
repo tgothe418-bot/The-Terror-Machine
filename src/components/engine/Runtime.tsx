@@ -19,7 +19,8 @@ const formatBlocks = (blocks?: NarrativeBlock[]): string => {
   }).join('\n\n');
 };
 import { exportEngineLog } from '../../lib/download';
-import { sendEngineTurn, fetchSimulatedPlayerAction, triggerMemoryForge } from '../../services/geminiService';
+import { executeRatificationPipeline } from '../../lib/ratificationPipeline';
+import { fetchSimulatedPlayerAction, triggerMemoryForge } from '../../services/geminiService';
 import ErgodicTextRenderer from './ErgodicTextRenderer';
 import { useTelemetryStore } from '../../store/useTelemetryStore';
 
@@ -296,27 +297,12 @@ export default function Runtime() {
   const startSimulation = useCallback(async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('/api/init', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: "SYSTEM_INIT",
-          setup: {
-            aesthetic: activeBlueprint?.aesthetic || 'liminal',
-            tone: activeBlueprint?.tone || 'dread'
-          }
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`Backend rejected spark. Status: ${response.status}`);
-      }
-
-      const data = await response.json();
+            const data = await executeRatificationPipeline("SYSTEM_INIT");
       
+      const formattedText = formatBlocks(data.narrative_blocks);
       dispatch({ 
         type: 'ADD_MESSAGE', 
-        message: { role: 'assistant', content: data.prose, timestamp: Date.now() }
+        message: { role: 'assistant', content: formattedText, timestamp: Date.now() }
       });
 
     } catch (err: any) {
@@ -325,7 +311,7 @@ export default function Runtime() {
     } finally {
       setIsLoading(false);
     }
-  }, [activeBlueprint, dispatch]);
+  }, [dispatch]);
 
   // Monitor for idle timeout
   useEffect(() => {
@@ -382,15 +368,12 @@ export default function Runtime() {
     try {
       const activeStoreState = useEngineStore.getState();
 
-      const response = await sendEngineTurn(
-        commandText,
-        gameState,
-        activeBlueprint!,
-        activeStoreState.engineWorldStateSummary,
-        activeStoreState.currentVector,
-        activeStoreState.currentTier,
-        activeStoreState.currentTensionLevel
-      );
+      const response = await executeRatificationPipeline(commandText);
+      const formattedText = formatBlocks(response.narrative_blocks);
+      dispatch({ type: 'USER_ACTION', payload: commandText });
+      dispatch({ type: 'ADD_MESSAGE', message: { role: 'user', content: commandText, timestamp: Date.now() } });
+      dispatch({ type: 'ADD_MESSAGE', message: { role: 'assistant', content: formattedText, timestamp: Date.now() } });
+
       
       if (response.logic_state.suggested_tension) {
         useEngineStore.getState().updateTension(String(response.logic_state.suggested_tension) as any);

@@ -19,7 +19,7 @@ router.post('/ratify', async (req: Request, res: Response): Promise<any> => {
   while (attempt < 3) {
     try {
       const response = await getAiClient().models.generateContent({
-        model: "gemini-3.5-pro",
+        model: "gemini-3.1-pro-preview",
         contents: currentPrompt,
       });
       const llmOutput = response.text || "";
