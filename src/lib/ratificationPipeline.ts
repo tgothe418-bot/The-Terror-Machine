@@ -115,3 +115,56 @@ const createFailedFrame = (errorType: string, note: string): RatifiedEngineFrame
   },
   validation: { accepted: false, rejected_fields: [errorType], repair_notes: [note] }
 });
+
+import { useAppStore } from '../store/useAppStore';
+
+export const executeRatificationPipeline = async (prompt: string) => {
+  // Capture shallow clone/snapshot of spatial/threat state
+  const state = useAppStore.getState();
+  const stateSnapshot = {
+    spatialGraph: state.spatialGraph ? [...state.spatialGraph] : [],
+    currentNodeId: state.currentNodeId,
+    escalation_state: state.escalation_state,
+    decayMetrics: state.decayMetrics ? { ...state.decayMetrics } : undefined,
+  };
+
+  const response = await fetch('/api/ratify', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt })
+  });
+
+  if (response.status === 406) {
+    const errorData = await response.json();
+    if (errorData.directive === 'COGNITIVE_REJECTION') {
+      // Execute reversion: restore the Zustand store to the pre-fetch snapshot.
+      useAppStore.setState(stateSnapshot);
+
+      // Pass a hardcoded "Reality Shear" narrative mandate
+      return {
+        stateDeltas: {
+          frictionModifier: 0,
+          threatScaleShift: 0,
+          panicTrigger: true
+        },
+        topologyDelta: {
+          isExpansion: false
+        },
+        narrativeMandate: {
+          outcome: 'FAILURE',
+          realityState: 'HALLUCINATORY',
+          sensoryPriority: 'The geometry folds inward. A sudden, violent migraine shears your vision. When you open your eyes, your hand is no longer on the threshold. You are exactly where you started. The space rejects your momentum.',
+          pacingRule: 'SUDDEN_STOP'
+        }
+      };
+    } else {
+      throw new Error('Ratification failed: ' + JSON.stringify(errorData));
+    }
+  }
+
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+
+  return await response.json();
+};
