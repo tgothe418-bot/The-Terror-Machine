@@ -163,12 +163,15 @@ export function normalizeBlueprint(raw: any): any {
       return {
         from: parts[0] || "",
         to: parts[1] || "",
-        kind: "physical",
+        kind: "PHYSICAL",
         userInitiated: true,
         legacyUpgraded: true
       };
     }
     const safeConn = { ...conn };
+    if (safeConn.userInitiated === undefined) {
+      safeConn.userInitiated = true;
+    }
     const validKinds = ["PHYSICAL", "FORCED_EVENT", "MEMORY_RECONSTRUCTION", "HISTORICAL_REFERENCE", "TERMINAL_EJECTION", "AUTHORED_PARADOX"];
     let upperKind = String(safeConn.kind || 'PHYSICAL').toUpperCase();
     if (upperKind === 'SPATIAL') upperKind = 'PHYSICAL';

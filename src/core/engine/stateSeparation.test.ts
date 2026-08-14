@@ -6,7 +6,7 @@ import { RatifiedEngineFrame } from '../../types';
 describe('State separation and history preservation', () => {
   it('does not mutate current state until explicit action dispatch', () => {
     const state: EngineState = { ...initialEngineState, currentNodeId: 'START_NODE', phase: 'LATENT' };
-    
+
     // Simulating turn frame computation outside the store
     const hypotheticalFrame: RatifiedEngineFrame = {
       engine_thoughts: 'Player attempts to examine the locked iron gate.',
@@ -67,7 +67,7 @@ describe('State separation and history preservation', () => {
       frame: hypotheticalFrame
     };
     const stateAfterFrame = engineReducer(stateAfterTurn, frameEvent);
-    
+
     // Verify that telemetry snapshot and payload capture logic, topology, and validation
     expect(stateAfterFrame.history).toHaveLength(1); // Frame ratification updates metadata
     expect(stateAfterFrame.turnCount).toBe(1);
