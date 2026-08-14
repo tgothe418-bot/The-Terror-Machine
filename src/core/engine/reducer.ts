@@ -213,8 +213,8 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
           accepted: false,
           reason: `FAILED: ${receipt.code}${statusSuffix} - ${receipt.message}`,
           nodeAfter: state.currentNodeId,
-          activeVector: (state as any).activeVector || 'COGNITIVE',
-          activeTier: (state as any).activeTier || 'LATENT',
+          activeVector: event.payload.activeVector || (state as any).activeVector || 'COGNITIVE',
+          activeTier: event.payload.activeTier || (state as any).activeTier || 'LATENT',
           tension: state.tensionLevel ?? 0,
         },
       };
