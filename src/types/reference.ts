@@ -17,7 +17,7 @@ export interface EntityArchetype {
   manifestation_triggers: string[];
   sensory_tell: string;
   escalation_matrix: Record<EscalationTier, string>;
-  compatible_aesthetics: string[];
+  compatible_aesthetics?: string[];
 }
 
 export interface AdLibBundle {

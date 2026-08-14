@@ -11,7 +11,7 @@ const frame = {
     terminal_flags: [],
   },
   topologyDelta: { isExpansion: false },
-  validation: { accepted: true },
+  validation: { accepted: true, rejected_fields: [], repair_notes: [] },
 };
 
 describe('turn history recording', () => {

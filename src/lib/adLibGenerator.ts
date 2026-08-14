@@ -110,7 +110,12 @@ export function generateAdLibCampaign(params: GenerateAdLibParams = {}) {
         description: e.denial_vector,
         isEntity: true,
         behaviorVector: 'ADAPTIVE'
-      }))
+      })),
+      narrativeRules: {
+        incitingIncident: hauntedHouseData.base_lens || "Initial spatial breach.",
+        currentTensionLevel: 'buildup',
+        keyPlotElements: []
+      }
     };
 
     useEngineStore.getState().setBlueprint(fallbackBlueprint as ScenarioBlueprint, 'protagonist');
@@ -162,7 +167,12 @@ export function generateAdLibCampaign(params: GenerateAdLibParams = {}) {
       description: e.denial_vector,
       isEntity: true,
       behaviorVector: 'ADAPTIVE'
-    }))
+    })),
+    narrativeRules: {
+      incitingIncident: safeBundle.base_lens || "Procedural architecture.",
+      currentTensionLevel: 'buildup',
+      keyPlotElements: []
+    }
   };
 
   useEngineStore.getState().setBlueprint(adLibBlueprint as ScenarioBlueprint, 'protagonist');

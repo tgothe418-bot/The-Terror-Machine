@@ -78,8 +78,9 @@ export const BlueprintSchema = z.object({
   identity: z.object({
     title: z.string().optional().default("Unknown Enclosure"),
     version: z.string().optional().default("1.0"),
-    author: z.string().optional().default("Unknown")
-  }).optional().default({ title: "Unknown Enclosure", version: "1.0", author: "Unknown" }),
+    author: z.string().optional().default("Unknown"),
+    thematicAnchor: z.string().optional().default("")
+  }).optional().default({ title: "Unknown Enclosure", version: "1.0", author: "Unknown", thematicAnchor: "" }),
   title: z.string().optional().default("Unknown Enclosure"), // Fallback for legacy
   globalPremise: z.string().optional().default(""),
   premise: z.string().optional().default(""), // Legacy fallback
@@ -100,17 +101,18 @@ export const BlueprintSchema = z.object({
     location: z.string().optional().default("Unknown"),
     atmosphere: z.string().optional().default(""),
     timePeriod: z.string().optional().default("Present")
-  }).optional().default({}),
+  }).optional().default({ location: "Unknown", atmosphere: "", timePeriod: "Present" }),
   
   narrativeRules: z.object({
     incitingIncident: z.string().optional().default(""),
     phaseDirectives: z.any().optional().default({}),
     currentTensionLevel: z.string().optional().default("buildup"),
-    keyPlotElements: z.array(z.string()).optional().default([])
-  }).optional().default({}),
+    keyPlotElements: z.array(z.string()).optional().default([]),
+    pacingDirectives: z.string().optional()
+  }).optional().default({ incitingIncident: "", phaseDirectives: {}, currentTensionLevel: "buildup", keyPlotElements: [] }),
   
   // Explicitly require an array of characters, but allow infinite length
-  cast: z.array(CastMemberSchema).min(1).optional().default([{ id: '1', name: 'Unknown', description: '' }]),
+  cast: z.array(CastMemberSchema).min(1).optional().default(() => [{ id: '1', name: 'Unknown', description: '', role: 'Subject', personality: '', goals: '', traits: [], isUserCharacter: false, behaviorVector: 'ADAPTIVE', isEntity: false }]),
   characters: z.array(z.any()).optional().default([]),
   
   // Safely default to an empty array.
@@ -158,12 +160,14 @@ export type TensionLevel = 'buildup' | 'visceral_climax' | 'aftermath';
 export interface CharacterProfile {
   id: string;
   name: string;
-  role: string;
-  personality: string;
-  goals: string;
-  traits: string[];
-  isUserCharacter: boolean;
+  role?: string;
+  description: string;
+  personality?: string;
+  goals?: string;
+  traits?: string[];
+  isUserCharacter?: boolean;
   behaviorVector?: AutopilotVector | string;
+  behavioralVector?: string;
   isEntity?: boolean;
   vulnerabilityBase?: VulnerabilityIndex;
 }
@@ -191,20 +195,35 @@ export interface SubjectivePerspective {
 }
 
 export interface ScenarioBlueprint {
+  id?: string;
+  identity?: {
+    title?: string;
+    version?: string;
+    author?: string;
+  };
   title: string;
   references?: string[];
-  contentScale: ContentScale;
+  contentScale: ContentScale | number;
   contentLevelDescription: string; // e.g. "Spooky Fun - Splatterpunk"
+  aesthetic?: string;
+  tone?: string;
+  globalPremise?: string;
+  premise?: string;
   startingVector?: HorrorVector;
   startingTier?: ExposureTier;
-  environmentalRules?: string;
+  environmentalRules?: string | string[];
+  constraints?: string[];
   setting: {
     location: string;
     atmosphere: string; // Sensory constraints
     timePeriod: string;
   };
+  topology?: {
+    nodes: string[];
+    connections: TopologyEdge[];
+  };
   terminalConditions?: TerminalConditions;
-  characters: Array<{
+  characters?: Array<{
     name: string;
     role: string;
     psychologicalState: string; // To ensure naturalistic reactions
@@ -214,33 +233,49 @@ export interface ScenarioBlueprint {
   cast: CharacterProfile[];
   narrativeRules: {
     incitingIncident: string;
-    phaseDirectives: Record<TensionLevel, string>;
-    currentTensionLevel: TensionLevel;
+    phaseDirectives?: Record<TensionLevel, string> | Record<string, string>;
+    currentTensionLevel: TensionLevel | string;
     keyPlotElements: string[];
+    pacingDirectives?: string;
   };
   styleProfile?: ProseStyleVector; // A synthesized description of the user's writing style
   perspectives?: SubjectivePerspective[];
 }
 
 export interface Message {
-  role: 'user' | 'assistant' | 'voice' | 'system_cinematic';
+  id?: string;
+  role: 'user' | 'assistant' | 'voice' | 'system_cinematic' | 'system' | 'engine' | 'director' | 'narrative';
   content: string;
   timestamp: number;
   attachments?: Attachment[];
   blocks?: NarrativeBlock[];
   engine_thoughts?: string;
-  logic_state?: unknown;
-  topologyDelta?: unknown;
-  validation?: unknown;
+  logic_state?: LogicState;
+  topologyDelta?: TopologyDelta | null;
+  validation?: FrameValidation;
   frozen_psychological_status?: string;
   visibleToModel?: boolean;
   visibleToTelemetry?: boolean;
 }
 
+export interface CastLedgerEntry {
+  id?: string;
+  character_id?: string;
+  name?: string;
+  character_name?: string;
+  current_location?: string;
+  psychological_status?: string;
+  skepticism?: number;
+  skepticism_delta?: number;
+  vulnerability?: number;
+  status?: string;
+  isDead?: boolean;
+}
+
 export interface TelemetryState {
   tension: string;
   pacing: string;
-  castLedger: Array<{ character_name: string; current_location: string; psychological_status: string }>;
+  castLedger: Array<CastLedgerEntry | { character_name: string; current_location: string; psychological_status: string }>;
   engineLogic: string;
 }
 
@@ -266,7 +301,17 @@ export interface SpatialNode {
   id: string;
   name: string;
   description: string;
-  connectedNodes: string[]; // Array of accessible Node IDs
+  connectedNodes?: string[]; // Array of accessible Node IDs
+  type?: string;
+  sensoryProfile?: string[];
+  exits?: Array<{
+    targetNodeId: string;
+    description: string;
+    isOpen: boolean;
+  }>;
+  environmentalHazards?: string[];
+  linkedCharacters?: string[];
+  structuralAnomalies?: string[];
 }
 
 export interface AppState {
@@ -288,30 +333,93 @@ export interface AppState {
 export type PlayerRole = "protagonist" | "antagonist" | "director" | "witness" | "possessed";
 export type PerspectiveMode = "embodied" | "entity_embodied" | "director" | "witness";
 
+export type NarrativeBlockType =
+  | "exposition"
+  | "dialogue"
+  | "sensory"
+  | "system_alert"
+  | "system_voice"
+  | "prose"
+  | "environmental_description"
+  | "internal_monologue"
+  | "TRANSITION_REJECTED";
+
 export interface NarrativeBlock {
-  id: string;
-  type: "exposition" | "dialogue" | "sensory" | "system_alert";
+  id?: string;
+  type: NarrativeBlockType | string;
   speaker?: string | null;
-  content: string;
+  content?: string;
+  text?: string;
   emotional_weight?: number;
+  requested?: string;
+  reason?: string;
+  visibleToModel?: boolean;
+  visibleToTelemetry?: boolean;
+}
+
+export interface LoreAndMemory {
+  established_facts: string[];
+  permanent_consequences: string[];
 }
 
 export interface LogicState {
-  current_phase: string;
+  current_phase?: string;
   requested_transition?: string | null;
-  suggested_tension: number;
-  terminal_flags: string[];
+  suggested_tension?: number;
+  terminal_flags?: string[];
   escalation_state?: string;
   intent_classification?: string;
   intent_synergy?: "SUCCESS" | "FAILURE" | "N/A";
+  cast_ledger?: CastLedgerEntry[];
+  cast_deltas?: Array<{
+    character_id: string;
+    skepticism_delta: number;
+  }>;
+  current_location?: string;
+  player_character_id?: string | null;
+  player_role?: PlayerRole | string;
+  perspective_mode?: PerspectiveMode | string;
+  current_tension_level?: string;
+  lore_and_memory?: LoreAndMemory;
+  psychological_status?: string;
+  player_injuries?: string[];
+  inventory?: string[];
+  npc_fixations?: string[];
   matrix_mutation?: {
-    type: string;
-    contradictionMode: string;
-    note: string;
+    type?: string;
+    contradictionMode?: string;
+    note?: string;
     increment_rooms?: boolean;
     new_adlib_node?: Record<string, unknown>;
     adlib_prompt_injection?: string;
     original_requested_transition?: string | null;
+    decay_context?: {
+      stage: string;
+      coherence: number;
+      divergence_protocol: string;
+    };
+    next_vector?: HorrorVector;
+    next_tier?: ExposureTier;
+  } | null;
+}
+
+export interface FrameValidation {
+  accepted: boolean;
+  rejected_fields: string[];
+  repair_notes: string[];
+  repaired_fields?: string[];
+}
+
+export interface TopologyDelta {
+  isExpansion: boolean;
+  newNodeDef?: {
+    id: string;
+    geometry: string;
+    hazards: string[];
+    exitVectors: Array<{
+      direction: string;
+      targetNodeId: string;
+    }>;
   } | null;
 }
 
@@ -319,6 +427,8 @@ export interface RatifiedEngineFrame {
   engine_thoughts: string;
   narrative_blocks: NarrativeBlock[];
   logic_state: LogicState;
+  validation?: FrameValidation;
+  topologyDelta?: TopologyDelta | null;
 }
 
 export interface BicameralOutput {

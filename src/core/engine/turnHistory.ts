@@ -1,12 +1,12 @@
 import type { EngineEvent } from './events';
-import type { Message, NarrativeBlock } from '../../types';
+import type { Message, NarrativeBlock, LogicState, TopologyDelta, FrameValidation } from '../../types';
 
 export interface ResolvedTurnTelemetry {
   narrative_blocks?: unknown[];
   engine_thoughts?: string;
-  logic_state?: unknown;
-  topologyDelta?: unknown;
-  validation?: unknown;
+  logic_state?: LogicState;
+  topologyDelta?: TopologyDelta | null;
+  validation?: FrameValidation;
 }
 
 export function createEngineHistoryMessage(

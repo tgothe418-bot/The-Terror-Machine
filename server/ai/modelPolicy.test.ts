@@ -66,7 +66,7 @@ describe('Gemini Model Policy', () => {
       'server/utils/aiClient.ts',
       'server/routes/chat.ts',
       'server/routes/forge.ts',
-      'server/routes/ratification.ts',
+      'server/routes/turn.ts',
       'server/routes/voice.ts',
     ];
 

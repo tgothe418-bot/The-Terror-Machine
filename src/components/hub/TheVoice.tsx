@@ -94,8 +94,8 @@ Trauma Ledger Entries: ${appState.traumaLedger?.length || 0}
 Active Node: ${appState.currentNodeId || 'None'}
 
 --- FORGE STATUS ---
-Loaded Blueprint: ${forgeState.blueprint?.identity?.title || 'None'}
-Cast Size: ${forgeState.blueprint?.cast?.length || 0}
+Loaded Blueprint: ${forgeState.draftBlueprint?.identity?.title || forgeState.draftBlueprint?.title || 'None'}
+Cast Size: ${forgeState.draftBlueprint?.cast?.length || 0}
 ------------------------------------------
 `;
 
@@ -139,7 +139,7 @@ Cast Size: ${forgeState.blueprint?.cast?.length || 0}
       addMessage(voiceMsg);
     } catch (err: unknown) {
       console.error(err);
-      const errorMessage = typeof err === 'object' && err !== null && 'message' in err ? err.message : String(err);
+      const errorMessage = typeof err === 'object' && err !== null && 'message' in err ? String((err as Record<string, unknown>).message) : String(err);
       let parsedMessage = errorMessage;
       try {
         const parsed = JSON.parse(errorMessage);

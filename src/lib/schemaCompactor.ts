@@ -22,6 +22,7 @@ export interface AuthoritativeBlueprint {
     title: string;
     version: string;
     author: string;
+    thematicAnchor?: string;
   };
   globalPremise: string;
   environmentalRules: string[];

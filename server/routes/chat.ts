@@ -8,7 +8,7 @@ import { getAiClient } from "../utils/aiClient";
 import { getGeminiPolicy } from "../ai/modelPolicy";
 import { buildOrchestratorPrompt } from "../../src/core/prompts/orchestrator";
 // Removed jsonParser
-import { BicameralOutput } from "../../src/types";
+import { BicameralOutput, HorrorVector, ExposureTier } from "../../src/types";
 import { getMatrixRules } from "../../src/core/matrix";
 import { EngineTurnRequestSchema, SimulatePlayerRequestSchema, TestSceneRequestSchema } from "../schemas/index";
 
@@ -117,8 +117,8 @@ router.post("/chat", async (req, res) => {
         delete slimBlueprint.narrativeRules.phaseDirectives;
       }
 
-      const vector = currentVector || 'COGNITIVE';
-      const tier = currentTier || 'LATENT';
+      const vector = (currentVector || 'COGNITIVE') as HorrorVector;
+      const tier = (currentTier || 'LATENT') as ExposureTier;
       const tensionLevel = currentTensionLevel || 'buildup';
       
       const coordinateRules = getMatrixRules(vector, tier);
@@ -574,7 +574,7 @@ router.post('/reconcile', async (req, res) => {
       }
     });
 
-    const parsedText = response.text() || "{}";
+    const parsedText = response.text || "{}";
     const cleaned = parsedText.replace(/^```json/g, '').replace(/```$/g, '');
     res.json(JSON.parse(cleaned));
   } catch (error) {

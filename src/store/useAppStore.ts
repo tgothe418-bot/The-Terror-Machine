@@ -186,10 +186,10 @@ export function normalizeBlueprint(raw: any): any {
     },
     identity: {
       ...raw.identity,
-      title: raw.identity?.title || "Unknown"
+      title: raw.identity?.title || raw.title || "Unknown"
     },
-    title: raw.identity?.title || "Unknown",
-    premise: raw.globalPremise || "",
+    title: raw.identity?.title || raw.title || "Unknown",
+    premise: raw.globalPremise || raw.premise || "",
     userCharacterId: protagonistId
   };
 }

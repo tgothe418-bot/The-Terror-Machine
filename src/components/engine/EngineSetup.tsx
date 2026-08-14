@@ -57,8 +57,7 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
         try {
           const normalized = normalizeBlueprint(parsed);
           const validated = BlueprintSchema.parse(normalized);
-          // @ts-expect-error - The blueprint schemas we just made might have minor divergence from legacy ScenarioBlueprint, forcing it through for now
-          setPreviewBlueprint(validated as ScenarioBlueprint);
+          setPreviewBlueprint(validated as unknown as ScenarioBlueprint);
           forgeActions.setActiveCharacterId(null);
         } catch (validationErr: unknown) {
           console.error("Zod Validation Failed:", validationErr);

@@ -4,8 +4,8 @@ import { AuthoritativeBlueprint } from '../../lib/schemaCompactor';
 export const GuidedInduction: React.FC = () => {
   const [step, setStep] = useState(1);
   const [blueprintDraft, setBlueprintDraft] = useState<Partial<AuthoritativeBlueprint>>({
-    identity: { title: "", version: "1.0.0", thematicAnchor: "" },
-    topology: { nodes: ["ROOM_START"] },
+    identity: { title: "", version: "1.0.0", author: "System", thematicAnchor: "" },
+    topology: { nodes: ["ROOM_START"], connections: [] },
     constraints: [],
     terminalConditions: {
       somaticTerminal: { fatalThresholdTags: [], narrativeResolution: "" },
