@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { NormalizedBlueprintSchema } from '../../src/lib/normalizeBlueprint';
+import { REFERENCE_IMPORT_MAX_BASE64_CHARS } from '../../src/lib/referenceImportPolicy';
 
 // Chat & Engine Request Schema
 export const EngineTurnRequestSchema = z.object({
@@ -75,7 +76,7 @@ export const MemoryForgeRequestSchema = z.object({
 });
 
 export const ExtractBlueprintRequestSchema = z.object({
-  base64Data: z.string().optional(),
-  mimeType: z.string().optional(),
-  fileName: z.string().optional(),
+  base64Data: z.string().min(1, "base64Data is required").max(REFERENCE_IMPORT_MAX_BASE64_CHARS, "base64Data exceeds maximum allowed size"),
+  mimeType: z.string().min(1, "mimeType is required"),
+  fileName: z.string().min(1, "fileName is required"),
 });

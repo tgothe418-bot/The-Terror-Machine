@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import {  useForgeState, forgeActions, useForgeStoreInternal  } from '../../store/useForgeStore';
+import { useForgeState, forgeActions, useForgeStoreInternal } from '../../store/useForgeStore';
 import { useAppStore } from '../../store/useAppStore';
 import { ArchitectChat } from './ArchitectChat';
 import { FileDropzone } from './FileDropzone';
@@ -24,7 +24,7 @@ export default function Forge() {
   useEffect(() => {
     const unsub = useForgeStoreInternal.persist.onHydrate(() => setHydrated(false));
     const unsubFinish = useForgeStoreInternal.persist.onFinishHydration(() => setHydrated(true));
-    
+
     return () => {
       unsub();
       unsubFinish();
@@ -35,11 +35,10 @@ export default function Forge() {
 
   return (
     <div className="forge-container w-[95vw] max-w-[2400px] mx-auto p-8 h-screen flex flex-col bg-black text-zinc-300 overflow-hidden">
-      
       {/* HEADER AREA */}
       <div className="mb-6 flex justify-between items-center border-b border-zinc-800 pb-4 shrink-0">
         <h2 className="text-zinc-400 font-mono text-xl uppercase tracking-widest flex items-center gap-4">
-          <button 
+          <button
             onClick={() => setPhase('hub')}
             className="flex items-center gap-2 text-zinc-500 hover:text-white transition-colors text-[10px] uppercase tracking-widest border border-zinc-800 px-3 py-1 rounded-sm"
           >
@@ -66,9 +65,11 @@ export default function Forge() {
           <div className="flex items-center">
             {isConfirmingClear ? (
               <div className="flex items-center gap-4 mr-4 animate-in fade-in slide-in-from-right-2 border border-red-900/50 bg-red-950/20 px-3 py-1 rounded-sm">
-                <span className="text-[10px] uppercase tracking-widest text-red-500 font-bold">Purge Memory?</span>
+                <span className="text-[10px] uppercase tracking-widest text-red-500 font-bold">
+                  Purge Memory?
+                </span>
                 <div className="flex items-center gap-3">
-                  <button 
+                  <button
                     onClick={() => {
                       clearHistory();
                       setIsConfirmingClear(false);
@@ -78,7 +79,7 @@ export default function Forge() {
                     Yes
                   </button>
                   <span className="text-zinc-700">|</span>
-                  <button 
+                  <button
                     onClick={() => setIsConfirmingClear(false)}
                     className="text-[10px] uppercase tracking-widest text-zinc-500 hover:text-white transition-colors"
                   >
@@ -96,22 +97,23 @@ export default function Forge() {
               </button>
             )}
           </div>
-          <button 
+          <button
             onClick={() => {
               if (draftBlueprint) {
                 try {
                   setExportError(null);
                   const artifact = prepareBlueprintExport(draftBlueprint);
-                  
-                  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(artifact.json);
+
+                  const dataStr =
+                    'data:text/json;charset=utf-8,' + encodeURIComponent(artifact.json);
                   const downloadAnchorNode = document.createElement('a');
-                  downloadAnchorNode.setAttribute("href", dataStr);
-                  downloadAnchorNode.setAttribute("download", artifact.fileName);
+                  downloadAnchorNode.setAttribute('href', dataStr);
+                  downloadAnchorNode.setAttribute('download', artifact.fileName);
                   document.body.appendChild(downloadAnchorNode); // required for firefox
                   downloadAnchorNode.click();
                   downloadAnchorNode.remove();
                 } catch (e: unknown) {
-                  const error = e as { errors?: unknown, message?: string };
+                  const error = e as { errors?: unknown; message?: string };
                   if (error.errors) {
                     setExportError(JSON.stringify(error.errors, null, 2));
                   } else {
@@ -123,34 +125,43 @@ export default function Forge() {
             className="px-4 py-2 bg-zinc-900 border border-zinc-700 text-zinc-400 font-mono text-xs hover:bg-zinc-800 hover:text-cyan-400 transition-colors relative"
           >
             [ EXPORT BLUEPRINT TO ENGINE ]
-            
             {exportError && (
               <div className="absolute top-full mt-2 right-0 bg-red-950/90 border border-red-900 text-red-400 text-xs font-mono p-4 rounded z-50 max-w-lg max-h-96 overflow-y-auto w-max text-left shadow-2xl backdrop-blur-md">
                 <div className="flex justify-between items-center mb-4 font-bold shrink-0 border-b border-red-900/50 pb-2">
-                  <span className="text-red-500 uppercase tracking-widest">[ EXPORT VALIDATION FAILED ]</span>
-                  <button onClick={(e) => { e.stopPropagation(); setExportError(null); }} className="text-red-500 hover:text-white px-2 py-1 bg-red-900/30 rounded">✕</button>
+                  <span className="text-red-500 uppercase tracking-widest">
+                    [ EXPORT VALIDATION FAILED ]
+                  </span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setExportError(null);
+                    }}
+                    className="text-red-500 hover:text-white px-2 py-1 bg-red-900/30 rounded"
+                  >
+                    ✕
+                  </button>
                 </div>
                 <pre className="whitespace-pre-wrap leading-relaxed text-[10px]">{exportError}</pre>
-                <div className="mt-4 pt-2 border-t border-red-900/50 text-red-500/80 italic">Fix the highlighted discrepancies in the Forge UI before exporting.</div>
+                <div className="mt-4 pt-2 border-t border-red-900/50 text-red-500/80 italic">
+                  Fix the highlighted discrepancies in the Forge UI before exporting.
+                </div>
               </div>
             )}
           </button>
         </div>
       </div>
-      
+
       {/* MAIN DASHBOARD GRID */}
       <div className="grid grid-cols-12 gap-8 flex-grow overflow-hidden">
-          
         {activeTab === 'campaign' ? (
           <CampaignTopologyPanel />
         ) : (
           <>
             {/* LEFT COLUMN: Expanded Parameter Console & Selectors (Spans 7 columns for direct typing depth) */}
             <div className="col-span-7 flex flex-col space-y-6 overflow-y-auto pr-4 pb-8 custom-scrollbar">
-              
               {/* Intake/Knowledgebase Dropzone */}
               <FileDropzone />
-              
+
               {/* Matrix Coordinates */}
               <MatrixSelector />
 
@@ -159,7 +170,9 @@ export default function Forge() {
 
               {/* WORLD RULES */}
               <div className="bg-zinc-950 border border-zinc-800 focus-within:border-zinc-700 p-4 rounded flex flex-col shadow-lg transition-colors">
-                <label className="text-zinc-500 font-mono text-[10px] uppercase tracking-wider mb-2">WORLD RULES</label>
+                <label className="text-zinc-500 font-mono text-[10px] uppercase tracking-wider mb-2">
+                  WORLD RULES
+                </label>
                 <textarea
                   value={draftBlueprint?.environmentalRules || ''}
                   onChange={(e) => updateDraft({ environmentalRules: e.target.value })}
@@ -170,17 +183,19 @@ export default function Forge() {
 
               {/* SCENARIO PREMISE */}
               <div className="bg-zinc-950 border border-zinc-800 focus-within:border-zinc-700 p-4 rounded flex flex-col shadow-lg transition-colors">
-                <label className="text-zinc-500 font-mono text-[10px] uppercase tracking-widest mb-2">SCENARIO PREMISE</label>
+                <label className="text-zinc-500 font-mono text-[10px] uppercase tracking-widest mb-2">
+                  SCENARIO PREMISE
+                </label>
                 <div className="text-zinc-400 text-sm font-mono whitespace-pre-wrap min-h-[120px]">
-                  {draftBlueprint?.globalPremise || draftBlueprint?.premise || "Calibrate primary narrative trajectories, logic overrides, or operational vector conditions..."}
+                  {draftBlueprint?.globalPremise ||
+                    draftBlueprint?.premise ||
+                    'Calibrate primary narrative trajectories, logic overrides, or operational vector conditions...'}
                 </div>
               </div>
-
             </div>
 
             {/* RIGHT COLUMN: Unified Utility Tower (Spans 5 columns - Houses Architect & Cast) */}
             <div className="col-span-5 flex flex-col h-full overflow-hidden space-y-6">
-
               {/* Architect Analytical Companion Box */}
               <div className="min-h-[300px] max-h-[45vh] flex flex-col border border-zinc-900 rounded bg-zinc-950/20 shadow-xl overflow-hidden shrink-0">
                 <ArchitectChat />
@@ -188,15 +203,24 @@ export default function Forge() {
 
               {/* Cast Authoring Card */}
               <div className="flex-1 min-h-0 bg-zinc-950 border border-zinc-800 focus-within:border-zinc-700 p-4 rounded flex flex-col shadow-lg transition-colors overflow-hidden">
-
                 {/* Header & Add Button */}
                 <div className="flex justify-between items-center mb-3 shrink-0">
-                  <label className="text-zinc-500 font-mono text-[10px] uppercase tracking-wider">CAST</label>
+                  <label className="text-zinc-500 font-mono text-[10px] uppercase tracking-wider">
+                    CAST
+                  </label>
                   <button
                     onClick={() => {
                       const currentCast = draftBlueprint?.cast || [];
                       updateDraft({
-                        cast: [...currentCast, { id: `char-${Date.now()}`, name: 'New Entity', description: '', behaviorVector: 'ADAPTIVE' }]
+                        cast: [
+                          ...currentCast,
+                          {
+                            id: `char-${Date.now()}`,
+                            name: 'New Entity',
+                            description: '',
+                            behaviorVector: 'ADAPTIVE',
+                          },
+                        ],
                       });
                     }}
                     className="text-[9px] bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 px-2 py-1 rounded border border-zinc-700 transition-colors shadow-sm"
@@ -208,12 +232,16 @@ export default function Forge() {
                 {/* Dynamic Roster List */}
                 <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3 pr-2 min-h-0">
                   {draftBlueprint?.cast?.map((char, index) => (
-                    <div key={char.id} className="p-3 bg-[#050505] border border-zinc-800/80 rounded flex flex-col gap-2 relative group shadow-inner">
-
+                    <div
+                      key={char.id}
+                      className="p-3 bg-[#050505] border border-zinc-800/80 rounded flex flex-col gap-2 relative group shadow-inner"
+                    >
                       {/* Delete Button (Appears on Hover) */}
                       <button
                         onClick={() => {
-                          const updatedCast = (draftBlueprint.cast || []).filter(c => c.id !== char.id);
+                          const updatedCast = (draftBlueprint.cast || []).filter(
+                            (c) => c.id !== char.id
+                          );
                           updateDraft({ cast: updatedCast });
                         }}
                         className="absolute top-2 right-2 text-zinc-700 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity z-10 bg-black/50 rounded px-1"
@@ -239,7 +267,9 @@ export default function Forge() {
                           value={char.behaviorVector || 'ADAPTIVE'}
                           onChange={(e) => {
                             const updatedCast = (draftBlueprint.cast || []).map((c, i) =>
-                              i === index ? { ...c, behaviorVector: e.target.value as AutopilotVector } : c
+                              i === index
+                                ? { ...c, behaviorVector: e.target.value as AutopilotVector }
+                                : c
                             );
                             updateDraft({ cast: updatedCast });
                           }}
@@ -271,9 +301,7 @@ export default function Forge() {
                     </div>
                   )}
                 </div>
-
               </div>
-
             </div>
           </>
         )}
@@ -281,4 +309,3 @@ export default function Forge() {
     </div>
   );
 }
-

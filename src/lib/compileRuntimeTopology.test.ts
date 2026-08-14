@@ -11,21 +11,21 @@ describe('compileRuntimeTopology', () => {
           to: 'LIBRARY',
           kind: 'PHYSICAL' as const,
           requires: ['BRASS_KEY'],
-          userInitiated: true
+          userInitiated: true,
         },
         {
           from: 'LIBRARY',
           to: 'FOYER',
           kind: 'PHYSICAL' as const,
-          userInitiated: true
+          userInitiated: true,
         },
         {
           from: 'LIBRARY',
           to: 'CELLAR',
           kind: 'FORCED_EVENT' as const,
-          userInitiated: false
-        }
-      ]
+          userInitiated: false,
+        },
+      ],
     };
 
     const result = compileRuntimeTopology({ topology });
@@ -42,7 +42,7 @@ describe('compileRuntimeTopology', () => {
       isOpen: true,
       kind: 'PHYSICAL',
       requires: ['BRASS_KEY'],
-      userInitiated: true
+      userInitiated: true,
     });
 
     const library = result.spatialGraph.find((n) => n.id === 'LIBRARY');
@@ -58,7 +58,7 @@ describe('compileRuntimeTopology', () => {
   it('generates a fallback origin node when topology is empty', () => {
     const result = compileRuntimeTopology({
       topology: { nodes: [], connections: [] },
-      fallbackSetting: { location: 'The Attic Observatory', atmosphere: 'Dusty and quiet' }
+      fallbackSetting: { location: 'The Attic Observatory', atmosphere: 'Dusty and quiet' },
     });
 
     expect(result.startNodeId).toBe('THE_ATTIC_OBSERVATORY');

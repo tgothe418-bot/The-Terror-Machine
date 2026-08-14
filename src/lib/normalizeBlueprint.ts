@@ -21,9 +21,7 @@ function normalizeLegacyBlueprintShape(raw: unknown): unknown {
   if (hasOwn(rawRecord, 'userCharacterId') && rawRecord.userCharacterId !== undefined) {
     protagonistId = rawRecord.userCharacterId;
   } else if (Array.isArray(rawRecord.perspectives)) {
-    const found = rawRecord.perspectives.find(
-      (p) => isRecord(p) && p.role === 'PROTAGONIST'
-    );
+    const found = rawRecord.perspectives.find((p) => isRecord(p) && p.role === 'PROTAGONIST');
     if (isRecord(found) && typeof found.subjectCharacterId === 'string') {
       protagonistId = found.subjectCharacterId;
     }
@@ -134,7 +132,11 @@ function normalizeLegacyBlueprintShape(raw: unknown): unknown {
 
   if (hasExplicitTopTitle) {
     topLevelTitleNormalized = rawRecord.title;
-  } else if (isRecord(rawRecord.identity) && typeof rawRecord.identity.title === 'string' && rawRecord.identity.title) {
+  } else if (
+    isRecord(rawRecord.identity) &&
+    typeof rawRecord.identity.title === 'string' &&
+    rawRecord.identity.title
+  ) {
     topLevelTitleNormalized = rawRecord.identity.title;
   }
 
@@ -143,7 +145,8 @@ function normalizeLegacyBlueprintShape(raw: unknown): unknown {
   let globalPremiseNormalized: unknown = undefined;
 
   const hasExplicitTopPremise = hasOwn(rawRecord, 'premise') && rawRecord.premise !== undefined;
-  const hasExplicitGlobalPremise = hasOwn(rawRecord, 'globalPremise') && rawRecord.globalPremise !== undefined;
+  const hasExplicitGlobalPremise =
+    hasOwn(rawRecord, 'globalPremise') && rawRecord.globalPremise !== undefined;
 
   if (hasExplicitTopPremise) {
     topPremiseNormalized = rawRecord.premise;

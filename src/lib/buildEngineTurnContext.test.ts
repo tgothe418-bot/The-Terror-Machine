@@ -6,11 +6,14 @@ describe('buildEngineTurnContext & buildContextReceipt', () => {
     id: 'bp-sanatorium-99',
     title: 'The Blackwood Sanatorium',
     premise: 'An abandoned hospital that recalibrates geometry.',
-    environmentalRules: ['Clocks run backwards near mirrors.', 'Shadows cannot detach in darkness.'],
+    environmentalRules: [
+      'Clocks run backwards near mirrors.',
+      'Shadows cannot detach in darkness.',
+    ],
     setting: {
       location: 'Ward 4B',
       atmosphere: 'Sterile ammonia smell',
-      timePeriod: '1932'
+      timePeriod: '1932',
     },
     startingVector: 'SOMATIC',
     startingTier: 'MANIFEST',
@@ -24,7 +27,7 @@ describe('buildEngineTurnContext & buildContextReceipt', () => {
         role: 'Protagonist',
         description: 'Night shift nurse.',
         isUserCharacter: true,
-        isEntity: false
+        isEntity: false,
       },
       {
         id: 'char-warden',
@@ -32,8 +35,8 @@ describe('buildEngineTurnContext & buildContextReceipt', () => {
         role: 'Antagonist',
         description: 'Faceless entity in surgeon coat.',
         isUserCharacter: false,
-        isEntity: true
-      }
+        isEntity: true,
+      },
     ],
     topology: {
       nodes: ['WARD_4B', 'STAIRWELL', 'OPERATING_THEATRE'],
@@ -43,10 +46,10 @@ describe('buildEngineTurnContext & buildContextReceipt', () => {
           to: 'STAIRWELL',
           kind: 'PHYSICAL',
           requires: ['WARD_KEY'],
-          userInitiated: true
-        }
-      ]
-    }
+          userInitiated: true,
+        },
+      ],
+    },
   };
 
   it('builds a complete authoritative EngineTurnContext for the protagonist', () => {
@@ -60,15 +63,15 @@ describe('buildEngineTurnContext & buildContextReceipt', () => {
         coherence: 0.7,
         reconciliationRevision: 1,
         activeVector: 'SOMATIC',
-        activeTier: 'MANIFEST'
-      }
+        activeTier: 'MANIFEST',
+      },
     });
 
     expect(context.version).toBe(1);
     expect(context.scenario.title).toBe('The Blackwood Sanatorium');
     expect(context.scenario.worldRules).toEqual([
       'Clocks run backwards near mirrors.',
-      'Shadows cannot detach in darkness.'
+      'Shadows cannot detach in darkness.',
     ]);
     expect(context.player.role).toBe('protagonist');
     expect(context.player.name).toBe('Elena Rostova');
@@ -97,8 +100,8 @@ describe('buildEngineTurnContext & buildContextReceipt', () => {
       blueprint: mockBlueprint,
       selectedRole: 'antagonist',
       runtimeState: {
-        currentNodeId: 'WARD_4B'
-      }
+        currentNodeId: 'WARD_4B',
+      },
     });
 
     expect(context.player.role).toBe('antagonist');
@@ -111,7 +114,7 @@ describe('buildEngineTurnContext & buildContextReceipt', () => {
     const context = buildEngineTurnContext({
       blueprint: mockBlueprint,
       selectedRole: 'protagonist',
-      runtimeState: { currentNodeId: 'WARD_4B' }
+      runtimeState: { currentNodeId: 'WARD_4B' },
     });
     const receipt = buildContextReceipt(context, mockBlueprint);
 

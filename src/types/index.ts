@@ -2,11 +2,11 @@ import { z } from 'zod';
 
 export type AppPhase = 'hub' | 'forge' | 'engine' | 'voice';
 
-export type ForgePhase = 
-  | 'CAST_EXTRACTION' 
-  | 'INTERVIEW_PHASE_1' 
-  | 'INTERVIEW_PHASE_2' 
-  | 'CONFIRMATION' 
+export type ForgePhase =
+  | 'CAST_EXTRACTION'
+  | 'INTERVIEW_PHASE_1'
+  | 'INTERVIEW_PHASE_2'
+  | 'CONFIRMATION'
   | 'GENERATION';
 
 export type ContentScale = 1 | 2 | 3 | 4 | 5 | 6;
@@ -15,13 +15,13 @@ export type HorrorVector = 'SOMATIC' | 'COGNITIVE' | 'COSMIC' | 'SOCIO_MORAL';
 export type ExposureTier = 'GATEWAY' | 'LATENT' | 'MANIFEST' | 'TERMINAL';
 export type AutopilotVector = 'ADAPTIVE' | 'INSURGENT' | 'PANIC';
 
-export type EdgeKind = 
-  | "PHYSICAL" 
-  | "FORCED_EVENT" 
-  | "MEMORY_RECONSTRUCTION" 
-  | "HISTORICAL_REFERENCE" 
-  | "TERMINAL_EJECTION"
-  | "AUTHORED_PARADOX";
+export type EdgeKind =
+  | 'PHYSICAL'
+  | 'FORCED_EVENT'
+  | 'MEMORY_RECONSTRUCTION'
+  | 'HISTORICAL_REFERENCE'
+  | 'TERMINAL_EJECTION'
+  | 'AUTHORED_PARADOX';
 
 export interface TopologyEdge {
   from: string;
@@ -34,12 +34,12 @@ export interface TopologyEdge {
 }
 
 export const EdgeKindSchema = z.enum([
-  "PHYSICAL", 
-  "FORCED_EVENT", 
-  "MEMORY_RECONSTRUCTION", 
-  "HISTORICAL_REFERENCE", 
-  "TERMINAL_EJECTION",
-  "AUTHORED_PARADOX"
+  'PHYSICAL',
+  'FORCED_EVENT',
+  'MEMORY_RECONSTRUCTION',
+  'HISTORICAL_REFERENCE',
+  'TERMINAL_EJECTION',
+  'AUTHORED_PARADOX',
 ]);
 
 export const TopologyEdgeSchema = z.object({
@@ -48,78 +48,115 @@ export const TopologyEdgeSchema = z.object({
   kind: EdgeKindSchema,
   requires: z.array(z.string()).optional(),
   userInitiated: z.boolean(),
-  legacyUpgraded: z.boolean().optional()
+  legacyUpgraded: z.boolean().optional(),
 });
 
 export const VulnerabilityIndexSchema = z.object({
   resilience: z.number().min(0).max(1).default(0.5),
   skepticism: z.number().min(0).max(1).default(0.5),
-  baggage: z.number().min(0).max(1).default(0.5)
+  baggage: z.number().min(0).max(1).default(0.5),
 });
 
 export type VulnerabilityIndex = z.infer<typeof VulnerabilityIndexSchema>;
 
 export const CastMemberSchema = z.object({
   id: z.string().default(() => `char-${Date.now()}`),
-  name: z.string().default("Unknown"),
-  description: z.string().default(""),
-  role: z.string().optional().default("Subject"),
-  personality: z.string().optional().default(""),
-  goals: z.string().optional().default(""),
+  name: z.string().default('Unknown'),
+  description: z.string().default(''),
+  role: z.string().optional().default('Subject'),
+  personality: z.string().optional().default(''),
+  goals: z.string().optional().default(''),
   traits: z.array(z.string()).optional().default([]),
   isUserCharacter: z.boolean().optional().default(false),
   behaviorVector: z.string().optional().default('ADAPTIVE'),
   isEntity: z.boolean().optional().default(false),
-  vulnerabilityBase: VulnerabilityIndexSchema.optional()
+  vulnerabilityBase: VulnerabilityIndexSchema.optional(),
 });
 
 export const BlueprintSchema = z.object({
   id: z.string().optional(),
-  identity: z.object({
-    title: z.string().optional().default("Unknown Enclosure"),
-    version: z.string().optional().default("1.0"),
-    author: z.string().optional().default("Unknown"),
-    thematicAnchor: z.string().optional().default("")
-  }).optional().default({ title: "Unknown Enclosure", version: "1.0", author: "Unknown", thematicAnchor: "" }),
-  title: z.string().optional().default("Unknown Enclosure"), // Fallback for legacy
-  globalPremise: z.string().optional().default(""),
-  premise: z.string().optional().default(""), // Legacy fallback
+  identity: z
+    .object({
+      title: z.string().optional().default('Unknown Enclosure'),
+      version: z.string().optional().default('1.0'),
+      author: z.string().optional().default('Unknown'),
+      thematicAnchor: z.string().optional().default(''),
+    })
+    .optional()
+    .default({ title: 'Unknown Enclosure', version: '1.0', author: 'Unknown', thematicAnchor: '' }),
+  title: z.string().optional().default('Unknown Enclosure'), // Fallback for legacy
+  globalPremise: z.string().optional().default(''),
+  premise: z.string().optional().default(''), // Legacy fallback
   startingVector: z.enum(['SOMATIC', 'COGNITIVE', 'COSMIC', 'SOCIO_MORAL']).optional(),
   startingTier: z.enum(['GATEWAY', 'LATENT', 'MANIFEST', 'TERMINAL']).optional(),
-  environmentalRules: z.union([z.string(), z.array(z.string())]).optional().default([]),
+  environmentalRules: z
+    .union([z.string(), z.array(z.string())])
+    .optional()
+    .default([]),
   constraints: z.array(z.string()).optional().default([]),
   contentScale: z.number().optional().default(3),
-  contentLevelDescription: z.string().optional().default("Standard"),
-  
-  topology: z.object({
-    nodes: z.array(z.string()).optional().default([]),
-    connections: z.array(TopologyEdgeSchema).optional().default([])
-  }).optional().default({ nodes: [], connections: [] }),
+  contentLevelDescription: z.string().optional().default('Standard'),
+
+  topology: z
+    .object({
+      nodes: z.array(z.string()).optional().default([]),
+      connections: z.array(TopologyEdgeSchema).optional().default([]),
+    })
+    .optional()
+    .default({ nodes: [], connections: [] }),
   userCharacterId: z.string().optional(),
-  
-  setting: z.object({
-    location: z.string().optional().default("Unknown"),
-    atmosphere: z.string().optional().default(""),
-    timePeriod: z.string().optional().default("Present")
-  }).optional().default({ location: "Unknown", atmosphere: "", timePeriod: "Present" }),
-  
-  narrativeRules: z.object({
-    incitingIncident: z.string().optional().default(""),
-    phaseDirectives: z.any().optional().default({}),
-    currentTensionLevel: z.string().optional().default("buildup"),
-    keyPlotElements: z.array(z.string()).optional().default([]),
-    pacingDirectives: z.string().optional()
-  }).optional().default({ incitingIncident: "", phaseDirectives: {}, currentTensionLevel: "buildup", keyPlotElements: [] }),
-  
+
+  setting: z
+    .object({
+      location: z.string().optional().default('Unknown'),
+      atmosphere: z.string().optional().default(''),
+      timePeriod: z.string().optional().default('Present'),
+    })
+    .optional()
+    .default({ location: 'Unknown', atmosphere: '', timePeriod: 'Present' }),
+
+  narrativeRules: z
+    .object({
+      incitingIncident: z.string().optional().default(''),
+      phaseDirectives: z.any().optional().default({}),
+      currentTensionLevel: z.string().optional().default('buildup'),
+      keyPlotElements: z.array(z.string()).optional().default([]),
+      pacingDirectives: z.string().optional(),
+    })
+    .optional()
+    .default({
+      incitingIncident: '',
+      phaseDirectives: {},
+      currentTensionLevel: 'buildup',
+      keyPlotElements: [],
+    }),
+
   // Explicitly require an array of characters, but allow infinite length
-  cast: z.array(CastMemberSchema).min(1).optional().default(() => [{ id: '1', name: 'Unknown', description: '', role: 'Subject', personality: '', goals: '', traits: [], isUserCharacter: false, behaviorVector: 'ADAPTIVE', isEntity: false }]),
+  cast: z
+    .array(CastMemberSchema)
+    .min(1)
+    .optional()
+    .default(() => [
+      {
+        id: '1',
+        name: 'Unknown',
+        description: '',
+        role: 'Subject',
+        personality: '',
+        goals: '',
+        traits: [],
+        isUserCharacter: false,
+        behaviorVector: 'ADAPTIVE',
+        isEntity: false,
+      },
+    ]),
   characters: z.array(z.any()).optional().default([]),
-  
+
   // Safely default to an empty array.
   references: z.array(z.string()).optional().default([]),
-  
+
   perspectives: z.array(z.any()).optional().default([]),
-  terminalConditions: z.any().optional()
+  terminalConditions: z.any().optional(),
 });
 
 // For compatibility with previous types, though we augment them
@@ -148,8 +185,8 @@ export interface Attachment {
 }
 
 export interface ProseStyleVector {
-  sentenceStructure: "fragmented" | "staccato" | "compound-heavy" | "clinical-flat";
-  vocabularyTier: "visceral" | "archaic" | "clinical" | "colloquial";
+  sentenceStructure: 'fragmented' | 'staccato' | 'compound-heavy' | 'clinical-flat';
+  vocabularyTier: 'visceral' | 'archaic' | 'clinical' | 'colloquial';
   sensoryFocus: string[];
   thematicCore: string;
   forbiddenDevices: string[];
@@ -175,23 +212,23 @@ export interface CharacterProfile {
 export interface TerminalConditions {
   somaticTerminal: {
     fatalThresholdTags: string[]; // e.g., ["exsanguinated", "concussed_unconscious"]
-    narrativeResolution: string;   // The cold-archive text when physical shell fails
+    narrativeResolution: string; // The cold-archive text when physical shell fails
   };
   narrativeConvergence: {
-    requiredStateFlags: string[];  // e.g., ["grid_severed", "sacrifice_recorded"]
-    resolutionSequence: string;    // The pyrrhic closure description (e.g., the Mina Hark resolution)
+    requiredStateFlags: string[]; // e.g., ["grid_severed", "sacrifice_recorded"]
+    resolutionSequence: string; // The pyrrhic closure description (e.g., the Mina Hark resolution)
   };
   cognitiveCollapse: {
-    maxWebDensity: number;         // Threshold of reality-breaking entries before fracturing
-    collapseResolution: string;    // The text when the internal matrix shatters into the environment
+    maxWebDensity: number; // Threshold of reality-breaking entries before fracturing
+    collapseResolution: string; // The text when the internal matrix shatters into the environment
   };
 }
 
 export interface SubjectivePerspective {
   role: 'PROTAGONIST' | 'ANTAGONIST' | 'DIRECTOR';
-  framingDirective: string;     // Purely atmospheric/colorful instructions for the prose
-  sensoryBias: string[];        // What the engine should focus on visually/aurally
-  startingSemanticState: string;// The strict mechanical tag block for Turn 1
+  framingDirective: string; // Purely atmospheric/colorful instructions for the prose
+  sensoryBias: string[]; // What the engine should focus on visually/aurally
+  startingSemanticState: string; // The strict mechanical tag block for Turn 1
 }
 
 export interface ScenarioBlueprint {
@@ -316,58 +353,74 @@ export const EngineTurnContextSchema = z.object({
   version: z.literal(1).default(1),
   scenario: z.object({
     id: z.string().optional(),
-    title: z.string().default("Unknown Enclosure"),
-    premise: z.string().default(""),
+    title: z.string().default('Unknown Enclosure'),
+    premise: z.string().default(''),
     worldRules: z.array(z.string()).default([]),
     setting: z.object({
-      location: z.string().default("Unknown"),
-      atmosphere: z.string().default(""),
-      timePeriod: z.string().default("")
+      location: z.string().default('Unknown'),
+      atmosphere: z.string().default(''),
+      timePeriod: z.string().default(''),
     }),
-    startingVector: z.string().default("COGNITIVE"),
-    startingTier: z.string().default("LATENT"),
-    incitingIncident: z.string().default(""),
-    pacingDirective: z.string().default(""),
-    keyPlotElements: z.array(z.string()).default([])
+    startingVector: z.string().default('COGNITIVE'),
+    startingTier: z.string().default('LATENT'),
+    incitingIncident: z.string().default(''),
+    pacingDirective: z.string().default(''),
+    keyPlotElements: z.array(z.string()).default([]),
   }),
   player: z.object({
-    role: z.enum(["protagonist", "antagonist", "director", "witness", "possessed"]),
+    role: z.enum(['protagonist', 'antagonist', 'director', 'witness', 'possessed']),
     characterId: z.string().nullable().optional(),
-    name: z.string().default("Protagonist"),
-    description: z.string().default(""),
-    isEntity: z.boolean().default(false)
+    name: z.string().default('Protagonist'),
+    description: z.string().default(''),
+    isEntity: z.boolean().default(false),
   }),
-  cast: z.array(z.object({
-    id: z.string(),
-    name: z.string(),
-    role: z.string().default("Subject"),
-    description: z.string().default(""),
-    isEntity: z.boolean().default(false)
-  })).default([]),
+  cast: z
+    .array(
+      z.object({
+        id: z.string(),
+        name: z.string(),
+        role: z.string().default('Subject'),
+        description: z.string().default(''),
+        isEntity: z.boolean().default(false),
+      })
+    )
+    .default([]),
   topology: z.object({
     currentNodeId: z.string(),
     readableNodeLabel: z.string(),
-    allowedOutgoingExits: z.array(z.object({
-      from: z.string(),
-      to: z.string(),
-      kind: EdgeKindSchema,
-      requires: z.array(z.string()).optional(),
-      userInitiated: z.boolean().default(true)
-    })).default([])
+    allowedOutgoingExits: z
+      .array(
+        z.object({
+          from: z.string(),
+          to: z.string(),
+          kind: EdgeKindSchema,
+          requires: z.array(z.string()).optional(),
+          userInitiated: z.boolean().default(true),
+        })
+      )
+      .default([]),
   }),
   runtime: z.object({
-    phase: z.string().default("LATENT"),
+    phase: z.string().default('LATENT'),
     tension: z.number().default(0),
     coherence: z.number().default(1.0),
     reconciliationRevision: z.number().default(0),
-    activeVector: z.string().default("COGNITIVE"),
-    activeTier: z.string().default("LATENT")
-  })
+    activeVector: z.string().default('COGNITIVE'),
+    activeTier: z.string().default('LATENT'),
+  }),
 });
 
 export interface Message {
   id?: string;
-  role: 'user' | 'assistant' | 'voice' | 'system_cinematic' | 'system' | 'engine' | 'director' | 'narrative';
+  role:
+    | 'user'
+    | 'assistant'
+    | 'voice'
+    | 'system_cinematic'
+    | 'system'
+    | 'engine'
+    | 'director'
+    | 'narrative';
   content: string;
   timestamp: number;
   attachments?: Attachment[];
@@ -400,7 +453,10 @@ export interface CastLedgerEntry {
 export interface TelemetryState {
   tension: string;
   pacing: string;
-  castLedger: Array<CastLedgerEntry | { character_name: string; current_location: string; psychological_status: string }>;
+  castLedger: Array<
+    | CastLedgerEntry
+    | { character_name: string; current_location: string; psychological_status: string }
+  >;
   engineLogic: string;
 }
 
@@ -413,7 +469,11 @@ export interface DecayThreshold {
   maxSkepticism: number;
   minSkepticism: number;
   environmentalCoherence: number; // 1.0 = Rigidly Euclidean, 0.0 = Complete Void
-  narrativeDivergence: 'NONE' | 'LATENT_AMBIGUITY' | 'STRUCTURAL_DISTORTION' | 'TOPOLOGICAL_PARADOX';
+  narrativeDivergence:
+    | 'NONE'
+    | 'LATENT_AMBIGUITY'
+    | 'STRUCTURAL_DISTORTION'
+    | 'TOPOLOGICAL_PARADOX';
 }
 
 export interface DecayState {
@@ -458,19 +518,19 @@ export interface AppState {
   setCurrentNodeId: (nodeId: string) => void;
 }
 
-export type PlayerRole = "protagonist" | "antagonist" | "director" | "witness" | "possessed";
-export type PerspectiveMode = "embodied" | "entity_embodied" | "director" | "witness";
+export type PlayerRole = 'protagonist' | 'antagonist' | 'director' | 'witness' | 'possessed';
+export type PerspectiveMode = 'embodied' | 'entity_embodied' | 'director' | 'witness';
 
 export type NarrativeBlockType =
-  | "exposition"
-  | "dialogue"
-  | "sensory"
-  | "system_alert"
-  | "system_voice"
-  | "prose"
-  | "environmental_description"
-  | "internal_monologue"
-  | "TRANSITION_REJECTED";
+  | 'exposition'
+  | 'dialogue'
+  | 'sensory'
+  | 'system_alert'
+  | 'system_voice'
+  | 'prose'
+  | 'environmental_description'
+  | 'internal_monologue'
+  | 'TRANSITION_REJECTED';
 
 export interface NarrativeBlock {
   id?: string;
@@ -497,7 +557,7 @@ export interface LogicState {
   terminal_flags?: string[];
   escalation_state?: string;
   intent_classification?: string;
-  intent_synergy?: "SUCCESS" | "FAILURE" | "N/A";
+  intent_synergy?: 'SUCCESS' | 'FAILURE' | 'N/A';
   cast_ledger?: CastLedgerEntry[];
   cast_deltas?: Array<{
     character_id: string;
@@ -572,10 +632,15 @@ export interface BicameralOutput {
 }
 
 // --- CORE DEFINITIONS ---
-export type EnginePhase = "LATENT" | "MANIFEST" | "TERMINAL";
-export type EdgeAuthority = "user" | "engine" | "system";
-export type TransitionSource = "user_command" | "llm_request" | "engine_rule" | "system_script";
-export type NarrativeVelocity = "slow_burn" | "tightening" | "accelerating" | "fever_pitch" | "terminal_sprint";
+export type EnginePhase = 'LATENT' | 'MANIFEST' | 'TERMINAL';
+export type EdgeAuthority = 'user' | 'engine' | 'system';
+export type TransitionSource = 'user_command' | 'llm_request' | 'engine_rule' | 'system_script';
+export type NarrativeVelocity =
+  | 'slow_burn'
+  | 'tightening'
+  | 'accelerating'
+  | 'fever_pitch'
+  | 'terminal_sprint';
 
 export interface BlueprintNode {
   id: string;
@@ -598,7 +663,15 @@ export interface CampaignEdge {
   id: string;
   fromActId: string;
   toActId: string;
-  kind: "clean_cut" | "sequel_continuity" | "screen_memory" | "trauma_bridge" | "temporal_jump" | "possession_shift" | "terminal_ejection" | "contamination_breach";
+  kind:
+    | 'clean_cut'
+    | 'sequel_continuity'
+    | 'screen_memory'
+    | 'trauma_bridge'
+    | 'temporal_jump'
+    | 'possession_shift'
+    | 'terminal_ejection'
+    | 'contamination_breach';
   triggerFlags: string[];
   targetEntryNodeId?: string;
   authority: EdgeAuthority;
@@ -625,7 +698,7 @@ export interface ActTransitionTransaction {
   sourceBlueprintId: string;
   sourceStartRevision: number;
   sourceEndRevision: number;
-  status: "requested" | "distilling" | "distilled" | "committing" | "committed" | "failed";
+  status: 'requested' | 'distilling' | 'distilled' | 'committing' | 'committed' | 'failed';
 }
 
 export interface TemporalShiftReceipt {
@@ -641,14 +714,19 @@ export interface TemporalShiftReceipt {
 export interface IdentityTransition {
   fromCharacterId: string;
   toCharacterId: string;
-  kind: "perspective_cut" | "possession" | "revelation" | "identity_erasure";
+  kind: 'perspective_cut' | 'possession' | 'revelation' | 'identity_erasure';
   authority: EdgeAuthority;
   triggerFlags: string[];
 }
 
 // --- MEMORY & CARRYOVER ---
-export type TraumaScope = "local_act" | "campaign" | "contamination" | "quarantined";
-export type TraumaVisibility = "hidden" | "somatic_echo" | "symbolic_motif" | "vague_memory" | "explicit_recollection";
+export type TraumaScope = 'local_act' | 'campaign' | 'contamination' | 'quarantined';
+export type TraumaVisibility =
+  | 'hidden'
+  | 'somatic_echo'
+  | 'symbolic_motif'
+  | 'vague_memory'
+  | 'explicit_recollection';
 
 export interface TraumaEntry {
   id: string;
@@ -673,8 +751,8 @@ export interface CarryoverPacket {
   allowedMotifs: string[];
   forbiddenNames: string[];
   forbiddenPlaces: string[];
-  revealMode: "subconscious" | "symbolic" | "literal";
-  revealRate: "none" | "slow" | "moderate" | "aggressive";
+  revealMode: 'subconscious' | 'symbolic' | 'literal';
+  revealRate: 'none' | 'slow' | 'moderate' | 'aggressive';
 }
 
 // --- STATE SCHISM (RUNTIME) ---
@@ -701,8 +779,8 @@ export interface CampaignRuntimeState {
   currentActId: string;
   traumaLedger: TraumaEntry[];
   motifLedger: Record<string, number>;
-  globalFlags: string[]; 
-  suspendedActs: Record<string, Partial<ActRuntimeState>>; 
+  globalFlags: string[];
+  suspendedActs: Record<string, Partial<ActRuntimeState>>;
 }
 
 export interface PlayerContinuity {
@@ -713,7 +791,7 @@ export interface PlayerContinuity {
 export interface CharacterIdentity {
   actId: string;
   activeCharacterId: string;
-  perspectiveRole: "protagonist" | "witness" | "antagonist" | "possessed";
+  perspectiveRole: 'protagonist' | 'witness' | 'antagonist' | 'possessed';
 }
 
 export interface NodeDecayState {
@@ -726,14 +804,14 @@ export interface NodeDecayState {
 // --- PHASE V: MEMORY SCHISM ---
 
 export interface SystemLogicIntervention {
-  type: "state_collision" | "narrative_override" | "engine_rule";
+  type: 'state_collision' | 'narrative_override' | 'engine_rule';
   trigger: string;
   mutation: string;
   directive_injected?: boolean;
 }
 
 export interface PerspectiveShiftReceipt {
-  type: "perspective_shift";
+  type: 'perspective_shift';
   previousRole: PlayerRole;
   nextRole: PlayerRole;
   previousCharacterId: string | null;
@@ -745,7 +823,7 @@ export interface PerspectiveShiftReceipt {
 
 export interface UITranscriptMessage {
   id: string;
-  role: "user" | "system" | "narrative" | "director";
+  role: 'user' | 'system' | 'narrative' | 'director';
   content: string;
   systemLogic?: SystemLogicIntervention[];
   isEdited?: boolean;

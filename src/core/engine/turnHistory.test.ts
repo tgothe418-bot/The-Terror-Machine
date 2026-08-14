@@ -24,8 +24,8 @@ const frame = {
     castCount: 1,
     worldRuleCount: 1,
     topologyNodeCount: 1,
-    topologyConnectionCount: 0
-  }
+    topologyConnectionCount: 0,
+  },
 };
 
 describe('turn history recording', () => {
@@ -54,7 +54,7 @@ describe('turn history recording', () => {
         logic_state: frame.logic_state,
         topologyDelta: frame.topologyDelta,
         validation: frame.validation,
-        contextReceipt: frame.contextReceipt
+        contextReceipt: frame.contextReceipt,
       },
     });
 
@@ -73,7 +73,7 @@ describe('turn history recording', () => {
       timestamp: 99,
       logic_state: frame.logic_state,
       topologyDelta: frame.topologyDelta,
-      contextReceipt: frame.contextReceipt
+      contextReceipt: frame.contextReceipt,
     });
   });
 });

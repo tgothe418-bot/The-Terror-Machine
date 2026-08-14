@@ -1,5 +1,22 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { create } from 'zustand';
-import { AppPhase, SpatialNode, TelemetryState, CampaignManifest, CarryoverPacket, TemporalShiftReceipt, NarrativeVelocity, UITranscriptMessage, TurnSnapshot, PerspectiveShiftReceipt, Message, PlayerRole, RatifiedEngineFrame, NarrativeBlock, TopologyEdge } from '../types';
+import {
+  AppPhase,
+  SpatialNode,
+  TelemetryState,
+  CampaignManifest,
+  CarryoverPacket,
+  TemporalShiftReceipt,
+  NarrativeVelocity,
+  UITranscriptMessage,
+  TurnSnapshot,
+  PerspectiveShiftReceipt,
+  Message,
+  PlayerRole,
+  RatifiedEngineFrame,
+  NarrativeBlock,
+  TopologyEdge,
+} from '../types';
 import { EngineEvent } from '../core/engine/events';
 import { engineReducer, initialEngineState, EngineState } from '../core/engine/reducer';
 import { compileRuntimeTopology } from '../lib/compileRuntimeTopology';
@@ -8,7 +25,7 @@ export interface AppStore extends EngineState {
   isTransitioning: boolean;
   activeCampaign: CampaignManifest | null;
   currentActId: string | null;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   suspendedActs: Record<string, any>;
   narrativeVelocity: NarrativeVelocity;
 
@@ -38,14 +55,14 @@ export interface AppStore extends EngineState {
     divergenceMode: string;
   };
   updateDecayMetrics: (skepticism: number) => void;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   compileTopology: (forgeTopology: any, startNodeId: string) => void;
   triggerShatter: () => void;
   setCurrentNodeId: (nodeId: string) => void;
   dispatch: (event: EngineEvent) => void;
 
   isGenerating: boolean;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   injectGeneratedNode: (sourceNodeId: string, exitDirection: string, newNodeDef: any) => void;
   currentPhase: string;
   tensionLevel: number;
@@ -60,8 +77,8 @@ export const useAppStore = create<AppStore>((set) => ({
   activeCampaign: null,
   currentActId: null,
   suspendedActs: {},
-  narrativeVelocity: "slow_burn" as NarrativeVelocity,
-  
+  narrativeVelocity: 'slow_burn' as NarrativeVelocity,
+
   reconciliationRevision: 0,
   uiTranscript: [],
   enginePayload: [],
@@ -76,7 +93,7 @@ export const useAppStore = create<AppStore>((set) => ({
   executeTemporalShift: () => {},
   loadCampaignManifest: (manifest: CampaignManifest) => set({ activeCampaign: manifest }),
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   setPhase: (phase: AppPhase | string) => set({ phase: phase as any }),
   telemetry: null,
   setTelemetry: (telemetry: TelemetryState) => set({ telemetry }),
@@ -85,74 +102,77 @@ export const useAppStore = create<AppStore>((set) => ({
   decayMetrics: {
     currentStage: 'STABLE',
     coherenceRating: 1.0,
-    divergenceMode: 'NONE'
+    divergenceMode: 'NONE',
   },
   updateDecayMetrics: () => {},
-  compileTopology: (forgeTopology?: { nodes?: string[]; connections?: TopologyEdge[] }, startNodeId?: string) => set((state) => {
-    const compiled = compileRuntimeTopology({ topology: forgeTopology });
-    return {
-      spatialGraph: compiled.spatialGraph,
-      currentNodeId: startNodeId || compiled.startNodeId || state.currentNodeId
-    };
-  }),
+  compileTopology: (
+    forgeTopology?: { nodes?: string[]; connections?: TopologyEdge[] },
+    startNodeId?: string
+  ) =>
+    set((state) => {
+      const compiled = compileRuntimeTopology({ topology: forgeTopology });
+      return {
+        spatialGraph: compiled.spatialGraph,
+        currentNodeId: startNodeId || compiled.startNodeId || state.currentNodeId,
+      };
+    }),
   triggerShatter: () => set({ isShattered: true }),
   setCurrentNodeId: (nodeId: string) => set({ currentNodeId: nodeId }),
   dispatch: (event: EngineEvent) => set((state) => engineReducer(state, event)),
 
   isGenerating: false,
-  currentPhase: "INIT",
+  currentPhase: 'INIT',
   tensionLevel: 0,
   storyLog: [],
 
   setGenerating: (status: boolean) => set({ isGenerating: status }),
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  injectGeneratedNode: (sourceNodeId: string, exitDirection: string, newNodeDef: any) => set((state) => {
-    if (!state.spatialGraph) return state;
-    
-    // Create actual SpatialNode from newNodeDef
-    const newNode: SpatialNode = {
-      id: newNodeDef.id,
-      name: newNodeDef.geometry || "Unmapped Region",
-      description: newNodeDef.hazards?.join(' ') || "",
-      connectedNodes: [],
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      exits: newNodeDef.exitVectors?.map((ev: any) => ({
-        targetNodeId: ev.targetNodeId,
-        description: ev.direction,
-        isOpen: true
-      })) || []
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } as any;
-    
-    const updatedGraph = state.spatialGraph.map(node => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      if (node.id === sourceNodeId && (node as any).exits) {
-        return {
-          ...node,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          exits: (node as any).exits.map((exit: any) => {
-            if (exit.description === exitDirection) {
-              return { ...exit, targetNodeId: newNodeDef.id };
-            }
-            return exit;
-          })
-        };
-      }
-      return node;
-    });
-    
-    return {
-      spatialGraph: [...updatedGraph, newNode],
-      currentNodeId: newNodeDef.id
-    };
-  }),
+   
+  injectGeneratedNode: (sourceNodeId: string, exitDirection: string, newNodeDef: any) =>
+    set((state) => {
+      if (!state.spatialGraph) return state;
 
-  processRatifiedFrame: (frame: RatifiedEngineFrame) => set((state) => ({
-    // Append new narrative blocks to the continuous history
-    storyLog: [...state.storyLog, ...frame.narrative_blocks],
-    // Atomically sync the logic state
-    currentPhase: frame.logic_state.current_phase,
-    tensionLevel: frame.logic_state.suggested_tension,
-    // Note: requested_transition and terminal_flags handling can be routed to telemetry
-  }))
+      // Create actual SpatialNode from newNodeDef
+      const newNode: SpatialNode = {
+        id: newNodeDef.id,
+        name: newNodeDef.geometry || 'Unmapped Region',
+        description: newNodeDef.hazards?.join(' ') || '',
+        connectedNodes: [],
+        exits:
+          newNodeDef.exitVectors?.map((ev: any) => ({
+            targetNodeId: ev.targetNodeId,
+            description: ev.direction,
+            isOpen: true,
+          })) || [],
+      } as any;
+
+      const updatedGraph = state.spatialGraph.map((node) => {
+        if (node.id === sourceNodeId && (node as any).exits) {
+          return {
+            ...node,
+            exits: (node as any).exits.map((exit: any) => {
+              if (exit.description === exitDirection) {
+                return { ...exit, targetNodeId: newNodeDef.id };
+              }
+              return exit;
+            }),
+          };
+        }
+        return node;
+      });
+
+      return {
+        spatialGraph: [...updatedGraph, newNode],
+        currentNodeId: newNodeDef.id,
+      };
+    }),
+
+  processRatifiedFrame: (frame: RatifiedEngineFrame) =>
+    set((state) => ({
+      // Append new narrative blocks to the continuous history
+      storyLog: [...state.storyLog, ...frame.narrative_blocks],
+      // Atomically sync the logic state
+      currentPhase: frame.logic_state.current_phase,
+      tensionLevel: frame.logic_state.suggested_tension,
+      // Note: requested_transition and terminal_flags handling can be routed to telemetry
+    })),
 }));

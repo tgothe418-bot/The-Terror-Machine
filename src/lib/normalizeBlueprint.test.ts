@@ -107,9 +107,7 @@ describe('normalizeBlueprint', () => {
       identity: { title: 'Malformed Intent' },
       topology: {
         nodes: ['N1', 'N2'],
-        connections: [
-          { from: 'N1', to: 'N2', kind: 'PHYSICAL', userInitiated: 'not-a-boolean' },
-        ],
+        connections: [{ from: 'N1', to: 'N2', kind: 'PHYSICAL', userInitiated: 'not-a-boolean' }],
       },
     };
 
@@ -136,7 +134,10 @@ describe('normalizeBlueprint', () => {
     it.each([
       ['identity: 42', { identity: 42 }],
       ['identity: []', { identity: [] }],
-      ['identity: { title: 42 } with valid top-level title', { title: 'Valid Title', identity: { title: 42 } }],
+      [
+        'identity: { title: 42 } with valid top-level title',
+        { title: 'Valid Title', identity: { title: 42 } },
+      ],
       ['topology: "bad"', { topology: 'bad' }],
       ['topology: null', { topology: null }],
       ['topology: { connections: "bad" }', { topology: { connections: 'bad' } }],
@@ -144,8 +145,14 @@ describe('normalizeBlueprint', () => {
       ['title: 99', { title: 99 }],
       ['premise: { bad: true }', { premise: { bad: true } }],
       ['globalPremise: 99', { globalPremise: 99 }],
-      ['connection kind: 42', { topology: { connections: [{ from: 'A', to: 'B', kind: 42, userInitiated: true }] } }],
-      ['connection kind: null', { topology: { connections: [{ from: 'A', to: 'B', kind: null, userInitiated: true }] } }],
+      [
+        'connection kind: 42',
+        { topology: { connections: [{ from: 'A', to: 'B', kind: 42, userInitiated: true }] } },
+      ],
+      [
+        'connection kind: null',
+        { topology: { connections: [{ from: 'A', to: 'B', kind: null, userInitiated: true }] } },
+      ],
     ])('rejects explicitly malformed %s', (_, raw) => {
       expect(() => normalizeBlueprint(raw)).toThrow(ZodError);
     });

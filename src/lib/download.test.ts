@@ -15,7 +15,7 @@ const mockReceipt = {
   castCount: 3,
   worldRuleCount: 2,
   topologyNodeCount: 4,
-  topologyConnectionCount: 3
+  topologyConnectionCount: 3,
 };
 
 const messages = [
@@ -23,7 +23,7 @@ const messages = [
     role: 'user',
     content: 'I test the latch.',
     timestamp: 1,
-    userCharacterName: 'Marcus Vance'
+    userCharacterName: 'Marcus Vance',
   },
   {
     role: 'assistant',
@@ -38,13 +38,13 @@ const messages = [
     },
     topologyDelta: { isExpansion: false },
     validation: { accepted: true },
-    contextReceipt: mockReceipt
+    contextReceipt: mockReceipt,
   },
   {
     role: 'user',
     content: 'I inspect the eastern seam.',
     timestamp: 3,
-    userCharacterName: 'Marcus Vance'
+    userCharacterName: 'Marcus Vance',
   },
 ];
 

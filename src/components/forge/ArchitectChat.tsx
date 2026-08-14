@@ -5,12 +5,12 @@ export const ArchitectChat = () => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { updateDraft, addArchitectMessage } = forgeActions;
-  
-  const messages = useForgeState(state => state.architectMessages);
+
+  const messages = useForgeState((state) => state.architectMessages);
 
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return;
-    
+
     const userMsg: ArchitectMessage = { role: 'user', content: input };
     addArchitectMessage(userMsg);
     setInput('');
@@ -22,11 +22,11 @@ export const ArchitectChat = () => {
       const response = await fetch('/api/architect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ history: newHistory })
+        body: JSON.stringify({ history: newHistory }),
       });
-      
+
       const data = await response.json();
-      
+
       addArchitectMessage({ role: 'architect', content: data.text });
 
       // CRITICAL: Auto-fill the Forge form if the Architect compiled a blueprint
@@ -34,7 +34,7 @@ export const ArchitectChat = () => {
         updateDraft({
           ...data.compiledBlueprint,
           title: data.compiledBlueprint.identity?.title || data.compiledBlueprint.title,
-          premise: data.compiledBlueprint.globalPremise || data.compiledBlueprint.premise
+          premise: data.compiledBlueprint.globalPremise || data.compiledBlueprint.premise,
         });
       }
     } catch (error) {
@@ -56,8 +56,8 @@ export const ArchitectChat = () => {
         {isLoading && <div className="text-zinc-700">Architect is thinking...</div>}
       </div>
       <div className="p-2 border-t border-zinc-800 flex">
-        <input 
-          type="text" 
+        <input
+          type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && sendMessage()}

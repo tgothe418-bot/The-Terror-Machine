@@ -5,19 +5,21 @@ import { RatifiedEngineFrame } from '../../types';
 
 describe('State separation and history preservation', () => {
   it('does not mutate current state until explicit action dispatch', () => {
-    const state: EngineState = { ...initialEngineState, currentNodeId: 'START_NODE', phase: 'LATENT' };
+    const state: EngineState = {
+      ...initialEngineState,
+      currentNodeId: 'START_NODE',
+      phase: 'LATENT',
+    };
 
     // Simulating turn frame computation outside the store
     const hypotheticalFrame: RatifiedEngineFrame = {
       engine_thoughts: 'Player attempts to examine the locked iron gate.',
-      narrative_blocks: [
-        { type: 'prose', content: 'The iron gate is cold to the touch.' }
-      ],
+      narrative_blocks: [{ type: 'prose', content: 'The iron gate is cold to the touch.' }],
       logic_state: {
         current_phase: 'MANIFEST',
         suggested_tension: 4,
         intent_classification: 'INSPECT',
-        terminal_flags: []
+        terminal_flags: [],
       },
       topologyDelta: {
         isExpansion: true,
@@ -25,14 +27,14 @@ describe('State separation and history preservation', () => {
           id: 'NODE_GATEWAY',
           geometry: 'Iron Gateway',
           hazards: [],
-          exitVectors: []
-        }
+          exitVectors: [],
+        },
       },
       validation: {
         accepted: true,
         rejected_fields: [],
-        repair_notes: []
-      }
+        repair_notes: [],
+      },
     };
 
     // Before dispatch, state remains untouched
@@ -43,7 +45,7 @@ describe('State separation and history preservation', () => {
     // Dispatching user action
     const userEvent: EngineEvent = {
       type: 'USER_ACTION',
-      payload: 'Examine gate'
+      payload: 'Examine gate',
     };
     const stateAfterUser = engineReducer(state, userEvent);
     expect(stateAfterUser.history).toHaveLength(1);
@@ -55,7 +57,7 @@ describe('State separation and history preservation', () => {
       type: 'TURN_SUBMITTED',
       turnId: 'turn_101',
       text: 'Examine gate',
-      timestamp: 1000
+      timestamp: 1000,
     };
     const stateAfterTurn = engineReducer(stateAfterUser, turnEvent);
     expect(stateAfterTurn.turnCount).toBe(1);
@@ -64,7 +66,7 @@ describe('State separation and history preservation', () => {
     const frameEvent: EngineEvent = {
       type: 'FRAME_RATIFIED',
       turnId: 'turn_101',
-      frame: hypotheticalFrame
+      frame: hypotheticalFrame,
     };
     const stateAfterFrame = engineReducer(stateAfterTurn, frameEvent);
 
@@ -85,7 +87,7 @@ describe('State separation and history preservation', () => {
           current_phase: 'MANIFEST',
           suggested_tension: 5,
           intent_classification: 'TRANSITION',
-          terminal_flags: []
+          terminal_flags: [],
         },
         topologyDelta: {
           isExpansion: true,
@@ -93,15 +95,15 @@ describe('State separation and history preservation', () => {
             id: 'NODE_COURTYARD',
             geometry: 'Foggy Courtyard',
             hazards: ['chilling_mist'],
-            exitVectors: [{ direction: 'SOUTH', targetNodeId: 'START_NODE' }]
-          }
+            exitVectors: [{ direction: 'SOUTH', targetNodeId: 'START_NODE' }],
+          },
         },
         validation: {
           accepted: true,
           rejected_fields: [],
-          repair_notes: ['Edge auto-ratified']
-        }
-      }
+          repair_notes: ['Edge auto-ratified'],
+        },
+      },
     };
 
     const state = engineReducer(initialEngineState, addMessageEvent);

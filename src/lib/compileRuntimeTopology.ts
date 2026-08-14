@@ -37,12 +37,12 @@ export function compileRuntimeTopology(
       name: fallbackName,
       description: fallbackDesc,
       connectedNodes: [],
-      exits: []
+      exits: [],
     };
 
     return {
       spatialGraph: [fallbackNode],
-      startNodeId: fallbackId
+      startNodeId: fallbackId,
     };
   }
 
@@ -57,7 +57,7 @@ export function compileRuntimeTopology(
       isOpen: true,
       kind: conn.kind || 'PHYSICAL',
       requires: conn.requires && conn.requires.length > 0 ? conn.requires : undefined,
-      userInitiated: conn.userInitiated !== false
+      userInitiated: conn.userInitiated !== false,
     }));
 
     return {
@@ -65,12 +65,12 @@ export function compileRuntimeTopology(
       name: nodeId.replace(/_/g, ' '),
       description: '',
       connectedNodes,
-      exits
+      exits,
     };
   });
 
   return {
     spatialGraph,
-    startNodeId: nodes[0]
+    startNodeId: nodes[0],
   };
 }

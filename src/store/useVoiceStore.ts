@@ -23,7 +23,7 @@ export const useVoiceStore = create<VoiceState>()(
           role: 'voice',
           content: "Hello. I'm The Voice. I'm here to listen and chat. What's on your mind?",
           timestamp: Date.now(),
-        }
+        },
       ],
       addMessage: (message) =>
         set((state) => ({
@@ -33,15 +33,17 @@ export const useVoiceStore = create<VoiceState>()(
         set((state) => ({
           messages: [...state.messages, { role: 'voice', content, timestamp: Date.now() }],
         })),
-      clearHistory: () => set({ 
-        messages: [
-          {
-            role: 'voice',
-            content: "Memory cleared. I'm ready to start our conversation fresh. What's on your mind?",
-            timestamp: Date.now(),
-          }
-        ] 
-      }),
+      clearHistory: () =>
+        set({
+          messages: [
+            {
+              role: 'voice',
+              content:
+                "Memory cleared. I'm ready to start our conversation fresh. What's on your mind?",
+              timestamp: Date.now(),
+            },
+          ],
+        }),
     }),
     {
       name: 'the-voice-memory',

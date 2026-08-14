@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { normalizeBlueprint } from './normalizeBlueprint';
 import { resolvePerspectiveBinding } from '../core/store';
 import { Blueprint, EdgeKind, EngineTurnContext, ContextReceipt, PlayerRole } from '../types';
@@ -22,7 +23,7 @@ export interface BuildEngineTurnContextOptions {
 export function buildEngineTurnContext({
   blueprint,
   selectedRole = 'protagonist',
-  runtimeState = {}
+  runtimeState = {},
 }: BuildEngineTurnContextOptions): EngineTurnContext {
   const normBp: Blueprint = normalizeBlueprint(blueprint);
   const effectiveRole = (selectedRole as PlayerRole) || 'protagonist';
@@ -33,9 +34,7 @@ export function buildEngineTurnContext({
     const trimmed = normBp.environmentalRules.trim();
     if (trimmed) worldRules = [trimmed];
   } else if (Array.isArray(normBp.environmentalRules)) {
-    worldRules = normBp.environmentalRules
-      .map((r) => String(r).trim())
-      .filter((r) => r.length > 0);
+    worldRules = normBp.environmentalRules.map((r) => String(r).trim()).filter((r) => r.length > 0);
   }
 
   // 2. Player identity
@@ -79,7 +78,7 @@ export function buildEngineTurnContext({
     name: c.name || 'Unknown',
     role: c.role || 'Subject',
     description: c.description || '',
-    isEntity: Boolean(c.isEntity)
+    isEntity: Boolean(c.isEntity),
   }));
 
   // 4. Topology boundary
@@ -94,7 +93,7 @@ export function buildEngineTurnContext({
       to: conn.to,
       kind: (conn.kind as EdgeKind) || 'PHYSICAL',
       requires: conn.requires && conn.requires.length > 0 ? conn.requires : undefined,
-      userInitiated: conn.userInitiated !== false
+      userInitiated: conn.userInitiated !== false,
     }));
 
   // 5. Runtime conditions
@@ -103,7 +102,10 @@ export function buildEngineTurnContext({
   const phase = runtimeState.phase || 'LATENT';
   const tension = typeof runtimeState.tension === 'number' ? runtimeState.tension : 0;
   const coherence = typeof runtimeState.coherence === 'number' ? runtimeState.coherence : 1.0;
-  const reconciliationRevision = typeof runtimeState.reconciliationRevision === 'number' ? runtimeState.reconciliationRevision : 0;
+  const reconciliationRevision =
+    typeof runtimeState.reconciliationRevision === 'number'
+      ? runtimeState.reconciliationRevision
+      : 0;
 
   return {
     version: 1,
@@ -115,29 +117,29 @@ export function buildEngineTurnContext({
       setting: {
         location: normBp.setting?.location || 'Unknown',
         atmosphere: normBp.setting?.atmosphere || '',
-        timePeriod: normBp.setting?.timePeriod || ''
+        timePeriod: normBp.setting?.timePeriod || '',
       },
       startingVector: normBp.startingVector || 'COGNITIVE',
       startingTier: normBp.startingTier || 'LATENT',
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      incitingIncident: normBp.narrativeRules?.incitingIncident || (normBp as any).incitingIncident || '',
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      pacingDirective: normBp.narrativeRules?.pacingDirectives || (normBp as any).pacingDirectives || '',
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      keyPlotElements: normBp.narrativeRules?.keyPlotElements || (normBp as any).keyPlotElements || []
+      incitingIncident:
+        normBp.narrativeRules?.incitingIncident || (normBp as any).incitingIncident || '',
+      pacingDirective:
+        normBp.narrativeRules?.pacingDirectives || (normBp as any).pacingDirectives || '',
+      keyPlotElements:
+        normBp.narrativeRules?.keyPlotElements || (normBp as any).keyPlotElements || [],
     },
     player: {
       role: playerRole,
       characterId: characterId || null,
       name: playerName,
       description: playerDescription,
-      isEntity: playerIsEntity
+      isEntity: playerIsEntity,
     },
     cast,
     topology: {
       currentNodeId,
       readableNodeLabel,
-      allowedOutgoingExits
+      allowedOutgoingExits,
     },
     runtime: {
       phase,
@@ -145,8 +147,8 @@ export function buildEngineTurnContext({
       coherence,
       reconciliationRevision,
       activeVector,
-      activeTier
-    }
+      activeTier,
+    },
   };
 }
 
@@ -158,7 +160,7 @@ export function buildContextReceipt(
   let topologyConnectionCount = 0;
 
   if (rawOrNormalizedBlueprint && typeof rawOrNormalizedBlueprint === 'object') {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     const bp = rawOrNormalizedBlueprint as any;
     topologyNodeCount = bp.topology?.nodes?.length || 0;
     topologyConnectionCount = bp.topology?.connections?.length || 0;
@@ -178,6 +180,6 @@ export function buildContextReceipt(
     castCount: context.cast.length,
     worldRuleCount: context.scenario.worldRules.length,
     topologyNodeCount,
-    topologyConnectionCount
+    topologyConnectionCount,
   };
 }

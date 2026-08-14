@@ -14,6 +14,11 @@ import {
   MemoryForgeRequestSchema,
   ExtractBlueprintRequestSchema
 } from "../schemas/index";
+import {
+  REFERENCE_IMPORT_MAX_FILE_BYTES,
+  getDecodedBase64ByteLength,
+  createPayloadTooLargeError
+} from "../../src/lib/referenceImportPolicy";
 
 const router = express.Router();
 
@@ -329,8 +334,11 @@ router.post("/extract-blueprint", async (req, res) => {
 
   try {
     const { base64Data, mimeType, fileName } = parsedBody.data;
-    if (!base64Data || !mimeType) {
-      return res.status(400).json({ error: "Missing document data or mimeType." });
+
+    // Independent server-side decoded size check
+    const decodedByteLength = getDecodedBase64ByteLength(base64Data);
+    if (decodedByteLength > REFERENCE_IMPORT_MAX_FILE_BYTES) {
+      return res.status(413).json(createPayloadTooLargeError());
     }
 
     const extractionPrompt = `

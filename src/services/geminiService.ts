@@ -1,33 +1,47 @@
-import { Message, ScenarioBlueprint, BicameralOutput, LogicState, ProseStyleVector, ForgePhase, ReferenceMaterial, ExtractedLore, AppPhase, SystemLogicIntervention } from "../types";
+import {
+  Message,
+  ScenarioBlueprint,
+  BicameralOutput,
+  LogicState,
+  ProseStyleVector,
+  ForgePhase,
+  ReferenceMaterial,
+  ExtractedLore,
+  AppPhase,
+  SystemLogicIntervention,
+} from '../types';
 import { getForgeState } from '../store/useForgeStore';
-import { DISTILLATION_SYSTEM_PROMPT, DISTILLATION_PROMPT } from "../core/prompts/distillation";
+import { DISTILLATION_SYSTEM_PROMPT, DISTILLATION_PROMPT } from '../core/prompts/distillation';
 
 let currentMemoryForgeController: AbortController | null = null;
 
 export const generateCinematicSummary = async (excisedMessages: Message[]): Promise<string> => {
   const conversationText = excisedMessages
-    .map(m => `${m.role === 'user' ? 'SUBJECT' : 'ENGINE'}: ${m.content}`)
+    .map((m) => `${m.role === 'user' ? 'SUBJECT' : 'ENGINE'}: ${m.content}`)
     .join('\n\n');
 
   try {
     const response = await fetch('/api/gemini/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        prompt: `${DISTILLATION_PROMPT}\n${conversationText}` 
-      })
+      body: JSON.stringify({
+        prompt: `${DISTILLATION_PROMPT}\n${conversationText}`,
+      }),
     });
-    
+
     if (!response.ok) throw new Error('Distillation failed');
     const data = await response.json();
     return data.text;
   } catch (error) {
-    console.error("[DISTILLATION ERROR] Falling back to static marker.", error);
-    return "The timeline fractures, memories compressing into a dense, inescapable dread. Time dilates, stripping away the immediate past to leave only the heavy, somatic weight of what has already transpired.";
+    console.error('[DISTILLATION ERROR] Falling back to static marker.', error);
+    return 'The timeline fractures, memories compressing into a dense, inescapable dread. Time dilates, stripping away the immediate past to leave only the heavy, somatic weight of what has already transpired.';
   }
 };
 
-export const distillContext = async (currentSummary: string, flattenedTranscript: string): Promise<string> => {
+export const distillContext = async (
+  currentSummary: string,
+  flattenedTranscript: string
+): Promise<string> => {
   try {
     const response = await fetch('/api/distill', {
       method: 'POST',
@@ -35,17 +49,17 @@ export const distillContext = async (currentSummary: string, flattenedTranscript
       body: JSON.stringify({
         systemPrompt: DISTILLATION_SYSTEM_PROMPT,
         currentSummary,
-        flattenedTranscript
-      })
+        flattenedTranscript,
+      }),
     });
 
     if (!response.ok) throw new Error('Distillation sequence failed.');
-    
+
     const data = await response.json();
     return data.summary;
   } catch (error) {
     console.error('// DISTILLATION CORE ERROR //', error);
-    return currentSummary; 
+    return currentSummary;
   }
 };
 
@@ -55,9 +69,9 @@ export const triggerMemoryForge = async (chatHistory: string, dispatchedAtRevisi
       currentMemoryForgeController.abort();
     }
     currentMemoryForgeController = new AbortController();
-    
-    console.log("[MEMORY FORGE] Initiating Context Distillation...");
-    
+
+    console.log('[MEMORY FORGE] Initiating Context Distillation...');
+
     // We can use the existing /api/distill or create a new one. Wait, we might need a dedicated endpoint or we can use a generic chat endpoint.
     // Let's create an endpoint or just use /api/chat with a simple payload?
     // Let's put a fetch to /api/memory-forge
@@ -66,54 +80,60 @@ export const triggerMemoryForge = async (chatHistory: string, dispatchedAtRevisi
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         systemPrompt: DISTILLATION_SYSTEM_PROMPT,
-        chatHistory
+        chatHistory,
       }),
-      signal: currentMemoryForgeController.signal
+      signal: currentMemoryForgeController.signal,
     });
 
     if (!response.ok) throw new Error('Memory Forge failed.');
-    
+
     const parsed = await response.json();
-    
+
     const appStoreMod = await import('../store/useAppStore');
     const appStore = appStoreMod.useAppStore.getState();
-    appStore.dispatch({ 
-      type: 'ACT_DISTILLED', 
-      trauma: parsed.enduring_trauma || [], 
-      summary: parsed.act_summary || "The void shifts, remembering nothing.",
+    appStore.dispatch({
+      type: 'ACT_DISTILLED',
+      trauma: parsed.enduring_trauma || [],
+      summary: parsed.act_summary || 'The void shifts, remembering nothing.',
       dispatchedAtRevision,
-      sessionId: appStore.sessionId || "unknown"
+      sessionId: appStore.sessionId || 'unknown',
     });
-    
-    console.log("[MEMORY FORGE] Distillation Complete. Context cleared.");
+
+    console.log('[MEMORY FORGE] Distillation Complete. Context cleared.');
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
-      console.log("[MEMORY FORGE] Distillation aborted by newer user turn.");
+      console.log('[MEMORY FORGE] Distillation aborted by newer user turn.');
     } else {
-      console.error("[MEMORY FORGE] Distillation failed:", error);
+      console.error('[MEMORY FORGE] Distillation failed:', error);
     }
   } finally {
     currentMemoryForgeController = null;
   }
 };
 
-export async function sendMessageToArchitect(messageHistory: Message[], currentPhase: ForgePhase, voiceContext?: Message[]) {
+export async function sendMessageToArchitect(
+  messageHistory: Message[],
+  currentPhase: ForgePhase,
+  voiceContext?: Message[]
+) {
   const storeState = getForgeState();
   const response = await fetch('/api/architect', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messageHistory, currentPhase, voiceContext, storeState })
+    body: JSON.stringify({ messageHistory, currentPhase, voiceContext, storeState }),
   });
   if (!response.ok) throw new Error(await response.text());
   const data = await response.json();
   return data.text;
 }
 
-export const analyzeReferenceMaterial = async (materials: ReferenceMaterial[]): Promise<ExtractedLore> => {
+export const analyzeReferenceMaterial = async (
+  materials: ReferenceMaterial[]
+): Promise<ExtractedLore> => {
   const response = await fetch('/api/analyze-reference', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ materials })
+    body: JSON.stringify({ materials }),
   });
   if (!response.ok) throw new Error(await response.text());
   return response.json();
@@ -123,7 +143,7 @@ export async function summarizeForgeInterview(history: Message[]): Promise<strin
   const response = await fetch('/api/summarize-interview', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ history })
+    body: JSON.stringify({ history }),
   });
   if (!response.ok) throw new Error(await response.text());
   const data = await response.json();
@@ -134,74 +154,81 @@ export async function extractStyleProfile(userText: string): Promise<ProseStyleV
   const response = await fetch('/api/extract-style', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ userText })
+    body: JSON.stringify({ userText }),
   });
   if (!response.ok) throw new Error(await response.text());
   return response.json();
 }
 
-export const sendVoiceTurn = async (textBuffer: Message[], forgeContext?: Message[]): Promise<BicameralOutput> => {
+export const sendVoiceTurn = async (
+  textBuffer: Message[],
+  forgeContext?: Message[]
+): Promise<BicameralOutput> => {
   const response = await fetch('/api/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ 
+    body: JSON.stringify({
       execution_mode: 'VOICE',
       textBuffer,
-      forgeContext
-    })
+      forgeContext,
+    }),
   });
   if (!response.ok) throw new Error(await response.text());
   return response.json();
 };
 
-export async function sendChatMessage(
-  payload: {
-    textBuffer: Message[];
-    blueprint?: ScenarioBlueprint;
-    currentState?: LogicState | null;
-    forgeContext?: Message[];
-    execution_mode: AppPhase;
-    worldStateSummary?: string;
-  }
-): Promise<BicameralOutput> {
+export async function sendChatMessage(payload: {
+  textBuffer: Message[];
+  blueprint?: ScenarioBlueprint;
+  currentState?: LogicState | null;
+  forgeContext?: Message[];
+  execution_mode: AppPhase;
+  worldStateSummary?: string;
+}): Promise<BicameralOutput> {
   const response = await fetch('/api/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
+    body: JSON.stringify(payload),
   });
   if (!response.ok) throw new Error(await response.text());
   return response.json();
 }
 
-export const fetchSimulatedPlayerAction = async (history: Message[], logicState: LogicState | null): Promise<string> => {
+export const fetchSimulatedPlayerAction = async (
+  history: Message[],
+  logicState: LogicState | null
+): Promise<string> => {
   try {
     const response = await fetch('/api/simulate-player', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ history, logicState })
+      body: JSON.stringify({ history, logicState }),
     });
 
     if (!response.ok) throw new Error('Ghost player failed to respond.');
-    
+
     const data = await response.json();
     return data.action;
   } catch (error) {
     console.error('// AUTOPILOT FAILURE //', error);
-    return "[ SYSTEM OVERRIDE: The spatial geometry resists traversal. The requested pathway is inaccessible. ]"; 
+    return '[ SYSTEM OVERRIDE: The spatial geometry resists traversal. The requested pathway is inaccessible. ]';
   }
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const reconcileStateFromEdit = async (editedText: string, previousLogic: SystemLogicIntervention[], currentState: any) => {
+export const reconcileStateFromEdit = async (
+  editedText: string,
+  previousLogic: SystemLogicIntervention[],
+  currentState: LogicState | unknown
+) => {
   try {
     const response = await fetch('/api/reconcile', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ editedText, previousLogic, currentState })
+      body: JSON.stringify({ editedText, previousLogic, currentState }),
     });
 
     if (!response.ok) throw new Error('Failed to reconcile state from edit.');
-    
+
     return await response.json();
   } catch (error) {
     console.error('// RECONCILIATION FAILURE //', error);

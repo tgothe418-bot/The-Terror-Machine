@@ -1,11 +1,6 @@
 import { expect, test, describe, beforeEach } from 'vitest';
 import 'fake-indexeddb/auto';
-import {
-  forgeActions,
-  getForgeState,
-  DraftCastMember,
-  DraftPerspective
-} from './useForgeStore';
+import { forgeActions, getForgeState, DraftCastMember, DraftPerspective } from './useForgeStore';
 import { TopologyEdge } from '../types';
 
 describe('useForgeStore - draft state and actions', () => {
@@ -35,7 +30,7 @@ describe('useForgeStore - draft state and actions', () => {
 
     forgeActions.updateDraft({
       title: 'The Submerged Complex',
-      environmentalRules: 'Pressure increases by 1 ATM per floor'
+      environmentalRules: 'Pressure increases by 1 ATM per floor',
     });
 
     const updatedState = getForgeState();
@@ -43,33 +38,41 @@ describe('useForgeStore - draft state and actions', () => {
     expect(updatedState.draftBlueprint?.startingVector).toBe('COGNITIVE');
     expect(updatedState.draftBlueprint?.startingTier).toBe('LATENT');
     expect(updatedState.draftBlueprint?.title).toBe('The Submerged Complex');
-    expect(updatedState.draftBlueprint?.environmentalRules).toBe('Pressure increases by 1 ATM per floor');
+    expect(updatedState.draftBlueprint?.environmentalRules).toBe(
+      'Pressure increases by 1 ATM per floor'
+    );
 
     // Further patch
     forgeActions.updateDraft({
       globalPremise: 'The facility is leaking containment fluid',
-      startingTier: 'MANIFEST'
+      startingTier: 'MANIFEST',
     });
 
     const secondPatchState = getForgeState();
     expect(secondPatchState.draftBlueprint?.title).toBe('The Submerged Complex');
     expect(secondPatchState.draftBlueprint?.startingVector).toBe('COGNITIVE');
     expect(secondPatchState.draftBlueprint?.startingTier).toBe('MANIFEST');
-    expect(secondPatchState.draftBlueprint?.globalPremise).toBe('The facility is leaking containment fluid');
+    expect(secondPatchState.draftBlueprint?.globalPremise).toBe(
+      'The facility is leaking containment fluid'
+    );
   });
 
   test('3. Updating nested cast or perspective data produces a new draft structure and does not mutate the prior state snapshot', () => {
     forgeActions.initializeDraft();
     const initialCast: DraftCastMember[] = [
-      { id: 'c1', name: 'Dr. Aris', description: 'Lead Researcher', behaviorVector: 'ADAPTIVE' }
+      { id: 'c1', name: 'Dr. Aris', description: 'Lead Researcher', behaviorVector: 'ADAPTIVE' },
     ];
     const initialPerspectives: DraftPerspective[] = [
-      { role: 'PROTAGONIST', framingDirective: 'First person claustrophobic', startingSemanticState: 'ISOLATED' }
+      {
+        role: 'PROTAGONIST',
+        framingDirective: 'First person claustrophobic',
+        startingSemanticState: 'ISOLATED',
+      },
     ];
 
     forgeActions.updateDraft({
       cast: initialCast,
-      perspectives: initialPerspectives
+      perspectives: initialPerspectives,
     });
 
     const snapshotBefore = getForgeState();
@@ -78,16 +81,16 @@ describe('useForgeStore - draft state and actions', () => {
     const perspectiveSnapshotBefore = draftSnapshotBefore.perspectives!;
 
     // Perform immutable nested cast update
-    const updatedCast = castSnapshotBefore.map(c =>
+    const updatedCast = castSnapshotBefore.map((c) =>
       c.id === 'c1' ? { ...c, name: 'Dr. Aris Thorne', behaviorVector: 'PANIC' } : c
     );
-    const updatedPerspectives = perspectiveSnapshotBefore.map(p =>
+    const updatedPerspectives = perspectiveSnapshotBefore.map((p) =>
       p.role === 'PROTAGONIST' ? { ...p, startingSemanticState: 'TRAPPED' } : p
     );
 
     forgeActions.updateDraft({
       cast: updatedCast,
-      perspectives: updatedPerspectives
+      perspectives: updatedPerspectives,
     });
 
     const snapshotAfter = getForgeState();
@@ -111,7 +114,7 @@ describe('useForgeStore - draft state and actions', () => {
       title: 'Facility Log Reference Test',
       startingVector: 'SOMATIC',
       startingTier: 'GATEWAY',
-      references: ['manifest.pdf', 'security_briefing.txt', 'audio_log_04.md']
+      references: ['manifest.pdf', 'security_briefing.txt', 'audio_log_04.md'],
     });
 
     forgeActions.removeReference('security_briefing.txt');
@@ -138,20 +141,24 @@ describe('useForgeStore - draft state and actions', () => {
         kind: 'PHYSICAL',
         authority: 'user',
         userInitiated: true,
-        legacyUpgraded: true
-      }
+        legacyUpgraded: true,
+      },
     ];
 
     forgeActions.updateDraft({
       topology: {
         nodes: ['Airlock', 'Decontamination', 'Bio-Lab'],
-        connections: mixedConnections
-      }
+        connections: mixedConnections,
+      },
     });
 
     const state = getForgeState();
     expect(state.draftBlueprint?.topology).toBeDefined();
-    expect(state.draftBlueprint?.topology?.nodes).toEqual(['Airlock', 'Decontamination', 'Bio-Lab']);
+    expect(state.draftBlueprint?.topology?.nodes).toEqual([
+      'Airlock',
+      'Decontamination',
+      'Bio-Lab',
+    ]);
     expect(state.draftBlueprint?.topology?.connections).toHaveLength(2);
     expect(state.draftBlueprint?.topology?.connections?.[0]).toBe('Airlock -> Decontamination');
     expect(state.draftBlueprint?.topology?.connections?.[1]).toEqual({
@@ -160,7 +167,7 @@ describe('useForgeStore - draft state and actions', () => {
       kind: 'PHYSICAL',
       authority: 'user',
       userInitiated: true,
-      legacyUpgraded: true
+      legacyUpgraded: true,
     });
   });
 
@@ -173,7 +180,7 @@ describe('useForgeStore - draft state and actions', () => {
       personality: 'Anxious',
       goals: 'Survive',
       traits: ['Nervous'],
-      isUserCharacter: false
+      isUserCharacter: false,
     };
 
     forgeActions.addCharacterToCast(testChar);

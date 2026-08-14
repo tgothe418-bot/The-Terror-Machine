@@ -18,8 +18,15 @@ export function reconcilePerception(
   }
 
   // Detect if action targets a known hallucinatory token injected during DEGRADING or ONTOLOGICAL_SHEAR
-  const hallucinationKeywords = ['phantom', 'ghost', 'bleeding wall', 'impossible door', 'floating', 'shadow-self'];
-  const targetsHallucination = hallucinationKeywords.some(keyword => 
+  const hallucinationKeywords = [
+    'phantom',
+    'ghost',
+    'bleeding wall',
+    'impossible door',
+    'floating',
+    'shadow-self',
+  ];
+  const targetsHallucination = hallucinationKeywords.some((keyword) =>
     userAction.toLowerCase().includes(keyword)
   );
 
@@ -27,7 +34,7 @@ export function reconcilePerception(
     return {
       isHallucinationCollision: true,
       correctedProse: `[RECONCILIATION FAIL] You reach out to interact with the anomaly, but your fingers collapse through void. The perception snaps. It was never there.`,
-      revisionIncrement: 1
+      revisionIncrement: 1,
     };
   }
 

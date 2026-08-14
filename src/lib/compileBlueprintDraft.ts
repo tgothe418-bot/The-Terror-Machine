@@ -19,9 +19,10 @@ export function prepareBlueprintExport(rawDraft: unknown): BlueprintExportArtifa
   const safeTitle = titleStr.replace(/[\s\W]+/g, '_').toLowerCase();
 
   const references = compiled.references;
-  const safeRefs = references && Array.isArray(references) && references.length > 0
-    ? references.map((r: string) => r.replace(/[\s\W]+/g, '_').toLowerCase()).join('_') + '_'
-    : '';
+  const safeRefs =
+    references && Array.isArray(references) && references.length > 0
+      ? references.map((r: string) => r.replace(/[\s\W]+/g, '_').toLowerCase()).join('_') + '_'
+      : '';
 
   const fileName = `${safeRefs}${safeTitle}.json`;
 

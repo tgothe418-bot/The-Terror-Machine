@@ -20,7 +20,11 @@ const AESTHETIC_MAP: Record<string, any> = {
 
 export function getAestheticReference(aesthetic: string): AdLibBundle {
   const key = (aesthetic || '').toLowerCase();
-  return AESTHETIC_MAP[key] || AESTHETIC_MAP['haunted_house'] || (hauntedHouseData as unknown as AdLibBundle);
+  return (
+    AESTHETIC_MAP[key] ||
+    AESTHETIC_MAP['haunted_house'] ||
+    (hauntedHouseData as unknown as AdLibBundle)
+  );
 }
 
 export interface GenerateAdLibParams {
@@ -35,31 +39,34 @@ export function generateAdLibCampaign(params: GenerateAdLibParams = {}) {
   const tone = params.tone || 'LATENT';
   const bundle = getAestheticReference(aesthetic);
 
-  const safeBundle: AdLibBundle = (bundle && bundle.motifs && bundle.motifs.length > 0)
-    ? bundle
-    : (hauntedHouseData as unknown as AdLibBundle);
+  const safeBundle: AdLibBundle =
+    bundle && bundle.motifs && bundle.motifs.length > 0
+      ? bundle
+      : (hauntedHouseData as unknown as AdLibBundle);
 
-  const entryNode: SpatialMotif = safeBundle.motifs[Math.floor(Math.random() * safeBundle.motifs.length)] || hauntedHouseData.motifs[0];
+  const entryNode: SpatialMotif =
+    safeBundle.motifs[Math.floor(Math.random() * safeBundle.motifs.length)] ||
+    hauntedHouseData.motifs[0];
   const nodeId = crypto.randomUUID();
 
   const spatialNode: SpatialNode = {
     id: nodeId,
     type: 'physical',
-    name: entryNode?.name || "Entry Threshold",
-    description: entryNode?.sensory_signature || "An uncertain entry point.",
+    name: entryNode?.name || 'Entry Threshold',
+    description: entryNode?.sensory_signature || 'An uncertain entry point.',
     sensoryProfile: [],
-    exits: (entryNode?.possible_exits || ["forward"]).map(exit => ({
+    exits: (entryNode?.possible_exits || ['forward']).map((exit) => ({
       targetNodeId: 'NODE_UNMAPPED',
       description: exit,
-      isOpen: true
+      isOpen: true,
     })),
     environmentalHazards: [],
     linkedCharacters: [],
-    structuralAnomalies: entryNode?.structural_anomalies || []
+    structuralAnomalies: entryNode?.structural_anomalies || [],
   };
 
-  const activeEntities = (safeBundle.entities || []).filter(entity => 
-    !entity.compatible_aesthetics || entity.compatible_aesthetics.includes(aesthetic)
+  const activeEntities = (safeBundle.entities || []).filter(
+    (entity) => !entity.compatible_aesthetics || entity.compatible_aesthetics.includes(aesthetic)
   );
 
   const compiledGraph = {
@@ -68,7 +75,7 @@ export function generateAdLibCampaign(params: GenerateAdLibParams = {}) {
   };
 
   if (!compiledGraph || !compiledGraph.nodes || compiledGraph.nodes.length === 0) {
-    console.warn("Ad-Lib generation produced empty graph. Falling back to haunted_house preset.");
+    console.warn('Ad-Lib generation produced empty graph. Falling back to haunted_house preset.');
     const fallbackNodeId = crypto.randomUUID();
     const fallbackMotif = hauntedHouseData.motifs[0];
     const fallbackNode: SpatialNode = {
@@ -77,19 +84,19 @@ export function generateAdLibCampaign(params: GenerateAdLibParams = {}) {
       name: fallbackMotif.name,
       description: fallbackMotif.sensory_signature,
       sensoryProfile: [],
-      exits: fallbackMotif.possible_exits.map(exit => ({
+      exits: fallbackMotif.possible_exits.map((exit) => ({
         targetNodeId: 'NODE_UNMAPPED',
         description: exit,
-        isOpen: true
+        isOpen: true,
       })),
       environmentalHazards: [],
       linkedCharacters: [],
-      structuralAnomalies: fallbackMotif.structural_anomalies
+      structuralAnomalies: fallbackMotif.structural_anomalies,
     };
 
     const fallbackBlueprint: ScenarioBlueprint = {
       id: `adlib-${crypto.randomUUID()}`,
-      title: hauntedHouseData.title || "Haunted House Ad-Lib",
+      title: hauntedHouseData.title || 'Haunted House Ad-Lib',
       contentScale: size,
       contentLevelDescription: `${aesthetic.toUpperCase()} AD-LIB INDUCTION`,
       aesthetic: aesthetic,
@@ -97,25 +104,25 @@ export function generateAdLibCampaign(params: GenerateAdLibParams = {}) {
       globalPremise: hauntedHouseData.base_lens,
       setting: {
         location: fallbackMotif.name,
-        timePeriod: "Indeterminate",
-        atmosphere: fallbackMotif.sensory_signature
+        timePeriod: 'Indeterminate',
+        atmosphere: fallbackMotif.sensory_signature,
       },
       topology: {
         nodes: [fallbackNodeId],
-        connections: []
+        connections: [],
       },
-      cast: (hauntedHouseData.entities || []).map(e => ({
+      cast: (hauntedHouseData.entities || []).map((e) => ({
         id: e.id,
         name: e.designation,
         description: e.denial_vector,
         isEntity: true,
-        behaviorVector: 'ADAPTIVE'
+        behaviorVector: 'ADAPTIVE',
       })),
       narrativeRules: {
-        incitingIncident: hauntedHouseData.base_lens || "Initial spatial breach.",
+        incitingIncident: hauntedHouseData.base_lens || 'Initial spatial breach.',
         currentTensionLevel: 'buildup',
-        keyPlotElements: []
-      }
+        keyPlotElements: [],
+      },
     };
 
     useEngineStore.getState().setBlueprint(fallbackBlueprint as ScenarioBlueprint, 'protagonist');
@@ -127,7 +134,7 @@ export function generateAdLibCampaign(params: GenerateAdLibParams = {}) {
       maxRooms: size,
       aesthetic: aesthetic,
       escalation_state: tone as 'LATENT' | 'REACTIVE' | 'TRANSGRESSIVE' | 'BLACKOUT',
-      activeEntities: hauntedHouseData.entities || []
+      activeEntities: hauntedHouseData.entities || [],
     });
 
     useAppStore.getState().dispatch({ type: 'SIMULATION_STARTED', initialNodeId: fallbackNodeId });
@@ -146,33 +153,33 @@ export function generateAdLibCampaign(params: GenerateAdLibParams = {}) {
   // Create & set adLibBlueprint in useEngineStore
   const adLibBlueprint: ScenarioBlueprint = {
     id: `adlib-${crypto.randomUUID()}`,
-    title: safeBundle.title || "Haunted House Ad-Lib",
+    title: safeBundle.title || 'Haunted House Ad-Lib',
     contentScale: size,
     contentLevelDescription: `${aesthetic.toUpperCase()} AD-LIB INDUCTION`,
     aesthetic: aesthetic,
     tone: tone,
-    globalPremise: safeBundle.base_lens || "Procedural architecture.",
+    globalPremise: safeBundle.base_lens || 'Procedural architecture.',
     setting: {
       location: entryNode.name,
-      timePeriod: "Indeterminate",
-      atmosphere: entryNode.sensory_signature
+      timePeriod: 'Indeterminate',
+      atmosphere: entryNode.sensory_signature,
     },
     topology: {
       nodes: [nodeId],
-      connections: []
+      connections: [],
     },
-    cast: activeEntities.map(e => ({
+    cast: activeEntities.map((e) => ({
       id: e.id,
       name: e.designation,
       description: e.denial_vector,
       isEntity: true,
-      behaviorVector: 'ADAPTIVE'
+      behaviorVector: 'ADAPTIVE',
     })),
     narrativeRules: {
-      incitingIncident: safeBundle.base_lens || "Procedural architecture.",
+      incitingIncident: safeBundle.base_lens || 'Procedural architecture.',
       currentTensionLevel: 'buildup',
-      keyPlotElements: []
-    }
+      keyPlotElements: [],
+    },
   };
 
   useEngineStore.getState().setBlueprint(adLibBlueprint as ScenarioBlueprint, 'protagonist');
@@ -185,7 +192,7 @@ export function generateAdLibCampaign(params: GenerateAdLibParams = {}) {
     maxRooms: size,
     aesthetic: aesthetic,
     escalation_state: tone as 'LATENT' | 'REACTIVE' | 'TRANSGRESSIVE' | 'BLACKOUT',
-    activeEntities: activeEntities
+    activeEntities: activeEntities,
   });
 
   useAppStore.getState().dispatch({ type: 'SIMULATION_STARTED', initialNodeId: nodeId });
@@ -198,6 +205,11 @@ export function generateAdLibCampaign(params: GenerateAdLibParams = {}) {
   };
 }
 
-export function bootstrapBlindEntry(bundle: AdLibBundle, size: number, aesthetic: string, tone: string) {
+export function bootstrapBlindEntry(
+  bundle: AdLibBundle,
+  size: number,
+  aesthetic: string,
+  tone: string
+) {
   return generateAdLibCampaign({ aesthetic, scale: size, tone });
 }

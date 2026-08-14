@@ -19,7 +19,10 @@ export function evaluatePhaseShift(state: EngineState): EngineEvent | null {
   const traumaCount = traumaLedger.length;
 
   if (phase === 'LATENT') {
-    if (turnCount >= THRESHOLDS.LATENT_TO_MANIFEST_TURNS || traumaCount >= THRESHOLDS.LATENT_TO_MANIFEST_TRAUMA) {
+    if (
+      turnCount >= THRESHOLDS.LATENT_TO_MANIFEST_TURNS ||
+      traumaCount >= THRESHOLDS.LATENT_TO_MANIFEST_TRAUMA
+    ) {
       return {
         type: 'PHASE_CHANGED',
         from: 'LATENT',
@@ -30,7 +33,10 @@ export function evaluatePhaseShift(state: EngineState): EngineEvent | null {
   }
 
   if (phase === 'MANIFEST') {
-    if (turnCount >= THRESHOLDS.MANIFEST_TO_TERMINAL_TURNS || traumaCount >= THRESHOLDS.MANIFEST_TO_TERMINAL_TRAUMA) {
+    if (
+      turnCount >= THRESHOLDS.MANIFEST_TO_TERMINAL_TURNS ||
+      traumaCount >= THRESHOLDS.MANIFEST_TO_TERMINAL_TRAUMA
+    ) {
       return {
         type: 'PHASE_CHANGED',
         from: 'MANIFEST',

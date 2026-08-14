@@ -5,20 +5,24 @@ import { buildEngineTurnContext, buildContextReceipt } from './buildEngineTurnCo
 /**
  * Converts a structured message array into a standardized markdown file and downloads it.
  */
-export const exportConversationToMarkdown = (messages: Message[], sessionTitle: string = 'terror-machine-log'): void => {
+export const exportConversationToMarkdown = (
+  messages: Message[],
+  sessionTitle: string = 'terror-machine-log'
+): void => {
   if (!messages || messages.length === 0) {
     console.warn('// EXPORT FAILED // History buffer is empty.');
     return;
   }
 
-  const header = `# THE NIGHTMARE MACHINE // CONVERSATION LOG\n` +
-                 `*Generated on: ${new Date().toISOString()}*\n` +
-                 `==================================================\n\n`;
+  const header =
+    `# THE NIGHTMARE MACHINE // CONVERSATION LOG\n` +
+    `*Generated on: ${new Date().toISOString()}*\n` +
+    `==================================================\n\n`;
 
   const body = messages
     .map((msg, index) => {
       const actor = msg.role === 'user' ? '### USER' : '### THE VOICE';
-      
+
       // Handle array blocks or fall back to raw string content
       let textContent = '';
       if (Array.isArray(msg.blocks)) {
@@ -34,11 +38,11 @@ export const exportConversationToMarkdown = (messages: Message[], sessionTitle: 
   const fullContent = header + body;
   const blob = new Blob([fullContent], { type: 'text/markdown;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
-  
+
   const downloadLink = document.createElement('a');
   downloadLink.href = url;
   downloadLink.setAttribute('download', `${sessionTitle}-${Date.now()}.md`);
-  
+
   document.body.appendChild(downloadLink);
   downloadLink.click();
   document.body.removeChild(downloadLink);
@@ -55,15 +59,15 @@ export function downloadJson(data: any, filename: string) {
     const jsonString = JSON.stringify(data, null, 2);
     const blob = new Blob([jsonString], { type: 'application/json' });
     const url = window.URL.createObjectURL(blob);
-    
+
     const link = document.createElement('a');
     link.href = url;
     link.download = filename;
     link.style.display = 'none';
-    
+
     document.body.appendChild(link);
     link.click();
-    
+
     // Small delay before cleanup to ensure trigger in some browsers
     setTimeout(() => {
       document.body.removeChild(link);
@@ -75,13 +79,13 @@ export function downloadJson(data: any, filename: string) {
 }
 
 export const escapeHtml = (unsafe: string | null | undefined): string => {
-  if (unsafe == null) return "";
+  if (unsafe == null) return '';
   return String(unsafe)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
 };
 
 export const getEngineLogicData = (message: any): Record<string, unknown> | null => {
@@ -110,14 +114,18 @@ const getEngineLogicSummary = (logicData: Record<string, unknown>): string => {
 
   if (logicState && typeof logicState === 'object') {
     const state = logicState as Record<string, unknown>;
-    if (state.current_phase != null) summary.push(`PHASE: ${String(state.current_phase).toUpperCase()}`);
-    if (state.suggested_tension != null) summary.push(`TENSION: ${String(state.suggested_tension)}`);
-    if (state.intent_classification != null) summary.push(`INTENT: ${String(state.intent_classification).toUpperCase()}`);
+    if (state.current_phase != null)
+      summary.push(`PHASE: ${String(state.current_phase).toUpperCase()}`);
+    if (state.suggested_tension != null)
+      summary.push(`TENSION: ${String(state.suggested_tension)}`);
+    if (state.intent_classification != null)
+      summary.push(`INTENT: ${String(state.intent_classification).toUpperCase()}`);
   }
 
   if (topologyDelta && typeof topologyDelta === 'object') {
     const topology = topologyDelta as Record<string, unknown>;
-    if (topology.isExpansion != null) summary.push(`EXPANSION: ${String(Boolean(topology.isExpansion)).toUpperCase()}`);
+    if (topology.isExpansion != null)
+      summary.push(`EXPANSION: ${String(Boolean(topology.isExpansion)).toUpperCase()}`);
   }
 
   return `[ ${summary.join(' // ')} ]`;
@@ -184,13 +192,13 @@ export const buildEngineLogContent = (
             margin: 0 auto; 
             line-height: 1.7; 
           }
-          .meta-header { 
-            color: #52525b; 
-            font-size: 0.75rem; 
-            letter-spacing: 0.1em; 
-            border-bottom: 1px solid #18181b; 
-            padding-bottom: 1.5rem; 
-            margin-bottom: 2rem; 
+          .meta-header {
+            color: #52525b;
+            font-size: 0.75rem;
+            letter-spacing: 0.1em;
+            border-bottom: 1px solid #18181b;
+            padding-bottom: 1.5rem;
+            margin-bottom: 2rem;
             text-transform: uppercase;
           }
           .context-receipt {
@@ -218,21 +226,21 @@ export const buildEngineLogContent = (
           .receipt-key { color: #71717a; text-transform: uppercase; font-size: 0.75rem; margin-right: 0.25rem; }
           .receipt-val { font-weight: 600; color: #f4f4f5; }
           .receipt-sub { color: #71717a; font-size: 0.75rem; }
-          .turn { 
-            margin-bottom: 3.5rem; 
-            padding-bottom: 1.5rem; 
+          .turn {
+            margin-bottom: 3.5rem;
+            padding-bottom: 1.5rem;
           }
-          .user-input { 
-            color: #71717a; 
-            font-size: 0.95rem; 
-            font-style: italic; 
-            margin-bottom: 1.5rem; 
-            padding-left: 1rem; 
-            border-left: 2px solid #27272a; 
+          .user-input {
+            color: #71717a;
+            font-size: 0.95rem;
+            font-style: italic;
+            margin-bottom: 1.5rem;
+            padding-left: 1rem;
+            border-left: 2px solid #27272a;
           }
-          .block-prose { 
-            margin-bottom: 1.25rem; 
-            color: #e4e4e7; 
+          .block-prose {
+            margin-bottom: 1.25rem;
+            color: #e4e4e7;
           }
           .block-dialogue { 
             color: #a1a1aa; 
@@ -291,7 +299,9 @@ export const buildEngineLogContent = (
           TIMESTAMP: ${timestamp}
         </div>
 
-        ${receipt ? `
+        ${
+          receipt
+            ? `
         <div class="context-receipt">
           <div class="receipt-header">[ CONTEXT RECEIPT // SCENARIO BINDING v${receipt.version} ]</div>
           <div class="receipt-grid">
@@ -303,7 +313,9 @@ export const buildEngineLogContent = (
             <div class="receipt-item"><span class="receipt-key">TOPOLOGY:</span> <span class="receipt-val">${receipt.topologyNodeCount} Nodes | ${receipt.topologyConnectionCount} Connections</span></div>
           </div>
         </div>
-        ` : ''}
+        `
+            : ''
+        }
     `;
 
     messages.forEach((msg) => {
@@ -325,7 +337,7 @@ export const buildEngineLogContent = (
           }
           content += `<div class="block-${block.type || 'prose'}">${escapeHtml(block.content)}</div>`;
         };
-        
+
         if (Array.isArray(msg.content)) {
           msg.content.forEach(renderBlock);
         } else if (msg.blocks && Array.isArray(msg.blocks)) {
@@ -358,28 +370,31 @@ export const buildEngineLogContent = (
     content = `# THE NIGHTMARE MACHINE // METRIC LOG\n*Captured: ${timestamp}*\n\n---\n\n`;
 
     if (receipt) {
-      content += `### [ CONTEXT RECEIPT // SCENARIO BINDING v${receipt.version} ]\n` +
-                 `- **Scenario:** ${receipt.scenarioTitle} ${receipt.blueprintId ? `(${receipt.blueprintId})` : ''}\n` +
-                 `- **Player Role:** ${String(receipt.selectedRole).toUpperCase()} | **Bound Player:** ${receipt.resolvedPlayerName} ${receipt.resolvedPlayerId ? `(ID: ${receipt.resolvedPlayerId})` : ''}\n` +
-                 `- **Origin Node:** ${receipt.readableNodeLabel} (\`${receipt.currentNodeId}\`)\n` +
-                 `- **Coordinate:** [${receipt.activeVector}, ${receipt.activeTier}]\n` +
-                 `- **Authoring:** ${receipt.castCount} Cast Members | ${receipt.worldRuleCount} World Rules\n` +
-                 `- **Topology:** ${receipt.topologyNodeCount} Nodes | ${receipt.topologyConnectionCount} Connections\n\n` +
-                 `---\n\n`;
+      content +=
+        `### [ CONTEXT RECEIPT // SCENARIO BINDING v${receipt.version} ]\n` +
+        `- **Scenario:** ${receipt.scenarioTitle} ${receipt.blueprintId ? `(${receipt.blueprintId})` : ''}\n` +
+        `- **Player Role:** ${String(receipt.selectedRole).toUpperCase()} | **Bound Player:** ${receipt.resolvedPlayerName} ${receipt.resolvedPlayerId ? `(ID: ${receipt.resolvedPlayerId})` : ''}\n` +
+        `- **Origin Node:** ${receipt.readableNodeLabel} (\`${receipt.currentNodeId}\`)\n` +
+        `- **Coordinate:** [${receipt.activeVector}, ${receipt.activeTier}]\n` +
+        `- **Authoring:** ${receipt.castCount} Cast Members | ${receipt.worldRuleCount} World Rules\n` +
+        `- **Topology:** ${receipt.topologyNodeCount} Nodes | ${receipt.topologyConnectionCount} Connections\n\n` +
+        `---\n\n`;
     }
-    
+
     messages.forEach((msg) => {
       if (msg.role === 'user') {
         const userCharName = resolveUserLabel(msg);
         content += `**[ USER: ${userCharName} ]**\n> ${msg.content}\n\n`;
       } else {
-        const blocks = Array.isArray(msg.content) ? msg.content : (msg.blocks || []);
+        const blocks = Array.isArray(msg.content) ? msg.content : msg.blocks || [];
         if (blocks.length > 0) {
           blocks.forEach((block: any) => {
             if (block.type === 'engine_thoughts') return;
             if (block.type === 'system_voice') content += `**[ THE VOICE ]**\n${block.content}\n\n`;
-            else if (block.type === 'dialogue' && block.speaker) content += `**[ CHARACTER: ${block.speaker} ]**\n${block.content}\n\n`;
-            else if (block.type === 'internal_monologue' && block.speaker) content += `**[ THOUGHT: ${block.speaker} ]**\n${block.content}\n\n`;
+            else if (block.type === 'dialogue' && block.speaker)
+              content += `**[ CHARACTER: ${block.speaker} ]**\n${block.content}\n\n`;
+            else if (block.type === 'internal_monologue' && block.speaker)
+              content += `**[ THOUGHT: ${block.speaker} ]**\n${block.content}\n\n`;
             else content += `${block.content}\n\n`;
           });
         } else {
@@ -398,7 +413,12 @@ export const buildEngineLogContent = (
   return { content, mimeType, extension };
 };
 
-export const exportEngineLog = (messages: any[], format: 'md' | 'html', title: string = 'engine-telemetry', blueprint?: any) => {
+export const exportEngineLog = (
+  messages: any[],
+  format: 'md' | 'html',
+  title: string = 'engine-telemetry',
+  blueprint?: any
+) => {
   const output = buildEngineLogContent(messages, format, title, blueprint);
   if (!output) {
     console.warn('// ENGINE EXPORT FAILED // Empty array state passed.');

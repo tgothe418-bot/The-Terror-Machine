@@ -34,25 +34,48 @@ export interface EngineState {
   };
 }
 
-export function applyReconciliationPatch(currentState: EngineState & Record<string, unknown>, patch: Record<string, unknown>): EngineState & Record<string, unknown> {
+export function applyReconciliationPatch(
+  currentState: EngineState & Record<string, unknown>,
+  patch: Record<string, unknown>
+): EngineState & Record<string, unknown> {
   if (!patch) return currentState;
-  
+
   const newState = { ...currentState };
   const validKeys = [
-    'activeMemory', 'pacingLedger', 'traumaLedger', 'motifLedger', 
-    'phase', 'escalation_state', 'turnCount', 'currentNodeId', 'decay', 'castLedger',
-    'systemFlags', 'narrativeVelocity', 'nodeState', 'roomsGenerated', 'maxRooms', 'aesthetic', 'activeEntities'
+    'activeMemory',
+    'pacingLedger',
+    'traumaLedger',
+    'motifLedger',
+    'phase',
+    'escalation_state',
+    'turnCount',
+    'currentNodeId',
+    'decay',
+    'castLedger',
+    'systemFlags',
+    'narrativeVelocity',
+    'nodeState',
+    'roomsGenerated',
+    'maxRooms',
+    'aesthetic',
+    'activeEntities',
   ];
-  
-  const dynamicConditions: Record<string, unknown> = { ...currentState.nodeState?.dynamic_conditions };
-  
+
+  const dynamicConditions: Record<string, unknown> = {
+    ...currentState.nodeState?.dynamic_conditions,
+  };
+
   for (const key in patch) {
     if (key === 'castLedger' && currentState.gameState) {
-      if (!newState.gameState) newState.gameState = { ...(currentState.gameState as Record<string, unknown>) };
+      if (!newState.gameState)
+        newState.gameState = { ...(currentState.gameState as Record<string, unknown>) };
       (newState.gameState as Record<string, unknown>).cast_ledger = patch.castLedger;
     } else if (validKeys.includes(key)) {
       if (typeof patch[key] === 'object' && patch[key] !== null && !Array.isArray(patch[key])) {
-        newState[key] = { ...(currentState[key] as Record<string, unknown>), ...(patch[key] as Record<string, unknown>) };
+        newState[key] = {
+          ...(currentState[key] as Record<string, unknown>),
+          ...(patch[key] as Record<string, unknown>),
+        };
       } else {
         newState[key] = patch[key];
       }
@@ -61,20 +84,20 @@ export function applyReconciliationPatch(currentState: EngineState & Record<stri
       dynamicConditions[key] = patch[key];
     }
   }
-  
+
   if (Object.keys(dynamicConditions).length > 0) {
     newState.nodeState = {
       ...newState.nodeState,
-      dynamic_conditions: dynamicConditions
+      dynamic_conditions: dynamicConditions,
     };
   }
-  
+
   return newState;
 }
 
 export const initialEngineState: EngineState = {
-  sessionId: "",
-  blueprintId: "",
+  sessionId: '',
+  blueprintId: '',
   phase: 'HUB',
   escalation_state: 'LATENT',
   currentNodeId: null,
@@ -85,17 +108,17 @@ export const initialEngineState: EngineState = {
   activeMemory: {
     systemFlags: [],
     somaState: [],
-    geomState: []
+    geomState: [],
   },
   motifLedger: {},
   pacingLedger: {
     failedEscapeAttempts: 0,
     memoryAnchorsRemaining: 3,
-    spatialContradictions: 0
+    spatialContradictions: 0,
   },
   timelineRevision: 0,
   lastDistilledRevision: -1,
-  history: []
+  history: [],
 };
 
 export function engineReducer(state: EngineState, event: EngineEvent): EngineState {
@@ -105,13 +128,13 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
         ...state,
         history: [
           ...(state.history || []),
-          { 
-            id: crypto.randomUUID(), 
-            role: 'user', 
-            content: event.payload as string, 
-            timestamp: Date.now() 
-          }
-        ]
+          {
+            id: crypto.randomUUID(),
+            role: 'user',
+            content: event.payload as string,
+            timestamp: Date.now(),
+          },
+        ],
       };
 
     case 'SYSTEM_MESSAGE':
@@ -123,9 +146,9 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
             id: crypto.randomUUID(),
             role: 'system',
             content: event.payload,
-            timestamp: Date.now()
-          }
-        ]
+            timestamp: Date.now(),
+          },
+        ],
       };
 
     case 'ADD_MESSAGE':
@@ -136,22 +159,19 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
           {
             ...event.message,
             id: event.message.id || crypto.randomUUID(),
-            timestamp: event.message.timestamp || Date.now()
-          }
-        ]
+            timestamp: event.message.timestamp || Date.now(),
+          },
+        ],
       };
 
     case 'TURN_RESOLVED': {
       const newTags = event.payload.semanticTags;
-      
-      const isTerminal = newTags?.SYS?.includes('SOMATIC_TERMINAL') || newTags?.SYS?.includes('COGNITIVE_COLLAPSE');
+
+      const isTerminal =
+        newTags?.SYS?.includes('SOMATIC_TERMINAL') || newTags?.SYS?.includes('COGNITIVE_COLLAPSE');
 
       const newMotifLedger = { ...state.motifLedger };
-      const allTags = [
-        ...(newTags?.SYS || []),
-        ...(newTags?.SOMA || []),
-        ...(newTags?.GEOM || [])
-      ];
+      const allTags = [...(newTags?.SYS || []), ...(newTags?.SOMA || []), ...(newTags?.GEOM || [])];
       allTags.forEach((tag: string) => {
         newMotifLedger[tag] = (newMotifLedger[tag] || 0) + 1;
       });
@@ -176,7 +196,7 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
       }
 
       let calculatedPhase = state.phase;
-      
+
       // Pure mathematical deterministic phase shift
       if (state.turnCount >= 18 || state.traumaLedger.length >= 5) {
         calculatedPhase = 'TERMINAL';
@@ -190,20 +210,28 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
 
       if (isTerminal) calculatedPhase = 'TERMINATED';
 
-      const newEscalationState = event.payload.logic_state?.escalation_state || state.escalation_state || 'LATENT';
+      const newEscalationState =
+        event.payload.logic_state?.escalation_state || state.escalation_state || 'LATENT';
 
       const narrativeBlocks = event.payload.narrative_blocks;
       const formatBlocks = (blocks?: Record<string, unknown>[]): string => {
         if (!blocks || !Array.isArray(blocks)) return '';
-        return blocks.map(block => {
-          if ((block.type === 'dialogue' || block.type === 'internal_monologue') && block.speaker) {
-            return `${String(block.speaker).toUpperCase()}: ${String(block.content)}`;
-          }
-          return String(block.content || '');
-        }).join('\n\n');
+        return blocks
+          .map((block) => {
+            if (
+              (block.type === 'dialogue' || block.type === 'internal_monologue') &&
+              block.speaker
+            ) {
+              return `${String(block.speaker).toUpperCase()}: ${String(block.content)}`;
+            }
+            return String(block.content || '');
+          })
+          .join('\n\n');
       };
 
-      const hasHiddenBlocks = Array.isArray(narrativeBlocks) && narrativeBlocks.some((b: Record<string, unknown>) => b.visibleToModel === false);
+      const hasHiddenBlocks =
+        Array.isArray(narrativeBlocks) &&
+        narrativeBlocks.some((b: Record<string, unknown>) => b.visibleToModel === false);
 
       let newRoomsGenerated = state.roomsGenerated;
       if (event.payload.logic_state?.matrix_mutation?.increment_rooms) {
@@ -214,32 +242,32 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
         ...state,
         history: [
           ...(state.history || []),
-          { 
-            id: crypto.randomUUID(), 
-            role: 'engine', 
-            content: formatBlocks(narrativeBlocks), 
+          {
+            id: crypto.randomUUID(),
+            role: 'engine',
+            content: formatBlocks(narrativeBlocks),
             blocks: narrativeBlocks,
             engine_thoughts: event.payload.engine_thoughts,
             timestamp: Date.now(),
-            visibleToModel: hasHiddenBlocks ? false : true
-          }
+            visibleToModel: hasHiddenBlocks ? false : true,
+          },
         ],
         activeMemory: {
           ...state.activeMemory,
           systemFlags: newTags?.SYS || [],
           somaState: newTags?.SOMA || [],
-          geomState: newTags?.GEOM || []
+          geomState: newTags?.GEOM || [],
         },
         motifLedger: newMotifLedger,
         pacingLedger: {
           failedEscapeAttempts: escapeAttempts,
           memoryAnchorsRemaining: memoryAnchors,
-          spatialContradictions: contradictions
+          spatialContradictions: contradictions,
         },
         timelineRevision: state.timelineRevision + 1,
         phase: calculatedPhase,
         escalation_state: newEscalationState,
-        roomsGenerated: newRoomsGenerated
+        roomsGenerated: newRoomsGenerated,
       };
     }
 
@@ -294,14 +322,14 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
         id: crypto.randomUUID(),
         role: 'system_cinematic',
         content: event.summary,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       };
 
       return {
         ...state,
         lastDistilledRevision: event.dispatchedAtRevision,
         traumaLedger: [...state.traumaLedger, ...event.trauma],
-        history: [...preservedStart, actBreakMessage, ...preservedEnd]
+        history: [...preservedStart, actBreakMessage, ...preservedEnd],
       };
     }
 

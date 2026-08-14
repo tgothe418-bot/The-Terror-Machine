@@ -39,7 +39,7 @@ export default function TheVoice({ engineState }: TheVoiceProps = {}) {
   useEffect(() => {
     const unsub = useVoiceStore.persist.onHydrate(() => setHydrated(false));
     const unsubFinish = useVoiceStore.persist.onFinishHydration(() => setHydrated(true));
-    
+
     return () => {
       unsub();
       unsubFinish();
@@ -65,16 +65,16 @@ export default function TheVoice({ engineState }: TheVoiceProps = {}) {
     if (e) e.preventDefault();
     if ((!input.trim() && attachments.length === 0) || isLoading) return;
 
-    const userMsg: Message = { 
-      role: 'user', 
-      content: input, 
+    const userMsg: Message = {
+      role: 'user',
+      content: input,
       timestamp: Date.now(),
-      attachments: attachments.length > 0 ? [...attachments] : undefined
+      attachments: attachments.length > 0 ? [...attachments] : undefined,
     };
-    
+
     // Original history with the new message
     const currentHistory = [...messages, userMsg];
-    
+
     // Add to UI state directly
     addMessage(userMsg);
     setInput('');
@@ -102,53 +102,62 @@ Cast Size: ${forgeState.draftBlueprint?.cast?.length || 0}
       const chatHistory = currentHistory.map((msg, index) => {
         // If this is the newly added last message, prepend the telemetry feed
         if (index === currentHistory.length - 1) {
-           return {
-             role: msg.role === 'voice' ? 'assistant' : msg.role,
-             content: `${telemetryFeed}\n\n[USER AUDIO FEED]: ${msg.content}`,
-             attachments: msg.attachments
-           };
+          return {
+            role: msg.role === 'voice' ? 'assistant' : msg.role,
+            content: `${telemetryFeed}\n\n[USER AUDIO FEED]: ${msg.content}`,
+            attachments: msg.attachments,
+          };
         }
         return {
           role: msg.role === 'voice' ? 'assistant' : msg.role,
           content: msg.content,
-          attachments: msg.attachments
+          attachments: msg.attachments,
         };
       });
 
       const currentForgeDraft = forgeState.draftBlueprint;
-      
-      const telemetryPayload = (currentForgeDraft && currentForgeDraft.premise) 
-        ? currentForgeDraft 
-        : null;
+
+      const telemetryPayload =
+        currentForgeDraft && currentForgeDraft.premise ? currentForgeDraft : null;
 
       const response = await fetch('/api/gemini/voice', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           history: chatHistory,
           forgeTelemetry: telemetryPayload,
-          engineState
-        })
+          engineState,
+        }),
       });
 
       if (!response.ok) throw new Error(await response.text());
       const data = await response.json();
-      
-      const responseText = data.text || "Error: No response";
+
+      const responseText = data.text || 'Error: No response';
       const voiceMsg: Message = { role: 'voice', content: responseText, timestamp: Date.now() };
       addMessage(voiceMsg);
     } catch (err: unknown) {
       console.error(err);
-      const errorMessage = typeof err === 'object' && err !== null && 'message' in err ? String((err as Record<string, unknown>).message) : String(err);
+      const errorMessage =
+        typeof err === 'object' && err !== null && 'message' in err
+          ? String((err as Record<string, unknown>).message)
+          : String(err);
       let parsedMessage = errorMessage;
       try {
         const parsed = JSON.parse(errorMessage);
         if (parsed.error) {
-          parsedMessage = typeof parsed.error === 'string' ? parsed.error : JSON.stringify(parsed.error);
+          parsedMessage =
+            typeof parsed.error === 'string' ? parsed.error : JSON.stringify(parsed.error);
         }
-      } catch { /* ignore */ }
-      
-      addMessage({ role: 'voice', content: `[SYSTEM ERROR] ${parsedMessage}`, timestamp: Date.now() });
+      } catch {
+        /* ignore */
+      }
+
+      addMessage({
+        role: 'voice',
+        content: `[SYSTEM ERROR] ${parsedMessage}`,
+        timestamp: Date.now(),
+      });
     } finally {
       setIsLoading(false);
     }
@@ -162,23 +171,31 @@ Cast Size: ${forgeState.draftBlueprint?.cast?.length || 0}
 
   const processFiles = async (files: File[]) => {
     const newAttachments: Attachment[] = [];
-    const allowedTypes = ['image/', 'application/pdf', 'application/json', 'text/markdown', 'text/plain'];
-    
+    const allowedTypes = [
+      'image/',
+      'application/pdf',
+      'application/json',
+      'text/markdown',
+      'text/plain',
+    ];
+
     for (const file of files) {
-      const isAllowed = allowedTypes.some(type => file.type.startsWith(type)) || 
-                        file.name.endsWith('.md') || 
-                        file.name.endsWith('.json');
-      
+      const isAllowed =
+        allowedTypes.some((type) => file.type.startsWith(type)) ||
+        file.name.endsWith('.md') ||
+        file.name.endsWith('.json');
+
       if (!isAllowed) continue;
-      
+
       const base64 = await fileToBase64(file);
       newAttachments.push({
         name: file.name,
-        mimeType: file.type || (file.name.endsWith('.md') ? 'text/markdown' : 'application/octet-stream'),
-        data: base64
+        mimeType:
+          file.type || (file.name.endsWith('.md') ? 'text/markdown' : 'application/octet-stream'),
+        data: base64,
       });
     }
-    setAttachments(prev => [...prev, ...newAttachments]);
+    setAttachments((prev) => [...prev, ...newAttachments]);
   };
 
   const fileToBase64 = (file: File): Promise<string> => {
@@ -189,7 +206,7 @@ Cast Size: ${forgeState.draftBlueprint?.cast?.length || 0}
         const result = reader.result as string;
         resolve(result.split(',')[1]);
       };
-      reader.onerror = error => reject(error);
+      reader.onerror = (error) => reject(error);
     });
   };
 
@@ -208,18 +225,17 @@ Cast Size: ${forgeState.draftBlueprint?.cast?.length || 0}
   };
 
   const removeAttachment = (index: number) => {
-    setAttachments(prev => prev.filter((_, i) => i !== index));
+    setAttachments((prev) => prev.filter((_, i) => i !== index));
   };
 
   if (!hydrated) return null;
 
   return (
     <div className="h-screen w-[95vw] max-w-[1800px] mx-auto flex flex-col pt-8 pb-12 text-zinc-300 font-mono overflow-hidden">
-
       {/* HEADER AREA */}
       <div className="mb-6 flex justify-between items-center border-b border-zinc-800 pb-4 shrink-0 px-4">
         <h2 className="text-zinc-400 text-xl tracking-widest uppercase shadow-black drop-shadow-md">
-          <button 
+          <button
             onClick={() => setPhase('hub')}
             className="flex items-center gap-2 text-zinc-500 hover:text-white transition-colors text-[10px] uppercase tracking-widest border border-zinc-800 px-3 py-1 rounded-sm mr-4 inline-flex"
           >
@@ -232,9 +248,11 @@ Cast Size: ${forgeState.draftBlueprint?.cast?.length || 0}
           <div className="flex items-center">
             {isConfirmingClear ? (
               <div className="flex items-center gap-4 mr-4 animate-in fade-in slide-in-from-right-2 border border-red-900/50 bg-red-950/20 px-3 py-1 rounded-sm">
-                <span className="text-[10px] uppercase tracking-widest text-red-500 font-bold">Purge Memory?</span>
+                <span className="text-[10px] uppercase tracking-widest text-red-500 font-bold">
+                  Purge Memory?
+                </span>
                 <div className="flex items-center gap-3">
-                  <button 
+                  <button
                     onClick={() => {
                       clearHistory();
                       setIsConfirmingClear(false);
@@ -244,7 +262,7 @@ Cast Size: ${forgeState.draftBlueprint?.cast?.length || 0}
                     Yes
                   </button>
                   <span className="text-zinc-700">|</span>
-                  <button 
+                  <button
                     onClick={() => setIsConfirmingClear(false)}
                     className="text-[10px] uppercase tracking-widest text-zinc-500 hover:text-white transition-colors"
                   >
@@ -262,7 +280,7 @@ Cast Size: ${forgeState.draftBlueprint?.cast?.length || 0}
               </button>
             )}
           </div>
-          <button 
+          <button
             onClick={() => exportConversationToMarkdown(messages, 'session-telemetry')}
             className="p-2 text-zinc-400 hover:text-zinc-100 transition-colors duration-150 border border-zinc-800 hover:border-zinc-700 rounded mr-4"
             title="Download session log (.md)"
@@ -270,20 +288,17 @@ Cast Size: ${forgeState.draftBlueprint?.cast?.length || 0}
             <Download className="w-4 h-4" />
           </button>
           <div className="text-xs text-zinc-600 animate-pulse bg-zinc-900/50 px-3 py-1 rounded border border-zinc-800">
-            {isLoading ? "RECEIVING TRANSMISSION..." : "SYSTEM IDLE"}
+            {isLoading ? 'RECEIVING TRANSMISSION...' : 'SYSTEM IDLE'}
           </div>
         </div>
       </div>
 
       {/* CHAT CONTAINER (Scrollbar pushed to the right edge) */}
-      <div 
-        ref={scrollRef}
-        className="flex-1 overflow-y-auto custom-scrollbar px-4 pb-6 space-y-8"
-      >
+      <div ref={scrollRef} className="flex-1 overflow-y-auto custom-scrollbar px-4 pb-6 space-y-8">
         <AnimatePresence initial={false}>
           {messages.map((msg, index) => (
-            <motion.div 
-              key={index} 
+            <motion.div
+              key={index}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}
@@ -291,11 +306,12 @@ Cast Size: ${forgeState.draftBlueprint?.cast?.length || 0}
               <span className="text-[10px] text-zinc-600 mb-1 uppercase tracking-wider">
                 {msg.role === 'user' ? 'CONDUCTOR' : 'THE VOICE'}
               </span>
-              <div 
+              <div
                 className={`max-w-[75%] p-4 rounded whitespace-pre-wrap leading-relaxed shadow-lg
-                  ${msg.role === 'user' 
-                    ? 'bg-zinc-900 border border-zinc-700 text-zinc-300' 
-                    : 'bg-transparent border-l-2 border-zinc-700 text-zinc-400 pl-4 py-2'
+                  ${
+                    msg.role === 'user'
+                      ? 'bg-zinc-900 border border-zinc-700 text-zinc-300'
+                      : 'bg-transparent border-l-2 border-zinc-700 text-zinc-400 pl-4 py-2'
                   }`}
               >
                 {msg.attachments && msg.attachments.length > 0 && (
@@ -303,7 +319,7 @@ Cast Size: ${forgeState.draftBlueprint?.cast?.length || 0}
                     {msg.attachments.map((att, i) => (
                       <div key={i} className="flex flex-col gap-2">
                         {att.mimeType.startsWith('image/') ? (
-                          <img 
+                          <img
                             src={`data:${att.mimeType};base64,${att.data}`}
                             alt={att.name}
                             className="max-h-48 rounded border border-zinc-700"
@@ -318,17 +334,19 @@ Cast Size: ${forgeState.draftBlueprint?.cast?.length || 0}
                     ))}
                   </div>
                 )}
-                
-                <div className={`markdown-voice relative group ${msg.role === 'user' ? 'text-zinc-300' : 'text-zinc-100'}`}>
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                    {msg.content}
-                  </ReactMarkdown>
-                  <button 
+
+                <div
+                  className={`markdown-voice relative group ${msg.role === 'user' ? 'text-zinc-300' : 'text-zinc-100'}`}
+                >
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+                  <button
                     onClick={() => handleCopyToClipboard(msg.content)}
                     className={`absolute -right-12 top-0 p-1.5 transition-all duration-200 rounded opacity-0 group-hover:opacity-100
-                      ${msg.role === 'user' 
-                        ? 'text-zinc-500 hover:text-white bg-black/50 border border-zinc-800' 
-                        : 'text-zinc-600 hover:text-white bg-black/50 border border-zinc-800'}`}
+                      ${
+                        msg.role === 'user'
+                          ? 'text-zinc-500 hover:text-white bg-black/50 border border-zinc-800'
+                          : 'text-zinc-600 hover:text-white bg-black/50 border border-zinc-800'
+                      }`}
                     title="Copy message contents"
                   >
                     <Copy className="w-3.5 h-3.5" />
@@ -351,24 +369,22 @@ Cast Size: ${forgeState.draftBlueprint?.cast?.length || 0}
 
       {/* EXPANDED USER INPUT AREA (The Green Box) */}
       <div className="px-4 shrink-0 mt-4 relative">
-        
         {/* Ambient background shadow wrapper to ground the input box */}
         <div className="absolute inset-0 bg-gradient-to-t from-black to-transparent pointer-events-none -mt-10" />
 
         <div className="relative bg-[#050505] border border-zinc-800 focus-within:border-zinc-600 rounded p-4 flex items-end gap-4 transition-colors shadow-[0_0_25px_rgba(0,0,0,0.8)]">
-
           {/* FILE ATTACH BUTTON */}
           <div className="flex flex-col items-center justify-center mb-1 shrink-0">
-            <input 
-              type="file" 
+            <input
+              type="file"
               id="voice-file-upload"
-              accept=".txt,.md,.pdf,image/*,.json" 
+              accept=".txt,.md,.pdf,image/*,.json"
               multiple
-              onChange={handleFileChange} 
+              onChange={handleFileChange}
               className="hidden"
             />
-            <label 
-              htmlFor="voice-file-upload" 
+            <label
+              htmlFor="voice-file-upload"
               className="cursor-pointer text-zinc-500 hover:text-zinc-300 flex items-center justify-center h-10 w-10 rounded bg-zinc-900 border border-zinc-800 hover:border-zinc-600 transition-colors shadow-inner"
               title="Attach Memory File"
             >
@@ -381,14 +397,27 @@ Cast Size: ${forgeState.draftBlueprint?.cast?.length || 0}
             {attachments.length > 0 && (
               <div className="flex flex-wrap gap-2 mb-2">
                 {attachments.map((att, i) => (
-                  <span key={i} className="text-blue-400/80 font-mono text-xs truncate max-w-[300px] px-2 py-1 bg-blue-900/10 border border-blue-900/30 rounded inline-flex items-center gap-2 group">
+                  <span
+                    key={i}
+                    className="text-blue-400/80 font-mono text-xs truncate max-w-[300px] px-2 py-1 bg-blue-900/10 border border-blue-900/30 rounded inline-flex items-center gap-2 group"
+                  >
                     <span>🔗 {att.name}</span>
-                    <button type="button" onClick={(e) => { e.preventDefault(); removeAttachment(i); }} className="text-blue-500 hover:text-white" title="Remove">✕</button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        removeAttachment(i);
+                      }}
+                      className="text-blue-500 hover:text-white"
+                      title="Remove"
+                    >
+                      ✕
+                    </button>
                   </span>
                 ))}
               </div>
             )}
-            <textarea 
+            <textarea
               autoFocus
               ref={textareaRef}
               value={input}
@@ -407,7 +436,7 @@ Cast Size: ${forgeState.draftBlueprint?.cast?.length || 0}
           </div>
 
           {/* SEND BUTTON */}
-          <button 
+          <button
             onClick={handleSend}
             disabled={isLoading || (!input.trim() && attachments.length === 0)}
             className="mb-1 px-6 py-3 bg-zinc-900 hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed text-zinc-400 hover:text-zinc-200 border border-zinc-700 hover:border-zinc-500 rounded transition-colors text-xs font-bold tracking-widest shadow-md"

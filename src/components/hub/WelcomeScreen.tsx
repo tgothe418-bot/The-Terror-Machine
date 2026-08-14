@@ -11,7 +11,7 @@ export default function WelcomeScreen() {
   const clearVoice = useVoiceStore((state) => state.clearHistory);
   const { clearHistory: clearForge } = forgeActions;
   const clearEngine = useEngineStore((state) => state.clearBlueprint);
-  
+
   const [isConfirmingReset, setIsConfirmingReset] = useState(false);
 
   const handleFullReset = () => {
@@ -25,7 +25,7 @@ export default function WelcomeScreen() {
     <div className="min-h-screen bg-black text-zinc-100 flex flex-col items-center justify-center p-6 font-sans overflow-hidden relative">
       {/* Background scanline effect */}
       <div className="scanline pointer-events-none" />
-      
+
       <div className="max-w-4xl 2xl:max-w-6xl w-full space-y-16 2xl:space-y-24 relative z-10">
         {/* ... existing header ... */}
         <header className="text-center space-y-6">
@@ -34,7 +34,7 @@ export default function WelcomeScreen() {
             <Ghost className="w-12 h-12 text-white animate-pulse" />
             <div className="h-[1px] w-12 bg-zinc-800" />
           </div>
-          
+
           <div className="space-y-2">
             <h1 className="text-4xl md:text-5xl font-bold tracking-[0.5em] uppercase text-white">
               NIGHTMARE <span className="text-zinc-500 font-light">MACHINE</span>
@@ -60,11 +60,14 @@ export default function WelcomeScreen() {
                 [ HUB_PHASE ]
               </span>
             </div>
-            
+
             <div className="space-y-3">
-              <h2 className="text-2xl font-bold tracking-tight uppercase group-hover:text-white transition-colors">The Voice</h2>
+              <h2 className="text-2xl font-bold tracking-tight uppercase group-hover:text-white transition-colors">
+                The Voice
+              </h2>
               <p className="text-sm text-zinc-500 leading-relaxed font-mono opacity-80">
-                Chat with the system's friendly, curious intelligence. Explore ideas and find company.
+                Chat with the system's friendly, curious intelligence. Explore ideas and find
+                company.
               </p>
             </div>
 
@@ -87,11 +90,14 @@ export default function WelcomeScreen() {
                 [ ARCHITECT_PHASE ]
               </span>
             </div>
-            
+
             <div className="space-y-3">
-              <h2 className="text-2xl font-bold tracking-tight uppercase group-hover:text-white transition-colors">The Forge</h2>
+              <h2 className="text-2xl font-bold tracking-tight uppercase group-hover:text-white transition-colors">
+                The Forge
+              </h2>
               <p className="text-sm text-zinc-500 leading-relaxed font-mono opacity-80">
-                Collaborate with the Assistant to architect a new scenario and export your blueprint.
+                Collaborate with the Assistant to architect a new scenario and export your
+                blueprint.
               </p>
             </div>
 
@@ -114,9 +120,11 @@ export default function WelcomeScreen() {
                 [ RUNTIME_PHASE ]
               </span>
             </div>
-            
+
             <div className="space-y-3">
-              <h2 className="text-2xl font-bold tracking-tight uppercase group-hover:text-white transition-colors">The Engine</h2>
+              <h2 className="text-2xl font-bold tracking-tight uppercase group-hover:text-white transition-colors">
+                The Engine
+              </h2>
               <p className="text-sm text-zinc-500 leading-relaxed font-mono opacity-80">
                 Load a scenario blueprint and initialize the simulation.
               </p>
@@ -154,10 +162,13 @@ export default function WelcomeScreen() {
               >
                 <div className="flex items-center gap-3 text-red-500">
                   <AlertTriangle className="w-4 h-4" />
-                  <span className="text-[10px] font-bold uppercase tracking-[0.3em]">Total Wipe Warning</span>
+                  <span className="text-[10px] font-bold uppercase tracking-[0.3em]">
+                    Total Wipe Warning
+                  </span>
                 </div>
                 <p className="text-[10px] text-zinc-400 uppercase leading-relaxed tracking-wider">
-                  This will purge all history from The Voice, The Forge, and The Engine. This neural link termination is permanent.
+                  This will purge all history from The Voice, The Forge, and The Engine. This neural
+                  link termination is permanent.
                 </p>
                 <div className="flex items-center gap-4 pt-2">
                   <button
@@ -196,4 +207,3 @@ export default function WelcomeScreen() {
     </div>
   );
 }
-

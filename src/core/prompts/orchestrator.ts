@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Blueprint, LogicState, TopologyEdge, Message } from '../../types';
 import { useAppStore } from '../../store/useAppStore';
 
@@ -11,16 +12,16 @@ export const buildOrchestratorPrompt = (
 ) => {
   // Format the cast roster dynamically so the Engine knows exactly who is in the room
   const castRosterString = (blueprint?.cast || [])
-    .map(c => {
+    .map((c) => {
       const type = c.isEntity ? 'ENTITY' : 'SUBJECT';
-      const stats = c.vulnerabilityBase 
-        ? `[Resilience: ${c.vulnerabilityBase.resilience} | Skepticism: ${c.vulnerabilityBase.skepticism} | Baggage: ${c.vulnerabilityBase.baggage}]` 
+      const stats = c.vulnerabilityBase
+        ? `[Resilience: ${c.vulnerabilityBase.resilience} | Skepticism: ${c.vulnerabilityBase.skepticism} | Baggage: ${c.vulnerabilityBase.baggage}]`
         : '';
       return `- ${c.name} [Type: ${type}] | Vector: ${c.behaviorVector || 'ADAPTIVE'} ${stats}\n  Desc: ${c.description || ''}`;
     })
     .join('\n');
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const currentPacing = (currentState as any).pacing || 'normal';
 
   const appState = useAppStore.getState();
@@ -34,47 +35,54 @@ export const buildOrchestratorPrompt = (
     .filter(([, count]) => typeof count === 'number' && count >= 3)
     .map(([motif]) => motif);
 
-  const motifInstruction = saturatedMotifs.length > 0
-    ? `\nCRITICAL PACING DIRECTIVE: The following motifs are SATURATED: [ ${saturatedMotifs.join(', ')} ]. YOU ARE STRICTLY FORBIDDEN from using these. Escalate to new sensory distortions.\n`
-    : "";
+  const motifInstruction =
+    saturatedMotifs.length > 0
+      ? `\nCRITICAL PACING DIRECTIVE: The following motifs are SATURATED: [ ${saturatedMotifs.join(', ')} ]. YOU ARE STRICTLY FORBIDDEN from using these. Escalate to new sensory distortions.\n`
+      : '';
 
   const pacingLedger = appState.pacingLedger || {
     failedEscapeAttempts: 0,
     memoryAnchorsRemaining: 3,
-    spatialContradictions: 0
+    spatialContradictions: 0,
   };
 
   const traumaLedger = `
 =========================================
 [ PERMANENT TRAUMA LEDGER ]
 The following immutable facts were established in previous Acts. You must enforce these truths and never contradict them:
-${traumaLedgerData.length > 0 ? traumaLedgerData.map(t => `- ${t}`).join('\n') : "No permanent trauma recorded yet."}
+${traumaLedgerData.length > 0 ? traumaLedgerData.map((t) => `- ${t}`).join('\n') : 'No permanent trauma recorded yet.'}
 =========================================${motifInstruction}`;
 
-  const activeEdges = (blueprint?.topology?.connections || []).filter((e: TopologyEdge) => e.from && activeNode && e.from === activeNode.id) || [];
-  
-  const spatialMatrix = activeNode ? `
+  const activeEdges =
+    (blueprint?.topology?.connections || []).filter(
+      (e: TopologyEdge) => e.from && activeNode && e.from === activeNode.id
+    ) || [];
+
+  const spatialMatrix = activeNode
+    ? `
 <euclidean_spatial_matrix>
 =========================================
 [ SPATIAL TOPOLOGY ]
 Current Location: ${activeNode.id}
 Available Transitions:
-${activeEdges.map((e: TopologyEdge) => `- To ${e.to} (Kind: ${e.kind}, User Initiated: ${e.userInitiated}${e.requires && e.requires.length > 0 ? `, Requires: [${e.requires.join(', ')}]` : ''})`).join('\n') || "None. You are trapped."}
+${activeEdges.map((e: TopologyEdge) => `- To ${e.to} (Kind: ${e.kind}, User Initiated: ${e.userInitiated}${e.requires && e.requires.length > 0 ? `, Requires: [${e.requires.join(', ')}]` : ''})`).join('\n') || 'None. You are trapped.'}
 =========================================
 SPATIAL DIRECTIVE:
 You cannot invent new rooms. You cannot teleport the subject.
 CRITICAL: You may only output a "requested_transition" if the narrative strictly satisfies the edge rules. If an edge is NOT userInitiated (e.g., "forced_event"), you cannot let the user 'walk' there. You must wait for the required system flags to be met.
 If the subject is not moving, or attempts to move to an invalid/locked location, output null for "requested_transition" and describe the physical barrier preventing their movement.
 </euclidean_spatial_matrix>
-` : '';
+`
+    : '';
 
   const formattedHistory = history
-    .filter(m => m.visibleToModel !== false)
-    .map(m => `${m.role}: ${m.content}`)
+    .filter((m) => m.visibleToModel !== false)
+    .map((m) => `${m.role}: ${m.content}`)
     .join('\n');
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const isEmbodied = (currentState as any).perspective_mode !== 'director' && (currentState as any).perspective_mode !== 'witness';
+  const isEmbodied =
+    (currentState as any).perspective_mode !== 'director' &&
+    (currentState as any).perspective_mode !== 'witness';
 
   const operationalDirectives = !isEmbodied
     ? `<operational_directives>
@@ -240,4 +248,3 @@ ${formattedHistory}
 </recent_history>
   `.trim();
 };
-

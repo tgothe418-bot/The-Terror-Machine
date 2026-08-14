@@ -12,7 +12,7 @@ import TheVoice from './components/hub/TheVoice';
 export default function App() {
   const rawPhase = useAppStore((state) => state.phase);
   const phase = typeof rawPhase === 'string' ? rawPhase.toUpperCase() : 'HUB';
-  
+
   const currentNodeId = useAppStore((state) => state.currentNodeId);
   const isShattered = useAppStore((state) => state.isShattered);
   const spatialGraph = useAppStore((state) => state.spatialGraph);
@@ -26,8 +26,9 @@ export default function App() {
       {phase === 'HUB' && <WelcomeScreen />}
       {phase === 'FORGE' && <Forge />}
       {isEnginePhase && <Engine />}
-      {phase === 'VOICE' && <TheVoice engineState={{ currentNode: currentNodeName, isShattered }} />}
+      {phase === 'VOICE' && (
+        <TheVoice engineState={{ currentNode: currentNodeName, isShattered }} />
+      )}
     </main>
   );
 }
-

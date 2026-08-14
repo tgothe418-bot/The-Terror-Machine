@@ -8,6 +8,8 @@ import voiceRoutes from "./server/routes/voice";
 import forgeRoutes from "./server/routes/forge";
 import { turnRouter } from "./server/routes/turn";
 import chatRoutes from "./server/routes/chat";
+import { REFERENCE_IMPORT_JSON_LIMIT } from "./src/lib/referenceImportPolicy";
+import { payloadErrorHandler } from "./server/middleware/payloadErrorHandler";
 
 async function startServer() {
   const app = express();
@@ -19,6 +21,11 @@ async function startServer() {
     origin: process.env.CORS_ORIGIN || ['http://localhost:5173', 'http://localhost:3000'],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
   }));
+
+  // Route-specific parser for large reference knowledgebase uploads (up to 20 MiB decoded / 28 MB Base64 payload)
+  app.use("/api/extract-blueprint", express.json({ limit: REFERENCE_IMPORT_JSON_LIMIT }));
+
+  // General parsers retaining the default 5 MB limit for standard JSON endpoints
   app.use(express.json({ limit: "5mb" }));
   app.use(express.urlencoded({ extended: true, limit: "5mb" }));
 
@@ -30,11 +37,13 @@ async function startServer() {
   });
 
   // API routes FIRST
-  
   app.use("/api", apiLimiter, voiceRoutes);
   app.use("/api", apiLimiter, forgeRoutes);
   app.use("/api/turn", apiLimiter, turnRouter);
   app.use("/api", apiLimiter, chatRoutes);
+
+  // Structured error handling for parser-level payload overages
+  app.use(payloadErrorHandler);
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {

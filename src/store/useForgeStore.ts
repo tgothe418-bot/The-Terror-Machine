@@ -17,17 +17,17 @@ import {
 import { idbStorage } from '../lib/idbStorage';
 
 export const defaultStyleVector: ProseStyleVector = {
-  sentenceStructure: "clinical-flat",
-  vocabularyTier: "clinical",
-  sensoryFocus: ["metallic friction", "micro-expressions", "spatial geometry"],
-  thematicCore: "objective observation of deteriorating systems",
+  sentenceStructure: 'clinical-flat',
+  vocabularyTier: 'clinical',
+  sensoryFocus: ['metallic friction', 'micro-expressions', 'spatial geometry'],
+  thematicCore: 'objective observation of deteriorating systems',
   forbiddenDevices: [
-    "cinematic camera angles", 
-    "metaphors and similes", 
-    "forced colloquialisms", 
-    "suddenly or unexpectedly", 
-    "internal emotional assumptions"
-  ]
+    'cinematic camera angles',
+    'metaphors and similes',
+    'forced colloquialisms',
+    'suddenly or unexpectedly',
+    'internal emotional assumptions',
+  ],
 };
 
 export type CastRole = 'PROTAGONIST' | 'ANTAGONIST' | 'SENTINEL' | 'ENTITY' | 'OBSERVER';
@@ -64,17 +64,24 @@ export interface DraftCastMember {
   vulnerabilityBase?: VulnerabilityIndex;
 }
 
-export type DraftPerspectiveRole = 'PROTAGONIST' | 'ANTAGONIST' | 'DIRECTOR' | 'WITNESS' | 'POSSESSED';
+export type DraftPerspectiveRole =
+  | 'PROTAGONIST'
+  | 'ANTAGONIST'
+  | 'DIRECTOR'
+  | 'WITNESS'
+  | 'POSSESSED';
 
 export interface DraftPerspective {
   role: DraftPerspectiveRole;
   framingDirective?: string;
   sensoryBias?: string[];
-  startingSemanticState?: string | {
-    soma?: string[];
-    geom?: string[];
-    imp?: string;
-  };
+  startingSemanticState?:
+    | string
+    | {
+        soma?: string[];
+        geom?: string[];
+        imp?: string;
+      };
   subjectCharacterId?: string;
 }
 
@@ -119,8 +126,8 @@ export type DraftBlueprintPatch = Partial<DraftBlueprint>;
 
 export interface EntityMemoryState {
   tacticalImperative: string; // The immediate, shifting goal
-  somaticState: string[];     // Physical truths (e.g., "broken arm", "bleeding")
-  relationalWeb: string[];    // Environmental/Entity knowledge
+  somaticState: string[]; // Physical truths (e.g., "broken arm", "bleeding")
+  relationalWeb: string[]; // Environmental/Entity knowledge
   systemFlags?: string[];
 }
 
@@ -131,11 +138,13 @@ export interface ArchitectMessage {
 
 export interface SimulationPerspective {
   role?: string;
-  startingSemanticState?: string | {
-    soma?: string[];
-    geom?: string[];
-    imp?: string;
-  };
+  startingSemanticState?:
+    | string
+    | {
+        soma?: string[];
+        geom?: string[];
+        imp?: string;
+      };
 }
 
 export interface SimulationBlueprintInput {
@@ -179,7 +188,9 @@ export interface ForgeActions {
   removeReferenceMaterial: (id: string) => void;
   setActiveNeuralLink: (role: 'PROTAGONIST' | 'ANTAGONIST') => void;
   setActiveCharacterId: (id: string | null) => void;
-  startSimulation: (blueprint?: SimulationBlueprintInput | DraftBlueprint | Blueprint | ScenarioBlueprint | null) => void;
+  startSimulation: (
+    blueprint?: SimulationBlueprintInput | DraftBlueprint | Blueprint | ScenarioBlueprint | null
+  ) => void;
 }
 
 export interface ForgeState {
@@ -210,12 +221,12 @@ export interface ForgeState {
 const initialState: ForgeState = {
   castLedger: [],
   topology: {
-    'NODE_INIT': []
+    NODE_INIT: [],
   },
   activeMemory: {
-    tacticalImperative: "Survive and assess the immediate surroundings.",
-    somaticState: ["Baseline health"],
-    relationalWeb: ["Subject is isolated."]
+    tacticalImperative: 'Survive and assess the immediate surroundings.',
+    somaticState: ['Baseline health'],
+    relationalWeb: ['Subject is isolated.'],
   },
   messages: [
     {
@@ -234,7 +245,10 @@ const initialState: ForgeState = {
   extractedThreat: '',
   extractedStyle: '',
   architectMessages: [
-    { role: 'architect', content: "I am the Architect. Tell me what kind of nightmare we are building today." }
+    {
+      role: 'architect',
+      content: 'I am the Architect. Tell me what kind of nightmare we are building today.',
+    },
   ],
   who: '',
   what: '',
@@ -243,7 +257,7 @@ const initialState: ForgeState = {
   whyHow: '',
   draftBlueprint: null,
   activeNeuralLink: 'PROTAGONIST',
-  activeCharacterId: null
+  activeCharacterId: null,
 };
 
 export type ForgeStore = ForgeState & { actions: ForgeActions };
@@ -253,91 +267,111 @@ export const useForgeStoreInternal = create<ForgeStore>()(
     (set) => ({
       ...initialState,
       actions: {
-        addCastMember: (member: Omit<CastMember, 'id'>) => set((state: ForgeState) => ({
-          castLedger: [...state.castLedger, { ...member, id: crypto.randomUUID() }]
-        })),
-        updateCastMember: (id: string, updates: Partial<CastMember>) => set((state: ForgeState) => ({
-          castLedger: state.castLedger.map(m => m.id === id ? { ...m, ...updates } : m)
-        })),
-        removeCastMember: (id: string) => set((state: ForgeState) => ({
-          castLedger: state.castLedger.filter(m => m.id !== id)
-        })),
+        addCastMember: (member: Omit<CastMember, 'id'>) =>
+          set((state: ForgeState) => ({
+            castLedger: [...state.castLedger, { ...member, id: crypto.randomUUID() }],
+          })),
+        updateCastMember: (id: string, updates: Partial<CastMember>) =>
+          set((state: ForgeState) => ({
+            castLedger: state.castLedger.map((m) => (m.id === id ? { ...m, ...updates } : m)),
+          })),
+        removeCastMember: (id: string) =>
+          set((state: ForgeState) => ({
+            castLedger: state.castLedger.filter((m) => m.id !== id),
+          })),
         resetStore: () => set(initialState),
-        addSpatialNode: (nodeId: string) => set((state: ForgeState) => {
-          if (state.topology[nodeId]) return state; // Prevent duplicates
-          return { topology: { ...state.topology, [nodeId]: [] } };
-        }),
-        removeSpatialNode: (nodeId: string) => set((state: ForgeState) => {
-          const newTopology = { ...state.topology };
-          delete newTopology[nodeId];
-          // Clean up orphaned edges
-          Object.keys(newTopology).forEach(key => {
-            newTopology[key] = newTopology[key].filter(id => id !== nodeId);
-          });
-          return { topology: newTopology };
-        }),
-        toggleSpatialEdge: (nodeA: string, nodeB: string) => set((state: ForgeState) => {
-          const edgesA = state.topology[nodeA] || [];
-          const isConnected = edgesA.includes(nodeB);
-          
-          return {
-            topology: {
-              ...state.topology,
-              [nodeA]: isConnected ? edgesA.filter(id => id !== nodeB) : [...edgesA, nodeB],
-              // Bi-directional constraint enforcement
-              [nodeB]: isConnected 
-                ? (state.topology[nodeB] || []).filter(id => id !== nodeA)
-                : [...(state.topology[nodeB] || []), nodeA]
-            }
-          };
-        }),
-        updateActiveMemory: (updates: Partial<EntityMemoryState>) => set((state: ForgeState) => ({
-          activeMemory: { ...state.activeMemory, ...updates }
-        })),
-        commitSemanticTags: (parsedTags: Record<string, string[]>) => set((state: ForgeState) => {
-          const nextMemory = { ...state.activeMemory };
-          
-          if (parsedTags['SOMA']) nextMemory.somaticState = parsedTags['SOMA'];
-          if (parsedTags['GEOM']) nextMemory.relationalWeb = parsedTags['GEOM'];
-          if (parsedTags['IMP']) nextMemory.tacticalImperative = parsedTags['IMP'].join(' ');
-          if (parsedTags['SYS']) nextMemory.systemFlags = parsedTags['SYS'];
-          
-          return { activeMemory: nextMemory };
-        }),
-        addArchitectMessage: (message: ArchitectMessage) => set((state: ForgeState) => ({
-          architectMessages: [...state.architectMessages, message]
-        })),
-        clearArchitectChat: () => set({
-          architectMessages: [
-            { role: 'architect', content: "I am the Architect. Tell me what kind of nightmare we are building today." }
-          ]
-        }),
-        initializeDraft: () => set({
-          draftBlueprint: {
-            id: crypto.randomUUID(),
-            title: '',
-            premise: '',
-            startingVector: 'COGNITIVE',
-            startingTier: 'LATENT',
-            environmentalRules: ''
-          }
-        }),
-        updateDraft: (updates: DraftBlueprintPatch) => set((state: ForgeState) => ({
-          draftBlueprint: state.draftBlueprint ? { ...state.draftBlueprint, ...updates } : { 
-            startingVector: 'COGNITIVE', 
-            startingTier: 'GATEWAY', 
-            ...updates 
-          }
-        })),
-        removeReference: (fileName: string) => set((state: ForgeState) => {
-          if (!state.draftBlueprint) return state;
-          return {
+        addSpatialNode: (nodeId: string) =>
+          set((state: ForgeState) => {
+            if (state.topology[nodeId]) return state; // Prevent duplicates
+            return { topology: { ...state.topology, [nodeId]: [] } };
+          }),
+        removeSpatialNode: (nodeId: string) =>
+          set((state: ForgeState) => {
+            const newTopology = { ...state.topology };
+            delete newTopology[nodeId];
+            // Clean up orphaned edges
+            Object.keys(newTopology).forEach((key) => {
+              newTopology[key] = newTopology[key].filter((id) => id !== nodeId);
+            });
+            return { topology: newTopology };
+          }),
+        toggleSpatialEdge: (nodeA: string, nodeB: string) =>
+          set((state: ForgeState) => {
+            const edgesA = state.topology[nodeA] || [];
+            const isConnected = edgesA.includes(nodeB);
+
+            return {
+              topology: {
+                ...state.topology,
+                [nodeA]: isConnected ? edgesA.filter((id) => id !== nodeB) : [...edgesA, nodeB],
+                // Bi-directional constraint enforcement
+                [nodeB]: isConnected
+                  ? (state.topology[nodeB] || []).filter((id) => id !== nodeA)
+                  : [...(state.topology[nodeB] || []), nodeA],
+              },
+            };
+          }),
+        updateActiveMemory: (updates: Partial<EntityMemoryState>) =>
+          set((state: ForgeState) => ({
+            activeMemory: { ...state.activeMemory, ...updates },
+          })),
+        commitSemanticTags: (parsedTags: Record<string, string[]>) =>
+          set((state: ForgeState) => {
+            const nextMemory = { ...state.activeMemory };
+
+            if (parsedTags['SOMA']) nextMemory.somaticState = parsedTags['SOMA'];
+            if (parsedTags['GEOM']) nextMemory.relationalWeb = parsedTags['GEOM'];
+            if (parsedTags['IMP']) nextMemory.tacticalImperative = parsedTags['IMP'].join(' ');
+            if (parsedTags['SYS']) nextMemory.systemFlags = parsedTags['SYS'];
+
+            return { activeMemory: nextMemory };
+          }),
+        addArchitectMessage: (message: ArchitectMessage) =>
+          set((state: ForgeState) => ({
+            architectMessages: [...state.architectMessages, message],
+          })),
+        clearArchitectChat: () =>
+          set({
+            architectMessages: [
+              {
+                role: 'architect',
+                content:
+                  'I am the Architect. Tell me what kind of nightmare we are building today.',
+              },
+            ],
+          }),
+        initializeDraft: () =>
+          set({
             draftBlueprint: {
-              ...state.draftBlueprint,
-              references: state.draftBlueprint.references?.filter(ref => ref !== fileName) || []
-            }
-          };
-        }),
+              id: crypto.randomUUID(),
+              title: '',
+              premise: '',
+              startingVector: 'COGNITIVE',
+              startingTier: 'LATENT',
+              environmentalRules: '',
+            },
+          }),
+        updateDraft: (updates: DraftBlueprintPatch) =>
+          set((state: ForgeState) => ({
+            draftBlueprint: state.draftBlueprint
+              ? { ...state.draftBlueprint, ...updates }
+              : {
+                  startingVector: 'COGNITIVE',
+                  startingTier: 'GATEWAY',
+                  ...updates,
+                },
+          })),
+        removeReference: (fileName: string) =>
+          set((state: ForgeState) => {
+            if (!state.draftBlueprint) return state;
+            return {
+              draftBlueprint: {
+                ...state.draftBlueprint,
+                references:
+                  state.draftBlueprint.references?.filter((ref) => ref !== fileName) || [],
+              },
+            };
+          }),
         setWho: (val: string) => set({ who: val }),
         setWhat: (val: string) => set({ what: val }),
         setWhere: (val: string) => set({ where: val }),
@@ -348,66 +382,97 @@ export const useForgeStoreInternal = create<ForgeStore>()(
           set((state: ForgeState) => ({
             messages: [...state.messages, message],
           })),
-        clearHistory: () => set({ 
-          ...initialState
-        }),
-        setAvailableReferenceCharacters: (characters: CharacterProfile[]) => set({ availableReferenceCharacters: characters }),
-        addCharacterToCast: (character: CharacterProfile) => set((state: ForgeState) => {
-          const npcCount = state.selectedCharacters.filter(c => !c.isUserCharacter).length;
-          if (!character.isUserCharacter && npcCount >= 5) return state;
-          if (state.selectedCharacters.find(c => c.id === character.id)) return state;
-          return { selectedCharacters: [...state.selectedCharacters, character] };
-        }),
-        removeCharacterFromCast: (id: string) => set((state: ForgeState) => ({
-          selectedCharacters: state.selectedCharacters.filter(c => c.id !== id)
-        })),
-        updateCharacterDetails: (id: string, updates: Partial<CharacterProfile>) => set((state: ForgeState) => ({
-          selectedCharacters: state.selectedCharacters.map(c => c.id === id ? { ...c, ...updates } : c)
-        })),
+        clearHistory: () =>
+          set({
+            ...initialState,
+          }),
+        setAvailableReferenceCharacters: (characters: CharacterProfile[]) =>
+          set({ availableReferenceCharacters: characters }),
+        addCharacterToCast: (character: CharacterProfile) =>
+          set((state: ForgeState) => {
+            const npcCount = state.selectedCharacters.filter((c) => !c.isUserCharacter).length;
+            if (!character.isUserCharacter && npcCount >= 5) return state;
+            if (state.selectedCharacters.find((c) => c.id === character.id)) return state;
+            return { selectedCharacters: [...state.selectedCharacters, character] };
+          }),
+        removeCharacterFromCast: (id: string) =>
+          set((state: ForgeState) => ({
+            selectedCharacters: state.selectedCharacters.filter((c) => c.id !== id),
+          })),
+        updateCharacterDetails: (id: string, updates: Partial<CharacterProfile>) =>
+          set((state: ForgeState) => ({
+            selectedCharacters: state.selectedCharacters.map((c) =>
+              c.id === id ? { ...c, ...updates } : c
+            ),
+          })),
         setHasReferenceMaterial: (has: boolean) => set({ hasReferenceMaterial: has }),
         setForgePhase: (phase: ForgePhase) => set({ forgePhase: phase }),
         setSummaryContext: (context: string) => set({ summaryContext: context }),
         setExtractedSetting: (setting: string) => set({ extractedSetting: setting }),
         setExtractedThreat: (threat: string) => set({ extractedThreat: threat }),
         setExtractedStyle: (style: string) => set({ extractedStyle: style }),
-        addReferenceMaterials: (materials: ReferenceMaterial[]) => set((state: ForgeState) => ({ 
-          referenceMaterials: [...state.referenceMaterials, ...materials] 
-        })),
-        removeReferenceMaterial: (id: string) => set((state: ForgeState) => ({
-          referenceMaterials: state.referenceMaterials.filter(m => m.id !== id)
-        })),
-        setActiveNeuralLink: (role: 'PROTAGONIST' | 'ANTAGONIST') => set({ activeNeuralLink: role }),
+        addReferenceMaterials: (materials: ReferenceMaterial[]) =>
+          set((state: ForgeState) => ({
+            referenceMaterials: [...state.referenceMaterials, ...materials],
+          })),
+        removeReferenceMaterial: (id: string) =>
+          set((state: ForgeState) => ({
+            referenceMaterials: state.referenceMaterials.filter((m) => m.id !== id),
+          })),
+        setActiveNeuralLink: (role: 'PROTAGONIST' | 'ANTAGONIST') =>
+          set({ activeNeuralLink: role }),
         setActiveCharacterId: (id: string | null) => set({ activeCharacterId: id }),
-        startSimulation: (blueprint?: SimulationBlueprintInput | DraftBlueprint | Blueprint | ScenarioBlueprint | null) => set((state: ForgeState) => {
-          const activePerspective = blueprint?.perspectives?.find(
-            (p) => p && typeof p === 'object' && 'role' in p && p.role === state.activeNeuralLink
-          );
-          
-          let initialSomatic: string[] = [];
-          let initialGeOM: string[] = [];
-          let initialImp = "";
+        startSimulation: (
+          blueprint?:
+            | SimulationBlueprintInput
+            | DraftBlueprint
+            | Blueprint
+            | ScenarioBlueprint
+            | null
+        ) =>
+          set((state: ForgeState) => {
+            const activePerspective = blueprint?.perspectives?.find(
+              (p) => p && typeof p === 'object' && 'role' in p && p.role === state.activeNeuralLink
+            );
 
-          if (activePerspective && typeof activePerspective === 'object' && 'startingSemanticState' in activePerspective) {
-            const semanticState = activePerspective.startingSemanticState;
-            if (semanticState && typeof semanticState === 'object') {
-              initialSomatic = ('soma' in semanticState && Array.isArray(semanticState.soma)) ? semanticState.soma : [];
-              initialGeOM = ('geom' in semanticState && Array.isArray(semanticState.geom)) ? semanticState.geom : [];
-              initialImp = ('imp' in semanticState && typeof semanticState.imp === 'string') ? semanticState.imp : "";
-            } else if (typeof semanticState === 'string') {
-              initialImp = semanticState;
-            }
-          }
+            let initialSomatic: string[] = [];
+            let initialGeOM: string[] = [];
+            let initialImp = '';
 
-          return {
-            activeMemory: {
-              somaticState: initialSomatic,
-              relationalWeb: initialGeOM,
-              tacticalImperative: initialImp,
-              systemFlags: []
+            if (
+              activePerspective &&
+              typeof activePerspective === 'object' &&
+              'startingSemanticState' in activePerspective
+            ) {
+              const semanticState = activePerspective.startingSemanticState;
+              if (semanticState && typeof semanticState === 'object') {
+                initialSomatic =
+                  'soma' in semanticState && Array.isArray(semanticState.soma)
+                    ? semanticState.soma
+                    : [];
+                initialGeOM =
+                  'geom' in semanticState && Array.isArray(semanticState.geom)
+                    ? semanticState.geom
+                    : [];
+                initialImp =
+                  'imp' in semanticState && typeof semanticState.imp === 'string'
+                    ? semanticState.imp
+                    : '';
+              } else if (typeof semanticState === 'string') {
+                initialImp = semanticState;
+              }
             }
-          };
-        })
-      }
+
+            return {
+              activeMemory: {
+                somaticState: initialSomatic,
+                relationalWeb: initialGeOM,
+                tacticalImperative: initialImp,
+                systemFlags: [],
+              },
+            };
+          }),
+      },
     }),
     {
       name: 'the-forge-memory',

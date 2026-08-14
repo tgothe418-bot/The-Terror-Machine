@@ -1,5 +1,12 @@
 import type { EngineEvent } from './events';
-import type { Message, NarrativeBlock, LogicState, TopologyDelta, FrameValidation, ContextReceipt } from '../../types';
+import type {
+  Message,
+  NarrativeBlock,
+  LogicState,
+  TopologyDelta,
+  FrameValidation,
+  ContextReceipt,
+} from '../../types';
 
 export interface ResolvedTurnTelemetry {
   narrative_blocks?: unknown[];

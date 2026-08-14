@@ -5,15 +5,15 @@ import { TopologyEdge, SubjectivePerspective } from '../types';
 export interface TerminalConditions {
   somaticTerminal: {
     fatalThresholdTags: string[]; // e.g., ["exsanguinated", "concussed_unconscious"]
-    narrativeResolution: string;   // The cold-archive text when physical shell fails
+    narrativeResolution: string; // The cold-archive text when physical shell fails
   };
   narrativeConvergence: {
-    requiredStateFlags: string[];  // e.g., ["grid_severed", "sacrifice_recorded"]
-    resolutionSequence: string;    // The pyrrhic closure description (e.g., the Mina Hark resolution)
+    requiredStateFlags: string[]; // e.g., ["grid_severed", "sacrifice_recorded"]
+    resolutionSequence: string; // The pyrrhic closure description (e.g., the Mina Hark resolution)
   };
   cognitiveCollapse: {
-    maxWebDensity: number;         // Threshold of reality-breaking entries before fracturing
-    collapseResolution: string;    // The text when the internal matrix shatters into the environment
+    maxWebDensity: number; // Threshold of reality-breaking entries before fracturing
+    collapseResolution: string; // The text when the internal matrix shatters into the environment
   };
 }
 
@@ -37,7 +37,7 @@ export interface AuthoritativeBlueprint {
     name: string;
     description: string;
     behaviorVector: string;
-    isEntity?: boolean; 
+    isEntity?: boolean;
   }[];
   perspectives?: SubjectivePerspective[];
   constraints?: string[];
@@ -57,13 +57,15 @@ const formatActiveMemoryTag = (memory: ForgeState['activeMemory']): string => {
   return denseString ? `[CURRENT_STATE:: ${denseString}]` : '[CURRENT_STATE:: NOMINAL]';
 };
 
-const formatTerminalConditions = (terminals: AuthoritativeBlueprint['terminalConditions']): string => {
+const formatTerminalConditions = (
+  terminals: AuthoritativeBlueprint['terminalConditions']
+): string => {
   if (!terminals) return '';
   return [
     `[TERMINAL_BOUNDARIES]`,
     `FATAL_SOMATIC_THRESHOLDS: ${terminals.somaticTerminal?.fatalThresholdTags?.join(', ') || 'N/A'}`,
     `NARRATIVE_CONVERGENCE_REQUIREMENTS: ${terminals.narrativeConvergence?.requiredStateFlags?.join(', ') || 'N/A'}`,
-    `MAX_COGNITIVE_DENSITY: ${terminals.cognitiveCollapse?.maxWebDensity || 'N/A'} active GEOM/RELATIONAL anomalies.`
+    `MAX_COGNITIVE_DENSITY: ${terminals.cognitiveCollapse?.maxWebDensity || 'N/A'} active GEOM/RELATIONAL anomalies.`,
   ].join('\n');
 };
 
@@ -76,23 +78,22 @@ export const compileStateToDenseOntology = (
   currentState: ForgeState
 ): string => {
   const denseTopology = `SPATIAL_BOUNDS::[${blueprint.topology?.nodes?.join(',') || ''}]`;
-  
+
   const rules = blueprint.constraints || blueprint.environmentalRules || [];
-  const denseConstraints = rules
-    .map((rule, idx) => `RULE_${idx}:${rule}`)
-    .join('|');
+  const denseConstraints = rules.map((rule, idx) => `RULE_${idx}:${rule}`).join('|');
 
   const denseTrauma = currentState.castLedger
-    .map(c => `ENTITY_ID:${c.id}(${c.name})=>STATUS:${c.psychological_status}`)
+    .map((c) => `ENTITY_ID:${c.id}(${c.name})=>STATUS:${c.psychological_status}`)
     .join(';');
 
   // Extract the specific character data based on the user's UI selection
-  const linkedCharacter = blueprint.cast?.find(c => c.id === currentState.activeCharacterId) 
+  const linkedCharacter =
+    blueprint.cast?.find((c) => c.id === currentState.activeCharacterId) ||
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    || blueprint.cast?.find((c: any) => c.role === currentState.activeNeuralLink)
-    || null;
+    blueprint.cast?.find((c: any) => c.role === currentState.activeNeuralLink) ||
+    null;
 
-  const neuralLinkTag = linkedCharacter 
+  const neuralLinkTag = linkedCharacter
     ? `[USER_NEURAL_LINK:: ROLE: ${currentState.activeNeuralLink} | IDENTITY: ${linkedCharacter.name} | VECTOR: ${linkedCharacter.behaviorVector || 'UNKNOWN'}]`
     : `[USER_NEURAL_LINK:: UNASSIGNED]`;
 
@@ -107,6 +108,6 @@ export const compileStateToDenseOntology = (
     `[CRITICAL_CONSTRAINTS::${denseConstraints}]`,
     `[TRAUMA_STATE_LEDGER::${denseTrauma}]`,
     terminalBoundariesTag,
-    currentStateTag
+    currentStateTag,
   ].join('\n\n');
 };
