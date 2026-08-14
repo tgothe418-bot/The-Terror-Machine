@@ -32,6 +32,8 @@ export interface FailedTurnPayload {
   errorMessage?: string;
   statusCode?: number | null;
   contentType?: string | null;
+  activeVector?: string;
+  activeTier?: string;
   timestamp?: number;
 }
 
