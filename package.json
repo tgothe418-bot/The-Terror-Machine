@@ -14,7 +14,7 @@
     "test": "vitest"
   },
   "dependencies": {
-    "@google/genai": "^1.29.0",
+    "@google/genai": "2.17.1",
     "@tailwindcss/vite": "^4.1.14",
     "@vitejs/plugin-react": "^5.0.4",
     "cors": "^2.8.6",
@@ -44,7 +44,7 @@
     "eslint": "^8.57.1",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-react-hooks": "^7.1.1",
-    "eslint-plugin-react-refresh": "^0.5.2",
+    "eslint-plugin-react-refresh": "0.4.26",
     "fake-indexeddb": "^6.2.5",
     "jsdom": "^29.0.2",
     "prettier": "^3.8.3",

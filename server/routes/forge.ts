@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import express from "express";
 import { getAiClient } from "../utils/aiClient";
+import { getGeminiPolicy } from "../ai/modelPolicy";
 import { LORE_EXTRACTION_PROMPT, ARCHITECT_SYSTEM_PROMPT } from "../../src/core/prompts/architect";
 import { getMatrixRules } from "../../src/core/matrix";
 import { 
@@ -57,10 +58,15 @@ router.post("/test-blueprint", async (req, res) => {
       \`\`\`
     `;
 
+    const policy = getGeminiPolicy("FORGE_PREVIEW");
     const response = await getAiClient().models.generateContent({
-      model: "gemini-3.5-flash",
+      model: policy.model,
       contents: systemPrompt,
-      config: { temperature: 0.8 }, 
+      config: {
+        thinkingConfig: {
+          thinkingLevel: policy.thinkingLevel,
+        },
+      }, 
     });
 
     const outputText = response.text || "";
@@ -104,10 +110,15 @@ router.post("/architect", async (req, res) => {
 
     const fullPrompt = `${finalPrompt}\n\n=== CONVERSATION LOG ===\n${formattedHistory}\n\nARCHITECT:`;
 
+    const policy = getGeminiPolicy("FORGE_ARCHITECTURE");
     const response = await getAiClient().models.generateContent({
-      model: "gemini-3.5-flash",
+      model: policy.model,
       contents: fullPrompt,
-      config: { temperature: 0.7 },
+      config: {
+        thinkingConfig: {
+          thinkingLevel: policy.thinkingLevel,
+        },
+      },
     });
 
     const outputText = response.text || "";
@@ -159,14 +170,18 @@ router.post("/analyze-reference", async (req, res) => {
       }
     });
 
+    const policy = getGeminiPolicy("LORE_ANALYSIS");
     const response = await getAiClient().models.generateContent({
-      model: "gemini-3.1-pro-preview",
+      model: policy.model,
       contents: [
         "Extract the lore from the following materials.", 
         ...multimodalParts
       ],
       config: {
         systemInstruction: LORE_EXTRACTION_PROMPT,
+        thinkingConfig: {
+          thinkingLevel: policy.thinkingLevel,
+        },
       }
     });
 
@@ -188,12 +203,15 @@ router.post("/summarize-interview", async (req, res) => {
   try {
     const { history } = parsedBody.data;
     const historyText = history?.map((m: any) => `${m.role.toUpperCase()}: ${m.content}`).join('\n') || '';
+    const policy = getGeminiPolicy("LORE_ANALYSIS");
     const response = await getAiClient().models.generateContent({
-      model: "gemini-3.5-flash",
+      model: policy.model,
       contents: historyText,
       config: {
         systemInstruction: "Condense this interview history into a flat, objective list of established facts, rules, setting details, threats, and psychological parameters.",
-        temperature: 0.5,
+        thinkingConfig: {
+          thinkingLevel: policy.thinkingLevel,
+        },
       },
     });
     res.json({ text: response.text || "Summary failed." });
@@ -208,8 +226,9 @@ router.post("/extract-style", async (req, res) => {
 
   try {
     const { userText } = parsedBody.data;
+    const policy = getGeminiPolicy("LORE_ANALYSIS");
     const response = await getAiClient().models.generateContent({
-      model: "gemini-3.5-flash",
+      model: policy.model,
       contents: userText,
       config: {
         systemInstruction: `You are a literary analyst. Analyze the provided text and output a JSON object describing its style vectors. 
@@ -224,7 +243,9 @@ router.post("/extract-style", async (req, res) => {
         }
         
         Do not include markdown blocks. Only return the JSON.`,
-        temperature: 0.5,
+        thinkingConfig: {
+          thinkingLevel: policy.thinkingLevel,
+        },
         responseMimeType: "application/json",
       },
     });
@@ -252,11 +273,17 @@ router.post("/distill", async (req, res) => {
       ${flattenedTranscript}
     `;
 
+    const policy = getGeminiPolicy("LORE_ANALYSIS");
     const response = await getAiClient().models.generateContent({
-      model: "gemini-3.5-flash",
+      model: policy.model,
       contents: [
         { role: 'user', parts: [{ text: systemPrompt + '\n\n' + payloadContent }] }
-      ]
+      ],
+      config: {
+        thinkingConfig: {
+          thinkingLevel: policy.thinkingLevel,
+        },
+      }
     });
 
     const compressedSummary = response.text || "";
@@ -273,12 +300,16 @@ router.post("/memory-forge", async (req, res) => {
 
   try {
     const { systemPrompt, chatHistory } = parsedBody.data;
+    const policy = getGeminiPolicy("LORE_ANALYSIS");
     const response = await getAiClient().models.generateContent({
-      model: "gemini-3.5-flash",
+      model: policy.model,
       contents: [
         { role: 'user', parts: [{ text: systemPrompt + '\n\n' + chatHistory }] }
       ],
       config: {
+        thinkingConfig: {
+          thinkingLevel: policy.thinkingLevel,
+        },
         responseMimeType: "application/json"
       }
     });
@@ -392,8 +423,9 @@ router.post("/extract-blueprint", async (req, res) => {
     `;
 
     const aiClient = getAiClient();
+    const policy = getGeminiPolicy("FORGE_ARCHITECTURE");
     const response = await aiClient.models.generateContent({
-      model: "gemini-3.5-flash", 
+      model: policy.model, 
       contents: [
         {
           role: 'user',
@@ -403,7 +435,11 @@ router.post("/extract-blueprint", async (req, res) => {
           ]
         }
       ],
-      config: { temperature: 0.5 }, 
+      config: {
+        thinkingConfig: {
+          thinkingLevel: policy.thinkingLevel,
+        },
+      }, 
     });
 
     const outputText = response.text || "";

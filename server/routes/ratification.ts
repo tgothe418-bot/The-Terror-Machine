@@ -2,13 +2,13 @@ import { Router, Request, Response } from 'express';
 import { EventSpecificationSchema } from '../schemas/engine';
 import { ZodError } from 'zod';
 import { getAiClient } from '../utils/aiClient';
+import { getGeminiPolicy } from '../ai/modelPolicy';
 
 const router = Router();
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 router.post('/ratify', async (req: Request, res: Response): Promise<any> => {
   const { prompt } = req.body;
-
   if (!prompt || typeof prompt !== 'string') {
     return res.status(400).json({ error: 'Missing or invalid prompt in request body' });
   }
@@ -18,9 +18,15 @@ router.post('/ratify', async (req: Request, res: Response): Promise<any> => {
 
   while (attempt < 3) {
     try {
+      const policy = getGeminiPolicy('LEGACY_RECONCILIATION');
       const response = await getAiClient().models.generateContent({
-        model: "gemini-3.1-pro-preview",
+        model: policy.model,
         contents: currentPrompt,
+        config: {
+          thinkingConfig: {
+            thinkingLevel: policy.thinkingLevel,
+          },
+        },
       });
       const llmOutput = response.text || "";
 
@@ -32,7 +38,6 @@ router.post('/ratify', async (req: Request, res: Response): Promise<any> => {
 
       // Validate using Zod
       const validatedData = EventSpecificationSchema.parse(parsedJson);
-
       return res.status(200).json(validatedData);
     } catch (error) {
       attempt++;

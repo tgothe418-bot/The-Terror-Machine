@@ -1,5 +1,5 @@
-import { zodToJsonSchema } from 'zod-to-json-schema';
 import { GoogleGenAI, Type } from "@google/genai";
+import { getGeminiPolicy } from "../ai/modelPolicy";
 
 let aiClient: GoogleGenAI | null = null;
 const STARTUP_API_KEY = process.env.GEMINI_API_KEY;
@@ -64,11 +64,14 @@ export const generateEngineTurn = async (prompt: string, history: unknown[] = []
     { role: "user", parts: [{ text: prompt }] }
   ];
 
+  const policy = getGeminiPolicy('ENGINE_TURN');
   const response = await getAiClient().models.generateContent({
-    model: "gemini-3.1-pro-preview",
+    model: policy.model,
     contents,
     config: {
-      temperature: 0.7,
+      thinkingConfig: {
+        thinkingLevel: policy.thinkingLevel,
+      },
       responseMimeType: "application/json",
       responseSchema: engineResponseSchema,
     }
@@ -76,8 +79,6 @@ export const generateEngineTurn = async (prompt: string, history: unknown[] = []
 
   return response.text;
 };
-
-
 
 const turnResponseSchema = {
   type: Type.OBJECT,
@@ -152,11 +153,14 @@ const turnResponseSchema = {
 export const generateStructuredResponse = async (prompt: string, zodSchema: any) => {
   const contents = [{ role: "user", parts: [{ text: prompt }] }];
 
+  const policy = getGeminiPolicy('ENGINE_TURN');
   const response = await getAiClient().models.generateContent({
-    model: "gemini-3.1-pro-preview",
+    model: policy.model,
     contents,
     config: {
-      temperature: 0.7,
+      thinkingConfig: {
+        thinkingLevel: policy.thinkingLevel,
+      },
       responseMimeType: "application/json",
       responseSchema: turnResponseSchema,
     }

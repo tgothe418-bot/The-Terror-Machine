@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import express from "express";
 import { getAiClient } from "../utils/aiClient";
+import { getGeminiPolicy } from "../ai/modelPolicy";
 import { VoiceRequestSchema } from "../schemas/index";
 import { VOICE_SYSTEM_PROMPT } from "../../src/core/prompts/voice";
 
@@ -84,12 +85,15 @@ router.post("/gemini/voice", async (req, res) => {
     }
 
     const aiClient = getAiClient();
+    const policy = getGeminiPolicy("VOICE");
     const response = await aiClient.models.generateContent({
-      model: "gemini-3.1-pro-preview",
+      model: policy.model,
       contents: contents,
       config: { 
-        temperature: 0.8,
         systemInstruction: finalSystemPrompt,
+        thinkingConfig: {
+          thinkingLevel: policy.thinkingLevel,
+        },
         tools: [
           {
             googleSearch: {}, 

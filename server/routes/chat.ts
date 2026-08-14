@@ -5,6 +5,7 @@ import path from "path";
 import crypto from "crypto";
 import { Type } from "@google/genai";
 import { getAiClient } from "../utils/aiClient";
+import { getGeminiPolicy } from "../ai/modelPolicy";
 import { buildOrchestratorPrompt } from "../../src/core/prompts/orchestrator";
 // Removed jsonParser
 import { BicameralOutput } from "../../src/types";
@@ -23,9 +24,15 @@ router.post("/init", async (req, res) => {
       
       Action: Describe the initial root node architecture. Do not address the user. Do not await input. Establish immediate atmospheric dread using the provided aesthetic.
     `;
+    const policy = getGeminiPolicy('ENGINE_INIT');
     const response = await getAiClient().models.generateContent({
-      model: "gemini-3.5-flash",
-      contents: initPrompt
+      model: policy.model,
+      contents: initPrompt,
+      config: {
+        thinkingConfig: {
+          thinkingLevel: policy.thinkingLevel,
+        },
+      }
     });
     return res.json({ prose: response.text });
   } catch (error: any) {
@@ -56,12 +63,8 @@ router.post("/chat", async (req, res) => {
 
     let systemInstruction = "";
     let responseMimeType = "text/plain";
-    let temperature = 0.9;
-
     if (isRuntimeMode) {
       responseMimeType = "application/json";
-      temperature = 0.8;
-      
       // --- ESCALATION MATRIX INJECTION (The Mirror Effect) ---
       let escalationPrompt = "";
       if (currentEscalation) {
@@ -220,14 +223,15 @@ router.post("/chat", async (req, res) => {
       required: ["engine_thoughts", "narrative_blocks", "logic_state"]
     };
 
+    const policy = getGeminiPolicy('ENGINE_TURN');
     const response = await getAiClient().models.generateContent({
-      model: "gemini-3.5-flash",
+      model: policy.model,
       contents: contents,
       config: {
         systemInstruction: systemInstruction,
-        temperature,
-        topP: 0.95,
-        topK: 40,
+        thinkingConfig: {
+          thinkingLevel: policy.thinkingLevel,
+        },
         ...(responseMimeType === "application/json" && { 
           responseMimeType,
           responseSchema: jsonSchema
@@ -492,10 +496,15 @@ router.post("/simulate-player", async (req, res) => {
       Do NOT include your name, labels, or markdown. Output ONLY the raw text of your action.
     `;
 
+    const policy = getGeminiPolicy('AUTOPILOT_ACTION');
     const response = await getAiClient().models.generateContent({
-      model: "gemini-3.5-flash", 
+      model: policy.model, 
       contents: systemPrompt,
-      config: { temperature: 0.8 },
+      config: {
+        thinkingConfig: {
+          thinkingLevel: policy.thinkingLevel,
+        },
+      },
     });
 
     res.json({ action: (response.text || "I look around carefully.").trim() });
@@ -530,9 +539,15 @@ router.post('/test-scene', async (req, res) => {
     ${JSON.stringify(blueprint, null, 2)}
     `;
 
+    const policy = getGeminiPolicy('ENGINE_PREVIEW');
     const response = await getAiClient().models.generateContent({
-      model: "gemini-3.5-flash", 
-      contents: prompt
+      model: policy.model, 
+      contents: prompt,
+      config: {
+        thinkingConfig: {
+          thinkingLevel: policy.thinkingLevel,
+        },
+      },
     });
     res.json({ text: response.text });
   } catch (error) {
@@ -546,11 +561,15 @@ router.post('/reconcile', async (req, res) => {
     const { editedText, previousLogic, currentState } = req.body;
     const { RECONCILER_SYSTEM_PROMPT } = await import("../../src/core/prompts/reconciler");
     
+    const policy = getGeminiPolicy("LEGACY_RECONCILIATION");
     const response = await getAiClient().models.generateContent({
-      model: "gemini-3.5-flash",
+      model: policy.model,
       contents: `EDITED TEXT:\n${editedText}\n\nPREVIOUS SYSTEM LOGIC MUTATIONS:\n${JSON.stringify(previousLogic)}\n\nCURRENT STATE:\n${JSON.stringify(currentState)}`,
       config: {
         systemInstruction: RECONCILER_SYSTEM_PROMPT,
+        thinkingConfig: {
+          thinkingLevel: policy.thinkingLevel,
+        },
         responseMimeType: "application/json",
       }
     });
