@@ -5,6 +5,7 @@ import { useEngineStore } from '../core/store';
 import { calculatePhysicsState } from '../core/matrix/physicsMatrix';
 import { reconcilePerception } from '../core/memory/reconciler';
 import { buildEngineTurnContext, buildContextReceipt } from './buildEngineTurnContext';
+import { readTurnResponse, createNetworkTurnError } from './turnResponseReader';
 
 export const DECAY_SCALE: DecayThreshold[] = [
   {
@@ -80,7 +81,6 @@ export const calculateDecayState = (skepticism: number): DecayState => {
   };
 };
 
- 
 export const validateEngineFrame = (rawPayload: any): RatifiedEngineFrame => {
   const rejected: string[] = [];
   const notes: string[] = [];
@@ -193,7 +193,6 @@ export const executeRatificationPipeline = async (
   const reconciliation = reconcilePerception(
     userAction,
     state.storyLog,
-     
     (selectedRole as any) || 'PROTAGONIST',
     physicsMatrix.realityState
   );
@@ -270,34 +269,22 @@ export const executeRatificationPipeline = async (
     context: turnContext,
   };
 
-  const response = await fetch('/api/turn', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-
-  if (!response.ok) {
-    if (response.status === 406) {
-      useAppStore.setState(stateSnapshot);
-      throw new Error('COGNITIVE_REJECTION');
-    }
-    let errorData: any = null;
-    try {
-      errorData = await response.json();
-    } catch {
-      // JSON parse failed
-    }
-
-    const err = new Error(
-      errorData?.message || errorData?.error || `HTTP error! status: ${response.status}`
-    );
-    (err as any).statusCode = response.status;
-    (err as any).code = errorData?.code || (response.status === 400 ? 'INVALID_REQUEST' : 'PROVIDER_FAILURE');
-    (err as any).details = errorData?.details;
-    throw err;
+  let response: Response;
+  try {
+    response = await fetch('/api/turn', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+  } catch {
+    throw createNetworkTurnError();
   }
 
-  const rawJson = await response.json();
+  if (response.status === 406) {
+    useAppStore.setState(stateSnapshot);
+  }
+
+  const rawJson = await readTurnResponse<any>(response);
   const validatedEvent = validateEngineFrame(rawJson);
 
   if (rawJson?.transitionReceipt) {

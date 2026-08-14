@@ -85,4 +85,57 @@ describe('engineReducer atomic turn commits', () => {
     expect(nextState.history[1].turnReceipt?.accepted).toBe(false);
     expect(nextState.history[1].turnReceipt?.reason).toContain('MODEL_CONTRACT_MISMATCH');
   });
+
+  it('records a non-JSON turn failure receipt safely with exact message and no state progression', () => {
+    const startState = {
+      ...initialEngineState,
+      turnCount: 5,
+      currentNodeId: 'SUITE_1408',
+      currentPhase: 'MANIFEST' as const,
+      tensionLevel: 65,
+    };
+
+    const failureReceipt = {
+      code: 'NON_JSON_TURN_RESPONSE',
+      status: 502,
+      contentType: 'text/html; charset=utf-8',
+      message: 'The turn service returned an unexpected response. The session state was not changed.',
+    };
+
+    const payload: FailedTurnPayload = {
+      commandText: 'Examine the telephone',
+      failureReceipt,
+      errorCategory: failureReceipt.code,
+      errorMessage: failureReceipt.message,
+      statusCode: failureReceipt.status,
+      contentType: failureReceipt.contentType,
+    };
+
+    const nextState = engineReducer(startState, {
+      type: 'TURN_FAILED',
+      payload,
+    });
+
+    expect(nextState.turnCount).toBe(5);
+    expect(nextState.currentNodeId).toBe('SUITE_1408');
+    expect(nextState.currentPhase).toBe('MANIFEST');
+    expect(nextState.tensionLevel).toBe(65);
+
+    // Exactly 1 user action and 1 failure message recorded
+    expect(nextState.history.length).toBe(2);
+    expect(nextState.history[0].role).toBe('user');
+    expect(nextState.history[0].content).toBe('Examine the telephone');
+
+    const failMsg = nextState.history[1];
+    expect(failMsg.role).toBe('assistant');
+    expect(failMsg.content).toBe(
+      '[ENGINE FAILURE // NON_JSON_TURN_RESPONSE // HTTP 502]\nThe turn service returned an unexpected response. The session state was not changed.'
+    );
+    expect(failMsg.content).not.toContain('<!doctype');
+    expect(failMsg.content).not.toContain('<html');
+    expect(failMsg.failureReceipt).toEqual(failureReceipt);
+    expect(failMsg.turnReceipt?.accepted).toBe(false);
+    expect(failMsg.turnReceipt?.nodeBefore).toBe('SUITE_1408');
+    expect(failMsg.turnReceipt?.nodeAfter).toBe('SUITE_1408');
+  });
 });

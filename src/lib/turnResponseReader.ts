@@ -1,0 +1,202 @@
+export interface TurnFailureReceipt {
+  code: string;
+  status: number | null;
+  contentType: string | null;
+  message: string;
+}
+
+export class TurnResponseError extends Error {
+  readonly code: string;
+  readonly status: number | null;
+  readonly contentType: string | null;
+
+  constructor(receipt: TurnFailureReceipt) {
+    super(receipt.message);
+    this.name = 'TurnResponseError';
+    this.code = receipt.code;
+    this.status = receipt.status;
+    this.contentType = receipt.contentType;
+  }
+
+  toReceipt(): TurnFailureReceipt {
+    return {
+      code: this.code,
+      status: this.status,
+      contentType: this.contentType,
+      message: this.message,
+    };
+  }
+}
+
+export const SAFE_UNEXPECTED_TURN_MESSAGE =
+  'The turn service returned an unexpected response. The session state was not changed.';
+
+export const SAFE_NETWORK_ERROR_MESSAGE =
+  'A network failure occurred while contacting the turn service. The session state was not changed.';
+
+function extractContentType(response: Response): string | null {
+  const header = response.headers?.get?.('content-type');
+  return header ? header.trim() : null;
+}
+
+function isJsonContentType(contentType: string | null): boolean {
+  if (!contentType) return false;
+  const lower = contentType.toLowerCase();
+  return lower.includes('application/json') || lower.includes('+json');
+}
+
+/**
+ * Safely inspects and reads a Response from `/api/turn`.
+ * Ensures non-JSON and malformed JSON responses are classified with safe codes
+ * and never leak raw HTML, stack traces, or parser errors.
+ */
+export async function readTurnResponse<T = unknown>(response: Response): Promise<T> {
+  const contentType = extractContentType(response);
+
+  // 1. Non-JSON check (including text/html or fallback pages)
+  if (!isJsonContentType(contentType)) {
+    throw new TurnResponseError({
+      code: 'NON_JSON_TURN_RESPONSE',
+      status: response.status,
+      contentType,
+      message: SAFE_UNEXPECTED_TURN_MESSAGE,
+    });
+  }
+
+  // 2. Read raw body and attempt JSON parse
+  let rawText = '';
+  try {
+    rawText = await response.text();
+  } catch {
+    throw new TurnResponseError({
+      code: 'MALFORMED_TURN_RESPONSE',
+      status: response.status,
+      contentType,
+      message: SAFE_UNEXPECTED_TURN_MESSAGE,
+    });
+  }
+
+  let parsedJson: unknown;
+  try {
+    parsedJson = JSON.parse(rawText);
+  } catch {
+    throw new TurnResponseError({
+      code: 'MALFORMED_TURN_RESPONSE',
+      status: response.status,
+      contentType,
+      message: SAFE_UNEXPECTED_TURN_MESSAGE,
+    });
+  }
+
+  // 3. Handle non-2xx responses with parsed JSON
+  if (!response.ok) {
+    const errorObj =
+      typeof parsedJson === 'object' && parsedJson !== null
+        ? (parsedJson as Record<string, unknown>)
+        : null;
+
+    const serverCode =
+      errorObj && typeof errorObj.code === 'string' && errorObj.code.trim().length > 0
+        ? errorObj.code
+        : null;
+
+    const code = serverCode || 'TURN_HTTP_FAILURE';
+
+    let safeMessage = '';
+    if (
+      errorObj &&
+      typeof errorObj.message === 'string' &&
+      errorObj.message.trim().length > 0 &&
+      !errorObj.message.includes('<html') &&
+      !errorObj.message.includes('<!DOCTYPE')
+    ) {
+      safeMessage = errorObj.message;
+    } else if (
+      errorObj &&
+      typeof errorObj.error === 'string' &&
+      errorObj.error.trim().length > 0 &&
+      !errorObj.error.includes('<html') &&
+      !errorObj.error.includes('<!DOCTYPE')
+    ) {
+      safeMessage = errorObj.error;
+    } else {
+      safeMessage = `The turn service returned an HTTP ${response.status} error. The session state was not changed.`;
+    }
+
+    throw new TurnResponseError({
+      code,
+      status: response.status,
+      contentType,
+      message: safeMessage,
+    });
+  }
+
+  return parsedJson as T;
+}
+
+/**
+ * Creates a stable network failure error when fetch rejects.
+ */
+export function createNetworkTurnError(): TurnResponseError {
+  return new TurnResponseError({
+    code: 'TURN_NETWORK_FAILURE',
+    status: null,
+    contentType: null,
+    message: SAFE_NETWORK_ERROR_MESSAGE,
+  });
+}
+
+/**
+ * Resolves any caught error into a safe TurnFailureReceipt.
+ */
+export function toTurnFailureReceipt(err: unknown): TurnFailureReceipt {
+  if (err instanceof TurnResponseError) {
+    return err.toReceipt();
+  }
+
+  if (typeof err === 'object' && err !== null) {
+    const errorObj = err as Record<string, unknown>;
+    const code =
+      typeof errorObj.code === 'string' && errorObj.code.trim() ? errorObj.code : 'UNKNOWN_ERROR';
+    const status =
+      typeof errorObj.status === 'number'
+        ? errorObj.status
+        : typeof errorObj.statusCode === 'number'
+          ? errorObj.statusCode
+          : null;
+    const contentType = typeof errorObj.contentType === 'string' ? errorObj.contentType : null;
+
+    let message = SAFE_UNEXPECTED_TURN_MESSAGE;
+    if (
+      typeof errorObj.message === 'string' &&
+      errorObj.message.trim().length > 0 &&
+      !errorObj.message.includes('<html') &&
+      !errorObj.message.includes('<!DOCTYPE') &&
+      !errorObj.message.includes('is not valid JSON')
+    ) {
+      message = errorObj.message;
+    }
+
+    return {
+      code,
+      status,
+      contentType,
+      message,
+    };
+  }
+
+  return {
+    code: 'UNKNOWN_ERROR',
+    status: null,
+    contentType: null,
+    message: SAFE_UNEXPECTED_TURN_MESSAGE,
+  };
+}
+
+/**
+ * Formats a safe user-facing failure message with atmosphere styling.
+ */
+export function formatTurnFailureMessage(receipt: TurnFailureReceipt): string {
+  const statusPart = receipt.status != null ? ` // HTTP ${receipt.status}` : '';
+  return `[ENGINE FAILURE // ${receipt.code}${statusPart}]\n${receipt.message}`;
+}

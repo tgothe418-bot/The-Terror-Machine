@@ -316,6 +316,13 @@ export interface TurnReceipt {
   tension: number;
 }
 
+export interface TurnFailureReceipt {
+  code: string;
+  status: number | null;
+  contentType: string | null;
+  message: string;
+}
+
 export interface EngineTurnContext {
   version: 1;
   scenario: {
@@ -454,6 +461,7 @@ export interface Message {
   contextReceipt?: ContextReceipt;
   transitionReceipt?: TransitionReceipt;
   turnReceipt?: TurnReceipt;
+  failureReceipt?: TurnFailureReceipt;
   userCharacterName?: string;
   frozen_psychological_status?: string;
   visibleToModel?: boolean;

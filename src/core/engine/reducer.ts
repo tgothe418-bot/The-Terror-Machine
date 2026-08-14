@@ -1,7 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { EngineEvent, Phase, DecayState } from './events';
-import { Message, NarrativeBlock } from '../../types';
+import { Message, NarrativeBlock, TurnFailureReceipt } from '../../types';
 import { EntityArchetype } from '../../types/reference';
+import { formatTurnFailureMessage } from '../../lib/turnResponseReader';
 
 export interface EngineState {
   sessionId?: string;
@@ -181,6 +182,15 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
     }
 
     case 'TURN_FAILED': {
+      const receipt: TurnFailureReceipt = event.payload.failureReceipt || {
+        code: event.payload.errorCategory || 'UNKNOWN_ERROR',
+        status: event.payload.statusCode ?? null,
+        contentType: event.payload.contentType ?? null,
+        message:
+          event.payload.errorMessage ||
+          'The turn service returned an unexpected response. The session state was not changed.',
+      };
+
       const userMsg: Message = {
         id: crypto.randomUUID(),
         role: 'user',
@@ -188,17 +198,20 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
         timestamp: event.payload.timestamp || Date.now(),
       };
 
+      const statusSuffix = receipt.status != null ? ` (HTTP ${receipt.status})` : '';
+
       const failMsg: Message = {
         id: crypto.randomUUID(),
         role: 'assistant',
-        content: `[ENGINE FAILURE // ${event.payload.errorCategory}]: ${event.payload.errorMessage}`,
+        content: formatTurnFailureMessage(receipt),
         timestamp: (event.payload.timestamp || Date.now()) + 1,
+        failureReceipt: receipt,
         turnReceipt: {
           turnNumber: state.turnCount + 1,
           nodeBefore: state.currentNodeId,
           requestedTarget: null,
           accepted: false,
-          reason: `FAILED: ${event.payload.errorCategory} (${event.payload.errorMessage})`,
+          reason: `FAILED: ${receipt.code}${statusSuffix} - ${receipt.message}`,
           nodeAfter: state.currentNodeId,
           activeVector: (state as any).activeVector || 'COGNITIVE',
           activeTier: (state as any).activeTier || 'LATENT',

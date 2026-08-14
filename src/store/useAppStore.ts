@@ -25,7 +25,6 @@ export interface AppStore extends EngineState {
   isTransitioning: boolean;
   activeCampaign: CampaignManifest | null;
   currentActId: string | null;
-   
   suspendedActs: Record<string, any>;
   narrativeVelocity: NarrativeVelocity;
 
@@ -55,7 +54,6 @@ export interface AppStore extends EngineState {
     divergenceMode: string;
   };
   updateDecayMetrics: (skepticism: number) => void;
-   
   compileTopology: (forgeTopology: any, startNodeId: string) => void;
   triggerShatter: () => void;
   setCurrentNodeId: (nodeId: string) => void;
@@ -64,7 +62,6 @@ export interface AppStore extends EngineState {
   failTurnResult: (payload: FailedTurnPayload) => void;
 
   isGenerating: boolean;
-   
   injectGeneratedNode: (sourceNodeId: string, exitDirection: string, newNodeDef: any) => void;
   currentPhase: string;
   tensionLevel: number;
@@ -95,7 +92,6 @@ export const useAppStore = create<AppStore>((set) => ({
   executeTemporalShift: () => {},
   loadCampaignManifest: (manifest: CampaignManifest) => set({ activeCampaign: manifest }),
 
-   
   setPhase: (phase: AppPhase | string) => set({ phase: phase as any }),
   telemetry: null,
   setTelemetry: (telemetry: TelemetryState) => set({ telemetry }),
@@ -132,7 +128,6 @@ export const useAppStore = create<AppStore>((set) => ({
   storyLog: [],
 
   setGenerating: (status: boolean) => set({ isGenerating: status }),
-   
   injectGeneratedNode: (sourceNodeId: string, exitDirection: string, newNodeDef: any) =>
     set((state) => {
       if (!state.spatialGraph) return state;

@@ -21,7 +21,6 @@ export const buildOrchestratorPrompt = (
     })
     .join('\n');
 
-   
   const currentPacing = (currentState as any).pacing || 'normal';
 
   const appState = useAppStore.getState();

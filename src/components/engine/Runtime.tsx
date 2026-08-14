@@ -25,6 +25,7 @@ import { executeRatificationPipeline } from '../../lib/ratificationPipeline';
 import { createEngineHistoryMessage, createTurnHistoryEvents } from '../../core/engine/turnHistory';
 import type { CommittedTurnPayload } from '../../core/engine/events';
 import type { TurnReceipt } from '../../types';
+import { toTurnFailureReceipt } from '../../lib/turnResponseReader';
 import { fetchSimulatedPlayerAction, triggerMemoryForge } from '../../services/geminiService';
 import ErgodicTextRenderer from './ErgodicTextRenderer';
 import { useTelemetryStore } from '../../store/useTelemetryStore';
@@ -471,31 +472,19 @@ export default function Runtime() {
       }
 
       useEngineStore.getState().patchGameState(response.logic_state);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      const errorMessage =
-        typeof err === 'object' && err !== null && 'message' in err ? err.message : String(err);
-      let parsedMessage = errorMessage;
-      try {
-        const parsed = JSON.parse(errorMessage);
-        if (parsed.error) {
-          parsedMessage =
-            typeof parsed.error === 'string' ? parsed.error : JSON.stringify(parsed.error);
-        }
-      } catch {
-        /* ignore */
-      }
-
-      const errorCategory =
-        err?.code || (err?.statusCode === 400 ? 'INVALID_REQUEST' : 'PROVIDER_FAILURE');
+      const failureReceipt = toTurnFailureReceipt(err);
 
       dispatch({
         type: 'TURN_FAILED',
         payload: {
           commandText,
-          errorCategory,
-          errorMessage: parsedMessage,
-          statusCode: err?.statusCode,
+          failureReceipt,
+          errorCategory: failureReceipt.code,
+          errorMessage: failureReceipt.message,
+          statusCode: failureReceipt.status,
+          contentType: failureReceipt.contentType,
         },
       });
     } finally {

@@ -33,7 +33,7 @@ describe('transitionResolver', () => {
     });
 
     expect(result.accepted).toBe(false);
-    expect(result.reason).toBe('NO_TRANSITION_REQUESTED');
+    expect(result.reason).toBe('NO_MOVEMENT_REQUESTED');
     expect(result.toNodeId).toBe('FOYER');
   });
 
@@ -61,7 +61,7 @@ describe('transitionResolver', () => {
 
     expect(result.accepted).toBe(false);
     expect(result.toNodeId).toBe('FOYER');
-    expect(result.reason).toContain('MISSING_REQUIRED_FLAGS');
+    expect(result.reason).toContain('UNSATISFIED_EDGE_REQUIREMENTS');
   });
 
   it('accepts transitions when required flags are present in activeFlags', () => {
@@ -87,7 +87,7 @@ describe('transitionResolver', () => {
 
     expect(result.accepted).toBe(false);
     expect(result.toNodeId).toBe('FOYER');
-    expect(result.reason).toBe('NO_VALID_EXIT_TO_TARGET');
+    expect(result.reason).toBe('UNKNOWN_OR_UNCONNECTED_TARGET');
   });
 
   it('rejects transitions on edges that are not user-initiated', () => {
@@ -99,6 +99,6 @@ describe('transitionResolver', () => {
     });
 
     expect(result.accepted).toBe(false);
-    expect(result.reason).toBe('EXIT_NOT_USER_INITIATED');
+    expect(result.reason).toBe('NON_USER_INITIATED_EDGE');
   });
 });

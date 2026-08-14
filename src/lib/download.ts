@@ -103,6 +103,15 @@ export const getEngineLogicData = (message: any): Record<string, unknown> | null
   if (message.validation !== undefined) {
     logicData.validation = message.validation;
   }
+  if (message.transitionReceipt !== undefined) {
+    logicData.transitionReceipt = message.transitionReceipt;
+  }
+  if (message.turnReceipt !== undefined) {
+    logicData.turnReceipt = message.turnReceipt;
+  }
+  if (message.failureReceipt !== undefined) {
+    logicData.failureReceipt = message.failureReceipt;
+  }
 
   return Object.keys(logicData).length > 0 ? logicData : null;
 };
@@ -111,6 +120,17 @@ const getEngineLogicSummary = (logicData: Record<string, unknown>): string => {
   const summary = ['TTM LOGIC'];
   const logicState = logicData.logic_state;
   const topologyDelta = logicData.topologyDelta;
+  const failureReceipt = logicData.failureReceipt;
+
+  if (failureReceipt && typeof failureReceipt === 'object') {
+    const fail = failureReceipt as Record<string, unknown>;
+    if (fail.code) {
+      summary.push(`FAILURE: ${String(fail.code).toUpperCase()}`);
+    }
+    if (fail.status != null) {
+      summary.push(`STATUS: ${String(fail.status)}`);
+    }
+  }
 
   if (logicState && typeof logicState === 'object') {
     const state = logicState as Record<string, unknown>;

@@ -1,4 +1,4 @@
-import { Message, RatifiedEngineFrame, TransitionReceipt, TurnReceipt } from '../../types';
+import { Message, RatifiedEngineFrame, TransitionReceipt, TurnReceipt, TurnFailureReceipt } from '../../types';
 
 export type Phase =
   | 'HUB'
@@ -27,9 +27,11 @@ export interface CommittedTurnPayload {
 
 export interface FailedTurnPayload {
   commandText: string;
-  errorCategory: 'INVALID_REQUEST' | 'MODEL_CONTRACT_MISMATCH' | 'PROVIDER_FAILURE' | 'NETWORK_ERROR' | 'UNKNOWN_ERROR';
-  errorMessage: string;
-  statusCode?: number;
+  failureReceipt?: TurnFailureReceipt;
+  errorCategory?: string;
+  errorMessage?: string;
+  statusCode?: number | null;
+  contentType?: string | null;
   timestamp?: number;
 }
 
