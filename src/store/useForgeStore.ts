@@ -152,7 +152,7 @@ export interface ForgeActions {
   toggleSpatialEdge: (nodeA: string, nodeB: string) => void;
   updateActiveMemory: (updates: Partial<EntityMemoryState>) => void;
   commitSemanticTags: (parsedTags: Record<string, string[]>) => void;
-  addArchitectMessage: (message: { role: string; content: string }) => void;
+  addArchitectMessage: (message: ArchitectMessage) => void;
   clearArchitectChat: () => void;
   initializeDraft: () => void;
   updateDraft: (updates: DraftBlueprintPatch) => void;
@@ -304,8 +304,8 @@ export const useForgeStoreInternal = create<ForgeStore>()(
           
           return { activeMemory: nextMemory };
         }),
-        addArchitectMessage: (message: { role: string; content: string }) => set((state: ForgeState) => ({
-          architectMessages: [...state.architectMessages, message as ArchitectMessage]
+        addArchitectMessage: (message: ArchitectMessage) => set((state: ForgeState) => ({
+          architectMessages: [...state.architectMessages, message]
         })),
         clearArchitectChat: () => set({
           architectMessages: [
