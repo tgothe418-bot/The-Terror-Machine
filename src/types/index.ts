@@ -229,6 +229,9 @@ export interface Message {
   attachments?: Attachment[];
   blocks?: NarrativeBlock[];
   engine_thoughts?: string;
+  logic_state?: unknown;
+  topologyDelta?: unknown;
+  validation?: unknown;
   frozen_psychological_status?: string;
   visibleToModel?: boolean;
   visibleToTelemetry?: boolean;

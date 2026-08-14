@@ -88,13 +88,57 @@ export const escapeHtml = (unsafe: string | null | undefined): string => {
     .replace(/'/g, "&#039;");
 };
 
-export const exportEngineLog = (messages: any[], format: 'md' | 'html', title: string = 'engine-telemetry', blueprint?: any) => {
-  if (!messages || messages.length === 0) {
-    console.warn('// ENGINE EXPORT FAILED // Empty array state passed.');
-    return;
+export const getEngineLogicData = (message: any): Record<string, unknown> | null => {
+  const logicData: Record<string, unknown> = {};
+
+  if (typeof message.engine_thoughts === 'string' && message.engine_thoughts.trim()) {
+    logicData.engine_thoughts = message.engine_thoughts;
+  }
+  if (message.logic_state !== undefined) {
+    logicData.logic_state = message.logic_state;
+  }
+  if (message.topologyDelta !== undefined) {
+    logicData.topologyDelta = message.topologyDelta;
+  }
+  if (message.validation !== undefined) {
+    logicData.validation = message.validation;
   }
 
-  const timestamp = new Date().toISOString();
+  return Object.keys(logicData).length > 0 ? logicData : null;
+};
+
+const getEngineLogicSummary = (logicData: Record<string, unknown>): string => {
+  const summary = ['TTM LOGIC'];
+  const logicState = logicData.logic_state;
+  const topologyDelta = logicData.topologyDelta;
+
+  if (logicState && typeof logicState === 'object') {
+    const state = logicState as Record<string, unknown>;
+    if (state.current_phase != null) summary.push(`PHASE: ${String(state.current_phase).toUpperCase()}`);
+    if (state.suggested_tension != null) summary.push(`TENSION: ${String(state.suggested_tension)}`);
+    if (state.intent_classification != null) summary.push(`INTENT: ${String(state.intent_classification).toUpperCase()}`);
+  }
+
+  if (topologyDelta && typeof topologyDelta === 'object') {
+    const topology = topologyDelta as Record<string, unknown>;
+    if (topology.isExpansion != null) summary.push(`EXPANSION: ${String(Boolean(topology.isExpansion)).toUpperCase()}`);
+  }
+
+  return `[ ${summary.join(' // ')} ]`;
+};
+
+export const buildEngineLogContent = (
+  messages: any[],
+  format: 'md' | 'html',
+  title: string = 'engine-telemetry',
+  blueprint?: any,
+  capturedAt: Date = new Date()
+) => {
+  if (!messages || messages.length === 0) {
+    return null;
+  }
+
+  const timestamp = capturedAt.toISOString();
   let content = '';
   let mimeType = '';
   let extension = '';
@@ -180,7 +224,7 @@ export const exportEngineLog = (messages: any[], format: 'md' | 'html', title: s
           }
           .logic-content {
             padding: 1rem;
-            border-t: 1px dashed #27272a;
+            border-top: 1px dashed #27272a;
             color: #22c55e;
             background-color: #020617;
             overflow-x: auto;
@@ -196,7 +240,7 @@ export const exportEngineLog = (messages: any[], format: 'md' | 'html', title: s
       <body>
         <div class="meta-header">
           THE NIGHTMARE MACHINE // RUNTIME CORE TELEMETRY METRICS<br>
-          TRACE CAPTURE ID: ${Date.now()}<br>
+          TRACE CAPTURE ID: ${capturedAt.getTime()}<br>
           TIMESTAMP: ${timestamp}
         </div>
     `;
@@ -229,16 +273,15 @@ export const exportEngineLog = (messages: any[], format: 'md' | 'html', title: s
           content += `<div class="block-prose">${escapeHtml(msg.content)}</div>`;
         }
 
-        // Auto-bake interactive dropdown if engine telemetry exists
-        if (msg.engine_thoughts || msg.logic_state) {
-          const logicData = msg.engine_thoughts || msg.logic_state;
-          const displayString = typeof logicData === 'object' 
-            ? JSON.stringify(logicData, null, 2) 
-            : String(logicData);
+        // Keep the structured Engine decision record between narrative turns.
+        const logicData = getEngineLogicData(msg);
+        if (logicData) {
+          const displayString = JSON.stringify(logicData, null, 2);
+          const summary = getEngineLogicSummary(logicData);
 
           content += `
             <details class="logic-panel">
-              <summary class="speaker-label speaker-engine">[ VIEW ENGINE LOGIC DATA ]</summary>
+              <summary class="speaker-label speaker-engine">${escapeHtml(summary)}</summary>
               <pre class="logic-content"><code>${escapeHtml(displayString)}</code></pre>
             </details>
           `;
@@ -261,8 +304,8 @@ export const exportEngineLog = (messages: any[], format: 'md' | 'html', title: s
         const blocks = Array.isArray(msg.content) ? msg.content : (msg.blocks || []);
         if (blocks.length > 0) {
           blocks.forEach((block: any) => {
+            if (block.type === 'engine_thoughts') return;
             if (block.type === 'system_voice') content += `**[ THE VOICE ]**\n${block.content}\n\n`;
-            else if (block.type === 'engine_thoughts') content += `\`\`\`json\n// METRIC COMPONENT\n${block.content}\n\`\`\`\n\n`;
             else if (block.type === 'dialogue' && block.speaker) content += `**[ CHARACTER: ${block.speaker} ]**\n${block.content}\n\n`;
             else if (block.type === 'internal_monologue' && block.speaker) content += `**[ THOUGHT: ${block.speaker} ]**\n${block.content}\n\n`;
             else content += `${block.content}\n\n`;
@@ -270,11 +313,27 @@ export const exportEngineLog = (messages: any[], format: 'md' | 'html', title: s
         } else {
           content += `${msg.content}\n\n`;
         }
+
+        const logicData = getEngineLogicData(msg);
+        if (logicData) {
+          content += `\`\`\`json\n// TTM LOGIC\n${JSON.stringify(logicData, null, 2)}\n\`\`\`\n\n`;
+        }
       }
       content += `---\n\n`;
     });
   }
 
+  return { content, mimeType, extension };
+};
+
+export const exportEngineLog = (messages: any[], format: 'md' | 'html', title: string = 'engine-telemetry', blueprint?: any) => {
+  const output = buildEngineLogContent(messages, format, title, blueprint);
+  if (!output) {
+    console.warn('// ENGINE EXPORT FAILED // Empty array state passed.');
+    return;
+  }
+
+  const { content, mimeType, extension } = output;
   const blob = new Blob([content], { type: mimeType });
   const url = URL.createObjectURL(blob);
   const downloadLink = document.createElement('a');
@@ -285,4 +344,3 @@ export const exportEngineLog = (messages: any[], format: 'md' | 'html', title: s
   document.body.removeChild(downloadLink);
   URL.revokeObjectURL(url);
 };
-

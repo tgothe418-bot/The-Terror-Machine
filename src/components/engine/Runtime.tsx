@@ -20,6 +20,7 @@ const formatBlocks = (blocks?: NarrativeBlock[]): string => {
 };
 import { exportEngineLog } from '../../lib/download';
 import { executeRatificationPipeline } from '../../lib/ratificationPipeline';
+import { createEngineHistoryMessage, createTurnHistoryEvents } from '../../core/engine/turnHistory';
 import { fetchSimulatedPlayerAction, triggerMemoryForge } from '../../services/geminiService';
 import ErgodicTextRenderer from './ErgodicTextRenderer';
 import { useTelemetryStore } from '../../store/useTelemetryStore';
@@ -302,7 +303,7 @@ export default function Runtime() {
       const formattedText = formatBlocks(data.narrative_blocks);
       dispatch({ 
         type: 'ADD_MESSAGE', 
-        message: { role: 'assistant', content: formattedText, timestamp: Date.now() }
+        message: createEngineHistoryMessage(formattedText, data)
       });
 
     } catch (err: any) {
@@ -366,13 +367,9 @@ export default function Runtime() {
     setIsLoading(true);
 
     try {
-      const activeStoreState = useEngineStore.getState();
-
       const response = await executeRatificationPipeline(commandText);
       const formattedText = formatBlocks(response.narrative_blocks);
-      dispatch({ type: 'USER_ACTION', payload: commandText });
-      dispatch({ type: 'ADD_MESSAGE', message: { role: 'user', content: commandText, timestamp: Date.now() } });
-      dispatch({ type: 'ADD_MESSAGE', message: { role: 'assistant', content: formattedText, timestamp: Date.now() } });
+      createTurnHistoryEvents(commandText, formattedText, response).forEach(dispatch);
 
       
       if (response.logic_state.suggested_tension) {
@@ -387,7 +384,6 @@ export default function Runtime() {
         }
       }
       
-      // TURN_RESOLVED is now dispatched from GeminiService and will handle history update
       updateGameState(response.logic_state as any); // Sync mechanical reality
       
     } catch (err: any) {
