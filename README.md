@@ -12,7 +12,7 @@ The Terror Machine is an experimental, state-driven horror simulator. A language
 
 The room exists even when the prose looks away.
 
-> **Development status:** TTM is a working but unstable reconstruction baseline. The interface runs and its major systems exist, but the canonical turn pipeline, state authority, schema contracts, telemetry, automated tests, and static type baseline are still being repaired. This repository is not production-ready, and some visible controls lead to partial or legacy implementations.
+> **Development status:** TTM is a working contract-recovery build with green local gates. The interface runs, TypeScript type-checking and ESLint are clean, 60 tests across 9 test files pass in Vitest, and production builds succeed. However, core architecture remains incomplete: the canonical request/result/snapshot/delta contracts, an atomic `TURN_COMMITTED` state reducer, live Runtime convergence on the ratified turn path, and full raw-receipt telemetry remain active work. The test suite is still emerging, GitHub CI enforcement is not yet present, and some visible controls lead to partial or legacy implementations.
 
 ## What TTM Is
 
@@ -84,14 +84,15 @@ The simulation may be hostile to the character, but it should never be hostile t
 
 `main` is the repository's only active development branch and the source of truth for current work. Historical recovery branches and commit references do not define the current workflow.
 
+Local developer gates are currently green: static TypeScript type-checking (`npx tsc --noEmit`), ESLint, the 60-test Vitest suite, and production builds pass cleanly from a fresh checkout. However, automated GitHub CI enforcement is not yet configured, and the core simulation architecture is still being built.
+
 Known critical work includes:
 
-1. restore repository hygiene and a trustworthy static type-checking baseline;
-2. establish one canonical request, result, snapshot, and delta contract;
-3. implement one atomic `TURN_COMMITTED` state reducer;
-4. connect the Runtime to the ratified `/api/turn` pipeline without duplicate action ingestion;
-5. rebuild telemetry around raw pre-state/request/response/post-state records;
-6. add deterministic tests before expanding generative features.
+1. establish one canonical request, result, snapshot, and delta contract;
+2. implement one atomic `TURN_COMMITTED` state reducer;
+3. connect the Runtime to the ratified `/api/turn` pipeline without duplicate action ingestion;
+4. rebuild telemetry around raw pre-state/request/response/post-state records;
+5. expand deterministic test coverage before expanding generative features.
 
 Until those steps land, continuity or apparent coherence in a short run should not be treated as proof that state is being preserved correctly.
 
@@ -123,7 +124,7 @@ npm run dev
 
 Add a personal Gemini API key to `.env` before starting the server. Never commit that file or paste a key into source code.
 
-**Honest caveat:** clean dependency installation, linting, tests, and production builds now run from a fresh checkout. The static TypeScript baseline still contains known application errors and remains active repair work.
+**Current baseline:** Dependency installation, linting (`npm run lint`), static type-checking (`npx tsc --noEmit`), unit tests (`npx vitest run` — 9 test files / 60 tests), and production builds (`npm run build`) all pass cleanly in the local workspace. Note that while local gates are green, the underlying turn pipeline and state authority remain under active reconstruction.
 
 ## Project Note
 
