@@ -109,6 +109,8 @@ describe('engineReducer atomic turn commits', () => {
       errorMessage: failureReceipt.message,
       statusCode: failureReceipt.status,
       contentType: failureReceipt.contentType,
+      activeVector: 'SOMATIC',
+      activeTier: 'GATEWAY',
     };
 
     const nextState = engineReducer(startState, {
@@ -137,5 +139,7 @@ describe('engineReducer atomic turn commits', () => {
     expect(failMsg.turnReceipt?.accepted).toBe(false);
     expect(failMsg.turnReceipt?.nodeBefore).toBe('SUITE_1408');
     expect(failMsg.turnReceipt?.nodeAfter).toBe('SUITE_1408');
+    expect(failMsg.turnReceipt?.activeVector).toBe('SOMATIC');
+    expect(failMsg.turnReceipt?.activeTier).toBe('GATEWAY');
   });
 });
