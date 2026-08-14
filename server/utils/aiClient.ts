@@ -80,7 +80,7 @@ export const generateEngineTurn = async (prompt: string, history: unknown[] = []
   return response.text;
 };
 
-const turnResponseSchema = {
+export const turnResponseSchema = {
   type: Type.OBJECT,
   properties: {
     narrative_blocks: {
@@ -99,6 +99,7 @@ const turnResponseSchema = {
       type: Type.OBJECT,
       properties: {
         current_phase: { type: Type.STRING },
+        requested_transition: { type: Type.STRING, nullable: true, description: "Exact target node ID if movement along an allowed exit completed, or null if no movement occurred." },
         suggested_tension: { type: Type.INTEGER },
         intent_classification: { type: Type.STRING },
         terminal_flags: { type: Type.ARRAY, items: { type: Type.STRING } },

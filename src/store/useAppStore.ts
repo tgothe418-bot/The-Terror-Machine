@@ -17,7 +17,7 @@ import {
   NarrativeBlock,
   TopologyEdge,
 } from '../types';
-import { EngineEvent } from '../core/engine/events';
+import { EngineEvent, CommittedTurnPayload, FailedTurnPayload } from '../core/engine/events';
 import { engineReducer, initialEngineState, EngineState } from '../core/engine/reducer';
 import { compileRuntimeTopology } from '../lib/compileRuntimeTopology';
 
@@ -60,6 +60,8 @@ export interface AppStore extends EngineState {
   triggerShatter: () => void;
   setCurrentNodeId: (nodeId: string) => void;
   dispatch: (event: EngineEvent) => void;
+  commitTurnResult: (payload: CommittedTurnPayload) => void;
+  failTurnResult: (payload: FailedTurnPayload) => void;
 
   isGenerating: boolean;
    
@@ -119,6 +121,10 @@ export const useAppStore = create<AppStore>((set) => ({
   triggerShatter: () => set({ isShattered: true }),
   setCurrentNodeId: (nodeId: string) => set({ currentNodeId: nodeId }),
   dispatch: (event: EngineEvent) => set((state) => engineReducer(state, event)),
+  commitTurnResult: (payload: CommittedTurnPayload) =>
+    set((state) => engineReducer(state, { type: 'TURN_COMMITTED', payload })),
+  failTurnResult: (payload: FailedTurnPayload) =>
+    set((state) => engineReducer(state, { type: 'TURN_FAILED', payload })),
 
   isGenerating: false,
   currentPhase: 'INIT',

@@ -281,11 +281,28 @@ export const executeRatificationPipeline = async (
       useAppStore.setState(stateSnapshot);
       throw new Error('COGNITIVE_REJECTION');
     }
-    throw new Error(`HTTP error! status: ${response.status}`);
+    let errorData: any = null;
+    try {
+      errorData = await response.json();
+    } catch {
+      // JSON parse failed
+    }
+
+    const err = new Error(
+      errorData?.message || errorData?.error || `HTTP error! status: ${response.status}`
+    );
+    (err as any).statusCode = response.status;
+    (err as any).code = errorData?.code || (response.status === 400 ? 'INVALID_REQUEST' : 'PROVIDER_FAILURE');
+    (err as any).details = errorData?.details;
+    throw err;
   }
 
   const rawJson = await response.json();
   const validatedEvent = validateEngineFrame(rawJson);
+
+  if (rawJson?.transitionReceipt) {
+    validatedEvent.transitionReceipt = rawJson.transitionReceipt;
+  }
 
   // Attach context receipt for SYSTEM_INIT
   if (userAction === 'SYSTEM_INIT') {

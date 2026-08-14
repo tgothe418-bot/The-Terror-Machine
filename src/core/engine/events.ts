@@ -1,4 +1,4 @@
-import { Message, RatifiedEngineFrame } from '../../types';
+import { Message, RatifiedEngineFrame, TransitionReceipt, TurnReceipt } from '../../types';
 
 export type Phase =
   | 'HUB'
@@ -16,8 +16,27 @@ export interface DecayState {
   coherence: number;
 }
 
+export interface CommittedTurnPayload {
+  commandText: string;
+  formattedText: string;
+  frame: RatifiedEngineFrame;
+  transitionReceipt: TransitionReceipt;
+  turnReceipt: TurnReceipt;
+  timestamp?: number;
+}
+
+export interface FailedTurnPayload {
+  commandText: string;
+  errorCategory: 'INVALID_REQUEST' | 'MODEL_CONTRACT_MISMATCH' | 'PROVIDER_FAILURE' | 'NETWORK_ERROR' | 'UNKNOWN_ERROR';
+  errorMessage: string;
+  statusCode?: number;
+  timestamp?: number;
+}
+
 // The definitive list of all legal engine events
 export type EngineEvent =
+  | { type: 'TURN_COMMITTED'; payload: CommittedTurnPayload }
+  | { type: 'TURN_FAILED'; payload: FailedTurnPayload }
   | { type: 'SIMULATION_STARTED'; initialNodeId: string }
   | { type: 'USER_ACTION'; payload: string }
   | { type: 'SYSTEM_MESSAGE'; payload: string }

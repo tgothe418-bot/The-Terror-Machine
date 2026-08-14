@@ -42,6 +42,7 @@ interface EngineState {
 
   clearBlueprint: () => void;
   updateGameState: (newState: LogicState) => void;
+  patchGameState: (patch: Partial<LogicState>) => void;
   addEngineMessage: (message: Message) => void;
   setEngineMessages: (messages: Message[]) => void;
   ingestTurn: (turn: Message) => void;
@@ -198,6 +199,23 @@ export const useEngineStore = create<EngineState>()(
           engineWorldStateSummary: 'The subject is contained. Initial parameters active.',
         }),
       updateGameState: (newState) => set({ gameState: newState }),
+      patchGameState: (patch) =>
+        set((state) => {
+          if (!state.gameState) return state;
+          return {
+            gameState: {
+              ...state.gameState,
+              ...patch,
+              player_role: state.gameState.player_role,
+              player_character_id: state.gameState.player_character_id,
+              perspective_mode: state.gameState.perspective_mode,
+              inventory: patch.inventory ?? state.gameState.inventory ?? [],
+              player_injuries: patch.player_injuries ?? state.gameState.player_injuries ?? [],
+              lore_and_memory: patch.lore_and_memory ?? state.gameState.lore_and_memory,
+              npc_fixations: patch.npc_fixations ?? state.gameState.npc_fixations ?? [],
+            },
+          };
+        }),
       addEngineMessage: (message) => {
         set((state) => {
           const currentStatus = state.gameState?.psychological_status || 'Stable';

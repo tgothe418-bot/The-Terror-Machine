@@ -296,6 +296,26 @@ export interface ContextReceipt {
   topologyConnectionCount: number;
 }
 
+export interface TransitionReceipt {
+  requestedNodeId: string | null;
+  accepted: boolean;
+  fromNodeId: string | null;
+  toNodeId: string | null;
+  reason?: string;
+}
+
+export interface TurnReceipt {
+  turnNumber: number;
+  nodeBefore: string | null;
+  requestedTarget: string | null;
+  accepted: boolean;
+  reason?: string;
+  nodeAfter: string | null;
+  activeVector: string;
+  activeTier: string;
+  tension: number;
+}
+
 export interface EngineTurnContext {
   version: 1;
   scenario: {
@@ -346,6 +366,7 @@ export interface EngineTurnContext {
     reconciliationRevision: number;
     activeVector: string;
     activeTier: string;
+    activeFlags?: string[];
   };
 }
 
@@ -407,6 +428,7 @@ export const EngineTurnContextSchema = z.object({
     reconciliationRevision: z.number().default(0),
     activeVector: z.string().default('COGNITIVE'),
     activeTier: z.string().default('LATENT'),
+    activeFlags: z.array(z.string()).default([]),
   }),
 });
 
@@ -430,6 +452,8 @@ export interface Message {
   topologyDelta?: TopologyDelta | null;
   validation?: FrameValidation;
   contextReceipt?: ContextReceipt;
+  transitionReceipt?: TransitionReceipt;
+  turnReceipt?: TurnReceipt;
   userCharacterName?: string;
   frozen_psychological_status?: string;
   visibleToModel?: boolean;
@@ -618,6 +642,8 @@ export interface RatifiedEngineFrame {
   validation?: FrameValidation;
   topologyDelta?: TopologyDelta | null;
   contextReceipt?: ContextReceipt;
+  transitionReceipt?: TransitionReceipt;
+  turnReceipt?: TurnReceipt;
 }
 
 export interface BicameralOutput {

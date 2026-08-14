@@ -23,6 +23,8 @@ const formatBlocks = (blocks?: NarrativeBlock[]): string => {
 import { exportEngineLog } from '../../lib/download';
 import { executeRatificationPipeline } from '../../lib/ratificationPipeline';
 import { createEngineHistoryMessage, createTurnHistoryEvents } from '../../core/engine/turnHistory';
+import type { CommittedTurnPayload } from '../../core/engine/events';
+import type { TurnReceipt } from '../../types';
 import { fetchSimulatedPlayerAction, triggerMemoryForge } from '../../services/geminiService';
 import ErgodicTextRenderer from './ErgodicTextRenderer';
 import { useTelemetryStore } from '../../store/useTelemetryStore';
@@ -411,7 +413,48 @@ export default function Runtime() {
     try {
       const response = await executeRatificationPipeline(commandText);
       const formattedText = formatBlocks(response.narrative_blocks);
-      createTurnHistoryEvents(commandText, formattedText, response).forEach(dispatch);
+
+      const currentStore = useAppStore.getState();
+      const currentEng = useEngineStore.getState();
+      const effectiveCurrentNode =
+        currentStore.currentNodeId || currentEng.gameState?.current_location || 'ORIGIN';
+      const effectiveTurnNumber = currentStore.turnCount + 1;
+
+      const transitionReceipt = response.transitionReceipt || {
+        requestedNodeId: response.logic_state.requested_transition || null,
+        accepted: false,
+        fromNodeId: effectiveCurrentNode,
+        toNodeId: effectiveCurrentNode,
+        reason: 'NO_RECEIPT_ATTACHED',
+      };
+
+      const turnReceipt: TurnReceipt = {
+        turnNumber: effectiveTurnNumber,
+        nodeBefore: effectiveCurrentNode,
+        requestedTarget: response.logic_state.requested_transition || null,
+        accepted: transitionReceipt.accepted,
+        reason: transitionReceipt.reason,
+        nodeAfter:
+          transitionReceipt.accepted && transitionReceipt.toNodeId
+            ? transitionReceipt.toNodeId
+            : effectiveCurrentNode,
+        activeVector: currentEng.currentVector || 'COGNITIVE',
+        activeTier: currentEng.currentTier || 'LATENT',
+        tension:
+          typeof response.logic_state.suggested_tension === 'number'
+            ? response.logic_state.suggested_tension
+            : currentStore.tensionLevel ?? 0,
+      };
+
+      const committedTurnPayload: CommittedTurnPayload = {
+        commandText,
+        formattedText,
+        frame: response,
+        transitionReceipt,
+        turnReceipt,
+      };
+
+      dispatch({ type: 'TURN_COMMITTED', payload: committedTurnPayload });
 
       if (response.logic_state.suggested_tension) {
         useEngineStore
@@ -427,7 +470,7 @@ export default function Runtime() {
         }
       }
 
-      updateGameState(response.logic_state as any); // Sync mechanical reality
+      useEngineStore.getState().patchGameState(response.logic_state);
     } catch (err: any) {
       console.error(err);
       const errorMessage =
@@ -442,12 +485,17 @@ export default function Runtime() {
       } catch {
         /* ignore */
       }
+
+      const errorCategory =
+        err?.code || (err?.statusCode === 400 ? 'INVALID_REQUEST' : 'PROVIDER_FAILURE');
+
       dispatch({
-        type: 'ADD_MESSAGE',
-        message: {
-          role: 'assistant',
-          content: `[CRITICAL ENGINE FAILURE]: ${parsedMessage}. The house refused to open.`,
-          timestamp: Date.now(),
+        type: 'TURN_FAILED',
+        payload: {
+          commandText,
+          errorCategory,
+          errorMessage: parsedMessage,
+          statusCode: err?.statusCode,
         },
       });
     } finally {

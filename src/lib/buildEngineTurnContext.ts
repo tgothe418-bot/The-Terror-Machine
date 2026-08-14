@@ -14,6 +14,7 @@ export interface BuildEngineTurnContextOptions {
     reconciliationRevision?: number;
     activeVector?: string;
     activeTier?: string;
+    activeFlags?: string[];
   };
 }
 
@@ -106,6 +107,7 @@ export function buildEngineTurnContext({
     typeof runtimeState.reconciliationRevision === 'number'
       ? runtimeState.reconciliationRevision
       : 0;
+  const activeFlags = Array.isArray(runtimeState.activeFlags) ? runtimeState.activeFlags : [];
 
   return {
     version: 1,
@@ -148,6 +150,7 @@ export function buildEngineTurnContext({
       reconciliationRevision,
       activeVector,
       activeTier,
+      activeFlags,
     },
   };
 }

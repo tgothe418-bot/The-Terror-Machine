@@ -1,5 +1,6 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { EngineEvent, Phase, DecayState } from './events';
-import { Message } from '../../types';
+import { Message, NarrativeBlock } from '../../types';
 import { EntityArchetype } from '../../types/reference';
 
 export interface EngineState {
@@ -29,6 +30,9 @@ export interface EngineState {
   timelineRevision: number;
   lastDistilledRevision: number;
   history: Message[];
+  storyLog?: NarrativeBlock[];
+  currentPhase?: string;
+  tensionLevel?: number;
   nodeState?: {
     dynamic_conditions?: Record<string, unknown>;
   };
@@ -123,6 +127,91 @@ export const initialEngineState: EngineState = {
 
 export function engineReducer(state: EngineState, event: EngineEvent): EngineState {
   switch (event.type) {
+    case 'TURN_COMMITTED': {
+      const userMsg: Message = {
+        id: crypto.randomUUID(),
+        role: 'user',
+        content: event.payload.commandText,
+        timestamp: event.payload.timestamp || Date.now(),
+      };
+
+      const engineMsg: Message = {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: event.payload.formattedText,
+        timestamp: (event.payload.timestamp || Date.now()) + 1,
+        blocks: event.payload.frame.narrative_blocks,
+        engine_thoughts: event.payload.frame.engine_thoughts,
+        logic_state: event.payload.frame.logic_state,
+        topologyDelta: event.payload.frame.topologyDelta,
+        validation: event.payload.frame.validation,
+        contextReceipt: event.payload.frame.contextReceipt,
+        transitionReceipt: event.payload.transitionReceipt,
+        turnReceipt: event.payload.turnReceipt,
+      };
+
+      const nextNodeId =
+        event.payload.transitionReceipt.accepted && event.payload.transitionReceipt.toNodeId
+          ? event.payload.transitionReceipt.toNodeId
+          : state.currentNodeId;
+
+      const newFlags = event.payload.frame.logic_state?.terminal_flags || [];
+      const currentFlags = state.activeMemory?.systemFlags || [];
+      const combinedFlags = Array.from(new Set([...currentFlags, ...newFlags]));
+
+      return {
+        ...state,
+        history: [...(state.history || []), userMsg, engineMsg],
+        turnCount: state.turnCount + 1,
+        currentNodeId: nextNodeId,
+        storyLog: [
+          ...(state.storyLog || []),
+          ...(event.payload.frame.narrative_blocks || []),
+        ],
+        currentPhase: event.payload.frame.logic_state?.current_phase || state.currentPhase || 'LATENT',
+        tensionLevel:
+          typeof event.payload.frame.logic_state?.suggested_tension === 'number'
+            ? event.payload.frame.logic_state.suggested_tension
+            : state.tensionLevel ?? 0,
+        activeMemory: {
+          ...state.activeMemory,
+          systemFlags: combinedFlags,
+        },
+      };
+    }
+
+    case 'TURN_FAILED': {
+      const userMsg: Message = {
+        id: crypto.randomUUID(),
+        role: 'user',
+        content: event.payload.commandText,
+        timestamp: event.payload.timestamp || Date.now(),
+      };
+
+      const failMsg: Message = {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: `[ENGINE FAILURE // ${event.payload.errorCategory}]: ${event.payload.errorMessage}`,
+        timestamp: (event.payload.timestamp || Date.now()) + 1,
+        turnReceipt: {
+          turnNumber: state.turnCount + 1,
+          nodeBefore: state.currentNodeId,
+          requestedTarget: null,
+          accepted: false,
+          reason: `FAILED: ${event.payload.errorCategory} (${event.payload.errorMessage})`,
+          nodeAfter: state.currentNodeId,
+          activeVector: (state as any).activeVector || 'COGNITIVE',
+          activeTier: (state as any).activeTier || 'LATENT',
+          tension: state.tensionLevel ?? 0,
+        },
+      };
+
+      return {
+        ...state,
+        history: [...(state.history || []), userMsg, failMsg],
+      };
+    }
+
     case 'USER_ACTION':
       return {
         ...state,

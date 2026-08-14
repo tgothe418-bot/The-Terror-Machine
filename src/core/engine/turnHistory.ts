@@ -1,4 +1,4 @@
-import type { EngineEvent } from './events';
+import type { EngineEvent, CommittedTurnPayload, FailedTurnPayload } from './events';
 import type {
   Message,
   NarrativeBlock,
@@ -15,6 +15,20 @@ export interface ResolvedTurnTelemetry {
   topologyDelta?: TopologyDelta | null;
   validation?: FrameValidation;
   contextReceipt?: ContextReceipt;
+}
+
+export function createCommittedTurnEvent(payload: CommittedTurnPayload): EngineEvent {
+  return {
+    type: 'TURN_COMMITTED',
+    payload,
+  };
+}
+
+export function createFailedTurnEvent(payload: FailedTurnPayload): EngineEvent {
+  return {
+    type: 'TURN_FAILED',
+    payload,
+  };
 }
 
 export function createEngineHistoryMessage(

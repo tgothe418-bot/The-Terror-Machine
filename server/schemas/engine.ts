@@ -50,7 +50,8 @@ export const EngineTurnContextSchema = z.object({
     coherence: z.number().default(1.0),
     reconciliationRevision: z.number().default(0),
     activeVector: z.string().default("COGNITIVE"),
-    activeTier: z.string().default("LATENT")
+    activeTier: z.string().default("LATENT"),
+    activeFlags: z.array(z.string()).default([])
   })
 });
 
@@ -70,6 +71,16 @@ export const TurnRequestSchema = z.object({
   context: EngineTurnContextSchema
 });
 
+export const TransitionReceiptSchema = z.object({
+  requestedNodeId: z.string().nullable(),
+  accepted: z.boolean(),
+  fromNodeId: z.string().nullable(),
+  toNodeId: z.string().nullable(),
+  reason: z.string().optional()
+});
+
+export type TransitionReceipt = z.infer<typeof TransitionReceiptSchema>;
+
 export const TurnResultSchema = z.object({
   narrative_blocks: z.array(z.object({
     type: z.enum(['prose', 'dialogue', 'system_voice', 'environmental_description']),
@@ -78,6 +89,7 @@ export const TurnResultSchema = z.object({
   })).max(2),
   logic_state: z.object({
     current_phase: z.string(),
+    requested_transition: z.string().nullable().optional().default(null),
     suggested_tension: z.number().int().min(0).max(10),
     intent_classification: z.string(),
     terminal_flags: z.array(z.string()),
@@ -100,5 +112,10 @@ export const TurnResultSchema = z.object({
   }).nullable().optional()
 });
 
+export const TurnResponseSchema = TurnResultSchema.extend({
+  transitionReceipt: TransitionReceiptSchema
+});
+
 export type TurnRequest = z.infer<typeof TurnRequestSchema>;
 export type TurnResult = z.infer<typeof TurnResultSchema>;
+export type TurnResponse = z.infer<typeof TurnResponseSchema>;
