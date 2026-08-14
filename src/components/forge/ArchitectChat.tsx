@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useForgeState, forgeActions } from '../../store/useForgeStore';
+import { useForgeState, forgeActions, ArchitectMessage } from '../../store/useForgeStore';
 
 export const ArchitectChat = () => {
   const [input, setInput] = useState('');
@@ -11,7 +11,7 @@ export const ArchitectChat = () => {
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return;
     
-    const userMsg = { role: 'user', content: input };
+    const userMsg: ArchitectMessage = { role: 'user', content: input };
     addArchitectMessage(userMsg);
     setInput('');
     setIsLoading(true);
