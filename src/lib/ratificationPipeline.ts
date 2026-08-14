@@ -1,4 +1,9 @@
-import { RatifiedEngineFrame, DecayThreshold, DecayState } from '../types';
+import { RatifiedEngineFrame, DecayThreshold, DecayState, PlayerRole } from '../types';
+import { useAppStore } from '../store/useAppStore';
+import { useEngineStore } from '../core/store';
+import { calculatePhysicsState } from '../core/matrix/physicsMatrix';
+import { reconcilePerception } from '../core/memory/reconciler';
+import { buildEngineTurnContext, buildContextReceipt } from './buildEngineTurnContext';
 
 export const DECAY_SCALE: DecayThreshold[] = [
   { stage: 'STABLE', maxSkepticism: 1.0, minSkepticism: 0.61, environmentalCoherence: 1.0, narrativeDivergence: 'NONE' },
@@ -88,12 +93,14 @@ export const validateEngineFrame = (rawPayload: any): RatifiedEngineFrame => {
     narrative_blocks: blocks,
     engine_thoughts: String(thoughts),
     logic_state: {
+      current_phase: logic.current_phase || "LATENT",
       requested_transition: logic.requested_transition || null,
       suggested_tension: logic.suggested_tension,
       matrix_mutation: logic.matrix_mutation || null,
       terminal_flags: Array.isArray(logic.terminal_flags) ? logic.terminal_flags : [],
       cast_ledger: Array.isArray(logic.cast_ledger) ? logic.cast_ledger : []
     },
+    topologyDelta: rawPayload.topologyDelta || null,
     validation: {
       accepted,
       rejected_fields: rejected,
@@ -106,17 +113,17 @@ const createFailedFrame = (errorType: string, note: string): RatifiedEngineFrame
   narrative_blocks: [{ type: 'system_voice', content: "[ SYSTEM FAILURE: UNABLE TO RENDER REALITY CONSTRUCT ]" }],
   engine_thoughts: "FATAL PARSE ERROR.",
   logic_state: { 
+    current_phase: "LATENT",
     terminal_flags: [],
     cast_ledger: []
   },
+  topologyDelta: { isExpansion: false },
   validation: { accepted: false, rejected_fields: [errorType], repair_notes: [note] }
 });
-import { useAppStore } from '../store/useAppStore';
-import { calculatePhysicsState } from '../core/matrix/physicsMatrix';
-import { reconcilePerception } from '../core/memory/reconciler';
 
-export const executeRatificationPipeline = async (userAction: string) => {
+export const executeRatificationPipeline = async (userAction: string): Promise<RatifiedEngineFrame> => {
   const state = useAppStore.getState();
+  const engineState = useEngineStore.getState();
   
   const stateSnapshot = {
     spatialGraph: state.spatialGraph ? [...state.spatialGraph] : [],
@@ -129,11 +136,27 @@ export const executeRatificationPipeline = async (userAction: string) => {
   const currentCoherence = state.decayMetrics?.coherenceRating ?? 1.0;
   const physicsMatrix = calculatePhysicsState(currentTension, currentCoherence);
 
+  const selectedRole = (engineState.gameState?.player_role as PlayerRole) || 'protagonist';
+
+  const turnContext = buildEngineTurnContext({
+    blueprint: engineState.activeBlueprint,
+    selectedRole,
+    runtimeState: {
+      currentNodeId: state.currentNodeId,
+      phase: state.currentPhase || state.phase,
+      tension: currentTension,
+      coherence: currentCoherence,
+      reconciliationRevision: state.reconciliationRevision || 0,
+      activeVector: engineState.currentVector,
+      activeTier: engineState.currentTier
+    }
+  });
+
   const reconciliation = reconcilePerception(
     userAction,
     state.storyLog,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (state as any).activeRole || 'PROTAGONIST',
+    (selectedRole as any) || 'PROTAGONIST',
     physicsMatrix.realityState
   );
 
@@ -145,18 +168,20 @@ export const executeRatificationPipeline = async (userAction: string) => {
 
     return {
       narrative_blocks: [{ type: 'system_voice', content: reconciliation.correctedProse }],
+      engine_thoughts: "HALLUCINATION_COLLISION RECONCILIATION",
       logic_state: {
-        current_phase: state.currentPhase,
+        current_phase: state.currentPhase || "LATENT",
         suggested_tension: currentTension,
         intent_classification: 'HALLUCINATION_COLLISION',
         terminal_flags: []
       },
-      topologyDelta: { isExpansion: false }
+      topologyDelta: { isExpansion: false },
+      validation: { accepted: true, rejected_fields: [], repair_notes: ['Hallucination collision reconciled'] }
     };
   }
 
   // Distill the history to a compressed array instead of full prose
-  const recentHistory = state.storyLog.slice(-6).map(block => `[${block.type.toUpperCase()}]: ${block.content.substring(0, 60)}...`).join('\n');
+  const recentHistory = state.storyLog.slice(-6).map(block => `[${(block.type || 'PROSE').toUpperCase()}]: ${(block.content || '').substring(0, 60)}...`).join('\n');
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const currentNode = state.spatialGraph?.find((n: any) => n.id === state.currentNodeId);
@@ -168,7 +193,7 @@ export const executeRatificationPipeline = async (userAction: string) => {
     const exits = (currentNode as any).exits;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const attemptedExit = exits.find((exit: any) => 
-      userAction.toLowerCase().includes(exit.description.toLowerCase())
+      exit.description && userAction.toLowerCase().includes(exit.description.toLowerCase())
     );
     
     if (attemptedExit && (attemptedExit.targetNodeId === 'NODE_UNMAPPED' || attemptedExit.targetNodeId.startsWith('unmaterialized_'))) {
@@ -176,17 +201,21 @@ export const executeRatificationPipeline = async (userAction: string) => {
     }
   }
 
+  // SYSTEM_INIT is strictly non-expanding
+  const isExpansionExpected = userAction !== 'SYSTEM_INIT' && !!matchingExitDirection;
+
   const payload = {
     userAction,
     recentHistory,
     systemDirective: physicsMatrix.generativeDirective,
-    isExpansionExpected: !!matchingExitDirection,
+    isExpansionExpected,
     stateContext: {
       currentNodeId: state.currentNodeId,
       currentPhase: state.currentPhase,
       tensionLevel: currentTension,
       reconciliationRevision: state.reconciliationRevision
-    }
+    },
+    context: turnContext
   };
 
   const response = await fetch('/api/turn', {
@@ -203,7 +232,31 @@ export const executeRatificationPipeline = async (userAction: string) => {
     throw new Error(`HTTP error! status: ${response.status}`);
   }
 
-  const validatedEvent = await response.json();
+  const rawJson = await response.json();
+  const validatedEvent = validateEngineFrame(rawJson);
+
+  // Attach context receipt for SYSTEM_INIT
+  if (userAction === 'SYSTEM_INIT') {
+    validatedEvent.contextReceipt = buildContextReceipt(turnContext, engineState.activeBlueprint);
+  }
+
+  // Expansion Guard:
+  // If SYSTEM_INIT or no expansion was expected, suppress any rogue expansion
+  if (userAction === 'SYSTEM_INIT' || !isExpansionExpected) {
+    if (rawJson?.topologyDelta?.isExpansion) {
+      validatedEvent.topologyDelta = { isExpansion: false, newNodeDef: null };
+      if (!validatedEvent.validation) {
+        validatedEvent.validation = { accepted: true, rejected_fields: [], repair_notes: [] };
+      }
+      validatedEvent.validation.repair_notes.push(
+        '[GUARD] LLM emitted unexpected topology expansion; suppressed to maintain canonical graph.'
+      );
+    } else {
+      validatedEvent.topologyDelta = rawJson?.topologyDelta || { isExpansion: false };
+    }
+  } else {
+    validatedEvent.topologyDelta = rawJson?.topologyDelta || null;
+  }
 
   if (validatedEvent.topologyDelta?.isExpansion && validatedEvent.topologyDelta.newNodeDef && matchingExitDirection && state.currentNodeId) {
     useAppStore.getState().injectGeneratedNode(state.currentNodeId, matchingExitDirection, validatedEvent.topologyDelta.newNodeDef);

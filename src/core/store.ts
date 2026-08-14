@@ -5,6 +5,7 @@ import { idbStorage } from '../lib/idbStorage';
 import { distillContext } from '../services/geminiService';
 import { useAppStore } from '../store/useAppStore';
 import { normalizeBlueprint } from '../lib/normalizeBlueprint';
+import { compileRuntimeTopology } from '../lib/compileRuntimeTopology';
 
 import { HorrorVector, ExposureTier } from './matrix';
 
@@ -112,8 +113,16 @@ export const useEngineStore = create<EngineState>()(
         const normalizedBlueprint = normalizeBlueprint(blueprint);
         const { playerRole, characterId, perspectiveMode } = resolvePerspectiveBinding(normalizedBlueprint, role);
         
-        // Hard reset useAppStore
-        const startNodeId = normalizedBlueprint.topology?.nodes?.[0] || "UNKNOWN";
+        // Compile runtime topology
+        const compiled = compileRuntimeTopology({
+          topology: normalizedBlueprint.topology,
+          fallbackSetting: normalizedBlueprint.setting
+        });
+        const startNodeId = compiled.startNodeId;
+        const initialVector = (normalizedBlueprint.startingVector || 'COGNITIVE') as 'SOMATIC' | 'COGNITIVE' | 'COSMIC' | 'SOCIO_MORAL';
+        const initialTier = (normalizedBlueprint.startingTier || 'LATENT') as 'GATEWAY' | 'LATENT' | 'MANIFEST' | 'TERMINAL';
+
+        // Hard reset useAppStore with compiled topology and start node
         useAppStore.setState({
           sessionId: crypto.randomUUID(),
           blueprintId: normalizedBlueprint.id || "unknown",
@@ -126,7 +135,8 @@ export const useEngineStore = create<EngineState>()(
           activeMemory: { systemFlags: [], somaState: [], geomState: [] }, 
           phase: "LATENT", 
           turnCount: 0,
-          currentNodeId: startNodeId
+          currentNodeId: startNodeId,
+          spatialGraph: compiled.spatialGraph
         });
 
         set({ 
@@ -134,6 +144,8 @@ export const useEngineStore = create<EngineState>()(
           engineMessages: [],
           engineTextBuffer: [],
           engineWorldStateSummary: "The subject is contained. Initial parameters active.",
+          currentVector: initialVector,
+          currentTier: initialTier,
           gameState: {
             current_location: normalizedBlueprint.setting?.location || 'Unknown',
             player_injuries: [],

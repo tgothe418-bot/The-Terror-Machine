@@ -1,7 +1,8 @@
 import { create } from 'zustand';
-import { AppPhase, SpatialNode, TelemetryState, CampaignManifest, CarryoverPacket, TemporalShiftReceipt, NarrativeVelocity, UITranscriptMessage, TurnSnapshot, PerspectiveShiftReceipt, Message, PlayerRole, RatifiedEngineFrame, NarrativeBlock } from '../types';
+import { AppPhase, SpatialNode, TelemetryState, CampaignManifest, CarryoverPacket, TemporalShiftReceipt, NarrativeVelocity, UITranscriptMessage, TurnSnapshot, PerspectiveShiftReceipt, Message, PlayerRole, RatifiedEngineFrame, NarrativeBlock, TopologyEdge } from '../types';
 import { EngineEvent } from '../core/engine/events';
 import { engineReducer, initialEngineState, EngineState } from '../core/engine/reducer';
+import { compileRuntimeTopology } from '../lib/compileRuntimeTopology';
 
 export interface AppStore extends EngineState {
   isTransitioning: boolean;
@@ -87,7 +88,13 @@ export const useAppStore = create<AppStore>((set) => ({
     divergenceMode: 'NONE'
   },
   updateDecayMetrics: () => {},
-  compileTopology: () => {},
+  compileTopology: (forgeTopology?: { nodes?: string[]; connections?: TopologyEdge[] }, startNodeId?: string) => set((state) => {
+    const compiled = compileRuntimeTopology({ topology: forgeTopology });
+    return {
+      spatialGraph: compiled.spatialGraph,
+      currentNodeId: startNodeId || compiled.startNodeId || state.currentNodeId
+    };
+  }),
   triggerShatter: () => set({ isShattered: true }),
   setCurrentNodeId: (nodeId: string) => set({ currentNodeId: nodeId }),
   dispatch: (event: EngineEvent) => set((state) => engineReducer(state, event)),

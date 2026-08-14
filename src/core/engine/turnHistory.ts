@@ -1,5 +1,5 @@
 import type { EngineEvent } from './events';
-import type { Message, NarrativeBlock, LogicState, TopologyDelta, FrameValidation } from '../../types';
+import type { Message, NarrativeBlock, LogicState, TopologyDelta, FrameValidation, ContextReceipt } from '../../types';
 
 export interface ResolvedTurnTelemetry {
   narrative_blocks?: unknown[];
@@ -7,6 +7,7 @@ export interface ResolvedTurnTelemetry {
   logic_state?: LogicState;
   topologyDelta?: TopologyDelta | null;
   validation?: FrameValidation;
+  contextReceipt?: ContextReceipt;
 }
 
 export function createEngineHistoryMessage(
@@ -25,6 +26,7 @@ export function createEngineHistoryMessage(
     logic_state: frame.logic_state,
     topologyDelta: frame.topologyDelta,
     validation: frame.validation,
+    contextReceipt: frame.contextReceipt,
   };
 }
 

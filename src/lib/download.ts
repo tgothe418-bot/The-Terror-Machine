@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { Message } from '../types';
+import { Message, ContextReceipt } from '../types';
+import { buildEngineTurnContext, buildContextReceipt } from './buildEngineTurnContext';
 
 /**
  * Converts a structured message array into a standardized markdown file and downloads it.
@@ -40,13 +41,8 @@ export const exportConversationToMarkdown = (messages: Message[], sessionTitle: 
   
   document.body.appendChild(downloadLink);
   downloadLink.click();
-  
-  // Cleanup browser resource frame
-  setTimeout(() => {
-    document.body.removeChild(downloadLink);
-    URL.revokeObjectURL(url);
-    console.log('// TELEMETRY EXPORTED SUCCESSFUL //');
-  }, 100);
+  document.body.removeChild(downloadLink);
+  URL.revokeObjectURL(url);
 };
 
 /**
@@ -143,6 +139,32 @@ export const buildEngineLogContent = (
   let mimeType = '';
   let extension = '';
 
+  // 1. Resolve Context Receipt (either recorded in messages or synthesized from blueprint)
+  let receipt: ContextReceipt | null = null;
+  const recordedReceiptMsg = messages.find((m) => m && m.contextReceipt);
+  if (recordedReceiptMsg?.contextReceipt) {
+    receipt = recordedReceiptMsg.contextReceipt;
+  } else if (blueprint && typeof blueprint === 'object') {
+    try {
+      const turnContext = buildEngineTurnContext({ blueprint });
+      receipt = buildContextReceipt(turnContext, blueprint);
+    } catch {
+      receipt = null;
+    }
+  }
+
+  // 2. Helper to resolve user perspective label
+  const resolveUserLabel = (msg: any): string => {
+    if (msg.userCharacterName) return msg.userCharacterName;
+    if (receipt?.resolvedPlayerName) return receipt.resolvedPlayerName;
+    if (receipt?.selectedRole) return String(receipt.selectedRole).toUpperCase();
+    if (blueprint?.cast && Array.isArray(blueprint.cast)) {
+      const userChar = blueprint.cast.find((c: any) => c.isUserCharacter);
+      if (userChar?.name) return userChar.name;
+    }
+    return 'Protagonist';
+  };
+
   if (format === 'html') {
     mimeType = 'text/html;charset=utf-8;';
     extension = 'html';
@@ -168,24 +190,49 @@ export const buildEngineLogContent = (
             letter-spacing: 0.1em; 
             border-bottom: 1px solid #18181b; 
             padding-bottom: 1.5rem; 
-            margin-bottom: 3rem; 
+            margin-bottom: 2rem; 
             text-transform: uppercase;
           }
+          .context-receipt {
+            background-color: #09090b;
+            border: 1px solid #27272a;
+            border-radius: 4px;
+            padding: 1.25rem;
+            margin-bottom: 2.5rem;
+            font-size: 0.8rem;
+          }
+          .receipt-header {
+            color: #a1a1aa;
+            font-weight: bold;
+            margin-bottom: 0.75rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+          }
+          .receipt-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 0.5rem;
+            color: #d4d4d8;
+          }
+          .receipt-item { line-height: 1.5; }
+          .receipt-key { color: #71717a; text-transform: uppercase; font-size: 0.75rem; margin-right: 0.25rem; }
+          .receipt-val { font-weight: 600; color: #f4f4f5; }
+          .receipt-sub { color: #71717a; font-size: 0.75rem; }
           .turn { 
             margin-bottom: 3.5rem; 
             padding-bottom: 1.5rem; 
           }
           .user-input { 
             color: #71717a; 
-            font-size: 0.95rem;
-            margin-bottom: 1.5rem;
-            padding-left: 0.5rem;
-            border-left: 2px solid #27272a;
+            font-size: 0.95rem; 
+            font-style: italic; 
+            margin-bottom: 1.5rem; 
+            padding-left: 1rem; 
+            border-left: 2px solid #27272a; 
           }
           .block-prose { 
-            color: #e4e4e7; 
             margin-bottom: 1.25rem; 
-            font-size: 1rem;
+            color: #e4e4e7; 
           }
           .block-dialogue { 
             color: #a1a1aa; 
@@ -243,12 +290,26 @@ export const buildEngineLogContent = (
           TRACE CAPTURE ID: ${capturedAt.getTime()}<br>
           TIMESTAMP: ${timestamp}
         </div>
+
+        ${receipt ? `
+        <div class="context-receipt">
+          <div class="receipt-header">[ CONTEXT RECEIPT // SCENARIO BINDING v${receipt.version} ]</div>
+          <div class="receipt-grid">
+            <div class="receipt-item"><span class="receipt-key">SCENARIO:</span> <span class="receipt-val">${escapeHtml(receipt.scenarioTitle)}</span> ${receipt.blueprintId ? `<span class="receipt-sub">(${escapeHtml(receipt.blueprintId)})</span>` : ''}</div>
+            <div class="receipt-item"><span class="receipt-key">ROLE:</span> <span class="receipt-val">${escapeHtml(String(receipt.selectedRole).toUpperCase())}</span> | <span class="receipt-key">BOUND PLAYER:</span> <span class="receipt-val">${escapeHtml(receipt.resolvedPlayerName)}</span> ${receipt.resolvedPlayerId ? `<span class="receipt-sub">(ID: ${escapeHtml(receipt.resolvedPlayerId)})</span>` : ''}</div>
+            <div class="receipt-item"><span class="receipt-key">ORIGIN NODE:</span> <span class="receipt-val">${escapeHtml(receipt.readableNodeLabel)}</span> <span class="receipt-sub">(${escapeHtml(receipt.currentNodeId)})</span></div>
+            <div class="receipt-item"><span class="receipt-key">COORDINATE:</span> <span class="receipt-val">[${escapeHtml(receipt.activeVector)}, ${escapeHtml(receipt.activeTier)}]</span></div>
+            <div class="receipt-item"><span class="receipt-key">ROSTER &amp; RULES:</span> <span class="receipt-val">${receipt.castCount} Cast Members | ${receipt.worldRuleCount} World Rules</span></div>
+            <div class="receipt-item"><span class="receipt-key">TOPOLOGY:</span> <span class="receipt-val">${receipt.topologyNodeCount} Nodes | ${receipt.topologyConnectionCount} Connections</span></div>
+          </div>
+        </div>
+        ` : ''}
     `;
 
     messages.forEach((msg) => {
       content += `<div class="turn">`;
       if (msg.role === 'user') {
-        const userCharName = blueprint?.cast?.find((c: any) => c.isUserCharacter)?.name || 'Protagonist';
+        const userCharName = resolveUserLabel(msg);
         content += `<div class="speaker-label speaker-user">[ USER: ${escapeHtml(userCharName)} ]</div>`;
         content += `<div class="user-input">&gt; ${escapeHtml(msg.content)}</div>`;
       } else {
@@ -295,10 +356,21 @@ export const buildEngineLogContent = (
     mimeType = 'text/markdown;charset=utf-8;';
     extension = 'md';
     content = `# THE NIGHTMARE MACHINE // METRIC LOG\n*Captured: ${timestamp}*\n\n---\n\n`;
+
+    if (receipt) {
+      content += `### [ CONTEXT RECEIPT // SCENARIO BINDING v${receipt.version} ]\n` +
+                 `- **Scenario:** ${receipt.scenarioTitle} ${receipt.blueprintId ? `(${receipt.blueprintId})` : ''}\n` +
+                 `- **Player Role:** ${String(receipt.selectedRole).toUpperCase()} | **Bound Player:** ${receipt.resolvedPlayerName} ${receipt.resolvedPlayerId ? `(ID: ${receipt.resolvedPlayerId})` : ''}\n` +
+                 `- **Origin Node:** ${receipt.readableNodeLabel} (\`${receipt.currentNodeId}\`)\n` +
+                 `- **Coordinate:** [${receipt.activeVector}, ${receipt.activeTier}]\n` +
+                 `- **Authoring:** ${receipt.castCount} Cast Members | ${receipt.worldRuleCount} World Rules\n` +
+                 `- **Topology:** ${receipt.topologyNodeCount} Nodes | ${receipt.topologyConnectionCount} Connections\n\n` +
+                 `---\n\n`;
+    }
     
     messages.forEach((msg) => {
       if (msg.role === 'user') {
-        const userCharName = blueprint?.cast?.find((c: any) => c.isUserCharacter)?.name || 'Protagonist';
+        const userCharName = resolveUserLabel(msg);
         content += `**[ USER: ${userCharName} ]**\n> ${msg.content}\n\n`;
       } else {
         const blocks = Array.isArray(msg.content) ? msg.content : (msg.blocks || []);

@@ -12,10 +12,24 @@ const frame = {
   },
   topologyDelta: { isExpansion: false },
   validation: { accepted: true, rejected_fields: [], repair_notes: [] },
+  contextReceipt: {
+    version: 1,
+    scenarioTitle: 'Test Scenario',
+    selectedRole: 'protagonist',
+    resolvedPlayerName: 'Investigator',
+    currentNodeId: 'ROOM_01',
+    readableNodeLabel: 'Room 01',
+    activeVector: 'COGNITIVE',
+    activeTier: 'LATENT',
+    castCount: 1,
+    worldRuleCount: 1,
+    topologyNodeCount: 1,
+    topologyConnectionCount: 0
+  }
 };
 
 describe('turn history recording', () => {
-  it('records one user action and one structured Engine response', () => {
+  it('records one user action and one structured Engine response with context receipt', () => {
     const events = createTurnHistoryEvents(
       'I test the latch.',
       'The latch refuses to move.',
@@ -40,6 +54,7 @@ describe('turn history recording', () => {
         logic_state: frame.logic_state,
         topologyDelta: frame.topologyDelta,
         validation: frame.validation,
+        contextReceipt: frame.contextReceipt
       },
     });
 
@@ -51,13 +66,14 @@ describe('turn history recording', () => {
     ]);
   });
 
-  it('uses the same structured Engine message for initialization output', () => {
+  it('uses the same structured Engine message for initialization output with context receipt', () => {
     expect(createEngineHistoryMessage('Initialization complete.', frame, 99)).toMatchObject({
       role: 'assistant',
       content: 'Initialization complete.',
       timestamp: 99,
       logic_state: frame.logic_state,
       topologyDelta: frame.topologyDelta,
+      contextReceipt: frame.contextReceipt
     });
   });
 });
