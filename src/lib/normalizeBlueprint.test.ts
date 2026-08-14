@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { ZodError } from 'zod';
 import { normalizeBlueprint } from './normalizeBlueprint';
 import { Blueprint, BlueprintSchema } from '../types';
 
@@ -95,10 +96,10 @@ describe('normalizeBlueprint', () => {
   });
 
   it('fails safely through validation for non-object roots like null and arrays', () => {
-    expect(() => normalizeBlueprint(null)).toThrow();
-    expect(() => normalizeBlueprint([])).toThrow();
-    expect(() => normalizeBlueprint('string-input')).toThrow();
-    expect(() => normalizeBlueprint(12345)).toThrow();
+    expect(() => normalizeBlueprint(null)).toThrow(ZodError);
+    expect(() => normalizeBlueprint([])).toThrow(ZodError);
+    expect(() => normalizeBlueprint('string-input')).toThrow(ZodError);
+    expect(() => normalizeBlueprint(12345)).toThrow(ZodError);
   });
 
   it('rejects explicitly malformed non-boolean userInitiated values', () => {
@@ -112,7 +113,7 @@ describe('normalizeBlueprint', () => {
       },
     };
 
-    expect(() => normalizeBlueprint(raw)).toThrow();
+    expect(() => normalizeBlueprint(raw)).toThrow(ZodError);
   });
 
   it('applies canonical schema defaults on legacy input with missing sections', () => {
@@ -129,5 +130,24 @@ describe('normalizeBlueprint', () => {
     expect(result.cast).toHaveLength(1);
     expect(result.topology.nodes).toEqual([]);
     expect(result.topology.connections).toEqual([]);
+  });
+
+  describe('explicit malformed field rejection (ZodError)', () => {
+    it.each([
+      ['identity: 42', { identity: 42 }],
+      ['identity: []', { identity: [] }],
+      ['identity: { title: 42 } with valid top-level title', { title: 'Valid Title', identity: { title: 42 } }],
+      ['topology: "bad"', { topology: 'bad' }],
+      ['topology: null', { topology: null }],
+      ['topology: { connections: "bad" }', { topology: { connections: 'bad' } }],
+      ['userCharacterId: 99', { userCharacterId: 99 }],
+      ['title: 99', { title: 99 }],
+      ['premise: { bad: true }', { premise: { bad: true } }],
+      ['globalPremise: 99', { globalPremise: 99 }],
+      ['connection kind: 42', { topology: { connections: [{ from: 'A', to: 'B', kind: 42, userInitiated: true }] } }],
+      ['connection kind: null', { topology: { connections: [{ from: 'A', to: 'B', kind: null, userInitiated: true }] } }],
+    ])('rejects explicitly malformed %s', (_, raw) => {
+      expect(() => normalizeBlueprint(raw)).toThrow(ZodError);
+    });
   });
 });
