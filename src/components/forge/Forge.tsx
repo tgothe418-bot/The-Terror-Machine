@@ -11,8 +11,7 @@ import { ArrowLeft, Trash2 } from 'lucide-react';
 import { AutopilotVector } from '../../types';
 
 import { CampaignTopologyPanel } from './CampaignTopologyPanel';
-
-import { BlueprintSchema } from '../../types';
+import { prepareBlueprintExport } from '../../lib/compileBlueprintDraft';
 
 export default function Forge() {
   const setPhase = useAppStore((state) => state.setPhase);
@@ -104,18 +103,12 @@ export default function Forge() {
               if (draftBlueprint) {
                 try {
                   setExportError(null);
-                  BlueprintSchema.parse(draftBlueprint);
+                  const artifact = prepareBlueprintExport(draftBlueprint);
                   
-                  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(draftBlueprint, null, 2));
+                  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(artifact.json);
                   const downloadAnchorNode = document.createElement('a');
                   downloadAnchorNode.setAttribute("href", dataStr);
-                  
-                  const safeTitle = (draftBlueprint.title || "blueprint").replace(/[\\s\\W]+/g, '_').toLowerCase();
-                  const safeRefs = (draftBlueprint.references && draftBlueprint.references.length > 0)
-                    ? draftBlueprint.references.map(r => r.replace(/[\\s\\W]+/g, '_').toLowerCase()).join('_') + '_'
-                    : '';
-                  
-                  downloadAnchorNode.setAttribute("download", `${safeRefs}${safeTitle}.json`);
+                  downloadAnchorNode.setAttribute("download", artifact.fileName);
                   document.body.appendChild(downloadAnchorNode); // required for firefox
                   downloadAnchorNode.click();
                   downloadAnchorNode.remove();

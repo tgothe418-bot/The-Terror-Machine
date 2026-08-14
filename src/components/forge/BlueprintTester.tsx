@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useForgeState } from '../../store/useForgeStore';
+import { compileBlueprintDraft } from '../../lib/compileBlueprintDraft';
 
 export const BlueprintTester = () => {
   const [isTesting, setIsTesting] = useState(false);
@@ -13,12 +14,25 @@ export const BlueprintTester = () => {
     setSceneText("");
     
     try {
+      let compiledBlueprint;
+      try {
+        compiledBlueprint = compileBlueprintDraft(blueprint);
+      } catch (validationErr: unknown) {
+        const err = validationErr as { errors?: unknown; message?: string };
+        if (err.errors) {
+          setSceneText(`[ VALIDATION FAILED: MALFORMED BLUEPRINT ]\n${JSON.stringify(err.errors, null, 2)}`);
+        } else {
+          setSceneText(`[ VALIDATION FAILED: MALFORMED BLUEPRINT ]\n${err.message || String(err)}`);
+        }
+        return;
+      }
+
       const response = await fetch('/api/test-scene', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ blueprint }),
+        body: JSON.stringify({ blueprint: compiledBlueprint }),
       });
       
       const data = await response.json();
