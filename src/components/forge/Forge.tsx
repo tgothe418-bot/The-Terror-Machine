@@ -2,8 +2,6 @@ import React, { useState, useEffect } from 'react';
 import {  useForgeState, forgeActions, useForgeStoreInternal  } from '../../store/useForgeStore';
 import { useAppStore } from '../../store/useAppStore';
 import { ArchitectChat } from './ArchitectChat';
-import { NarrativeLens } from './NarrativeLens';
-import { BlueprintTester } from './BlueprintTester';
 import { FileDropzone } from './FileDropzone';
 import { MatrixSelector } from './MatrixSelector';
 import { SpatialManager } from './SpatialManager';
@@ -252,46 +250,20 @@ export default function Forge() {
 
                   </div>
 
-                  {/* 2. WHAT // CORE CONSTRAINT */}
-                  <div className="bg-zinc-950 border border-zinc-800 focus-within:border-zinc-700 p-4 rounded flex flex-col shadow-lg transition-colors">
-                    <label className="text-zinc-500 font-mono text-[10px] uppercase tracking-wider mb-2">CORE CONSTRAINT (WHAT)</label>
+                  {/* 2. ENVIRONMENTAL RULES */}
+                  <div className="bg-zinc-950 border border-zinc-800 focus-within:border-zinc-700 p-4 rounded flex flex-col shadow-lg transition-colors h-[250px]">
+                    <label className="text-zinc-500 font-mono text-[10px] uppercase tracking-wider mb-2">ENVIRONMENTAL RULES</label>
                     <textarea 
                       value={draftBlueprint?.environmentalRules || ''}
                       onChange={(e) => updateDraft({ environmentalRules: e.target.value })}
-                      className="w-full bg-transparent text-zinc-300 font-mono text-xs resize-none focus:outline-none custom-scrollbar min-h-[120px] leading-relaxed"
-                      placeholder="Establish structural containment limits or systemic behavioral loops..."
+                      className="w-full bg-transparent text-zinc-300 font-mono text-xs resize-none focus:outline-none custom-scrollbar flex-1 leading-relaxed"
+                      placeholder="Establish structural containment limits, localized architectures, or systemic world rules..."
                     />
-                  </div>
-
-                  {/* 3. WHERE // ENCLOSURE ENVIRONMENT */}
-                  <div className="bg-zinc-950 border border-zinc-800 focus-within:border-zinc-700 p-4 rounded flex flex-col shadow-lg transition-colors">
-                    <label className="text-zinc-500 font-mono text-[10px] uppercase tracking-wider mb-2">ENCLOSURE ENVIRONMENT (WHERE)</label>
-                    <div className="text-zinc-400 text-sm font-mono whitespace-pre-wrap h-full overflow-y-auto min-h-[120px]">
-                      {Array.isArray(draftBlueprint?.environmentalRules) && draftBlueprint?.environmentalRules.length 
-                        ? draftBlueprint.environmentalRules.map((rule: string) => `• ${rule}`).join('\n') 
-                        : draftBlueprint?.environmentalRules || "Map out localized architectures, environmental geometry, or matrix space rules..."}
-                    </div>
-                  </div>
-
-                  {/* 4. WHEN // TEMPORAL ANCHOR */}
-                  <div className="bg-zinc-950 border border-zinc-800 p-4 rounded flex flex-col justify-between shadow-lg">
-                    <div>
-                      <label className="text-zinc-500 font-mono text-[10px] uppercase tracking-wider mb-2">TEMPORAL ANCHOR (WHEN)</label>
-                      <p className="text-zinc-600 font-mono text-[11px] leading-relaxed mt-1">
-                        Initial simulation entry stage. Coordinates are calculated dynamically based on active selection vectors.
-                      </p>
-                    </div>
-                    <div className="text-zinc-400 font-mono text-xs pt-4 border-t border-zinc-900 flex justify-between items-center">
-                      <span className="text-zinc-600 uppercase text-[9px] tracking-wider">CURRENT SYNC:</span>
-                      <span className="text-cyan-400 tracking-widest font-bold">
-                        {draftBlueprint?.startingTier ? `[ ${draftBlueprint.startingTier} ]` : 'AWAITING SELECTION'}
-                      </span>
-                    </div>
                   </div>
 
                 </div>
 
-                {/* 5. WHY / HOW // SYSTEMIC VECTOR DIRECTIVE */}
+                {/* 3. WHY / HOW // SYSTEMIC VECTOR DIRECTIVE */}
                 <div className="bg-zinc-950 border border-zinc-800 focus-within:border-zinc-700 p-4 rounded flex flex-col shadow-lg transition-colors">
                   <label className="text-zinc-500 font-mono text-[10px] uppercase tracking-widest mb-2">SYSTEMIC VECTOR DIRECTIVE (WHY / HOW)</label>
                   <div className="text-zinc-400 text-sm font-mono whitespace-pre-wrap min-h-[140px]">
@@ -302,19 +274,12 @@ export default function Forge() {
 
             </div>
               
-            {/* RIGHT COLUMN: Unified Utility Tower (Spans 5 columns - Houses Chat & Validation) */}
+            {/* RIGHT COLUMN: Unified Utility Tower (Spans 5 columns - Houses Chat) */}
             <div className="col-span-5 flex flex-col h-full overflow-hidden space-y-6">
               
               {/* Architect Analytical Companion Box */}
               <div className="flex-1 min-h-[300px] flex flex-col border border-zinc-900 rounded bg-zinc-950/20 shadow-xl overflow-hidden">
                 <ArchitectChat />
-              </div>
-              
-              <NarrativeLens />
-              
-              {/* Atmospheric Validation (Blueprint Tester) Panel */}
-              <div className="shrink-0 border border-zinc-900 rounded bg-zinc-950/30 p-2 shadow-xl">
-                <BlueprintTester />
               </div>
 
             </div>
