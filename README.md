@@ -12,7 +12,7 @@ The Terror Machine is an experimental, state-driven horror simulator. A language
 
 The room exists even when the prose looks away.
 
-> **Development status:** TTM 2.0 is a working but unstable reconstruction baseline. The interface runs and its major systems exist, but the canonical turn pipeline, state authority, schema contracts, telemetry, automated tests, and clean local setup are still being repaired. This repository is not production-ready, and some visible controls lead to partial or legacy implementations.
+> **Development status:** TTM is a working but unstable reconstruction baseline. The interface runs and its major systems exist, but the canonical turn pipeline, state authority, schema contracts, telemetry, automated tests, and static type baseline are still being repaired. This repository is not production-ready, and some visible controls lead to partial or legacy implementations.
 
 ## What TTM Is
 
@@ -43,13 +43,15 @@ The Engine runs the scenario. Its two entry paths are visible from the beginning
 - **Blueprint Mode:** load a Forge export, inspect it, choose an available orientation, and initialize or resume the simulation.
 - **Ad-Lib Induction:** generate a fresh procedural haunted house from a compact set of controls such as scale, aesthetic, and tone, then enter it without first authoring a full Blueprint.
 
-Both paths are intended to converge on the same stateful turn loop. Ad-Lib Induction is not a disposable demo path; it should obey the same geometry, memory, ratification, and telemetry rules as a designed scenario.
+Both paths are intended to converge on the same stateful turn loop. Haunted House/Ad-Lib Induction is a featured use of TTM, not a disposable demo path. It is deliberately looser about pre-authored facts and may materialize details just in time, but it must obey the same canonical state, geometry, memory, ratification, and telemetry rules as a designed scenario.
+
+The current Gothic, Industrial, Liminal, and Occult reference bundles are temporary compatibility stand-ins for the emerging Cluster system. They should remain together until the Cluster loader replaces them; they are not four finished, independently functional systems.
 
 The current reference experience is a single **Protagonist** character facing one primary antagonist. Antagonist-facing controls and concepts are present in the code, but that role is not yet a dependable play mode. A proper Antagonist mode—and later a Director orientation—will be added as role policies over the same underlying simulation, not as separate engines.
 
 ## How a Turn Is Supposed to Work
 
-The 2.0 architecture is being consolidated around one authoritative transaction:
+The default-branch architecture is being consolidated around one authoritative transaction:
 
 | Stage | Responsibility |
 |---|---|
@@ -78,9 +80,9 @@ The simulation may be hostile to the character, but it should never be hostile t
 - **Clear System Memory** is a development recovery control. Its intended behavior is to purge only TTM-owned persisted state and isolated IndexedDB data, preserve API credentials and unrelated browser data, then reload cleanly.
 - **Telemetry** is local diagnostic evidence. The useful source of truth is raw execution data first; human-readable reports should be derived from that record, never substituted for it.
 
-## Where the 2.0 Branch Stands
+## Where the Default Branch Stands
 
-The `2.0` branch currently begins from recovery commit `af340316`. It was chosen because it preserves the broadest useful feature baseline before an incomplete refactor obscured the underlying defects.
+`main` is the repository's only active development branch and the source of truth for current work. Historical recovery branches and commit references do not define the current workflow.
 
 Known critical work includes:
 
@@ -105,7 +107,7 @@ Until those steps land, continuity or apparent coherence in a short run should n
 - Browser persistence through Zustand and IndexedDB utilities
 - Vitest for the emerging test suite
 
-Gemini in Google AI Studio is the current reference runtime. A future provider-neutral boundary—and an eventual OpenAI/Codex branch—are roadmap goals, not features of this baseline.
+Gemini in Google AI Studio is the current reference runtime. A future provider-neutral boundary remains a roadmap goal, not a feature of this baseline.
 
 ## Running the Project
 
@@ -121,7 +123,7 @@ npm run dev
 
 Add a personal Gemini API key to `.env` before starting the server. Never commit that file or paste a key into source code.
 
-**Honest caveat:** this recovery baseline still contains dependency, type, and build pollution. A clean local install is not yet a guaranteed path on every machine. Restoring that guarantee is the first engineering phase, and this section will be tightened once it passes from a fresh checkout.
+**Honest caveat:** clean dependency installation, linting, tests, and production builds now run from a fresh checkout. The static TypeScript baseline still contains known application errors and remains active repair work.
 
 ## Project Note
 
