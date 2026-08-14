@@ -191,7 +191,7 @@ export default function Forge() {
                           {/* Delete Button (Appears on Hover) */}
                           <button 
                             onClick={() => {
-                              const updatedCast = draftBlueprint.cast.filter(c => c.id !== char.id);
+                              const updatedCast = (draftBlueprint.cast || []).filter(c => c.id !== char.id);
                               updateDraft({ cast: updatedCast });
                             }}
                             className="absolute top-2 right-2 text-zinc-700 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity z-10 bg-black/50 rounded px-1"
@@ -205,8 +205,9 @@ export default function Forge() {
                               type="text"
                               value={char.name}
                               onChange={(e) => {
-                                const updatedCast = [...draftBlueprint.cast];
-                                updatedCast[index].name = e.target.value;
+                                const updatedCast = (draftBlueprint.cast || []).map((c, i) =>
+                                  i === index ? { ...c, name: e.target.value } : c
+                                );
                                 updateDraft({ cast: updatedCast });
                               }}
                               className="bg-transparent border-b border-zinc-800 text-zinc-300 font-bold text-xs focus:outline-none w-1/2 focus:border-zinc-500 pb-1"
@@ -215,8 +216,9 @@ export default function Forge() {
                             <select
                               value={char.behaviorVector || 'ADAPTIVE'}
                               onChange={(e) => {
-                                const updatedCast = [...draftBlueprint.cast];
-                                updatedCast[index].behaviorVector = e.target.value as AutopilotVector;
+                                const updatedCast = (draftBlueprint.cast || []).map((c, i) =>
+                                  i === index ? { ...c, behaviorVector: e.target.value as AutopilotVector } : c
+                                );
                                 updateDraft({ cast: updatedCast });
                               }}
                               className="bg-zinc-900 border border-zinc-800 text-zinc-400 text-[9px] uppercase tracking-wider p-1 rounded focus:outline-none w-1/2 cursor-pointer"
@@ -228,10 +230,11 @@ export default function Forge() {
                           </div>
                           
                           <textarea 
-                            value={char.description}
+                            value={char.description || ''}
                             onChange={(e) => {
-                              const updatedCast = [...draftBlueprint.cast];
-                              updatedCast[index].description = e.target.value;
+                              const updatedCast = (draftBlueprint.cast || []).map((c, i) =>
+                                i === index ? { ...c, description: e.target.value } : c
+                              );
                               updateDraft({ cast: updatedCast });
                             }}
                             className="w-full bg-transparent text-zinc-400 font-mono text-[10px] resize-none focus:outline-none custom-scrollbar min-h-[40px] leading-relaxed mt-1"

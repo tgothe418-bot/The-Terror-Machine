@@ -1,4 +1,4 @@
-import { useForgeState, forgeActions } from '../../store/useForgeStore';
+import { useForgeState, forgeActions, DraftPerspectiveRole } from '../../store/useForgeStore';
 
 export const NarrativeLens = () => {
   const blueprint = useForgeState((state) => state.draftBlueprint);
@@ -8,14 +8,15 @@ export const NarrativeLens = () => {
 
   const handleRoleChange = (index: number, newRole: string) => {
     if (!blueprint.perspectives) return;
-    const updatedPerspectives = [...blueprint.perspectives];
-    const lens = updatedPerspectives[index];
-    lens.role = newRole;
-    
-    if (newRole === 'DIRECTOR' || newRole === 'WITNESS') {
-      lens.subjectCharacterId = undefined;
-    }
-    
+    const updatedPerspectives = blueprint.perspectives.map((lens, i) => {
+      if (i !== index) return lens;
+      const updatedLens = { ...lens, role: newRole as DraftPerspectiveRole };
+      if (newRole === 'DIRECTOR' || newRole === 'WITNESS') {
+        return { ...updatedLens, subjectCharacterId: undefined };
+      }
+      return updatedLens;
+    });
+
     updateDraft({ perspectives: updatedPerspectives });
   };
 
@@ -48,14 +49,15 @@ export const NarrativeLens = () => {
                    <select 
                      value={lens.subjectCharacterId || ''}
                      onChange={(e) => {
-                       const updatedPerspectives = [...blueprint.perspectives!];
-                       updatedPerspectives[i].subjectCharacterId = e.target.value || undefined;
+                       const updatedPerspectives = (blueprint.perspectives || []).map((p, idx) =>
+                         idx === i ? { ...p, subjectCharacterId: e.target.value || undefined } : p
+                       );
                        updateDraft({ perspectives: updatedPerspectives });
                      }}
                      className="bg-zinc-800 text-zinc-300 text-xs font-mono px-2 py-1 flex-1 border border-zinc-700 outline-none"
                    >
                      <option value="">-- Null Avatar --</option>
-                     {blueprint.cast?.map((char: { id: string, name: string }) => (
+                     {blueprint.cast?.map((char) => (
                        <option value={char.id} key={char.id}>{char.name}</option>
                      ))}
                    </select>
@@ -64,7 +66,11 @@ export const NarrativeLens = () => {
             </div>
             <p className="text-zinc-400 text-sm font-serif mb-2">{lens.framingDirective}</p>
             <div className="text-xs font-mono text-zinc-500">
-              <span className="text-green-500">STARTING_STATE:</span> {lens.startingSemanticState}
+              <span className="text-green-500">STARTING_STATE:</span> {
+                typeof lens.startingSemanticState === 'object'
+                  ? JSON.stringify(lens.startingSemanticState)
+                  : (lens.startingSemanticState || 'DEFAULT')
+              }
             </div>
           </div>
         ))}

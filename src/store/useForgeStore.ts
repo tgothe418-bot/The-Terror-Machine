@@ -1,7 +1,19 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { Message, CharacterProfile, ForgePhase, ReferenceMaterial, ProseStyleVector, HorrorVector, ExposureTier } from '../types';
+import {
+  Message,
+  CharacterProfile,
+  ForgePhase,
+  ReferenceMaterial,
+  ProseStyleVector,
+  HorrorVector,
+  ExposureTier,
+  AutopilotVector,
+  TopologyEdge,
+  VulnerabilityIndex,
+  Blueprint,
+  ScenarioBlueprint,
+} from '../types';
 import { idbStorage } from '../lib/idbStorage';
 
 export const defaultStyleVector: ProseStyleVector = {
@@ -28,6 +40,48 @@ export interface CastMember {
   starting_location: string;
 }
 
+export interface DraftIdentity {
+  title?: string;
+  version?: string;
+  author?: string;
+  thematicAnchor?: string;
+}
+
+export interface DraftCastMember {
+  id: string;
+  name: string;
+  description?: string;
+  role?: string;
+  personality?: string;
+  goals?: string;
+  traits?: string[];
+  isUserCharacter?: boolean;
+  behaviorVector?: AutopilotVector | string;
+  isEntity?: boolean;
+  psychological_status?: string;
+  starting_location?: string;
+  vulnerabilityBase?: VulnerabilityIndex;
+}
+
+export type DraftPerspectiveRole = 'PROTAGONIST' | 'ANTAGONIST' | 'DIRECTOR' | 'WITNESS' | 'POSSESSED';
+
+export interface DraftPerspective {
+  role: DraftPerspectiveRole | string;
+  framingDirective?: string;
+  sensoryBias?: string[];
+  startingSemanticState?: string | {
+    soma?: string[];
+    geom?: string[];
+    imp?: string;
+  };
+  subjectCharacterId?: string;
+}
+
+export interface DraftTopology {
+  nodes?: string[];
+  connections?: Array<TopologyEdge | string>;
+}
+
 export interface DraftBlueprint {
   id?: string;
   title?: string;
@@ -37,17 +91,94 @@ export interface DraftBlueprint {
   startingVector: HorrorVector;
   startingTier: ExposureTier;
   environmentalRules?: string | string[];
-  cast?: any[];
-  perspectives?: any[];
-  topology?: any;
-  identity?: any;
+  constraints?: string[];
+  contentScale?: number;
+  contentLevelDescription?: string;
+  cast?: DraftCastMember[];
+  perspectives?: DraftPerspective[];
+  topology?: DraftTopology;
+  identity?: DraftIdentity;
+  setting?: {
+    location?: string;
+    atmosphere?: string;
+    timePeriod?: string;
+  };
+  narrativeRules?: {
+    incitingIncident?: string;
+    phaseDirectives?: Record<string, string>;
+    currentTensionLevel?: string;
+    keyPlotElements?: string[];
+    pacingDirectives?: string;
+  };
+  terminalConditions?: unknown;
+  characters?: unknown[];
 }
+
+export type DraftBlueprintPatch = Partial<DraftBlueprint>;
 
 export interface EntityMemoryState {
   tacticalImperative: string; // The immediate, shifting goal
   somaticState: string[];     // Physical truths (e.g., "broken arm", "bleeding")
   relationalWeb: string[];    // Environmental/Entity knowledge
   systemFlags?: string[];
+}
+
+export interface ArchitectMessage {
+  role: 'architect' | 'user' | string;
+  content: string;
+}
+
+export interface SimulationPerspective {
+  role?: string;
+  startingSemanticState?: string | {
+    soma?: string[];
+    geom?: string[];
+    imp?: string;
+  };
+}
+
+export interface SimulationBlueprintInput {
+  perspectives?: SimulationPerspective[] | DraftPerspective[];
+}
+
+export interface ForgeActions {
+  addCastMember: (member: Omit<CastMember, 'id'>) => void;
+  updateCastMember: (id: string, updates: Partial<CastMember>) => void;
+  removeCastMember: (id: string) => void;
+  resetStore: () => void;
+  addSpatialNode: (nodeId: string) => void;
+  removeSpatialNode: (nodeId: string) => void;
+  toggleSpatialEdge: (nodeA: string, nodeB: string) => void;
+  updateActiveMemory: (updates: Partial<EntityMemoryState>) => void;
+  commitSemanticTags: (parsedTags: Record<string, string[]>) => void;
+  addArchitectMessage: (message: ArchitectMessage) => void;
+  clearArchitectChat: () => void;
+  initializeDraft: () => void;
+  updateDraft: (updates: DraftBlueprintPatch) => void;
+  removeReference: (fileName: string) => void;
+  setWho: (val: string) => void;
+  setWhat: (val: string) => void;
+  setWhere: (val: string) => void;
+  setWhen: (val: string) => void;
+  setWhyHow: (val: string) => void;
+  clearForgeInputs: () => void;
+  addMessage: (message: Message) => void;
+  clearHistory: () => void;
+  setAvailableReferenceCharacters: (characters: CharacterProfile[]) => void;
+  addCharacterToCast: (character: CharacterProfile) => void;
+  removeCharacterFromCast: (id: string) => void;
+  updateCharacterDetails: (id: string, updates: Partial<CharacterProfile>) => void;
+  setHasReferenceMaterial: (has: boolean) => void;
+  setForgePhase: (phase: ForgePhase) => void;
+  setSummaryContext: (context: string) => void;
+  setExtractedSetting: (setting: string) => void;
+  setExtractedThreat: (threat: string) => void;
+  setExtractedStyle: (style: string) => void;
+  addReferenceMaterials: (materials: ReferenceMaterial[]) => void;
+  removeReferenceMaterial: (id: string) => void;
+  setActiveNeuralLink: (role: 'PROTAGONIST' | 'ANTAGONIST') => void;
+  setActiveCharacterId: (id: string | null) => void;
+  startSimulation: (blueprint?: SimulationBlueprintInput | DraftBlueprint | Blueprint | ScenarioBlueprint | null) => void;
 }
 
 export interface ForgeState {
@@ -65,7 +196,7 @@ export interface ForgeState {
   extractedThreat: string;
   extractedStyle: string;
   draftBlueprint: DraftBlueprint | null;
-  architectMessages: { role: string, content: string }[];
+  architectMessages: ArchitectMessage[];
   who: string;
   what: string;
   where: string;
@@ -114,7 +245,9 @@ const initialState: ForgeState = {
   activeCharacterId: null
 };
 
-export const useForgeStoreInternal = create<ForgeState & { actions: any }>()(
+export type ForgeStore = ForgeState & { actions: ForgeActions };
+
+export const useForgeStoreInternal = create<ForgeStore>()(
   persist(
     (set) => ({
       ...initialState,
@@ -170,7 +303,7 @@ export const useForgeStoreInternal = create<ForgeState & { actions: any }>()(
           
           return { activeMemory: nextMemory };
         }),
-        addArchitectMessage: (message: any) => set((state: ForgeState) => ({ 
+        addArchitectMessage: (message: ArchitectMessage) => set((state: ForgeState) => ({ 
           architectMessages: [...state.architectMessages, message] 
         })),
         clearArchitectChat: () => set({ 
@@ -188,12 +321,12 @@ export const useForgeStoreInternal = create<ForgeState & { actions: any }>()(
             environmentalRules: ''
           }
         }),
-        updateDraft: (updates: any) => set((state: ForgeState) => ({
+        updateDraft: (updates: DraftBlueprintPatch) => set((state: ForgeState) => ({
           draftBlueprint: state.draftBlueprint ? { ...state.draftBlueprint, ...updates } : { 
             startingVector: 'COGNITIVE', 
             startingTier: 'GATEWAY', 
             ...updates 
-          } as DraftBlueprint
+          }
         })),
         removeReference: (fileName: string) => set((state: ForgeState) => {
           if (!state.draftBlueprint) return state;
@@ -244,20 +377,24 @@ export const useForgeStoreInternal = create<ForgeState & { actions: any }>()(
         })),
         setActiveNeuralLink: (role: 'PROTAGONIST' | 'ANTAGONIST') => set({ activeNeuralLink: role }),
         setActiveCharacterId: (id: string | null) => set({ activeCharacterId: id }),
-        startSimulation: (blueprint: any) => set((state: ForgeState) => {
+        startSimulation: (blueprint?: SimulationBlueprintInput | DraftBlueprint | Blueprint | ScenarioBlueprint | null) => set((state: ForgeState) => {
           const activePerspective = blueprint?.perspectives?.find(
-            (p: any) => p.role === state.activeNeuralLink
+            (p) => p && typeof p === 'object' && 'role' in p && p.role === state.activeNeuralLink
           );
           
           let initialSomatic: string[] = [];
           let initialGeOM: string[] = [];
           let initialImp = "";
 
-          if (activePerspective?.startingSemanticState) {
-            // Using structured data from startingSemanticState if available
-            initialSomatic = activePerspective.startingSemanticState.soma || [];
-            initialGeOM = activePerspective.startingSemanticState.geom || [];
-            initialImp = activePerspective.startingSemanticState.imp || "";
+          if (activePerspective && typeof activePerspective === 'object' && 'startingSemanticState' in activePerspective) {
+            const semanticState = activePerspective.startingSemanticState;
+            if (semanticState && typeof semanticState === 'object') {
+              initialSomatic = ('soma' in semanticState && Array.isArray(semanticState.soma)) ? semanticState.soma : [];
+              initialGeOM = ('geom' in semanticState && Array.isArray(semanticState.geom)) ? semanticState.geom : [];
+              initialImp = ('imp' in semanticState && typeof semanticState.imp === 'string') ? semanticState.imp : "";
+            } else if (typeof semanticState === 'string') {
+              initialImp = semanticState;
+            }
           }
 
           return {
@@ -275,14 +412,14 @@ export const useForgeStoreInternal = create<ForgeState & { actions: any }>()(
       name: 'the-forge-memory',
       storage: createJSONStorage(() => idbStorage),
       partialize: (state) => {
-        const stateWithoutActions = { ...state } as any;
-        delete stateWithoutActions.actions;
+        const stateCopy = { ...state } as Partial<ForgeStore>;
+        delete stateCopy.actions;
         return {
-          ...stateWithoutActions,
-          messages: stateWithoutActions.messages.map((msg: any) => {
-            const messageWithoutFiles = { ...msg };
-            delete messageWithoutFiles.attachments;
-            return messageWithoutFiles;
+          ...(stateCopy as ForgeState),
+          messages: (stateCopy.messages || []).map((msg) => {
+            const msgCopy = { ...msg };
+            delete msgCopy.attachments;
+            return msgCopy;
           }),
         };
       },
@@ -290,28 +427,24 @@ export const useForgeStoreInternal = create<ForgeState & { actions: any }>()(
   )
 );
 
-// We define a hook that replicates what zustand normally returns, but strips actions.
-export function useForgeState<T>(selector: (state: ForgeState) => T): T;
-export function useForgeState(): Readonly<ForgeState>;
-export function useForgeState<T>(selector?: (state: ForgeState) => T) {
+export interface UseForgeStateHook {
+  <T>(selector: (state: ForgeState) => T): T;
+  (): Readonly<ForgeState>;
+  persist: typeof useForgeStoreInternal.persist;
+}
+
+export const useForgeState = ((selector?: (state: ForgeState) => unknown) => {
   return useForgeStoreInternal((state) => {
     if (selector) {
       return selector(state as ForgeState);
     }
     return state as Readonly<ForgeState>;
   });
-}
+}) as UseForgeStateHook;
 
-// Add persist property so that we can call useForgeState.persist.hasHydrated()
-(useForgeState as any).persist = useForgeStoreInternal.persist;
+useForgeState.persist = useForgeStoreInternal.persist;
 
-// Ensure all previous code utilizing useForgeStore maps either to useForgeState or to forgeActions.
-export const forgeActions = useForgeStoreInternal.getState().actions;
-export const getForgeState = () => {
-    return useForgeStoreInternal.getState() as Readonly<ForgeState>;
+export const forgeActions: ForgeActions = useForgeStoreInternal.getState().actions;
+export const getForgeState = (): Readonly<ForgeState> => {
+  return useForgeStoreInternal.getState() as Readonly<ForgeState>;
 };
-
-
-// Exporting useForgeStore temporarily mapping directly to useForgeState mapped to older usages, 
-// wait, if I export useForgeStore exactly as useForgeState, the actions won't be there, 
-// so compilation will fail wherever actions were destructured. I need to update all consumers.

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import {  useForgeState, forgeActions, getForgeState  } from '../../store/useForgeStore'; 
+import { useForgeState, forgeActions, DraftBlueprintPatch } from '../../store/useForgeStore'; 
 import { fileToBase64, parseBlueprintFile } from '../../lib/fileParser'; 
 
 export const FileDropzone = () => {
@@ -21,7 +21,7 @@ export const FileDropzone = () => {
     try {
       // 1. JSON Blueprint Native Load
       if (file.type === 'application/json') {
-        const blueprint = await parseBlueprintFile(file) as Partial<ReturnType<typeof getForgeState>['draftBlueprint']>;
+        const blueprint = await parseBlueprintFile(file) as DraftBlueprintPatch;
         updateDraft(blueprint || {});
         setIsProcessing(false);
         return;
