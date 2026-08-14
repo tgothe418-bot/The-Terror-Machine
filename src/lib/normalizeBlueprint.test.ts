@@ -33,7 +33,7 @@ describe('normalizeBlueprint', () => {
     expect(parsed.topology.connections[0].legacyUpgraded).toBe(true);
   });
 
-  it('canonicalizes connection kind variations', () => {
+  it('canonicalizes connection kind variations and infers default userInitiated based on canonical kind', () => {
     const raw = {
       identity: { title: 'Labyrinth' },
       topology: {
@@ -49,9 +49,35 @@ describe('normalizeBlueprint', () => {
     const normalized = normalizeBlueprint(raw);
     const parsed = BlueprintSchema.parse(normalized);
     expect(parsed.topology.connections[0].kind).toBe('PHYSICAL');
+    expect(parsed.topology.connections[0].userInitiated).toBe(true);
     expect(parsed.topology.connections[1].kind).toBe('FORCED_EVENT');
+    expect(parsed.topology.connections[1].userInitiated).toBe(false);
     expect(parsed.topology.connections[2].kind).toBe('PHYSICAL');
+    expect(parsed.topology.connections[2].userInitiated).toBe(true);
     expect(parsed.identity.title).toBe('Labyrinth');
+  });
+
+  it('preserves explicitly authored userInitiated boolean values regardless of kind', () => {
+    const raw = {
+      identity: { title: 'Explicit Intent' },
+      topology: {
+        nodes: ['N1', 'N2', 'N3'],
+        connections: [
+          { from: 'N1', to: 'N2', kind: 'PHYSICAL', userInitiated: false },
+          { from: 'N2', to: 'N3', kind: 'FORCED_EVENT', userInitiated: true },
+          { from: 'N3', to: 'N1', kind: 'MEMORY_RECONSTRUCTION', userInitiated: true },
+        ],
+      },
+    };
+
+    const normalized = normalizeBlueprint(raw);
+    const parsed = BlueprintSchema.parse(normalized);
+    expect(parsed.topology.connections[0].kind).toBe('PHYSICAL');
+    expect(parsed.topology.connections[0].userInitiated).toBe(false);
+    expect(parsed.topology.connections[1].kind).toBe('FORCED_EVENT');
+    expect(parsed.topology.connections[1].userInitiated).toBe(true);
+    expect(parsed.topology.connections[2].kind).toBe('MEMORY_RECONSTRUCTION');
+    expect(parsed.topology.connections[2].userInitiated).toBe(true);
   });
 
   it('extracts protagonist ID from legacy perspectives structure', () => {

@@ -169,15 +169,15 @@ export function normalizeBlueprint(raw: any): any {
       };
     }
     const safeConn = { ...conn };
-    if (safeConn.userInitiated === undefined) {
-      safeConn.userInitiated = true;
-    }
     const validKinds = ["PHYSICAL", "FORCED_EVENT", "MEMORY_RECONSTRUCTION", "HISTORICAL_REFERENCE", "TERMINAL_EJECTION", "AUTHORED_PARADOX"];
     let upperKind = String(safeConn.kind || 'PHYSICAL').toUpperCase();
     if (upperKind === 'SPATIAL') upperKind = 'PHYSICAL';
     if (upperKind === 'NARRATIVE') upperKind = 'FORCED_EVENT';
     if (!validKinds.includes(upperKind)) upperKind = 'PHYSICAL';
     safeConn.kind = upperKind;
+    if (safeConn.userInitiated === undefined) {
+      safeConn.userInitiated = safeConn.kind === "PHYSICAL";
+    }
     return safeConn;
   });
 
