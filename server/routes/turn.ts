@@ -10,7 +10,11 @@ turnRouter.post('/', async (req, res) => {
     const { userAction, recentHistory, systemDirective, isExpansionExpected, stateContext } = parsedRequest;
 
     // Construct the dense, highly-optimized prompt
-    let prompt = `[STATE: ${stateContext.currentPhase === 'INIT' ? 'INITIALIZATION' : 'IN_PROGRESS'}][TENSION: ${stateContext.tensionLevel}][NODE: ${stateContext.currentNodeId || 'UNKNOWN'}]${systemDirective}
+    let prompt = `[STATE: ${stateContext.currentPhase === 'INIT' ? 'INITIALIZATION' : 'IN_PROGRESS'}]
+[TENSION: ${stateContext.tensionLevel}]
+[NODE: ${stateContext.currentNodeId || 'UNKNOWN'}]
+
+${systemDirective}
 
 [STYLE DIRECTIVE: Clinical, visceral, objective. Eradicate metaphor/exposition. Max 2 prose blocks. Do not repeat recent sensory markers.]
 
@@ -30,6 +34,7 @@ ${recentHistory}
 
     // Call the LLM with strict Zod schema enforcement
     const engineResponse = await generateStructuredResponse(prompt, TurnResultSchema);
+
     res.json(engineResponse);
   } catch (error) {
     console.error('[API /turn] Error:', error);

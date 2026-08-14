@@ -4,36 +4,127 @@
   <img src="./assets/TNM_Logo_1.png" alt="TNM Logo 1" width="800"/>
 </p>
 
-An agnostic, state-driven psychological simulation engine built with Node.js, React, Tailwind CSS, Zustand, and the Gemini Pro API. The platform splits cognitive telemetry data from narrative prose, utilizing a multi-layered matrix pipeline to enforce structural horror, mechanical object permanence, and strict spatial geography.
+<p align="center">
+  <img src="./assets/free-haunted-house.svg" alt="Free Haunted House" width="620"/>
+</p>
 
----
+The Terror Machine is an experimental, state-driven horror simulator. A language model interprets actions, performs characters, and renders the experience—but the application is supposed to own what is true.
 
-## 🏗️ Architectural Core
+The room exists even when the prose looks away.
 
-The application is structured across three primary infrastructural pillars to handle long-horizon narrative loops without token drift or context collapse:
+> **Development status:** TTM 2.0 is a working but unstable reconstruction baseline. The interface runs and its major systems exist, but the canonical turn pipeline, state authority, schema contracts, telemetry, automated tests, and clean local setup are still being repaired. This repository is not production-ready, and some visible controls lead to partial or legacy implementations.
 
-### 1. The Elastic Pacing Matrix (`src/store/useTelemetryStore.ts`)
-*   **The Momentum Index:** Tracks user input length, semantic urgency heuristics, and average cast sanity deltas over a rolling 3-turn context window.
-*   **Decoupled State:** Pacing math runs inside an isolated, non-rendering transient Zustand store to protect the primary reading void from React re-render performance hits.
-*   **Dynamic Gating:** Shifts the simulation organically across `LATENT`, `MANIFEST`, and `TERMINAL` phases based on compound pressure evaluations rather than rigid countdown turn timers.
+## What TTM Is
 
-### 2. The Euclidean Spatial Graph (`src/core/matrix.ts`)
-*   **Coordinate Locking:** Replaces ambiguous text setting descriptions with a discrete node-and-edge map graph (`SpatialGraph`) that binds characters mechanically to explicit coordinate nodes.
-*   **The Euclidean Interceptor (`src/services/geminiService.ts`):** A middleware parser that intercepts the LLM's raw JSON payloads post-generation. It rejects illegal spatial jumps or hallucinated doors, forces character payloads back to valid adjacent nodes, and injects a mechanical override notice directly into the narrative stream.
+TTM is not meant to be a chatbot that tells a horror story at you. It is an attempt to build a persistent simulation in which language-model improvisation is constrained by mechanical state: rooms remain where they were, doors connect to specific places, characters carry consequences forward, and fear develops through pressure rather than arbitrary escalation.
 
-### 3. The Memory Forge (`src/core/prompts/distillation.ts`)
-*   **Context Distillation:** Automatically triggers on an Act break (Phase Shift). An asynchronous background loop condenses historical dialog into a highly dense, permanent string array (`enduringTrauma`).
-*   **The Context Cleaver:** Surgically slices the middle array of the active message history to preserve token limits and avoid attention dilution.
-*   **Cinematic Injection:** Inserts a beautiful, 4-5 sentence chapter summary into the user reading void, providing a readable ledger of the past Act while resetting the active token ceiling to baseline.
+Its priorities are:
 
-### 4. Grounded Voice Interface (`src/components/hub/TheVoice.tsx`)
-*   **Search Grounding:** Integrated with native Google Search tools to pull real-time literary frameworks, psychological archetypes, and historical research to serve as an active co-author.
+- **Fidelity before verbosity.** A short response that respects the world is more valuable than beautiful prose that contradicts it.
+- **The model proposes; the machine decides.** Gemini supplies interpretation, performance, and prose. Deterministic application logic must validate and commit the resulting state.
+- **Agency with consequences.** Player choices should matter, including the possibility of failure at higher content settings, without making the application hostile to the person using it.
+- **Generative horror grammar.** Research should teach TTM how horror works—its aesthetics, pacing, psychology, language, and structure—rather than give it plots to imitate.
+- **Separation of concerns.** Conversation, scenario design, and simulation occupy distinct state boundaries so that one mode cannot casually contaminate another.
 
----
+## The Three Nodes
 
-## 🛠️ Tech Stack
-*   **Frontend Framework:** React 18, TypeScript, Vite
-*   **State Management:** Zustand
-*   **Styling:** Tailwind CSS
-*   **API Layer:** Google Gemini API (Grounding Tools + Structured JSON Outputs)
-*   **Storage:** IndexedDB / Custom local persistence layers
+### `[ THE VOICE ]` — Conversation and Observation
+
+The Voice is TTM's conversational intelligence: a place to explore ideas, discuss research, and talk about what the system is doing. It has a **one-way-mirror** view of the Forge and Engine. It may observe and comment on their state, but it must not alter their data, inject instructions into a running scenario, or leak conversational context into the simulation.
+
+### `[ THE FORGE ]` — Blueprint Architecture
+
+The Forge is the deliberate design path. It collaborates with the user to define a scenario's premise, cast, environment, topology, constraints, and narrative pressures, then exports a structured Blueprint for the Engine. This is where authored intention becomes machine-readable architecture.
+
+### `[ THE ENGINE ]` — Simulation
+
+The Engine runs the scenario. Its two entry paths are visible from the beginning:
+
+- **Blueprint Mode:** load a Forge export, inspect it, choose an available orientation, and initialize or resume the simulation.
+- **Ad-Lib Induction:** generate a fresh procedural haunted house from a compact set of controls such as scale, aesthetic, and tone, then enter it without first authoring a full Blueprint.
+
+Both paths are intended to converge on the same stateful turn loop. Ad-Lib Induction is not a disposable demo path; it should obey the same geometry, memory, ratification, and telemetry rules as a designed scenario.
+
+The current reference experience is a single **Protagonist** character facing one primary antagonist. Antagonist-facing controls and concepts are present in the code, but that role is not yet a dependable play mode. A proper Antagonist mode—and later a Director orientation—will be added as role policies over the same underlying simulation, not as separate engines.
+
+## How a Turn Is Supposed to Work
+
+The 2.0 architecture is being consolidated around one authoritative transaction:
+
+| Stage | Responsibility |
+|---|---|
+| Input | Accept one action from a human player or the Autopilot stress runner. |
+| Snapshot | Package the relevant world, character, phase, tension, inventory, and topology state explicitly. |
+| Generation | Ask Gemini for a lean, schema-bound proposal: narrative blocks plus state deltas. |
+| Ratification | Reject impossible movement, invalid topology, contract drift, and other mechanical contradictions. |
+| Commit | Apply the accepted action and result once, atomically, through `TURN_COMMITTED`. |
+| Telemetry | Record immutable pre-state, request, raw response, accepted deltas, post-state, latency, and token use. |
+
+That complete path is the architectural target, not a claim that every stage is already integrated correctly at this recovery commit.
+
+## Horror, Difficulty, and the User
+
+TTM's planned content presets are more than filters for blood or language. They are simulation contracts:
+
+- Lower settings reduce explicitness, soften pressure, and provide stronger protection against terminal failure.
+- Higher settings permit harsher material, less outcome protection, and causally earned failure.
+- Sexual violence and pornographic sexual content remain outside the intended system even at the least restricted setting.
+
+The simulation may be hostile to the character, but it should never be hostile to the user. Pause, retake, and exit controls belong outside the fiction and must remain available regardless of the current scene. These controls and the full rating contract are design commitments still awaiting complete implementation.
+
+## Developer and Stress Tools
+
+- **Autopilot** is an adversarial soak test, not an alternate game. It should drive 20–50 consecutive generated actions through the exact same turn path as a human player to expose state collapse, topology hallucination, repetition, and token exhaustion.
+- **Clear System Memory** is a development recovery control. Its intended behavior is to purge only TTM-owned persisted state and isolated IndexedDB data, preserve API credentials and unrelated browser data, then reload cleanly.
+- **Telemetry** is local diagnostic evidence. The useful source of truth is raw execution data first; human-readable reports should be derived from that record, never substituted for it.
+
+## Where the 2.0 Branch Stands
+
+The `2.0` branch currently begins from recovery commit `af340316`. It was chosen because it preserves the broadest useful feature baseline before an incomplete refactor obscured the underlying defects.
+
+Known critical work includes:
+
+1. restore repository hygiene and a trustworthy static type-checking baseline;
+2. establish one canonical request, result, snapshot, and delta contract;
+3. implement one atomic `TURN_COMMITTED` state reducer;
+4. connect the Runtime to the ratified `/api/turn` pipeline without duplicate action ingestion;
+5. rebuild telemetry around raw pre-state/request/response/post-state records;
+6. add deterministic tests before expanding generative features.
+
+Until those steps land, continuity or apparent coherence in a short run should not be treated as proof that state is being preserved correctly.
+
+## Current Technology
+
+- React 19 and TypeScript
+- Vite 6
+- Express
+- Zustand 5
+- Zod 4
+- Tailwind CSS 4
+- Google Gemini through `@google/genai`
+- Browser persistence through Zustand and IndexedDB utilities
+- Vitest for the emerging test suite
+
+Gemini in Google AI Studio is the current reference runtime. A future provider-neutral boundary—and an eventual OpenAI/Codex branch—are roadmap goals, not features of this baseline.
+
+## Running the Project
+
+Google AI Studio is currently the environment in which TTM is developed and previewed. It supplies `GEMINI_API_KEY` through its Secrets panel.
+
+The repository exposes the expected local commands:
+
+```bash
+npm install
+cp .env.example .env
+npm run dev
+```
+
+Add a personal Gemini API key to `.env` before starting the server. Never commit that file or paste a key into source code.
+
+**Honest caveat:** this recovery baseline still contains dependency, type, and build pollution. A clean local install is not yet a guaranteed path on every machine. Restoring that guarantee is the first engineering phase, and this section will be tightened once it passes from a fresh checkout.
+
+## Project Note
+
+TTM is a private-first, solo hobby project by a first-time developer working with AI collaborators. It is being built for experimentation, learning, and the pleasure of making a very particular machine—not for a current commercial release or a generalized audience. Its internal roadmap is the operating manual; this README is the front door for curious visitors.
+
+The code is available under the [MIT License](./LICENSE).

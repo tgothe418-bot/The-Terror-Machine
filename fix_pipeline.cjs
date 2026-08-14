@@ -1,29 +1,34 @@
 const fs = require('fs');
-let content = fs.readFileSync('src/lib/ratificationPipeline.ts', 'utf8');
 
-content = content.replace(
-  /const recentHistory = state\.storyLog\.slice\(-6\)\.map\(block => `\[\$\{block\.type\.toUpperCase\(\)\}\]: \$\{block\.content\.substring\(0, 60\)\}\.\.\.`\)\.join\('\\n'\);/,
-  `const recentHistory = state.storyLog.slice(-6).map(block => ({
-    role: block.type === 'user_action' ? 'user' : (block.type === 'system_voice' ? 'system' : 'model'),
-    content: block.content
-  }));`
-);
+let pipe = fs.readFileSync('src/lib/ratificationPipeline.ts', 'utf8');
 
-content = content.replace(
-  /const payload = \{\n    userAction,\n    recentHistory,\n    systemDirective: physicsMatrix\.generativeDirective,\n    isExpansionExpected: !!matchingExitDirection,\n    stateContext: \{\n      currentNodeId: state\.currentNodeId,\n      currentPhase: state\.currentPhase,\n      tensionLevel: currentTension,\n      reconciliationRevision: state\.reconciliationRevision\n    \}\n  \};/,
-  `const payload = {
-    userAction,
-    recentHistory,
-    stateSnapshot: {
-      currentNodeId: state.currentNodeId,
-      nodeGeometry: currentNode?.description || "Unknown enclosure",
-      availableExits: currentNode?.exits?.map((e: any) => e.description) || [],
-      currentPhase: state.currentPhase,
-      tensionLevel: currentTension,
-      turnCount: 0,
-      reconciliationRevision: state.reconciliationRevision
-    }
-  };`
-);
+const searchStr = `  let finalPrompt = \\\`\\\${basePrompt}\\\\n\\\\n[SYSTEM DIRECTIVE: \\\${physicsMatrix.generativeDirective}]\\\`;`;
 
-fs.writeFileSync('src/lib/ratificationPipeline.ts', content);
+const replacementStr = `  // 3. Build Rolling Narrative History (Last 4 turns for context)
+  const recentHistory = state.storyLog.slice(-8).map(block => {
+    return \`[\${block.type.toUpperCase()}]: \${block.content}\`;
+  }).join('\\n');
+
+  // 4. Construct Context-Aware Prompt
+  const isTurnOne = state.storyLog.length === 0;
+  
+  let finalPrompt = basePrompt;
+
+  if (isTurnOne) {
+    finalPrompt += \`\\n\\n[STATE: INITIALIZATION - Establish the starting node and atmosphere.]\`;
+  } else {
+    finalPrompt += \`\\n\\n[STATE: IN_PROGRESS - DO NOT re-initialize the simulation or reset the room. Advance the narrative based on the user's action.]\`;
+    finalPrompt += \`\\n\\n--- RECENT NARRATIVE HISTORY ---\\n\${recentHistory}\\n--- END HISTORY ---\`;
+  }
+
+  finalPrompt += \`\\n\\n[USER ACTION]: \${userAction}\`;
+  finalPrompt += \`\\n\\n[SYSTEM DIRECTIVE: \${physicsMatrix.generativeDirective}]\`;
+  finalPrompt += \`\\n[NARRATIVE CONSTRAINT: Maximum 2 prose blocks per turn. DO NOT repeat recently used sensory descriptions (e.g., copper, wet plaster, breathing wallpaper) unless reality is actively shattering.]\`;`;
+
+if (pipe.includes(searchStr)) {
+    pipe = pipe.replace(searchStr, replacementStr);
+    fs.writeFileSync('src/lib/ratificationPipeline.ts', pipe);
+    console.log("Updated");
+} else {
+    console.log("Not found");
+}
