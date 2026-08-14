@@ -475,6 +475,7 @@ export default function Runtime() {
     } catch (err: unknown) {
       console.error(err);
       const failureReceipt = toTurnFailureReceipt(err);
+      const currentEngineState = useEngineStore.getState();
 
       dispatch({
         type: 'TURN_FAILED',
@@ -485,6 +486,8 @@ export default function Runtime() {
           errorMessage: failureReceipt.message,
           statusCode: failureReceipt.status,
           contentType: failureReceipt.contentType,
+          activeVector: currentEngineState.currentVector || 'COGNITIVE',
+          activeTier: currentEngineState.currentTier || 'LATENT',
         },
       });
     } finally {
