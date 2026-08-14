@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { useForgeState, forgeActions, DraftBlueprintPatch } from '../../store/useForgeStore'; 
-import { fileToBase64, parseBlueprintFile } from '../../lib/fileParser'; 
+import { useForgeState, forgeActions, DraftBlueprintPatch } from '../../store/useForgeStore';
+import { fileToBase64, parseBlueprintFile } from '../../lib/fileParser';
 
 export const FileDropzone = () => {
   const [isProcessing, setIsProcessing] = useState(false);

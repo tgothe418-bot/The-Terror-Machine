@@ -107,7 +107,7 @@ export const CastManager: React.FC = () => {
             <div className="flex items-baseline gap-3 mb-2">
               <span className="text-lg font-bold text-zinc-100">{member.name}</span>
               <span className="text-[10px] tracking-widest text-zinc-500">[{member.role}]</span>
-              {Boolean((member as unknown as { isEntity?: boolean }).isEntity) && (
+              {member.isEntity && (
                 <span className="text-[9px] bg-red-900/40 text-red-400 px-1 py-0.5 rounded uppercase tracking-widest border border-red-900/50">
                   ENTITY FLAG
                 </span>

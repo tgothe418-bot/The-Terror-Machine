@@ -38,6 +38,7 @@ export interface CastMember {
   role: CastRole;
   psychological_status: string;
   starting_location: string;
+  isEntity?: boolean;
 }
 
 export interface DraftIdentity {
@@ -66,7 +67,7 @@ export interface DraftCastMember {
 export type DraftPerspectiveRole = 'PROTAGONIST' | 'ANTAGONIST' | 'DIRECTOR' | 'WITNESS' | 'POSSESSED';
 
 export interface DraftPerspective {
-  role: DraftPerspectiveRole | string;
+  role: DraftPerspectiveRole;
   framingDirective?: string;
   sensoryBias?: string[];
   startingSemanticState?: string | {
@@ -124,7 +125,7 @@ export interface EntityMemoryState {
 }
 
 export interface ArchitectMessage {
-  role: 'architect' | 'user' | string;
+  role: 'architect' | 'user';
   content: string;
 }
 
@@ -151,7 +152,7 @@ export interface ForgeActions {
   toggleSpatialEdge: (nodeA: string, nodeB: string) => void;
   updateActiveMemory: (updates: Partial<EntityMemoryState>) => void;
   commitSemanticTags: (parsedTags: Record<string, string[]>) => void;
-  addArchitectMessage: (message: ArchitectMessage) => void;
+  addArchitectMessage: (message: { role: string; content: string }) => void;
   clearArchitectChat: () => void;
   initializeDraft: () => void;
   updateDraft: (updates: DraftBlueprintPatch) => void;
@@ -303,13 +304,13 @@ export const useForgeStoreInternal = create<ForgeStore>()(
           
           return { activeMemory: nextMemory };
         }),
-        addArchitectMessage: (message: ArchitectMessage) => set((state: ForgeState) => ({ 
-          architectMessages: [...state.architectMessages, message] 
+        addArchitectMessage: (message: { role: string; content: string }) => set((state: ForgeState) => ({
+          architectMessages: [...state.architectMessages, message as ArchitectMessage]
         })),
-        clearArchitectChat: () => set({ 
+        clearArchitectChat: () => set({
           architectMessages: [
             { role: 'architect', content: "I am the Architect. Tell me what kind of nightmare we are building today." }
-          ] 
+          ]
         }),
         initializeDraft: () => set({
           draftBlueprint: {

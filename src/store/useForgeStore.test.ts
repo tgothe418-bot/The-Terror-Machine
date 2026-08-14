@@ -1,10 +1,10 @@
 import { expect, test, describe, beforeEach } from 'vitest';
 import 'fake-indexeddb/auto';
-import { 
-  forgeActions, 
-  getForgeState, 
-  DraftCastMember, 
-  DraftPerspective 
+import {
+  forgeActions,
+  getForgeState,
+  DraftCastMember,
+  DraftPerspective
 } from './useForgeStore';
 import { TopologyEdge } from '../types';
 
@@ -17,7 +17,7 @@ describe('useForgeStore - draft state and actions', () => {
   test('1. initializeDraft creates a draft with the existing vector/tier defaults and an ID', () => {
     forgeActions.initializeDraft();
     const state = getForgeState();
-    
+
     expect(state.draftBlueprint).not.toBeNull();
     expect(state.draftBlueprint?.id).toBeDefined();
     expect(typeof state.draftBlueprint?.id).toBe('string');
@@ -32,7 +32,7 @@ describe('useForgeStore - draft state and actions', () => {
   test('2. updateDraft merges a typed patch without losing existing draft values', () => {
     forgeActions.initializeDraft();
     const initialDraft = getForgeState().draftBlueprint!;
-    
+
     forgeActions.updateDraft({
       title: 'The Submerged Complex',
       environmentalRules: 'Pressure increases by 1 ATM per floor'
@@ -44,7 +44,7 @@ describe('useForgeStore - draft state and actions', () => {
     expect(updatedState.draftBlueprint?.startingTier).toBe('LATENT');
     expect(updatedState.draftBlueprint?.title).toBe('The Submerged Complex');
     expect(updatedState.draftBlueprint?.environmentalRules).toBe('Pressure increases by 1 ATM per floor');
-    
+
     // Further patch
     forgeActions.updateDraft({
       globalPremise: 'The facility is leaking containment fluid',
@@ -78,7 +78,7 @@ describe('useForgeStore - draft state and actions', () => {
     const perspectiveSnapshotBefore = draftSnapshotBefore.perspectives!;
 
     // Perform immutable nested cast update
-    const updatedCast = castSnapshotBefore.map(c => 
+    const updatedCast = castSnapshotBefore.map(c =>
       c.id === 'c1' ? { ...c, name: 'Dr. Aris Thorne', behaviorVector: 'PANIC' } : c
     );
     const updatedPerspectives = perspectiveSnapshotBefore.map(p =>
@@ -129,7 +129,7 @@ describe('useForgeStore - draft state and actions', () => {
 
   test('5. A draft containing both a legacy string connection and a canonical TopologyEdge is retained as authoring state', () => {
     forgeActions.initializeDraft();
-    
+
     const mixedConnections: Array<TopologyEdge | string> = [
       'Airlock -> Decontamination',
       {
@@ -168,6 +168,7 @@ describe('useForgeStore - draft state and actions', () => {
     const testChar = {
       id: '1',
       name: 'Test Victim',
+      description: 'A test victim for cast ledger insertion.',
       role: 'Target',
       personality: 'Anxious',
       goals: 'Survive',
