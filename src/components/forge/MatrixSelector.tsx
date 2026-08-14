@@ -20,7 +20,7 @@ export const MatrixSelector = () => {
   return (
     <div className="matrix-selector-container bg-black p-4 border border-zinc-800 rounded">
       <h3 className="text-zinc-400 font-mono text-xs mb-4 uppercase tracking-widest">
-        [ Initialize Matrix Coordinates ]
+        [ STARTING CONDITIONS ]
       </h3>
       <div className="grid grid-cols-5 gap-2 text-xs font-mono">
         {/* Top-left empty corner */}

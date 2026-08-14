@@ -50,7 +50,7 @@ export const SpatialManager = () => {
   return (
     <div className="space-y-4">
       <div className="text-zinc-500 text-xs font-bold tracking-[0.2em] uppercase border-b border-zinc-800 pb-2">
-        [ EUCLIDEAN TOPOLOGY GRID ]
+        [ LOCATIONS & CONNECTIONS ]
       </div>
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         {topology.nodes.map((node: string, i: number) => (
@@ -61,7 +61,7 @@ export const SpatialManager = () => {
       </div>
       {topology.connections && topology.connections.length > 0 && (
         <div className="mt-4 p-3 border border-zinc-800 bg-black">
-          <div className="text-zinc-600 text-xs font-mono mb-2">KNOWN VECTORS:</div>
+          <div className="text-zinc-600 text-xs font-mono mb-2">CONNECTIONS:</div>
           <div className="space-y-2">
             {topology.connections.map((conn: TopologyEdge | string, i: number) => {
                const displayStr = typeof conn === 'string' ? conn : `${conn.from} -> ${conn.to}`;
