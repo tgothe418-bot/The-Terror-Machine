@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="860" height="96" viewBox="0 0 860 96" role="img" aria-labelledby="title description">
+  <title id="title">Free Haunted House</title>
+  <desc id="description">The words Free Haunted House, with House rendered in vivid blue.</desc>
+  <text
+    x="430"
+    y="61"
+    text-anchor="middle"
+    font-family="Courier New, Courier, monospace"
+    font-size="40"
+    font-weight="600"
+    letter-spacing="5"
+  >
+    <tspan fill="#8a8a8a">FREE HAUNTED </tspan><tspan fill="#0000ff">HOUSE</tspan>
+  </text>
+</svg>
