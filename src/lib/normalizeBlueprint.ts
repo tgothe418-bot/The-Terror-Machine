@@ -16,9 +16,9 @@ function normalizeLegacyBlueprintShape(raw: unknown): unknown {
 
   const rawRecord = raw;
 
-  // Extract protagonist ID if present in legacy perspectives only when userCharacterId is absent/undefined
+  // Extract protagonist ID if present in legacy perspectives only when userCharacterId is absent or undefined
   let protagonistId: unknown = undefined;
-  if (hasOwn(rawRecord, 'userCharacterId')) {
+  if (hasOwn(rawRecord, 'userCharacterId') && rawRecord.userCharacterId !== undefined) {
     protagonistId = rawRecord.userCharacterId;
   } else if (Array.isArray(rawRecord.perspectives)) {
     const found = rawRecord.perspectives.find(
@@ -31,14 +31,14 @@ function normalizeLegacyBlueprintShape(raw: unknown): unknown {
 
   // Normalize topology and topology.connections
   let topologyNormalized: unknown = undefined;
-  if (hasOwn(rawRecord, 'topology')) {
+  if (hasOwn(rawRecord, 'topology') && rawRecord.topology !== undefined) {
     if (!isRecord(rawRecord.topology)) {
       // Preserve explicitly supplied wrong-typed topology
       topologyNormalized = rawRecord.topology;
     } else {
       const topoRecord = rawRecord.topology;
       let connectionsNormalized: unknown = undefined;
-      if (hasOwn(topoRecord, 'connections')) {
+      if (hasOwn(topoRecord, 'connections') && topoRecord.connections !== undefined) {
         if (!Array.isArray(topoRecord.connections)) {
           // Preserve explicitly supplied wrong-typed connections
           connectionsNormalized = topoRecord.connections;
@@ -70,7 +70,7 @@ function normalizeLegacyBlueprintShape(raw: unknown): unknown {
             ];
 
             // If kind is absent/undefined, default to PHYSICAL
-            if (safeConn.kind === undefined) {
+            if (!hasOwn(safeConn, 'kind') || safeConn.kind === undefined) {
               safeConn.kind = 'PHYSICAL';
             } else if (typeof safeConn.kind === 'string') {
               let upperKind = safeConn.kind.toUpperCase();
@@ -79,9 +79,9 @@ function normalizeLegacyBlueprintShape(raw: unknown): unknown {
               if (!validKinds.includes(upperKind)) upperKind = 'PHYSICAL';
               safeConn.kind = upperKind;
             }
-            // If kind is present with non-string, keep it unmodified so EdgeKindSchema rejects it
+            // If kind is present with non-undefined, non-string value, keep it unmodified so EdgeKindSchema rejects it
 
-            if (safeConn.userInitiated === undefined) {
+            if (!hasOwn(safeConn, 'userInitiated') || safeConn.userInitiated === undefined) {
               if (typeof safeConn.kind === 'string') {
                 safeConn.userInitiated = safeConn.kind === 'PHYSICAL';
               }
@@ -103,17 +103,17 @@ function normalizeLegacyBlueprintShape(raw: unknown): unknown {
   let identityNormalized: unknown = undefined;
   let topLevelTitleNormalized: unknown = undefined;
 
-  const hasIdentity = hasOwn(rawRecord, 'identity');
-  const hasTopTitle = hasOwn(rawRecord, 'title');
+  const hasExplicitIdentity = hasOwn(rawRecord, 'identity') && rawRecord.identity !== undefined;
+  const hasExplicitTopTitle = hasOwn(rawRecord, 'title') && rawRecord.title !== undefined;
 
-  if (hasIdentity) {
+  if (hasExplicitIdentity) {
     if (!isRecord(rawRecord.identity)) {
       // Preserve explicit non-record identity (e.g. 42, null, array, string)
       identityNormalized = rawRecord.identity;
     } else {
       const identRecord = rawRecord.identity;
       let identTitle: unknown = identRecord.title;
-      if (identTitle === undefined) {
+      if (!hasOwn(identRecord, 'title') || identTitle === undefined) {
         if (typeof rawRecord.title === 'string' && rawRecord.title) {
           identTitle = rawRecord.title;
         }
@@ -124,7 +124,7 @@ function normalizeLegacyBlueprintShape(raw: unknown): unknown {
       };
     }
   } else {
-    // Missing identity: if top-level title is string, populate identity.title
+    // Missing or undefined identity: if top-level title is string, populate identity.title
     if (typeof rawRecord.title === 'string' && rawRecord.title) {
       identityNormalized = {
         title: rawRecord.title,
@@ -132,7 +132,7 @@ function normalizeLegacyBlueprintShape(raw: unknown): unknown {
     }
   }
 
-  if (hasTopTitle) {
+  if (hasExplicitTopTitle) {
     topLevelTitleNormalized = rawRecord.title;
   } else if (isRecord(rawRecord.identity) && typeof rawRecord.identity.title === 'string' && rawRecord.identity.title) {
     topLevelTitleNormalized = rawRecord.identity.title;
@@ -142,13 +142,16 @@ function normalizeLegacyBlueprintShape(raw: unknown): unknown {
   let topPremiseNormalized: unknown = undefined;
   let globalPremiseNormalized: unknown = undefined;
 
-  if (hasOwn(rawRecord, 'premise')) {
+  const hasExplicitTopPremise = hasOwn(rawRecord, 'premise') && rawRecord.premise !== undefined;
+  const hasExplicitGlobalPremise = hasOwn(rawRecord, 'globalPremise') && rawRecord.globalPremise !== undefined;
+
+  if (hasExplicitTopPremise) {
     topPremiseNormalized = rawRecord.premise;
   } else if (typeof rawRecord.globalPremise === 'string' && rawRecord.globalPremise) {
     topPremiseNormalized = rawRecord.globalPremise;
   }
 
-  if (hasOwn(rawRecord, 'globalPremise')) {
+  if (hasExplicitGlobalPremise) {
     globalPremiseNormalized = rawRecord.globalPremise;
   } else if (typeof rawRecord.premise === 'string' && rawRecord.premise) {
     globalPremiseNormalized = rawRecord.premise;
