@@ -1,9 +1,10 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { ScenarioBlueprint, LogicState, Message, PlayerRole, PerspectiveMode } from '../types';
+import { Blueprint, LogicState, Message, PlayerRole, PerspectiveMode } from '../types';
 import { idbStorage } from '../lib/idbStorage';
 import { distillContext } from '../services/geminiService';
-import { useAppStore, normalizeBlueprint } from '../store/useAppStore';
+import { useAppStore } from '../store/useAppStore';
+import { normalizeBlueprint } from '../lib/normalizeBlueprint';
 
 import { HorrorVector, ExposureTier } from './matrix';
 
@@ -16,7 +17,7 @@ export interface TelemetryMetrics {
 }
 
 interface EngineState {
-  activeBlueprint: ScenarioBlueprint | null;
+  activeBlueprint: Blueprint | null;
   gameState: LogicState | null;
   engineMessages: Message[]; // Used for UI display
   engineTextBuffer: Message[]; // The sliding window specifically for the Engine
@@ -31,7 +32,7 @@ interface EngineState {
   shiftMatrixCoordinates: (vector: HorrorVector, tier: ExposureTier) => void;
   updateTension: (tension: 'buildup' | 'visceral_climax' | 'aftermath') => void;
   updateTelemetry: (metrics: TelemetryMetrics) => void;
-  setBlueprint: (blueprint: ScenarioBlueprint, role: PlayerRole) => void;
+  setBlueprint: (blueprint: unknown, role: PlayerRole) => void;
 
   clearBlueprint: () => void;
   updateGameState: (newState: LogicState) => void;
@@ -45,8 +46,7 @@ interface EngineState {
 }
 
 export function resolvePerspectiveBinding(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  blueprint: any, // Use your strict RuntimeBlueprint type
+  blueprint: Blueprint,
   role: PlayerRole
 ): { playerRole: PlayerRole; characterId: string | null; perspectiveMode: PerspectiveMode } {
   const normalizedRole = role.toUpperCase();

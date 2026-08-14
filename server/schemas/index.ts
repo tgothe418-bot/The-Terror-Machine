@@ -1,13 +1,5 @@
 import { z } from 'zod';
-import { BlueprintSchema } from '../../src/types';
-import { normalizeBlueprint } from '../../src/store/useAppStore';
-
-const NormalizedBlueprintSchema = z.preprocess((val) => {
-  if (val && typeof val === 'object') {
-    return normalizeBlueprint(val);
-  }
-  return val;
-}, BlueprintSchema);
+import { NormalizedBlueprintSchema } from '../../src/lib/normalizeBlueprint';
 
 // Chat & Engine Request Schema
 export const EngineTurnRequestSchema = z.object({

@@ -1,9 +1,10 @@
 import React, { useRef, useState } from 'react';
 import { ArrowLeft, Upload, AlertCircle, Users, Shield, Skull, Activity, Play } from 'lucide-react';
-import { useAppStore, normalizeBlueprint } from '../../store/useAppStore';
+import { useAppStore } from '../../store/useAppStore';
 import { useEngineStore } from '../../core/store';
 import { forgeActions, useForgeState } from '../../store/useForgeStore';
-import { ScenarioBlueprint, BlueprintSchema } from '../../types';
+import { Blueprint } from '../../types';
+import { normalizeBlueprint } from '../../lib/normalizeBlueprint';
 import { motion, AnimatePresence } from 'motion/react';
 import { generateAdLibCampaign } from '../../lib/adLibGenerator';
 
@@ -17,7 +18,7 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
   const activeBlueprint = useEngineStore((state) => state.activeBlueprint);
   const setBlueprint = useEngineStore((state) => state.setBlueprint);
   const [error, setError] = useState<string | null>(null);
-  const [previewBlueprint, setPreviewBlueprint] = useState<ScenarioBlueprint | null>(null);
+  const [previewBlueprint, setPreviewBlueprint] = useState<Blueprint | null>(null);
   const [selectedRole, setSelectedRole] = useState<'protagonist' | 'antagonist'>('protagonist');
   const [adLibSize, setAdLibSize] = useState<number>(12);
   const [adLibAesthetic, setAdLibAesthetic] = useState<string>('gothic');
@@ -52,12 +53,11 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
     reader.onload = (event) => {
       try {
         const content = event.target?.result as string;
-        const parsed = JSON.parse(content);
+        const parsed: unknown = JSON.parse(content);
         
         try {
-          const normalized = normalizeBlueprint(parsed);
-          const validated = BlueprintSchema.parse(normalized);
-          setPreviewBlueprint(validated as unknown as ScenarioBlueprint);
+          const validated = normalizeBlueprint(parsed);
+          setPreviewBlueprint(validated);
           forgeActions.setActiveCharacterId(null);
         } catch (validationErr: unknown) {
           console.error("Zod Validation Failed:", validationErr);
@@ -276,7 +276,7 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
                                     <span className="text-[10px] text-red-500 border border-red-900 px-1 font-mono uppercase">ENTITY</span>
                                   )}
                                   <span className="text-[10px] uppercase font-mono text-cyan-600 px-2 py-1 border border-cyan-900 rounded bg-cyan-950/30">
-                                    {char.behaviorVector || char.behavioralVector || 'ADAPTIVE'}
+                                    {char.behaviorVector || 'ADAPTIVE'}
                                   </span>
                                 </div>
                               </div>

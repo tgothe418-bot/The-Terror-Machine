@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { normalizeBlueprint } from '../store/useAppStore';
-import { BlueprintSchema } from '../types';
+import { normalizeBlueprint } from './normalizeBlueprint';
+import { Blueprint, BlueprintSchema } from '../types';
 
 describe('normalizeBlueprint', () => {
   it('normalizes string-formatted topology connections', () => {
@@ -13,7 +13,7 @@ describe('normalizeBlueprint', () => {
       },
     };
 
-    const normalized = normalizeBlueprint(raw);
+    const normalized: Blueprint = normalizeBlueprint(raw);
     const parsed = BlueprintSchema.parse(normalized);
 
     expect(parsed.title).toBe('Haunted Mansion');
@@ -46,7 +46,7 @@ describe('normalizeBlueprint', () => {
       },
     };
 
-    const normalized = normalizeBlueprint(raw);
+    const normalized: Blueprint = normalizeBlueprint(raw);
     const parsed = BlueprintSchema.parse(normalized);
     expect(parsed.topology.connections[0].kind).toBe('PHYSICAL');
     expect(parsed.topology.connections[0].userInitiated).toBe(true);
@@ -70,7 +70,7 @@ describe('normalizeBlueprint', () => {
       },
     };
 
-    const normalized = normalizeBlueprint(raw);
+    const normalized: Blueprint = normalizeBlueprint(raw);
     const parsed = BlueprintSchema.parse(normalized);
     expect(parsed.topology.connections[0].kind).toBe('PHYSICAL');
     expect(parsed.topology.connections[0].userInitiated).toBe(false);
@@ -89,8 +89,45 @@ describe('normalizeBlueprint', () => {
       ],
     };
 
-    const normalized = normalizeBlueprint(raw);
+    const normalized: Blueprint = normalizeBlueprint(raw);
     const parsed = BlueprintSchema.parse(normalized);
     expect(parsed.userCharacterId).toBe('char_protagonist');
+  });
+
+  it('fails safely through validation for non-object roots like null and arrays', () => {
+    expect(() => normalizeBlueprint(null)).toThrow();
+    expect(() => normalizeBlueprint([])).toThrow();
+    expect(() => normalizeBlueprint('string-input')).toThrow();
+    expect(() => normalizeBlueprint(12345)).toThrow();
+  });
+
+  it('rejects explicitly malformed non-boolean userInitiated values', () => {
+    const raw = {
+      identity: { title: 'Malformed Intent' },
+      topology: {
+        nodes: ['N1', 'N2'],
+        connections: [
+          { from: 'N1', to: 'N2', kind: 'PHYSICAL', userInitiated: 'not-a-boolean' },
+        ],
+      },
+    };
+
+    expect(() => normalizeBlueprint(raw)).toThrow();
+  });
+
+  it('applies canonical schema defaults on legacy input with missing sections', () => {
+    const raw = {
+      title: 'Minimal Enclosure',
+    };
+
+    const result: Blueprint = normalizeBlueprint(raw);
+    expect(result.identity.title).toBe('Minimal Enclosure');
+    expect(result.identity.version).toBe('1.0');
+    expect(result.setting.location).toBe('Unknown');
+    expect(result.setting.timePeriod).toBe('Present');
+    expect(result.contentScale).toBe(3);
+    expect(result.cast).toHaveLength(1);
+    expect(result.topology.nodes).toEqual([]);
+    expect(result.topology.connections).toEqual([]);
   });
 });
