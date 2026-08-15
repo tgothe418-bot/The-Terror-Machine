@@ -76,7 +76,7 @@ describe('Phase 2F: Fixture-Driven Behavioral Verification Suite', () => {
     cast: [
       {
         id: 'char_player_01',
-        name: 'Dr. Evelyn Vance',
+        name: 'Mara Velez',
         description: 'Senior Research Officer',
         role: 'Lead Investigator',
         personality: 'Methodical and observant under pressure',
@@ -160,7 +160,29 @@ describe('Phase 2F: Fixture-Driven Behavioral Verification Suite', () => {
   };
 
   beforeEach(() => {
-    useEngineStore.setState({ activeBlueprint: authoredBlueprint });
+    // Zustand stores are process-global in this test environment; restore the
+    // same canonical baseline before every scenario so no case depends on order.
+    useAppStore.setState({
+      sessionId: 'session_phase2f_001',
+      blueprintId: authoredBlueprint.id,
+      turnCount: 0,
+      currentNodeId: 'ORIGIN_CELL',
+      spatialGraph: structuredClone(baseSpatialGraph),
+      activeVector: 'COGNITIVE',
+      activeTier: 'LATENT',
+      phase: 'LATENT',
+      currentPhase: 'LATENT',
+      tensionLevel: 10,
+      reconciliationRevision: 0,
+      activeMemory: {
+        systemFlags: ['FACILITY_ONLINE'],
+        somaState: [],
+        geomState: [],
+      },
+      storyLog: [],
+      history: [],
+    });
+    useEngineStore.setState({ activeBlueprint: authoredBlueprint, gameState: null });
   });
 
   afterEach(() => {
@@ -184,7 +206,21 @@ describe('Phase 2F: Fixture-Driven Behavioral Verification Suite', () => {
     const playerMember = authoredBlueprint.cast.find((c) => c.isUserCharacter);
     expect(playerMember).toBeDefined();
     expect(playerMember?.id).toBe('char_player_01');
-    expect(playerMember?.name).toBe('Dr. Evelyn Vance');
+    expect(playerMember?.name).toBe('Mara Velez');
+
+    // Exercise the actual binding path rather than only inspecting the fixture.
+    const boundContext = buildEngineTurnContext({
+      blueprint: authoredBlueprint,
+      selectedRole: 'protagonist',
+      spatialGraph: storeState.spatialGraph,
+      runtimeState: {
+        currentNodeId: storeState.currentNodeId,
+        activeVector: storeState.activeVector,
+        activeTier: storeState.activeTier,
+      },
+    });
+    expect(boundContext.player.characterId).toBe('char_player_01');
+    expect(boundContext.player.name).toBe('Mara Velez');
 
     expect(storeState.currentNodeId).toBe('ORIGIN_CELL');
     expect(storeState.activeVector).toBe('COGNITIVE');
