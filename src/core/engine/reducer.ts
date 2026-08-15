@@ -153,8 +153,8 @@ export const initialEngineState: EngineState = {
 export function engineReducer(state: EngineState, event: EngineEvent): EngineState {
   switch (event.type) {
     case 'TURN_COMMITTED': {
-      // 1. Pre-turn snapshot strictly provided from caller (Runtime.handleCommand)
-      const preSnapshot = event.payload.preSnapshot;
+      // 1. Capture pre-turn snapshot from payload or current state
+      const preSnapshot = event.payload.preSnapshot || captureRuntimeSnapshot(state);
 
       const userMsg: Message = {
         id: crypto.randomUUID(),
@@ -169,6 +169,10 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
         currentNodeId: state.currentNodeId,
         topologyDelta: event.payload.frame.topologyDelta,
         transitionReceipt: event.payload.transitionReceipt,
+        requestedTargetNodeId:
+          event.payload.turnReceipt?.nodeAfter ||
+          event.payload.frame.logic_state?.requested_transition ||
+          null,
       });
 
       const nextNodeId = topologyResult.nextNodeId;
@@ -292,7 +296,7 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
       const effectiveTier: ExposureTier = state.activeTier || 'LATENT';
 
       // Canonical pre- and post-turn snapshots are identical for failed turn
-      const preSnapshot = event.payload.preSnapshot;
+      const preSnapshot = event.payload.preSnapshot || captureRuntimeSnapshot(state);
       const postSnapshot = preSnapshot;
 
       const userMsg: Message = {

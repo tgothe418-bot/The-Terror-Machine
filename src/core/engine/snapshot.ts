@@ -27,7 +27,6 @@ export interface CaptureSnapshotSource {
   blueprintId?: string;
   turnCount?: number;
   currentNodeId?: string | null;
-  spatialGraph?: unknown;
   activeVector?: HorrorVector | string;
   activeTier?: ExposureTier | string;
   phase?: string;

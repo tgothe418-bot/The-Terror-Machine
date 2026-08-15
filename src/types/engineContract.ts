@@ -123,9 +123,6 @@ export const TopologyDeltaSchema = z.object({
         z.object({
           direction: z.string(),
           targetNodeId: z.string(),
-          kind: EdgeKindSchema.optional(),
-          requires: z.array(z.string()).optional(),
-          userInitiated: z.boolean().optional(),
         })
       ),
     })

@@ -446,7 +446,7 @@ export default function Runtime() {
           typeof response.logic_state.suggested_tension === 'number'
             ? response.logic_state.suggested_tension
             : preSnapshot.tension,
-        preSnapshot,
+        preSnapshot: response.preSnapshot || preSnapshot,
       };
 
       const committedTurnPayload: CommittedTurnPayload = {
@@ -455,7 +455,7 @@ export default function Runtime() {
         frame: response,
         transitionReceipt,
         turnReceipt,
-        preSnapshot,
+        preSnapshot: response.preSnapshot || preSnapshot,
       };
 
       dispatch({ type: 'TURN_COMMITTED', payload: committedTurnPayload });

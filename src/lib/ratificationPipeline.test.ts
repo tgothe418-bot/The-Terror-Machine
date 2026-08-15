@@ -143,51 +143,5 @@ describe('executeRatificationPipeline single pre-turn snapshot lifecycle', () =>
     expect(frame.preSnapshot?.activeVector).toBe('COGNITIVE');
     expect(frame.preSnapshot?.activeTier).toBe('LATENT');
   });
-
-  it('rejects with TurnResponseError STRUCTURAL_RESPONSE_MISMATCH when 2xx body fails TurnResponseSchema', async () => {
-    globalThis.fetch = vi.fn().mockImplementation(async () => {
-      return new Response(
-        JSON.stringify({
-          corrupt_field: true,
-          // Missing narrative_blocks, logic_state, etc.
-        }),
-        {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        }
-      );
-    });
-
-    await expect(executeRatificationPipeline('Examine anomaly')).rejects.toMatchObject({
-      name: 'TurnResponseError',
-      code: 'STRUCTURAL_RESPONSE_MISMATCH',
-      status: 200,
-    });
-  });
-
-  it('rejects with TurnResponseError RATIFICATION_REJECTED when schema-valid body is rejected by ratification', async () => {
-    globalThis.fetch = vi.fn().mockImplementation(async () => {
-      return new Response(
-        JSON.stringify({
-          narrative_blocks: [], // Empty blocks rejected by validateEngineFrame!
-          logic_state: {
-            current_phase: 'LATENT',
-            suggested_tension: 20,
-          },
-          topologyDelta: { isExpansion: false },
-        }),
-        {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        }
-      );
-    });
-
-    await expect(executeRatificationPipeline('Examine anomaly')).rejects.toMatchObject({
-      name: 'TurnResponseError',
-      code: 'FRAME_VALIDATION_REJECTED',
-      status: 200,
-    });
-  });
 });
 

@@ -5,6 +5,7 @@ export interface ApplyTopologyDeltaInput {
   currentNodeId: string | null;
   topologyDelta?: TopologyDelta | null;
   transitionReceipt?: TransitionReceipt | null;
+  requestedTargetNodeId?: string | null;
 }
 
 export interface ApplyTopologyDeltaResult {
@@ -32,14 +33,17 @@ export function applyTopologyDeltaToGraph(input: ApplyTopologyDeltaInput): Apply
   // Non-expansion turn handling
   if (!delta || !delta.isExpansion) {
     let nextNodeId = currentNodeId;
+    const targetCandidate =
+      (transitionReceipt?.accepted ? transitionReceipt.toNodeId : null) ||
+      input.requestedTargetNodeId;
 
-    if (
-      transitionReceipt?.accepted === true &&
-      transitionReceipt.fromNodeId === currentNodeId &&
-      transitionReceipt.toNodeId &&
-      currentGraph.some((n) => n.id === transitionReceipt.toNodeId)
-    ) {
-      nextNodeId = transitionReceipt.toNodeId;
+    if (targetCandidate) {
+      // Only move to target if target exists in current runtime graph or graph is not defined/empty
+      const targetExists =
+        currentGraph.length === 0 || currentGraph.some((n) => n.id === targetCandidate);
+      if (targetExists) {
+        nextNodeId = targetCandidate;
+      }
     }
 
     return {
@@ -149,9 +153,6 @@ export function applyTopologyDeltaToGraph(input: ApplyTopologyDeltaInput): Apply
           targetNodeId: ev.targetNodeId,
           description: ev.direction,
           isOpen: true,
-          kind: ev.kind || 'PHYSICAL',
-          requires: ev.requires && ev.requires.length > 0 ? ev.requires : undefined,
-          userInitiated: ev.userInitiated !== undefined ? ev.userInitiated : true,
         }))
       : [],
   };
