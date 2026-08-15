@@ -1,12 +1,16 @@
 import { describe, it, expect } from 'vitest';
 import { engineReducer, initialEngineState } from './reducer';
+import { captureRuntimeSnapshot } from './snapshot';
 import type { CommittedTurnPayload, FailedTurnPayload } from './events';
+import type { HorrorVector, RuntimeStateSnapshot, SpatialNode } from '../../types';
 
 describe('engineReducer atomic turn commits', () => {
   it('atomically commits a successful turn and updates state in a single step', () => {
+    const preSnapshot = captureRuntimeSnapshot(initialEngineState);
     const payload: CommittedTurnPayload = {
       commandText: 'Inspect the ancient mirror',
       formattedText: 'The glass ripples with cold silver light.',
+      preSnapshot,
       frame: {
         engine_thoughts: 'Player engages with anomaly.',
         narrative_blocks: [
@@ -21,13 +25,13 @@ describe('engineReducer atomic turn commits', () => {
       transitionReceipt: {
         requestedNodeId: 'INNER_SANCTUM',
         accepted: true,
-        fromNodeId: 'FOYER',
+        fromNodeId: 'ORIGIN',
         toNodeId: 'INNER_SANCTUM',
         reason: 'TRANSITION_ACCEPTED',
       },
       turnReceipt: {
         turnNumber: 1,
-        nodeBefore: 'FOYER',
+        nodeBefore: 'ORIGIN',
         requestedTarget: 'INNER_SANCTUM',
         accepted: true,
         reason: 'TRANSITION_ACCEPTED',
@@ -44,7 +48,6 @@ describe('engineReducer atomic turn commits', () => {
     });
 
     expect(nextState.turnCount).toBe(1);
-    expect(nextState.currentNodeId).toBe('INNER_SANCTUM');
     expect(nextState.currentPhase).toBe('MANIFEST');
     expect(nextState.tensionLevel).toBe(45);
     expect(nextState.activeMemory.systemFlags).toContain('FLAG_MIRROR_TOUCHED');
@@ -64,11 +67,13 @@ describe('engineReducer atomic turn commits', () => {
       tensionLevel: 20,
     };
 
+    const preSnapshot = captureRuntimeSnapshot(startState);
     const payload: FailedTurnPayload = {
       commandText: 'Open the locked hatch',
       errorCategory: 'MODEL_CONTRACT_MISMATCH',
       errorMessage: 'Invalid output format',
       statusCode: 502,
+      preSnapshot,
     };
 
     const nextState = engineReducer(startState, {
@@ -104,6 +109,7 @@ describe('engineReducer atomic turn commits', () => {
       message: 'The turn service returned an unexpected response. The session state was not changed.',
     };
 
+    const preSnapshot = captureRuntimeSnapshot(startState);
     const payload: FailedTurnPayload = {
       commandText: 'Examine the telephone',
       failureReceipt,
@@ -111,6 +117,7 @@ describe('engineReducer atomic turn commits', () => {
       errorMessage: failureReceipt.message,
       statusCode: failureReceipt.status,
       contentType: failureReceipt.contentType,
+      preSnapshot,
     };
 
     const nextState = engineReducer(startState, {
@@ -156,9 +163,11 @@ describe('engineReducer atomic turn commits', () => {
       activeTier: 'MANIFEST' as const,
     };
 
+    const preSnapshot = captureRuntimeSnapshot(startState);
     const payload: CommittedTurnPayload = {
       commandText: 'Wait silently',
       formattedText: 'The silence thickens.',
+      preSnapshot,
       frame: {
         engine_thoughts: 'Player waits.',
         narrative_blocks: [{ type: 'sensory', content: 'The silence thickens.' }],
@@ -197,9 +206,11 @@ describe('engineReducer atomic turn commits', () => {
       activeTier: 'LATENT' as const,
     };
 
+    const preSnapshot = captureRuntimeSnapshot(startState);
     const payload: CommittedTurnPayload = {
       commandText: 'Touch the strange glyph',
       formattedText: 'Your mind unfurls into mathematical abstraction.',
+      preSnapshot,
       frame: {
         engine_thoughts: 'Matrix shift triggered.',
         narrative_blocks: [{ type: 'prose', content: 'Your mind unfurls.' }],
@@ -242,10 +253,12 @@ describe('engineReducer atomic turn commits', () => {
       activeTier: 'GATEWAY' as const,
     };
 
+    const preSnapshot = captureRuntimeSnapshot(startState);
     // Partial mutation (missing next_tier)
     const partialPayload: CommittedTurnPayload = {
       commandText: 'Blink',
       formattedText: 'Nothing happens.',
+      preSnapshot,
       frame: {
         engine_thoughts: 'Partial shift ignored.',
         narrative_blocks: [{ type: 'prose', content: 'Nothing happens.' }],
@@ -278,6 +291,7 @@ describe('engineReducer atomic turn commits', () => {
     const invalidPayload: CommittedTurnPayload = {
       commandText: 'Blink again',
       formattedText: 'Still nothing.',
+      preSnapshot,
       frame: {
         engine_thoughts: 'Invalid shift ignored.',
         narrative_blocks: [{ type: 'prose', content: 'Still nothing.' }],
@@ -309,28 +323,33 @@ describe('engineReducer atomic turn commits', () => {
   });
 
   it('records distinct pre-snapshot and post-snapshot reflecting accepted state transition', () => {
+    const startGraph: SpatialNode[] = [
+      { id: 'CELLAR', name: 'Cellar', description: 'Dark', connectedNodes: [], exits: [] },
+      { id: 'ATTIC', name: 'Attic', description: 'Dusty', connectedNodes: [], exits: [] },
+    ];
     const startState = {
       ...initialEngineState,
       turnCount: 2,
       currentNodeId: 'CELLAR',
+      spatialGraph: startGraph,
       tensionLevel: 15,
       activeVector: 'SOMATIC' as const,
       activeTier: 'GATEWAY' as const,
       reconciliationRevision: 1,
     };
 
-    const preSnapshot = {
-      version: 1 as const,
+    const preSnapshot: RuntimeStateSnapshot = {
+      version: 1,
       turnCount: 2,
       currentNodeId: 'CELLAR',
-      activeVector: 'SOMATIC' as const,
-      activeTier: 'GATEWAY' as const,
+      activeVector: 'SOMATIC',
+      activeTier: 'GATEWAY',
       phase: 'LATENT',
       tension: 15,
       coherence: 1.0,
       decayRate: 0,
       reconciliationRevision: 1,
-      activeFlags: [] as readonly string[],
+      activeFlags: [],
     };
 
     const payload: CommittedTurnPayload = {
@@ -374,7 +393,7 @@ describe('engineReducer atomic turn commits', () => {
     });
 
     const receipt = nextState.history[1].turnReceipt;
-    expect(receipt?.preSnapshot).toBeDefined();
+    expect(receipt?.preSnapshot).toBe(preSnapshot); // Reference identity preserved!
     expect(receipt?.preSnapshot?.turnCount).toBe(2);
     expect(receipt?.preSnapshot?.currentNodeId).toBe('CELLAR');
     expect(receipt?.preSnapshot?.activeVector).toBe('SOMATIC');
@@ -389,6 +408,196 @@ describe('engineReducer atomic turn commits', () => {
     expect(receipt?.postSnapshot?.tension).toBe(40);
   });
 
+  it('preserves preSnapshot by reference identity in normal TURN_COMMITTED receipt and consumes it directly', () => {
+    const distinctSnapshot: RuntimeStateSnapshot = {
+      version: 1,
+      sessionId: 'sess_fixed_id',
+      blueprintId: 'bp_fixed_id',
+      turnCount: 9,
+      currentNodeId: 'ORIGIN',
+      activeVector: 'COGNITIVE',
+      activeTier: 'LATENT',
+      phase: 'LATENT',
+      tension: 25,
+      coherence: 0.9,
+      decayRate: 0.01,
+      reconciliationRevision: 2,
+      activeFlags: ['FLAG_FROZEN'],
+    };
+
+    const payload: CommittedTurnPayload = {
+      commandText: 'Observe frozen state',
+      formattedText: 'Nothing stirs.',
+      preSnapshot: distinctSnapshot,
+      frame: {
+        engine_thoughts: 'Identity verification.',
+        narrative_blocks: [{ type: 'prose', content: 'Nothing stirs.' }],
+        logic_state: {
+          current_phase: 'LATENT',
+          suggested_tension: 25,
+        },
+      },
+      turnReceipt: {
+        turnNumber: 10,
+        nodeBefore: 'ORIGIN',
+        requestedTarget: 'ORIGIN',
+        accepted: true,
+        nodeAfter: 'ORIGIN',
+        activeVector: 'COGNITIVE',
+        activeTier: 'LATENT',
+        tension: 25,
+      },
+    };
+
+    const nextState = engineReducer(initialEngineState, {
+      type: 'TURN_COMMITTED',
+      payload,
+    });
+
+    const receipt = nextState.history[1].turnReceipt;
+    // Exactly matches the passed reference without fresh re-capture
+    expect(receipt?.preSnapshot).toBe(distinctSnapshot);
+  });
+
+  it('leaves currentNodeId unchanged when receipt is rejected or absent even if turnReceipt.nodeAfter names an existing node', () => {
+    const testGraph: SpatialNode[] = [
+      { id: 'ORIGIN', name: 'Origin', description: '', connectedNodes: [], exits: [] },
+      { id: 'EAST_HALL', name: 'East Hall', description: '', connectedNodes: [], exits: [] },
+    ];
+
+    const startState = {
+      ...initialEngineState,
+      currentNodeId: 'ORIGIN',
+      spatialGraph: testGraph,
+    };
+
+    const preSnapshot = captureRuntimeSnapshot(startState);
+
+    // Case 1: transitionReceipt rejected, but turnReceipt.nodeAfter names EAST_HALL
+    const rejectedPayload: CommittedTurnPayload = {
+      commandText: 'Try to enter East Hall',
+      formattedText: 'The door is welded shut.',
+      preSnapshot,
+      frame: {
+        engine_thoughts: 'Transition rejected.',
+        narrative_blocks: [{ type: 'prose', content: 'The door is welded shut.' }],
+        logic_state: {
+          requested_transition: 'EAST_HALL',
+          current_phase: 'LATENT',
+        },
+      },
+      transitionReceipt: {
+        requestedNodeId: 'EAST_HALL',
+        accepted: false,
+        fromNodeId: 'ORIGIN',
+        toNodeId: 'ORIGIN',
+        reason: 'DOOR_WELDED',
+      },
+      turnReceipt: {
+        turnNumber: 1,
+        nodeBefore: 'ORIGIN',
+        requestedTarget: 'EAST_HALL',
+        accepted: false,
+        nodeAfter: 'EAST_HALL', // Telemetry rogue value!
+        activeVector: 'COGNITIVE',
+        activeTier: 'LATENT',
+        tension: 10,
+      },
+    };
+
+    const state1 = engineReducer(startState, {
+      type: 'TURN_COMMITTED',
+      payload: rejectedPayload,
+    });
+
+    expect(state1.currentNodeId).toBe('ORIGIN'); // MUST NOT move to EAST_HALL
+
+    // Case 2: transitionReceipt absent, logic_state requested_transition set to EAST_HALL
+    const absentReceiptPayload: CommittedTurnPayload = {
+      commandText: 'Try to enter East Hall without receipt',
+      formattedText: 'Nothing happens.',
+      preSnapshot,
+      frame: {
+        engine_thoughts: 'No receipt.',
+        narrative_blocks: [{ type: 'prose', content: 'Nothing happens.' }],
+        logic_state: {
+          requested_transition: 'EAST_HALL',
+          current_phase: 'LATENT',
+        },
+      },
+      turnReceipt: {
+        turnNumber: 1,
+        nodeBefore: 'ORIGIN',
+        requestedTarget: 'EAST_HALL',
+        accepted: false,
+        nodeAfter: 'EAST_HALL',
+        activeVector: 'COGNITIVE',
+        activeTier: 'LATENT',
+        tension: 10,
+      },
+    };
+
+    const state2 = engineReducer(startState, {
+      type: 'TURN_COMMITTED',
+      payload: absentReceiptPayload,
+    });
+
+    expect(state2.currentNodeId).toBe('ORIGIN'); // MUST NOT move to EAST_HALL
+  });
+
+  it('leaves currentNodeId unchanged when an accepted receipt fromNodeId is stale', () => {
+    const testGraph: SpatialNode[] = [
+      { id: 'ORIGIN', name: 'Origin', description: '', connectedNodes: [], exits: [] },
+      { id: 'EAST_HALL', name: 'East Hall', description: '', connectedNodes: [], exits: [] },
+    ];
+
+    const startState = {
+      ...initialEngineState,
+      currentNodeId: 'ORIGIN',
+      spatialGraph: testGraph,
+    };
+
+    const preSnapshot = captureRuntimeSnapshot(startState);
+
+    // Stale fromNodeId: receipt says from 'CELLAR' to 'EAST_HALL', but current node is 'ORIGIN'
+    const staleReceiptPayload: CommittedTurnPayload = {
+      commandText: 'Move to East Hall',
+      formattedText: 'You step through.',
+      preSnapshot,
+      frame: {
+        engine_thoughts: 'Stale transition.',
+        narrative_blocks: [{ type: 'prose', content: 'You step through.' }],
+        logic_state: {
+          current_phase: 'LATENT',
+        },
+      },
+      transitionReceipt: {
+        requestedNodeId: 'EAST_HALL',
+        accepted: true,
+        fromNodeId: 'STALE_OLD_CELLAR',
+        toNodeId: 'EAST_HALL',
+        reason: 'TRANSITION_ACCEPTED',
+      },
+      turnReceipt: {
+        turnNumber: 1,
+        nodeBefore: 'ORIGIN',
+        requestedTarget: 'EAST_HALL',
+        accepted: true,
+        nodeAfter: 'EAST_HALL',
+        activeVector: 'COGNITIVE',
+        activeTier: 'LATENT',
+        tension: 10,
+      },
+    };
+
+    const nextState = engineReducer(startState, {
+      type: 'TURN_COMMITTED',
+      payload: staleReceiptPayload,
+    });
+
+    expect(nextState.currentNodeId).toBe('ORIGIN'); // Must remain at ORIGIN
+  });
+
   it('increments reconciliationRevision exactly once during hallucination collision', () => {
     const startState = {
       ...initialEngineState,
@@ -396,9 +605,11 @@ describe('engineReducer atomic turn commits', () => {
       reconciliationRevision: 2,
     };
 
+    const preSnapshot = captureRuntimeSnapshot(startState);
     const payload: CommittedTurnPayload = {
       commandText: 'Take the non-existent pistol',
       formattedText: 'There is no weapon here. The cold floor remains bare.',
+      preSnapshot,
       frame: {
         engine_thoughts: 'Hallucination collision handled.',
         narrative_blocks: [

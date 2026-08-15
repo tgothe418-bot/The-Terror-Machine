@@ -5,7 +5,7 @@ import { validateEngineFrame } from '../../lib/ratificationPipeline';
 import { projectPresentationPatch } from './presentationProjection';
 import { captureRuntimeSnapshot } from './snapshot';
 import { CommittedTurnPayload, FailedTurnPayload } from './events';
-import { SpatialNode, Blueprint } from '../../types';
+import { SpatialNode } from '../../types';
 import { buildEngineTurnContext } from '../../lib/buildEngineTurnContext';
 
 describe('Phase 2E Comprehensive Engine Lifecycle Test Suite', () => {
@@ -29,7 +29,7 @@ describe('Phase 2E Comprehensive Engine Lifecycle Test Suite', () => {
     },
   ];
 
-  const baseBlueprint: Blueprint = {
+  const baseBlueprint = {
     id: 'bp_containment_01',
     title: 'Containment Sector 7',
     premise: 'Escape the breach',
@@ -38,7 +38,18 @@ describe('Phase 2E Comprehensive Engine Lifecycle Test Suite', () => {
     startingVector: 'COGNITIVE',
     startingTier: 'LATENT',
     cast: [
-      { id: 'c_protag', name: 'Dr. Aris', role: 'Protagonist', description: 'Lead Researcher' },
+      {
+        id: 'c_protag',
+        name: 'Dr. Aris',
+        role: 'Protagonist',
+        description: 'Lead Researcher',
+        personality: 'Rational and observant',
+        goals: 'Contain the breach',
+        traits: ['Methodical', 'Cautious'],
+        isUserCharacter: true,
+        behaviorVector: 'ADAPTIVE',
+        isEntity: false,
+      },
     ],
     topology: {
       nodes: ['ORIGIN', 'SECURITY_FOYER'],
@@ -489,5 +500,114 @@ describe('Phase 2E Comprehensive Engine Lifecycle Test Suite', () => {
       requires: undefined,
       userInitiated: true,
     });
+  });
+
+  // 10. Generated-node test using a non-default edge (including requires and userInitiated: false)
+  it('10. preserves custom non-default edge metadata (requires, non-physical kind, userInitiated: false) in next turn context', () => {
+    const preSnapshot = captureRuntimeSnapshot(baseState);
+    const customEdgeExpansionPayload: CommittedTurnPayload = {
+      commandText: 'Step through anomaly barrier',
+      formattedText: 'You breach the quantum fold.',
+      preSnapshot,
+      frame: {
+        engine_thoughts: 'Expansion with hazard edge metadata.',
+        narrative_blocks: [{ type: 'prose', content: 'You breach the quantum fold.' }],
+        logic_state: {
+          current_phase: 'MANIFEST',
+          suggested_tension: 60,
+        },
+        topologyDelta: {
+          isExpansion: true,
+          exitDirection: 'vent',
+          newNodeDef: {
+            id: 'ANOMALY_CORE_0',
+            geometry: 'Crystalline Chamber',
+            hazards: ['Electromagnetic distortion'],
+            exitVectors: [
+              {
+                direction: 'forced_fold',
+                targetNodeId: 'ORIGIN',
+                kind: 'FORCED_EVENT',
+                requires: ['FLAG_PSYCHIC_SHIELD'],
+                userInitiated: false,
+              },
+            ],
+          },
+        },
+      },
+      turnReceipt: {
+        turnNumber: 4,
+        nodeBefore: 'ORIGIN',
+        requestedTarget: 'ANOMALY_CORE_0',
+        accepted: true,
+        nodeAfter: 'ANOMALY_CORE_0',
+        activeVector: 'COGNITIVE',
+        activeTier: 'LATENT',
+        tension: 60,
+      },
+    };
+
+    const stateAfterExpansion = engineReducer(baseState, {
+      type: 'TURN_COMMITTED',
+      payload: customEdgeExpansionPayload,
+    });
+
+    const nextTurnPreSnapshot = captureRuntimeSnapshot(stateAfterExpansion);
+    const nextTurnContext = buildEngineTurnContext({
+      blueprint: baseBlueprint,
+      spatialGraph: stateAfterExpansion.spatialGraph,
+      runtimeState: nextTurnPreSnapshot,
+    });
+
+    expect(nextTurnContext.topology.currentNodeId).toBe('ANOMALY_CORE_0');
+    expect(nextTurnContext.topology.allowedOutgoingExits).toHaveLength(1);
+    expect(nextTurnContext.topology.allowedOutgoingExits[0]).toEqual({
+      from: 'ANOMALY_CORE_0',
+      to: 'ORIGIN',
+      kind: 'FORCED_EVENT',
+      requires: ['FLAG_PSYCHIC_SHIELD'],
+      userInitiated: false,
+    });
+  });
+
+  // 11. Pipeline failure dispatch to TURN_FAILED leaves state unchanged with identical pre/post snapshot
+  it('11. handles pipeline-level failure in TURN_FAILED with identical pre/post snapshots and zero state mutations', () => {
+    const preSnapshot = captureRuntimeSnapshot(baseState);
+
+    const failurePayload: FailedTurnPayload = {
+      commandText: 'Examine broken transmitter',
+      preSnapshot,
+      failureReceipt: {
+        code: 'STRUCTURAL_RESPONSE_MISMATCH',
+        status: 200,
+        contentType: 'application/json',
+        message: 'The turn service returned a response that did not match the canonical contract.',
+      },
+      errorCategory: 'STRUCTURAL_RESPONSE_MISMATCH',
+      errorMessage: 'The turn service returned a response that did not match the canonical contract.',
+      statusCode: 200,
+      contentType: 'application/json',
+    };
+
+    const stateAfterFailure = engineReducer(baseState, {
+      type: 'TURN_FAILED',
+      payload: failurePayload,
+    });
+
+    // Zero progression
+    expect(stateAfterFailure.turnCount).toBe(baseState.turnCount);
+    expect(stateAfterFailure.currentNodeId).toBe(baseState.currentNodeId);
+    expect(stateAfterFailure.activeVector).toBe(baseState.activeVector);
+    expect(stateAfterFailure.activeTier).toBe(baseState.activeTier);
+    expect(stateAfterFailure.tensionLevel).toBe(baseState.tensionLevel);
+    expect(stateAfterFailure.spatialGraph).toEqual(baseState.spatialGraph);
+
+    // Exactly 1 user message and 1 assistant failure message
+    expect(stateAfterFailure.history).toHaveLength(2);
+    const failureMsg = stateAfterFailure.history[1];
+    expect(failureMsg.role).toBe('assistant');
+    expect(failureMsg.turnReceipt?.accepted).toBe(false);
+    expect(failureMsg.turnReceipt?.preSnapshot).toBe(preSnapshot);
+    expect(failureMsg.turnReceipt?.postSnapshot).toBe(preSnapshot); // Identical!
   });
 });

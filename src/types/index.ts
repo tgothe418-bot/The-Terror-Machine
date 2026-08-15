@@ -1,5 +1,10 @@
 import { z } from 'zod';
-import { EdgeKind, EdgeKindSchema } from './engineContract';
+import {
+  EdgeKind,
+  EdgeKindSchema,
+  TopologyDelta,
+  TransitionReceipt,
+} from './engineContract';
 export * from './engineContract';
 
 export type AppPhase = 'hub' | 'forge' | 'engine' | 'voice';
@@ -279,14 +284,6 @@ export interface ContextReceipt {
   worldRuleCount: number;
   topologyNodeCount: number;
   topologyConnectionCount: number;
-}
-
-export interface TransitionReceipt {
-  requestedNodeId: string | null;
-  accepted: boolean;
-  fromNodeId: string | null;
-  toNodeId: string | null;
-  reason?: string;
 }
 
 export interface RuntimeStateSnapshot {

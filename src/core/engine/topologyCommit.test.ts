@@ -62,6 +62,9 @@ describe('applyTopologyDeltaToGraph Authorization Boundary', () => {
       targetNodeId: 'ORIGIN',
       description: 'south',
       isOpen: true,
+      kind: 'PHYSICAL',
+      requires: undefined,
+      userInitiated: true,
     });
   });
 
@@ -247,5 +250,95 @@ describe('applyTopologyDeltaToGraph Authorization Boundary', () => {
 
     expect(staleResult.applied).toBe(false);
     expect(staleResult.nextNodeId).toBe('ORIGIN'); // Retained source node!
+  });
+
+  it('9. leaves currentNodeId unchanged when receipt fromNodeId does not match current node', () => {
+    const staleFromTransition: TransitionReceipt = {
+      requestedNodeId: 'EAST_HALL',
+      accepted: true,
+      fromNodeId: 'OLD_STALE_CHAMBER',
+      toNodeId: 'EAST_HALL',
+      reason: 'TRANSITION_ACCEPTED',
+    };
+
+    const result = applyTopologyDeltaToGraph({
+      spatialGraph: initialGraph,
+      currentNodeId: 'ORIGIN',
+      topologyDelta: { isExpansion: false, newNodeDef: null },
+      transitionReceipt: staleFromTransition,
+    });
+
+    expect(result.applied).toBe(false);
+    expect(result.nextNodeId).toBe('ORIGIN'); // Did not jump to EAST_HALL
+  });
+
+  it('10. leaves currentNodeId unchanged when receipt is rejected or absent', () => {
+    // Rejected receipt
+    const rejectedTransition: TransitionReceipt = {
+      requestedNodeId: 'EAST_HALL',
+      accepted: false,
+      fromNodeId: 'ORIGIN',
+      toNodeId: 'ORIGIN',
+      reason: 'DOOR_LOCKED',
+    };
+
+    const resultRejected = applyTopologyDeltaToGraph({
+      spatialGraph: initialGraph,
+      currentNodeId: 'ORIGIN',
+      topologyDelta: { isExpansion: false, newNodeDef: null },
+      transitionReceipt: rejectedTransition,
+    });
+
+    expect(resultRejected.applied).toBe(false);
+    expect(resultRejected.nextNodeId).toBe('ORIGIN');
+
+    // Absent receipt
+    const resultAbsent = applyTopologyDeltaToGraph({
+      spatialGraph: initialGraph,
+      currentNodeId: 'ORIGIN',
+      topologyDelta: { isExpansion: false, newNodeDef: null },
+    });
+
+    expect(resultAbsent.applied).toBe(false);
+    expect(resultAbsent.nextNodeId).toBe('ORIGIN');
+  });
+
+  it('11. preserves custom exit metadata (kind, requires, userInitiated) on newly created node exits', () => {
+    const delta: TopologyDelta = {
+      isExpansion: true,
+      exitDirection: 'north',
+      newNodeDef: {
+        id: 'HAZARD_VAULT',
+        geometry: 'Lead-lined containment vault',
+        hazards: ['Radiation leaks'],
+        exitVectors: [
+          {
+            direction: 'airlock_back',
+            targetNodeId: 'ORIGIN',
+            kind: 'FORCED_EVENT',
+            requires: ['FLAG_PSYCHIC_SHIELD'],
+            userInitiated: false,
+          },
+        ],
+      },
+    };
+
+    const result = applyTopologyDeltaToGraph({
+      spatialGraph: initialGraph,
+      currentNodeId: 'ORIGIN',
+      topologyDelta: delta,
+    });
+
+    expect(result.applied).toBe(true);
+    const createdNode = result.nextGraph.find((n) => n.id === 'HAZARD_VAULT');
+    expect(createdNode).toBeDefined();
+    expect(createdNode?.exits[0]).toEqual({
+      targetNodeId: 'ORIGIN',
+      description: 'airlock_back',
+      isOpen: true,
+      kind: 'FORCED_EVENT',
+      requires: ['FLAG_PSYCHIC_SHIELD'],
+      userInitiated: false,
+    });
   });
 });
