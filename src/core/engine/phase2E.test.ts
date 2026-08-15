@@ -5,7 +5,7 @@ import { validateEngineFrame } from '../../lib/ratificationPipeline';
 import { projectPresentationPatch } from './presentationProjection';
 import { captureRuntimeSnapshot } from './snapshot';
 import { CommittedTurnPayload, FailedTurnPayload } from './events';
-import { SpatialNode, Blueprint } from '../../types';
+import { SpatialNode } from '../../types';
 import { buildEngineTurnContext } from '../../lib/buildEngineTurnContext';
 
 describe('Phase 2E Comprehensive Engine Lifecycle Test Suite', () => {
@@ -58,7 +58,7 @@ describe('Phase 2E Comprehensive Engine Lifecycle Test Suite', () => {
         { from: 'SECURITY_FOYER', to: 'ORIGIN', kind: 'PHYSICAL', userInitiated: true },
       ],
     },
-  } as unknown as Blueprint;
+  };
 
   const baseState = {
     ...initialEngineState,
