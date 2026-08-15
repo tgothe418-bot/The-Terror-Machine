@@ -6,6 +6,7 @@ import {
   HorrorVector,
   ExposureTier,
   TurnReceipt,
+  SpatialNode,
 } from '../../types';
 import { EntityArchetype } from '../../types/reference';
 import { formatTurnFailureMessage } from '../../lib/turnResponseReader';
@@ -14,6 +15,7 @@ import {
   isHorrorVector,
   isExposureTier,
 } from './snapshot';
+import { applyTopologyDeltaToGraph } from './topologyCommit';
 
 export interface EngineState {
   sessionId?: string;
@@ -21,6 +23,7 @@ export interface EngineState {
   phase: Phase;
   escalation_state: 'LATENT' | 'REACTIVE' | 'TRANSGRESSIVE' | 'BLACKOUT';
   currentNodeId: string | null;
+  spatialGraph?: SpatialNode[];
   activeVector: HorrorVector;
   activeTier: ExposureTier;
   decay: DecayState;
@@ -123,6 +126,7 @@ export const initialEngineState: EngineState = {
   phase: 'HUB',
   escalation_state: 'LATENT',
   currentNodeId: null,
+  spatialGraph: [],
   activeVector: 'COGNITIVE',
   activeTier: 'LATENT',
   decay: { stage: 'STABLE', coherence: 1.0 },
@@ -159,23 +163,27 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
         timestamp: event.payload.timestamp || Date.now(),
       };
 
-      const nextNodeId =
-        event.payload.transitionReceipt?.accepted && event.payload.transitionReceipt?.toNodeId
-          ? event.payload.transitionReceipt.toNodeId
-          : state.currentNodeId;
+      // 2. Pure topology delta application
+      const topologyResult = applyTopologyDeltaToGraph({
+        spatialGraph: state.spatialGraph,
+        currentNodeId: state.currentNodeId,
+        topologyDelta: event.payload.frame.topologyDelta,
+        transitionReceipt: event.payload.transitionReceipt,
+      });
+
+      const nextNodeId = topologyResult.nextNodeId;
+      const nextGraph = topologyResult.nextGraph;
 
       const newFlags = event.payload.frame.logic_state?.terminal_flags || [];
       const currentFlags = state.activeMemory?.systemFlags || [];
       const combinedFlags = Array.from(new Set([...currentFlags, ...newFlags]));
 
-      // 2. Matrix coordinate mutation
+      // 3. Matrix coordinate mutation
       // A successful turn with a valid, complete matrix mutation may change both coordinates atomically.
       // A missing, partial, malformed, or unsupported mutation must preserve existing coordinates.
       let nextVector: HorrorVector = state.activeVector || 'COGNITIVE';
       let nextTier: ExposureTier = state.activeTier || 'LATENT';
-      const mutation =
-        event.payload.frame.logic_state?.matrix_mutation ||
-        event.payload.frame.logic_state?.matrix_shift;
+      const mutation = event.payload.frame.logic_state?.matrix_mutation;
       if (mutation && typeof mutation === 'object') {
         const candidateVector = mutation.next_vector as HorrorVector;
         const candidateTier = mutation.next_tier as ExposureTier;
@@ -190,7 +198,7 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
         }
       }
 
-      // 3. Hallucination collision reconciliation revision
+      // 4. Hallucination collision reconciliation revision
       const revisionIncrement =
         event.payload.frame.reconciliation?.revisionIncrement ??
         (event.payload.frame.logic_state?.intent_classification === 'HALLUCINATION_COLLISION'
@@ -211,9 +219,10 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
         ...(event.payload.frame.narrative_blocks || []),
       ];
 
-      // 4. Capture post-turn snapshot from the resulting committed state
+      // 5. Capture post-turn snapshot from the resulting committed state
       const postSnapshot = captureRuntimeSnapshot({
         ...state,
+        spatialGraph: nextGraph,
         turnCount: updatedTurnCount,
         currentNodeId: nextNodeId,
         activeVector: nextVector,
@@ -227,6 +236,7 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
 
       const committedTurnReceipt: TurnReceipt = {
         ...event.payload.turnReceipt,
+        nodeAfter: nextNodeId,
         activeVector: nextVector,
         activeTier: nextTier,
         tension: nextTension,
@@ -254,6 +264,7 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
         history: [...(state.history || []), userMsg, engineMsg],
         turnCount: updatedTurnCount,
         currentNodeId: nextNodeId,
+        spatialGraph: nextGraph,
         activeVector: nextVector,
         activeTier: nextTier,
         reconciliationRevision: nextReconciliationRevision,
@@ -477,6 +488,7 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
       };
 
     case 'TURN_SUBMITTED':
+      // Compatibility-only: no-op, does not mutate turn state
       return state;
 
     case 'PHASE_CHANGED':

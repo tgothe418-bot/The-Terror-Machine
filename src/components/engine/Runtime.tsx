@@ -30,6 +30,7 @@ import { fetchSimulatedPlayerAction, triggerMemoryForge } from '../../services/g
 import ErgodicTextRenderer from './ErgodicTextRenderer';
 import { useTelemetryStore } from '../../store/useTelemetryStore';
 import { captureRuntimeSnapshot } from '../../core/engine/snapshot';
+import { projectPresentationPatch } from '../../core/engine/presentationProjection';
 
 const SESSION_TIMEOUT = 60 * 60 * 1000; // 60 minutes
 const HEARTBEAT_INTERVAL = 30000; // 30 seconds
@@ -459,7 +460,10 @@ export default function Runtime() {
 
       dispatch({ type: 'TURN_COMMITTED', payload: committedTurnPayload });
 
-      useEngineStore.getState().patchGameState(response.logic_state);
+      const presentationPatch = projectPresentationPatch(response.logic_state);
+      if (Object.keys(presentationPatch).length > 0) {
+        useEngineStore.getState().patchGameState(presentationPatch);
+      }
     } catch (err: unknown) {
       console.error(err);
       const failureReceipt = toTurnFailureReceipt(err);

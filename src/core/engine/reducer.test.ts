@@ -206,7 +206,7 @@ describe('engineReducer atomic turn commits', () => {
         logic_state: {
           current_phase: 'MANIFEST',
           suggested_tension: 60,
-          matrix_shift: {
+          matrix_mutation: {
             next_vector: 'COGNITIVE',
             next_tier: 'MANIFEST',
           },
@@ -250,7 +250,7 @@ describe('engineReducer atomic turn commits', () => {
         engine_thoughts: 'Partial shift ignored.',
         narrative_blocks: [{ type: 'prose', content: 'Nothing happens.' }],
         logic_state: {
-          matrix_shift: {
+          matrix_mutation: {
             next_vector: 'COSMIC',
           },
         },
@@ -282,7 +282,7 @@ describe('engineReducer atomic turn commits', () => {
         engine_thoughts: 'Invalid shift ignored.',
         narrative_blocks: [{ type: 'prose', content: 'Still nothing.' }],
         logic_state: {
-          matrix_shift: {
+          matrix_mutation: {
             next_vector: 'UNKNOWN_VEC' as unknown as HorrorVector,
             next_tier: 'MANIFEST',
           },
@@ -343,7 +343,7 @@ describe('engineReducer atomic turn commits', () => {
         logic_state: {
           current_phase: 'MANIFEST',
           suggested_tension: 40,
-          matrix_shift: {
+          matrix_mutation: {
             next_vector: 'COSMIC',
             next_tier: 'MANIFEST',
           },

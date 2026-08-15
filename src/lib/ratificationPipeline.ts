@@ -124,6 +124,15 @@ export const validateEngineFrame = (rawPayload: any): RatifiedEngineFrame => {
 
   const accepted = rejected.length === 0;
 
+  const matrixMutation =
+    logic.matrix_mutation ||
+    (logic.matrix_shift
+      ? {
+          next_vector: logic.matrix_shift.next_vector,
+          next_tier: logic.matrix_shift.next_tier,
+        }
+      : null);
+
   return {
     narrative_blocks: blocks,
     engine_thoughts: String(thoughts),
@@ -131,7 +140,7 @@ export const validateEngineFrame = (rawPayload: any): RatifiedEngineFrame => {
       current_phase: logic.current_phase || 'LATENT',
       requested_transition: logic.requested_transition || null,
       suggested_tension: logic.suggested_tension,
-      matrix_mutation: logic.matrix_mutation || null,
+      matrix_mutation: matrixMutation,
       terminal_flags: Array.isArray(logic.terminal_flags) ? logic.terminal_flags : [],
       cast_ledger: Array.isArray(logic.cast_ledger) ? logic.cast_ledger : [],
     },
@@ -298,22 +307,12 @@ export const executeRatificationPipeline = async (
       validatedEvent.topologyDelta = rawJson?.topologyDelta || { isExpansion: false };
     }
   } else {
-    validatedEvent.topologyDelta = rawJson?.topologyDelta || null;
-  }
-
-  if (
-    validatedEvent.topologyDelta?.isExpansion &&
-    validatedEvent.topologyDelta.newNodeDef &&
-    matchingExitDirection &&
-    state.currentNodeId
-  ) {
-    useAppStore
-      .getState()
-      .injectGeneratedNode(
-        state.currentNodeId,
-        matchingExitDirection,
-        validatedEvent.topologyDelta.newNodeDef
-      );
+    validatedEvent.topologyDelta = rawJson?.topologyDelta
+      ? {
+          ...rawJson.topologyDelta,
+          exitDirection: matchingExitDirection,
+        }
+      : null;
   }
 
   return validatedEvent;

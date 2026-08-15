@@ -87,19 +87,42 @@ export const TurnResultSchema = z.object({
     speaker: z.string().nullable().optional(),
     content: z.string()
   })).max(2),
+  engine_thoughts: z.string().optional(),
   logic_state: z.object({
     current_phase: z.string(),
     requested_transition: z.string().nullable().optional().default(null),
     suggested_tension: z.number().int().min(0).max(10),
-    intent_classification: z.string(),
-    terminal_flags: z.array(z.string()),
+    intent_classification: z.string().default('PROSE_ADVANCE'),
+    terminal_flags: z.array(z.string()).default([]),
     cast_deltas: z.array(z.object({
       character_id: z.string(),
       skepticism_delta: z.number()
-    })).default([])
+    })).default([]),
+    matrix_mutation: z.object({
+      next_vector: z.string().optional(),
+      next_tier: z.string().optional(),
+      increment_rooms: z.boolean().optional(),
+      note: z.string().optional(),
+    }).nullable().optional(),
+    matrix_shift: z.object({
+      next_vector: z.string().optional(),
+      next_tier: z.string().optional(),
+    }).nullable().optional(),
+  }).transform((val) => {
+    if (!val.matrix_mutation && val.matrix_shift) {
+      return {
+        ...val,
+        matrix_mutation: {
+          next_vector: val.matrix_shift.next_vector,
+          next_tier: val.matrix_shift.next_tier,
+        },
+      };
+    }
+    return val;
   }),
   topologyDelta: z.object({
     isExpansion: z.boolean(),
+    exitDirection: z.string().nullable().optional(),
     newNodeDef: z.object({
       id: z.string(),
       geometry: z.string(),

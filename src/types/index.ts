@@ -654,6 +654,7 @@ export interface FrameValidation {
 
 export interface TopologyDelta {
   isExpansion: boolean;
+  exitDirection?: string | null;
   newNodeDef?: {
     id: string;
     geometry: string;
