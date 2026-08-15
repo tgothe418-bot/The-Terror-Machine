@@ -199,7 +199,7 @@ describe('engineReducer atomic turn commits', () => {
 
     const failMsg = nextState.history[1];
     expect(failMsg.content).toBe(
-      '[RUNTIME NOTICE // DEVELOPMENT HOST RESTART]\\nThe development runtime is restarting. Your state was not changed. Please retry shortly.'
+      '[RUNTIME NOTICE // DEVELOPMENT HOST RESTART]\nThe development runtime is restarting. Your state was not changed. Please retry shortly.'
     );
     expect(failMsg.content).not.toContain('[ENGINE FAILURE');
     expect(failMsg.failureReceipt).toEqual(failureReceipt);

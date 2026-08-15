@@ -305,7 +305,7 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
       const isUpstreamHtmlResponse =
         receipt.status === 200 && receipt.contentType?.toLowerCase().includes('text/html');
       const userFacingFailureMessage = isUpstreamHtmlResponse
-        ? '[RUNTIME NOTICE // DEVELOPMENT HOST RESTART]\\nThe development runtime is restarting. Your state was not changed. Please retry shortly.'
+        ? '[RUNTIME NOTICE // DEVELOPMENT HOST RESTART]\nThe development runtime is restarting. Your state was not changed. Please retry shortly.'
         : formatTurnFailureMessage(receipt);
 
       const failMsg: Message = {
