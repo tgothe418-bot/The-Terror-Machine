@@ -312,7 +312,7 @@ describe('applyTopologyDeltaToGraph Authorization Boundary', () => {
           {
             direction: 'south_portal',
             targetNodeId: 'ORIGIN',
-            kind: 'RITUAL',
+            kind: 'AUTHORED_PARADOX',
             requires: ['OBSIDIAN_KEY'],
             userInitiated: false,
           },
@@ -334,7 +334,7 @@ describe('applyTopologyDeltaToGraph Authorization Boundary', () => {
       targetNodeId: 'ORIGIN',
       description: 'south_portal',
       isOpen: true,
-      kind: 'RITUAL',
+      kind: 'AUTHORED_PARADOX',
       requires: ['OBSIDIAN_KEY'],
       userInitiated: false,
     });

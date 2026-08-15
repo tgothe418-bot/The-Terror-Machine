@@ -13,6 +13,7 @@ import { calculatePhysicsState } from '../core/matrix/physicsMatrix';
 import { reconcilePerception } from '../core/memory/reconciler';
 import { buildEngineTurnContext, buildContextReceipt } from './buildEngineTurnContext';
 import { readTurnResponse, createNetworkTurnError, TurnResponseError } from './turnResponseReader';
+export { TurnResponseError };
 import { captureRuntimeSnapshot } from '../core/engine/snapshot';
 
 export const DECAY_SCALE: DecayThreshold[] = [

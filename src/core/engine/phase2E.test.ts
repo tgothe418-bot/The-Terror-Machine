@@ -29,7 +29,7 @@ describe('Phase 2E Comprehensive Engine Lifecycle Test Suite', () => {
     },
   ];
 
-  const baseBlueprint: Blueprint = {
+  const baseBlueprint = {
     id: 'bp_containment_01',
     title: 'Containment Sector 7',
     premise: 'Escape the breach',
@@ -38,7 +38,18 @@ describe('Phase 2E Comprehensive Engine Lifecycle Test Suite', () => {
     startingVector: 'COGNITIVE',
     startingTier: 'LATENT',
     cast: [
-      { id: 'c_protag', name: 'Dr. Aris', role: 'Protagonist', description: 'Lead Researcher' },
+      {
+        id: 'c_protag',
+        name: 'Dr. Aris',
+        role: 'Protagonist',
+        description: 'Lead Researcher',
+        personality: 'Methodical',
+        goals: 'Contain the breach',
+        traits: ['Analytical'],
+        isUserCharacter: true,
+        behaviorVector: 'ADAPTIVE',
+        isEntity: false,
+      },
     ],
     topology: {
       nodes: ['ORIGIN', 'SECURITY_FOYER'],
@@ -47,7 +58,7 @@ describe('Phase 2E Comprehensive Engine Lifecycle Test Suite', () => {
         { from: 'SECURITY_FOYER', to: 'ORIGIN', kind: 'PHYSICAL', userInitiated: true },
       ],
     },
-  };
+  } as unknown as Blueprint;
 
   const baseState = {
     ...initialEngineState,
@@ -104,6 +115,7 @@ describe('Phase 2E Comprehensive Engine Lifecycle Test Suite', () => {
         activeVector: 'SOMATIC',
         activeTier: 'MANIFEST',
         tension: 35,
+        preSnapshot,
       },
     };
 
@@ -194,6 +206,7 @@ describe('Phase 2E Comprehensive Engine Lifecycle Test Suite', () => {
         activeVector: 'COGNITIVE',
         activeTier: 'LATENT',
         tension: 20,
+        preSnapshot,
       },
     };
 
@@ -241,6 +254,7 @@ describe('Phase 2E Comprehensive Engine Lifecycle Test Suite', () => {
         activeVector: 'COGNITIVE',
         activeTier: 'LATENT',
         tension: 20,
+        preSnapshot,
       },
     };
 
@@ -316,6 +330,7 @@ describe('Phase 2E Comprehensive Engine Lifecycle Test Suite', () => {
         activeVector: 'COSMIC',
         activeTier: 'MANIFEST',
         tension: 40,
+        preSnapshot,
       },
     };
 
@@ -367,6 +382,7 @@ describe('Phase 2E Comprehensive Engine Lifecycle Test Suite', () => {
         activeVector: 'COSMIC',
         activeTier: 'TERMINAL',
         tension: 90,
+        preSnapshot,
       },
     };
 
@@ -459,6 +475,7 @@ describe('Phase 2E Comprehensive Engine Lifecycle Test Suite', () => {
         activeVector: 'COGNITIVE',
         activeTier: 'LATENT',
         tension: 40,
+        preSnapshot,
       },
     };
 
@@ -491,7 +508,7 @@ describe('Phase 2E Comprehensive Engine Lifecycle Test Suite', () => {
     });
   });
 
-  // 10. Generated node with non-default edge metadata (requires, userInitiated: false, kind: RITUAL) is preserved in next turn context
+  // 10. Generated node with non-default edge metadata (requires, userInitiated: false, kind: AUTHORED_PARADOX) is preserved in next turn context
   it('10. preserves non-default exit metadata (kind, requires, userInitiated: false) in next turn context', () => {
     const preSnapshot = captureRuntimeSnapshot(baseState);
     const expansionPayload: CommittedTurnPayload = {
@@ -516,7 +533,7 @@ describe('Phase 2E Comprehensive Engine Lifecycle Test Suite', () => {
               {
                 direction: 'sealed_gate',
                 targetNodeId: 'ORIGIN',
-                kind: 'RITUAL',
+                kind: 'AUTHORED_PARADOX',
                 requires: ['SANCTUM_KEY'],
                 userInitiated: false,
               },
@@ -555,7 +572,7 @@ describe('Phase 2E Comprehensive Engine Lifecycle Test Suite', () => {
     expect(nextTurnContext.topology.allowedOutgoingExits[0]).toEqual({
       from: 'RITUAL_CHAMBER',
       to: 'ORIGIN',
-      kind: 'RITUAL',
+      kind: 'AUTHORED_PARADOX',
       requires: ['SANCTUM_KEY'],
       userInitiated: false,
     });

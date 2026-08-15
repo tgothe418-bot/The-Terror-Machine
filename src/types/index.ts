@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { EdgeKind, EdgeKindSchema } from './engineContract';
+import { EdgeKind, EdgeKindSchema, TopologyDelta, TransitionReceipt } from './engineContract';
 export * from './engineContract';
 
 export type AppPhase = 'hub' | 'forge' | 'engine' | 'voice';
@@ -518,7 +518,7 @@ export interface FrameValidation {
 
 
 export interface RatifiedEngineFrame {
-  engine_thoughts: string;
+  engine_thoughts?: string;
   narrative_blocks: NarrativeBlock[];
   logic_state: LogicState;
   validation?: FrameValidation;

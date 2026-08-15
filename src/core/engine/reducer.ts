@@ -222,7 +222,6 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
       // 5. Capture post-turn snapshot from the resulting committed state
       const postSnapshot = captureRuntimeSnapshot({
         ...state,
-        spatialGraph: nextGraph,
         turnCount: updatedTurnCount,
         currentNodeId: nextNodeId,
         activeVector: nextVector,
