@@ -169,6 +169,45 @@ describe('engineReducer atomic turn commits', () => {
     expect(failMsg.turnReceipt?.postSnapshot?.activeTier).toBe('GATEWAY');
   });
 
+  it('presents upstream HTML warm-up responses as runtime notices while preserving the full receipt', () => {
+    const startState = {
+      ...initialEngineState,
+      turnCount: 5,
+      currentNodeId: 'SUITE_1408',
+    };
+
+    const preSnapshot = captureRuntimeSnapshot(startState);
+    const failureReceipt = {
+      code: 'NON_JSON_TURN_RESPONSE',
+      status: 200,
+      contentType: 'text/html; charset=utf-8',
+      message: 'The turn service returned an unexpected response. The session state was not changed.',
+    };
+
+    const nextState = engineReducer(startState, {
+      type: 'TURN_FAILED',
+      payload: {
+        commandText: 'Wait for the runtime',
+        failureReceipt,
+        errorCategory: failureReceipt.code,
+        errorMessage: failureReceipt.message,
+        statusCode: failureReceipt.status,
+        contentType: failureReceipt.contentType,
+        preSnapshot,
+      },
+    });
+
+    const failMsg = nextState.history[1];
+    expect(failMsg.content).toBe(
+      '[RUNTIME NOTICE // DEVELOPMENT HOST RESTART]\\nThe development runtime is restarting. Your state was not changed. Please retry shortly.'
+    );
+    expect(failMsg.content).not.toContain('[ENGINE FAILURE');
+    expect(failMsg.failureReceipt).toEqual(failureReceipt);
+    expect(failMsg.turnReceipt?.reason).toContain('FAILED: NON_JSON_TURN_RESPONSE');
+    expect(nextState.turnCount).toBe(5);
+    expect(nextState.currentNodeId).toBe('SUITE_1408');
+  });
+
   it('preserves canonical coordinates when no matrix mutation is returned', () => {
     const startState = {
       ...initialEngineState,

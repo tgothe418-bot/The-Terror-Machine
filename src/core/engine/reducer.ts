@@ -302,11 +302,16 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
       };
 
       const statusSuffix = receipt.status != null ? ` (HTTP ${receipt.status})` : '';
+      const isUpstreamHtmlResponse =
+        receipt.status === 200 && receipt.contentType?.toLowerCase().includes('text/html');
+      const userFacingFailureMessage = isUpstreamHtmlResponse
+        ? '[RUNTIME NOTICE // DEVELOPMENT HOST RESTART]\\nThe development runtime is restarting. Your state was not changed. Please retry shortly.'
+        : formatTurnFailureMessage(receipt);
 
       const failMsg: Message = {
         id: crypto.randomUUID(),
         role: 'assistant',
-        content: formatTurnFailureMessage(receipt),
+        content: userFacingFailureMessage,
         timestamp: (event.payload.timestamp || Date.now()) + 1,
         failureReceipt: receipt,
         turnReceipt: {
