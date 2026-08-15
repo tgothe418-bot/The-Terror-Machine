@@ -305,19 +305,19 @@ export interface TransitionReceipt {
 }
 
 export interface RuntimeStateSnapshot {
-  version: 1;
-  sessionId?: string;
-  blueprintId?: string;
-  turnCount: number;
-  currentNodeId: string;
-  activeVector: HorrorVector;
-  activeTier: ExposureTier;
-  phase: string;
-  tension: number;
-  coherence: number;
-  decayRate?: number;
-  reconciliationRevision: number;
-  activeFlags: string[];
+  readonly version: 1;
+  readonly sessionId?: string;
+  readonly blueprintId?: string;
+  readonly turnCount: number;
+  readonly currentNodeId: string;
+  readonly activeVector: HorrorVector;
+  readonly activeTier: ExposureTier;
+  readonly phase: string;
+  readonly tension: number;
+  readonly coherence: number;
+  readonly decayRate?: number;
+  readonly reconciliationRevision: number;
+  readonly activeFlags: readonly string[];
 }
 
 export interface TurnReceipt {
@@ -327,8 +327,8 @@ export interface TurnReceipt {
   accepted: boolean;
   reason?: string;
   nodeAfter: string | null;
-  activeVector: HorrorVector | string;
-  activeTier: ExposureTier | string;
+  activeVector: HorrorVector;
+  activeTier: ExposureTier;
   tension: number;
   preSnapshot?: RuntimeStateSnapshot;
   postSnapshot?: RuntimeStateSnapshot;

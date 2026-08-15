@@ -76,7 +76,7 @@ export function captureRuntimeSnapshot(source: CaptureSnapshotSource): RuntimeSt
     typeof source.reconciliationRevision === 'number' ? source.reconciliationRevision : 0;
 
   const rawFlags = source.activeFlags || source.activeMemory?.systemFlags || [];
-  const activeFlags = Array.from(new Set(rawFlags));
+  const activeFlags: readonly string[] = Object.freeze(Array.from(new Set(rawFlags)));
 
   return Object.freeze({
     version: 1,

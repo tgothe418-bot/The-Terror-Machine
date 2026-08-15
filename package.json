@@ -11,7 +11,7 @@
     "clean": "rm -rf dist",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "format": "prettier --write \"src/**/*.{ts,tsx,css}\"",
-    "test": "vitest"
+    "test": "vitest run"
   },
   "dependencies": {
     "@google/genai": "2.17.1",

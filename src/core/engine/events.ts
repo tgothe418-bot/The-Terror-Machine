@@ -5,8 +5,6 @@ import {
   TurnReceipt,
   TurnFailureReceipt,
   RuntimeStateSnapshot,
-  HorrorVector,
-  ExposureTier,
 } from '../../types';
 
 export type Phase =
@@ -43,8 +41,6 @@ export interface FailedTurnPayload {
   statusCode?: number | null;
   contentType?: string | null;
   preSnapshot?: RuntimeStateSnapshot;
-  activeVector?: HorrorVector | string;
-  activeTier?: ExposureTier | string;
   timestamp?: number;
 }
 

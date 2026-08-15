@@ -26,11 +26,7 @@ interface EngineState {
   engineTextBuffer: Message[]; // The sliding window specifically for the Engine
   maxBufferTurns: number;
   engineWorldStateSummary: string;
-  currentTensionLevel: 'buildup' | 'visceral_climax' | 'aftermath';
   telemetry: TelemetryMetrics | null;
-  turnCount: number;
-  incrementTurn: () => void;
-  updateTension: (tension: 'buildup' | 'visceral_climax' | 'aftermath') => void;
   updateTelemetry: (metrics: TelemetryMetrics) => void;
   setBlueprint: (blueprint: unknown, role: PlayerRole) => void;
 
@@ -96,15 +92,7 @@ export const useEngineStore = create<EngineState>()(
       engineTextBuffer: [],
       maxBufferTurns: 12,
       engineWorldStateSummary: 'The subject is contained. Initial parameters active.',
-      currentTensionLevel: 'buildup',
       telemetry: null,
-      turnCount: 1,
-      incrementTurn: () => set((state) => ({ turnCount: state.turnCount + 1 })),
-      updateTension: (tension) =>
-        set((state) => ({
-          ...state,
-          currentTensionLevel: tension,
-        })),
       updateTelemetry: (metrics) => set({ telemetry: metrics }),
       setBlueprint: (blueprint, role) => {
         // Normalize blueprint before saving
@@ -117,7 +105,6 @@ export const useEngineStore = create<EngineState>()(
         // Invoke the canonical AppStore session initialization action
         useAppStore.getState().initializeSession({
           blueprint: normalizedBlueprint,
-          selectedRole: role,
         });
 
         set({

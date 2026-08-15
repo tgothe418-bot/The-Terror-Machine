@@ -159,13 +159,14 @@ const createFailedFrame = (errorType: string, note: string): RatifiedEngineFrame
 });
 
 export const executeRatificationPipeline = async (
-  userAction: string
+  userAction: string,
+  suppliedSnapshot?: RuntimeStateSnapshot
 ): Promise<RatifiedEngineFrame> => {
   const state = useAppStore.getState();
   const engineState = useEngineStore.getState();
 
-  // 1. Capture canonical pre-turn snapshot once
-  const preSnapshot = captureRuntimeSnapshot(state);
+  // Exactly one pre-turn snapshot: use suppliedSnapshot if provided, otherwise fallback-capture for internal/SYSTEM_INIT
+  const preSnapshot = suppliedSnapshot || captureRuntimeSnapshot(state);
 
   const currentTension = preSnapshot.tension;
   const currentCoherence = preSnapshot.coherence;

@@ -93,6 +93,8 @@ describe('engineReducer atomic turn commits', () => {
       currentNodeId: 'SUITE_1408',
       currentPhase: 'MANIFEST' as const,
       tensionLevel: 65,
+      activeVector: 'SOMATIC' as const,
+      activeTier: 'GATEWAY' as const,
     };
 
     const failureReceipt = {
@@ -109,8 +111,6 @@ describe('engineReducer atomic turn commits', () => {
       errorMessage: failureReceipt.message,
       statusCode: failureReceipt.status,
       contentType: failureReceipt.contentType,
-      activeVector: 'SOMATIC',
-      activeTier: 'GATEWAY',
     };
 
     const nextState = engineReducer(startState, {
@@ -122,6 +122,8 @@ describe('engineReducer atomic turn commits', () => {
     expect(nextState.currentNodeId).toBe('SUITE_1408');
     expect(nextState.currentPhase).toBe('MANIFEST');
     expect(nextState.tensionLevel).toBe(65);
+    expect(nextState.activeVector).toBe('SOMATIC');
+    expect(nextState.activeTier).toBe('GATEWAY');
 
     // Exactly 1 user action and 1 failure message recorded
     expect(nextState.history.length).toBe(2);
@@ -141,5 +143,9 @@ describe('engineReducer atomic turn commits', () => {
     expect(failMsg.turnReceipt?.nodeAfter).toBe('SUITE_1408');
     expect(failMsg.turnReceipt?.activeVector).toBe('SOMATIC');
     expect(failMsg.turnReceipt?.activeTier).toBe('GATEWAY');
+    expect(failMsg.turnReceipt?.preSnapshot?.activeVector).toBe('SOMATIC');
+    expect(failMsg.turnReceipt?.preSnapshot?.activeTier).toBe('GATEWAY');
+    expect(failMsg.turnReceipt?.postSnapshot?.activeVector).toBe('SOMATIC');
+    expect(failMsg.turnReceipt?.postSnapshot?.activeTier).toBe('GATEWAY');
   });
 });

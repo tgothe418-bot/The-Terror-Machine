@@ -208,7 +208,7 @@ export default function Runtime() {
 
   const setPhase = useAppStore((state) => state.setPhase);
   const telemetry = useEngineStore((state) => state.telemetry);
-  const turnCount = useEngineStore((state) => state.turnCount);
+  const turnCount = useAppStore((state) => state.turnCount);
   const currentSimulationPhase = useTelemetryStore((state) => state.currentPhase);
 
   const prevPhaseRef = useRef<string | null>(null);
@@ -415,7 +415,7 @@ export default function Runtime() {
     const preSnapshot = captureRuntimeSnapshot(useAppStore.getState());
 
     try {
-      const response = await executeRatificationPipeline(commandText);
+      const response = await executeRatificationPipeline(commandText, preSnapshot);
       const formattedText = formatBlocks(response.narrative_blocks);
 
       const effectiveCurrentNode = preSnapshot.currentNodeId;
@@ -458,12 +458,6 @@ export default function Runtime() {
       };
 
       dispatch({ type: 'TURN_COMMITTED', payload: committedTurnPayload });
-
-      if (response.logic_state.suggested_tension) {
-        useEngineStore
-          .getState()
-          .updateTension(String(response.logic_state.suggested_tension) as any);
-      }
 
       useEngineStore.getState().patchGameState(response.logic_state);
     } catch (err: unknown) {

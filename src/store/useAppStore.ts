@@ -16,15 +16,17 @@ import {
   RatifiedEngineFrame,
   NarrativeBlock,
   TopologyEdge,
+  HorrorVector,
+  ExposureTier,
 } from '../types';
 import { EngineEvent, CommittedTurnPayload, FailedTurnPayload } from '../core/engine/events';
 import { engineReducer, initialEngineState, EngineState } from '../core/engine/reducer';
 import { compileRuntimeTopology } from '../lib/compileRuntimeTopology';
 import { normalizeBlueprint } from '../lib/normalizeBlueprint';
+import { isHorrorVector, isExposureTier } from '../core/engine/snapshot';
 
 export interface InitializeSessionParams {
   blueprint: unknown;
-  selectedRole?: PlayerRole | string;
   sessionId?: string;
 }
 
@@ -108,15 +110,19 @@ export const useAppStore = create<AppStore>((set) => ({
       fallbackSetting: normalized.setting,
     });
 
-    const initialVector = (normalized.startingVector || 'COGNITIVE') as any;
-    const initialTier = (normalized.startingTier || 'LATENT') as any;
+    const initialVector: HorrorVector = isHorrorVector(normalized.startingVector)
+      ? normalized.startingVector
+      : 'COGNITIVE';
+    const initialTier: ExposureTier = isExposureTier(normalized.startingTier)
+      ? normalized.startingTier
+      : 'LATENT';
     const startNodeId = compiled.startNodeId || 'ORIGIN';
     const newSessionId = sessionId || crypto.randomUUID();
 
     set({
       sessionId: newSessionId,
       blueprintId: normalized.id || 'unknown',
-      phase: 'LATENT' as any,
+      phase: 'LATENT',
       currentPhase: 'LATENT',
       escalation_state: 'LATENT',
       currentNodeId: startNodeId,

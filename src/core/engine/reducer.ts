@@ -275,6 +275,9 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
           'The turn service returned an unexpected response. The session state was not changed.',
       };
 
+      const effectiveVector: HorrorVector = state.activeVector || 'COGNITIVE';
+      const effectiveTier: ExposureTier = state.activeTier || 'LATENT';
+
       // Canonical pre- and post-turn snapshots are identical for failed turn
       const preSnapshot = event.payload.preSnapshot || captureRuntimeSnapshot(state);
       const postSnapshot = preSnapshot;
@@ -301,8 +304,8 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
           accepted: false,
           reason: `FAILED: ${receipt.code}${statusSuffix} - ${receipt.message}`,
           nodeAfter: state.currentNodeId,
-          activeVector: state.activeVector || 'COGNITIVE',
-          activeTier: state.activeTier || 'LATENT',
+          activeVector: effectiveVector,
+          activeTier: effectiveTier,
           tension: state.tensionLevel ?? 0,
           preSnapshot,
           postSnapshot,
