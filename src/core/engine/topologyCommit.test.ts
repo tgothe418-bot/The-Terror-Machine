@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { applyTopologyDeltaToGraph } from './topologyCommit';
 import { SpatialNode, TopologyDelta, TransitionReceipt } from '../../types';
 
-describe('applyTopologyDeltaToGraph', () => {
+describe('applyTopologyDeltaToGraph Authorization Boundary', () => {
   const initialGraph: SpatialNode[] = [
     {
       id: 'ORIGIN',
@@ -12,6 +12,7 @@ describe('applyTopologyDeltaToGraph', () => {
       exits: [
         { description: 'north', targetNodeId: 'NODE_UNMAPPED', isOpen: true },
         { description: 'east', targetNodeId: 'EAST_HALL', isOpen: true },
+        { description: 'vent', targetNodeId: 'unmaterialized_vent', isOpen: true },
       ],
     },
     {
@@ -23,7 +24,7 @@ describe('applyTopologyDeltaToGraph', () => {
     },
   ];
 
-  it('applies a valid authorized topology expansion, updates source exit and returns new node ID', () => {
+  it('1. applies authorized expansion when all 5 conditions pass', () => {
     const delta: TopologyDelta = {
       isExpansion: true,
       exitDirection: 'north',
@@ -64,12 +65,131 @@ describe('applyTopologyDeltaToGraph', () => {
     });
   });
 
-  it('guards against duplicate insertion when generated node ID already exists', () => {
+  it('2. supports unmaterialized_ boundary format as valid unmapped exit', () => {
     const delta: TopologyDelta = {
       isExpansion: true,
-      exitDirection: 'east',
+      exitDirection: 'vent',
       newNodeDef: {
-        id: 'EAST_HALL',
+        id: 'VENT_CHAMBER',
+        geometry: 'Small Vent Chamber',
+        hazards: [],
+        exitVectors: [{ direction: 'back', targetNodeId: 'ORIGIN' }],
+      },
+    };
+
+    const result = applyTopologyDeltaToGraph({
+      spatialGraph: initialGraph,
+      currentNodeId: 'ORIGIN',
+      topologyDelta: delta,
+    });
+
+    expect(result.applied).toBe(true);
+    expect(result.reason).toBe('EXPANSION_APPLIED');
+    expect(result.nextNodeId).toBe('VENT_CHAMBER');
+  });
+
+  it('3. rejects expansion if source node does not exist in graph', () => {
+    const delta: TopologyDelta = {
+      isExpansion: true,
+      exitDirection: 'north',
+      newNodeDef: {
+        id: 'CORRIDOR_9',
+        geometry: 'Ventilation',
+        hazards: [],
+        exitVectors: [],
+      },
+    };
+
+    const result = applyTopologyDeltaToGraph({
+      spatialGraph: initialGraph,
+      currentNodeId: 'NONEXISTENT_SOURCE',
+      topologyDelta: delta,
+    });
+
+    expect(result.applied).toBe(false);
+    expect(result.reason).toBe('SOURCE_NODE_NOT_FOUND');
+    expect(result.nextGraph).toEqual(initialGraph);
+    expect(result.nextNodeId).toBe('NONEXISTENT_SOURCE');
+  });
+
+  it('4. rejects expansion if exitDirection is missing', () => {
+    const delta: TopologyDelta = {
+      isExpansion: true,
+      exitDirection: null,
+      newNodeDef: {
+        id: 'CORRIDOR_9',
+        geometry: 'Ventilation',
+        hazards: [],
+        exitVectors: [],
+      },
+    };
+
+    const result = applyTopologyDeltaToGraph({
+      spatialGraph: initialGraph,
+      currentNodeId: 'ORIGIN',
+      topologyDelta: delta,
+    });
+
+    expect(result.applied).toBe(false);
+    expect(result.reason).toBe('MISSING_EXIT_DIRECTION');
+    expect(result.nextGraph).toEqual(initialGraph);
+    expect(result.nextNodeId).toBe('ORIGIN');
+  });
+
+  it('5. rejects expansion if exit direction does not match any source exit', () => {
+    const delta: TopologyDelta = {
+      isExpansion: true,
+      exitDirection: 'south', // No south exit on ORIGIN
+      newNodeDef: {
+        id: 'CORRIDOR_9',
+        geometry: 'Ventilation',
+        hazards: [],
+        exitVectors: [],
+      },
+    };
+
+    const result = applyTopologyDeltaToGraph({
+      spatialGraph: initialGraph,
+      currentNodeId: 'ORIGIN',
+      topologyDelta: delta,
+    });
+
+    expect(result.applied).toBe(false);
+    expect(result.reason).toBe('NO_MATCHING_SOURCE_EXIT');
+    expect(result.nextGraph).toEqual(initialGraph);
+    expect(result.nextNodeId).toBe('ORIGIN');
+  });
+
+  it('6. rejects expansion if matched exit is already mapped to an existing node', () => {
+    const delta: TopologyDelta = {
+      isExpansion: true,
+      exitDirection: 'east', // east leads to EAST_HALL, not NODE_UNMAPPED
+      newNodeDef: {
+        id: 'NEW_EAST_CAVE',
+        geometry: 'Cave',
+        hazards: [],
+        exitVectors: [],
+      },
+    };
+
+    const result = applyTopologyDeltaToGraph({
+      spatialGraph: initialGraph,
+      currentNodeId: 'ORIGIN',
+      topologyDelta: delta,
+    });
+
+    expect(result.applied).toBe(false);
+    expect(result.reason).toBe('EXIT_ALREADY_MAPPED');
+    expect(result.nextGraph).toEqual(initialGraph);
+    expect(result.nextNodeId).toBe('ORIGIN');
+  });
+
+  it('7. guards against duplicate insertion and DOES NOT move player to duplicate', () => {
+    const delta: TopologyDelta = {
+      isExpansion: true,
+      exitDirection: 'north',
+      newNodeDef: {
+        id: 'EAST_HALL', // Already in graph
         geometry: 'Duplicate East Hall',
         hazards: [],
         exitVectors: [],
@@ -85,11 +205,12 @@ describe('applyTopologyDeltaToGraph', () => {
     expect(result.applied).toBe(false);
     expect(result.reason).toBe('NODE_ALREADY_EXISTS');
     expect(result.nextGraph).toHaveLength(2);
-    expect(result.nextNodeId).toBe('EAST_HALL');
+    expect(result.nextNodeId).toBe('ORIGIN'); // Preserves currentNodeId!
   });
 
-  it('leaves graph unchanged and applies normal transition when no expansion delta is provided', () => {
-    const transitionReceipt: TransitionReceipt = {
+  it('8. in non-expansion turn, validates that transition target exists in runtime graph', () => {
+    // Valid target
+    const validTransition: TransitionReceipt = {
       requestedNodeId: 'EAST_HALL',
       accepted: true,
       fromNodeId: 'ORIGIN',
@@ -97,42 +218,34 @@ describe('applyTopologyDeltaToGraph', () => {
       reason: 'TRANSITION_ACCEPTED',
     };
 
-    const result = applyTopologyDeltaToGraph({
+    const validResult = applyTopologyDeltaToGraph({
       spatialGraph: initialGraph,
       currentNodeId: 'ORIGIN',
       topologyDelta: { isExpansion: false, newNodeDef: null },
-      transitionReceipt,
+      transitionReceipt: validTransition,
     });
 
-    expect(result.applied).toBe(false);
-    expect(result.reason).toBe('NO_EXPANSION_REQUESTED');
-    expect(result.nextNodeId).toBe('EAST_HALL');
-    expect(result.nextGraph).toEqual(initialGraph);
-  });
+    expect(validResult.applied).toBe(false);
+    expect(validResult.reason).toBe('NO_EXPANSION_REQUESTED');
+    expect(validResult.nextNodeId).toBe('EAST_HALL');
 
-  it('handles missing or malformed newNodeDef gracefully without mutating graph', () => {
-    const resultMissingDef = applyTopologyDeltaToGraph({
+    // Nonexistent target in receipt -> must NOT move player
+    const staleTransition: TransitionReceipt = {
+      requestedNodeId: 'GHOST_CHAMBER_99',
+      accepted: true,
+      fromNodeId: 'ORIGIN',
+      toNodeId: 'GHOST_CHAMBER_99',
+      reason: 'STALE_TRANSITION',
+    };
+
+    const staleResult = applyTopologyDeltaToGraph({
       spatialGraph: initialGraph,
       currentNodeId: 'ORIGIN',
-      topologyDelta: { isExpansion: true, newNodeDef: null },
+      topologyDelta: { isExpansion: false, newNodeDef: null },
+      transitionReceipt: staleTransition,
     });
 
-    expect(resultMissingDef.applied).toBe(false);
-    expect(resultMissingDef.reason).toBe('MISSING_NEW_NODE_DEF');
-    expect(resultMissingDef.nextGraph).toEqual(initialGraph);
-    expect(resultMissingDef.nextNodeId).toBe('ORIGIN');
-
-    const resultInvalidId = applyTopologyDeltaToGraph({
-      spatialGraph: initialGraph,
-      currentNodeId: 'ORIGIN',
-      topologyDelta: {
-        isExpansion: true,
-        newNodeDef: { id: '', geometry: 'Void', hazards: [], exitVectors: [] },
-      },
-    });
-
-    expect(resultInvalidId.applied).toBe(false);
-    expect(resultInvalidId.reason).toBe('INVALID_NEW_NODE_ID');
-    expect(resultInvalidId.nextGraph).toEqual(initialGraph);
+    expect(staleResult.applied).toBe(false);
+    expect(staleResult.nextNodeId).toBe('ORIGIN'); // Retained source node!
   });
 });

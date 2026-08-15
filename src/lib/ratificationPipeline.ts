@@ -1,11 +1,18 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { RatifiedEngineFrame, DecayThreshold, DecayState, PlayerRole, RuntimeStateSnapshot } from '../types';
+import {
+  RatifiedEngineFrame,
+  DecayThreshold,
+  DecayState,
+  PlayerRole,
+  RuntimeStateSnapshot,
+  TurnResponseSchema,
+} from '../types';
 import { useAppStore } from '../store/useAppStore';
 import { useEngineStore } from '../core/store';
 import { calculatePhysicsState } from '../core/matrix/physicsMatrix';
 import { reconcilePerception } from '../core/memory/reconciler';
 import { buildEngineTurnContext, buildContextReceipt } from './buildEngineTurnContext';
-import { readTurnResponse, createNetworkTurnError } from './turnResponseReader';
+import { readTurnResponse, createNetworkTurnError, TurnResponseError } from './turnResponseReader';
 import { captureRuntimeSnapshot } from '../core/engine/snapshot';
 
 export const DECAY_SCALE: DecayThreshold[] = [
@@ -94,7 +101,7 @@ export const validateEngineFrame = (rawPayload: any): RatifiedEngineFrame => {
   // 2. Extract and Normalize
   const blocks = (
     Array.isArray(rawPayload.narrative_blocks) ? rawPayload.narrative_blocks : []
-  ).map((b) => {
+  ).map((b: any) => {
     let content = b.content;
     if (b.type === 'prose' || b.type === 'dialogue' || b.type === 'internal_monologue') {
       content = applyAntiRescueLinter(content || '');
@@ -114,12 +121,7 @@ export const validateEngineFrame = (rawPayload: any): RatifiedEngineFrame => {
   // 3. Validation Logic
   if (blocks.length === 0) {
     rejected.push('narrative_blocks');
-    notes.push('Warning: Engine returned zero narrative blocks. Injecting fallback.');
-    // Provide a safe fallback so the UI never crashes on an empty render
-    blocks.push({
-      type: 'system_voice',
-      content: '[The simulation stalls. A cold silence fills the void.]',
-    });
+    notes.push('Warning: Engine returned zero narrative blocks.');
   }
 
   const accepted = rejected.length === 0;
@@ -186,6 +188,7 @@ export const executeRatificationPipeline = async (
   const turnContext = buildEngineTurnContext({
     blueprint: engineState.activeBlueprint,
     selectedRole,
+    spatialGraph: state.spatialGraph,
     runtimeState: preSnapshot,
   });
 
@@ -279,12 +282,33 @@ export const executeRatificationPipeline = async (
     throw createNetworkTurnError();
   }
 
-  const rawJson = await readTurnResponse<any>(response);
-  const validatedEvent = validateEngineFrame(rawJson);
+  const rawJson = await readTurnResponse<unknown>(response);
+
+  // Parse with canonical TurnResponseSchema
+  const parsedResult = TurnResponseSchema.safeParse(rawJson);
+  if (!parsedResult.success) {
+    throw new TurnResponseError({
+      code: 'STRUCTURAL_RESPONSE_MISMATCH',
+      status: response.status,
+      contentType: response.headers?.get?.('content-type') || null,
+      message: 'The turn service returned a response that did not match the canonical contract.',
+    });
+  }
+
+  const validatedEvent = validateEngineFrame(parsedResult.data);
+  if (validatedEvent.validation && !validatedEvent.validation.accepted) {
+    throw new TurnResponseError({
+      code: 'FRAME_VALIDATION_REJECTED',
+      status: response.status,
+      contentType: response.headers?.get?.('content-type') || null,
+      message: 'The turn response failed ratification validation.',
+    });
+  }
+
   validatedEvent.preSnapshot = preSnapshot;
 
-  if (rawJson?.transitionReceipt) {
-    validatedEvent.transitionReceipt = rawJson.transitionReceipt;
+  if (parsedResult.data.transitionReceipt) {
+    validatedEvent.transitionReceipt = parsedResult.data.transitionReceipt;
   }
 
   // Attach context receipt for SYSTEM_INIT
@@ -295,7 +319,7 @@ export const executeRatificationPipeline = async (
   // Expansion Guard:
   // If SYSTEM_INIT or no expansion was expected, suppress any rogue expansion
   if (userAction === 'SYSTEM_INIT' || !isExpansionExpected) {
-    if (rawJson?.topologyDelta?.isExpansion) {
+    if (parsedResult.data.topologyDelta?.isExpansion) {
       validatedEvent.topologyDelta = { isExpansion: false, newNodeDef: null };
       if (!validatedEvent.validation) {
         validatedEvent.validation = { accepted: true, rejected_fields: [], repair_notes: [] };
@@ -304,12 +328,12 @@ export const executeRatificationPipeline = async (
         '[GUARD] LLM emitted unexpected topology expansion; suppressed to maintain canonical graph.'
       );
     } else {
-      validatedEvent.topologyDelta = rawJson?.topologyDelta || { isExpansion: false };
+      validatedEvent.topologyDelta = parsedResult.data.topologyDelta || { isExpansion: false };
     }
   } else {
-    validatedEvent.topologyDelta = rawJson?.topologyDelta
+    validatedEvent.topologyDelta = parsedResult.data.topologyDelta
       ? {
-          ...rawJson.topologyDelta,
+          ...parsedResult.data.topologyDelta,
           exitDirection: matchingExitDirection,
         }
       : null;

@@ -13,7 +13,6 @@ import {
   PerspectiveShiftReceipt,
   Message,
   PlayerRole,
-  RatifiedEngineFrame,
   NarrativeBlock,
   TopologyEdge,
   HorrorVector,
@@ -73,11 +72,9 @@ export interface AppStore extends EngineState {
   failTurnResult: (payload: FailedTurnPayload) => void;
 
   isGenerating: boolean;
-  injectGeneratedNode: (sourceNodeId: string, exitDirection: string, newNodeDef: any) => void;
   currentPhase: string;
   tensionLevel: number;
   storyLog: NarrativeBlock[];
-  processRatifiedFrame: (frame: RatifiedEngineFrame) => void;
   setGenerating: (status: boolean) => void;
 }
 
@@ -200,52 +197,4 @@ export const useAppStore = create<AppStore>((set) => ({
   storyLog: [],
 
   setGenerating: (status: boolean) => set({ isGenerating: status }),
-  injectGeneratedNode: (sourceNodeId: string, exitDirection: string, newNodeDef: any) =>
-    set((state) => {
-      if (!state.spatialGraph) return state;
-
-      // Create actual SpatialNode from newNodeDef
-      const newNode: SpatialNode = {
-        id: newNodeDef.id,
-        name: newNodeDef.geometry || 'Unmapped Region',
-        description: newNodeDef.hazards?.join(' ') || '',
-        connectedNodes: [],
-        exits:
-          newNodeDef.exitVectors?.map((ev: any) => ({
-            targetNodeId: ev.targetNodeId,
-            description: ev.direction,
-            isOpen: true,
-          })) || [],
-      } as any;
-
-      const updatedGraph = state.spatialGraph.map((node) => {
-        if (node.id === sourceNodeId && (node as any).exits) {
-          return {
-            ...node,
-            exits: (node as any).exits.map((exit: any) => {
-              if (exit.description === exitDirection) {
-                return { ...exit, targetNodeId: newNodeDef.id };
-              }
-              return exit;
-            }),
-          };
-        }
-        return node;
-      });
-
-      return {
-        spatialGraph: [...updatedGraph, newNode],
-        currentNodeId: newNodeDef.id,
-      };
-    }),
-
-  processRatifiedFrame: (frame: RatifiedEngineFrame) =>
-    set((state) => ({
-      // Append new narrative blocks to the continuous history
-      storyLog: [...state.storyLog, ...frame.narrative_blocks],
-      // Atomically sync the logic state
-      currentPhase: frame.logic_state.current_phase,
-      tensionLevel: frame.logic_state.suggested_tension,
-      // Note: requested_transition and terminal_flags handling can be routed to telemetry
-    })),
 }));

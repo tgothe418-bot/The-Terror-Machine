@@ -1,11 +1,19 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { normalizeBlueprint } from './normalizeBlueprint';
 import { resolvePerspectiveBinding } from '../core/store';
-import { Blueprint, EdgeKind, EngineTurnContext, ContextReceipt, PlayerRole } from '../types';
+import {
+  Blueprint,
+  EdgeKind,
+  EngineTurnContext,
+  ContextReceipt,
+  PlayerRole,
+  SpatialNode,
+} from '../types';
 
 export interface BuildEngineTurnContextOptions {
   blueprint: unknown;
   selectedRole?: PlayerRole | string;
+  spatialGraph?: SpatialNode[];
   runtimeState?: {
     currentNodeId?: string | null;
     phase?: string;
@@ -24,6 +32,7 @@ export interface BuildEngineTurnContextOptions {
 export function buildEngineTurnContext({
   blueprint,
   selectedRole = 'protagonist',
+  spatialGraph,
   runtimeState = {},
 }: BuildEngineTurnContextOptions): EngineTurnContext {
   const normBp: Blueprint = normalizeBlueprint(blueprint);
@@ -85,17 +94,48 @@ export function buildEngineTurnContext({
   // 4. Topology boundary
   const nodes = normBp.topology?.nodes || [];
   const currentNodeId = runtimeState.currentNodeId || nodes[0] || 'ORIGIN';
-  const readableNodeLabel = currentNodeId.replace(/_/g, ' ');
   const connections = normBp.topology?.connections || [];
-  const allowedOutgoingExits = connections
-    .filter((conn) => conn.from === currentNodeId)
-    .map((conn) => ({
-      from: conn.from,
-      to: conn.to,
-      kind: (conn.kind as EdgeKind) || 'PHYSICAL',
-      requires: conn.requires && conn.requires.length > 0 ? conn.requires : undefined,
-      userInitiated: conn.userInitiated !== false,
-    }));
+
+  const runtimeNode = spatialGraph?.find((n) => n.id === currentNodeId);
+  const readableNodeLabel = runtimeNode?.name || currentNodeId.replace(/_/g, ' ');
+
+  let allowedOutgoingExits: Array<{
+    from: string;
+    to: string;
+    kind: EdgeKind;
+    requires?: string[];
+    userInitiated: boolean;
+  }> = [];
+
+  if (runtimeNode && Array.isArray(runtimeNode.exits)) {
+    allowedOutgoingExits = runtimeNode.exits.map((exit) => {
+      const matchingConn = connections.find(
+        (conn) => conn.from === currentNodeId && conn.to === exit.targetNodeId
+      );
+      return {
+        from: currentNodeId,
+        to: exit.targetNodeId,
+        kind: (matchingConn?.kind as EdgeKind) || exit.kind || 'PHYSICAL',
+        requires:
+          matchingConn?.requires && matchingConn.requires.length > 0
+            ? matchingConn.requires
+            : exit.requires && exit.requires.length > 0
+              ? exit.requires
+              : undefined,
+        userInitiated: matchingConn?.userInitiated ?? exit.userInitiated ?? true,
+      };
+    });
+  } else {
+    allowedOutgoingExits = connections
+      .filter((conn) => conn.from === currentNodeId)
+      .map((conn) => ({
+        from: conn.from,
+        to: conn.to,
+        kind: (conn.kind as EdgeKind) || 'PHYSICAL',
+        requires: conn.requires && conn.requires.length > 0 ? conn.requires : undefined,
+        userInitiated: conn.userInitiated !== false,
+      }));
+  }
 
   // 5. Runtime conditions
   const activeVector = runtimeState.activeVector || normBp.startingVector || 'COGNITIVE';
@@ -163,7 +203,6 @@ export function buildContextReceipt(
   let topologyConnectionCount = 0;
 
   if (rawOrNormalizedBlueprint && typeof rawOrNormalizedBlueprint === 'object') {
-     
     const bp = rawOrNormalizedBlueprint as any;
     topologyNodeCount = bp.topology?.nodes?.length || 0;
     topologyConnectionCount = bp.topology?.connections?.length || 0;

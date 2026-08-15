@@ -29,18 +29,18 @@ export interface CommittedTurnPayload {
   frame: RatifiedEngineFrame;
   transitionReceipt?: TransitionReceipt;
   turnReceipt: TurnReceipt;
-  preSnapshot?: RuntimeStateSnapshot;
+  preSnapshot: RuntimeStateSnapshot;
   timestamp?: number;
 }
 
 export interface FailedTurnPayload {
   commandText: string;
+  preSnapshot: RuntimeStateSnapshot;
   failureReceipt?: TurnFailureReceipt;
   errorCategory?: string;
   errorMessage?: string;
   statusCode?: number | null;
   contentType?: string | null;
-  preSnapshot?: RuntimeStateSnapshot;
   timestamp?: number;
 }
 

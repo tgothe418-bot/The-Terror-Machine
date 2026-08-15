@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import { EdgeKind, EdgeKindSchema } from './engineContract';
+export * from './engineContract';
 
 export type AppPhase = 'hub' | 'forge' | 'engine' | 'voice';
 
@@ -15,14 +17,6 @@ export type HorrorVector = 'SOMATIC' | 'COGNITIVE' | 'COSMIC' | 'SOCIO_MORAL';
 export type ExposureTier = 'GATEWAY' | 'LATENT' | 'MANIFEST' | 'TERMINAL';
 export type AutopilotVector = 'ADAPTIVE' | 'INSURGENT' | 'PANIC';
 
-export type EdgeKind =
-  | 'PHYSICAL'
-  | 'FORCED_EVENT'
-  | 'MEMORY_RECONSTRUCTION'
-  | 'HISTORICAL_REFERENCE'
-  | 'TERMINAL_EJECTION'
-  | 'AUTHORED_PARADOX';
-
 export interface TopologyEdge {
   from: string;
   to: string;
@@ -32,15 +26,6 @@ export interface TopologyEdge {
   legacyUpgraded?: boolean;
   authority?: EdgeAuthority;
 }
-
-export const EdgeKindSchema = z.enum([
-  'PHYSICAL',
-  'FORCED_EVENT',
-  'MEMORY_RECONSTRUCTION',
-  'HISTORICAL_REFERENCE',
-  'TERMINAL_EJECTION',
-  'AUTHORED_PARADOX',
-]);
 
 export const TopologyEdgeSchema = z.object({
   from: z.string(),
@@ -341,121 +326,7 @@ export interface TurnFailureReceipt {
   message: string;
 }
 
-export interface EngineTurnContext {
-  version: 1;
-  scenario: {
-    id?: string;
-    title: string;
-    premise: string;
-    worldRules: string[];
-    setting: {
-      location: string;
-      atmosphere: string;
-      timePeriod: string;
-    };
-    startingVector: string;
-    startingTier: string;
-    incitingIncident: string;
-    pacingDirective: string;
-    keyPlotElements: string[];
-  };
-  player: {
-    role: PlayerRole;
-    characterId?: string | null;
-    name: string;
-    description: string;
-    isEntity: boolean;
-  };
-  cast: Array<{
-    id: string;
-    name: string;
-    role: string;
-    description: string;
-    isEntity: boolean;
-  }>;
-  topology: {
-    currentNodeId: string;
-    readableNodeLabel: string;
-    allowedOutgoingExits: Array<{
-      from: string;
-      to: string;
-      kind: EdgeKind;
-      requires?: string[];
-      userInitiated: boolean;
-    }>;
-  };
-  runtime: {
-    phase: string;
-    tension: number;
-    coherence: number;
-    reconciliationRevision: number;
-    activeVector: string;
-    activeTier: string;
-    activeFlags?: string[];
-  };
-}
 
-export const EngineTurnContextSchema = z.object({
-  version: z.literal(1).default(1),
-  scenario: z.object({
-    id: z.string().optional(),
-    title: z.string().default('Unknown Enclosure'),
-    premise: z.string().default(''),
-    worldRules: z.array(z.string()).default([]),
-    setting: z.object({
-      location: z.string().default('Unknown'),
-      atmosphere: z.string().default(''),
-      timePeriod: z.string().default(''),
-    }),
-    startingVector: z.string().default('COGNITIVE'),
-    startingTier: z.string().default('LATENT'),
-    incitingIncident: z.string().default(''),
-    pacingDirective: z.string().default(''),
-    keyPlotElements: z.array(z.string()).default([]),
-  }),
-  player: z.object({
-    role: z.enum(['protagonist', 'antagonist', 'director', 'witness', 'possessed']),
-    characterId: z.string().nullable().optional(),
-    name: z.string().default('Protagonist'),
-    description: z.string().default(''),
-    isEntity: z.boolean().default(false),
-  }),
-  cast: z
-    .array(
-      z.object({
-        id: z.string(),
-        name: z.string(),
-        role: z.string().default('Subject'),
-        description: z.string().default(''),
-        isEntity: z.boolean().default(false),
-      })
-    )
-    .default([]),
-  topology: z.object({
-    currentNodeId: z.string(),
-    readableNodeLabel: z.string(),
-    allowedOutgoingExits: z
-      .array(
-        z.object({
-          from: z.string(),
-          to: z.string(),
-          kind: EdgeKindSchema,
-          requires: z.array(z.string()).optional(),
-          userInitiated: z.boolean().default(true),
-        })
-      )
-      .default([]),
-  }),
-  runtime: z.object({
-    phase: z.string().default('LATENT'),
-    tension: z.number().default(0),
-    coherence: z.number().default(1.0),
-    reconciliationRevision: z.number().default(0),
-    activeVector: z.string().default('COGNITIVE'),
-    activeTier: z.string().default('LATENT'),
-    activeFlags: z.array(z.string()).default([]),
-  }),
-});
 
 export interface Message {
   id?: string;
@@ -652,19 +523,7 @@ export interface FrameValidation {
   repaired_fields?: string[];
 }
 
-export interface TopologyDelta {
-  isExpansion: boolean;
-  exitDirection?: string | null;
-  newNodeDef?: {
-    id: string;
-    geometry: string;
-    hazards: string[];
-    exitVectors: Array<{
-      direction: string;
-      targetNodeId: string;
-    }>;
-  } | null;
-}
+
 
 export interface RatifiedEngineFrame {
   engine_thoughts: string;

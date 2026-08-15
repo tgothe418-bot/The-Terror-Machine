@@ -153,7 +153,7 @@ export const initialEngineState: EngineState = {
 export function engineReducer(state: EngineState, event: EngineEvent): EngineState {
   switch (event.type) {
     case 'TURN_COMMITTED': {
-      // 1. Capture pre-turn snapshot from the entering state or payload
+      // 1. Capture pre-turn snapshot from payload or current state
       const preSnapshot = event.payload.preSnapshot || captureRuntimeSnapshot(state);
 
       const userMsg: Message = {
@@ -169,6 +169,10 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
         currentNodeId: state.currentNodeId,
         topologyDelta: event.payload.frame.topologyDelta,
         transitionReceipt: event.payload.transitionReceipt,
+        requestedTargetNodeId:
+          event.payload.turnReceipt?.nodeAfter ||
+          event.payload.frame.logic_state?.requested_transition ||
+          null,
       });
 
       const nextNodeId = topologyResult.nextNodeId;

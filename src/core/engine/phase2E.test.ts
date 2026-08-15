@@ -5,18 +5,49 @@ import { validateEngineFrame } from '../../lib/ratificationPipeline';
 import { projectPresentationPatch } from './presentationProjection';
 import { captureRuntimeSnapshot } from './snapshot';
 import { CommittedTurnPayload, FailedTurnPayload } from './events';
-import { SpatialNode } from '../../types';
+import { SpatialNode, Blueprint } from '../../types';
+import { buildEngineTurnContext } from '../../lib/buildEngineTurnContext';
 
-describe('Phase 2E Regression Test Suite', () => {
+describe('Phase 2E Comprehensive Engine Lifecycle Test Suite', () => {
   const baseSpatialGraph: SpatialNode[] = [
     {
       id: 'ORIGIN',
       name: 'Origin Containment',
       description: 'Damp stone room',
       connectedNodes: [],
-      exits: [{ description: 'vent', targetNodeId: 'NODE_UNMAPPED', isOpen: true }],
+      exits: [
+        { description: 'vent', targetNodeId: 'NODE_UNMAPPED', isOpen: true },
+        { description: 'iron_door', targetNodeId: 'SECURITY_FOYER', isOpen: true },
+      ],
+    },
+    {
+      id: 'SECURITY_FOYER',
+      name: 'Security Foyer',
+      description: 'Checkpoint with metal turnstiles',
+      connectedNodes: [],
+      exits: [{ description: 'back', targetNodeId: 'ORIGIN', isOpen: true }],
     },
   ];
+
+  const baseBlueprint: Blueprint = {
+    id: 'bp_containment_01',
+    title: 'Containment Sector 7',
+    premise: 'Escape the breach',
+    environmentalRules: ['High atmospheric pressure'],
+    setting: { location: 'Sub-level 4', atmosphere: 'Claustrophobic', timePeriod: '1986' },
+    startingVector: 'COGNITIVE',
+    startingTier: 'LATENT',
+    cast: [
+      { id: 'c_protag', name: 'Dr. Aris', role: 'Protagonist', description: 'Lead Researcher' },
+    ],
+    topology: {
+      nodes: ['ORIGIN', 'SECURITY_FOYER'],
+      connections: [
+        { from: 'ORIGIN', to: 'SECURITY_FOYER', kind: 'PHYSICAL', userInitiated: true },
+        { from: 'SECURITY_FOYER', to: 'ORIGIN', kind: 'PHYSICAL', userInitiated: true },
+      ],
+    },
+  };
 
   const baseState = {
     ...initialEngineState,
@@ -60,7 +91,7 @@ describe('Phase 2E Regression Test Suite', () => {
             id: 'MAINTENANCE_DUCT_4',
             geometry: 'Cramped steel duct',
             hazards: ['Sharp exposed screws'],
-            exitVectors: [{ direction: 'back', targetNodeId: 'ORIGIN' }],
+            exitVectors: [{ direction: 'back_to_origin', targetNodeId: 'ORIGIN' }],
           },
         },
       },
@@ -85,7 +116,7 @@ describe('Phase 2E Regression Test Suite', () => {
     expect(nextState.currentNodeId).toBe('MAINTENANCE_DUCT_4');
     expect(nextState.activeVector).toBe('SOMATIC');
     expect(nextState.activeTier).toBe('MANIFEST');
-    expect(nextState.spatialGraph).toHaveLength(2);
+    expect(nextState.spatialGraph).toHaveLength(3);
 
     const postSnapshot = nextState.history[1]?.turnReceipt?.postSnapshot;
     expect(postSnapshot).toBeDefined();
@@ -114,6 +145,7 @@ describe('Phase 2E Regression Test Suite', () => {
       },
       topologyDelta: {
         isExpansion: true,
+        exitDirection: 'vent',
         newNodeDef: {
           id: 'TEST_NODE',
           geometry: 'Test room',
@@ -126,17 +158,21 @@ describe('Phase 2E Regression Test Suite', () => {
     const validated = validateEngineFrame(rawPayload);
     expect(validated.validation?.accepted).toBe(true);
     expect(validated.logic_state.matrix_mutation?.next_vector).toBe('COSMIC');
+
     // baseState was not mutated
     expect(baseState.turnCount).toBe(3);
     expect(baseState.currentNodeId).toBe('ORIGIN');
-    expect(baseState.spatialGraph).toHaveLength(1);
+    expect(baseState.spatialGraph).toHaveLength(2);
   });
 
   // 3. Missing, invalid, rejected, or unauthorized topology deltas leave existing graph and node unchanged
   it('3. missing or invalid topology delta preserves existing graph and node position', () => {
+    const preSnapshot = captureRuntimeSnapshot(baseState);
+
     const payload: CommittedTurnPayload = {
       commandText: 'Wait silently',
       formattedText: 'Time passes without change.',
+      preSnapshot,
       frame: {
         engine_thoughts: 'No movement.',
         narrative_blocks: [{ type: 'prose', content: 'Time passes.' }],
@@ -171,10 +207,13 @@ describe('Phase 2E Regression Test Suite', () => {
   });
 
   // 4. Replaying a delta with same generated node ID does not duplicate the node or exits
-  it('4. replaying a delta with existing node ID does not duplicate nodes in graph', () => {
+  it('4. replaying a delta with existing node ID does not duplicate nodes in graph or move player', () => {
+    const preSnapshot = captureRuntimeSnapshot(baseState);
+
     const payload: CommittedTurnPayload = {
       commandText: 'Crawl into the vent again',
       formattedText: 'You return to the duct.',
+      preSnapshot,
       frame: {
         engine_thoughts: 'Replay node.',
         narrative_blocks: [{ type: 'prose', content: 'You return to the duct.' }],
@@ -184,9 +223,10 @@ describe('Phase 2E Regression Test Suite', () => {
         },
         topologyDelta: {
           isExpansion: true,
+          exitDirection: 'vent',
           newNodeDef: {
-            id: 'ORIGIN', // Already in graph
-            geometry: 'Duplicate Origin',
+            id: 'SECURITY_FOYER', // Already in graph
+            geometry: 'Duplicate Security Foyer',
             hazards: [],
             exitVectors: [],
           },
@@ -195,8 +235,8 @@ describe('Phase 2E Regression Test Suite', () => {
       turnReceipt: {
         turnNumber: 4,
         nodeBefore: 'ORIGIN',
-        requestedTarget: 'ORIGIN',
-        accepted: true,
+        requestedTarget: 'SECURITY_FOYER',
+        accepted: false,
         nodeAfter: 'ORIGIN',
         activeVector: 'COGNITIVE',
         activeTier: 'LATENT',
@@ -209,7 +249,8 @@ describe('Phase 2E Regression Test Suite', () => {
       payload,
     });
 
-    expect(nextState.spatialGraph).toHaveLength(1);
+    expect(nextState.spatialGraph).toHaveLength(2);
+    expect(nextState.currentNodeId).toBe('ORIGIN'); // Did not move to duplicate!
   });
 
   // 5. Failed turn leaves canonical runtime state at pre-turn snapshot and records failure receipt
@@ -240,6 +281,8 @@ describe('Phase 2E Regression Test Suite', () => {
 
   // 6. matrix_mutation is accepted as canonical; matrix_shift compatibility input is normalized once at ingress
   it('6. normalizes matrix_shift to matrix_mutation once at boundary ingress', () => {
+    const preSnapshot = captureRuntimeSnapshot(baseState);
+
     const ingressPayload = {
       narrative_blocks: [{ type: 'prose', content: 'An alien frequency hums.' }],
       logic_state: {
@@ -262,6 +305,7 @@ describe('Phase 2E Regression Test Suite', () => {
     const payload: CommittedTurnPayload = {
       commandText: 'Listen to frequency',
       formattedText: 'An alien frequency hums.',
+      preSnapshot,
       frame: validated,
       turnReceipt: {
         turnNumber: 4,
@@ -289,11 +333,11 @@ describe('Phase 2E Regression Test Suite', () => {
     const preSnapshot = captureRuntimeSnapshot(baseState);
 
     const payload: CommittedTurnPayload = {
-      commandText: 'Step into portal',
+      commandText: 'Crawl into the vent',
       formattedText: 'Reality shifts around you.',
       preSnapshot,
       frame: {
-        engine_thoughts: 'Portal traversed.',
+        engine_thoughts: 'Vent traversed.',
         narrative_blocks: [{ type: 'prose', content: 'Reality shifts.' }],
         logic_state: {
           current_phase: 'TERMINAL',
@@ -305,11 +349,12 @@ describe('Phase 2E Regression Test Suite', () => {
         },
         topologyDelta: {
           isExpansion: true,
+          exitDirection: 'vent',
           newNodeDef: {
             id: 'VOID_SPACE',
             geometry: 'Infinite non-euclidean expanse',
             hazards: ['Sensory obliteration'],
-            exitVectors: [],
+            exitVectors: [{ direction: 'retreat', targetNodeId: 'ORIGIN' }],
           },
         },
       },
@@ -370,5 +415,79 @@ describe('Phase 2E Regression Test Suite', () => {
     expect(projection.player_injuries).toEqual(['Lacerated palm']);
     expect(projection.npc_fixations).toEqual(['Entity stalks the perimeter']);
     expect(projection.psychological_status).toBe('Paranoid');
+  });
+
+  // 9. Next turn context derives current node and allowed exits from committed runtime graph
+  it('9. derives next turn context from committed runtime graph including generated nodes and return exits', () => {
+    // 1. Commit expansion into MAINTENANCE_DUCT_4
+    const preSnapshot = captureRuntimeSnapshot(baseState);
+    const expansionPayload: CommittedTurnPayload = {
+      commandText: 'Crawl into the vent',
+      formattedText: 'You squeeze into the maintenance duct.',
+      preSnapshot,
+      frame: {
+        engine_thoughts: 'Expansion.',
+        narrative_blocks: [{ type: 'prose', content: 'Duct reached.' }],
+        logic_state: {
+          current_phase: 'MANIFEST',
+          suggested_tension: 40,
+        },
+        topologyDelta: {
+          isExpansion: true,
+          exitDirection: 'vent',
+          newNodeDef: {
+            id: 'MAINTENANCE_DUCT_4',
+            geometry: 'Narrow Ventilation Duct',
+            hazards: ['Rusted fan blades'],
+            exitVectors: [
+              {
+                direction: 'back_to_origin',
+                targetNodeId: 'ORIGIN',
+                kind: 'PHYSICAL',
+                userInitiated: true,
+              },
+            ],
+          },
+        },
+      },
+      turnReceipt: {
+        turnNumber: 4,
+        nodeBefore: 'ORIGIN',
+        requestedTarget: 'MAINTENANCE_DUCT_4',
+        accepted: true,
+        nodeAfter: 'MAINTENANCE_DUCT_4',
+        activeVector: 'COGNITIVE',
+        activeTier: 'LATENT',
+        tension: 40,
+      },
+    };
+
+    const stateAfterExpansion = engineReducer(baseState, {
+      type: 'TURN_COMMITTED',
+      payload: expansionPayload,
+    });
+
+    const nextTurnPreSnapshot = captureRuntimeSnapshot(stateAfterExpansion);
+
+    // 2. Build turn context for the next turn using the committed runtime graph
+    const nextTurnContext = buildEngineTurnContext({
+      blueprint: baseBlueprint,
+      spatialGraph: stateAfterExpansion.spatialGraph,
+      runtimeState: nextTurnPreSnapshot,
+    });
+
+    // 3. Verify that the context derives the current node from the runtime graph
+    expect(nextTurnContext.topology.currentNodeId).toBe('MAINTENANCE_DUCT_4');
+    expect(nextTurnContext.topology.readableNodeLabel).toBe('Narrow Ventilation Duct');
+
+    // 4. Verify that allowed outgoing exits include the return edge to ORIGIN
+    expect(nextTurnContext.topology.allowedOutgoingExits).toHaveLength(1);
+    expect(nextTurnContext.topology.allowedOutgoingExits[0]).toEqual({
+      from: 'MAINTENANCE_DUCT_4',
+      to: 'ORIGIN',
+      kind: 'PHYSICAL',
+      requires: undefined,
+      userInitiated: true,
+    });
   });
 });
