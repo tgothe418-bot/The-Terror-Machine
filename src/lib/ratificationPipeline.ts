@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { RatifiedEngineFrame, DecayThreshold, DecayState, PlayerRole } from '../types';
+import { RatifiedEngineFrame, DecayThreshold, DecayState, PlayerRole, RuntimeStateSnapshot } from '../types';
 import { useAppStore } from '../store/useAppStore';
 import { useEngineStore } from '../core/store';
 import { calculatePhysicsState } from '../core/matrix/physicsMatrix';

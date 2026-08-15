@@ -160,7 +160,7 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
       };
 
       const nextNodeId =
-        event.payload.transitionReceipt.accepted && event.payload.transitionReceipt.toNodeId
+        event.payload.transitionReceipt?.accepted && event.payload.transitionReceipt?.toNodeId
           ? event.payload.transitionReceipt.toNodeId
           : state.currentNodeId;
 
@@ -173,7 +173,9 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
       // A missing, partial, malformed, or unsupported mutation must preserve existing coordinates.
       let nextVector: HorrorVector = state.activeVector || 'COGNITIVE';
       let nextTier: ExposureTier = state.activeTier || 'LATENT';
-      const mutation = event.payload.frame.logic_state?.matrix_mutation;
+      const mutation =
+        event.payload.frame.logic_state?.matrix_mutation ||
+        event.payload.frame.logic_state?.matrix_shift;
       if (mutation && typeof mutation === 'object') {
         const candidateVector = mutation.next_vector as HorrorVector;
         const candidateTier = mutation.next_tier as ExposureTier;
@@ -475,10 +477,7 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
       };
 
     case 'TURN_SUBMITTED':
-      return {
-        ...state,
-        turnCount: state.turnCount + 1,
-      };
+      return state;
 
     case 'PHASE_CHANGED':
       return {

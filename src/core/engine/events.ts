@@ -27,7 +27,7 @@ export interface CommittedTurnPayload {
   commandText: string;
   formattedText: string;
   frame: RatifiedEngineFrame;
-  transitionReceipt: TransitionReceipt;
+  transitionReceipt?: TransitionReceipt;
   turnReceipt: TurnReceipt;
   preSnapshot?: RuntimeStateSnapshot;
   timestamp?: number;

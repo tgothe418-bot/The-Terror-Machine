@@ -107,4 +107,80 @@ describe('Engine telemetry export', () => {
     expect(md).toContain('"current_phase": "LATENT"');
     expect(md).toContain('"isExpansion": false');
   });
+
+  it('includes turn receipt with pre/post snapshots in both HTML and Markdown telemetry exports', () => {
+    const messagesWithSnapshots = [
+      {
+        role: 'user',
+        content: 'Step through the archway',
+        timestamp: 10,
+        userCharacterName: 'Marcus Vance',
+      },
+      {
+        role: 'assistant',
+        content: 'The cold geometry shifts around you.',
+        timestamp: 11,
+        blocks: [{ type: 'prose', content: 'The cold geometry shifts around you.' }],
+        logic_state: {
+          current_phase: 'MANIFEST',
+          suggested_tension: 40,
+        },
+        turnReceipt: {
+          turnNumber: 2,
+          nodeBefore: 'VAULT_01',
+          requestedTarget: 'VAULT_02',
+          accepted: true,
+          nodeAfter: 'VAULT_02',
+          activeVector: 'COSMIC',
+          activeTier: 'MANIFEST',
+          tension: 40,
+          preSnapshot: {
+            version: 1,
+            turnCount: 1,
+            currentNodeId: 'VAULT_01',
+            activeVector: 'COGNITIVE',
+            activeTier: 'LATENT',
+            phase: 'LATENT',
+            tension: 10,
+            coherence: 1.0,
+            reconciliationRevision: 0,
+            activeFlags: ['FLAG_OBSERVED'],
+          },
+          postSnapshot: {
+            version: 1,
+            turnCount: 2,
+            currentNodeId: 'VAULT_02',
+            activeVector: 'COSMIC',
+            activeTier: 'MANIFEST',
+            phase: 'MANIFEST',
+            tension: 40,
+            coherence: 0.9,
+            reconciliationRevision: 0,
+            activeFlags: ['FLAG_OBSERVED', 'FLAG_ARCHWAY_CROSSED'],
+          },
+        },
+      },
+    ];
+
+    const htmlOutput = buildEngineLogContent(messagesWithSnapshots, 'html', 'snapshot-test');
+    expect(htmlOutput).not.toBeNull();
+    const html = htmlOutput!.content;
+
+    expect(html).toContain('&quot;turnReceipt&quot;');
+    expect(html).toContain('&quot;preSnapshot&quot;');
+    expect(html).toContain('&quot;postSnapshot&quot;');
+    expect(html).toContain('&quot;activeVector&quot;: &quot;COSMIC&quot;');
+    expect(html).toContain('&quot;FLAG_ARCHWAY_CROSSED&quot;');
+
+    const mdOutput = buildEngineLogContent(messagesWithSnapshots, 'md', 'snapshot-test');
+    expect(mdOutput).not.toBeNull();
+    const md = mdOutput!.content;
+
+    expect(md).toContain('"turnReceipt"');
+    expect(md).toContain('"preSnapshot"');
+    expect(md).toContain('"postSnapshot"');
+    expect(md).toContain('"activeVector": "COSMIC"');
+    expect(md).toContain('"activeTier": "MANIFEST"');
+    expect(md).toContain('FLAG_ARCHWAY_CROSSED');
+  });
 });

@@ -14,7 +14,7 @@ export interface BuildEngineTurnContextOptions {
     reconciliationRevision?: number;
     activeVector?: string;
     activeTier?: string;
-    activeFlags?: string[];
+    activeFlags?: readonly string[] | string[];
   };
 }
 

@@ -639,6 +639,10 @@ export interface LogicState {
     next_vector?: HorrorVector;
     next_tier?: ExposureTier;
   } | null;
+  matrix_shift?: {
+    next_vector?: HorrorVector;
+    next_tier?: ExposureTier;
+  } | null;
 }
 
 export interface FrameValidation {

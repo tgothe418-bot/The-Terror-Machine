@@ -52,7 +52,7 @@ describe('State separation and history preservation', () => {
     expect(stateAfterUser.history[0].role).toBe('user');
     expect(stateAfterUser.history[0].content).toBe('Examine gate');
 
-    // Dispatching turn submitted event
+    // Dispatching legacy turn submitted event (canonical turn count is preserved until TURN_COMMITTED)
     const turnEvent: EngineEvent = {
       type: 'TURN_SUBMITTED',
       turnId: 'turn_101',
@@ -60,7 +60,7 @@ describe('State separation and history preservation', () => {
       timestamp: 1000,
     };
     const stateAfterTurn = engineReducer(stateAfterUser, turnEvent);
-    expect(stateAfterTurn.turnCount).toBe(1);
+    expect(stateAfterTurn.turnCount).toBe(0);
 
     // Dispatching frame ratified event
     const frameEvent: EngineEvent = {
@@ -72,7 +72,7 @@ describe('State separation and history preservation', () => {
 
     // Verify that telemetry snapshot and payload capture logic, topology, and validation
     expect(stateAfterFrame.history).toHaveLength(1); // Frame ratification updates metadata
-    expect(stateAfterFrame.turnCount).toBe(1);
+    expect(stateAfterFrame.turnCount).toBe(0);
   });
 
   it('preserves structured logic, topology, and validation in history messages', () => {
