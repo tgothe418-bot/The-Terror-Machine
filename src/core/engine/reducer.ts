@@ -1,8 +1,19 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { EngineEvent, Phase, DecayState } from './events';
-import { Message, NarrativeBlock, TurnFailureReceipt } from '../../types';
+import {
+  Message,
+  NarrativeBlock,
+  TurnFailureReceipt,
+  HorrorVector,
+  ExposureTier,
+  TurnReceipt,
+} from '../../types';
 import { EntityArchetype } from '../../types/reference';
 import { formatTurnFailureMessage } from '../../lib/turnResponseReader';
+import {
+  captureRuntimeSnapshot,
+  isHorrorVector,
+  isExposureTier,
+} from './snapshot';
 
 export interface EngineState {
   sessionId?: string;
@@ -10,6 +21,8 @@ export interface EngineState {
   phase: Phase;
   escalation_state: 'LATENT' | 'REACTIVE' | 'TRANSGRESSIVE' | 'BLACKOUT';
   currentNodeId: string | null;
+  activeVector: HorrorVector;
+  activeTier: ExposureTier;
   decay: DecayState;
   turnCount: number;
   roomsGenerated: number;
@@ -30,6 +43,7 @@ export interface EngineState {
   };
   timelineRevision: number;
   lastDistilledRevision: number;
+  reconciliationRevision: number;
   history: Message[];
   storyLog?: NarrativeBlock[];
   currentPhase?: string;
@@ -55,6 +69,9 @@ export function applyReconciliationPatch(
     'escalation_state',
     'turnCount',
     'currentNodeId',
+    'activeVector',
+    'activeTier',
+    'reconciliationRevision',
     'decay',
     'castLedger',
     'systemFlags',
@@ -106,6 +123,8 @@ export const initialEngineState: EngineState = {
   phase: 'HUB',
   escalation_state: 'LATENT',
   currentNodeId: null,
+  activeVector: 'COGNITIVE',
+  activeTier: 'LATENT',
   decay: { stage: 'STABLE', coherence: 1.0 },
   turnCount: 0,
   roomsGenerated: 0,
@@ -123,17 +142,94 @@ export const initialEngineState: EngineState = {
   },
   timelineRevision: 0,
   lastDistilledRevision: -1,
+  reconciliationRevision: 0,
   history: [],
 };
 
 export function engineReducer(state: EngineState, event: EngineEvent): EngineState {
   switch (event.type) {
     case 'TURN_COMMITTED': {
+      // 1. Capture pre-turn snapshot from the entering state or payload
+      const preSnapshot = event.payload.preSnapshot || captureRuntimeSnapshot(state);
+
       const userMsg: Message = {
         id: crypto.randomUUID(),
         role: 'user',
         content: event.payload.commandText,
         timestamp: event.payload.timestamp || Date.now(),
+      };
+
+      const nextNodeId =
+        event.payload.transitionReceipt.accepted && event.payload.transitionReceipt.toNodeId
+          ? event.payload.transitionReceipt.toNodeId
+          : state.currentNodeId;
+
+      const newFlags = event.payload.frame.logic_state?.terminal_flags || [];
+      const currentFlags = state.activeMemory?.systemFlags || [];
+      const combinedFlags = Array.from(new Set([...currentFlags, ...newFlags]));
+
+      // 2. Matrix coordinate mutation
+      // A successful turn with a valid, complete matrix mutation may change both coordinates atomically.
+      // A missing, partial, malformed, or unsupported mutation must preserve existing coordinates.
+      let nextVector: HorrorVector = state.activeVector || 'COGNITIVE';
+      let nextTier: ExposureTier = state.activeTier || 'LATENT';
+      const mutation = event.payload.frame.logic_state?.matrix_mutation;
+      if (mutation && typeof mutation === 'object') {
+        const candidateVector = mutation.next_vector as HorrorVector;
+        const candidateTier = mutation.next_tier as ExposureTier;
+        if (
+          candidateVector &&
+          candidateTier &&
+          isHorrorVector(candidateVector) &&
+          isExposureTier(candidateTier)
+        ) {
+          nextVector = candidateVector;
+          nextTier = candidateTier;
+        }
+      }
+
+      // 3. Hallucination collision reconciliation revision
+      const revisionIncrement =
+        event.payload.frame.reconciliation?.revisionIncrement ??
+        (event.payload.frame.logic_state?.intent_classification === 'HALLUCINATION_COLLISION'
+          ? 1
+          : 0);
+      const nextReconciliationRevision = (state.reconciliationRevision || 0) + revisionIncrement;
+
+      const nextPhase =
+        event.payload.frame.logic_state?.current_phase || state.currentPhase || 'LATENT';
+      const nextTension =
+        typeof event.payload.frame.logic_state?.suggested_tension === 'number'
+          ? event.payload.frame.logic_state.suggested_tension
+          : state.tensionLevel ?? 0;
+
+      const updatedTurnCount = state.turnCount + 1;
+      const updatedStoryLog = [
+        ...(state.storyLog || []),
+        ...(event.payload.frame.narrative_blocks || []),
+      ];
+
+      // 4. Capture post-turn snapshot from the resulting committed state
+      const postSnapshot = captureRuntimeSnapshot({
+        ...state,
+        turnCount: updatedTurnCount,
+        currentNodeId: nextNodeId,
+        activeVector: nextVector,
+        activeTier: nextTier,
+        phase: nextPhase,
+        currentPhase: nextPhase,
+        tensionLevel: nextTension,
+        reconciliationRevision: nextReconciliationRevision,
+        activeFlags: combinedFlags,
+      });
+
+      const committedTurnReceipt: TurnReceipt = {
+        ...event.payload.turnReceipt,
+        activeVector: nextVector,
+        activeTier: nextTier,
+        tension: nextTension,
+        preSnapshot,
+        postSnapshot,
       };
 
       const engineMsg: Message = {
@@ -148,32 +244,20 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
         validation: event.payload.frame.validation,
         contextReceipt: event.payload.frame.contextReceipt,
         transitionReceipt: event.payload.transitionReceipt,
-        turnReceipt: event.payload.turnReceipt,
+        turnReceipt: committedTurnReceipt,
       };
-
-      const nextNodeId =
-        event.payload.transitionReceipt.accepted && event.payload.transitionReceipt.toNodeId
-          ? event.payload.transitionReceipt.toNodeId
-          : state.currentNodeId;
-
-      const newFlags = event.payload.frame.logic_state?.terminal_flags || [];
-      const currentFlags = state.activeMemory?.systemFlags || [];
-      const combinedFlags = Array.from(new Set([...currentFlags, ...newFlags]));
 
       return {
         ...state,
         history: [...(state.history || []), userMsg, engineMsg],
-        turnCount: state.turnCount + 1,
+        turnCount: updatedTurnCount,
         currentNodeId: nextNodeId,
-        storyLog: [
-          ...(state.storyLog || []),
-          ...(event.payload.frame.narrative_blocks || []),
-        ],
-        currentPhase: event.payload.frame.logic_state?.current_phase || state.currentPhase || 'LATENT',
-        tensionLevel:
-          typeof event.payload.frame.logic_state?.suggested_tension === 'number'
-            ? event.payload.frame.logic_state.suggested_tension
-            : state.tensionLevel ?? 0,
+        activeVector: nextVector,
+        activeTier: nextTier,
+        reconciliationRevision: nextReconciliationRevision,
+        storyLog: updatedStoryLog,
+        currentPhase: nextPhase,
+        tensionLevel: nextTension,
         activeMemory: {
           ...state.activeMemory,
           systemFlags: combinedFlags,
@@ -190,6 +274,10 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
           event.payload.errorMessage ||
           'The turn service returned an unexpected response. The session state was not changed.',
       };
+
+      // Canonical pre- and post-turn snapshots are identical for failed turn
+      const preSnapshot = event.payload.preSnapshot || captureRuntimeSnapshot(state);
+      const postSnapshot = preSnapshot;
 
       const userMsg: Message = {
         id: crypto.randomUUID(),
@@ -213,9 +301,11 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
           accepted: false,
           reason: `FAILED: ${receipt.code}${statusSuffix} - ${receipt.message}`,
           nodeAfter: state.currentNodeId,
-          activeVector: event.payload.activeVector || (state as any).activeVector || 'COGNITIVE',
-          activeTier: event.payload.activeTier || (state as any).activeTier || 'LATENT',
+          activeVector: state.activeVector || 'COGNITIVE',
+          activeTier: state.activeTier || 'LATENT',
           tension: state.tensionLevel ?? 0,
+          preSnapshot,
+          postSnapshot,
         },
       };
 

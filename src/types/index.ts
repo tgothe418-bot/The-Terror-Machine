@@ -304,6 +304,22 @@ export interface TransitionReceipt {
   reason?: string;
 }
 
+export interface RuntimeStateSnapshot {
+  version: 1;
+  sessionId?: string;
+  blueprintId?: string;
+  turnCount: number;
+  currentNodeId: string;
+  activeVector: HorrorVector;
+  activeTier: ExposureTier;
+  phase: string;
+  tension: number;
+  coherence: number;
+  decayRate?: number;
+  reconciliationRevision: number;
+  activeFlags: string[];
+}
+
 export interface TurnReceipt {
   turnNumber: number;
   nodeBefore: string | null;
@@ -311,9 +327,11 @@ export interface TurnReceipt {
   accepted: boolean;
   reason?: string;
   nodeAfter: string | null;
-  activeVector: string;
-  activeTier: string;
+  activeVector: HorrorVector | string;
+  activeTier: ExposureTier | string;
   tension: number;
+  preSnapshot?: RuntimeStateSnapshot;
+  postSnapshot?: RuntimeStateSnapshot;
 }
 
 export interface TurnFailureReceipt {
@@ -652,6 +670,12 @@ export interface RatifiedEngineFrame {
   contextReceipt?: ContextReceipt;
   transitionReceipt?: TransitionReceipt;
   turnReceipt?: TurnReceipt;
+  preSnapshot?: RuntimeStateSnapshot;
+  reconciliation?: {
+    isHallucinationCollision: boolean;
+    revisionIncrement: number;
+    correctedProse?: string;
+  };
 }
 
 export interface BicameralOutput {

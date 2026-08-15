@@ -6,6 +6,7 @@ import { calculatePhysicsState } from '../core/matrix/physicsMatrix';
 import { reconcilePerception } from '../core/memory/reconciler';
 import { buildEngineTurnContext, buildContextReceipt } from './buildEngineTurnContext';
 import { readTurnResponse, createNetworkTurnError } from './turnResponseReader';
+import { captureRuntimeSnapshot } from '../core/engine/snapshot';
 
 export const DECAY_SCALE: DecayThreshold[] = [
   {
@@ -163,15 +164,11 @@ export const executeRatificationPipeline = async (
   const state = useAppStore.getState();
   const engineState = useEngineStore.getState();
 
-  const stateSnapshot = {
-    spatialGraph: state.spatialGraph ? [...state.spatialGraph] : [],
-    currentNodeId: state.currentNodeId,
-    escalation_state: state.escalation_state,
-    decayMetrics: state.decayMetrics ? { ...state.decayMetrics } : undefined,
-  };
+  // 1. Capture canonical pre-turn snapshot once
+  const preSnapshot = captureRuntimeSnapshot(state);
 
-  const currentTension = state.tensionLevel || 0;
-  const currentCoherence = state.decayMetrics?.coherenceRating ?? 1.0;
+  const currentTension = preSnapshot.tension;
+  const currentCoherence = preSnapshot.coherence;
   const physicsMatrix = calculatePhysicsState(currentTension, currentCoherence);
 
   const selectedRole = (engineState.gameState?.player_role as PlayerRole) || 'protagonist';
@@ -179,38 +176,22 @@ export const executeRatificationPipeline = async (
   const turnContext = buildEngineTurnContext({
     blueprint: engineState.activeBlueprint,
     selectedRole,
-    runtimeState: {
-      currentNodeId: state.currentNodeId,
-      phase: state.currentPhase || state.phase,
-      tension: currentTension,
-      coherence: currentCoherence,
-      reconciliationRevision: state.reconciliationRevision || 0,
-      activeVector: engineState.currentVector,
-      activeTier: engineState.currentTier,
-    },
+    runtimeState: preSnapshot,
   });
 
   const reconciliation = reconcilePerception(
     userAction,
-    state.storyLog,
+    state.storyLog || [],
     (selectedRole as any) || 'PROTAGONIST',
     physicsMatrix.realityState
   );
 
   if (reconciliation.isHallucinationCollision && reconciliation.correctedProse) {
-    useAppStore.setState((prev) => ({
-      reconciliationRevision: prev.reconciliationRevision + reconciliation.revisionIncrement,
-      storyLog: [
-        ...prev.storyLog,
-        { type: 'system_voice', content: reconciliation.correctedProse },
-      ],
-    }));
-
     return {
       narrative_blocks: [{ type: 'system_voice', content: reconciliation.correctedProse }],
       engine_thoughts: 'HALLUCINATION_COLLISION RECONCILIATION',
       logic_state: {
-        current_phase: state.currentPhase || 'LATENT',
+        current_phase: preSnapshot.phase,
         suggested_tension: currentTension,
         intent_classification: 'HALLUCINATION_COLLISION',
         terminal_flags: [],
@@ -221,11 +202,17 @@ export const executeRatificationPipeline = async (
         rejected_fields: [],
         repair_notes: ['Hallucination collision reconciled'],
       },
+      preSnapshot,
+      reconciliation: {
+        isHallucinationCollision: true,
+        revisionIncrement: reconciliation.revisionIncrement,
+        correctedProse: reconciliation.correctedProse,
+      },
     };
   }
 
   // Distill the history to a compressed array instead of full prose
-  const recentHistory = state.storyLog
+  const recentHistory = (state.storyLog || [])
     .slice(-6)
     .map(
       (block) =>
@@ -233,7 +220,7 @@ export const executeRatificationPipeline = async (
     )
     .join('\n');
 
-  const currentNode = state.spatialGraph?.find((n: any) => n.id === state.currentNodeId);
+  const currentNode = state.spatialGraph?.find((n: any) => n.id === preSnapshot.currentNodeId);
   let matchingExitDirection: string | null = null;
 
   if (currentNode && (currentNode as any).exits) {
@@ -261,10 +248,12 @@ export const executeRatificationPipeline = async (
     systemDirective: physicsMatrix.generativeDirective,
     isExpansionExpected,
     stateContext: {
-      currentNodeId: state.currentNodeId,
-      currentPhase: state.currentPhase,
+      currentNodeId: preSnapshot.currentNodeId,
+      currentPhase: preSnapshot.phase,
       tensionLevel: currentTension,
-      reconciliationRevision: state.reconciliationRevision,
+      reconciliationRevision: preSnapshot.reconciliationRevision,
+      activeVector: preSnapshot.activeVector,
+      activeTier: preSnapshot.activeTier,
     },
     context: turnContext,
   };
@@ -280,12 +269,9 @@ export const executeRatificationPipeline = async (
     throw createNetworkTurnError();
   }
 
-  if (response.status === 406) {
-    useAppStore.setState(stateSnapshot);
-  }
-
   const rawJson = await readTurnResponse<any>(response);
   const validatedEvent = validateEngineFrame(rawJson);
+  validatedEvent.preSnapshot = preSnapshot;
 
   if (rawJson?.transitionReceipt) {
     validatedEvent.transitionReceipt = rawJson.transitionReceipt;

@@ -20,6 +20,13 @@ import {
 import { EngineEvent, CommittedTurnPayload, FailedTurnPayload } from '../core/engine/events';
 import { engineReducer, initialEngineState, EngineState } from '../core/engine/reducer';
 import { compileRuntimeTopology } from '../lib/compileRuntimeTopology';
+import { normalizeBlueprint } from '../lib/normalizeBlueprint';
+
+export interface InitializeSessionParams {
+  blueprint: unknown;
+  selectedRole?: PlayerRole | string;
+  sessionId?: string;
+}
 
 export interface AppStore extends EngineState {
   isTransitioning: boolean;
@@ -42,6 +49,8 @@ export interface AppStore extends EngineState {
   commitActTransition: (newBlueprintId: string, packet: CarryoverPacket) => void;
   executeTemporalShift: (receipt: TemporalShiftReceipt) => void;
   loadCampaignManifest: (manifest: CampaignManifest) => void;
+
+  initializeSession: (params: InitializeSessionParams) => void;
 
   setPhase: (phase: AppPhase | string) => void;
   telemetry: TelemetryState | null;
@@ -91,6 +100,63 @@ export const useAppStore = create<AppStore>((set) => ({
   commitActTransition: () => {},
   executeTemporalShift: () => {},
   loadCampaignManifest: (manifest: CampaignManifest) => set({ activeCampaign: manifest }),
+
+  initializeSession: ({ blueprint, sessionId }) => {
+    const normalized = normalizeBlueprint(blueprint);
+    const compiled = compileRuntimeTopology({
+      topology: normalized.topology,
+      fallbackSetting: normalized.setting,
+    });
+
+    const initialVector = (normalized.startingVector || 'COGNITIVE') as any;
+    const initialTier = (normalized.startingTier || 'LATENT') as any;
+    const startNodeId = compiled.startNodeId || 'ORIGIN';
+    const newSessionId = sessionId || crypto.randomUUID();
+
+    set({
+      sessionId: newSessionId,
+      blueprintId: normalized.id || 'unknown',
+      phase: 'LATENT' as any,
+      currentPhase: 'LATENT',
+      escalation_state: 'LATENT',
+      currentNodeId: startNodeId,
+      activeVector: initialVector,
+      activeTier: initialTier,
+      decay: { stage: 'STABLE', coherence: 1.0 },
+      decayMetrics: {
+        currentStage: 'STABLE',
+        coherenceRating: 1.0,
+        divergenceMode: 'NONE',
+      },
+      tensionLevel: 0,
+      turnCount: 0,
+      roomsGenerated: 0,
+      traumaLedger: [],
+      activeMemory: {
+        systemFlags: [],
+        somaState: [],
+        geomState: [],
+      },
+      motifLedger: {},
+      pacingLedger: {
+        failedEscapeAttempts: 0,
+        memoryAnchorsRemaining: 3,
+        spatialContradictions: 0,
+      },
+      timelineRevision: 0,
+      lastDistilledRevision: -1,
+      reconciliationRevision: 0,
+      history: [],
+      storyLog: [],
+      spatialGraph: compiled.spatialGraph,
+      isTransitioning: false,
+      isShattered: false,
+      uiTranscript: [],
+      enginePayload: [],
+      turnSnapshot: null,
+      isGenerating: false,
+    });
+  },
 
   setPhase: (phase: AppPhase | string) => set({ phase: phase as any }),
   telemetry: null,

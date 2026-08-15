@@ -6,9 +6,6 @@ import { idbStorage } from '../lib/idbStorage';
 import { distillContext } from '../services/geminiService';
 import { useAppStore } from '../store/useAppStore';
 import { normalizeBlueprint } from '../lib/normalizeBlueprint';
-import { compileRuntimeTopology } from '../lib/compileRuntimeTopology';
-
-import { HorrorVector, ExposureTier } from './matrix';
 
 // Add these model definitions to your store fields in src/core/store.ts
 export interface TelemetryMetrics {
@@ -29,13 +26,10 @@ interface EngineState {
   engineTextBuffer: Message[]; // The sliding window specifically for the Engine
   maxBufferTurns: number;
   engineWorldStateSummary: string;
-  currentVector: 'SOMATIC' | 'COGNITIVE' | 'COSMIC' | 'SOCIO_MORAL';
-  currentTier: 'GATEWAY' | 'LATENT' | 'MANIFEST' | 'TERMINAL';
   currentTensionLevel: 'buildup' | 'visceral_climax' | 'aftermath';
   telemetry: TelemetryMetrics | null;
   turnCount: number;
   incrementTurn: () => void;
-  shiftMatrixCoordinates: (vector: HorrorVector, tier: ExposureTier) => void;
   updateTension: (tension: 'buildup' | 'visceral_climax' | 'aftermath') => void;
   updateTelemetry: (metrics: TelemetryMetrics) => void;
   setBlueprint: (blueprint: unknown, role: PlayerRole) => void;
@@ -102,18 +96,10 @@ export const useEngineStore = create<EngineState>()(
       engineTextBuffer: [],
       maxBufferTurns: 12,
       engineWorldStateSummary: 'The subject is contained. Initial parameters active.',
-      currentVector: 'COGNITIVE',
-      currentTier: 'LATENT',
       currentTensionLevel: 'buildup',
       telemetry: null,
       turnCount: 1,
       incrementTurn: () => set((state) => ({ turnCount: state.turnCount + 1 })),
-      shiftMatrixCoordinates: (vector, tier) =>
-        set((state) => ({
-          ...state,
-          currentVector: vector,
-          currentTier: tier,
-        })),
       updateTension: (tension) =>
         set((state) => ({
           ...state,
@@ -128,42 +114,10 @@ export const useEngineStore = create<EngineState>()(
           role
         );
 
-        // Compile runtime topology
-        const compiled = compileRuntimeTopology({
-          topology: normalizedBlueprint.topology,
-          fallbackSetting: normalizedBlueprint.setting,
-        });
-        const startNodeId = compiled.startNodeId;
-        const initialVector = (normalizedBlueprint.startingVector || 'COGNITIVE') as
-          | 'SOMATIC'
-          | 'COGNITIVE'
-          | 'COSMIC'
-          | 'SOCIO_MORAL';
-        const initialTier = (normalizedBlueprint.startingTier || 'LATENT') as
-          | 'GATEWAY'
-          | 'LATENT'
-          | 'MANIFEST'
-          | 'TERMINAL';
-
-        // Hard reset useAppStore with compiled topology and start node
-        useAppStore.setState({
-          sessionId: crypto.randomUUID(),
-          blueprintId: normalizedBlueprint.id || 'unknown',
-          history: [],
-          traumaLedger: [],
-          motifLedger: {},
-          pacingLedger: {
-            failedEscapeAttempts: 0,
-            memoryAnchorsRemaining: 3,
-            spatialContradictions: 0,
-          },
-          timelineRevision: 0,
-          lastDistilledRevision: -1,
-          activeMemory: { systemFlags: [], somaState: [], geomState: [] },
-          phase: 'LATENT',
-          turnCount: 0,
-          currentNodeId: startNodeId,
-          spatialGraph: compiled.spatialGraph,
+        // Invoke the canonical AppStore session initialization action
+        useAppStore.getState().initializeSession({
+          blueprint: normalizedBlueprint,
+          selectedRole: role,
         });
 
         set({
@@ -171,8 +125,6 @@ export const useEngineStore = create<EngineState>()(
           engineMessages: [],
           engineTextBuffer: [],
           engineWorldStateSummary: 'The subject is contained. Initial parameters active.',
-          currentVector: initialVector,
-          currentTier: initialTier,
           gameState: {
             current_location: normalizedBlueprint.setting?.location || 'Unknown',
             player_injuries: [],

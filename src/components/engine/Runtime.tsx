@@ -29,6 +29,7 @@ import { toTurnFailureReceipt } from '../../lib/turnResponseReader';
 import { fetchSimulatedPlayerAction, triggerMemoryForge } from '../../services/geminiService';
 import ErgodicTextRenderer from './ErgodicTextRenderer';
 import { useTelemetryStore } from '../../store/useTelemetryStore';
+import { captureRuntimeSnapshot } from '../../core/engine/snapshot';
 
 const SESSION_TIMEOUT = 60 * 60 * 1000; // 60 minutes
 const HEARTBEAT_INTERVAL = 30000; // 30 seconds
@@ -411,15 +412,14 @@ export default function Runtime() {
     if (!overrideInput) setInput('');
     setIsLoading(true);
 
+    const preSnapshot = captureRuntimeSnapshot(useAppStore.getState());
+
     try {
       const response = await executeRatificationPipeline(commandText);
       const formattedText = formatBlocks(response.narrative_blocks);
 
-      const currentStore = useAppStore.getState();
-      const currentEng = useEngineStore.getState();
-      const effectiveCurrentNode =
-        currentStore.currentNodeId || currentEng.gameState?.current_location || 'ORIGIN';
-      const effectiveTurnNumber = currentStore.turnCount + 1;
+      const effectiveCurrentNode = preSnapshot.currentNodeId;
+      const effectiveTurnNumber = preSnapshot.turnCount + 1;
 
       const transitionReceipt = response.transitionReceipt || {
         requestedNodeId: response.logic_state.requested_transition || null,
@@ -439,12 +439,13 @@ export default function Runtime() {
           transitionReceipt.accepted && transitionReceipt.toNodeId
             ? transitionReceipt.toNodeId
             : effectiveCurrentNode,
-        activeVector: currentEng.currentVector || 'COGNITIVE',
-        activeTier: currentEng.currentTier || 'LATENT',
+        activeVector: preSnapshot.activeVector,
+        activeTier: preSnapshot.activeTier,
         tension:
           typeof response.logic_state.suggested_tension === 'number'
             ? response.logic_state.suggested_tension
-            : currentStore.tensionLevel ?? 0,
+            : preSnapshot.tension,
+        preSnapshot: response.preSnapshot || preSnapshot,
       };
 
       const committedTurnPayload: CommittedTurnPayload = {
@@ -453,6 +454,7 @@ export default function Runtime() {
         frame: response,
         transitionReceipt,
         turnReceipt,
+        preSnapshot: response.preSnapshot || preSnapshot,
       };
 
       dispatch({ type: 'TURN_COMMITTED', payload: committedTurnPayload });
@@ -463,19 +465,10 @@ export default function Runtime() {
           .updateTension(String(response.logic_state.suggested_tension) as any);
       }
 
-      if (response.logic_state.matrix_mutation) {
-        const { next_vector, next_tier } = response.logic_state.matrix_mutation;
-        if (next_vector && next_tier) {
-          useEngineStore.getState().shiftMatrixCoordinates(next_vector, next_tier);
-          console.log(`// MATRIX SHIFT EXECUTED // Migrated to [${next_vector}, ${next_tier}]`);
-        }
-      }
-
       useEngineStore.getState().patchGameState(response.logic_state);
     } catch (err: unknown) {
       console.error(err);
       const failureReceipt = toTurnFailureReceipt(err);
-      const currentEngineState = useEngineStore.getState();
 
       dispatch({
         type: 'TURN_FAILED',
@@ -486,8 +479,7 @@ export default function Runtime() {
           errorMessage: failureReceipt.message,
           statusCode: failureReceipt.status,
           contentType: failureReceipt.contentType,
-          activeVector: currentEngineState.currentVector || 'COGNITIVE',
-          activeTier: currentEngineState.currentTier || 'LATENT',
+          preSnapshot,
         },
       });
     } finally {

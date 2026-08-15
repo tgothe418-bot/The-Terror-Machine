@@ -1,4 +1,13 @@
-import { Message, RatifiedEngineFrame, TransitionReceipt, TurnReceipt, TurnFailureReceipt } from '../../types';
+import {
+  Message,
+  RatifiedEngineFrame,
+  TransitionReceipt,
+  TurnReceipt,
+  TurnFailureReceipt,
+  RuntimeStateSnapshot,
+  HorrorVector,
+  ExposureTier,
+} from '../../types';
 
 export type Phase =
   | 'HUB'
@@ -22,6 +31,7 @@ export interface CommittedTurnPayload {
   frame: RatifiedEngineFrame;
   transitionReceipt: TransitionReceipt;
   turnReceipt: TurnReceipt;
+  preSnapshot?: RuntimeStateSnapshot;
   timestamp?: number;
 }
 
@@ -32,8 +42,9 @@ export interface FailedTurnPayload {
   errorMessage?: string;
   statusCode?: number | null;
   contentType?: string | null;
-  activeVector?: string;
-  activeTier?: string;
+  preSnapshot?: RuntimeStateSnapshot;
+  activeVector?: HorrorVector | string;
+  activeTier?: ExposureTier | string;
   timestamp?: number;
 }
 
