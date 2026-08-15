@@ -62,6 +62,9 @@ describe('applyTopologyDeltaToGraph Authorization Boundary', () => {
       targetNodeId: 'ORIGIN',
       description: 'south',
       isOpen: true,
+      kind: 'PHYSICAL',
+      requires: undefined,
+      userInitiated: true,
     });
   });
 
@@ -247,5 +250,93 @@ describe('applyTopologyDeltaToGraph Authorization Boundary', () => {
 
     expect(staleResult.applied).toBe(false);
     expect(staleResult.nextNodeId).toBe('ORIGIN'); // Retained source node!
+  });
+
+  it('9. in non-expansion turn, rejected or absent receipt leaves currentNodeId unchanged', () => {
+    // 1. Rejected receipt targeting valid node EAST_HALL
+    const rejectedTransition: TransitionReceipt = {
+      requestedNodeId: 'EAST_HALL',
+      accepted: false,
+      fromNodeId: 'ORIGIN',
+      toNodeId: 'EAST_HALL',
+      reason: 'TRANSITION_BLOCKED',
+    };
+
+    const rejectedResult = applyTopologyDeltaToGraph({
+      spatialGraph: initialGraph,
+      currentNodeId: 'ORIGIN',
+      topologyDelta: { isExpansion: false, newNodeDef: null },
+      transitionReceipt: rejectedTransition,
+    });
+
+    expect(rejectedResult.nextNodeId).toBe('ORIGIN'); // Did not move
+
+    // 2. Absent receipt
+    const absentResult = applyTopologyDeltaToGraph({
+      spatialGraph: initialGraph,
+      currentNodeId: 'ORIGIN',
+      topologyDelta: { isExpansion: false, newNodeDef: null },
+    });
+
+    expect(absentResult.nextNodeId).toBe('ORIGIN'); // Did not move
+  });
+
+  it('10. in non-expansion turn, accepted receipt with stale fromNodeId leaves currentNodeId unchanged', () => {
+    const staleFromTransition: TransitionReceipt = {
+      requestedNodeId: 'EAST_HALL',
+      accepted: true,
+      fromNodeId: 'SOME_OLD_NODE', // Does not match currentNodeId ('ORIGIN')
+      toNodeId: 'EAST_HALL',
+      reason: 'TRANSITION_ACCEPTED',
+    };
+
+    const result = applyTopologyDeltaToGraph({
+      spatialGraph: initialGraph,
+      currentNodeId: 'ORIGIN',
+      topologyDelta: { isExpansion: false, newNodeDef: null },
+      transitionReceipt: staleFromTransition,
+    });
+
+    expect(result.nextNodeId).toBe('ORIGIN'); // Retained current node
+  });
+
+  it('11. preserves generated-edge metadata (kind, requires, userInitiated) on newly created SpatialNode exits', () => {
+    const delta: TopologyDelta = {
+      isExpansion: true,
+      exitDirection: 'north',
+      newNodeDef: {
+        id: 'RITUAL_SANCTUM',
+        geometry: 'Obsidian Sanctum',
+        hazards: ['Whispering shadows'],
+        exitVectors: [
+          {
+            direction: 'south_portal',
+            targetNodeId: 'ORIGIN',
+            kind: 'RITUAL',
+            requires: ['OBSIDIAN_KEY'],
+            userInitiated: false,
+          },
+        ],
+      },
+    };
+
+    const result = applyTopologyDeltaToGraph({
+      spatialGraph: initialGraph,
+      currentNodeId: 'ORIGIN',
+      topologyDelta: delta,
+    });
+
+    expect(result.applied).toBe(true);
+    const newNode = result.nextGraph.find((n) => n.id === 'RITUAL_SANCTUM');
+    expect(newNode).toBeDefined();
+    expect(newNode?.exits).toHaveLength(1);
+    expect(newNode?.exits?.[0]).toEqual({
+      targetNodeId: 'ORIGIN',
+      description: 'south_portal',
+      isOpen: true,
+      kind: 'RITUAL',
+      requires: ['OBSIDIAN_KEY'],
+      userInitiated: false,
+    });
   });
 });

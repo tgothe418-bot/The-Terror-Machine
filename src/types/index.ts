@@ -281,14 +281,6 @@ export interface ContextReceipt {
   topologyConnectionCount: number;
 }
 
-export interface TransitionReceipt {
-  requestedNodeId: string | null;
-  accepted: boolean;
-  fromNodeId: string | null;
-  toNodeId: string | null;
-  reason?: string;
-}
-
 export interface RuntimeStateSnapshot {
   readonly version: 1;
   readonly sessionId?: string;
@@ -315,7 +307,7 @@ export interface TurnReceipt {
   activeVector: HorrorVector;
   activeTier: ExposureTier;
   tension: number;
-  preSnapshot?: RuntimeStateSnapshot;
+  preSnapshot: RuntimeStateSnapshot;
   postSnapshot?: RuntimeStateSnapshot;
 }
 

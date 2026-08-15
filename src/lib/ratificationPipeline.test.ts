@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import 'fake-indexeddb/auto';
-import { executeRatificationPipeline } from './ratificationPipeline';
+import { executeRatificationPipeline, TurnResponseError } from './ratificationPipeline';
 import { useAppStore } from '../store/useAppStore';
 import { useEngineStore } from '../core/store';
+import { engineReducer } from '../core/engine/reducer';
 import { Blueprint, RuntimeStateSnapshot } from '../types';
 
 describe('executeRatificationPipeline single pre-turn snapshot lifecycle', () => {
@@ -142,6 +143,140 @@ describe('executeRatificationPipeline single pre-turn snapshot lifecycle', () =>
     expect(frame.preSnapshot?.currentNodeId).toBe('STORE_NODE_ORIGIN');
     expect(frame.preSnapshot?.activeVector).toBe('COGNITIVE');
     expect(frame.preSnapshot?.activeTier).toBe('LATENT');
+  });
+
+  it('rejects with STRUCTURAL_RESPONSE_MISMATCH when 2xx body fails TurnResponseSchema and leaves runtime state untouched', async () => {
+    const preSnapshot: RuntimeStateSnapshot = {
+      version: 1,
+      turnCount: 2,
+      currentNodeId: 'STORE_NODE_ORIGIN',
+      activeVector: 'COGNITIVE',
+      activeTier: 'LATENT',
+      phase: 'LATENT',
+      tension: 10,
+      coherence: 1.0,
+      reconciliationRevision: 0,
+      activeFlags: [],
+    };
+
+    // 200 OK but invalid JSON structure (missing narrative_blocks and logic_state)
+    globalThis.fetch = vi.fn().mockImplementation(async () => {
+      return new Response(
+        JSON.stringify({
+          corrupted: true,
+          random_payload: 12345,
+        }),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
+    });
+
+    let caughtError: TurnResponseError | null = null;
+    try {
+      await executeRatificationPipeline('Examine console', preSnapshot);
+    } catch (err) {
+      caughtError = err as TurnResponseError;
+    }
+
+    expect(caughtError).not.toBeNull();
+    expect(caughtError.code).toBe('STRUCTURAL_RESPONSE_MISMATCH');
+    expect(caughtError.status).toBe(200);
+
+    // Verify engineReducer handling when dispatched as TURN_FAILED
+    const appState = useAppStore.getState();
+    const nextState = engineReducer(appState, {
+      type: 'TURN_FAILED',
+      payload: {
+        commandText: 'Examine console',
+        errorCategory: caughtError.code,
+        errorMessage: caughtError.message,
+        statusCode: caughtError.status,
+        contentType: caughtError.contentType,
+        preSnapshot,
+      },
+    });
+
+    expect(nextState.turnCount).toBe(appState.turnCount);
+    expect(nextState.currentNodeId).toBe(appState.currentNodeId);
+    expect(nextState.activeVector).toBe(appState.activeVector);
+    expect(nextState.activeTier).toBe(appState.activeTier);
+    expect(nextState.tensionLevel).toBe(appState.tensionLevel);
+
+    const failMsg = nextState.history[1];
+    expect(failMsg.role).toBe('assistant');
+    expect(failMsg.turnReceipt?.accepted).toBe(false);
+    expect(failMsg.turnReceipt?.preSnapshot).toEqual(preSnapshot);
+    expect(failMsg.turnReceipt?.postSnapshot).toEqual(preSnapshot);
+  });
+
+  it('rejects with FRAME_VALIDATION_REJECTED when schema-valid body fails ratification (e.g. empty narrative_blocks) and leaves runtime state untouched', async () => {
+    const preSnapshot: RuntimeStateSnapshot = {
+      version: 1,
+      turnCount: 2,
+      currentNodeId: 'STORE_NODE_ORIGIN',
+      activeVector: 'COGNITIVE',
+      activeTier: 'LATENT',
+      phase: 'LATENT',
+      tension: 10,
+      coherence: 1.0,
+      reconciliationRevision: 0,
+      activeFlags: [],
+    };
+
+    // Schema-valid format for TurnResultSchema/TurnResponseSchema, but narrative_blocks is empty
+    globalThis.fetch = vi.fn().mockImplementation(async () => {
+      return new Response(
+        JSON.stringify({
+          narrative_blocks: [], // Rejected by ratification rule: narrative_blocks must not be empty
+          logic_state: {
+            current_phase: 'MANIFEST',
+            suggested_tension: 30,
+          },
+          topologyDelta: { isExpansion: false },
+        }),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
+    });
+
+    let caughtError: TurnResponseError | null = null;
+    try {
+      await executeRatificationPipeline('Listen closely', preSnapshot);
+    } catch (err) {
+      caughtError = err as TurnResponseError;
+    }
+
+    expect(caughtError).not.toBeNull();
+    expect(caughtError.code).toBe('FRAME_VALIDATION_REJECTED');
+
+    // Verify engineReducer handling when dispatched as TURN_FAILED
+    const appState = useAppStore.getState();
+    const nextState = engineReducer(appState, {
+      type: 'TURN_FAILED',
+      payload: {
+        commandText: 'Listen closely',
+        errorCategory: caughtError.code,
+        errorMessage: caughtError.message,
+        statusCode: caughtError.status,
+        contentType: caughtError.contentType,
+        preSnapshot,
+      },
+    });
+
+    expect(nextState.turnCount).toBe(appState.turnCount);
+    expect(nextState.currentNodeId).toBe(appState.currentNodeId);
+    expect(nextState.activeVector).toBe(appState.activeVector);
+    expect(nextState.activeTier).toBe(appState.activeTier);
+
+    const failMsg = nextState.history[1];
+    expect(failMsg.role).toBe('assistant');
+    expect(failMsg.turnReceipt?.accepted).toBe(false);
+    expect(failMsg.turnReceipt?.preSnapshot).toEqual(preSnapshot);
+    expect(failMsg.turnReceipt?.postSnapshot).toEqual(preSnapshot);
   });
 });
 

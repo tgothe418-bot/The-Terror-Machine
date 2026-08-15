@@ -5,7 +5,6 @@ export interface ApplyTopologyDeltaInput {
   currentNodeId: string | null;
   topologyDelta?: TopologyDelta | null;
   transitionReceipt?: TransitionReceipt | null;
-  requestedTargetNodeId?: string | null;
 }
 
 export interface ApplyTopologyDeltaResult {
@@ -33,17 +32,19 @@ export function applyTopologyDeltaToGraph(input: ApplyTopologyDeltaInput): Apply
   // Non-expansion turn handling
   if (!delta || !delta.isExpansion) {
     let nextNodeId = currentNodeId;
-    const targetCandidate =
-      (transitionReceipt?.accepted ? transitionReceipt.toNodeId : null) ||
-      input.requestedTargetNodeId;
 
-    if (targetCandidate) {
-      // Only move to target if target exists in current runtime graph or graph is not defined/empty
-      const targetExists =
-        currentGraph.length === 0 || currentGraph.some((n) => n.id === targetCandidate);
-      if (targetExists) {
-        nextNodeId = targetCandidate;
-      }
+    // Movement is allowed ONLY when:
+    // 1. transitionReceipt.accepted === true
+    // 2. transitionReceipt.fromNodeId matches the reducer's current node
+    // 3. transitionReceipt.toNodeId names a node present in the committed runtime graph
+    if (
+      transitionReceipt &&
+      transitionReceipt.accepted === true &&
+      transitionReceipt.fromNodeId === currentNodeId &&
+      transitionReceipt.toNodeId &&
+      currentGraph.some((n) => n.id === transitionReceipt.toNodeId)
+    ) {
+      nextNodeId = transitionReceipt.toNodeId;
     }
 
     return {
@@ -153,6 +154,9 @@ export function applyTopologyDeltaToGraph(input: ApplyTopologyDeltaInput): Apply
           targetNodeId: ev.targetNodeId,
           description: ev.direction,
           isOpen: true,
+          kind: ev.kind || 'PHYSICAL',
+          requires: ev.requires,
+          userInitiated: ev.userInitiated !== undefined ? ev.userInitiated : true,
         }))
       : [],
   };

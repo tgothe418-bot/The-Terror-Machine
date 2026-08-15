@@ -490,4 +490,74 @@ describe('Phase 2E Comprehensive Engine Lifecycle Test Suite', () => {
       userInitiated: true,
     });
   });
+
+  // 10. Generated node with non-default edge metadata (requires, userInitiated: false, kind: RITUAL) is preserved in next turn context
+  it('10. preserves non-default exit metadata (kind, requires, userInitiated: false) in next turn context', () => {
+    const preSnapshot = captureRuntimeSnapshot(baseState);
+    const expansionPayload: CommittedTurnPayload = {
+      commandText: 'Crawl into the vent',
+      formattedText: 'You enter the ritual sanctum.',
+      preSnapshot,
+      frame: {
+        engine_thoughts: 'Expansion with complex edge.',
+        narrative_blocks: [{ type: 'prose', content: 'You enter the sanctum.' }],
+        logic_state: {
+          current_phase: 'MANIFEST',
+          suggested_tension: 50,
+        },
+        topologyDelta: {
+          isExpansion: true,
+          exitDirection: 'vent',
+          newNodeDef: {
+            id: 'RITUAL_CHAMBER',
+            geometry: 'Hexagonal Ritual Chamber',
+            hazards: ['Blood runes'],
+            exitVectors: [
+              {
+                direction: 'sealed_gate',
+                targetNodeId: 'ORIGIN',
+                kind: 'RITUAL',
+                requires: ['SANCTUM_KEY'],
+                userInitiated: false,
+              },
+            ],
+          },
+        },
+      },
+      turnReceipt: {
+        turnNumber: 4,
+        nodeBefore: 'ORIGIN',
+        requestedTarget: 'RITUAL_CHAMBER',
+        accepted: true,
+        nodeAfter: 'RITUAL_CHAMBER',
+        activeVector: 'COGNITIVE',
+        activeTier: 'LATENT',
+        tension: 50,
+        preSnapshot,
+      },
+    };
+
+    const stateAfterExpansion = engineReducer(baseState, {
+      type: 'TURN_COMMITTED',
+      payload: expansionPayload,
+    });
+
+    const nextTurnPreSnapshot = captureRuntimeSnapshot(stateAfterExpansion);
+
+    const nextTurnContext = buildEngineTurnContext({
+      blueprint: baseBlueprint,
+      spatialGraph: stateAfterExpansion.spatialGraph,
+      runtimeState: nextTurnPreSnapshot,
+    });
+
+    expect(nextTurnContext.topology.currentNodeId).toBe('RITUAL_CHAMBER');
+    expect(nextTurnContext.topology.allowedOutgoingExits).toHaveLength(1);
+    expect(nextTurnContext.topology.allowedOutgoingExits[0]).toEqual({
+      from: 'RITUAL_CHAMBER',
+      to: 'ORIGIN',
+      kind: 'RITUAL',
+      requires: ['SANCTUM_KEY'],
+      userInitiated: false,
+    });
+  });
 });

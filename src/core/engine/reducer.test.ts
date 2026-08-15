@@ -1,12 +1,25 @@
 import { describe, it, expect } from 'vitest';
 import { engineReducer, initialEngineState } from './reducer';
 import type { CommittedTurnPayload, FailedTurnPayload } from './events';
+import { captureRuntimeSnapshot } from './snapshot';
+import { HorrorVector } from '../../types';
 
 describe('engineReducer atomic turn commits', () => {
   it('atomically commits a successful turn and updates state in a single step', () => {
+    const startState = {
+      ...initialEngineState,
+      currentNodeId: 'ORIGIN',
+      spatialGraph: [
+        { id: 'ORIGIN', name: 'Origin', description: '', exits: [] },
+        { id: 'INNER_SANCTUM', name: 'Inner Sanctum', description: '', exits: [] },
+      ],
+    };
+
+    const preSnapshot = captureRuntimeSnapshot(startState);
     const payload: CommittedTurnPayload = {
       commandText: 'Inspect the ancient mirror',
       formattedText: 'The glass ripples with cold silver light.',
+      preSnapshot,
       frame: {
         engine_thoughts: 'Player engages with anomaly.',
         narrative_blocks: [
@@ -21,13 +34,13 @@ describe('engineReducer atomic turn commits', () => {
       transitionReceipt: {
         requestedNodeId: 'INNER_SANCTUM',
         accepted: true,
-        fromNodeId: 'FOYER',
+        fromNodeId: 'ORIGIN',
         toNodeId: 'INNER_SANCTUM',
         reason: 'TRANSITION_ACCEPTED',
       },
       turnReceipt: {
         turnNumber: 1,
-        nodeBefore: 'FOYER',
+        nodeBefore: 'ORIGIN',
         requestedTarget: 'INNER_SANCTUM',
         accepted: true,
         reason: 'TRANSITION_ACCEPTED',
@@ -35,10 +48,11 @@ describe('engineReducer atomic turn commits', () => {
         activeVector: 'COGNITIVE',
         activeTier: 'LATENT',
         tension: 45,
+        preSnapshot,
       },
     };
 
-    const nextState = engineReducer(initialEngineState, {
+    const nextState = engineReducer(startState, {
       type: 'TURN_COMMITTED',
       payload,
     });
@@ -64,11 +78,14 @@ describe('engineReducer atomic turn commits', () => {
       tensionLevel: 20,
     };
 
+    const preSnapshot = captureRuntimeSnapshot(startState);
+
     const payload: FailedTurnPayload = {
       commandText: 'Open the locked hatch',
       errorCategory: 'MODEL_CONTRACT_MISMATCH',
       errorMessage: 'Invalid output format',
       statusCode: 502,
+      preSnapshot,
     };
 
     const nextState = engineReducer(startState, {
@@ -97,6 +114,8 @@ describe('engineReducer atomic turn commits', () => {
       activeTier: 'GATEWAY' as const,
     };
 
+    const preSnapshot = captureRuntimeSnapshot(startState);
+
     const failureReceipt = {
       code: 'NON_JSON_TURN_RESPONSE',
       status: 502,
@@ -111,6 +130,7 @@ describe('engineReducer atomic turn commits', () => {
       errorMessage: failureReceipt.message,
       statusCode: failureReceipt.status,
       contentType: failureReceipt.contentType,
+      preSnapshot,
     };
 
     const nextState = engineReducer(startState, {
@@ -156,9 +176,12 @@ describe('engineReducer atomic turn commits', () => {
       activeTier: 'MANIFEST' as const,
     };
 
+    const preSnapshot = captureRuntimeSnapshot(startState);
+
     const payload: CommittedTurnPayload = {
       commandText: 'Wait silently',
       formattedText: 'The silence thickens.',
+      preSnapshot,
       frame: {
         engine_thoughts: 'Player waits.',
         narrative_blocks: [{ type: 'sensory', content: 'The silence thickens.' }],
@@ -176,6 +199,7 @@ describe('engineReducer atomic turn commits', () => {
         activeVector: 'COSMIC',
         activeTier: 'MANIFEST',
         tension: 50,
+        preSnapshot,
       },
     };
 
@@ -197,9 +221,12 @@ describe('engineReducer atomic turn commits', () => {
       activeTier: 'LATENT' as const,
     };
 
+    const preSnapshot = captureRuntimeSnapshot(startState);
+
     const payload: CommittedTurnPayload = {
       commandText: 'Touch the strange glyph',
       formattedText: 'Your mind unfurls into mathematical abstraction.',
+      preSnapshot,
       frame: {
         engine_thoughts: 'Matrix shift triggered.',
         narrative_blocks: [{ type: 'prose', content: 'Your mind unfurls.' }],
@@ -221,6 +248,7 @@ describe('engineReducer atomic turn commits', () => {
         activeVector: 'SOMATIC',
         activeTier: 'LATENT',
         tension: 60,
+        preSnapshot,
       },
     };
 
@@ -242,10 +270,13 @@ describe('engineReducer atomic turn commits', () => {
       activeTier: 'GATEWAY' as const,
     };
 
+    const preSnapshot = captureRuntimeSnapshot(startState);
+
     // Partial mutation (missing next_tier)
     const partialPayload: CommittedTurnPayload = {
       commandText: 'Blink',
       formattedText: 'Nothing happens.',
+      preSnapshot,
       frame: {
         engine_thoughts: 'Partial shift ignored.',
         narrative_blocks: [{ type: 'prose', content: 'Nothing happens.' }],
@@ -264,6 +295,7 @@ describe('engineReducer atomic turn commits', () => {
         activeVector: 'SOMATIC',
         activeTier: 'GATEWAY',
         tension: 0,
+        preSnapshot,
       },
     };
 
@@ -278,6 +310,7 @@ describe('engineReducer atomic turn commits', () => {
     const invalidPayload: CommittedTurnPayload = {
       commandText: 'Blink again',
       formattedText: 'Still nothing.',
+      preSnapshot,
       frame: {
         engine_thoughts: 'Invalid shift ignored.',
         narrative_blocks: [{ type: 'prose', content: 'Still nothing.' }],
@@ -297,6 +330,7 @@ describe('engineReducer atomic turn commits', () => {
         activeVector: 'SOMATIC',
         activeTier: 'GATEWAY',
         tension: 0,
+        preSnapshot,
       },
     };
 
@@ -313,6 +347,10 @@ describe('engineReducer atomic turn commits', () => {
       ...initialEngineState,
       turnCount: 2,
       currentNodeId: 'CELLAR',
+      spatialGraph: [
+        { id: 'CELLAR', name: 'Cellar', description: '', exits: [] },
+        { id: 'ATTIC', name: 'Attic', description: '', exits: [] },
+      ],
       tensionLevel: 15,
       activeVector: 'SOMATIC' as const,
       activeTier: 'GATEWAY' as const,
@@ -365,6 +403,7 @@ describe('engineReducer atomic turn commits', () => {
         activeVector: 'COSMIC',
         activeTier: 'MANIFEST',
         tension: 40,
+        preSnapshot,
       },
     };
 
@@ -396,9 +435,12 @@ describe('engineReducer atomic turn commits', () => {
       reconciliationRevision: 2,
     };
 
+    const preSnapshot = captureRuntimeSnapshot(startState);
+
     const payload: CommittedTurnPayload = {
       commandText: 'Take the non-existent pistol',
       formattedText: 'There is no weapon here. The cold floor remains bare.',
+      preSnapshot,
       frame: {
         engine_thoughts: 'Hallucination collision handled.',
         narrative_blocks: [
@@ -418,6 +460,7 @@ describe('engineReducer atomic turn commits', () => {
         activeVector: 'COGNITIVE',
         activeTier: 'LATENT',
         tension: 25,
+        preSnapshot,
       },
     };
 
@@ -430,5 +473,189 @@ describe('engineReducer atomic turn commits', () => {
     expect(nextState.turnCount).toBe(5);
     expect(nextState.storyLog).toHaveLength(1);
     expect(nextState.storyLog?.[0].content).toContain('There is no weapon here');
+  });
+
+  it('preserves the submitted preSnapshot object by reference identity in receipt', () => {
+    const submittedSnapshot = {
+      version: 1 as const,
+      turnCount: 10,
+      currentNodeId: 'VAULT_7',
+      activeVector: 'SOMATIC' as const,
+      activeTier: 'TERMINAL' as const,
+      phase: 'TERMINAL',
+      tension: 95,
+      coherence: 0.2,
+      reconciliationRevision: 3,
+      activeFlags: ['FLAG_ALPHA'],
+    };
+
+    const payload: CommittedTurnPayload = {
+      commandText: 'Breathe',
+      formattedText: 'The air burns.',
+      preSnapshot: submittedSnapshot,
+      frame: {
+        narrative_blocks: [{ type: 'prose', content: 'The air burns.' }],
+        logic_state: {
+          current_phase: 'TERMINAL',
+          suggested_tension: 95,
+        },
+      },
+      turnReceipt: {
+        turnNumber: 11,
+        nodeBefore: 'VAULT_7',
+        requestedTarget: 'VAULT_7',
+        accepted: true,
+        nodeAfter: 'VAULT_7',
+        activeVector: 'SOMATIC',
+        activeTier: 'TERMINAL',
+        tension: 95,
+        preSnapshot: submittedSnapshot,
+      },
+    };
+
+    const nextState = engineReducer(initialEngineState, {
+      type: 'TURN_COMMITTED',
+      payload,
+    });
+
+    // The receipt on the history message strictly preserves the exact reference to submittedSnapshot
+    expect(nextState.history[1].turnReceipt?.preSnapshot).toBe(submittedSnapshot);
+  });
+
+  it('leaves currentNodeId unchanged when transitionReceipt is rejected or absent despite turnReceipt.nodeAfter naming an existing node', () => {
+    const startState = {
+      ...initialEngineState,
+      currentNodeId: 'ORIGIN',
+      spatialGraph: [
+        { id: 'ORIGIN', name: 'Origin', description: '', exits: [] },
+        { id: 'EXISTING_TARGET', name: 'Existing Target', description: '', exits: [] },
+      ],
+    };
+
+    const preSnapshot = captureRuntimeSnapshot(startState);
+
+    // 1. Rejected transition receipt
+    const rejectedPayload: CommittedTurnPayload = {
+      commandText: 'Walk through wall to Existing Target',
+      formattedText: 'The wall is solid stone.',
+      preSnapshot,
+      frame: {
+        narrative_blocks: [{ type: 'prose', content: 'The wall is solid stone.' }],
+        logic_state: {
+          current_phase: 'LATENT',
+          suggested_tension: 20,
+        },
+      },
+      transitionReceipt: {
+        requestedNodeId: 'EXISTING_TARGET',
+        accepted: false,
+        fromNodeId: 'ORIGIN',
+        toNodeId: 'ORIGIN',
+        reason: 'TRANSITION_REJECTED',
+      },
+      turnReceipt: {
+        turnNumber: 1,
+        nodeBefore: 'ORIGIN',
+        requestedTarget: 'EXISTING_TARGET',
+        accepted: false,
+        nodeAfter: 'EXISTING_TARGET', // Telemetry rogue value
+        activeVector: 'COGNITIVE',
+        activeTier: 'LATENT',
+        tension: 20,
+        preSnapshot,
+      },
+    };
+
+    const stateAfterRejected = engineReducer(startState, {
+      type: 'TURN_COMMITTED',
+      payload: rejectedPayload,
+    });
+
+    expect(stateAfterRejected.currentNodeId).toBe('ORIGIN'); // Did NOT move to EXISTING_TARGET!
+
+    // 2. Absent transition receipt
+    const absentReceiptPayload: CommittedTurnPayload = {
+      commandText: 'Teleport to Existing Target',
+      formattedText: 'You remain in place.',
+      preSnapshot,
+      frame: {
+        narrative_blocks: [{ type: 'prose', content: 'You remain in place.' }],
+        logic_state: {
+          current_phase: 'LATENT',
+          suggested_tension: 20,
+        },
+      },
+      turnReceipt: {
+        turnNumber: 1,
+        nodeBefore: 'ORIGIN',
+        requestedTarget: 'EXISTING_TARGET',
+        accepted: false,
+        nodeAfter: 'EXISTING_TARGET', // Telemetry rogue value
+        activeVector: 'COGNITIVE',
+        activeTier: 'LATENT',
+        tension: 20,
+        preSnapshot,
+      },
+    };
+
+    const stateAfterAbsent = engineReducer(startState, {
+      type: 'TURN_COMMITTED',
+      payload: absentReceiptPayload,
+    });
+
+    expect(stateAfterAbsent.currentNodeId).toBe('ORIGIN'); // Still in ORIGIN
+  });
+
+  it('leaves currentNodeId unchanged when transitionReceipt is accepted but fromNodeId is stale', () => {
+    const startState = {
+      ...initialEngineState,
+      currentNodeId: 'ORIGIN',
+      spatialGraph: [
+        { id: 'ORIGIN', name: 'Origin', description: '', exits: [] },
+        { id: 'EXISTING_TARGET', name: 'Existing Target', description: '', exits: [] },
+        { id: 'STALE_ORIGIN', name: 'Stale Origin', description: '', exits: [] },
+      ],
+    };
+
+    const preSnapshot = captureRuntimeSnapshot(startState);
+
+    // fromNodeId is STALE_ORIGIN instead of ORIGIN
+    const stalePayload: CommittedTurnPayload = {
+      commandText: 'Move forward',
+      formattedText: 'Movement anomaly.',
+      preSnapshot,
+      frame: {
+        narrative_blocks: [{ type: 'prose', content: 'Movement anomaly.' }],
+        logic_state: {
+          current_phase: 'LATENT',
+          suggested_tension: 20,
+        },
+      },
+      transitionReceipt: {
+        requestedNodeId: 'EXISTING_TARGET',
+        accepted: true,
+        fromNodeId: 'STALE_ORIGIN', // Mismatch with reducer's state.currentNodeId ('ORIGIN')
+        toNodeId: 'EXISTING_TARGET',
+        reason: 'TRANSITION_ACCEPTED',
+      },
+      turnReceipt: {
+        turnNumber: 1,
+        nodeBefore: 'ORIGIN',
+        requestedTarget: 'EXISTING_TARGET',
+        accepted: true,
+        nodeAfter: 'EXISTING_TARGET',
+        activeVector: 'COGNITIVE',
+        activeTier: 'LATENT',
+        tension: 20,
+        preSnapshot,
+      },
+    };
+
+    const stateAfterStale = engineReducer(startState, {
+      type: 'TURN_COMMITTED',
+      payload: stalePayload,
+    });
+
+    expect(stateAfterStale.currentNodeId).toBe('ORIGIN'); // Kept current node due to stale fromNodeId
   });
 });
