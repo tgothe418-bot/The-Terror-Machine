@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import 'fake-indexeddb/auto';
-import { executeRatificationPipeline, TurnResponseError } from './ratificationPipeline';
+import { executeRatificationPipeline } from './ratificationPipeline';
+import { TurnResponseError } from './turnResponseReader';
 import { useAppStore } from '../store/useAppStore';
 import { useEngineStore } from '../core/store';
 import { engineReducer } from '../core/engine/reducer';
