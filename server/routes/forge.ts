@@ -19,7 +19,7 @@ import {
   getDecodedBase64ByteLength,
   createPayloadTooLargeError
 } from "../../src/lib/referenceImportPolicy";
-import { buildSourceAnalysisFromBlueprint } from "../../src/lib/sourceBaseline";
+import { ForgeSourceRecord, ForgeSourceAnalysisSchema } from "../../src/types/forge";
 
 const router = express.Router();
 
@@ -342,93 +342,70 @@ router.post("/extract-blueprint", async (req, res) => {
       return res.status(413).json(createPayloadTooLargeError());
     }
 
+    const sourceId = `src-${crypto.randomUUID()}`;
+    const sourceRecord: ForgeSourceRecord = {
+      id: sourceId,
+      fileName,
+      mimeType,
+      kind: 'document',
+      receivedAt: Date.now(),
+      fileSizeBytes: decodedByteLength,
+    };
+
     const extractionPrompt = `
-      You are the Forge Architect for an atmospheric text-based horror engine. 
-      Read the attached source document (${fileName}). Distill its core narrative, atmosphere, and characters into a Nightmare Machine Blueprint. 
+      You are the Forge Source Baseline Analyst for an atmospheric text-based horror engine. 
+      Read the attached source document (${fileName}).
+      Extract explicit evidence, candidate fields for authoring review, and identified gaps/unknowns.
 
       OUTPUT FORMAT REQUIREMENTS:
-      You MUST output ONLY a valid JSON object matching this exact interface. Do not include markdown formatting or conversational text outside the JSON block.
-
-      CRITICAL EXTRACTION RULES:
-      1. AGNOSTIC SANDBOX: The "globalPremise" MUST be written in the third-person objective. Do NOT use "You", "We", or "I". Describe the scenario like a detached, clinical observer.
-      2. FORCE ENTITY CASTING: You MUST extract the primary antagonist, monster, or hostile environment (e.g., AM, Dracula, The Overlook) as a discrete cast member in the "cast" array. Set "isEntity": true. DO NOT SKIP THE VILLAIN.
-      3. TOPOLOGY REQUIRED: You must extract 3-5 distinct spatial zones from the text for "topology.nodes".
-      4. PERSPECTIVES: Generate a "PROTAGONIST" and "ANTAGONIST" perspective block. The startingSemanticState must be formatted as [SOMA: ... | GEOM: ... | IMP: ...].
-      5. DYNAMIC SENSORY FILTERS: The "sensoryBias" array must be dynamically generated based strictly on the subgenre and tone of the source text. 
-         - For a Slasher: use biases like "predatory focus", "heavy footfalls", "spatial isolation".
-         - For Cosmic Horror: use biases like "geometric distortion", "unseen watchers", "creeping dread".
-         - For Cyber-Horror: use biases like "thermal tracking", "omnipresent surveillance", "mechanical hum".
-         Extract 3-4 perceptual lenses that perfectly match the uploaded scenario.
-      6. COMPREHENSIVE CASTING: You must extract ALL main characters and entities from the text. Do not arbitrarily stop at 3 or 4. Whether the source material features a large ensemble, a single protagonist and a haunted house, or a sprawling crew, your "cast" array MUST reflect the entire primary cast list. Exhaust the list.
-      7. VULNERABILITY INDEX: For all standard human cast members (isEntity: false), you must generate a "vulnerabilityBase" object with three floats between 0.0 and 1.0:
-         - "resilience": Physical toughness (0.0 = fragile, 1.0 = highly capable).
-         - "skepticism": Mental armor (0.0 = easily terrified/broken, 1.0 = stubborn/rational).
-         - "baggage": Exploitable trauma (0.0 = none, 1.0 = deep guilt/history the environment can weaponize).
+      You MUST output ONLY a valid JSON object matching this schema. Do not include markdown formatting or conversational text outside the JSON block.
 
       {
-        "architectGreeting": "A short, 1-2 sentence in-character greeting acknowledging the specific horror themes of the document you just read, noting its addition to the knowledgebase.",
-        "blueprint": {
-          "identity": {
-            "title": "A compelling title based on the source",
-            "version": "1.0.0",
-            "author": "Extracted"
-          },
-          "globalPremise": "Third-person objective reality of the scenario...",
-          "startingVector": "SOMATIC",
-          "startingTier": "GATEWAY",
-          "environmentalRules": ["Strict rule 1", "Strict rule 2"],
-          "topology": {
-            "nodes": ["MAIN_CORRIDOR", "THE_CRYPT", "MAINTENANCE_SHAFT"],
-            "connections": [
-              {
-                "from": "MAIN_CORRIDOR",
-                "to": "THE_CRYPT",
-                "kind": "physical",
-                "userInitiated": true
-              }
-            ]
-          },
-          "cast": [
-            {
-              "id": "char-1",
-              "name": "Human Character",
-              "description": "Brief psychological/physical description",
-              "behaviorVector": "ADAPTIVE",
-              "isEntity": false,
-              "vulnerabilityBase": { "resilience": 0.4, "skepticism": 0.8, "baggage": 0.9 }
-            },
-            {
-              "id": "char-2",
-              "name": "The Monster/AI",
-              "description": "Brief description of the threat",
-              "behaviorVector": "PREDATORY",
-              "isEntity": true
-            }
-          ],
-          "perspectives": [
-            {
-              "role": "PROTAGONIST",
-              "framingDirective": "Frame the world as hostile and threatening. Address the user directly as 'You'. Tailor the psychological threat to the specific genre of the source material.",
-              "sensoryBias": [
-                "<extract thematic sensory focus 1>", 
-                "<extract thematic sensory focus 2>", 
-                "<extract thematic sensory focus 3>"
-              ],
-              "startingSemanticState": "[SOMA: <state> | GEOM: <state> | IMP: <state>]"
-            },
-            {
-              "role": "ANTAGONIST",
-              "framingDirective": "Invert the premise. The user is the apex predator, entity, or environment. Address the user directly as 'You'.",
-              "sensoryBias": [
-                "<extract thematic sensory focus 1>", 
-                "<extract thematic sensory focus 2>", 
-                "<extract thematic sensory focus 3>"
-              ],
-              "startingSemanticState": "[SOMA: <state> | GEOM: <state> | IMP: <state>]"
-            }
-          ]
-        }
+        "summary": "Short 1-2 sentence overview of the analyzed document and its key themes.",
+        "evidence": [
+          {
+            "id": "ev-1",
+            "category": "one of: identity, premise, setting, cast, chronology, motif, rule, topology, expression, other",
+            "claim": "Clear claim of what this fact or element is",
+            "excerpt": "Verbatim quote or short passage snippet from document if available"
+          }
+        ],
+        "candidates": [
+          {
+            "id": "cand-1",
+            "classification": "evidence or inference",
+            "target": "one of: scenario_title, premise, setting_location, setting_atmosphere, setting_time_period, environmental_rule, narrative_rule, cast_seed, cast_expression_guidance, initial_topology_node, reference_attribution",
+            "label": "Short human-readable label",
+            "explanation": "Why this candidate was extracted from the evidence",
+            "evidenceIds": ["ev-1"],
+            "proposedValue": "value matching the target (string for title/premise/setting/rule/node/reference; full cast member object for cast_seed; expression profile object for cast_expression_guidance)",
+            "targetCastMemberId": "optional cast member id (required if target is cast_expression_guidance)"
+          }
+        ],
+        "unknowns": [
+          {
+            "id": "unk-1",
+            "category": "one of: identity, premise, setting, cast, chronology, motif, rule, topology, expression, other",
+            "question": "Important gap or ambiguity in the source material requiring creator decision"
+          }
+        ]
       }
+
+      CRITICAL EXTRACTION GUIDELINES:
+      1. Target Types:
+         - 'scenario_title': String title.
+         - 'premise': Third-person objective reality summary of the scenario.
+         - 'setting_location': String location name.
+         - 'setting_atmosphere': String tone/mood description.
+         - 'setting_time_period': String time era/period.
+         - 'environmental_rule': Discrete environmental or physical law string.
+         - 'narrative_rule': Discrete plot element or dramatic rule string.
+         - 'cast_seed': Object with { name, role, description, isEntity, behaviorVector, vulnerabilityBase: { resilience, skepticism, baggage } }.
+         - 'cast_expression_guidance': Object with { communicationModes: string[], expressionGuidance: string, silenceGuidance?: string } and matching targetCastMemberId.
+         - 'initial_topology_node': String spatial node name.
+         - 'reference_attribution': The document file name "${fileName}".
+      2. Comprehensive Casting: Extract all primary characters and entities/monsters found in the document.
+      3. Evidence backing: Link candidate evidenceIds to corresponding entries in the evidence list.
     `;
 
     const aiClient = getAiClient();
@@ -452,34 +429,81 @@ router.post("/extract-blueprint", async (req, res) => {
     });
 
     const outputText = response.text || "";
-    
     const jsonMatch = outputText.match(/```json\n([\s\S]*?)\n```/) || outputText.match(/({[\s\S]*})/);
-    if (jsonMatch) {
-      try {
-        const parsedData = JSON.parse(jsonMatch[1] || jsonMatch[0]);
-        const analysis = buildSourceAnalysisFromBlueprint(
-          parsedData.blueprint,
-          fileName,
-          decodedByteLength
-        );
-        
-        res.json({ 
-          success: true,
-          analysis,
-          blueprint: parsedData.blueprint, 
-          architectGreeting: parsedData.architectGreeting 
-        });
-        return;
-      } catch (e) {
-        console.error("Failed to parse Architect Extraction JSON:", e);
-        return res.status(500).json({ error: "Failed to parse document structure." });
-      }
-    } else {
+    if (!jsonMatch) {
       return res.status(500).json({ error: "Model did not return valid JSON." });
     }
-  } catch (error) {
+
+    try {
+      const parsedData = JSON.parse(jsonMatch[1] || jsonMatch[0]);
+      
+      // Map evidence, candidates, and unknowns with consistent sourceId
+      const evidence = Array.isArray(parsedData.evidence)
+        ? parsedData.evidence.map((e: any, idx: number) => ({
+            id: e.id || `${sourceId}-ev-${idx}`,
+            sourceId,
+            category: e.category || 'other',
+            claim: String(e.claim || '').trim() || 'Extracted claim',
+            excerpt: e.excerpt ? String(e.excerpt).trim() : undefined,
+          }))
+        : [];
+
+      const candidates = Array.isArray(parsedData.candidates)
+        ? parsedData.candidates
+            .map((c: any, idx: number) => ({
+              id: c.id || `${sourceId}-cand-${idx}`,
+              sourceId,
+              classification: c.classification === 'inference' ? ('inference' as const) : ('evidence' as const),
+              target: c.target,
+              label: String(c.label || '').trim() || `Candidate ${idx + 1}`,
+              explanation: String(c.explanation || '').trim() || 'Extracted from source document.',
+              evidenceIds: Array.isArray(c.evidenceIds) ? c.evidenceIds : [],
+              proposedValue: c.proposedValue,
+              targetCastMemberId: c.targetCastMemberId ? String(c.targetCastMemberId) : undefined,
+              reviewState: 'pending' as const,
+            }))
+            .filter((c: any) => c.proposedValue !== undefined && c.proposedValue !== null && c.target)
+        : [];
+
+      const unknowns = Array.isArray(parsedData.unknowns)
+        ? parsedData.unknowns.map((u: any, idx: number) => ({
+            id: u.id || `${sourceId}-unk-${idx}`,
+            sourceId,
+            category: u.category || 'other',
+            question: String(u.question || '').trim() || 'Unresolved narrative detail.',
+          }))
+        : [];
+
+      const rawAnalysis = {
+        id: `${sourceId}-analysis`,
+        sourceRecord,
+        summary: parsedData.summary || `Source intake analysis for ${fileName}`,
+        evidence,
+        candidates,
+        unknowns,
+        status: 'completed' as const,
+      };
+
+      const validated = ForgeSourceAnalysisSchema.safeParse(rawAnalysis);
+      if (!validated.success) {
+        console.error("Source analysis schema validation failed:", validated.error);
+        return res.status(500).json({
+          error: "Failed to validate source analysis schema.",
+          details: validated.error.issues.map((i) => i.message),
+        });
+      }
+
+      res.json({
+        success: true,
+        analysis: validated.data,
+      });
+    } catch (e: any) {
+      console.error("Failed to parse Architect Extraction JSON:", e);
+      return res.status(500).json({ error: "Failed to parse document structure: " + e.message });
+    }
+  } catch (error: any) {
     console.error("Extraction route error:", error);
-    res.status(500).json({ error: "Failed to extract blueprint from document." });
+    res.status(500).json({ error: "Failed to extract blueprint from document: " + error.message });
   }
 });
 

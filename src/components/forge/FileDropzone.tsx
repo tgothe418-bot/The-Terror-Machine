@@ -7,7 +7,11 @@ import {
   REFERENCE_IMPORT_HUMAN_MAX_SIZE,
 } from '../../lib/referenceImportPolicy';
 import { readSafeResponseError } from '../../lib/responseErrorReader';
-import { buildSourceAnalysisFromBlueprint } from '../../lib/sourceBaseline';
+import {
+  buildSourceAnalysisFromBlueprint,
+  validateAndNormalizeDocumentAnalysis,
+} from '../../lib/sourceBaseline';
+import { ForgeSourceRecord } from '../../types/forge';
 
 export const FileDropzone = () => {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -24,19 +28,29 @@ export const FileDropzone = () => {
     setIsProcessing(true);
     setError('');
     setLoadingMsg(
-      `[ ARCHITECT ASSIMILATING LORE: ${file.name} ]\nExtracting baseline candidates for review...`
+      `[ SOURCE INTAKE: ${file.name} ]\nExtracting baseline candidates for review...`
     );
 
     try {
+      const sourceId = `src-${crypto.randomUUID()}`;
+
       // 1. JSON Blueprint Native Load (Local parsing)
       if (file.type === 'application/json' || file.name.endsWith('.json')) {
         const rawJson = await parseBlueprintFile(file);
-        const analysis = buildSourceAnalysisFromBlueprint(rawJson, file.name, file.size);
+        const sourceRecord: ForgeSourceRecord = {
+          id: sourceId,
+          fileName: file.name,
+          mimeType: file.type || 'application/json',
+          kind: 'native_blueprint',
+          receivedAt: Date.now(),
+          fileSizeBytes: file.size,
+        };
+        const analysis = buildSourceAnalysisFromBlueprint(sourceRecord, rawJson);
         registerSourceAnalysis(analysis);
 
         addArchitectMessage({
           role: 'architect',
-          content: `[KNOWLEDGEBASE ANALYZED: ${file.name}]\nExtracted ${analysis.candidates.length} baseline candidates for review. The active authoring draft remains unchanged until you accept candidates.`,
+          content: `[SOURCE MATERIAL ANALYZED: ${file.name}]\nExtracted ${analysis.candidates.length} baseline candidates for review. The active authoring draft remains unchanged until you accept candidates.`,
         });
 
         setIsProcessing(false);
@@ -74,24 +88,26 @@ export const FileDropzone = () => {
       const data = await response.json();
 
       if (data.error) throw new Error(data.error);
-
-      // Prefer server-generated analysis or build client-side from extracted blueprint
-      const analysis =
-        data.analysis ||
-        (data.blueprint
-          ? buildSourceAnalysisFromBlueprint(data.blueprint, file.name, file.size)
-          : null);
-
-      if (analysis) {
-        registerSourceAnalysis(analysis);
+      if (!data.analysis) {
+        throw new Error('Server response did not include source analysis.');
       }
 
-      if (data.architectGreeting) {
-        addArchitectMessage({
-          role: 'architect',
-          content: `[KNOWLEDGEBASE EXTRACTED: ${file.name}]\n\n${data.architectGreeting}\n\n[Baseline candidates generated. Review and accept candidates to apply them to your active draft.]`,
-        });
-      }
+      const sourceRecord: ForgeSourceRecord = {
+        id: data.analysis?.sourceRecord?.id || sourceId,
+        fileName: file.name,
+        mimeType: file.type || 'application/octet-stream',
+        kind: 'document',
+        receivedAt: Date.now(),
+        fileSizeBytes: file.size,
+      };
+
+      const normalizedAnalysis = validateAndNormalizeDocumentAnalysis(data.analysis, sourceRecord);
+      registerSourceAnalysis(normalizedAnalysis);
+
+      addArchitectMessage({
+        role: 'architect',
+        content: `[SOURCE MATERIAL EXTRACTED: ${file.name}]\nExtracted ${normalizedAnalysis.candidates.length} baseline candidates for review. Inspect and accept candidates to apply them to your active draft.`,
+      });
     } catch (err: unknown) {
       console.error(
         'Knowledgebase extraction error:',
@@ -122,7 +138,7 @@ export const FileDropzone = () => {
           </div>
         ) : (
           <div className="text-zinc-400 font-mono text-sm text-center">
-            DRAG & DROP KNOWLEDGEBASE
+            DRAG & DROP SOURCE MATERIAL
             <br />
             <span className="text-xs text-zinc-600 mt-1 block">
               Supports: .JSON | .PDF, .MD, .TXT, .HTML (Max {REFERENCE_IMPORT_HUMAN_MAX_SIZE})

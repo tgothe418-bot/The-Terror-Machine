@@ -188,14 +188,16 @@ export type ForgeCompileResult =
 // Phase 3D-2 Source Intake & Scenario Baseline Review Contracts
 // ============================================================================
 
-export const ForgeSourceRecordSchema = z.object({
-  id: z.string(),
-  fileName: z.string(),
-  mimeType: z.string(),
-  kind: z.enum(['native_blueprint', 'document']),
-  receivedAt: z.number(),
-  fileSizeBytes: z.number().optional(),
-});
+export const ForgeSourceRecordSchema = z
+  .object({
+    id: z.string().min(1),
+    fileName: z.string().min(1),
+    mimeType: z.string().min(1),
+    kind: z.enum(['native_blueprint', 'document']),
+    receivedAt: z.number(),
+    fileSizeBytes: z.number().optional(),
+  })
+  .strict();
 export type ForgeSourceRecord = z.infer<typeof ForgeSourceRecordSchema>;
 
 export const ForgeSourceEvidenceCategorySchema = z.enum([
@@ -212,13 +214,15 @@ export const ForgeSourceEvidenceCategorySchema = z.enum([
 ]);
 export type ForgeSourceEvidenceCategory = z.infer<typeof ForgeSourceEvidenceCategorySchema>;
 
-export const ForgeSourceEvidenceSchema = z.object({
-  id: z.string(),
-  sourceId: z.string(),
-  category: ForgeSourceEvidenceCategorySchema,
-  claim: z.string(),
-  excerpt: z.string().optional(),
-});
+export const ForgeSourceEvidenceSchema = z
+  .object({
+    id: z.string().min(1),
+    sourceId: z.string().min(1),
+    category: ForgeSourceEvidenceCategorySchema,
+    claim: z.string().min(1),
+    excerpt: z.string().optional(),
+  })
+  .strict();
 export type ForgeSourceEvidence = z.infer<typeof ForgeSourceEvidenceSchema>;
 
 export const ForgeSourceCandidateTargetSchema = z.enum([
@@ -239,37 +243,142 @@ export type ForgeSourceCandidateTarget = z.infer<typeof ForgeSourceCandidateTarg
 export const ForgeSourceCandidateReviewStateSchema = z.enum(['pending', 'accepted', 'rejected']);
 export type ForgeSourceCandidateReviewState = z.infer<typeof ForgeSourceCandidateReviewStateSchema>;
 
-export const ForgeSourceCandidateSchema = z.object({
-  id: z.string(),
-  sourceId: z.string(),
+const BaseCandidateProps = {
+  id: z.string().min(1),
+  sourceId: z.string().min(1),
   classification: z.enum(['evidence', 'inference']),
-  target: ForgeSourceCandidateTargetSchema,
-  label: z.string(),
-  explanation: z.string(),
+  label: z.string().min(1),
+  explanation: z.string().min(1),
   evidenceIds: z.array(z.string()).default([]),
-  proposedValue: z.unknown(),
   targetCastMemberId: z.string().optional(),
   reviewState: ForgeSourceCandidateReviewStateSchema.default('pending'),
-});
+};
+
+export const ScenarioTitleCandidateSchema = z
+  .object({
+    ...BaseCandidateProps,
+    target: z.literal('scenario_title'),
+    proposedValue: z.string().trim().min(1),
+  })
+  .strict();
+
+export const PremiseCandidateSchema = z
+  .object({
+    ...BaseCandidateProps,
+    target: z.literal('premise'),
+    proposedValue: z.string().trim().min(1),
+  })
+  .strict();
+
+export const SettingLocationCandidateSchema = z
+  .object({
+    ...BaseCandidateProps,
+    target: z.literal('setting_location'),
+    proposedValue: z.string().trim().min(1),
+  })
+  .strict();
+
+export const SettingAtmosphereCandidateSchema = z
+  .object({
+    ...BaseCandidateProps,
+    target: z.literal('setting_atmosphere'),
+    proposedValue: z.string().trim().min(1),
+  })
+  .strict();
+
+export const SettingTimePeriodCandidateSchema = z
+  .object({
+    ...BaseCandidateProps,
+    target: z.literal('setting_time_period'),
+    proposedValue: z.string().trim().min(1),
+  })
+  .strict();
+
+export const EnvironmentalRuleCandidateSchema = z
+  .object({
+    ...BaseCandidateProps,
+    target: z.literal('environmental_rule'),
+    proposedValue: z.string().trim().min(1),
+  })
+  .strict();
+
+export const NarrativeRuleCandidateSchema = z
+  .object({
+    ...BaseCandidateProps,
+    target: z.literal('narrative_rule'),
+    proposedValue: z.string().trim().min(1),
+  })
+  .strict();
+
+export const InitialTopologyNodeCandidateSchema = z
+  .object({
+    ...BaseCandidateProps,
+    target: z.literal('initial_topology_node'),
+    proposedValue: z.string().trim().min(1),
+  })
+  .strict();
+
+export const ReferenceAttributionCandidateSchema = z
+  .object({
+    ...BaseCandidateProps,
+    target: z.literal('reference_attribution'),
+    proposedValue: z.string().trim().min(1),
+  })
+  .strict();
+
+export const CastSeedCandidateSchema = z
+  .object({
+    ...BaseCandidateProps,
+    target: z.literal('cast_seed'),
+    proposedValue: ForgeDraftCastMemberSchema,
+  })
+  .strict();
+
+export const CastExpressionCandidateSchema = z
+  .object({
+    ...BaseCandidateProps,
+    target: z.literal('cast_expression_guidance'),
+    proposedValue: CharacterExpressionProfileSchema,
+    targetCastMemberId: z.string().min(1, 'targetCastMemberId is required for expression guidance'),
+  })
+  .strict();
+
+export const ForgeSourceCandidateSchema = z.discriminatedUnion('target', [
+  ScenarioTitleCandidateSchema,
+  PremiseCandidateSchema,
+  SettingLocationCandidateSchema,
+  SettingAtmosphereCandidateSchema,
+  SettingTimePeriodCandidateSchema,
+  EnvironmentalRuleCandidateSchema,
+  NarrativeRuleCandidateSchema,
+  CastSeedCandidateSchema,
+  CastExpressionCandidateSchema,
+  InitialTopologyNodeCandidateSchema,
+  ReferenceAttributionCandidateSchema,
+]);
 export type ForgeSourceCandidate = z.infer<typeof ForgeSourceCandidateSchema>;
 
-export const ForgeSourceUnknownSchema = z.object({
-  id: z.string(),
-  sourceId: z.string(),
-  category: ForgeSourceEvidenceCategorySchema,
-  question: z.string(),
-});
+export const ForgeSourceUnknownSchema = z
+  .object({
+    id: z.string().min(1),
+    sourceId: z.string().min(1),
+    category: ForgeSourceEvidenceCategorySchema,
+    question: z.string().min(1),
+  })
+  .strict();
 export type ForgeSourceUnknown = z.infer<typeof ForgeSourceUnknownSchema>;
 
-export const ForgeSourceAnalysisSchema = z.object({
-  id: z.string(),
-  sourceRecord: ForgeSourceRecordSchema,
-  summary: z.string().optional(),
-  evidence: z.array(ForgeSourceEvidenceSchema).default([]),
-  candidates: z.array(ForgeSourceCandidateSchema).default([]),
-  unknowns: z.array(ForgeSourceUnknownSchema).default([]),
-  status: z.enum(['completed', 'error']).default('completed'),
-  errorMessage: z.string().optional(),
-});
+export const ForgeSourceAnalysisSchema = z
+  .object({
+    id: z.string().min(1),
+    sourceRecord: ForgeSourceRecordSchema,
+    summary: z.string().optional(),
+    evidence: z.array(ForgeSourceEvidenceSchema).default([]),
+    candidates: z.array(ForgeSourceCandidateSchema).default([]),
+    unknowns: z.array(ForgeSourceUnknownSchema).default([]),
+    status: z.enum(['completed', 'error']).default('completed'),
+    errorMessage: z.string().optional(),
+  })
+  .strict();
 export type ForgeSourceAnalysis = z.infer<typeof ForgeSourceAnalysisSchema>;
 

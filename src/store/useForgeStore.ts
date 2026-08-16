@@ -19,6 +19,7 @@ import {
   ForgeDraftSetting,
   ForgeDraftNarrativeRules,
   ForgeSourceAnalysis,
+  ForgeSourceAnalysisSchema,
 } from '../types/forge';
 import { idbStorage } from '../lib/idbStorage';
 import {
@@ -395,12 +396,19 @@ export const useForgeStoreInternal = create<ForgeStore>()(
 
         // --- SOURCE INTAKE & SCENARIO BASELINE ACTIONS (Phase 3D-2) ---
         registerSourceAnalysis: (analysis: ForgeSourceAnalysis) =>
-          set((state: ForgeState) => ({
-            sourceAnalyses: {
-              ...state.sourceAnalyses,
-              [analysis.id]: analysis,
-            },
-          })),
+          set((state: ForgeState) => {
+            const parse = ForgeSourceAnalysisSchema.safeParse(analysis);
+            const validAnalysis = parse.success ? parse.data : analysis;
+            return {
+              sourceAnalyses: {
+                ...state.sourceAnalyses,
+                [validAnalysis.id]: validAnalysis,
+                ...(validAnalysis.sourceRecord?.id && validAnalysis.sourceRecord.id !== validAnalysis.id
+                  ? { [validAnalysis.sourceRecord.id]: validAnalysis }
+                  : {}),
+              },
+            };
+          }),
 
         editPendingCandidate: (sourceId: string, candidateId: string, editedValue: unknown) =>
           set((state: ForgeState) => {
@@ -416,13 +424,16 @@ export const useForgeStoreInternal = create<ForgeStore>()(
               c.id === candidateId ? editResult.updatedCandidate! : c
             );
 
+            const updatedAnalysis = {
+              ...analysis,
+              candidates: updatedCandidates,
+            };
+
             return {
               sourceAnalyses: {
                 ...state.sourceAnalyses,
-                [sourceId]: {
-                  ...analysis,
-                  candidates: updatedCandidates,
-                },
+                [analysis.id]: updatedAnalysis,
+                ...(analysis.sourceRecord?.id ? { [analysis.sourceRecord.id]: updatedAnalysis } : {}),
               },
             };
           }),
@@ -432,18 +443,29 @@ export const useForgeStoreInternal = create<ForgeStore>()(
             const analysis = state.sourceAnalyses[sourceId];
             if (!analysis) return state;
             const cand = analysis.candidates.find((c) => c.id === candidateId);
-            if (!cand || cand.reviewState === 'accepted') return state;
+            if (!cand || cand.reviewState !== 'pending') return state;
 
             const currentDraft = state.forgeDraft || createInitialDraft();
-            const updatedDraft = applyCandidateToDraft(
+            const applyResult = applyCandidateToDraft(
               currentDraft,
               cand,
               analysis.sourceRecord.fileName
             );
 
+            if (!applyResult.success) {
+              console.warn(`[FORGE BASELINE] Candidate application failed: ${applyResult.error}`);
+              return state;
+            }
+
+            const updatedDraft = applyResult.draft;
             const updatedCandidates = analysis.candidates.map((c) =>
               c.id === candidateId ? { ...c, reviewState: 'accepted' as const } : c
             );
+
+            const updatedAnalysis = {
+              ...analysis,
+              candidates: updatedCandidates,
+            };
 
             return {
               forgeDraft: updatedDraft,
@@ -452,10 +474,8 @@ export const useForgeStoreInternal = create<ForgeStore>()(
               topology: deriveTopology(updatedDraft),
               sourceAnalyses: {
                 ...state.sourceAnalyses,
-                [sourceId]: {
-                  ...analysis,
-                  candidates: updatedCandidates,
-                },
+                [analysis.id]: updatedAnalysis,
+                ...(analysis.sourceRecord?.id ? { [analysis.sourceRecord.id]: updatedAnalysis } : {}),
               },
             };
           }),
@@ -472,13 +492,16 @@ export const useForgeStoreInternal = create<ForgeStore>()(
               c.id === candidateId ? updatedCand : c
             );
 
+            const updatedAnalysis = {
+              ...analysis,
+              candidates: updatedCandidates,
+            };
+
             return {
               sourceAnalyses: {
                 ...state.sourceAnalyses,
-                [sourceId]: {
-                  ...analysis,
-                  candidates: updatedCandidates,
-                },
+                [analysis.id]: updatedAnalysis,
+                ...(analysis.sourceRecord?.id ? { [analysis.sourceRecord.id]: updatedAnalysis } : {}),
               },
             };
           }),

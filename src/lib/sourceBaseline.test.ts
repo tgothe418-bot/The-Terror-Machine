@@ -4,8 +4,9 @@ import {
   applyCandidateToDraft,
   validateCandidateEdit,
   rejectCandidate,
+  validateAndNormalizeDocumentAnalysis,
 } from './sourceBaseline';
-import { ForgeDraft, ForgeSourceCandidate } from '../types/forge';
+import { ForgeDraft, ForgeSourceCandidate, ForgeSourceRecord } from '../types/forge';
 import { compileForgeDraft } from './forgeCompiler';
 import { normalizeBlueprint } from './normalizeBlueprint';
 
@@ -51,7 +52,15 @@ describe('sourceBaseline pure functions', () => {
   };
 
   it('builds a valid ForgeSourceAnalysis from native blueprint without mutating any draft', () => {
-    const analysis = buildSourceAnalysisFromBlueprint(sampleBlueprint, 'drowned_bell.json', 4096);
+    const sourceRecord: ForgeSourceRecord = {
+      id: 'src-test-1',
+      fileName: 'drowned_bell.json',
+      mimeType: 'application/json',
+      kind: 'native_blueprint',
+      receivedAt: Date.now(),
+      fileSizeBytes: 4096,
+    };
+    const analysis = buildSourceAnalysisFromBlueprint(sourceRecord, sampleBlueprint);
     expect(analysis.status).toBe('completed');
     expect(analysis.sourceRecord.fileName).toBe('drowned_bell.json');
     expect(analysis.sourceRecord.kind).toBe('native_blueprint');
@@ -115,7 +124,9 @@ describe('sourceBaseline pure functions', () => {
       reviewState: 'pending',
     };
 
-    const updated = applyCandidateToDraft(initialDraft, candidate, 'source.json');
+    const result = applyCandidateToDraft(initialDraft, candidate, 'source.json');
+    expect(result.success).toBe(true);
+    const updated = result.draft;
 
     // Title should update
     expect(updated.title).toBe('The Drowned Bell');
@@ -165,11 +176,13 @@ describe('sourceBaseline pure functions', () => {
     };
 
     const res1 = applyCandidateToDraft(initialDraft, ruleCand, 'drowned_bell.json');
-    expect(res1.environmentalRules).toEqual(['Pressure rule']);
-    expect(res1.references).toEqual(['drowned_bell.json']);
+    expect(res1.success).toBe(true);
+    expect(res1.draft.environmentalRules).toEqual(['Pressure rule']);
+    expect(res1.draft.references).toEqual(['drowned_bell.json']);
 
-    const res2 = applyCandidateToDraft(res1, nodeCand, 'drowned_bell.json');
-    expect(res2.topology?.nodes).toEqual(['BATHYSPHERE_DOCK']);
+    const res2 = applyCandidateToDraft(res1.draft, nodeCand, 'drowned_bell.json');
+    expect(res2.success).toBe(true);
+    expect(res2.draft.topology?.nodes).toEqual(['BATHYSPHERE_DOCK']);
   });
 
   it('applies cast expression guidance candidate to target cast member', () => {
@@ -202,11 +215,47 @@ describe('sourceBaseline pure functions', () => {
       reviewState: 'pending',
     };
 
-    const updated = applyCandidateToDraft(initialDraft, exprCand);
-    expect(updated.cast?.[0].expressionProfile).toEqual({
+    const result = applyCandidateToDraft(initialDraft, exprCand);
+    expect(result.success).toBe(true);
+    expect(result.draft.cast?.[0].expressionProfile).toEqual({
       communicationModes: ['spoken', 'mediated'],
       expressionGuidance: 'Static-heavy radio comms.',
     });
+  });
+
+  it('normalizes document analysis with validateAndNormalizeDocumentAnalysis', () => {
+    const sourceRecord: ForgeSourceRecord = {
+      id: 'src-doc-1',
+      fileName: 'manifest.pdf',
+      mimeType: 'application/pdf',
+      kind: 'document',
+      receivedAt: Date.now(),
+      fileSizeBytes: 8192,
+    };
+
+    const rawAnalysis = {
+      summary: 'Test summary',
+      evidence: [{ id: 'ev-1', category: 'setting', claim: 'Underwater research post' }],
+      candidates: [
+        {
+          id: 'c1',
+          classification: 'evidence',
+          target: 'setting_location',
+          label: 'Location',
+          explanation: 'Found in document',
+          evidenceIds: ['ev-1'],
+          proposedValue: 'Sector 7 Facility',
+        },
+      ],
+      unknowns: [{ id: 'u1', category: 'cast', question: 'How many crew survived?' }],
+    };
+
+    const normalized = validateAndNormalizeDocumentAnalysis(rawAnalysis, sourceRecord);
+    expect(normalized.id).toBe('src-doc-1-analysis');
+    expect(normalized.sourceRecord.id).toBe('src-doc-1');
+    expect(normalized.candidates.length).toBe(1);
+    expect(normalized.candidates[0].reviewState).toBe('pending');
+    expect(normalized.candidates[0].sourceId).toBe('src-doc-1');
   });
 
   it('round-trips approved expression guidance through compile, export, and normalization', () => {

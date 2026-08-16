@@ -6,36 +6,52 @@ import {
   ForgeSourceEvidence,
   ForgeSourceRecord,
   ForgeSourceUnknown,
-  CharacterExpressionProfile,
-  CharacterExpressionProfileSchema,
   ForgeSourceAnalysisSchema,
+  ForgeSourceCandidateSchema,
 } from '../types/forge';
 import { normalizeBlueprint } from './normalizeBlueprint';
 
-function generateId(prefix: string): string {
-  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-}
+export type ApplyCandidateResult =
+  | { success: true; draft: ForgeDraft }
+  | { success: false; draft: ForgeDraft; error: string };
 
 /**
  * Builds a ForgeSourceAnalysis from an imported native Blueprint JSON.
  * Inspection only: extracts identifiable fields into evidence-backed, pending candidates.
+ * Pure and deterministic: generates stable IDs from the sourceRecord.id.
  * Does NOT mutate or update any draft.
  */
 export function buildSourceAnalysisFromBlueprint(
-  rawBlueprint: unknown,
-  fileName = 'imported_blueprint.json',
+  sourceRecordOrRaw: ForgeSourceRecord | unknown,
+  rawBlueprintOrFileName?: unknown,
   fileSizeBytes?: number
 ): ForgeSourceAnalysis {
-  const sourceId = generateId('src');
-  const sourceRecord: ForgeSourceRecord = {
-    id: sourceId,
-    fileName,
-    mimeType: 'application/json',
-    kind: 'native_blueprint',
-    receivedAt: Date.now(),
-    fileSizeBytes,
-  };
+  let sourceRecord: ForgeSourceRecord;
+  let rawBlueprint: unknown;
 
+  if (
+    sourceRecordOrRaw &&
+    typeof sourceRecordOrRaw === 'object' &&
+    'id' in sourceRecordOrRaw &&
+    'kind' in sourceRecordOrRaw &&
+    'fileName' in sourceRecordOrRaw
+  ) {
+    sourceRecord = sourceRecordOrRaw as ForgeSourceRecord;
+    rawBlueprint = rawBlueprintOrFileName;
+  } else {
+    const fileName = typeof rawBlueprintOrFileName === 'string' ? rawBlueprintOrFileName : 'imported_blueprint.json';
+    sourceRecord = {
+      id: `src-${fileName.replace(/[^a-zA-Z0-9]/g, '_')}-${Date.now()}`,
+      fileName,
+      mimeType: 'application/json',
+      kind: 'native_blueprint',
+      receivedAt: Date.now(),
+      fileSizeBytes,
+    };
+    rawBlueprint = sourceRecordOrRaw;
+  }
+
+  const sourceId = sourceRecord.id;
   const evidence: ForgeSourceEvidence[] = [];
   const candidates: ForgeSourceCandidate[] = [];
   const unknowns: ForgeSourceUnknown[] = [];
@@ -45,14 +61,14 @@ export function buildSourceAnalysisFromBlueprint(
     normalized = normalizeBlueprint(rawBlueprint);
   } catch {
     return {
-      id: generateId('analysis'),
+      id: `${sourceId}-analysis`,
       sourceRecord,
       summary: 'Malformed native blueprint.',
       evidence: [],
       candidates: [],
       unknowns: [
         {
-          id: generateId('unk'),
+          id: `${sourceId}-unk-malformed`,
           sourceId,
           category: 'identity',
           question: 'Unable to parse valid blueprint schema from source.',
@@ -66,7 +82,7 @@ export function buildSourceAnalysisFromBlueprint(
   // 1. Scenario Title
   const title = (normalized.identity?.title || normalized.title || '').trim();
   if (title && title.toLowerCase() !== 'unknown' && title.toLowerCase() !== 'unknown enclosure') {
-    const evId = generateId('ev');
+    const evId = `${sourceId}-ev-title`;
     evidence.push({
       id: evId,
       sourceId,
@@ -75,7 +91,7 @@ export function buildSourceAnalysisFromBlueprint(
       excerpt: title,
     });
     candidates.push({
-      id: generateId('cand'),
+      id: `${sourceId}-cand-title`,
       sourceId,
       classification: 'evidence',
       target: 'scenario_title',
@@ -87,7 +103,7 @@ export function buildSourceAnalysisFromBlueprint(
     });
   } else {
     unknowns.push({
-      id: generateId('unk'),
+      id: `${sourceId}-unk-title`,
       sourceId,
       category: 'identity',
       question: 'Scenario title is unspecified or placeholder.',
@@ -97,16 +113,16 @@ export function buildSourceAnalysisFromBlueprint(
   // 2. Premise
   const premise = (normalized.globalPremise || normalized.premise || '').trim();
   if (premise) {
-    const evId = generateId('ev');
+    const evId = `${sourceId}-ev-premise`;
     evidence.push({
       id: evId,
       sourceId,
       category: 'premise',
-      claim: `Blueprint specifies scenario premise`,
+      claim: 'Blueprint specifies scenario premise',
       excerpt: premise.length > 120 ? `${premise.slice(0, 117)}...` : premise,
     });
     candidates.push({
-      id: generateId('cand'),
+      id: `${sourceId}-cand-premise`,
       sourceId,
       classification: 'evidence',
       target: 'premise',
@@ -118,7 +134,7 @@ export function buildSourceAnalysisFromBlueprint(
     });
   } else {
     unknowns.push({
-      id: generateId('unk'),
+      id: `${sourceId}-unk-premise`,
       sourceId,
       category: 'premise',
       question: 'Scenario premise is unspecified.',
@@ -128,7 +144,7 @@ export function buildSourceAnalysisFromBlueprint(
   // 3. Setting: Location, Atmosphere, Time Period
   const location = (normalized.setting?.location || '').trim();
   if (location && location.toLowerCase() !== 'unknown') {
-    const evId = generateId('ev');
+    const evId = `${sourceId}-ev-setting-location`;
     evidence.push({
       id: evId,
       sourceId,
@@ -137,7 +153,7 @@ export function buildSourceAnalysisFromBlueprint(
       excerpt: location,
     });
     candidates.push({
-      id: generateId('cand'),
+      id: `${sourceId}-cand-setting-location`,
       sourceId,
       classification: 'evidence',
       target: 'setting_location',
@@ -149,7 +165,7 @@ export function buildSourceAnalysisFromBlueprint(
     });
   } else {
     unknowns.push({
-      id: generateId('unk'),
+      id: `${sourceId}-unk-location`,
       sourceId,
       category: 'setting',
       question: 'Setting location is unspecified.',
@@ -158,7 +174,7 @@ export function buildSourceAnalysisFromBlueprint(
 
   const atmosphere = (normalized.setting?.atmosphere || '').trim();
   if (atmosphere) {
-    const evId = generateId('ev');
+    const evId = `${sourceId}-ev-setting-atmosphere`;
     evidence.push({
       id: evId,
       sourceId,
@@ -167,7 +183,7 @@ export function buildSourceAnalysisFromBlueprint(
       excerpt: atmosphere,
     });
     candidates.push({
-      id: generateId('cand'),
+      id: `${sourceId}-cand-setting-atmosphere`,
       sourceId,
       classification: 'evidence',
       target: 'setting_atmosphere',
@@ -181,7 +197,7 @@ export function buildSourceAnalysisFromBlueprint(
 
   const timePeriod = (normalized.setting?.timePeriod || '').trim();
   if (timePeriod && timePeriod.toLowerCase() !== 'present') {
-    const evId = generateId('ev');
+    const evId = `${sourceId}-ev-setting-timeperiod`;
     evidence.push({
       id: evId,
       sourceId,
@@ -190,7 +206,7 @@ export function buildSourceAnalysisFromBlueprint(
       excerpt: timePeriod,
     });
     candidates.push({
-      id: generateId('cand'),
+      id: `${sourceId}-cand-setting-timeperiod`,
       sourceId,
       classification: 'evidence',
       target: 'setting_time_period',
@@ -210,8 +226,8 @@ export function buildSourceAnalysisFromBlueprint(
     ? [rawRules.trim()]
     : [];
 
-  for (const rule of rulesList) {
-    const evId = generateId('ev');
+  rulesList.forEach((rule, idx) => {
+    const evId = `${sourceId}-ev-rule-${idx}`;
     evidence.push({
       id: evId,
       sourceId,
@@ -220,7 +236,7 @@ export function buildSourceAnalysisFromBlueprint(
       excerpt: rule,
     });
     candidates.push({
-      id: generateId('cand'),
+      id: `${sourceId}-cand-rule-${idx}`,
       sourceId,
       classification: 'evidence',
       target: 'environmental_rule',
@@ -230,15 +246,16 @@ export function buildSourceAnalysisFromBlueprint(
       proposedValue: rule,
       reviewState: 'pending',
     });
-  }
+  });
 
   // 5. Cast Members
   const castList = normalized.cast || [];
-  for (const member of castList) {
+  castList.forEach((member, idx) => {
     const name = (member.name || '').trim();
-    if (!name || name.toLowerCase() === 'unknown') continue;
+    if (!name || name.toLowerCase() === 'unknown') return;
 
-    const evId = generateId('ev');
+    const charId = member.id || `char-${idx}`;
+    const evId = `${sourceId}-ev-cast-${charId}`;
     evidence.push({
       id: evId,
       sourceId,
@@ -248,7 +265,7 @@ export function buildSourceAnalysisFromBlueprint(
     });
 
     const castSeed: ForgeDraftCastMember = {
-      id: member.id || generateId('char'),
+      id: charId,
       name,
       description: member.description || '',
       role: member.role || 'Subject',
@@ -265,7 +282,7 @@ export function buildSourceAnalysisFromBlueprint(
     };
 
     candidates.push({
-      id: generateId('cand'),
+      id: `${sourceId}-cand-cast-${charId}`,
       sourceId,
       classification: 'evidence',
       target: 'cast_seed',
@@ -278,7 +295,7 @@ export function buildSourceAnalysisFromBlueprint(
 
     // If member has expression profile, create a dedicated expression candidate
     if (member.expressionProfile) {
-      const exprEvId = generateId('ev');
+      const exprEvId = `${sourceId}-ev-expr-${charId}`;
       evidence.push({
         id: exprEvId,
         sourceId,
@@ -288,7 +305,7 @@ export function buildSourceAnalysisFromBlueprint(
       });
 
       candidates.push({
-        id: generateId('cand'),
+        id: `${sourceId}-cand-expr-${charId}`,
         sourceId,
         classification: 'evidence',
         target: 'cast_expression_guidance',
@@ -296,64 +313,65 @@ export function buildSourceAnalysisFromBlueprint(
         explanation: `Future dramatic expression guidance for ${name} (modes: ${member.expressionProfile.communicationModes.join(', ')}).`,
         evidenceIds: [exprEvId],
         proposedValue: member.expressionProfile,
-        targetCastMemberId: castSeed.id,
+        targetCastMemberId: charId,
         reviewState: 'pending',
       });
     }
-  }
+  });
 
   // 6. Topology Nodes
   const nodes = normalized.topology?.nodes || [];
-  for (const node of nodes) {
-    if (!node || node.trim().length === 0) continue;
-    const evId = generateId('ev');
+  nodes.forEach((node, idx) => {
+    if (!node || node.trim().length === 0) return;
+    const cleanNode = node.trim();
+    const evId = `${sourceId}-ev-node-${idx}`;
     evidence.push({
       id: evId,
       sourceId,
       category: 'topology',
-      claim: `Starting spatial node: "${node}"`,
-      excerpt: node,
+      claim: `Starting spatial node: "${cleanNode}"`,
+      excerpt: cleanNode,
     });
     candidates.push({
-      id: generateId('cand'),
+      id: `${sourceId}-cand-node-${idx}`,
       sourceId,
       classification: 'evidence',
       target: 'initial_topology_node',
-      label: `Topology Node: ${node}`,
+      label: `Topology Node: ${cleanNode}`,
       explanation: 'Extracted from native blueprint topology nodes.',
       evidenceIds: [evId],
-      proposedValue: node,
+      proposedValue: cleanNode,
       reviewState: 'pending',
     });
-  }
+  });
 
   // 7. Reference Attribution
-  if (fileName) {
-    const evId = generateId('ev');
+  if (sourceRecord.fileName) {
+    const evId = `${sourceId}-ev-ref`;
     evidence.push({
       id: evId,
       sourceId,
       category: 'identity',
-      claim: `Source material file: "${fileName}"`,
-      excerpt: fileName,
+      claim: `Source material file: "${sourceRecord.fileName}"`,
+      excerpt: sourceRecord.fileName,
     });
     candidates.push({
-      id: generateId('cand'),
+      id: `${sourceId}-cand-ref`,
       sourceId,
       classification: 'evidence',
       target: 'reference_attribution',
-      label: `Reference: ${fileName}`,
+      label: `Reference: ${sourceRecord.fileName}`,
       explanation: 'Record source document filename as explicit scenario reference.',
       evidenceIds: [evId],
-      proposedValue: fileName,
+      proposedValue: sourceRecord.fileName,
       reviewState: 'pending',
     });
   }
 
   return {
-    id: generateId('analysis'),
+    id: `${sourceId}-analysis`,
     sourceRecord,
-    summary: `Native Blueprint intake for "${title || fileName}" with ${candidates.length} reviewable baseline candidates.`,
+    summary: `Native Blueprint intake for "${title || sourceRecord.fileName}" with ${candidates.length} reviewable baseline candidates.`,
     evidence,
     candidates,
     unknowns,
@@ -370,7 +388,7 @@ export function validateAndNormalizeDocumentAnalysis(
 ): ForgeSourceAnalysis {
   if (!payload || typeof payload !== 'object') {
     return {
-      id: generateId('analysis'),
+      id: `${sourceRecord.id}-analysis-err`,
       sourceRecord,
       summary: 'Invalid analysis payload.',
       evidence: [],
@@ -381,29 +399,62 @@ export function validateAndNormalizeDocumentAnalysis(
     };
   }
 
-  const parseResult = ForgeSourceAnalysisSchema.safeParse(payload);
+  const rawObj = payload as Record<string, unknown>;
+  const normalizedCandidate = {
+    id: typeof rawObj.id === 'string' && rawObj.id.trim() ? rawObj.id : `${sourceRecord.id}-analysis`,
+    sourceRecord,
+    summary: typeof rawObj.summary === 'string' ? rawObj.summary : `Source intake analysis for ${sourceRecord.fileName}`,
+    evidence: Array.isArray(rawObj.evidence)
+      ? rawObj.evidence.map((e: unknown, idx: number) => {
+          const item = (e && typeof e === 'object' ? e : {}) as Record<string, unknown>;
+          return {
+            id: typeof item.id === 'string' ? item.id : `${sourceRecord.id}-ev-${idx}`,
+            sourceId: sourceRecord.id,
+            category: typeof item.category === 'string' ? item.category : 'other',
+            claim: String(item.claim || '').trim() || 'Extracted claim',
+            excerpt: item.excerpt ? String(item.excerpt).trim() : undefined,
+          };
+        })
+      : [],
+    candidates: Array.isArray(rawObj.candidates)
+      ? rawObj.candidates.map((c: unknown, idx: number) => {
+          const item = (c && typeof c === 'object' ? c : {}) as Record<string, unknown>;
+          return {
+            id: typeof item.id === 'string' ? item.id : `${sourceRecord.id}-cand-${idx}`,
+            sourceId: sourceRecord.id,
+            classification: item.classification === 'inference' ? ('inference' as const) : ('evidence' as const),
+            target: item.target,
+            label: String(item.label || '').trim() || `Candidate ${idx + 1}`,
+            explanation: String(item.explanation || '').trim() || 'Extracted from source document.',
+            evidenceIds: Array.isArray(item.evidenceIds) ? (item.evidenceIds as string[]) : [],
+            proposedValue: item.proposedValue,
+            targetCastMemberId: item.targetCastMemberId ? String(item.targetCastMemberId) : undefined,
+            reviewState: 'pending' as const,
+          };
+        })
+      : [],
+    unknowns: Array.isArray(rawObj.unknowns)
+      ? rawObj.unknowns.map((u: unknown, idx: number) => {
+          const item = (u && typeof u === 'object' ? u : {}) as Record<string, unknown>;
+          return {
+            id: typeof item.id === 'string' ? item.id : `${sourceRecord.id}-unk-${idx}`,
+            sourceId: sourceRecord.id,
+            category: typeof item.category === 'string' ? item.category : 'other',
+            question: String(item.question || '').trim() || 'Unresolved detail.',
+          };
+        })
+      : [],
+    status: (rawObj.status === 'error' ? 'error' : 'completed') as 'completed' | 'error',
+    errorMessage: typeof rawObj.errorMessage === 'string' ? rawObj.errorMessage : undefined,
+  };
+
+  const parseResult = ForgeSourceAnalysisSchema.safeParse(normalizedCandidate);
   if (parseResult.success) {
-    return {
-      ...parseResult.data,
-      sourceRecord,
-      candidates: parseResult.data.candidates.map((c) => ({
-        ...c,
-        sourceId: sourceRecord.id,
-        reviewState: 'pending' as const,
-      })),
-      evidence: parseResult.data.evidence.map((e) => ({
-        ...e,
-        sourceId: sourceRecord.id,
-      })),
-      unknowns: parseResult.data.unknowns.map((u) => ({
-        ...u,
-        sourceId: sourceRecord.id,
-      })),
-    };
+    return parseResult.data;
   }
 
   return {
-    id: generateId('analysis'),
+    id: `${sourceRecord.id}-analysis-err`,
     sourceRecord,
     summary: 'Analysis payload validation failed.',
     evidence: [],
@@ -416,18 +467,22 @@ export function validateAndNormalizeDocumentAnalysis(
 
 /**
  * Applies one explicitly accepted candidate to a supplied ForgeDraft.
- * Pure, deterministic function: returns a new ForgeDraft, never mutating the original.
+ * Pure, deterministic function: returns an explicit success or error result,
+ * never mutating the original draft.
  */
 export function applyCandidateToDraft(
   draft: ForgeDraft,
   candidate: ForgeSourceCandidate,
   sourceFileName?: string
-): ForgeDraft {
+): ApplyCandidateResult {
   const cloned: ForgeDraft = JSON.parse(JSON.stringify(draft));
 
   switch (candidate.target) {
     case 'scenario_title': {
-      const titleStr = String(candidate.proposedValue || '').trim();
+      if (typeof candidate.proposedValue !== 'string' || !candidate.proposedValue.trim()) {
+        return { success: false, draft, error: 'Scenario title proposed value must be a non-empty string.' };
+      }
+      const titleStr = candidate.proposedValue.trim();
       cloned.title = titleStr;
       cloned.identity = {
         ...(cloned.identity || { version: '1.0', author: '', thematicAnchor: '' }),
@@ -437,14 +492,20 @@ export function applyCandidateToDraft(
     }
 
     case 'premise': {
-      const premiseStr = String(candidate.proposedValue || '').trim();
+      if (typeof candidate.proposedValue !== 'string' || !candidate.proposedValue.trim()) {
+        return { success: false, draft, error: 'Premise proposed value must be a non-empty string.' };
+      }
+      const premiseStr = candidate.proposedValue.trim();
       cloned.premise = premiseStr;
       cloned.globalPremise = premiseStr;
       break;
     }
 
     case 'setting_location': {
-      const locStr = String(candidate.proposedValue || '').trim();
+      if (typeof candidate.proposedValue !== 'string' || !candidate.proposedValue.trim()) {
+        return { success: false, draft, error: 'Setting location must be a non-empty string.' };
+      }
+      const locStr = candidate.proposedValue.trim();
       cloned.setting = {
         ...(cloned.setting || { atmosphere: '', timePeriod: '' }),
         location: locStr,
@@ -453,7 +514,10 @@ export function applyCandidateToDraft(
     }
 
     case 'setting_atmosphere': {
-      const atmoStr = String(candidate.proposedValue || '').trim();
+      if (typeof candidate.proposedValue !== 'string' || !candidate.proposedValue.trim()) {
+        return { success: false, draft, error: 'Setting atmosphere must be a non-empty string.' };
+      }
+      const atmoStr = candidate.proposedValue.trim();
       cloned.setting = {
         ...(cloned.setting || { location: '', timePeriod: '' }),
         atmosphere: atmoStr,
@@ -462,7 +526,10 @@ export function applyCandidateToDraft(
     }
 
     case 'setting_time_period': {
-      const tpStr = String(candidate.proposedValue || '').trim();
+      if (typeof candidate.proposedValue !== 'string' || !candidate.proposedValue.trim()) {
+        return { success: false, draft, error: 'Setting time period must be a non-empty string.' };
+      }
+      const tpStr = candidate.proposedValue.trim();
       cloned.setting = {
         ...(cloned.setting || { location: '', atmosphere: '' }),
         timePeriod: tpStr,
@@ -471,123 +538,133 @@ export function applyCandidateToDraft(
     }
 
     case 'environmental_rule': {
-      const ruleStr = String(candidate.proposedValue || '').trim();
-      if (ruleStr) {
-        const currentRules = Array.isArray(cloned.environmentalRules)
-          ? [...cloned.environmentalRules]
-          : typeof cloned.environmentalRules === 'string' && cloned.environmentalRules.trim().length > 0
-          ? [cloned.environmentalRules.trim()]
-          : [];
-
-        if (!currentRules.includes(ruleStr)) {
-          currentRules.push(ruleStr);
-        }
-        cloned.environmentalRules = currentRules;
+      if (typeof candidate.proposedValue !== 'string' || !candidate.proposedValue.trim()) {
+        return { success: false, draft, error: 'Environmental rule must be a non-empty string.' };
       }
+      const ruleStr = candidate.proposedValue.trim();
+      const currentRules = Array.isArray(cloned.environmentalRules)
+        ? [...cloned.environmentalRules]
+        : typeof cloned.environmentalRules === 'string' && cloned.environmentalRules.trim().length > 0
+        ? [cloned.environmentalRules.trim()]
+        : [];
+
+      if (!currentRules.includes(ruleStr)) {
+        currentRules.push(ruleStr);
+      }
+      cloned.environmentalRules = currentRules;
       break;
     }
 
     case 'narrative_rule': {
-      const nRuleStr = String(candidate.proposedValue || '').trim();
-      if (nRuleStr) {
-        const currentPlot = cloned.narrativeRules?.keyPlotElements
-          ? [...cloned.narrativeRules.keyPlotElements]
-          : [];
-        if (!currentPlot.includes(nRuleStr)) {
-          currentPlot.push(nRuleStr);
-        }
-        cloned.narrativeRules = {
-          ...(cloned.narrativeRules || {
-            incitingIncident: '',
-            phaseDirectives: {},
-            currentTensionLevel: 'buildup',
-            keyPlotElements: [],
-          }),
-          keyPlotElements: currentPlot,
-        };
+      if (typeof candidate.proposedValue !== 'string' || !candidate.proposedValue.trim()) {
+        return { success: false, draft, error: 'Narrative rule must be a non-empty string.' };
       }
+      const nRuleStr = candidate.proposedValue.trim();
+      const currentPlot = cloned.narrativeRules?.keyPlotElements
+        ? [...cloned.narrativeRules.keyPlotElements]
+        : [];
+      if (!currentPlot.includes(nRuleStr)) {
+        currentPlot.push(nRuleStr);
+      }
+      cloned.narrativeRules = {
+        ...(cloned.narrativeRules || {
+          incitingIncident: '',
+          phaseDirectives: {},
+          currentTensionLevel: 'buildup',
+          keyPlotElements: [],
+        }),
+        keyPlotElements: currentPlot,
+      };
       break;
     }
 
     case 'cast_seed': {
       const proposedCast = candidate.proposedValue as ForgeDraftCastMember;
-      if (proposedCast && typeof proposedCast === 'object' && proposedCast.name) {
-        const currentCast = cloned.cast ? [...cloned.cast] : [];
-        const existingIndex = currentCast.findIndex(
-          (c) => c.id === proposedCast.id || c.name.toLowerCase() === proposedCast.name.toLowerCase()
-        );
-
-        const normalizedMember: ForgeDraftCastMember = {
-          id: proposedCast.id || generateId('char'),
-          name: proposedCast.name.trim(),
-          description: proposedCast.description || '',
-          role: proposedCast.role || 'Subject',
-          personality: proposedCast.personality || '',
-          goals: proposedCast.goals || '',
-          traits: proposedCast.traits || [],
-          isUserCharacter: proposedCast.isUserCharacter ?? false,
-          behaviorVector: proposedCast.behaviorVector || 'ADAPTIVE',
-          isEntity: proposedCast.isEntity ?? false,
-          psychological_status: proposedCast.psychological_status,
-          starting_location: proposedCast.starting_location,
-          vulnerabilityBase: proposedCast.vulnerabilityBase,
-          expressionProfile: proposedCast.expressionProfile,
-        };
-
-        if (existingIndex >= 0) {
-          currentCast[existingIndex] = {
-            ...currentCast[existingIndex],
-            ...normalizedMember,
-          };
-        } else {
-          currentCast.push(normalizedMember);
-        }
-        cloned.cast = currentCast;
+      if (!proposedCast || typeof proposedCast !== 'object' || !proposedCast.name) {
+        return { success: false, draft, error: 'Cast seed proposed value must be a valid cast member object.' };
       }
+      const currentCast = cloned.cast ? [...cloned.cast] : [];
+      const existingIndex = currentCast.findIndex(
+        (c) => c.id === proposedCast.id || c.name.toLowerCase() === proposedCast.name.toLowerCase()
+      );
+
+      const normalizedMember: ForgeDraftCastMember = {
+        id: proposedCast.id || `char-${Date.now()}`,
+        name: proposedCast.name.trim(),
+        description: proposedCast.description || '',
+        role: proposedCast.role || 'Subject',
+        personality: proposedCast.personality || '',
+        goals: proposedCast.goals || '',
+        traits: proposedCast.traits || [],
+        isUserCharacter: proposedCast.isUserCharacter ?? false,
+        behaviorVector: proposedCast.behaviorVector || 'ADAPTIVE',
+        isEntity: proposedCast.isEntity ?? false,
+        psychological_status: proposedCast.psychological_status,
+        starting_location: proposedCast.starting_location,
+        vulnerabilityBase: proposedCast.vulnerabilityBase,
+        expressionProfile: proposedCast.expressionProfile,
+      };
+
+      if (existingIndex >= 0) {
+        currentCast[existingIndex] = {
+          ...currentCast[existingIndex],
+          ...normalizedMember,
+        };
+      } else {
+        currentCast.push(normalizedMember);
+      }
+      cloned.cast = currentCast;
       break;
     }
 
     case 'cast_expression_guidance': {
-      const exprProfile = candidate.proposedValue as CharacterExpressionProfile;
+      const exprProfile = candidate.proposedValue;
       const targetId = candidate.targetCastMemberId;
-      if (exprProfile && targetId && cloned.cast) {
-        cloned.cast = cloned.cast.map((member) => {
-          if (member.id === targetId) {
-            return {
-              ...member,
-              expressionProfile: exprProfile,
-            };
-          }
-          return member;
-        });
+      if (!targetId || !cloned.cast || !cloned.cast.some((m) => m.id === targetId)) {
+        return {
+          success: false,
+          draft,
+          error: `Target cast member "${targetId || 'unspecified'}" not found in active draft. Apply or create the cast member first.`,
+        };
       }
+      cloned.cast = cloned.cast.map((member) => {
+        if (member.id === targetId) {
+          return {
+            ...member,
+            expressionProfile: exprProfile,
+          };
+        }
+        return member;
+      });
       break;
     }
 
     case 'initial_topology_node': {
-      const nodeName = String(candidate.proposedValue || '').trim();
-      if (nodeName) {
-        const currentNodes = cloned.topology?.nodes ? [...cloned.topology.nodes] : [];
-        if (!currentNodes.includes(nodeName)) {
-          currentNodes.push(nodeName);
-        }
-        cloned.topology = {
-          ...(cloned.topology || { connections: [] }),
-          nodes: currentNodes,
-        };
+      if (typeof candidate.proposedValue !== 'string' || !candidate.proposedValue.trim()) {
+        return { success: false, draft, error: 'Topology node must be a non-empty string.' };
       }
+      const nodeName = candidate.proposedValue.trim();
+      const currentNodes = cloned.topology?.nodes ? [...cloned.topology.nodes] : [];
+      if (!currentNodes.includes(nodeName)) {
+        currentNodes.push(nodeName);
+      }
+      cloned.topology = {
+        ...(cloned.topology || { connections: [] }),
+        nodes: currentNodes,
+      };
       break;
     }
 
     case 'reference_attribution': {
-      const refName = String(candidate.proposedValue || '').trim();
-      if (refName) {
-        const currentRefs = cloned.references ? [...cloned.references] : [];
-        if (!currentRefs.includes(refName)) {
-          currentRefs.push(refName);
-        }
-        cloned.references = currentRefs;
+      if (typeof candidate.proposedValue !== 'string' || !candidate.proposedValue.trim()) {
+        return { success: false, draft, error: 'Reference attribution must be a non-empty string.' };
       }
+      const refName = candidate.proposedValue.trim();
+      const currentRefs = cloned.references ? [...cloned.references] : [];
+      if (!currentRefs.includes(refName)) {
+        currentRefs.push(refName);
+      }
+      cloned.references = currentRefs;
       break;
     }
   }
@@ -602,7 +679,7 @@ export function applyCandidateToDraft(
     cloned.references = currentRefs;
   }
 
-  return cloned;
+  return { success: true, draft: cloned };
 }
 
 /**
@@ -617,46 +694,23 @@ export function validateCandidateEdit(
     return { valid: false, error: 'Proposed value cannot be empty.' };
   }
 
-  if (candidate.target === 'cast_expression_guidance') {
-    const parseResult = CharacterExpressionProfileSchema.safeParse(editedValue);
-    if (!parseResult.success) {
-      return {
-        valid: false,
-        error: `Invalid expression profile: ${parseResult.error.issues.map((i) => i.message).join(', ')}`,
-      };
-    }
-    return {
-      valid: true,
-      updatedCandidate: {
-        ...candidate,
-        proposedValue: parseResult.data,
-        reviewState: 'pending',
-      },
-    };
-  }
+  const rawCandidateCandidate = {
+    ...candidate,
+    proposedValue: editedValue,
+    reviewState: 'pending',
+  };
 
-  if (typeof editedValue === 'string') {
-    const trimmed = editedValue.trim();
-    if (!trimmed) {
-      return { valid: false, error: 'Edited value cannot be empty.' };
-    }
+  const parseResult = ForgeSourceCandidateSchema.safeParse(rawCandidateCandidate);
+  if (!parseResult.success) {
     return {
-      valid: true,
-      updatedCandidate: {
-        ...candidate,
-        proposedValue: trimmed,
-        reviewState: 'pending',
-      },
+      valid: false,
+      error: `Invalid value for target "${candidate.target}": ${parseResult.error.issues.map((i) => i.message).join(', ')}`,
     };
   }
 
   return {
     valid: true,
-    updatedCandidate: {
-      ...candidate,
-      proposedValue: editedValue,
-      reviewState: 'pending',
-    },
+    updatedCandidate: parseResult.data,
   };
 }
 
