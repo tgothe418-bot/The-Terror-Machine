@@ -1,10 +1,26 @@
-import React, { useRef, useState } from 'react';
-import { ArrowLeft, Upload, AlertCircle, Users, Shield, Skull, Activity, Play, Sparkles } from 'lucide-react';
+import React, { useRef, useState, useMemo } from 'react';
+import {
+  ArrowLeft,
+  Upload,
+  AlertCircle,
+  Users,
+  Shield,
+  Skull,
+  Activity,
+  Play,
+  Sparkles,
+  Film,
+  Lock,
+} from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import { useEngineStore } from '../../core/store';
 import { forgeActions, useForgeState } from '../../store/useForgeStore';
-import { Blueprint } from '../../types';
+import { Blueprint, ParticipationMode } from '../../types';
 import { normalizeBlueprint } from '../../lib/normalizeBlueprint';
+import {
+  resolveSeatAvailabilities,
+  buildActiveParticipationContext,
+} from '../../lib/seatAvailability';
 import { motion, AnimatePresence } from 'motion/react';
 import AdLibInductionModal from './AdLibInductionModal';
 
@@ -19,11 +35,16 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
   const setBlueprint = useEngineStore((state) => state.setBlueprint);
   const [error, setError] = useState<string | null>(null);
   const [previewBlueprint, setPreviewBlueprint] = useState<Blueprint | null>(null);
-  const [selectedRole, setSelectedRole] = useState<'protagonist' | 'antagonist'>('protagonist');
+  const [selectedRole, setSelectedRole] = useState<ParticipationMode>('protagonist');
   const [isAdLibModalOpen, setIsAdLibModalOpen] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const compileTopology = useAppStore((state) => state.compileTopology);
+
+  // Compute seat availabilities for loaded blueprint
+  const seatAvailabilities = useMemo(() => {
+    return previewBlueprint ? resolveSeatAvailabilities(previewBlueprint) : null;
+  }, [previewBlueprint]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -41,6 +62,22 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
           const validated = normalizeBlueprint(parsed);
           setPreviewBlueprint(validated);
           forgeActions.setActiveCharacterId(null);
+
+          const availabilities = resolveSeatAvailabilities(validated);
+          if (validated.hauntedHouse) {
+            const rec = validated.hauntedHouse.recommendedParticipationMode;
+            if (availabilities[rec]?.available) {
+              setSelectedRole(rec);
+              return;
+            }
+          }
+          if (availabilities.protagonist.available) {
+            setSelectedRole('protagonist');
+          } else if (availabilities.antagonist.available) {
+            setSelectedRole('antagonist');
+          } else {
+            setSelectedRole('director');
+          }
         } catch (validationErr: unknown) {
           console.error('Zod Validation Failed:', validationErr);
           const errorMsg =
@@ -61,19 +98,33 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
   };
 
   const handleStart = () => {
-    if (previewBlueprint) {
-      if (
-        previewBlueprint.topology &&
-        previewBlueprint.topology.nodes &&
-        previewBlueprint.topology.nodes.length > 0
-      ) {
-        const startNodeId = previewBlueprint.topology.nodes[0];
-        compileTopology(previewBlueprint.topology, startNodeId);
-      }
-      forgeActions.setActiveNeuralLink(selectedRole.toUpperCase() as 'PROTAGONIST' | 'ANTAGONIST');
-      forgeActions.startSimulation(previewBlueprint);
-      setBlueprint(previewBlueprint, selectedRole);
+    if (!previewBlueprint) return;
+
+    if (
+      previewBlueprint.topology &&
+      previewBlueprint.topology.nodes &&
+      previewBlueprint.topology.nodes.length > 0
+    ) {
+      const startNodeId = previewBlueprint.topology.nodes[0];
+      compileTopology(previewBlueprint.topology, startNodeId);
     }
+
+    const activeContext = buildActiveParticipationContext(previewBlueprint, selectedRole);
+
+    const neuralLink =
+      selectedRole === 'director'
+        ? 'DIRECTOR'
+        : selectedRole === 'antagonist'
+        ? 'ANTAGONIST'
+        : 'PROTAGONIST';
+
+    forgeActions.setActiveNeuralLink(neuralLink);
+    forgeActions.startSimulation(previewBlueprint);
+    setBlueprint(previewBlueprint, selectedRole, activeContext);
+  };
+
+  const isRoleAvailable = (role: ParticipationMode) => {
+    return seatAvailabilities ? seatAvailabilities[role]?.available : true;
   };
 
   return (
@@ -152,7 +203,7 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
                       Upload Blueprint
                     </span>
                     <span className="text-xs text-zinc-400 uppercase tracking-wider block">
-                      Import structured JSON scenario
+                      Import structured JSON or Haunted House scenario
                     </span>
                   </div>
                 </div>
@@ -165,7 +216,7 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
                       Haunted House Induction Terminal
                     </span>
                     <span className="text-xs text-zinc-400 uppercase tracking-wider">
-                      Phase 3B Procedural Opposition & Victim Framing
+                      Phase 3C Procedural Opposition, Authority Contracts & Blueprint Convergence
                     </span>
                   </div>
 
@@ -205,16 +256,29 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
               className="w-full space-y-8"
             >
               <div className="space-y-4">
-                <div className="flex items-end justify-between border-b border-zinc-800 pb-4">
+                {/* Header with Provenance Badge */}
+                <div className="flex flex-col sm:flex-row sm:items-end justify-between border-b border-zinc-800 pb-4 gap-3">
                   <div>
-                    <span className="text-xs text-zinc-500 uppercase tracking-widest block mb-1">
-                      Blueprint Loaded
-                    </span>
+                    <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                      <span className="text-xs text-zinc-500 uppercase tracking-widest">
+                        Blueprint Loaded
+                      </span>
+                      {previewBlueprint.hauntedHouse && (
+                        <span className="text-[10px] px-2 py-0.5 rounded font-bold uppercase tracking-wider border border-red-800 bg-red-950/60 text-red-300">
+                          Haunted House Blueprint (v1)
+                        </span>
+                      )}
+                      {previewBlueprint.hauntedHouse?.recommendedParticipationMode && (
+                        <span className="text-[10px] px-2 py-0.5 rounded font-bold uppercase tracking-wider border border-zinc-700 bg-zinc-800 text-zinc-300">
+                          Recommended: {previewBlueprint.hauntedHouse.recommendedParticipationMode}
+                        </span>
+                      )}
+                    </div>
                     <h2 className="text-2xl sm:text-3xl font-bold tracking-tight uppercase text-white">
                       {previewBlueprint.title}
                     </h2>
                   </div>
-                  <div className="text-right">
+                  <div className="sm:text-right">
                     <span className="text-xs text-zinc-500 uppercase tracking-widest block mb-1">
                       Scale {previewBlueprint.contentScale}
                     </span>
@@ -226,10 +290,11 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4">
                   <div className="space-y-6">
+                    {/* Cast Dossier */}
                     <div>
                       <h3 className="flex items-center gap-2 text-xs text-zinc-400 uppercase tracking-[0.2em] mb-4 font-bold">
                         <Users className="w-4 h-4 text-zinc-300" />
-                        Cast Members
+                        Cast Members & Bound Operatives
                       </h3>
                       <div className="grid grid-cols-1 gap-3">
                         {previewBlueprint.cast?.map((char, i) => (
@@ -243,11 +308,11 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
                             }`}
                           >
                             <div className="flex justify-between items-center mb-2">
-                              <h3
+                              <h4
                                 className={`font-bold text-sm ${activeCharacterId === char.id ? 'text-red-400' : 'text-zinc-100'}`}
                               >
                                 {char.name}
-                              </h3>
+                              </h4>
                               <div className="flex gap-2 items-center">
                                 {char.isEntity && (
                                   <span className="text-xs text-red-400 border border-red-900 px-1.5 py-0.5 rounded font-mono uppercase bg-red-950/30">
@@ -268,12 +333,13 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
                         ))}
                       </div>
                       {(!previewBlueprint.cast || previewBlueprint.cast.length === 0) && (
-                        <div className="text-xs text-zinc-500 italic">
-                          No cast identified in blueprint.
+                        <div className="text-xs text-zinc-500 italic p-3 bg-zinc-950 border border-zinc-800 rounded">
+                          No cast identified in blueprint. Director narrative authority active.
                         </div>
                       )}
                     </div>
 
+                    {/* Environmental Intel */}
                     <div>
                       <h3 className="flex items-center gap-2 text-xs text-zinc-400 uppercase tracking-[0.2em] mb-4 font-bold">
                         <Activity className="w-4 h-4 text-zinc-300" />
@@ -297,44 +363,129 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
                         </p>
                       </div>
                     </div>
+
+                    {/* Authority Contract Banner (if Haunted House provenance has authority contract) */}
+                    {previewBlueprint.hauntedHouse?.participationContext?.authorityContract && (
+                      <div className="p-4 bg-red-950/20 border border-red-900/60 rounded space-y-2">
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-2">
+                          <Lock className="w-3.5 h-3.5 text-amber-400" />
+                          Authored Authority & Limits Contract
+                        </h4>
+                        <div className="space-y-1.5 text-xs text-zinc-300">
+                          <div>
+                            <span className="text-zinc-500 uppercase font-bold">Authority: </span>
+                            <span>{previewBlueprint.hauntedHouse.participationContext.authorityContract.authority}</span>
+                          </div>
+                          <div>
+                            <span className="text-zinc-500 uppercase font-bold">Limits: </span>
+                            <span>{previewBlueprint.hauntedHouse.participationContext.authorityContract.limits}</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   <div className="space-y-8">
                     <div>
-                      <h3 className="flex items-center gap-2 text-xs text-zinc-400 uppercase tracking-[0.2em] mb-6 font-bold">
-                        <Activity className="w-4 h-4 text-zinc-300" />
-                        Neural Link Identity
-                      </h3>
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="flex items-center gap-2 text-xs text-zinc-400 uppercase tracking-[0.2em] font-bold">
+                          <Activity className="w-4 h-4 text-zinc-300" />
+                          Neural Link Orientation
+                        </h3>
+                        {previewBlueprint.hauntedHouse && (
+                          <span className="text-[10px] text-zinc-400 uppercase font-mono">
+                            3-Seat Matrix
+                          </span>
+                        )}
+                      </div>
+
+                      {/* 3-Role Seat Selection Grid */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        {/* Protagonist */}
                         <button
-                          onClick={() => setSelectedRole('protagonist')}
-                          className={`p-6 border flex flex-col items-center gap-3 transition-all duration-300 rounded cursor-pointer ${
-                            selectedRole === 'protagonist'
-                              ? 'border-white bg-white text-black shadow-[0_0_20px_rgba(255,255,255,0.2)]'
-                              : 'border-zinc-800 bg-black text-zinc-400 hover:border-zinc-600'
+                          type="button"
+                          onClick={() => isRoleAvailable('protagonist') && setSelectedRole('protagonist')}
+                          disabled={!isRoleAvailable('protagonist')}
+                          className={`p-4 border flex flex-col items-center text-center gap-2 transition-all duration-300 rounded ${
+                            !isRoleAvailable('protagonist')
+                              ? 'border-zinc-900 bg-zinc-950/40 text-zinc-600 opacity-40 cursor-not-allowed'
+                              : selectedRole === 'protagonist'
+                              ? 'border-emerald-500 bg-emerald-950/30 text-white shadow-[0_0_15px_rgba(16,185,129,0.2)] cursor-pointer'
+                              : 'border-zinc-800 bg-black text-zinc-400 hover:border-zinc-600 cursor-pointer'
                           }`}
                         >
-                          <Shield className="w-6 h-6" />
-                          <span className="text-xs uppercase font-bold tracking-[0.2em]">
-                            Protagonist
-                          </span>
+                          <Shield className="w-5 h-5 text-emerald-400" />
+                          <div>
+                            <span className="text-xs uppercase font-bold tracking-wider block">
+                              Protagonist
+                            </span>
+                            <span className="text-[10px] text-zinc-500 block mt-0.5">
+                              {isRoleAvailable('protagonist')
+                                ? seatAvailabilities?.protagonist.boundCharacterName || 'Mortal Bound'
+                                : 'No Mortal Cast'}
+                            </span>
+                          </div>
                         </button>
+
+                        {/* Antagonist */}
                         <button
-                          onClick={() => setSelectedRole('antagonist')}
-                          className={`p-6 border flex flex-col items-center gap-3 transition-all duration-300 rounded cursor-pointer ${
-                            selectedRole === 'antagonist'
-                              ? 'border-fresh-blood bg-fresh-blood text-white shadow-[0_0_20px_rgba(200,30,30,0.3)]'
-                              : 'border-zinc-800 bg-black text-zinc-400 hover:border-zinc-600'
+                          type="button"
+                          onClick={() => isRoleAvailable('antagonist') && setSelectedRole('antagonist')}
+                          disabled={!isRoleAvailable('antagonist')}
+                          className={`p-4 border flex flex-col items-center text-center gap-2 transition-all duration-300 rounded ${
+                            !isRoleAvailable('antagonist')
+                              ? 'border-zinc-900 bg-zinc-950/40 text-zinc-600 opacity-40 cursor-not-allowed'
+                              : selectedRole === 'antagonist'
+                              ? 'border-red-600 bg-red-950/30 text-white shadow-[0_0_15px_rgba(220,38,38,0.25)] cursor-pointer'
+                              : 'border-zinc-800 bg-black text-zinc-400 hover:border-zinc-600 cursor-pointer'
                           }`}
                         >
-                          <Skull className="w-6 h-6" />
-                          <span className="text-xs uppercase font-bold tracking-[0.2em]">
-                            Antagonist
-                          </span>
+                          <Skull className="w-5 h-5 text-red-500" />
+                          <div>
+                            <span className="text-xs uppercase font-bold tracking-wider block">
+                              Antagonist
+                            </span>
+                            <span className="text-[10px] text-zinc-500 block mt-0.5">
+                              {isRoleAvailable('antagonist')
+                                ? seatAvailabilities?.antagonist.boundCharacterName || 'Opposition'
+                                : 'No Entity Found'}
+                            </span>
+                          </div>
+                        </button>
+
+                        {/* Director */}
+                        <button
+                          type="button"
+                          onClick={() => isRoleAvailable('director') && setSelectedRole('director')}
+                          disabled={!isRoleAvailable('director')}
+                          className={`p-4 border flex flex-col items-center text-center gap-2 transition-all duration-300 rounded ${
+                            !isRoleAvailable('director')
+                              ? 'border-zinc-900 bg-zinc-950/40 text-zinc-600 opacity-40 cursor-not-allowed'
+                              : selectedRole === 'director'
+                              ? 'border-purple-500 bg-purple-950/30 text-white shadow-[0_0_15px_rgba(168,85,247,0.25)] cursor-pointer'
+                              : 'border-zinc-800 bg-black text-zinc-400 hover:border-zinc-600 cursor-pointer'
+                          }`}
+                        >
+                          <Film className="w-5 h-5 text-purple-400" />
+                          <div>
+                            <span className="text-xs uppercase font-bold tracking-wider block">
+                              Director
+                            </span>
+                            <span className="text-[10px] text-zinc-500 block mt-0.5">
+                              Narrative Framing
+                            </span>
+                          </div>
                         </button>
                       </div>
-                      <p className="text-xs text-zinc-500 mt-4 leading-relaxed uppercase tracking-wider text-center">
-                        Select your orientation within the nightmare architecture.
+
+                      {/* Selected seat summary description */}
+                      <p className="text-xs text-zinc-400 mt-4 leading-relaxed uppercase tracking-wider text-center font-sans">
+                        {selectedRole === 'protagonist' &&
+                          'Embodying mortal operative subject to local physical constraints.'}
+                        {selectedRole === 'antagonist' &&
+                          'Operating hostile opposition agency under explicit authority terms.'}
+                        {selectedRole === 'director' &&
+                          'External pacing and scene framing authority.'}
                       </p>
                     </div>
 
@@ -344,7 +495,7 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
                         className="w-full py-5 bg-white text-black text-xs font-bold uppercase tracking-[0.4em] hover:bg-zinc-200 transition-all flex items-center justify-center gap-3 group shadow-[0_0_30px_rgba(255,255,255,0.1)] active:scale-[0.98] rounded cursor-pointer"
                       >
                         <Play className="w-4 h-4 fill-current group-hover:scale-110 transition-transform" />
-                        Initialize Neural Link
+                        Initialize Neural Link ({selectedRole.toUpperCase()})
                       </button>
                     </div>
                   </div>

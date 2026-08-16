@@ -54,6 +54,18 @@ export const exportConversationToMarkdown = (
  * @param data The object to download.
  * @param filename The name of the file (e.g., 'scenario_blueprint.json').
  */
+export function generateHauntedHouseBlueprintFilename(titleOrLocation?: string): string {
+  if (!titleOrLocation || typeof titleOrLocation !== 'string') {
+    return 'haunted-house-scenario.json';
+  }
+  const clean = titleOrLocation
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  const slug = clean || 'scenario';
+  return `haunted-house-${slug}.json`;
+}
+
 export function downloadJson(data: any, filename: string) {
   try {
     const jsonString = JSON.stringify(data, null, 2);

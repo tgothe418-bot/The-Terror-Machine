@@ -5,6 +5,7 @@ import {
   ParticipationContext,
   ScenarioBlueprint,
   SpatialNode,
+  normalizeParticipationContext,
 } from '../types';
 import { normalizeBlueprint } from './normalizeBlueprint';
 import { useEngineStore } from '../core/store';
@@ -76,11 +77,24 @@ export function compileAdLibInduction(induction: AdLibInduction): {
       environmentalRules.push(`Protagonist Constraint: ${induction.limitation}`);
     }
 
+    const participationContext: ParticipationContext = {
+      mode: 'protagonist',
+      seat: {
+        kind: 'protagonist',
+        name: induction.participantName,
+        description: induction.identity || undefined,
+        ability: induction.ability || undefined,
+        limitation: induction.limitation || undefined,
+      },
+      initialGoal: induction.goal,
+      boundedFacts: boundedFacts.slice(0, 8),
+    };
+
     const blueprint: ScenarioBlueprint = {
       id: scenarioId,
-      title: `${induction.placeSeed} (Ad Lib)`,
+      title: `${induction.placeSeed} (Haunted House)`,
       contentScale: 3,
-      contentLevelDescription: 'PROTAGONIST AD LIB INDUCTION',
+      contentLevelDescription: 'PROTAGONIST HAUNTED HOUSE INDUCTION',
       globalPremise: `A mortal operative (${induction.participantName}) attempts to accomplish: "${induction.goal}" within ${induction.placeSeed}.`,
       startingVector: 'COGNITIVE',
       startingTier: 'LATENT',
@@ -119,19 +133,12 @@ export function compileAdLibInduction(induction: AdLibInduction): {
         currentTensionLevel: 'buildup',
         keyPlotElements: [induction.goal],
       },
-    };
-
-    const participationContext: ParticipationContext = {
-      mode: 'protagonist',
-      seat: {
-        kind: 'protagonist',
-        name: induction.participantName,
-        description: induction.identity || undefined,
-        ability: induction.ability || undefined,
-        limitation: induction.limitation || undefined,
+      hauntedHouse: {
+        source: 'haunted-house',
+        version: 1,
+        recommendedParticipationMode: 'protagonist',
+        participationContext,
       },
-      initialGoal: induction.goal,
-      boundedFacts: boundedFacts.slice(0, 8),
     };
 
     return { blueprint, participationContext, initialSpatialNode };
@@ -242,13 +249,31 @@ export function compileAdLibInduction(induction: AdLibInduction): {
         ? induction.victimField.name
         : induction.victimField.collectiveDesignation;
 
+    const participationContext: ParticipationContext = {
+      mode: 'antagonist',
+      seat: {
+        kind: induction.oppositionSeat.kind,
+        name: induction.oppositionSeat.name,
+        description: induction.oppositionSeat.description,
+        ability: induction.authorityContract.authority,
+        limitation: induction.authorityContract.limits,
+      },
+      initialGoal: induction.oppositionSeat.goal || induction.goal,
+      boundedFacts: boundedFacts.slice(0, 8),
+      authorityContract: induction.authorityContract,
+      victimField: induction.victimField,
+    };
+
+    const normalizedParticipation =
+      normalizeParticipationContext(participationContext) || participationContext;
+
     const blueprint: ScenarioBlueprint = {
       id: scenarioId,
       title: isForce
-        ? `${induction.placeSeed} (Ad Lib Force)`
-        : `${induction.placeSeed} (Ad Lib Antagonist)`,
+        ? `${induction.placeSeed} (Haunted House Force)`
+        : `${induction.placeSeed} (Haunted House Antagonist)`,
       contentScale: 3,
-      contentLevelDescription: 'ANTAGONIST AD LIB INDUCTION',
+      contentLevelDescription: 'ANTAGONIST HAUNTED HOUSE INDUCTION',
       globalPremise: `Opposition agency (${induction.oppositionSeat.name}) operates within ${induction.placeSeed} toward: "${induction.oppositionSeat.goal || induction.goal}" against ${victimTargetSummary}.`,
       startingVector: 'SOMATIC',
       startingTier: 'LATENT',
@@ -277,24 +302,15 @@ export function compileAdLibInduction(induction: AdLibInduction): {
         currentTensionLevel: 'buildup',
         keyPlotElements: [induction.oppositionSeat.goal || induction.goal],
       },
-    };
-
-    const participationContext: ParticipationContext = {
-      mode: 'antagonist',
-      seat: {
-        kind: induction.oppositionSeat.kind,
-        name: induction.oppositionSeat.name,
-        description: induction.oppositionSeat.description,
-        ability: induction.authorityContract.authority,
-        limitation: induction.authorityContract.limits,
+      hauntedHouse: {
+        source: 'haunted-house',
+        version: 1,
+        recommendedParticipationMode: 'antagonist',
+        participationContext: normalizedParticipation,
       },
-      initialGoal: induction.oppositionSeat.goal || induction.goal,
-      boundedFacts: boundedFacts.slice(0, 8),
-      authorityContract: induction.authorityContract,
-      victimField: induction.victimField,
     };
 
-    return { blueprint, participationContext, initialSpatialNode };
+    return { blueprint, participationContext: normalizedParticipation, initialSpatialNode };
   }
 
   // Director mode
@@ -317,12 +333,23 @@ export function compileAdLibInduction(induction: AdLibInduction): {
     environmentalRules.push(`Scene Focus: ${induction.directorFocus}`);
   }
 
+  const participationContext: ParticipationContext = {
+    mode: 'director',
+    seat: {
+      kind: 'director',
+      name: 'Director',
+      description: 'External Narrative Framing & Pacing Authority',
+    },
+    initialGoal: induction.goal,
+    boundedFacts: boundedFacts.slice(0, 8),
+  };
+
   // Director mode: NO falsely invented controlled character
   const blueprint: ScenarioBlueprint = {
     id: scenarioId,
-    title: `${induction.placeSeed} (Ad Lib Director)`,
+    title: `${induction.placeSeed} (Haunted House Director)`,
     contentScale: 3,
-    contentLevelDescription: 'DIRECTOR AD LIB INDUCTION',
+    contentLevelDescription: 'DIRECTOR HAUNTED HOUSE INDUCTION',
     globalPremise: `External director directs scene pacing and tension around: "${induction.goal}" within ${induction.placeSeed}.`,
     startingVector: 'COGNITIVE',
     startingTier: 'LATENT',
@@ -352,17 +379,12 @@ export function compileAdLibInduction(induction: AdLibInduction): {
       currentTensionLevel: 'buildup',
       keyPlotElements: [induction.goal],
     },
-  };
-
-  const participationContext: ParticipationContext = {
-    mode: 'director',
-    seat: {
-      kind: 'director',
-      name: 'Director',
-      description: 'External Narrative Framing & Pacing Authority',
+    hauntedHouse: {
+      source: 'haunted-house',
+      version: 1,
+      recommendedParticipationMode: 'director',
+      participationContext,
     },
-    initialGoal: induction.goal,
-    boundedFacts: boundedFacts.slice(0, 8),
   };
 
   return { blueprint, participationContext, initialSpatialNode };

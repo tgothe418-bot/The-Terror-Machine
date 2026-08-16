@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import { EdgeKind, EdgeKindSchema, TopologyDelta, TransitionReceipt } from './engineContract';
+import { HauntedHouseProvenanceSchema, HauntedHouseProvenance } from './participation';
 export * from './engineContract';
+export * from './participation';
 
 export type AppPhase = 'hub' | 'forge' | 'engine' | 'voice';
 
@@ -141,6 +143,7 @@ export const BlueprintSchema = z.object({
 
   perspectives: z.array(z.any()).optional().default([]),
   terminalConditions: z.any().optional(),
+  hauntedHouse: HauntedHouseProvenanceSchema.optional(),
 });
 
 // For compatibility with previous types, though we augment them
@@ -261,6 +264,7 @@ export interface ScenarioBlueprint {
   };
   styleProfile?: ProseStyleVector; // A synthesized description of the user's writing style
   perspectives?: SubjectivePerspective[];
+  hauntedHouse?: HauntedHouseProvenance;
 }
 
 export interface ContextReceipt {

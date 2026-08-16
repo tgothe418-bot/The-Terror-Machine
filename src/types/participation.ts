@@ -98,6 +98,14 @@ export const ParticipationContextSchema = z.object({
 });
 export type ParticipationContext = z.infer<typeof ParticipationContextSchema>;
 
+export const HauntedHouseProvenanceSchema = z.object({
+  source: z.literal('haunted-house'),
+  version: z.literal(1),
+  recommendedParticipationMode: ParticipationModeSchema,
+  participationContext: ParticipationContextSchema,
+});
+export type HauntedHouseProvenance = z.infer<typeof HauntedHouseProvenanceSchema>;
+
 /**
  * Safely normalizes participation context, ensuring legacy Phase 3A antagonist
  * contexts receive an explicit Authority Contract fallback rather than unconstrained power
