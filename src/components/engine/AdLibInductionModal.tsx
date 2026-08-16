@@ -985,7 +985,7 @@ export default function AdLibInductionModal({
                             setIndividualVictimName(e.target.value);
                             clearFieldError('victimField.name');
                           }}
-                          placeholder="e.g. Dr. Aris Thorne"
+                          placeholder="e.g. The Night Custodian"
                           aria-invalid={Boolean(fieldErrors['victimField.name'])}
                           aria-describedby={
                             fieldErrors['victimField.name']
