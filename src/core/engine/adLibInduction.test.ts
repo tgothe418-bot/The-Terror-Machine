@@ -15,6 +15,7 @@ import {
   TurnFailureReceipt,
   ParticipationContext,
   normalizeParticipationContext,
+  RuntimeStateSnapshot,
 } from '../../types';
 import { buildEngineTurnContext } from '../../lib/buildEngineTurnContext';
 import { CommittedTurnPayload, FailedTurnPayload } from './events';
@@ -482,9 +483,7 @@ describe('Phase 3B: Antagonist Authority Contracts & Victim Framing', () => {
         blueprint: session.blueprint,
         selectedRole: 'antagonist',
         spatialGraph: [session.initialSpatialNode],
-        currentNodeId: session.initialSpatialNode.id,
         participationContext: session.participationContext,
-        history: [],
       });
 
       expect(turnContext.participationContext).toBeDefined();
@@ -571,35 +570,22 @@ describe('Phase 3B: Antagonist Authority Contracts & Victim Framing', () => {
         blueprint: session.blueprint,
         selectedRole: 'antagonist',
         spatialGraph: [session.initialSpatialNode],
-        currentNodeId: session.initialSpatialNode.id,
         participationContext: session.participationContext,
-        history: [],
       });
       expect(turnContext.participationContext?.authorityContract?.authority).toContain('Barometric surges');
 
-      const preSnapshot = {
-        turnIndex: 0,
-        timelineRevision: 0,
-        reconciliationRevision: 0,
-        activeVector: 'COGNITIVE' as const,
-        activeTier: 'LATENT' as const,
-        phase: 'ENGINE' as const,
-        escalation_state: 'LATENT' as const,
+      const preSnapshot: RuntimeStateSnapshot = {
+        version: 1,
+        turnCount: 0,
         currentNodeId: session.initialSpatialNode.id,
-        spatialGraph: [session.initialSpatialNode],
-        decay: { stage: 'STABLE' as const, coherence: 1.0 },
-        systemFlags: [],
-        somaState: [],
-        geomState: [],
-        traumaLedger: [],
-        motifLedger: {},
-        pacingLedger: {
-          failedEscapeAttempts: 0,
-          memoryAnchorsRemaining: 3,
-          spatialContradictions: 0,
-        },
-        castLedger: [],
-        narrativeVelocity: 'slow_burn' as const,
+        activeVector: 'COGNITIVE',
+        activeTier: 'LATENT',
+        phase: 'ENGINE',
+        tension: 0,
+        coherence: 1.0,
+        decayRate: 0,
+        reconciliationRevision: 0,
+        activeFlags: [],
       };
 
       const ratifiedFrame: RatifiedEngineFrame = {
@@ -625,6 +611,7 @@ describe('Phase 3B: Antagonist Authority Contracts & Victim Framing', () => {
           activeVector: 'COGNITIVE',
           activeTier: 'LATENT',
           tension: 20,
+          preSnapshot,
         },
       };
 
@@ -642,6 +629,7 @@ describe('Phase 3B: Antagonist Authority Contracts & Victim Framing', () => {
           activeVector: 'COGNITIVE',
           activeTier: 'LATENT',
           tension: 20,
+          preSnapshot,
         },
         preSnapshot,
       };
@@ -664,9 +652,7 @@ describe('Phase 3B: Antagonist Authority Contracts & Victim Framing', () => {
         blueprint: session.blueprint,
         selectedRole: 'antagonist',
         spatialGraph: appState.spatialGraph,
-        currentNodeId: appState.currentNodeId || session.initialSpatialNode.id,
         participationContext: appState.participationContext,
-        history: appState.history,
       });
 
       expect(nextTurnContext.participationContext?.authorityContract?.authority).toContain('Barometric surges');
@@ -715,29 +701,18 @@ describe('Phase 3B: Antagonist Authority Contracts & Victim Framing', () => {
       const session = initiateAdLibSession(induction);
       const appStateBefore = useAppStore.getState();
 
-      const preSnapshot = {
-        turnIndex: 0,
-        timelineRevision: 0,
-        reconciliationRevision: 0,
-        activeVector: 'COGNITIVE' as const,
-        activeTier: 'LATENT' as const,
-        phase: 'ENGINE' as const,
-        escalation_state: 'LATENT' as const,
+      const preSnapshot: RuntimeStateSnapshot = {
+        version: 1,
+        turnCount: 0,
         currentNodeId: session.initialSpatialNode.id,
-        spatialGraph: [session.initialSpatialNode],
-        decay: { stage: 'STABLE' as const, coherence: 1.0 },
-        systemFlags: [],
-        somaState: [],
-        geomState: [],
-        traumaLedger: [],
-        motifLedger: {},
-        pacingLedger: {
-          failedEscapeAttempts: 0,
-          memoryAnchorsRemaining: 3,
-          spatialContradictions: 0,
-        },
-        castLedger: [],
-        narrativeVelocity: 'slow_burn' as const,
+        activeVector: 'COGNITIVE',
+        activeTier: 'LATENT',
+        phase: 'ENGINE',
+        tension: 0,
+        coherence: 1.0,
+        decayRate: 0,
+        reconciliationRevision: 0,
+        activeFlags: [],
       };
 
       const failureReceipt: TurnFailureReceipt = {
@@ -800,9 +775,7 @@ describe('Phase 3B: Antagonist Authority Contracts & Victim Framing', () => {
         blueprint: session.blueprint,
         selectedRole: 'antagonist',
         spatialGraph: appStateAfter.spatialGraph,
-        currentNodeId: appStateAfter.currentNodeId || session.initialSpatialNode.id,
         participationContext: appStateAfter.participationContext,
-        history: appStateAfter.history,
       });
 
       expect(nextTurnContext.participationContext?.authorityContract?.authority).toContain('Direct physical pursuit');

@@ -210,7 +210,7 @@ export default function Runtime() {
 
   const setPhase = useAppStore((state) => state.setPhase);
   const telemetry = useEngineStore((state) => state.telemetry);
-  const selectedRole = useEngineStore((state) => state.selectedRole);
+  const playerRole = useEngineStore((state) => state.gameState?.player_role);
   const participationContext = useAppStore((state) => state.participationContext);
   const turnCount = useAppStore((state) => state.turnCount);
   const currentSimulationPhase = useTelemetryStore((state) => state.currentPhase);
@@ -695,9 +695,9 @@ export default function Runtime() {
             {/* The input container - seamlessly integrated into the void */}
             <div className="flex-1 relative flex items-end border-b border-zinc-800 focus-within:border-zinc-500 transition-colors duration-1000">
               <span className="text-xs sm:text-sm uppercase tracking-widest opacity-80 mr-4 mb-3.5 shrink-0 font-bold text-zinc-400">
-                {participationContext?.mode === 'antagonist' || selectedRole === 'antagonist'
+                {participationContext?.mode === 'antagonist' || playerRole === 'antagonist'
                   ? '[ ANTAGONIST ]'
-                  : participationContext?.mode === 'director' || selectedRole === 'director'
+                  : participationContext?.mode === 'director' || playerRole === 'director'
                     ? '[ DIRECTOR ]'
                     : '[ PROTAGONIST ]'}
               </span>
