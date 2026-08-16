@@ -568,7 +568,7 @@ export default function Runtime() {
           <div className="h-4 w-[1px] bg-zinc-800" />
           <div className="flex flex-col">
             <h1 className="text-xs sm:text-sm font-bold tracking-[0.3em] uppercase text-white">
-              {activeBlueprint?.title || 'Haunted House Ad-Lib'}
+              {activeBlueprint?.title || 'Haunted House'}
             </h1>
             <div className="flex items-center gap-3">
               <span className="text-xs text-zinc-400 uppercase tracking-widest">

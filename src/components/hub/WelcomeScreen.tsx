@@ -129,7 +129,7 @@ export default function WelcomeScreen() {
                 The Engine
               </h2>
               <p className="text-sm text-zinc-400 leading-relaxed font-mono">
-                Load a scenario blueprint or launch an Ad Lib simulation to begin execution.
+                Load a scenario blueprint or launch a Haunted House simulation to begin execution.
               </p>
             </div>
 

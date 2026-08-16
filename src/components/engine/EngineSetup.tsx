@@ -106,7 +106,7 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
                   Initialize Simulation
                 </h2>
                 <p className="text-zinc-400 text-xs sm:text-sm tracking-tight uppercase leading-relaxed">
-                  Start a procedural Ad Lib session, load a blueprint, or resume active link.
+                  Start a procedural Haunted House session, load a blueprint, or resume active link.
                 </p>
               </div>
 
@@ -157,12 +157,12 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
                   </div>
                 </div>
 
-                {/* Option 3: Ad-Lib Mode */}
+                {/* Option 3: Haunted House Mode */}
                 <div className="md:col-span-2 p-8 border border-red-950/80 bg-zinc-950/60 rounded flex flex-col items-center justify-center gap-5 shadow-[inset_0_0_25px_rgba(239,68,68,0.05)]">
                   <div className="text-center">
                     <Skull className="w-10 h-10 text-red-500 mx-auto mb-3" />
                     <span className="text-sm uppercase tracking-[0.25em] block mb-1 text-zinc-100 font-bold">
-                      Ad-Lib Induction Terminal
+                      Haunted House Induction Terminal
                     </span>
                     <span className="text-xs text-zinc-400 uppercase tracking-wider">
                       Phase 3B Procedural Opposition & Victim Framing
@@ -178,7 +178,7 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
                     className="border-2 border-red-600 bg-red-950/40 hover:bg-red-600 hover:text-white text-red-300 px-8 py-3 text-xs tracking-[0.2em] uppercase font-bold transition-all duration-300 flex items-center gap-2 rounded cursor-pointer shadow-lg shadow-red-950/40 hover:shadow-red-600/30"
                   >
                     <Sparkles className="w-4 h-4 text-amber-400" />
-                    <span>Launch Ad Lib Induction Terminal</span>
+                    <span>Launch Haunted House Induction Terminal</span>
                   </button>
                 </div>
               </div>

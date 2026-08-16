@@ -41,9 +41,9 @@ The Forge is the deliberate design path. It collaborates with the user to define
 The Engine runs the scenario. Its two entry paths are visible from the beginning:
 
 - **Blueprint Mode:** load a Forge export, inspect it, choose an available orientation, and initialize or resume the simulation.
-- **Ad-Lib Induction:** generate a fresh procedural haunted house from a compact set of controls such as scale, aesthetic, and tone, then enter it without first authoring a full Blueprint.
+- **Haunted House Induction:** generate a fresh procedural haunted house from a compact set of controls such as scale, aesthetic, and tone, then enter it without first authoring a full Blueprint.
 
-Both paths are intended to converge on the same stateful turn loop. Haunted House/Ad-Lib Induction is a featured use of TTM, not a disposable demo path. It is deliberately looser about pre-authored facts and may materialize details just in time, but it must obey the same canonical state, geometry, memory, ratification, and telemetry rules as a designed scenario.
+Both paths are intended to converge on the same stateful turn loop. Haunted House Induction is a featured use of TTM, not a disposable demo path. It is deliberately looser about pre-authored facts and may materialize details just in time, but it must obey the same canonical state, geometry, memory, ratification, and telemetry rules as a designed scenario.
 
 The current Gothic, Industrial, Liminal, and Occult reference bundles are temporary compatibility stand-ins for the emerging Cluster system. They should remain together until the Cluster loader replaces them; they are not four finished, independently functional systems.
 

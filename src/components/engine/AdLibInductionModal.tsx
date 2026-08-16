@@ -13,6 +13,7 @@ import {
   Users,
   Lock,
 } from 'lucide-react';
+import { ZodError } from 'zod';
 import {
   ParticipationMode,
   OppositionSeatKind,
@@ -21,6 +22,7 @@ import {
   AdLibAntagonistInduction,
   AdLibDirectorInduction,
   VictimProfile,
+  MAX_HAUNTED_HOUSE_PREMISE_LENGTH,
 } from '../../types/adLib';
 import { initiateAdLibSession } from '../../lib/adLibCompiler';
 import { forgeActions } from '../../store/useForgeStore';
@@ -29,6 +31,102 @@ interface AdLibInductionModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess?: () => void;
+}
+
+function parseZodErrors(err: ZodError): {
+  fieldErrors: Record<string, string>;
+  firstErrorId: string | null;
+  summaryMessage: string;
+} {
+  const fieldErrors: Record<string, string> = {};
+  let firstErrorId: string | null = null;
+  const messages: string[] = [];
+
+  for (const issue of err.issues) {
+    const pathStr = issue.path.join('.');
+    let targetId: string | null = null;
+    let message = issue.message;
+
+    if (issue.path[0] === 'goal') {
+      targetId = 'input-goal';
+      if (issue.code === 'too_big') {
+        message = `Scenario premise must be ${MAX_HAUNTED_HOUSE_PREMISE_LENGTH.toLocaleString()} characters or fewer.`;
+      } else if (issue.code === 'too_small' || message === 'Required') {
+        message = 'Scenario premise is required.';
+      }
+    } else if (issue.path[0] === 'placeSeed') {
+      targetId = 'input-placeSeed';
+      if (issue.code === 'too_small' || message === 'Required') {
+        message = 'Location / enclosure seed is required.';
+      }
+    } else if (issue.path[0] === 'unsettlingDetail') {
+      targetId = 'input-unsettlingDetail';
+    } else if (issue.path[0] === 'participantName') {
+      targetId = 'input-participantName';
+    } else if (issue.path[0] === 'identity') {
+      targetId = 'input-identity';
+    } else if (issue.path[0] === 'ability') {
+      targetId = 'input-ability';
+    } else if (issue.path[0] === 'limitation') {
+      targetId = 'input-limitation';
+    } else if (issue.path[0] === 'oppositionSeat') {
+      if (issue.path[1] === 'name') {
+        targetId = 'input-antagonistName';
+      } else if (issue.path[1] === 'description') {
+        targetId = 'input-antagonistDescription';
+      } else if (issue.path[1] === 'goal') {
+        targetId = 'input-antagonistGoal';
+        if (issue.code === 'too_small' || message === 'Required') {
+          message = 'Opposition threat goal is required.';
+        }
+      }
+    } else if (issue.path[0] === 'authorityContract') {
+      if (issue.path[1] === 'authority') {
+        targetId = 'input-authority';
+        if (issue.code === 'too_small' || message === 'Required') {
+          message = 'Authority scope is required.';
+        }
+      } else if (issue.path[1] === 'limits') {
+        targetId = 'input-limits';
+        if (issue.code === 'too_small' || message === 'Required') {
+          message = 'Operational limits & anchors are required.';
+        }
+      }
+    } else if (issue.path[0] === 'victimField') {
+      if (issue.path[1] === 'name') {
+        targetId = 'input-individualVictimName';
+      } else if (issue.path[1] === 'collectiveDesignation') {
+        targetId = 'input-groupDesignation';
+        if (issue.code === 'too_small' || message === 'Required') {
+          message = 'Collective group designation is required.';
+        }
+      } else if (issue.path[1] === 'members' && typeof issue.path[2] === 'number') {
+        targetId = `input-member-${issue.path[2]}-name`;
+      }
+    } else if (issue.path[0] === 'directorFocus') {
+      targetId = 'input-directorFocus';
+    }
+
+    if (!fieldErrors[pathStr]) {
+      fieldErrors[pathStr] = message;
+      if (issue.path[0]) {
+        fieldErrors[String(issue.path[0])] = message;
+      }
+      if (issue.path[1]) {
+        fieldErrors[`${String(issue.path[0])}.${String(issue.path[1])}`] = message;
+      }
+    }
+    if (!firstErrorId && targetId) {
+      firstErrorId = targetId;
+    }
+    if (!messages.includes(message)) {
+      messages.push(message);
+    }
+  }
+
+  const summaryMessage =
+    messages.length > 0 ? messages.join(' • ') : 'Please correct the highlighted fields.';
+  return { fieldErrors, firstErrorId, summaryMessage };
 }
 
 export default function AdLibInductionModal({
@@ -76,6 +174,7 @@ export default function AdLibInductionModal({
 
   // Validation & state
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!isOpen) return null;
@@ -83,6 +182,7 @@ export default function AdLibInductionModal({
   const loadPreset = (presetMode: ParticipationMode) => {
     setMode(presetMode);
     setValidationError(null);
+    setFieldErrors({});
 
     if (presetMode === 'protagonist') {
       setPlaceSeed('Sub-Level 4 Cryogenic Vault');
@@ -101,7 +201,7 @@ export default function AdLibInductionModal({
       setAntagonistDescription(
         'An unseen sentience manifesting as deep-ocean hydraulic pressure and structural resonance.'
       );
-      setAntagonistGoal('Crush exterior bulkhead seals and force the crew into flooded sub-sectors.');
+      setAntagonistGoal('Crush exterior bulkhead seals before repair pumps engage');
       setAuthority(
         'Distributed barometric manipulation, structural crushing along external bulkheads, acoustic metal resonance, and rapid water vapor condensation.'
       );
@@ -131,7 +231,9 @@ export default function AdLibInductionModal({
       setPlaceSeed('Fog-Bound Pine Barrens Sanitarium');
       setGoal('Stage the slow unraveling of three isolated investigators');
       setUnsettlingDetail('Clock chimes echoing backwards from the empty clocktower');
-      setDirectorFocus('Atmospheric escalation, dread-heavy scene framing, psychological fragmentation');
+      setDirectorFocus(
+        'Atmospheric escalation, dread-heavy scene framing, psychological fragmentation'
+      );
     }
   };
 
@@ -165,8 +267,19 @@ export default function AdLibInductionModal({
     setGroupMembers(groupMembers.filter((_, i) => i !== index));
   };
 
+  const clearFieldError = (key: string) => {
+    if (fieldErrors[key]) {
+      setFieldErrors((prev) => {
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
+    }
+  };
+
   const handleLaunch = () => {
     setValidationError(null);
+    setFieldErrors({});
     setIsSubmitting(true);
 
     try {
@@ -223,7 +336,7 @@ export default function AdLibInductionModal({
             kind: antagonistKind,
             name: antagonistName.trim(),
             description: antagonistDescription.trim(),
-            goal: antagonistGoal.trim() || goal.trim(),
+            goal: antagonistGoal.trim(),
           },
           authorityContract: {
             authority: authority.trim(),
@@ -261,7 +374,20 @@ export default function AdLibInductionModal({
       }
       onClose();
     } catch (err: unknown) {
-      if (err instanceof Error) {
+      if (err instanceof ZodError) {
+        const { fieldErrors: errs, firstErrorId, summaryMessage } = parseZodErrors(err);
+        setFieldErrors(errs);
+        setValidationError(summaryMessage);
+        if (firstErrorId) {
+          setTimeout(() => {
+            const el = document.getElementById(firstErrorId);
+            if (el) {
+              el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              el.focus();
+            }
+          }, 50);
+        }
+      } else if (err instanceof Error) {
         setValidationError(err.message);
       } else {
         setValidationError(String(err));
@@ -283,7 +409,7 @@ export default function AdLibInductionModal({
             <Skull className="w-5 h-5 text-red-500 shrink-0" />
             <div>
               <h2 className="text-sm uppercase font-bold tracking-[0.2em] text-white">
-                Ad Lib Induction Terminal
+                Haunted House Induction Terminal
               </h2>
               <p className="text-xs text-zinc-400 uppercase tracking-wider">
                 Phase 3B Procedural Induction // Authority & Victim Framing
@@ -343,6 +469,7 @@ export default function AdLibInductionModal({
                 onClick={() => {
                   setMode('antagonist');
                   setValidationError(null);
+                  setFieldErrors({});
                 }}
                 className={`p-3.5 border text-left transition-all rounded cursor-pointer ${
                   mode === 'antagonist'
@@ -366,6 +493,7 @@ export default function AdLibInductionModal({
                 onClick={() => {
                   setMode('protagonist');
                   setValidationError(null);
+                  setFieldErrors({});
                 }}
                 className={`p-3.5 border text-left transition-all rounded cursor-pointer ${
                   mode === 'protagonist'
@@ -389,6 +517,7 @@ export default function AdLibInductionModal({
                 onClick={() => {
                   setMode('director');
                   setValidationError(null);
+                  setFieldErrors({});
                 }}
                 className={`p-3.5 border text-left transition-all rounded cursor-pointer ${
                   mode === 'director'
@@ -414,45 +543,129 @@ export default function AdLibInductionModal({
             <label className="text-xs text-zinc-400 uppercase tracking-wider block font-bold">
               2. Scenario Enclosure & Primary Seed
             </label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-3">
               <div>
-                <label className="text-xs text-zinc-400 uppercase tracking-wide block mb-1">
+                <label
+                  htmlFor="input-placeSeed"
+                  className="text-xs text-zinc-400 uppercase tracking-wide block mb-1"
+                >
                   Location / Enclosure Seed *
                 </label>
                 <input
+                  id="input-placeSeed"
                   type="text"
                   value={placeSeed}
-                  onChange={(e) => setPlaceSeed(e.target.value)}
+                  onChange={(e) => {
+                    setPlaceSeed(e.target.value);
+                    clearFieldError('placeSeed');
+                  }}
                   placeholder="e.g. Derelict Atmospheric Siphon"
-                  className="w-full bg-zinc-900 border border-zinc-700 focus:border-zinc-400 px-3 py-2 text-xs sm:text-sm text-zinc-100 rounded focus:outline-none"
+                  aria-invalid={Boolean(fieldErrors['placeSeed'])}
+                  aria-describedby={fieldErrors['placeSeed'] ? 'input-placeSeed-error' : undefined}
+                  className={`w-full bg-zinc-900 border px-3 py-2 text-xs sm:text-sm text-zinc-100 rounded focus:outline-none ${
+                    fieldErrors['placeSeed']
+                      ? 'border-red-500 focus:border-red-500'
+                      : 'border-zinc-700 focus:border-zinc-400'
+                  }`}
                 />
+                {fieldErrors['placeSeed'] && (
+                  <p
+                    id="input-placeSeed-error"
+                    role="alert"
+                    className="text-xs text-red-400 mt-1 font-mono"
+                  >
+                    {fieldErrors['placeSeed']}
+                  </p>
+                )}
               </div>
 
               <div>
-                <label className="text-xs text-zinc-400 uppercase tracking-wide block mb-1">
-                  Scenario Premise / Core Goal *
+                <div className="flex items-center justify-between mb-1">
+                  <label
+                    htmlFor="input-goal"
+                    className="text-xs text-zinc-400 uppercase tracking-wide font-bold"
+                  >
+                    Scenario Premise / Core Objective *
+                  </label>
+                  <span
+                    className={`text-xs font-mono ${
+                      goal.length > MAX_HAUNTED_HOUSE_PREMISE_LENGTH
+                        ? 'text-red-400 font-bold'
+                        : 'text-zinc-500'
+                    }`}
+                  >
+                    {goal.length}/{MAX_HAUNTED_HOUSE_PREMISE_LENGTH}
+                  </span>
+                </div>
+                <textarea
+                  id="input-goal"
+                  rows={3}
+                  value={goal}
+                  onChange={(e) => {
+                    setGoal(e.target.value);
+                    clearFieldError('goal');
+                  }}
+                  placeholder="e.g. Mary and Joseph are in a manger behind a sold-out hotel in Bethlehem..."
+                  aria-invalid={
+                    Boolean(fieldErrors['goal']) ||
+                    goal.length > MAX_HAUNTED_HOUSE_PREMISE_LENGTH
+                  }
+                  aria-describedby={fieldErrors['goal'] ? 'input-goal-error' : undefined}
+                  className={`w-full bg-zinc-900 border p-2.5 text-xs sm:text-sm text-zinc-100 rounded focus:outline-none leading-relaxed ${
+                    goal.length > MAX_HAUNTED_HOUSE_PREMISE_LENGTH || fieldErrors['goal']
+                      ? 'border-red-500 focus:border-red-500'
+                      : 'border-zinc-700 focus:border-zinc-400'
+                  }`}
+                />
+                {fieldErrors['goal'] && (
+                  <p
+                    id="input-goal-error"
+                    role="alert"
+                    className="text-xs text-red-400 mt-1 font-mono"
+                  >
+                    {fieldErrors['goal']}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label
+                  htmlFor="input-unsettlingDetail"
+                  className="text-xs text-zinc-400 uppercase tracking-wide block mb-1"
+                >
+                  Unsettling Detail / Atmospheric Motif (Optional)
                 </label>
                 <input
+                  id="input-unsettlingDetail"
                   type="text"
-                  value={goal}
-                  onChange={(e) => setGoal(e.target.value)}
-                  placeholder="e.g. Collapse structural bulkheads and isolate the maintenance cohort"
-                  className="w-full bg-zinc-900 border border-zinc-700 focus:border-zinc-400 px-3 py-2 text-xs sm:text-sm text-zinc-100 rounded focus:outline-none"
+                  value={unsettlingDetail}
+                  onChange={(e) => {
+                    setUnsettlingDetail(e.target.value);
+                    clearFieldError('unsettlingDetail');
+                  }}
+                  placeholder="e.g. Metallic shrieking and localized barometric drops along the ductwork"
+                  aria-invalid={Boolean(fieldErrors['unsettlingDetail'])}
+                  aria-describedby={
+                    fieldErrors['unsettlingDetail']
+                      ? 'input-unsettlingDetail-error'
+                      : undefined
+                  }
+                  className={`w-full bg-zinc-900 border px-3 py-2 text-xs sm:text-sm text-zinc-100 rounded focus:outline-none ${
+                    fieldErrors['unsettlingDetail']
+                      ? 'border-red-500 focus:border-red-500'
+                      : 'border-zinc-700 focus:border-zinc-400'
+                  }`}
                 />
+                {fieldErrors['unsettlingDetail'] && (
+                  <p
+                    id="input-unsettlingDetail-error"
+                    role="alert"
+                    className="text-xs text-red-400 mt-1 font-mono"
+                  >
+                    {fieldErrors['unsettlingDetail']}
+                  </p>
+                )}
               </div>
-            </div>
-
-            <div>
-              <label className="text-xs text-zinc-400 uppercase tracking-wide block mb-1">
-                Unsettling Detail / Atmospheric Motif (Optional)
-              </label>
-              <input
-                type="text"
-                value={unsettlingDetail}
-                onChange={(e) => setUnsettlingDetail(e.target.value)}
-                placeholder="e.g. Metallic shrieking and localized barometric drops along the ductwork"
-                className="w-full bg-zinc-900 border border-zinc-700 focus:border-zinc-400 px-3 py-2 text-xs sm:text-sm text-zinc-100 rounded focus:outline-none"
-              />
             </div>
           </div>
 
@@ -494,42 +707,120 @@ export default function AdLibInductionModal({
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="text-xs text-zinc-400 uppercase tracking-wide block mb-1">
+                    <label
+                      htmlFor="input-antagonistName"
+                      className="text-xs text-zinc-400 uppercase tracking-wide block mb-1"
+                    >
                       Antagonist Designation / Name *
                     </label>
                     <input
+                      id="input-antagonistName"
                       type="text"
                       value={antagonistName}
-                      onChange={(e) => setAntagonistName(e.target.value)}
+                      onChange={(e) => {
+                        setAntagonistName(e.target.value);
+                        clearFieldError('oppositionSeat.name');
+                      }}
                       placeholder="e.g. The Abyssal Pressure Anomaly"
-                      className="w-full bg-zinc-900 border border-zinc-700 focus:border-red-500 px-3 py-2 text-xs sm:text-sm text-zinc-100 rounded focus:outline-none"
+                      aria-invalid={Boolean(fieldErrors['oppositionSeat.name'])}
+                      aria-describedby={
+                        fieldErrors['oppositionSeat.name']
+                          ? 'input-antagonistName-error'
+                          : undefined
+                      }
+                      className={`w-full bg-zinc-900 border px-3 py-2 text-xs sm:text-sm text-zinc-100 rounded focus:outline-none ${
+                        fieldErrors['oppositionSeat.name']
+                          ? 'border-red-500 focus:border-red-500'
+                          : 'border-zinc-700 focus:border-red-500'
+                      }`}
                     />
+                    {fieldErrors['oppositionSeat.name'] && (
+                      <p
+                        id="input-antagonistName-error"
+                        role="alert"
+                        className="text-xs text-red-400 mt-1 font-mono"
+                      >
+                        {fieldErrors['oppositionSeat.name']}
+                      </p>
+                    )}
                   </div>
                   <div>
-                    <label className="text-xs text-zinc-400 uppercase tracking-wide block mb-1">
+                    <label
+                      htmlFor="input-antagonistGoal"
+                      className="text-xs text-zinc-400 uppercase tracking-wide block mb-1"
+                    >
                       Opposition Threat Goal *
                     </label>
                     <input
+                      id="input-antagonistGoal"
                       type="text"
                       value={antagonistGoal}
-                      onChange={(e) => setAntagonistGoal(e.target.value)}
+                      onChange={(e) => {
+                        setAntagonistGoal(e.target.value);
+                        clearFieldError('oppositionSeat.goal');
+                      }}
                       placeholder="e.g. Crush exterior bulkhead seals before repair pumps engage"
-                      className="w-full bg-zinc-900 border border-zinc-700 focus:border-red-500 px-3 py-2 text-xs sm:text-sm text-zinc-100 rounded focus:outline-none"
+                      aria-invalid={Boolean(fieldErrors['oppositionSeat.goal'])}
+                      aria-describedby={
+                        fieldErrors['oppositionSeat.goal']
+                          ? 'input-antagonistGoal-error'
+                          : undefined
+                      }
+                      className={`w-full bg-zinc-900 border px-3 py-2 text-xs sm:text-sm text-zinc-100 rounded focus:outline-none ${
+                        fieldErrors['oppositionSeat.goal']
+                          ? 'border-red-500 focus:border-red-500'
+                          : 'border-zinc-700 focus:border-red-500'
+                      }`}
                     />
+                    {fieldErrors['oppositionSeat.goal'] && (
+                      <p
+                        id="input-antagonistGoal-error"
+                        role="alert"
+                        className="text-xs text-red-400 mt-1 font-mono"
+                      >
+                        {fieldErrors['oppositionSeat.goal']}
+                      </p>
+                    )}
                   </div>
                 </div>
 
                 <div>
-                  <label className="text-xs text-zinc-400 uppercase tracking-wide block mb-1">
+                  <label
+                    htmlFor="input-antagonistDescription"
+                    className="text-xs text-zinc-400 uppercase tracking-wide block mb-1"
+                  >
                     Manifestation & Description *
                   </label>
                   <input
+                    id="input-antagonistDescription"
                     type="text"
                     value={antagonistDescription}
-                    onChange={(e) => setAntagonistDescription(e.target.value)}
+                    onChange={(e) => {
+                      setAntagonistDescription(e.target.value);
+                      clearFieldError('oppositionSeat.description');
+                    }}
                     placeholder="e.g. An unseen sentience manifesting as deep-ocean hydraulic pressure and structural resonance"
-                    className="w-full bg-zinc-900 border border-zinc-700 focus:border-red-500 px-3 py-2 text-xs sm:text-sm text-zinc-100 rounded focus:outline-none"
+                    aria-invalid={Boolean(fieldErrors['oppositionSeat.description'])}
+                    aria-describedby={
+                      fieldErrors['oppositionSeat.description']
+                        ? 'input-antagonistDescription-error'
+                        : undefined
+                    }
+                    className={`w-full bg-zinc-900 border px-3 py-2 text-xs sm:text-sm text-zinc-100 rounded focus:outline-none ${
+                      fieldErrors['oppositionSeat.description']
+                        ? 'border-red-500 focus:border-red-500'
+                        : 'border-zinc-700 focus:border-red-500'
+                    }`}
                   />
+                  {fieldErrors['oppositionSeat.description'] && (
+                    <p
+                      id="input-antagonistDescription-error"
+                      role="alert"
+                      className="text-xs text-red-400 mt-1 font-mono"
+                    >
+                      {fieldErrors['oppositionSeat.description']}
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -538,12 +829,15 @@ export default function AdLibInductionModal({
                 {/* Authority Scope */}
                 <div className="p-4 bg-zinc-900/60 border border-amber-900/40 rounded space-y-2">
                   <div className="flex items-center justify-between">
-                    <label className="text-xs text-amber-400 uppercase tracking-wider font-bold flex items-center gap-1.5">
+                    <label
+                      htmlFor="input-authority"
+                      className="text-xs text-amber-400 uppercase tracking-wider font-bold flex items-center gap-1.5"
+                    >
                       <Sparkles className="w-4 h-4" />
                       3B. Your Authority *
                     </label>
                     <span
-                      className={`text-xs ${
+                      className={`text-xs font-mono ${
                         authority.length > 500 ? 'text-red-400 font-bold' : 'text-zinc-500'
                       }`}
                     >
@@ -554,23 +848,49 @@ export default function AdLibInductionModal({
                     Specify your domain of perception, reach, supernatural vector, or environmental reach.
                   </p>
                   <textarea
+                    id="input-authority"
                     rows={3}
                     value={authority}
-                    onChange={(e) => setAuthority(e.target.value)}
+                    onChange={(e) => {
+                      setAuthority(e.target.value);
+                      clearFieldError('authorityContract.authority');
+                    }}
                     placeholder="e.g. Distributed barometric manipulation, structural crushing along external bulkheads, acoustic metal resonance, and water vapor condensation."
-                    className="w-full bg-zinc-950 border border-zinc-700 focus:border-amber-500 p-2.5 text-xs sm:text-sm text-zinc-100 rounded focus:outline-none leading-relaxed"
+                    aria-invalid={Boolean(fieldErrors['authorityContract.authority'])}
+                    aria-describedby={
+                      fieldErrors['authorityContract.authority']
+                        ? 'input-authority-error'
+                        : undefined
+                    }
+                    className={`w-full bg-zinc-950 border p-2.5 text-xs sm:text-sm text-zinc-100 rounded focus:outline-none leading-relaxed ${
+                      fieldErrors['authorityContract.authority']
+                        ? 'border-red-500 focus:border-red-500'
+                        : 'border-zinc-700 focus:border-amber-500'
+                    }`}
                   />
+                  {fieldErrors['authorityContract.authority'] && (
+                    <p
+                      id="input-authority-error"
+                      role="alert"
+                      className="text-xs text-red-400 mt-1 font-mono"
+                    >
+                      {fieldErrors['authorityContract.authority']}
+                    </p>
+                  )}
                 </div>
 
                 {/* Operational Limits */}
                 <div className="p-4 bg-zinc-900/60 border border-red-900/40 rounded space-y-2">
                   <div className="flex items-center justify-between">
-                    <label className="text-xs text-red-400 uppercase tracking-wider font-bold flex items-center gap-1.5">
+                    <label
+                      htmlFor="input-limits"
+                      className="text-xs text-red-400 uppercase tracking-wider font-bold flex items-center gap-1.5"
+                    >
                       <Lock className="w-4 h-4" />
                       3C. Your Limits & Anchors *
                     </label>
                     <span
-                      className={`text-xs ${
+                      className={`text-xs font-mono ${
                         limits.length > 500 ? 'text-red-400 font-bold' : 'text-zinc-500'
                       }`}
                     >
@@ -581,12 +901,35 @@ export default function AdLibInductionModal({
                     Non-negotiable boundaries, forbidden transformations, physical anchors, or survivor counterplay.
                   </p>
                   <textarea
+                    id="input-limits"
                     rows={3}
                     value={limits}
-                    onChange={(e) => setLimits(e.target.value)}
+                    onChange={(e) => {
+                      setLimits(e.target.value);
+                      clearFieldError('authorityContract.limits');
+                    }}
                     placeholder="e.g. Cannot breach hermetic quartz bulkheads without mechanical failure; cannot manifest dry heat or electrical sparks; bound to continuous air volume."
-                    className="w-full bg-zinc-950 border border-zinc-700 focus:border-red-500 p-2.5 text-xs sm:text-sm text-zinc-100 rounded focus:outline-none leading-relaxed"
+                    aria-invalid={Boolean(fieldErrors['authorityContract.limits'])}
+                    aria-describedby={
+                      fieldErrors['authorityContract.limits']
+                        ? 'input-limits-error'
+                        : undefined
+                    }
+                    className={`w-full bg-zinc-950 border p-2.5 text-xs sm:text-sm text-zinc-100 rounded focus:outline-none leading-relaxed ${
+                      fieldErrors['authorityContract.limits']
+                        ? 'border-red-500 focus:border-red-500'
+                        : 'border-zinc-700 focus:border-red-500'
+                    }`}
                   />
+                  {fieldErrors['authorityContract.limits'] && (
+                    <p
+                      id="input-limits-error"
+                      role="alert"
+                      className="text-xs text-red-400 mt-1 font-mono"
+                    >
+                      {fieldErrors['authorityContract.limits']}
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -628,22 +971,52 @@ export default function AdLibInductionModal({
                   <div className="space-y-3 pt-1">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
-                        <label className="text-xs text-zinc-400 uppercase tracking-wide block mb-1">
+                        <label
+                          htmlFor="input-individualVictimName"
+                          className="text-xs text-zinc-400 uppercase tracking-wide block mb-1"
+                        >
                           Victim Name / Designation *
                         </label>
                         <input
+                          id="input-individualVictimName"
                           type="text"
                           value={individualVictimName}
-                          onChange={(e) => setIndividualVictimName(e.target.value)}
+                          onChange={(e) => {
+                            setIndividualVictimName(e.target.value);
+                            clearFieldError('victimField.name');
+                          }}
                           placeholder="e.g. Dr. Aris Thorne"
-                          className="w-full bg-zinc-900 border border-zinc-700 focus:border-zinc-400 px-3 py-2 text-xs sm:text-sm text-zinc-100 rounded focus:outline-none"
+                          aria-invalid={Boolean(fieldErrors['victimField.name'])}
+                          aria-describedby={
+                            fieldErrors['victimField.name']
+                              ? 'input-individualVictimName-error'
+                              : undefined
+                          }
+                          className={`w-full bg-zinc-900 border px-3 py-2 text-xs sm:text-sm text-zinc-100 rounded focus:outline-none ${
+                            fieldErrors['victimField.name']
+                              ? 'border-red-500 focus:border-red-500'
+                              : 'border-zinc-700 focus:border-zinc-400'
+                          }`}
                         />
+                        {fieldErrors['victimField.name'] && (
+                          <p
+                            id="input-individualVictimName-error"
+                            role="alert"
+                            className="text-xs text-red-400 mt-1 font-mono"
+                          >
+                            {fieldErrors['victimField.name']}
+                          </p>
+                        )}
                       </div>
                       <div>
-                        <label className="text-xs text-zinc-400 uppercase tracking-wide block mb-1">
+                        <label
+                          htmlFor="input-individualVictimGoal"
+                          className="text-xs text-zinc-400 uppercase tracking-wide block mb-1"
+                        >
                           Victim Immediate Goal (Optional)
                         </label>
                         <input
+                          id="input-individualVictimGoal"
                           type="text"
                           value={individualVictimGoal}
                           onChange={(e) => setIndividualVictimGoal(e.target.value)}
@@ -654,10 +1027,14 @@ export default function AdLibInductionModal({
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
-                        <label className="text-xs text-zinc-400 uppercase tracking-wide block mb-1">
+                        <label
+                          htmlFor="input-individualVictimDesc"
+                          className="text-xs text-zinc-400 uppercase tracking-wide block mb-1"
+                        >
                           Description / Role (Optional)
                         </label>
                         <input
+                          id="input-individualVictimDesc"
                           type="text"
                           value={individualVictimDesc}
                           onChange={(e) => setIndividualVictimDesc(e.target.value)}
@@ -666,10 +1043,14 @@ export default function AdLibInductionModal({
                         />
                       </div>
                       <div>
-                        <label className="text-xs text-zinc-400 uppercase tracking-wide block mb-1">
+                        <label
+                          htmlFor="input-individualVictimFact"
+                          className="text-xs text-zinc-400 uppercase tracking-wide block mb-1"
+                        >
                           Known Intel / Fact (Optional)
                         </label>
                         <input
+                          id="input-individualVictimFact"
                           type="text"
                           value={individualVictimFact}
                           onChange={(e) => setIndividualVictimFact(e.target.value)}
@@ -684,22 +1065,54 @@ export default function AdLibInductionModal({
                   <div className="space-y-4 pt-1">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
-                        <label className="text-xs text-zinc-400 uppercase tracking-wide block mb-1">
+                        <label
+                          htmlFor="input-groupDesignation"
+                          className="text-xs text-zinc-400 uppercase tracking-wide block mb-1"
+                        >
                           Collective Group Designation *
                         </label>
                         <input
+                          id="input-groupDesignation"
                           type="text"
                           value={groupDesignation}
-                          onChange={(e) => setGroupDesignation(e.target.value)}
+                          onChange={(e) => {
+                            setGroupDesignation(e.target.value);
+                            clearFieldError('victimField.collectiveDesignation');
+                          }}
                           placeholder="e.g. Sub-Level 4 Maintenance Shift"
-                          className="w-full bg-zinc-900 border border-zinc-700 focus:border-zinc-400 px-3 py-2 text-xs sm:text-sm text-zinc-100 rounded focus:outline-none"
+                          aria-invalid={Boolean(
+                            fieldErrors['victimField.collectiveDesignation']
+                          )}
+                          aria-describedby={
+                            fieldErrors['victimField.collectiveDesignation']
+                              ? 'input-groupDesignation-error'
+                              : undefined
+                          }
+                          className={`w-full bg-zinc-900 border px-3 py-2 text-xs sm:text-sm text-zinc-100 rounded focus:outline-none ${
+                            fieldErrors['victimField.collectiveDesignation']
+                              ? 'border-red-500 focus:border-red-500'
+                              : 'border-zinc-700 focus:border-zinc-400'
+                          }`}
                         />
+                        {fieldErrors['victimField.collectiveDesignation'] && (
+                          <p
+                            id="input-groupDesignation-error"
+                            role="alert"
+                            className="text-xs text-red-400 mt-1 font-mono"
+                          >
+                            {fieldErrors['victimField.collectiveDesignation']}
+                          </p>
+                        )}
                       </div>
                       <div>
-                        <label className="text-xs text-zinc-400 uppercase tracking-wide block mb-1">
+                        <label
+                          htmlFor="input-groupDescription"
+                          className="text-xs text-zinc-400 uppercase tracking-wide block mb-1"
+                        >
                           Group Description / Context (Optional)
                         </label>
                         <input
+                          id="input-groupDescription"
                           type="text"
                           value={groupDescription}
                           onChange={(e) => setGroupDescription(e.target.value)}
@@ -748,6 +1161,7 @@ export default function AdLibInductionModal({
                               </div>
                               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                 <input
+                                  id={`input-member-${idx}-name`}
                                   type="text"
                                   value={member.name}
                                   onChange={(e) =>
@@ -809,54 +1223,152 @@ export default function AdLibInductionModal({
               </label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs text-zinc-400 uppercase tracking-wide block mb-1">
+                  <label
+                    htmlFor="input-participantName"
+                    className="text-xs text-zinc-400 uppercase tracking-wide block mb-1"
+                  >
                     Participant Character Name *
                   </label>
                   <input
+                    id="input-participantName"
                     type="text"
                     value={participantName}
-                    onChange={(e) => setParticipantName(e.target.value)}
+                    onChange={(e) => {
+                      setParticipantName(e.target.value);
+                      clearFieldError('participantName');
+                    }}
                     placeholder="e.g. Sgt. David Ward"
-                    className="w-full bg-zinc-900 border border-zinc-700 focus:border-emerald-500 px-3 py-2 text-xs sm:text-sm text-zinc-100 rounded focus:outline-none"
+                    aria-invalid={Boolean(fieldErrors['participantName'])}
+                    aria-describedby={
+                      fieldErrors['participantName']
+                        ? 'input-participantName-error'
+                        : undefined
+                    }
+                    className={`w-full bg-zinc-900 border px-3 py-2 text-xs sm:text-sm text-zinc-100 rounded focus:outline-none ${
+                      fieldErrors['participantName']
+                        ? 'border-red-500 focus:border-red-500'
+                        : 'border-zinc-700 focus:border-emerald-500'
+                    }`}
                   />
+                  {fieldErrors['participantName'] && (
+                    <p
+                      id="input-participantName-error"
+                      role="alert"
+                      className="text-xs text-red-400 mt-1 font-mono"
+                    >
+                      {fieldErrors['participantName']}
+                    </p>
+                  )}
                 </div>
                 <div>
-                  <label className="text-xs text-zinc-400 uppercase tracking-wide block mb-1">
+                  <label
+                    htmlFor="input-identity"
+                    className="text-xs text-zinc-400 uppercase tracking-wide block mb-1"
+                  >
                     Identity / Role Context
                   </label>
                   <input
+                    id="input-identity"
                     type="text"
                     value={identity}
-                    onChange={(e) => setIdentity(e.target.value)}
+                    onChange={(e) => {
+                      setIdentity(e.target.value);
+                      clearFieldError('identity');
+                    }}
                     placeholder="e.g. Night-shift Cryo-Tech Specialist"
-                    className="w-full bg-zinc-900 border border-zinc-700 focus:border-emerald-500 px-3 py-2 text-xs sm:text-sm text-zinc-100 rounded focus:outline-none"
+                    aria-invalid={Boolean(fieldErrors['identity'])}
+                    aria-describedby={
+                      fieldErrors['identity'] ? 'input-identity-error' : undefined
+                    }
+                    className={`w-full bg-zinc-900 border px-3 py-2 text-xs sm:text-sm text-zinc-100 rounded focus:outline-none ${
+                      fieldErrors['identity']
+                        ? 'border-red-500 focus:border-red-500'
+                        : 'border-zinc-700 focus:border-emerald-500'
+                    }`}
                   />
+                  {fieldErrors['identity'] && (
+                    <p
+                      id="input-identity-error"
+                      role="alert"
+                      className="text-xs text-red-400 mt-1 font-mono"
+                    >
+                      {fieldErrors['identity']}
+                    </p>
+                  )}
                 </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs text-zinc-400 uppercase tracking-wide block mb-1">
+                  <label
+                    htmlFor="input-ability"
+                    className="text-xs text-zinc-400 uppercase tracking-wide block mb-1"
+                  >
                     Specialized Aptitude / Vector
                   </label>
                   <input
+                    id="input-ability"
                     type="text"
                     value={ability}
-                    onChange={(e) => setAbility(e.target.value)}
+                    onChange={(e) => {
+                      setAbility(e.target.value);
+                      clearFieldError('ability');
+                    }}
                     placeholder="e.g. Emergency thermal diagnostics & cybernetic bypass"
-                    className="w-full bg-zinc-900 border border-zinc-700 focus:border-emerald-500 px-3 py-2 text-xs sm:text-sm text-zinc-100 rounded focus:outline-none"
+                    aria-invalid={Boolean(fieldErrors['ability'])}
+                    aria-describedby={
+                      fieldErrors['ability'] ? 'input-ability-error' : undefined
+                    }
+                    className={`w-full bg-zinc-900 border px-3 py-2 text-xs sm:text-sm text-zinc-100 rounded focus:outline-none ${
+                      fieldErrors['ability']
+                        ? 'border-red-500 focus:border-red-500'
+                        : 'border-zinc-700 focus:border-emerald-500'
+                    }`}
                   />
+                  {fieldErrors['ability'] && (
+                    <p
+                      id="input-ability-error"
+                      role="alert"
+                      className="text-xs text-red-400 mt-1 font-mono"
+                    >
+                      {fieldErrors['ability']}
+                    </p>
+                  )}
                 </div>
                 <div>
-                  <label className="text-xs text-zinc-400 uppercase tracking-wide block mb-1">
+                  <label
+                    htmlFor="input-limitation"
+                    className="text-xs text-zinc-400 uppercase tracking-wide block mb-1"
+                  >
                     Limitation / Vulnerability
                   </label>
                   <input
+                    id="input-limitation"
                     type="text"
                     value={limitation}
-                    onChange={(e) => setLimitation(e.target.value)}
+                    onChange={(e) => {
+                      setLimitation(e.target.value);
+                      clearFieldError('limitation');
+                    }}
                     placeholder="e.g. Severe nitrogen narcosis under deep pressure"
-                    className="w-full bg-zinc-900 border border-zinc-700 focus:border-emerald-500 px-3 py-2 text-xs sm:text-sm text-zinc-100 rounded focus:outline-none"
+                    aria-invalid={Boolean(fieldErrors['limitation'])}
+                    aria-describedby={
+                      fieldErrors['limitation'] ? 'input-limitation-error' : undefined
+                    }
+                    className={`w-full bg-zinc-900 border px-3 py-2 text-xs sm:text-sm text-zinc-100 rounded focus:outline-none ${
+                      fieldErrors['limitation']
+                        ? 'border-red-500 focus:border-red-500'
+                        : 'border-zinc-700 focus:border-emerald-500'
+                    }`}
                   />
+                  {fieldErrors['limitation'] && (
+                    <p
+                      id="input-limitation-error"
+                      role="alert"
+                      className="text-xs text-red-400 mt-1 font-mono"
+                    >
+                      {fieldErrors['limitation']}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -869,23 +1381,51 @@ export default function AdLibInductionModal({
                 3. Director Scene Framing & Directives
               </label>
               <div>
-                <label className="text-xs text-zinc-400 uppercase tracking-wide block mb-1">
+                <label
+                  htmlFor="input-directorFocus"
+                  className="text-xs text-zinc-400 uppercase tracking-wide block mb-1"
+                >
                   Director Staging Focus / Pressure Vector
                 </label>
                 <input
+                  id="input-directorFocus"
                   type="text"
                   value={directorFocus}
-                  onChange={(e) => setDirectorFocus(e.target.value)}
+                  onChange={(e) => {
+                    setDirectorFocus(e.target.value);
+                    clearFieldError('directorFocus');
+                  }}
                   placeholder="e.g. Atmospheric escalation, dread-heavy scene framing, psychological fragmentation"
-                  className="w-full bg-zinc-900 border border-zinc-700 focus:border-purple-500 px-3 py-2 text-xs sm:text-sm text-zinc-100 rounded focus:outline-none"
+                  aria-invalid={Boolean(fieldErrors['directorFocus'])}
+                  aria-describedby={
+                    fieldErrors['directorFocus'] ? 'input-directorFocus-error' : undefined
+                  }
+                  className={`w-full bg-zinc-900 border px-3 py-2 text-xs sm:text-sm text-zinc-100 rounded focus:outline-none ${
+                    fieldErrors['directorFocus']
+                      ? 'border-red-500 focus:border-red-500'
+                      : 'border-zinc-700 focus:border-purple-500'
+                  }`}
                 />
+                {fieldErrors['directorFocus'] && (
+                  <p
+                    id="input-directorFocus-error"
+                    role="alert"
+                    className="text-xs text-red-400 mt-1 font-mono"
+                  >
+                    {fieldErrors['directorFocus']}
+                  </p>
+                )}
               </div>
             </div>
           )}
 
           {/* Validation Error Banner */}
           {validationError && (
-            <div className="p-3 bg-red-950/30 border border-red-800 text-red-400 text-xs flex items-center gap-2 rounded">
+            <div
+              role="alert"
+              aria-live="polite"
+              className="p-3 bg-red-950/30 border border-red-800 text-red-400 text-xs flex items-center gap-2 rounded"
+            >
               <AlertTriangle className="w-4 h-4 shrink-0" />
               <span>{validationError}</span>
             </div>

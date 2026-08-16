@@ -9,6 +9,7 @@ import {
   AdLibProtagonistInduction,
   AdLibAntagonistInduction,
   AdLibDirectorInduction,
+  MAX_HAUNTED_HOUSE_PREMISE_LENGTH,
 } from '../../types/adLib';
 import {
   RatifiedEngineFrame,
@@ -294,6 +295,206 @@ describe('Phase 3B: Antagonist Authority Contracts & Victim Framing', () => {
       };
 
       expect(() => AdLibInductionSchema.parse(invalid)).toThrow();
+    });
+
+    it('accepts the exact 207-character reproduction scenario premise across all induction modes', () => {
+      const reproPremise =
+        'Mary and Joseph are in a manger behind a sold-out hotel in Bethlehem. Mary is heavy with Child, and about to give birth. Lucifer appears in the dark of night outside of their manger with a knock at the door.';
+      expect(reproPremise.length).toBe(207);
+
+      // Protagonist mode with reproduction premise
+      const protagonistPayload: AdLibProtagonistInduction = {
+        participationMode: 'protagonist',
+        placeSeed: 'Bethlehem Manger',
+        goal: reproPremise,
+        participantName: 'Joseph of Nazareth',
+        identity: 'Protector and Carpenter',
+        ability: 'Resolute faith and physical vigilance',
+        limitation: 'Unarmed and weary from travel',
+      };
+      const parsedProtagonist = AdLibInductionSchema.parse(protagonistPayload);
+      expect(parsedProtagonist.goal).toBe(reproPremise);
+
+      // Antagonist mode with reproduction premise
+      const antagonistPayload: AdLibAntagonistInduction = {
+        participationMode: 'antagonist',
+        placeSeed: 'Bethlehem Manger Outer Perimeter',
+        goal: reproPremise,
+        oppositionSeat: {
+          kind: 'character',
+          name: 'Lucifer',
+          description: 'A shadowy wanderer cloaked in winter stillness.',
+          goal: 'Beguile the travelers and claim the unborn Child before daybreak.',
+        },
+        authorityContract: {
+          authority: 'Supernatural illusion, auditory mimicry, shadows, chilling draft manifestation.',
+          limits: 'Cannot cross consecrated thresholds without invitation; repelled by earnest prayer.',
+        },
+        victimField: {
+          kind: 'individual',
+          name: 'Mary and Joseph',
+          goal: 'Protect the Child until morning light.',
+        },
+      };
+      const parsedAntagonist = AdLibInductionSchema.parse(antagonistPayload);
+      expect(parsedAntagonist.goal).toBe(reproPremise);
+
+      // Director mode with reproduction premise
+      const directorPayload: AdLibDirectorInduction = {
+        participationMode: 'director',
+        placeSeed: 'Bethlehem Manger',
+        goal: reproPremise,
+        directorFocus: 'Atmospheric dread, historical isolation, and impending spiritual crisis',
+      };
+      const parsedDirector = AdLibInductionSchema.parse(directorPayload);
+      expect(parsedDirector.goal).toBe(reproPremise);
+    });
+
+    it('accepts shared premise up to MAX_HAUNTED_HOUSE_PREMISE_LENGTH (1,000 chars) and rejects 1,001 chars with clear message', () => {
+      const maxPremise = 'A'.repeat(MAX_HAUNTED_HOUSE_PREMISE_LENGTH);
+      const overMaxPremise = 'A'.repeat(MAX_HAUNTED_HOUSE_PREMISE_LENGTH + 1);
+
+      const validProtagonist: AdLibProtagonistInduction = {
+        participationMode: 'protagonist',
+        placeSeed: 'Derelict Station',
+        goal: maxPremise,
+        participantName: 'Survivor',
+      };
+      expect(() => AdLibInductionSchema.parse(validProtagonist)).not.toThrow();
+
+      const invalidProtagonist = {
+        ...validProtagonist,
+        goal: overMaxPremise,
+      };
+      expect(() => AdLibInductionSchema.parse(invalidProtagonist)).toThrow(
+        /Scenario premise must be 1,000 characters or fewer/
+      );
+    });
+
+    it('enforces that role-specific goal bounds remain at 200 characters', () => {
+      const longRoleGoal = 'G'.repeat(201);
+
+      // Opposition threat goal bound (max 200)
+      const invalidOppositionGoal: AdLibAntagonistInduction = {
+        participationMode: 'antagonist',
+        placeSeed: 'Sub-Level Vault',
+        goal: 'Valid shared premise within 1,000 characters.',
+        oppositionSeat: {
+          kind: 'character',
+          name: 'Entity',
+          description: 'Desc',
+          goal: longRoleGoal,
+        },
+        authorityContract: {
+          authority: 'Valid authority',
+          limits: 'Valid limits',
+        },
+        victimField: {
+          kind: 'individual',
+          name: 'Victim',
+        },
+      };
+      expect(() => AdLibInductionSchema.parse(invalidOppositionGoal)).toThrow();
+
+      // Individual victim goal bound (max 200)
+      const invalidVictimGoal: AdLibAntagonistInduction = {
+        participationMode: 'antagonist',
+        placeSeed: 'Sub-Level Vault',
+        goal: 'Valid shared premise.',
+        oppositionSeat: {
+          kind: 'character',
+          name: 'Entity',
+          description: 'Desc',
+          goal: 'Valid threat goal under 200 chars.',
+        },
+        authorityContract: {
+          authority: 'Valid authority',
+          limits: 'Valid limits',
+        },
+        victimField: {
+          kind: 'individual',
+          name: 'Victim',
+          goal: longRoleGoal,
+        },
+      };
+      expect(() => AdLibInductionSchema.parse(invalidVictimGoal)).toThrow();
+    });
+
+    it('rejects an empty oppositionSeat.goal and does not inherit the long shared premise', () => {
+      const invalidPayload = {
+        participationMode: 'antagonist',
+        placeSeed: 'Bethlehem Manger',
+        goal: 'Mary and Joseph are in a manger behind a sold-out hotel in Bethlehem.',
+        oppositionSeat: {
+          kind: 'character',
+          name: 'Lucifer',
+          description: 'A shadowy wanderer.',
+          goal: '', // empty role goal
+        },
+        authorityContract: {
+          authority: 'Supernatural illusions.',
+          limits: 'Cannot cross thresholds.',
+        },
+        victimField: {
+          kind: 'individual',
+          name: 'Mary and Joseph',
+        },
+      };
+
+      const result = AdLibInductionSchema.safeParse(invalidPayload);
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        const goalIssue = result.error.issues.find(
+          (issue) => issue.path[0] === 'oppositionSeat' && issue.path[1] === 'goal'
+        );
+        expect(goalIssue).toBeDefined();
+      }
+    });
+
+    it('compiles and initiates a session with a 207-character premise preserving ParticipationContext', () => {
+      const reproPremise =
+        'Mary and Joseph are in a manger behind a sold-out hotel in Bethlehem. Mary is heavy with Child, and about to give birth. Lucifer appears in the dark of night outside of their manger with a knock at the door.';
+
+      const induction: AdLibAntagonistInduction = {
+        participationMode: 'antagonist',
+        placeSeed: 'Bethlehem Manger',
+        goal: reproPremise,
+        oppositionSeat: {
+          kind: 'character',
+          name: 'Lucifer',
+          description: 'A shadowy wanderer cloaked in winter stillness.',
+          goal: 'Beguile the travelers and claim the unborn Child before daybreak.',
+        },
+        authorityContract: {
+          authority: 'Supernatural illusions, shadow manipulation, auditory mimicry.',
+          limits: 'Cannot cross consecrated thresholds without invitation.',
+        },
+        victimField: {
+          kind: 'individual',
+          name: 'Mary and Joseph',
+          goal: 'Protect the Child until morning light.',
+        },
+      };
+
+      const compiled = initiateAdLibSession(induction);
+      expect(compiled.blueprint.title).toBe('Bethlehem Manger (Ad Lib Antagonist)');
+      expect(compiled.blueprint.globalPremise).toContain(induction.oppositionSeat.goal);
+      expect(compiled.participationContext.mode).toBe('antagonist');
+      expect(compiled.participationContext.authorityContract?.authority).toContain(
+        'Supernatural illusions'
+      );
+      expect(useEngineStore.getState().activeBlueprint).toBeDefined();
+      expect(useEngineStore.getState().gameState?.player_role).toBe('antagonist');
+
+      // Also verify Protagonist compilation preserves the full 207-character premise in globalPremise
+      const protagonistInduction: AdLibProtagonistInduction = {
+        participationMode: 'protagonist',
+        placeSeed: 'Bethlehem Manger',
+        goal: reproPremise,
+        participantName: 'Joseph',
+      };
+      const compiledProtagonist = initiateAdLibSession(protagonistInduction);
+      expect(compiledProtagonist.blueprint.globalPremise).toContain(reproPremise);
     });
   });
 
