@@ -93,9 +93,9 @@ export function compileAdLibInduction(rawInduction: AdLibInduction): {
 
     const blueprint: ScenarioBlueprint = {
       id: scenarioId,
-      title: `${induction.placeSeed} (Ad Lib)`,
+      title: `${induction.placeSeed} (Haunted House)`,
       contentScale: 3,
-      contentLevelDescription: 'PROTAGONIST AD-LIB INDUCTION',
+      contentLevelDescription: 'PROTAGONIST HAUNTED HOUSE INDUCTION',
       globalPremise: `A mortal operative (${induction.participantName}) attempts to accomplish: "${induction.goal}" within ${induction.placeSeed}.`,
       startingVector: 'COGNITIVE',
       startingTier: 'LATENT',
@@ -271,10 +271,10 @@ export function compileAdLibInduction(rawInduction: AdLibInduction): {
     const blueprint: ScenarioBlueprint = {
       id: scenarioId,
       title: isForce
-        ? `${induction.placeSeed} (Ad Lib Force)`
-        : `${induction.placeSeed} (Ad Lib Antagonist)`,
+        ? `${induction.placeSeed} (Haunted House Force)`
+        : `${induction.placeSeed} (Haunted House Antagonist)`,
       contentScale: 3,
-      contentLevelDescription: 'ANTAGONIST AD-LIB INDUCTION',
+      contentLevelDescription: 'ANTAGONIST HAUNTED HOUSE INDUCTION',
       globalPremise: induction.goal
         ? `${induction.goal} - Opposition agency (${induction.oppositionSeat.name}) operates within ${induction.placeSeed} toward: "${induction.oppositionSeat.goal || induction.goal}" against ${victimTargetSummary}.`
         : `Opposition agency (${induction.oppositionSeat.name}) operates within ${induction.placeSeed} toward: "${induction.oppositionSeat.goal || induction.goal}" against ${victimTargetSummary}.`,
@@ -350,9 +350,9 @@ export function compileAdLibInduction(rawInduction: AdLibInduction): {
   // Director mode: NO falsely invented controlled character
   const blueprint: ScenarioBlueprint = {
     id: scenarioId,
-    title: `${induction.placeSeed} (Ad Lib Director)`,
+    title: `${induction.placeSeed} (Haunted House Director)`,
     contentScale: 3,
-    contentLevelDescription: 'DIRECTOR AD-LIB INDUCTION',
+    contentLevelDescription: 'DIRECTOR HAUNTED HOUSE INDUCTION',
     globalPremise: `External director directs scene pacing and tension around: "${induction.goal}" within ${induction.placeSeed}.`,
     startingVector: 'COGNITIVE',
     startingTier: 'LATENT',
@@ -393,29 +393,29 @@ export function compileAdLibInduction(rawInduction: AdLibInduction): {
   return { blueprint, participationContext, initialSpatialNode };
 }
 
+export interface CompiledHauntedHousePayload {
+  blueprint: ScenarioBlueprint;
+  participationContext: ParticipationContext;
+  initialSpatialNode: SpatialNode;
+  sessionId?: string;
+}
+
 /**
- * End-to-end Ad Lib initialization flow.
- * Accepts raw induction data, parses with strict Zod schema,
- * compiles into valid engine Blueprint and ParticipationContext,
- * and initializes the canonical stores without type escapes.
+ * Narrow initializer for an already compiled, normalized Haunted House payload.
+ * Accepts normalized reviewed Blueprint, matching ParticipationContext, and matching
+ * initial SpatialNode. Initializes Engine and App stores directly without recompilation.
  */
-export function initiateAdLibSession(
-  rawInduction: unknown,
-  customSessionId?: string
+export function initiateCompiledAdLibSession(
+  payload: CompiledHauntedHousePayload
 ): CompiledAdLibSession {
-  // 1. Strict validation with no bypass
-  const parsed = AdLibInductionSchema.parse(rawInduction);
-
-  // 2. Pure compilation
-  const { blueprint, participationContext, initialSpatialNode } = compileAdLibInduction(parsed);
-
-  // 3. Normalize blueprint through canonical parser
+  const { blueprint, participationContext, initialSpatialNode, sessionId: customSessionId } = payload;
   const normalized = normalizeBlueprint(blueprint);
+  const mode = participationContext.mode;
 
-  // 4. Initialize engine store
-  useEngineStore.getState().setBlueprint(normalized, parsed.participationMode, participationContext);
+  // 1. Initialize engine store directly from supplied values
+  useEngineStore.getState().setBlueprint(normalized, mode, participationContext);
 
-  // 5. Initialize app runtime store with single source of truth
+  // 2. Initialize app runtime store with single source of truth
   const sessionId = customSessionId || `session-adlib-${crypto.randomUUID()}`;
   useAppStore.getState().initializeSession({
     blueprint: normalized,
@@ -429,4 +429,32 @@ export function initiateAdLibSession(
     participationContext,
     initialSpatialNode,
   };
+}
+
+/**
+ * End-to-end Haunted House / Ad Lib raw induction convenience initializer.
+ * Accepts raw induction data, parses with strict Zod schema,
+ * compiles once into valid engine Blueprint and ParticipationContext,
+ * and delegates to initiateCompiledAdLibSession.
+ */
+export function initiateAdLibSession(
+  rawInduction: unknown,
+  customSessionId?: string
+): CompiledAdLibSession {
+  // 1. Strict validation with no bypass
+  const parsed = AdLibInductionSchema.parse(rawInduction);
+
+  // 2. Pure compilation (done exactly once)
+  const { blueprint, participationContext, initialSpatialNode } = compileAdLibInduction(parsed);
+
+  // 3. Normalize blueprint through canonical parser
+  const normalized = normalizeBlueprint(blueprint);
+
+  // 4. Delegate directly to compiled payload initializer
+  return initiateCompiledAdLibSession({
+    blueprint: normalized,
+    participationContext,
+    initialSpatialNode,
+    sessionId: customSessionId,
+  });
 }

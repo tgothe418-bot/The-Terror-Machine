@@ -3,6 +3,7 @@ import 'fake-indexeddb/auto';
 import {
   compileAdLibInduction,
   initiateAdLibSession,
+  initiateCompiledAdLibSession,
 } from '../../lib/adLibCompiler';
 import {
   AdLibInductionSchema,
@@ -477,7 +478,8 @@ describe('Phase 3B: Antagonist Authority Contracts & Victim Framing', () => {
       };
 
       const compiled = initiateAdLibSession(induction);
-      expect(compiled.blueprint.title).toBe('Bethlehem Manger (Ad Lib Antagonist)');
+      expect(compiled.blueprint.title).toBe('Bethlehem Manger (Haunted House Antagonist)');
+      expect(compiled.blueprint.contentLevelDescription).toBe('ANTAGONIST HAUNTED HOUSE INDUCTION');
       expect(compiled.blueprint.globalPremise).toContain(induction.oppositionSeat.goal);
       expect(compiled.participationContext.mode).toBe('antagonist');
       expect(compiled.participationContext.authorityContract?.authority).toContain(
@@ -526,7 +528,8 @@ describe('Phase 3B: Antagonist Authority Contracts & Victim Framing', () => {
 
       const { blueprint, participationContext } = compileAdLibInduction(induction);
 
-      expect(blueprint.title).toBe('Derelict Hydroponics Dome (Ad Lib Antagonist)');
+      expect(blueprint.title).toBe('Derelict Hydroponics Dome (Haunted House Antagonist)');
+      expect(blueprint.contentLevelDescription).toBe('ANTAGONIST HAUNTED HOUSE INDUCTION');
       expect(blueprint.cast).toHaveLength(2);
 
       // Controlled Antagonist cast entry
@@ -594,7 +597,8 @@ describe('Phase 3B: Antagonist Authority Contracts & Victim Framing', () => {
 
       const { blueprint, participationContext } = compileAdLibInduction(induction);
 
-      expect(blueprint.title).toBe('Sub-Zero Geothermal Facility (Ad Lib Force)');
+      expect(blueprint.title).toBe('Sub-Zero Geothermal Facility (Haunted House Force)');
+      expect(blueprint.contentLevelDescription).toBe('ANTAGONIST HAUNTED HOUSE INDUCTION');
       // Force has NO controlled antagonist cast member
       expect(blueprint.cast.some((c) => c.role === 'antagonist')).toBe(false);
 
@@ -1086,7 +1090,8 @@ describe('Phase 3B: Antagonist Authority Contracts & Victim Framing', () => {
 
       const { blueprint, participationContext } = compileAdLibInduction(induction);
 
-      expect(blueprint.title).toBe('Sub-Level Cryo Archive (Ad Lib)');
+      expect(blueprint.title).toBe('Sub-Level Cryo Archive (Haunted House)');
+      expect(blueprint.contentLevelDescription).toBe('PROTAGONIST HAUNTED HOUSE INDUCTION');
       expect(blueprint.cast).toHaveLength(1);
       expect(blueprint.cast[0].name).toBe('Specialist Nora Diaz');
       expect(blueprint.cast[0].role).toBe('protagonist');
@@ -1109,12 +1114,47 @@ describe('Phase 3B: Antagonist Authority Contracts & Victim Framing', () => {
 
       const { blueprint, participationContext } = compileAdLibInduction(induction);
 
-      expect(blueprint.title).toBe('Abandoned Radio Observatory (Ad Lib Director)');
+      expect(blueprint.title).toBe('Abandoned Radio Observatory (Haunted House Director)');
+      expect(blueprint.contentLevelDescription).toBe('DIRECTOR HAUNTED HOUSE INDUCTION');
       expect(blueprint.cast).toHaveLength(0); // Director has no player character
       expect(participationContext.mode).toBe('director');
       expect(participationContext.seat?.kind).toBe('director');
       expect(participationContext.authorityContract).toBeUndefined();
       expect(participationContext.victimField).toBeUndefined();
+    });
+
+    it('initializes engine and app stores from a pre-compiled Haunted House payload without re-compilation', () => {
+      const induction: AdLibProtagonistInduction = {
+        participationMode: 'protagonist',
+        placeSeed: 'Deep Core Relay Station',
+        goal: 'Reroute emergency communications',
+        participantName: 'Operator Maya',
+      };
+
+      const compiled = compileAdLibInduction(induction);
+      const originalBlueprint = compiled.blueprint;
+      const originalContext = compiled.participationContext;
+      const originalNode = compiled.initialSpatialNode;
+
+      const sessionResult = initiateCompiledAdLibSession({
+        blueprint: originalBlueprint,
+        participationContext: originalContext,
+        initialSpatialNode: originalNode,
+      });
+
+      expect(sessionResult.blueprint.id).toBe(originalBlueprint.id);
+      expect(sessionResult.blueprint.title).toBe(originalBlueprint.title);
+      expect(sessionResult.participationContext.mode).toBe(originalContext.mode);
+      expect(sessionResult.initialSpatialNode).toBe(originalNode);
+
+      const engineState = useEngineStore.getState();
+      expect(engineState.activeBlueprint?.id).toBe(originalBlueprint.id);
+      expect(engineState.participationContext?.mode).toBe(originalContext.mode);
+
+      const appState = useAppStore.getState();
+      expect(appState.blueprintId).toBe(originalBlueprint.id);
+      expect(appState.participationContext?.mode).toBe(originalContext.mode);
+      expect(appState.spatialGraph.some((n) => n.id === originalNode.id)).toBe(true);
     });
   });
 });

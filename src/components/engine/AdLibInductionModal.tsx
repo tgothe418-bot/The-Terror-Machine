@@ -28,8 +28,8 @@ import {
   VictimProfile,
   MAX_HAUNTED_HOUSE_PREMISE_LENGTH,
 } from '../../types/adLib';
-import { Blueprint, ParticipationContext } from '../../types';
-import { compileAdLibInduction, initiateAdLibSession } from '../../lib/adLibCompiler';
+import { Blueprint, ParticipationContext, SpatialNode } from '../../types';
+import { compileAdLibInduction, initiateCompiledAdLibSession } from '../../lib/adLibCompiler';
 import { normalizeBlueprint } from '../../lib/normalizeBlueprint';
 import { downloadJson, generateHauntedHouseBlueprintFilename } from '../../lib/download';
 import { forgeActions } from '../../store/useForgeStore';
@@ -213,6 +213,7 @@ export default function AdLibInductionModal({
   const [compiledReviewData, setCompiledReviewData] = useState<{
     blueprint: Blueprint;
     participationContext: ParticipationContext;
+    initialSpatialNode: SpatialNode;
     parsed: AdLibInduction;
   } | null>(null);
 
@@ -360,6 +361,7 @@ export default function AdLibInductionModal({
       setCompiledReviewData({
         blueprint: normalized,
         participationContext: compiled.participationContext,
+        initialSpatialNode: compiled.initialSpatialNode,
         parsed,
       });
       setStage('review');
@@ -399,7 +401,11 @@ export default function AdLibInductionModal({
     if (!compiledReviewData) return;
     setIsSubmitting(true);
     try {
-      const result = initiateAdLibSession(compiledReviewData.parsed);
+      const result = initiateCompiledAdLibSession({
+        blueprint: compiledReviewData.blueprint,
+        participationContext: compiledReviewData.participationContext,
+        initialSpatialNode: compiledReviewData.initialSpatialNode,
+      });
       forgeActions.setActiveNeuralLink(
         mode === 'antagonist' ? 'ANTAGONIST' : mode === 'director' ? 'DIRECTOR' : 'PROTAGONIST'
       );
@@ -1097,7 +1103,7 @@ export default function AdLibInductionModal({
                               setIndividualVictimName(e.target.value);
                               clearFieldError('victimField.name');
                             }}
-                            placeholder="e.g. Chief Engineer Sean Thorne"
+                            placeholder="e.g. Chief Engineer"
                             aria-invalid={Boolean(fieldErrors['victimField.name'])}
                             aria-describedby={
                               fieldErrors['victimField.name']
@@ -1308,7 +1314,7 @@ export default function AdLibInductionModal({
                                       handleUpdateMember(idx, 'name', e.target.value);
                                       clearFieldError(`victimField.members.${idx}.name`);
                                     }}
-                                    placeholder={`Victim #${idx + 1} Name (e.g. Dr. Aris)`}
+                                    placeholder={`Victim #${idx + 1} Name (e.g. Lead Specialist)`}
                                     className="w-full bg-zinc-900 border border-zinc-700 px-2 py-1 text-xs text-zinc-100 rounded focus:outline-none focus:border-zinc-400"
                                   />
                                 </div>
@@ -1405,7 +1411,7 @@ export default function AdLibInductionModal({
                         setParticipantName(e.target.value);
                         clearFieldError('participantName');
                       }}
-                      placeholder="e.g. Officer Daniel Ward"
+                      placeholder="e.g. Field Operative"
                       aria-invalid={Boolean(fieldErrors['participantName'])}
                       aria-describedby={
                         fieldErrors['participantName']

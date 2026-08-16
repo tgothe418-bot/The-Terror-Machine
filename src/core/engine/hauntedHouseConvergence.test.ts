@@ -38,7 +38,7 @@ describe('Phase 3C: Haunted House Induction Convergence, Provenance & Seat Avail
         placeSeed: 'Derelict Atmospheric Siphon',
         goal: 'Repair oxygen regulator valve 3 before pressure threshold drops below 10%',
         unsettlingDetail: 'Sub-harmonic vibration echoing through bulkhead C-4',
-        participantName: 'Specialist Sean Thorne',
+        participantName: 'Specialist Researcher',
         identity: 'Station Atmospheric Engineer',
         ability: 'Pneumatics diagnostic bypass and emergency welding',
         limitation: 'Suffers vertigo in unpressurized corridors',
@@ -56,7 +56,7 @@ describe('Phase 3C: Haunted House Induction Convergence, Provenance & Seat Avail
       );
       expect(compiled.participationContext.mode).toBe('protagonist');
       expect(compiled.blueprint.hauntedHouse?.participationContext.mode).toBe('protagonist');
-      expect(compiled.blueprint.hauntedHouse?.participationContext.seat.name).toBe('Specialist Sean Thorne');
+      expect(compiled.blueprint.hauntedHouse?.participationContext.seat.name).toBe('Specialist Researcher');
     });
 
     it('compiles an Antagonist induction carrying valid Haunted House provenance with Authority and Limits', () => {
@@ -77,7 +77,7 @@ describe('Phase 3C: Haunted House Induction Convergence, Provenance & Seat Avail
         },
         victimField: {
           kind: 'individual',
-          name: 'Dr. Alistair Vance',
+          name: 'Chief Scientist',
           description: 'Chief research immunologist carrying the antidote synthesizer.',
           goal: 'Reach the central terminal and broadcast the evacuation distress cipher.',
           knownFact: 'Limps due to a fractured tibia from the initial breach.',
@@ -98,7 +98,7 @@ describe('Phase 3C: Haunted House Induction Convergence, Provenance & Seat Avail
       );
       expect(compiled.blueprint.hauntedHouse?.participationContext.victimField?.kind).toBe('individual');
       if (compiled.blueprint.hauntedHouse?.participationContext.victimField?.kind === 'individual') {
-        expect(compiled.blueprint.hauntedHouse.participationContext.victimField.name).toBe('Dr. Alistair Vance');
+        expect(compiled.blueprint.hauntedHouse.participationContext.victimField.name).toBe('Chief Scientist');
         expect(compiled.blueprint.hauntedHouse.participationContext.victimField.knownFact).toBe(
           'Limps due to a fractured tibia from the initial breach.'
         );
@@ -182,7 +182,7 @@ describe('Phase 3C: Haunted House Induction Convergence, Provenance & Seat Avail
       const exportedJson = JSON.parse(JSON.stringify(compiled.blueprint));
 
       const imported = normalizeBlueprint(exportedJson);
-      expect(imported.title).toBe('Abandoned Radio Observatory (Ad Lib)');
+      expect(imported.title).toBe('Abandoned Radio Observatory (Haunted House)');
       expect(imported.setting.location).toBe('Abandoned Radio Observatory');
       expect(imported.hauntedHouse).toBeDefined();
       expect(imported.hauntedHouse?.recommendedParticipationMode).toBe('protagonist');
@@ -498,7 +498,7 @@ describe('Phase 3C: Haunted House Induction Convergence, Provenance & Seat Avail
     it('identifies incompatible recommended seat, preserves provenance untouched, and allows explicit seat selection', () => {
       // Create a blueprint where provenance recommends protagonist, but cast has ONLY an entity (no mortal cast)
       const importedBlueprint: Blueprint = normalizeBlueprint({
-        title: 'Haunted Enclosure (Ad Lib)',
+        title: 'Haunted Enclosure (Haunted House)',
         setting: { location: 'Ghost Station', timePeriod: '2099', atmosphere: 'Cold void' },
         cast: [
           {

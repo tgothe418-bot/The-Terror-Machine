@@ -96,9 +96,9 @@ export function generateAdLibCampaign(params: GenerateAdLibParams = {}) {
 
     const fallbackBlueprint: ScenarioBlueprint = {
       id: `adlib-${crypto.randomUUID()}`,
-      title: hauntedHouseData.title || 'Ad Lib Scenario',
+      title: hauntedHouseData.title || 'Haunted House Scenario',
       contentScale: size,
-      contentLevelDescription: `${aesthetic.toUpperCase()} AD-LIB INDUCTION`,
+      contentLevelDescription: `${aesthetic.toUpperCase()} HAUNTED HOUSE INDUCTION`,
       aesthetic: aesthetic,
       tone: tone,
       globalPremise: hauntedHouseData.base_lens,
@@ -153,9 +153,9 @@ export function generateAdLibCampaign(params: GenerateAdLibParams = {}) {
   // Create & set adLibBlueprint in useEngineStore
   const adLibBlueprint: ScenarioBlueprint = {
     id: `adlib-${crypto.randomUUID()}`,
-    title: safeBundle.title || 'Ad Lib Scenario',
+    title: safeBundle.title || 'Haunted House Scenario',
     contentScale: size,
-    contentLevelDescription: `${aesthetic.toUpperCase()} AD-LIB INDUCTION`,
+    contentLevelDescription: `${aesthetic.toUpperCase()} HAUNTED HOUSE INDUCTION`,
     aesthetic: aesthetic,
     tone: tone,
     globalPremise: safeBundle.base_lens || 'Procedural architecture.',
