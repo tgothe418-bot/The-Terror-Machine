@@ -167,3 +167,5 @@ export const WritingTerminalModal: React.FC<WritingTerminalModalProps> = (props)
   if (!props.isOpen) return null;
   return <WritingTerminalModalContent key={props.title + props.fieldLabel} {...props} />;
 };
+
+export default WritingTerminalModal;

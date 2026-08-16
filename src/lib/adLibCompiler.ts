@@ -92,7 +92,7 @@ export function compileAdLibInduction(induction: AdLibInduction): {
 
     const blueprint: ScenarioBlueprint = {
       id: scenarioId,
-      title: `${induction.placeSeed} (Haunted House)`,
+      title: `${induction.placeSeed} (Ad Lib)`,
       contentScale: 3,
       contentLevelDescription: 'PROTAGONIST HAUNTED HOUSE INDUCTION',
       globalPremise: `A mortal operative (${induction.participantName}) attempts to accomplish: "${induction.goal}" within ${induction.placeSeed}.`,
@@ -270,8 +270,8 @@ export function compileAdLibInduction(induction: AdLibInduction): {
     const blueprint: ScenarioBlueprint = {
       id: scenarioId,
       title: isForce
-        ? `${induction.placeSeed} (Haunted House Force)`
-        : `${induction.placeSeed} (Haunted House Antagonist)`,
+        ? `${induction.placeSeed} (Ad Lib Force)`
+        : `${induction.placeSeed} (Ad Lib Antagonist)`,
       contentScale: 3,
       contentLevelDescription: 'ANTAGONIST HAUNTED HOUSE INDUCTION',
       globalPremise: `Opposition agency (${induction.oppositionSeat.name}) operates within ${induction.placeSeed} toward: "${induction.oppositionSeat.goal || induction.goal}" against ${victimTargetSummary}.`,
@@ -347,7 +347,7 @@ export function compileAdLibInduction(induction: AdLibInduction): {
   // Director mode: NO falsely invented controlled character
   const blueprint: ScenarioBlueprint = {
     id: scenarioId,
-    title: `${induction.placeSeed} (Haunted House Director)`,
+    title: `${induction.placeSeed} (Ad Lib Director)`,
     contentScale: 3,
     contentLevelDescription: 'DIRECTOR HAUNTED HOUSE INDUCTION',
     globalPremise: `External director directs scene pacing and tension around: "${induction.goal}" within ${induction.placeSeed}.`,
