@@ -64,10 +64,10 @@ const TranscriptMessageItem = ({
   };
 
   const getBorderColor = () => {
-    if (msg.role === 'director') return 'border-l-2 border-zinc-700 pl-4';
-    if (msg.role === 'narrative') return 'border-l-2 border-zinc-800 pl-4';
-    if (msg.role === 'system') return 'border-l-2 border-red-900/50 pl-4 bg-red-950/20 py-2';
-    return 'border-l-2 border-zinc-800 pl-4';
+    if (msg.role === 'director') return 'border-l-2 border-zinc-700 pl-4 sm:pl-6';
+    if (msg.role === 'narrative') return 'border-l-2 border-zinc-800 pl-4 sm:pl-6';
+    if (msg.role === 'system') return 'border-l-2 border-red-900/50 pl-4 sm:pl-6 bg-red-950/20 py-3';
+    return 'border-l-2 border-zinc-800 pl-4 sm:pl-6';
   };
 
   const getHeader = () => {
@@ -82,35 +82,35 @@ const TranscriptMessageItem = ({
       initial={{ opacity: 0, y: 5 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className={`text-sm leading-relaxed whitespace-pre-wrap group relative ${getBorderColor()}`}
+      className={`text-sm sm:text-base leading-relaxed whitespace-pre-wrap group relative ${getBorderColor()}`}
     >
-      <div className="flex items-center gap-2 mb-1 flex-wrap">
-        <span className="text-[10px] uppercase tracking-widest text-zinc-500 font-mono font-bold">
+      <div className="flex items-center gap-2.5 mb-2 flex-wrap">
+        <span className="text-xs uppercase tracking-widest text-zinc-400 font-mono font-bold">
           {getHeader()}
         </span>
         {msg.isEdited && (
-          <span className="text-[8px] uppercase tracking-widest text-zinc-600 font-mono italic">
+          <span className="text-xs uppercase tracking-widest text-zinc-500 font-mono italic">
             (Edited)
           </span>
         )}
         {msg.reconciliationStatus === 'pending' && (
-          <span className="text-[8px] uppercase tracking-widest text-blue-500 font-mono border border-blue-900/50 px-1 rounded bg-blue-900/20 animate-pulse">
+          <span className="text-xs uppercase tracking-widest text-blue-400 font-mono border border-blue-900/50 px-1.5 py-0.5 rounded bg-blue-900/20 animate-pulse">
             Reconciling...
           </span>
         )}
         {msg.reconciliationStatus === 'synced' && (
-          <span className="text-[8px] uppercase tracking-widest text-green-500 font-mono border border-green-900/50 px-1 rounded bg-green-900/20">
+          <span className="text-xs uppercase tracking-widest text-green-400 font-mono border border-green-900/50 px-1.5 py-0.5 rounded bg-green-900/20">
             Synced
           </span>
         )}
         {msg.reconciliationStatus === 'failed' && (
           <div className="flex items-center gap-2">
-            <span className="text-[8px] uppercase tracking-widest text-amber-500 font-mono border border-amber-900/50 px-1 rounded bg-amber-900/20">
+            <span className="text-xs uppercase tracking-widest text-amber-400 font-mono border border-amber-900/50 px-1.5 py-0.5 rounded bg-amber-900/20">
               ⚠️ Sync Failed
             </span>
             <button
               onClick={() => onForceCosmetic(msg.id)}
-              className="text-[8px] uppercase tracking-widest text-zinc-400 font-mono border border-zinc-700 px-1 rounded bg-zinc-900 hover:text-white transition-colors"
+              className="text-xs uppercase tracking-widest text-zinc-300 font-mono border border-zinc-700 px-2 py-0.5 rounded bg-zinc-900 hover:text-white transition-colors"
             >
               Force Accept as Cosmetic
             </button>
@@ -119,10 +119,10 @@ const TranscriptMessageItem = ({
         {!isEditing && (
           <button
             onClick={() => setIsEditing(true)}
-            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-zinc-600 hover:text-zinc-300 ml-auto"
+            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-zinc-500 hover:text-zinc-200 ml-auto"
             title="Edit Message"
           >
-            <Edit2 className="w-3 h-3" />
+            <Edit2 className="w-3.5 h-3.5" />
           </button>
         )}
       </div>
@@ -132,18 +132,18 @@ const TranscriptMessageItem = ({
           <textarea
             value={editContent}
             onChange={(e) => setEditContent(e.target.value)}
-            className="w-full bg-zinc-950 text-gray-200 border border-zinc-700 p-2 text-xs font-mono rounded resize-y min-h-[100px] focus:outline-none focus:border-zinc-500"
+            className="w-full bg-zinc-950 text-gray-200 border border-zinc-700 p-3 text-sm font-mono rounded resize-y min-h-[120px] focus:outline-none focus:border-zinc-500"
           />
           <div className="flex items-center gap-2 justify-end">
             <button
               onClick={handleCancel}
-              className="p-1 hover:bg-zinc-800 rounded text-zinc-500 transition-colors"
+              className="p-1.5 hover:bg-zinc-800 rounded text-zinc-400 transition-colors"
             >
               <X className="w-4 h-4" />
             </button>
             <button
               onClick={handleSave}
-              className="p-1 hover:bg-green-900/50 rounded text-green-500 transition-colors"
+              className="p-1.5 hover:bg-green-900/50 rounded text-green-400 transition-colors"
             >
               <Check className="w-4 h-4" />
             </button>
@@ -151,7 +151,7 @@ const TranscriptMessageItem = ({
         </div>
       ) : (
         <div
-          className={`text-zinc-300 ${msg.role === 'director' ? 'italic' : ''} ${msg.role === 'system' ? 'text-red-400 font-mono' : ''}`}
+          className={`text-zinc-200 ${msg.role === 'director' ? 'italic' : ''} ${msg.role === 'system' ? 'text-red-400 font-mono' : ''}`}
         >
           <ErgodicTextRenderer text={msg.content} psychologicalStatus="Stable" />
         </div>
@@ -551,35 +551,35 @@ export default function Runtime() {
 
   return (
     <div
-      className="h-screen bg-black text-zinc-100 flex flex-col font-mono selection:bg-white selection:text-black overflow-hidden"
+      className="h-screen bg-black text-zinc-100 flex flex-col font-mono selection:bg-white selection:text-black overflow-hidden max-w-[2560px] mx-auto w-full"
       onKeyDown={() => setLastActivity(Date.now())}
       onClick={() => setLastActivity(Date.now())}
     >
       {/* Header */}
-      <header className="h-16 border-b border-zinc-900 flex items-center justify-between px-6 bg-black z-10 shrink-0">
+      <header className="h-16 border-b border-zinc-900 flex items-center justify-between px-8 bg-black z-10 shrink-0">
         <div className="flex items-center gap-6">
           <button
             onClick={handleExit}
             className="flex items-center gap-2 text-zinc-400 hover:text-white transition-colors uppercase text-xs tracking-[0.2em] cursor-pointer"
           >
-            <ArrowLeft className="w-3.5 h-3.5" />
+            <ArrowLeft className="w-4 h-4" />
             Exit
           </button>
           <div className="h-4 w-[1px] bg-zinc-800" />
           <div className="flex flex-col">
-            <h1 className="text-xs font-bold tracking-[0.3em] uppercase text-white">
+            <h1 className="text-xs sm:text-sm font-bold tracking-[0.3em] uppercase text-white">
               {activeBlueprint?.title || 'Haunted House Ad-Lib'}
             </h1>
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] text-zinc-400 uppercase tracking-widest">
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-zinc-400 uppercase tracking-widest">
                 Scale: {activeBlueprint?.contentScale || 12}
               </span>
-              <span className="text-[11px] text-zinc-600 uppercase tracking-widest">
+              <span className="text-xs text-zinc-600 uppercase tracking-widest">
                 // {activeBlueprint?.contentLevelDescription || 'Procedural Architecture'}
               </span>
               <button
                 onClick={() => setPhase('hub')}
-                className="ml-4 text-[11px] text-zinc-500 hover:text-white uppercase tracking-widest underline decoration-zinc-800 cursor-pointer"
+                className="ml-4 text-xs text-zinc-500 hover:text-white uppercase tracking-widest underline decoration-zinc-800 cursor-pointer"
               >
                 Change Scenario
               </button>
@@ -597,7 +597,7 @@ export default function Runtime() {
                 activeBlueprint || undefined
               )
             }
-            className="px-2.5 py-1 text-xs font-mono text-zinc-400 hover:text-zinc-100 bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800 transition-colors rounded cursor-pointer"
+            className="px-3 py-1.5 text-xs font-mono text-zinc-400 hover:text-zinc-100 bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800 transition-colors rounded cursor-pointer"
             title="Export to Markdown"
           >
             [ EXPORT .MD ]
@@ -611,7 +611,7 @@ export default function Runtime() {
                 activeBlueprint || undefined
               )
             }
-            className="px-2.5 py-1 text-xs font-mono text-zinc-400 hover:text-zinc-100 bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800 transition-colors rounded cursor-pointer"
+            className="px-3 py-1.5 text-xs font-mono text-zinc-400 hover:text-zinc-100 bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800 transition-colors rounded cursor-pointer"
             title="Export to HTML"
           >
             [ EXPORT .HTML ]
@@ -621,14 +621,14 @@ export default function Runtime() {
               resetEngine();
               useAppStore.getState().resetSession();
             }}
-            className="px-2.5 py-1 text-xs font-mono text-red-400 hover:text-red-100 bg-red-900/20 hover:bg-red-900/50 border border-red-900/50 transition-colors duration-150 rounded mr-4 cursor-pointer"
+            className="px-3 py-1.5 text-xs font-mono text-red-400 hover:text-red-100 bg-red-900/20 hover:bg-red-900/50 border border-red-900/50 transition-colors duration-150 rounded mr-4 cursor-pointer"
             title="Hard Reset Engine"
           >
             [ FLUSH STATE ]
           </button>
           <div className="flex items-center gap-2 text-zinc-500">
-            <Terminal className="w-3.5 h-3.5 text-zinc-400" />
-            <span className="text-[11px] uppercase tracking-[0.3em]">Simulation Active</span>
+            <Terminal className="w-4 h-4 text-zinc-400" />
+            <span className="text-xs uppercase tracking-[0.3em]">Simulation Active</span>
           </div>
         </div>
       </header>
@@ -637,14 +637,13 @@ export default function Runtime() {
       <AntagonistContractDisplay />
 
       {/* THE VOID (Primary Reading Area Container) */}
-      {/* CORRECTION: Swapping out default scroll utilities for custom-scrollbar / no-scrollbar tracking */}
       <div
         ref={scrollRef}
         className="flex-1 overflow-y-auto no-scrollbar px-8 py-12 scroll-smooth w-full"
       >
-        {/* Clamped text container width for optimal reading fidelity */}
+        {/* Expanded desktop reading workspace with comfortable prose formatting */}
         <div
-          className={`max-w-3xl mx-auto space-y-12 transition-all duration-[2500ms] ease-in-out ${isTelemetryOpen ? 'blur-sm opacity-30 pointer-events-none' : 'blur-none opacity-100'}`}
+          className={`max-w-5xl lg:max-w-6xl mx-auto space-y-12 transition-all duration-[2500ms] ease-in-out ${isTelemetryOpen ? 'blur-sm opacity-30 pointer-events-none' : 'blur-none opacity-100'}`}
         >
           <AnimatePresence initial={false}>
             {engineMessages.map((msg, idx) => (
@@ -660,9 +659,9 @@ export default function Runtime() {
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="flex items-center gap-2 text-zinc-600 text-[10px] uppercase tracking-widest"
+                className="flex items-center gap-2 text-zinc-500 text-xs uppercase tracking-widest"
               >
-                <Loader2 className="w-3 h-3 animate-spin" />
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-zinc-400" />
                 Processing Neural Input...
               </motion.div>
             )}
@@ -673,29 +672,29 @@ export default function Runtime() {
       {/* MINIMALIST INPUT CONSOLE */}
       {isTerminated ? (
         <div className="w-full shrink-0 pb-8 px-8 relative z-10 bg-black pt-4">
-          <div className="max-w-3xl mx-auto relative border-t border-red-900 bg-red-950/20 p-6 mt-4 text-center rounded">
-            <div className="text-red-500 font-bold tracking-[0.3em] uppercase mb-2">
+          <div className="max-w-5xl lg:max-w-6xl mx-auto relative border-t border-red-900 bg-red-950/20 p-8 mt-4 text-center rounded">
+            <div className="text-red-500 font-bold tracking-[0.3em] uppercase mb-2 text-sm sm:text-base">
               [ SIMULATION TERMINATED ]
             </div>
-            <p className="text-zinc-400 font-serif text-sm">{terminalResolution}</p>
+            <p className="text-zinc-400 font-serif text-sm sm:text-base leading-relaxed">{terminalResolution}</p>
           </div>
         </div>
       ) : (
         <div className="w-full shrink-0 pb-8 px-8 relative z-10 bg-black pt-4">
-          <div className="max-w-3xl mx-auto relative flex items-end">
+          <div className="max-w-5xl lg:max-w-6xl mx-auto relative flex items-end">
             <button
               onClick={() => handleCommand(undefined, '[USER_ACTION: OBSERVE]')}
               disabled={isLoading || isAutopilotRunning || isTerminated}
-              className="flex flex-col items-center gap-1 group text-zinc-700 hover:text-white transition-all disabled:opacity-30 mr-6 pb-4"
+              className="flex flex-col items-center gap-1.5 group text-zinc-600 hover:text-white transition-all disabled:opacity-30 mr-6 pb-3"
               title="Observe / Wait (Advance Simulation)"
             >
-              <Eye className="w-5 h-5 group-hover:scale-110 transition-transform" />
-              <span className="text-[8px] uppercase tracking-tighter">Observe</span>
+              <Eye className="w-6 h-6 group-hover:scale-110 transition-transform" />
+              <span className="text-xs uppercase tracking-tight font-mono">Observe</span>
             </button>
 
             {/* The input container - seamlessly integrated into the void */}
             <div className="flex-1 relative flex items-end border-b border-zinc-800 focus-within:border-zinc-500 transition-colors duration-1000">
-              <span className="text-xs uppercase tracking-widest opacity-80 mr-4 mb-4 shrink-0 font-bold text-zinc-400">
+              <span className="text-xs sm:text-sm uppercase tracking-widest opacity-80 mr-4 mb-3.5 shrink-0 font-bold text-zinc-400">
                 {participationContext?.mode === 'antagonist' || selectedRole === 'antagonist'
                   ? '[ ANTAGONIST ]'
                   : participationContext?.mode === 'director' || selectedRole === 'director'
@@ -724,16 +723,16 @@ export default function Runtime() {
                         ? 'Autopilot active...'
                         : 'What do you do? (Shift+Enter for new line)'
                 }
-                className="w-full bg-transparent text-sm py-3 resize-none focus:outline-none placeholder:text-zinc-700 min-h-[48px] max-h-[30vh] custom-scrollbar leading-relaxed disabled:opacity-50 text-zinc-100"
+                className="w-full bg-transparent text-sm sm:text-base py-3 resize-none focus:outline-none placeholder:text-zinc-700 min-h-[48px] max-h-[30vh] custom-scrollbar leading-relaxed disabled:opacity-50 text-zinc-100"
               />
 
               {/* Blinking indicator dot */}
-              <div className="absolute right-0 bottom-4 w-1.5 h-1.5 rounded-full animate-pulse transition-colors duration-1000 bg-zinc-500" />
+              <div className="absolute right-0 bottom-4 w-2 h-2 rounded-full animate-pulse transition-colors duration-1000 bg-zinc-500" />
             </div>
 
-            <div className="flex flex-col items-center gap-2 p-2 bg-zinc-900/30 border border-zinc-800/50 rounded ml-6 mb-2">
+            <div className="flex flex-col items-center gap-2 p-2.5 bg-zinc-900/40 border border-zinc-800/80 rounded ml-6 mb-1">
               <div className="flex items-center gap-2">
-                <span className="text-[9px] text-zinc-500 font-mono tracking-widest uppercase">
+                <span className="text-xs text-zinc-400 font-mono tracking-widest uppercase font-semibold">
                   Autopilot
                 </span>
               </div>
@@ -745,12 +744,12 @@ export default function Runtime() {
                   value={autopilotTarget}
                   onChange={(e) => setAutopilotTarget(Number(e.target.value))}
                   disabled={isAutopilotRunning}
-                  className="w-12 bg-black text-zinc-300 text-xs p-1 border border-zinc-700 rounded text-center focus:outline-none"
+                  className="w-14 bg-black text-zinc-200 text-xs p-1.5 border border-zinc-700 rounded text-center focus:outline-none"
                 />
                 {!isAutopilotRunning ? (
                   <button
                     onClick={handleStartAutopilot}
-                    className="text-[10px] uppercase tracking-wider bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-2 py-1 flex-1 rounded transition-colors"
+                    className="text-xs uppercase tracking-wider bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-3 py-1.5 rounded transition-colors font-mono cursor-pointer"
                     type="button"
                   >
                     Engage
@@ -758,7 +757,7 @@ export default function Runtime() {
                 ) : (
                   <button
                     onClick={handleStopAutopilot}
-                    className="text-[10px] uppercase tracking-wider bg-red-900/50 hover:bg-red-900 text-red-200 px-2 py-1 flex-1 border border-red-800/50 rounded transition-colors"
+                    className="text-xs uppercase tracking-wider bg-red-900/50 hover:bg-red-900 text-red-200 px-3 py-1.5 border border-red-800/50 rounded transition-colors font-mono cursor-pointer"
                     type="button"
                   >
                     Abort
@@ -777,7 +776,7 @@ export default function Runtime() {
       {/* Floating HUD Activation Trigger */}
       <button
         onClick={() => setIsTelemetryOpen(!isTelemetryOpen)}
-        className="absolute top-6 right-6 z-50 font-mono text-xs uppercase tracking-widest text-zinc-500 hover:text-zinc-200 transition-colors bg-black/60 backdrop-blur-sm px-4 py-2 border border-zinc-800 rounded-sm select-none shadow-lg"
+        className="absolute top-5 right-6 z-50 font-mono text-xs uppercase tracking-widest text-zinc-400 hover:text-zinc-100 transition-colors bg-black/80 backdrop-blur-md px-4 py-2 border border-zinc-800 rounded select-none shadow-lg cursor-pointer"
       >
         {isTelemetryOpen ? '[ CLOSE ]' : '[ TAB ] TELEMETRY'}
       </button>
@@ -796,24 +795,24 @@ export default function Runtime() {
         {/* LEFT PANE: CAST LEDGER & LOCATION INFO    */}
         {/* ========================================= */}
         <div
-          className={`absolute top-0 left-0 h-full w-[480px] max-w-full border-r border-zinc-800/80 bg-[#050505]/95 backdrop-blur-2xl shadow-[50px_0_50px_rgba(0,0,0,0.5)] transform transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] flex flex-col pointer-events-auto no-scrollbar ${
+          className={`absolute top-0 left-0 h-full w-[520px] 2xl:w-[580px] max-w-full border-r border-zinc-800/80 bg-[#050505]/95 backdrop-blur-2xl shadow-[50px_0_50px_rgba(0,0,0,0.5)] transform transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] flex flex-col pointer-events-auto no-scrollbar ${
             isTelemetryOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
         >
           {/* Header Console Bar */}
           <div className="p-8 border-b border-zinc-800/80 bg-zinc-900/20 shrink-0 select-none">
-            <h3 className="text-zinc-400 text-sm font-mono tracking-widest uppercase mb-1">
+            <h3 className="text-zinc-300 text-sm sm:text-base font-mono tracking-widest uppercase mb-1 font-bold">
               Subject Telemetry
             </h3>
-            <div className="text-zinc-500 text-xs tracking-wider uppercase font-mono flex items-center gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-cyan-500 animate-pulse" />
+            <div className="text-zinc-400 text-xs tracking-wider uppercase font-mono flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-cyan-500 animate-pulse" />
               Tracking: Active
             </div>
           </div>
 
           {/* Expanded Cast Ledger Scroll Track */}
           <div className="flex-1 overflow-y-auto no-scrollbar p-8 space-y-6 font-mono selection:bg-zinc-800">
-            <h4 className="text-zinc-500 text-xs tracking-widest uppercase border-b border-zinc-800 pb-2">
+            <h4 className="text-zinc-400 text-xs sm:text-sm tracking-widest uppercase border-b border-zinc-800 pb-2 font-semibold">
               Cast Ledger [ Live Map ]
             </h4>
             <div className="space-y-4">
@@ -821,19 +820,19 @@ export default function Runtime() {
                 telemetry.castLedger.map((member, index) => (
                   <div
                     key={index}
-                    className="bg-zinc-950/40 border border-zinc-800/60 p-5 rounded-sm shadow-md"
+                    className="bg-zinc-950/60 border border-zinc-800 p-5 rounded shadow-md space-y-2"
                   >
-                    <div className="text-zinc-200 text-sm font-bold mb-3 tracking-wide">
+                    <div className="text-zinc-100 text-sm sm:text-base font-bold tracking-wide">
                       {member.character_name || (member as any).name}
                     </div>
-                    <div className="text-xs text-zinc-400 leading-relaxed mb-3 font-mono">
-                      <span className="text-cyan-600/80 uppercase tracking-widest text-[10px] mr-2">
+                    <div className="text-xs sm:text-sm text-zinc-300 leading-relaxed font-mono">
+                      <span className="text-cyan-400 uppercase tracking-widest text-xs mr-2 font-bold">
                         LOC:
                       </span>
                       {member.current_location || 'Coordinates tracked internally.'}
                     </div>
-                    <div className="text-xs text-zinc-400 leading-relaxed font-mono">
-                      <span className="text-red-600/80 uppercase tracking-widest text-[10px] mr-2">
+                    <div className="text-xs sm:text-sm text-zinc-400 leading-relaxed font-mono">
+                      <span className="text-red-400 uppercase tracking-widest text-xs mr-2 font-bold">
                         PSY:
                       </span>
                       {member.psychological_status || (member as any).description}
@@ -841,7 +840,7 @@ export default function Runtime() {
                   </div>
                 ))
               ) : (
-                <div className="text-zinc-600 text-xs uppercase tracking-widest text-center py-6 border border-dashed border-zinc-800 rounded-sm bg-zinc-950/20">
+                <div className="text-zinc-500 text-xs sm:text-sm uppercase tracking-widest text-center py-8 border border-dashed border-zinc-800 rounded bg-zinc-950/20">
                   Awaiting target metrics...
                 </div>
               )}
@@ -853,17 +852,17 @@ export default function Runtime() {
         {/* RIGHT PANE: ENGINE SCENARIO & VARIABLES   */}
         {/* ========================================= */}
         <div
-          className={`absolute top-0 right-0 h-full w-[480px] max-w-full border-l border-zinc-800/80 bg-[#050505]/95 backdrop-blur-2xl shadow-[-50px_0_50px_rgba(0,0,0,0.5)] transform transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] flex flex-col pointer-events-auto no-scrollbar ${
+          className={`absolute top-0 right-0 h-full w-[520px] 2xl:w-[580px] max-w-full border-l border-zinc-800/80 bg-[#050505]/95 backdrop-blur-2xl shadow-[-50px_0_50px_rgba(0,0,0,0.5)] transform transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] flex flex-col pointer-events-auto no-scrollbar ${
             isTelemetryOpen ? 'translate-x-0' : 'translate-x-full'
           }`}
         >
           {/* Header Console Bar */}
           <div className="p-8 border-b border-zinc-800/80 bg-zinc-900/20 shrink-0 select-none">
-            <h3 className="text-zinc-400 text-sm font-mono tracking-widest uppercase mb-1">
+            <h3 className="text-zinc-300 text-sm sm:text-base font-mono tracking-widest uppercase mb-1 font-bold">
               System Diagnostics
             </h3>
-            <div className="text-zinc-500 text-xs tracking-wider uppercase font-mono flex items-center gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+            <div className="text-zinc-400 text-xs tracking-wider uppercase font-mono flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
               Engine Stream: Active
             </div>
           </div>
@@ -872,30 +871,30 @@ export default function Runtime() {
           <div className="flex-1 overflow-y-auto no-scrollbar p-8 space-y-8 font-mono selection:bg-zinc-800">
             {/* Active Variables Section */}
             <div className="space-y-4">
-              <h4 className="text-zinc-500 text-xs tracking-widest uppercase border-b border-zinc-800 pb-2">
+              <h4 className="text-zinc-400 text-xs sm:text-sm tracking-widest uppercase border-b border-zinc-800 pb-2 font-semibold">
                 Active Variables
               </h4>
-              <div className="flex justify-between items-center bg-zinc-950/80 border border-zinc-800/80 p-4 rounded-sm shadow-inner mb-2">
-                <span className="text-zinc-300 text-xs uppercase tracking-widest font-bold">
+              <div className="flex justify-between items-center bg-zinc-950 border border-zinc-800 p-4 rounded shadow-inner mb-2">
+                <span className="text-zinc-300 text-xs sm:text-sm uppercase tracking-widest font-bold">
                   Simulation Turn
                 </span>
-                <span className="text-white text-sm font-bold tracking-widest bg-zinc-900 px-3 py-1 rounded border border-zinc-700">
+                <span className="text-white text-sm font-bold tracking-widest bg-zinc-900 px-3 py-1.5 rounded border border-zinc-700">
                   [ {turnCount || 1} ]
                 </span>
               </div>
-              <div className="flex justify-between items-center bg-zinc-950/60 border border-zinc-800/60 p-4 rounded-sm">
-                <span className="text-zinc-400 text-xs uppercase tracking-wider">
+              <div className="flex justify-between items-center bg-zinc-950/80 border border-zinc-800/80 p-4 rounded">
+                <span className="text-zinc-300 text-xs sm:text-sm uppercase tracking-wider">
                   Tension Level
                 </span>
-                <span className="text-red-500 text-xs font-bold tracking-widest uppercase">
+                <span className="text-red-400 text-xs sm:text-sm font-bold tracking-widest uppercase">
                   {telemetry?.tension || 'LOW'}
                 </span>
               </div>
-              <div className="flex justify-between items-center bg-zinc-950/60 border border-zinc-800/60 p-4 rounded-sm">
-                <span className="text-zinc-400 text-xs uppercase tracking-wider">
+              <div className="flex justify-between items-center bg-zinc-950/80 border border-zinc-800/80 p-4 rounded">
+                <span className="text-zinc-300 text-xs sm:text-sm uppercase tracking-wider">
                   Narrative Pacing
                 </span>
-                <span className="text-cyan-500 text-xs font-bold tracking-widest uppercase">
+                <span className="text-cyan-400 text-xs sm:text-sm font-bold tracking-widest uppercase">
                   {telemetry?.pacing || 'CREEPING'}
                 </span>
               </div>
@@ -903,10 +902,10 @@ export default function Runtime() {
 
             {/* Engine Rationale Section */}
             <div className="space-y-4 pb-4">
-              <h4 className="text-zinc-500 text-xs tracking-widest uppercase border-b border-zinc-800 pb-2">
+              <h4 className="text-zinc-400 text-xs sm:text-sm tracking-widest uppercase border-b border-zinc-800 pb-2 font-semibold">
                 Engine Rationale
               </h4>
-              <div className="bg-[#020202] border border-zinc-800 p-6 rounded-sm text-xs text-zinc-300 leading-relaxed italic shadow-[inset_0_0_20px_rgba(0,0,0,0.8)] whitespace-pre-wrap font-mono">
+              <div className="bg-[#020202] border border-zinc-800 p-6 rounded text-xs sm:text-sm text-zinc-300 leading-relaxed italic shadow-[inset_0_0_20px_rgba(0,0,0,0.8)] whitespace-pre-wrap font-mono">
                 {telemetry?.engineLogic || 'Awaiting structural system rationale...'}
               </div>
             </div>

@@ -25,11 +25,11 @@ export default function AntagonistContractDisplay() {
   const authorityText =
     authorityContract?.authority ||
     seat?.ability ||
-    'Local physical presence and direct physical interference.';
+    'Only already authored and ratified scenario facts apply. Grants no new reach, perception, mutation, omniscience, or control until re-inducted with an explicit Authority Contract.';
   const limitsText =
     authorityContract?.limits ||
     seat?.limitation ||
-    'Bounded by local physical enclosure and mortal counterplay.';
+    'Strictly bounded to authored scenario facts and ratified state. Grants no new reach, perception, mutation, omniscience, or control without an explicit Authority Contract.';
 
   const isGroupVictim = victimField?.kind === 'group';
   const victimLabel = victimField
@@ -46,30 +46,30 @@ export default function AntagonistContractDisplay() {
       className="w-full bg-zinc-950 border-b border-red-950/60 text-zinc-200 font-mono select-none"
     >
       {/* Compact Top Bar */}
-      <div className="max-w-6xl mx-auto px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 text-xs">
+      <div className="max-w-7xl mx-auto px-6 py-3 flex flex-wrap items-center justify-between gap-4 text-xs sm:text-sm">
         {/* Antagonist Seat Badge & Name */}
         <div className="flex items-center gap-2.5 shrink-0">
-          <div className="flex items-center gap-1.5 px-2 py-1 bg-red-950/40 border border-red-800/60 rounded text-red-400 font-bold uppercase tracking-wider text-xs">
-            <ShieldAlert className="w-3.5 h-3.5 text-red-400 shrink-0" />
+          <div className="flex items-center gap-1.5 px-2.5 py-1 bg-red-950/40 border border-red-800/60 rounded text-red-400 font-bold uppercase tracking-wider text-xs">
+            <ShieldAlert className="w-4 h-4 text-red-400 shrink-0" />
             <span>{name}</span>
           </div>
-          <span className="text-zinc-500 uppercase tracking-widest text-[11px] hidden sm:inline-block">
+          <span className="text-zinc-500 uppercase tracking-widest text-xs hidden sm:inline-block">
             [{seatKindLabel}]
           </span>
         </div>
 
         {/* Compact Summary info: Authority preview & Victim preview */}
-        <div className="hidden lg:flex items-center gap-6 text-xs text-zinc-400 flex-1 justify-center max-w-2xl px-4">
+        <div className="hidden lg:flex items-center gap-6 text-xs text-zinc-400 flex-1 justify-center max-w-3xl px-4">
           <div className="truncate flex items-center gap-1.5">
-            <Sparkles className="w-3.5 h-3.5 text-amber-400/80 shrink-0" />
-            <span className="text-zinc-500 uppercase font-bold text-[11px]">Authority:</span>
+            <Sparkles className="w-4 h-4 text-amber-400/80 shrink-0" />
+            <span className="text-zinc-500 uppercase font-bold text-xs">Authority:</span>
             <span className="text-zinc-300 truncate" title={authorityText}>
               {authorityText}
             </span>
           </div>
           <div className="truncate flex items-center gap-1.5">
-            <Lock className="w-3.5 h-3.5 text-red-400/80 shrink-0" />
-            <span className="text-zinc-500 uppercase font-bold text-[11px]">Limits:</span>
+            <Lock className="w-4 h-4 text-red-400/80 shrink-0" />
+            <span className="text-zinc-500 uppercase font-bold text-xs">Limits:</span>
             <span className="text-zinc-300 truncate" title={limitsText}>
               {limitsText}
             </span>
@@ -78,16 +78,16 @@ export default function AntagonistContractDisplay() {
 
         {/* Target Victim & Expansion Toggle */}
         <div className="flex items-center gap-3 shrink-0 ml-auto">
-          <div className="flex items-center gap-1.5 px-2 py-1 bg-zinc-900 border border-zinc-800 rounded text-zinc-300 text-xs">
+          <div className="flex items-center gap-1.5 px-2.5 py-1 bg-zinc-900 border border-zinc-800 rounded text-zinc-300 text-xs">
             {isGroupVictim ? (
-              <Users className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+              <Users className="w-4 h-4 text-amber-400 shrink-0" />
             ) : (
-              <User className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              <User className="w-4 h-4 text-emerald-400 shrink-0" />
             )}
-            <span className="text-zinc-500 uppercase font-bold text-[11px]">Target:</span>
+            <span className="text-zinc-500 uppercase font-bold text-xs">Target:</span>
             <span className="text-zinc-200 font-semibold">{victimLabel}</span>
             {namedMembers.length > 0 && (
-              <span className="text-zinc-500 text-[11px]">({namedMembers.length})</span>
+              <span className="text-zinc-400 text-xs">({namedMembers.length})</span>
             )}
           </div>
 
@@ -95,13 +95,13 @@ export default function AntagonistContractDisplay() {
             type="button"
             id="toggle-antagonist-contract-btn"
             onClick={() => setIsExpanded(!isExpanded)}
-            className="flex items-center gap-1 px-2.5 py-1 text-xs uppercase tracking-wider text-zinc-400 hover:text-white bg-zinc-900/80 hover:bg-zinc-800 border border-zinc-800 rounded transition-colors cursor-pointer"
+            className="flex items-center gap-1 px-3 py-1 text-xs uppercase tracking-wider text-zinc-400 hover:text-white bg-zinc-900/80 hover:bg-zinc-800 border border-zinc-800 rounded transition-colors cursor-pointer"
           >
             <span>{isExpanded ? 'Hide Scope' : 'View Scope'}</span>
             {isExpanded ? (
-              <ChevronUp className="w-3.5 h-3.5 text-zinc-400" />
+              <ChevronUp className="w-4 h-4 text-zinc-400" />
             ) : (
-              <ChevronDown className="w-3.5 h-3.5 text-zinc-400" />
+              <ChevronDown className="w-4 h-4 text-zinc-400" />
             )}
           </button>
         </div>
@@ -109,36 +109,36 @@ export default function AntagonistContractDisplay() {
 
       {/* Expanded Read-Only Contract Presentation */}
       {isExpanded && (
-        <div className="border-t border-zinc-900 bg-black/90 px-6 py-5 max-w-6xl mx-auto space-y-4 text-xs animate-in fade-in duration-200">
+        <div className="border-t border-zinc-900 bg-black/90 px-6 py-6 max-w-7xl mx-auto space-y-4 text-xs sm:text-sm animate-in fade-in duration-200">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* 1. Authority Scope */}
-            <div className="p-3.5 bg-zinc-950 border border-amber-900/30 rounded-sm space-y-1.5">
-              <div className="flex items-center gap-1.5 text-amber-400 uppercase font-bold tracking-wider text-xs">
-                <Sparkles className="w-3.5 h-3.5" />
+            <div className="p-4 bg-zinc-950 border border-amber-900/30 rounded space-y-2">
+              <div className="flex items-center gap-2 text-amber-400 uppercase font-bold tracking-wider text-xs sm:text-sm">
+                <Sparkles className="w-4 h-4" />
                 <span>Your Authority</span>
               </div>
-              <p className="text-zinc-300 leading-relaxed whitespace-pre-wrap">{authorityText}</p>
+              <p className="text-zinc-300 leading-relaxed whitespace-pre-wrap text-xs sm:text-sm">{authorityText}</p>
             </div>
 
             {/* 2. Limits & Counterplay */}
-            <div className="p-3.5 bg-zinc-950 border border-red-900/30 rounded-sm space-y-1.5">
-              <div className="flex items-center gap-1.5 text-red-400 uppercase font-bold tracking-wider text-xs">
-                <Lock className="w-3.5 h-3.5" />
+            <div className="p-4 bg-zinc-950 border border-red-900/30 rounded space-y-2">
+              <div className="flex items-center gap-2 text-red-400 uppercase font-bold tracking-wider text-xs sm:text-sm">
+                <Lock className="w-4 h-4" />
                 <span>Your Limits & Anchors</span>
               </div>
-              <p className="text-zinc-300 leading-relaxed whitespace-pre-wrap">{limitsText}</p>
+              <p className="text-zinc-300 leading-relaxed whitespace-pre-wrap text-xs sm:text-sm">{limitsText}</p>
             </div>
 
             {/* 3. Objective & Manifestation */}
-            <div className="p-3.5 bg-zinc-950 border border-zinc-800 rounded-sm space-y-1.5">
-              <div className="flex items-center gap-1.5 text-zinc-400 uppercase font-bold tracking-wider text-xs">
-                <Activity className="w-3.5 h-3.5 text-zinc-400" />
+            <div className="p-4 bg-zinc-950 border border-zinc-800 rounded space-y-2">
+              <div className="flex items-center gap-2 text-zinc-400 uppercase font-bold tracking-wider text-xs sm:text-sm">
+                <Activity className="w-4 h-4 text-zinc-400" />
                 <span>Objective & Manifestation</span>
               </div>
-              <div className="text-zinc-300 leading-relaxed">
+              <div className="text-zinc-300 leading-relaxed text-xs sm:text-sm">
                 <p className="font-semibold text-white mb-1">{initialGoal}</p>
                 {seat?.description && (
-                  <p className="text-zinc-400 text-[11px]">{seat.description}</p>
+                  <p className="text-zinc-400 text-xs">{seat.description}</p>
                 )}
               </div>
             </div>
@@ -146,7 +146,7 @@ export default function AntagonistContractDisplay() {
 
           {/* Victim Details Section */}
           {victimField && (
-            <div className="p-3.5 bg-zinc-950 border border-zinc-800/80 rounded-sm space-y-2">
+            <div className="p-4 bg-zinc-950 border border-zinc-800/80 rounded space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   {isGroupVictim ? (
@@ -154,7 +154,7 @@ export default function AntagonistContractDisplay() {
                   ) : (
                     <User className="w-4 h-4 text-emerald-400" />
                   )}
-                  <span className="text-zinc-200 font-bold uppercase tracking-wider text-xs">
+                  <span className="text-zinc-200 font-bold uppercase tracking-wider text-xs sm:text-sm">
                     Victims:{' '}
                     {isGroupVictim
                       ? `Collective Group — ${victimField.collectiveDesignation}`
@@ -165,7 +165,7 @@ export default function AntagonistContractDisplay() {
                   <button
                     type="button"
                     onClick={() => setIsVictimsOpen(!isVictimsOpen)}
-                    className="text-[11px] text-zinc-400 hover:text-white uppercase tracking-wider flex items-center gap-1 cursor-pointer"
+                    className="text-xs text-zinc-400 hover:text-white uppercase tracking-wider flex items-center gap-1 cursor-pointer"
                   >
                     <span>
                       {isVictimsOpen
@@ -173,23 +173,23 @@ export default function AntagonistContractDisplay() {
                         : `View ${namedMembers.length} Member Profiles`}
                     </span>
                     {isVictimsOpen ? (
-                      <ChevronUp className="w-3 h-3" />
+                      <ChevronUp className="w-3.5 h-3.5" />
                     ) : (
-                      <ChevronDown className="w-3 h-3" />
+                      <ChevronDown className="w-3.5 h-3.5" />
                     )}
                   </button>
                 )}
               </div>
 
               {victimField.description && (
-                <p className="text-zinc-400 text-xs italic">{victimField.description}</p>
+                <p className="text-zinc-400 text-xs sm:text-sm italic">{victimField.description}</p>
               )}
 
               {!isGroupVictim && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 text-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 text-xs sm:text-sm">
                   {victimField.goal && (
                     <div className="text-zinc-400">
-                      <span className="text-zinc-500 uppercase font-semibold text-[11px]">
+                      <span className="text-zinc-500 uppercase font-semibold text-xs">
                         Immediate Goal:{' '}
                       </span>
                       <span className="text-zinc-300">{victimField.goal}</span>
@@ -197,7 +197,7 @@ export default function AntagonistContractDisplay() {
                   )}
                   {victimField.knownFact && (
                     <div className="text-zinc-400">
-                      <span className="text-zinc-500 uppercase font-semibold text-[11px]">
+                      <span className="text-zinc-500 uppercase font-semibold text-xs">
                         Intel / Known Fact:{' '}
                       </span>
                       <span className="text-zinc-300">{victimField.knownFact}</span>
@@ -207,25 +207,25 @@ export default function AntagonistContractDisplay() {
               )}
 
               {isGroupVictim && namedMembers.length > 0 && isVictimsOpen && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5 pt-2">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 pt-2">
                   {namedMembers.map((m, idx) => (
                     <div
                       key={m.id || idx}
-                      className="p-2.5 bg-black/60 border border-zinc-800 rounded text-xs space-y-1"
+                      className="p-3 bg-black/60 border border-zinc-800 rounded text-xs space-y-1.5"
                     >
-                      <div className="font-bold text-zinc-200">{m.name}</div>
+                      <div className="font-bold text-zinc-200 text-xs sm:text-sm">{m.name}</div>
                       {m.description && (
-                        <div className="text-zinc-400 text-[11px]">{m.description}</div>
+                        <div className="text-zinc-400 text-xs">{m.description}</div>
                       )}
                       {m.goal && (
-                        <div className="text-zinc-500 text-[11px]">
-                          <span className="text-zinc-600 uppercase font-semibold">Goal: </span>
+                        <div className="text-zinc-400 text-xs">
+                          <span className="text-zinc-500 uppercase font-semibold">Goal: </span>
                           {m.goal}
                         </div>
                       )}
                       {m.knownFact && (
-                        <div className="text-zinc-500 text-[11px]">
-                          <span className="text-zinc-600 uppercase font-semibold">Intel: </span>
+                        <div className="text-zinc-400 text-xs">
+                          <span className="text-zinc-500 uppercase font-semibold">Intel: </span>
                           {m.knownFact}
                         </div>
                       )}

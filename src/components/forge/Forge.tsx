@@ -34,38 +34,38 @@ export default function Forge() {
   if (!hydrated) return null;
 
   return (
-    <div className="forge-container w-[95vw] max-w-[2400px] mx-auto p-8 h-screen flex flex-col bg-black text-zinc-300 overflow-hidden">
+    <div className="forge-container w-[95vw] max-w-[2560px] mx-auto p-8 h-screen flex flex-col bg-black text-zinc-300 overflow-hidden">
       {/* HEADER AREA */}
       <div className="mb-6 flex justify-between items-center border-b border-zinc-800 pb-4 shrink-0">
-        <h2 className="text-zinc-400 font-mono text-xl uppercase tracking-widest flex items-center gap-4">
+        <h2 className="text-zinc-400 font-mono text-lg sm:text-xl uppercase tracking-widest flex items-center gap-4">
           <button
             onClick={() => setPhase('hub')}
-            className="flex items-center gap-2 text-zinc-500 hover:text-white transition-colors text-[10px] uppercase tracking-widest border border-zinc-800 px-3 py-1 rounded-sm"
+            className="flex items-center gap-2 text-zinc-400 hover:text-white transition-colors text-xs uppercase tracking-widest border border-zinc-800 px-3 py-1.5 rounded cursor-pointer"
           >
-            <ArrowLeft className="w-3 h-3" />
+            <ArrowLeft className="w-3.5 h-3.5" />
             HUB
           </button>
           [ THE FORGE // ARCHITECTURAL DRAFTING ]
         </h2>
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 border border-zinc-800 rounded p-1">
+          <div className="flex items-center gap-2 border border-zinc-800 rounded p-1 bg-zinc-950">
             <button
               onClick={() => setActiveTab('blueprint')}
-              className={`px-3 py-1 text-[10px] font-mono tracking-widest uppercase transition-colors ${activeTab === 'blueprint' ? 'bg-zinc-800 text-cyan-400' : 'text-zinc-500 hover:text-zinc-300'}`}
+              className={`px-3.5 py-1.5 text-xs font-mono tracking-widest uppercase transition-colors rounded ${activeTab === 'blueprint' ? 'bg-zinc-800 text-cyan-400 font-bold' : 'text-zinc-400 hover:text-zinc-200'}`}
             >
               Blueprint
             </button>
             <button
               onClick={() => setActiveTab('campaign')}
-              className={`px-3 py-1 text-[10px] font-mono tracking-widest uppercase transition-colors ${activeTab === 'campaign' ? 'bg-zinc-800 text-cyan-400' : 'text-zinc-500 hover:text-zinc-300'}`}
+              className={`px-3.5 py-1.5 text-xs font-mono tracking-widest uppercase transition-colors rounded ${activeTab === 'campaign' ? 'bg-zinc-800 text-cyan-400 font-bold' : 'text-zinc-400 hover:text-zinc-200'}`}
             >
               Campaign
             </button>
           </div>
           <div className="flex items-center">
             {isConfirmingClear ? (
-              <div className="flex items-center gap-4 mr-4 animate-in fade-in slide-in-from-right-2 border border-red-900/50 bg-red-950/20 px-3 py-1 rounded-sm">
-                <span className="text-[10px] uppercase tracking-widest text-red-500 font-bold">
+              <div className="flex items-center gap-4 mr-4 animate-in fade-in slide-in-from-right-2 border border-red-900/50 bg-red-950/20 px-3.5 py-1.5 rounded">
+                <span className="text-xs uppercase tracking-widest text-red-500 font-bold">
                   Purge Memory?
                 </span>
                 <div className="flex items-center gap-3">
@@ -74,14 +74,14 @@ export default function Forge() {
                       clearHistory();
                       setIsConfirmingClear(false);
                     }}
-                    className="text-[10px] uppercase tracking-widest text-white hover:text-red-400 transition-colors"
+                    className="text-xs uppercase tracking-widest text-white hover:text-red-400 transition-colors font-bold cursor-pointer"
                   >
                     Yes
                   </button>
                   <span className="text-zinc-700">|</span>
                   <button
                     onClick={() => setIsConfirmingClear(false)}
-                    className="text-[10px] uppercase tracking-widest text-zinc-500 hover:text-white transition-colors"
+                    className="text-xs uppercase tracking-widest text-zinc-400 hover:text-white transition-colors cursor-pointer"
                   >
                     No
                   </button>
@@ -90,7 +90,7 @@ export default function Forge() {
             ) : (
               <button
                 onClick={() => setIsConfirmingClear(true)}
-                className="p-2 text-zinc-600 hover:text-red-500 transition-colors mr-2 border border-transparent hover:border-red-900/50 rounded-sm hover:bg-red-950/20"
+                className="p-2 text-zinc-500 hover:text-red-500 transition-colors mr-2 border border-transparent hover:border-red-900/50 rounded hover:bg-red-950/20 cursor-pointer"
                 title="Purge Memory"
               >
                 <Trash2 className="w-4 h-4" />
@@ -122,7 +122,7 @@ export default function Forge() {
                 }
               }
             }}
-            className="px-4 py-2 bg-zinc-900 border border-zinc-700 text-zinc-400 font-mono text-xs hover:bg-zinc-800 hover:text-cyan-400 transition-colors relative"
+            className="px-4 py-2 bg-zinc-900 border border-zinc-700 text-zinc-300 font-mono text-xs hover:bg-zinc-800 hover:text-cyan-400 transition-colors relative rounded cursor-pointer font-bold"
           >
             [ EXPORT BLUEPRINT TO ENGINE ]
             {exportError && (
@@ -136,13 +136,13 @@ export default function Forge() {
                       e.stopPropagation();
                       setExportError(null);
                     }}
-                    className="text-red-500 hover:text-white px-2 py-1 bg-red-900/30 rounded"
+                    className="text-red-500 hover:text-white px-2 py-1 bg-red-900/30 rounded cursor-pointer"
                   >
                     ✕
                   </button>
                 </div>
-                <pre className="whitespace-pre-wrap leading-relaxed text-[10px]">{exportError}</pre>
-                <div className="mt-4 pt-2 border-t border-red-900/50 text-red-500/80 italic">
+                <pre className="whitespace-pre-wrap leading-relaxed text-xs">{exportError}</pre>
+                <div className="mt-4 pt-2 border-t border-red-900/50 text-red-400 italic">
                   Fix the highlighted discrepancies in the Forge UI before exporting.
                 </div>
               </div>
@@ -169,24 +169,24 @@ export default function Forge() {
               <SpatialManager />
 
               {/* WORLD RULES */}
-              <div className="bg-zinc-950 border border-zinc-800 focus-within:border-zinc-700 p-4 rounded flex flex-col shadow-lg transition-colors">
-                <label className="text-zinc-500 font-mono text-[10px] uppercase tracking-wider mb-2">
+              <div className="bg-zinc-950 border border-zinc-800 focus-within:border-zinc-700 p-5 rounded flex flex-col shadow-lg transition-colors">
+                <label className="text-zinc-400 font-mono text-xs uppercase tracking-wider mb-2 font-bold">
                   WORLD RULES
                 </label>
                 <textarea
                   value={draftBlueprint?.environmentalRules || ''}
                   onChange={(e) => updateDraft({ environmentalRules: e.target.value })}
-                  className="w-full bg-transparent text-zinc-300 font-mono text-xs resize-none focus:outline-none custom-scrollbar min-h-[120px] leading-relaxed"
+                  className="w-full bg-transparent text-zinc-200 font-mono text-xs sm:text-sm resize-none focus:outline-none custom-scrollbar min-h-[120px] leading-relaxed"
                   placeholder="Define the rules this world must obey: limits, conditions, places, and systemic behavior."
                 />
               </div>
 
               {/* SCENARIO PREMISE */}
-              <div className="bg-zinc-950 border border-zinc-800 focus-within:border-zinc-700 p-4 rounded flex flex-col shadow-lg transition-colors">
-                <label className="text-zinc-500 font-mono text-[10px] uppercase tracking-widest mb-2">
+              <div className="bg-zinc-950 border border-zinc-800 focus-within:border-zinc-700 p-5 rounded flex flex-col shadow-lg transition-colors">
+                <label className="text-zinc-400 font-mono text-xs uppercase tracking-widest mb-2 font-bold">
                   SCENARIO PREMISE
                 </label>
-                <div className="text-zinc-400 text-sm font-mono whitespace-pre-wrap min-h-[120px]">
+                <div className="text-zinc-300 text-xs sm:text-sm font-mono whitespace-pre-wrap min-h-[120px] leading-relaxed">
                   {draftBlueprint?.globalPremise ||
                     draftBlueprint?.premise ||
                     'Calibrate primary narrative trajectories, logic overrides, or operational vector conditions...'}
@@ -202,10 +202,10 @@ export default function Forge() {
               </div>
 
               {/* Cast Authoring Card */}
-              <div className="flex-1 min-h-0 bg-zinc-950 border border-zinc-800 focus-within:border-zinc-700 p-4 rounded flex flex-col shadow-lg transition-colors overflow-hidden">
+              <div className="flex-1 min-h-0 bg-zinc-950 border border-zinc-800 focus-within:border-zinc-700 p-5 rounded flex flex-col shadow-lg transition-colors overflow-hidden">
                 {/* Header & Add Button */}
                 <div className="flex justify-between items-center mb-3 shrink-0">
-                  <label className="text-zinc-500 font-mono text-[10px] uppercase tracking-wider">
+                  <label className="text-zinc-400 font-mono text-xs uppercase tracking-wider font-bold">
                     CAST
                   </label>
                   <button
@@ -223,7 +223,7 @@ export default function Forge() {
                         ],
                       });
                     }}
-                    className="text-[9px] bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 px-2 py-1 rounded border border-zinc-700 transition-colors shadow-sm"
+                    className="text-xs bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white px-2.5 py-1 rounded border border-zinc-700 transition-colors shadow-sm cursor-pointer"
                   >
                     [+ ADD CAST MEMBER]
                   </button>
@@ -234,7 +234,7 @@ export default function Forge() {
                   {draftBlueprint?.cast?.map((char, index) => (
                     <div
                       key={char.id}
-                      className="p-3 bg-[#050505] border border-zinc-800/80 rounded flex flex-col gap-2 relative group shadow-inner"
+                      className="p-3.5 bg-[#050505] border border-zinc-800/80 rounded flex flex-col gap-2.5 relative group shadow-inner"
                     >
                       {/* Delete Button (Appears on Hover) */}
                       <button
@@ -244,7 +244,7 @@ export default function Forge() {
                           );
                           updateDraft({ cast: updatedCast });
                         }}
-                        className="absolute top-2 right-2 text-zinc-700 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity z-10 bg-black/50 rounded px-1"
+                        className="absolute top-2.5 right-2.5 text-zinc-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity z-10 bg-black/70 rounded px-1.5 py-0.5 cursor-pointer"
                         title="Remove Cast Member"
                       >
                         ✕
@@ -260,7 +260,7 @@ export default function Forge() {
                             );
                             updateDraft({ cast: updatedCast });
                           }}
-                          className="bg-transparent border-b border-zinc-800 text-zinc-300 font-bold text-xs focus:outline-none w-1/2 focus:border-zinc-500 pb-1"
+                          className="bg-transparent border-b border-zinc-800 text-zinc-200 font-bold text-xs sm:text-sm focus:outline-none w-1/2 focus:border-zinc-500 pb-1"
                           placeholder="Entity Name"
                         />
                         <select
@@ -273,7 +273,7 @@ export default function Forge() {
                             );
                             updateDraft({ cast: updatedCast });
                           }}
-                          className="bg-zinc-900 border border-zinc-800 text-zinc-400 text-[9px] uppercase tracking-wider p-1 rounded focus:outline-none w-1/2 cursor-pointer"
+                          className="bg-zinc-900 border border-zinc-800 text-zinc-300 text-xs uppercase tracking-wider p-1.5 rounded focus:outline-none w-1/2 cursor-pointer font-mono"
                         >
                           <option value="ADAPTIVE">Vector: ADAPTIVE</option>
                           <option value="INSURGENT">Vector: INSURGENT</option>
@@ -289,14 +289,14 @@ export default function Forge() {
                           );
                           updateDraft({ cast: updatedCast });
                         }}
-                        className="w-full bg-transparent text-zinc-400 font-mono text-[10px] resize-none focus:outline-none custom-scrollbar min-h-[40px] leading-relaxed mt-1"
+                        className="w-full bg-transparent text-zinc-300 font-mono text-xs resize-none focus:outline-none custom-scrollbar min-h-[44px] leading-relaxed mt-1"
                         placeholder="Psychological profile, inventory, or narrative vulnerability..."
                       />
                     </div>
                   ))}
 
                   {(!draftBlueprint?.cast || draftBlueprint.cast.length === 0) && (
-                    <div className="flex items-center justify-center h-full text-zinc-700 text-xs italic font-mono border border-dashed border-zinc-800 rounded p-4">
+                    <div className="flex items-center justify-center h-full text-zinc-500 text-xs italic font-mono border border-dashed border-zinc-800 rounded p-6">
                       No cast members have been added yet.
                     </div>
                   )}

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { TurnRequestSchema, TurnResultSchema, TurnResponse } from '../schemas/engine';
+import { TurnRequestSchema, TurnResultSchema, TurnResponse, normalizeParticipationContext } from '../schemas/engine';
 import { generateStructuredResponse } from '../utils/aiClient';
 import { resolveTransition } from '../engine/transitionResolver';
 
@@ -47,15 +47,14 @@ turnRouter.post('/', async (req, res) => {
           : 'None established';
 
       if (pc.mode === 'antagonist') {
-        const isForce = pc.seat?.kind === 'force';
+        const normalizedPc = normalizeParticipationContext(pc) || pc;
+        const isForce = normalizedPc.seat?.kind === 'force';
         const authorityText =
-          pc.authorityContract?.authority ||
-          pc.seat?.ability ||
-          'Local physical presence, sensory manifestation, and physical interference.';
+          normalizedPc.authorityContract?.authority ||
+          'Only already authored and ratified scenario facts apply. Grants no new reach, perception, mutation, omniscience, or control until re-inducted with an explicit Authority Contract.';
         const limitsText =
-          pc.authorityContract?.limits ||
-          pc.seat?.limitation ||
-          'Bounded by local physical enclosure and mortal counterplay.';
+          normalizedPc.authorityContract?.limits ||
+          'Strictly bounded to authored scenario facts and ratified state. Grants no new reach, perception, mutation, omniscience, or control without an explicit Authority Contract.';
 
         let victimSection = '';
         if (pc.victimField) {

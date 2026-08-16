@@ -41,7 +41,7 @@ export default function ErgodicTextRenderer({
     return result;
   }, [displayText, isPanic]);
 
-  const containerClasses = `text-sm leading-relaxed whitespace-pre-wrap transition-colors duration-1000 ${
+  const containerClasses = `text-sm sm:text-base leading-relaxed whitespace-pre-wrap transition-colors duration-1000 max-w-prose ${
     isExhausted ? 'text-zinc-400' : 'text-zinc-100'
   }`;
 

@@ -100,7 +100,8 @@ export type ParticipationContext = z.infer<typeof ParticipationContextSchema>;
 
 /**
  * Safely normalizes participation context, ensuring legacy Phase 3A antagonist
- * contexts receive an explicit Authority Contract fallback rather than unconstrained power.
+ * contexts receive an explicit Authority Contract fallback rather than unconstrained power
+ * or fabricated local physical presence/mortal counterplay.
  */
 export function normalizeParticipationContext(
   context?: ParticipationContext | null
@@ -114,10 +115,10 @@ export function normalizeParticipationContext(
 
   const fallbackAuthority =
     context.seat?.ability?.trim() ||
-    'Local physical presence, sensory manifestation, and direct physical interference.';
+    'Only already authored and ratified scenario facts apply. Grants no new reach, perception, mutation, omniscience, or control until re-inducted with an explicit Authority Contract.';
   const fallbackLimits =
     context.seat?.limitation?.trim() ||
-    'Bounded by local physical enclosure, continuity of presence, and mortal counterplay.';
+    'Strictly bounded to authored scenario facts and ratified state. Grants no new reach, perception, mutation, omniscience, or control without an explicit Authority Contract.';
 
   return {
     ...context,

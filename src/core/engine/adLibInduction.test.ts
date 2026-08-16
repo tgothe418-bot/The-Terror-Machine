@@ -12,9 +12,12 @@ import {
 } from '../../types/adLib';
 import {
   RatifiedEngineFrame,
+  TurnFailureReceipt,
+  ParticipationContext,
+  normalizeParticipationContext,
 } from '../../types';
 import { buildEngineTurnContext } from '../../lib/buildEngineTurnContext';
-import { CommittedTurnPayload } from './events';
+import { CommittedTurnPayload, FailedTurnPayload } from './events';
 import { useAppStore } from '../../store/useAppStore';
 import { useEngineStore } from '../store';
 
@@ -600,44 +603,45 @@ describe('Phase 3B: Antagonist Authority Contracts & Victim Framing', () => {
       };
 
       const ratifiedFrame: RatifiedEngineFrame = {
-        frameId: 'frame-test-01',
-        timestamp: Date.now(),
-        playerRole: 'antagonist',
-        perspectiveApplied: 'ANTAGONIST',
-        semanticDelta: {
-          somaticDamage: 0,
-          cognitiveDistortion: 0,
-          tensionVelocity: 'escalating',
-          flagsAsserted: ['DUCTS_CRACKED'],
-          flagsRemoved: [],
+        narrative_blocks: [
+          {
+            type: 'prose',
+            content: 'The ducts groan and buckle inward under sudden barometric load.',
+          },
+        ],
+        logic_state: {
+          current_phase: 'MANIFEST',
+          suggested_tension: 20,
+          terminal_flags: ['DUCTS_CRACKED'],
+          player_role: 'antagonist',
         },
-        topologyDeltas: [],
-        discoveredEdges: [],
-        activeNodeId: session.initialSpatialNode.id,
-        narrativeResolution: 'The ducts groan and buckle inward under sudden barometric load.',
+        turnReceipt: {
+          turnNumber: 1,
+          nodeBefore: session.initialSpatialNode.id,
+          requestedTarget: null,
+          accepted: true,
+          reason: 'Ratified frame applied successfully',
+          nodeAfter: session.initialSpatialNode.id,
+          activeVector: 'COGNITIVE',
+          activeTier: 'LATENT',
+          tension: 20,
+        },
       };
 
       const committedTurnPayload: CommittedTurnPayload = {
         commandText: 'Exert crushing atmospheric pressure along the vent shaft',
         formattedText: 'Exert crushing atmospheric pressure along the vent shaft',
-        frame: {
-          narrative: ratifiedFrame.narrativeResolution,
-          logic_state: {
-            tension_level: 1,
-            current_vector: 'PHYSICAL',
-            current_tier: 'MANIFEST',
-            terminal_flags: ['DUCTS_CRACKED'],
-          },
-        } as unknown as RatifiedEngineFrame,
+        frame: ratifiedFrame,
         turnReceipt: {
-          turnIndex: 1,
-          status: 'COMMITTED',
-          frameId: ratifiedFrame.frameId,
-          timestamp: Date.now(),
-          latencyMs: 120,
-          perspectiveApplied: 'ANTAGONIST',
-          semanticStateHash: 'hash-001',
-          topologyMutationsCount: 0,
+          turnNumber: 1,
+          nodeBefore: session.initialSpatialNode.id,
+          requestedTarget: null,
+          accepted: true,
+          reason: 'Ratified frame applied successfully',
+          nodeAfter: session.initialSpatialNode.id,
+          activeVector: 'COGNITIVE',
+          activeTier: 'LATENT',
+          tension: 20,
         },
         preSnapshot,
       };
@@ -667,6 +671,229 @@ describe('Phase 3B: Antagonist Authority Contracts & Victim Framing', () => {
 
       expect(nextTurnContext.participationContext?.authorityContract?.authority).toContain('Barometric surges');
       expect(nextTurnContext.participationContext?.victimField?.kind).toBe('group');
+    });
+
+    it('preserves Authority, Limits, and Victim data without state drift on a TURN_FAILED event', () => {
+      const induction: AdLibAntagonistInduction = {
+        participationMode: 'antagonist',
+        placeSeed: 'Sub-Level Quarantine Sector',
+        goal: 'Stalk and isolate the perimeter security officer',
+        unsettlingDetail: 'Rattling hydraulic valves in the dark',
+        oppositionSeat: {
+          kind: 'character',
+          name: 'The Cybernetic Warden',
+          description: 'A cybernetically augmented containment sentinel.',
+          goal: 'Execute lethal containment protocols.',
+        },
+        authorityContract: {
+          authority: 'Direct physical pursuit, thermal sensor tracking, pneumatic door overrides.',
+          limits: 'Cannot manifest outside physical line of movement; susceptible to high-voltage discharge.',
+        },
+        victimField: {
+          kind: 'group',
+          collectiveDesignation: 'Perimeter Security Detachment',
+          description: 'Two security officers separated near the bulkhead.',
+          members: [
+            {
+              id: 'vic-01',
+              name: 'Officer Marcus Cole',
+              description: 'Senior security guard.',
+              goal: 'Reach the emergency comms console.',
+              knownFact: 'Damaged left ear.',
+            },
+            {
+              id: 'vic-02',
+              name: 'Officer Sarah Chen',
+              description: 'Junior patrol guard.',
+              goal: 'Seal the security blast gate.',
+              knownFact: 'Carries emergency bypass keycard.',
+            },
+          ],
+        },
+      };
+
+      const session = initiateAdLibSession(induction);
+      const appStateBefore = useAppStore.getState();
+
+      const preSnapshot = {
+        turnIndex: 0,
+        timelineRevision: 0,
+        reconciliationRevision: 0,
+        activeVector: 'COGNITIVE' as const,
+        activeTier: 'LATENT' as const,
+        phase: 'ENGINE' as const,
+        escalation_state: 'LATENT' as const,
+        currentNodeId: session.initialSpatialNode.id,
+        spatialGraph: [session.initialSpatialNode],
+        decay: { stage: 'STABLE' as const, coherence: 1.0 },
+        systemFlags: [],
+        somaState: [],
+        geomState: [],
+        traumaLedger: [],
+        motifLedger: {},
+        pacingLedger: {
+          failedEscapeAttempts: 0,
+          memoryAnchorsRemaining: 3,
+          spatialContradictions: 0,
+        },
+        castLedger: [],
+        narrativeVelocity: 'slow_burn' as const,
+      };
+
+      const failureReceipt: TurnFailureReceipt = {
+        code: 'API_TIMEOUT',
+        status: 504,
+        contentType: 'application/json',
+        message: 'The simulation model timed out. Canonical state was not modified.',
+      };
+
+      const failedTurnPayload: FailedTurnPayload = {
+        commandText: 'Override pneumatic security gates to trap Officer Cole',
+        preSnapshot,
+        failureReceipt,
+        errorCategory: 'API_TIMEOUT',
+        errorMessage: 'The simulation model timed out. Canonical state was not modified.',
+        statusCode: 504,
+        contentType: 'application/json',
+        timestamp: Date.now(),
+      };
+
+      // Dispatch failed turn event
+      useAppStore.getState().dispatch({
+        type: 'TURN_FAILED',
+        payload: failedTurnPayload,
+      });
+
+      const appStateAfter = useAppStore.getState();
+
+      // 1. Participation context must be preserved completely
+      expect(appStateAfter.participationContext).toBeDefined();
+      expect(appStateAfter.participationContext?.mode).toBe('antagonist');
+      expect(appStateAfter.participationContext?.authorityContract?.authority).toContain('Direct physical pursuit');
+      expect(appStateAfter.participationContext?.authorityContract?.limits).toContain('high-voltage discharge');
+      expect(appStateAfter.participationContext?.victimField?.kind).toBe('group');
+      if (appStateAfter.participationContext?.victimField?.kind === 'group') {
+        expect(appStateAfter.participationContext.victimField.collectiveDesignation).toBe('Perimeter Security Detachment');
+        expect(appStateAfter.participationContext.victimField.members).toHaveLength(2);
+        expect(appStateAfter.participationContext.victimField.members[0].name).toBe('Officer Marcus Cole');
+        expect(appStateAfter.participationContext.victimField.members[1].name).toBe('Officer Sarah Chen');
+      }
+
+      // 2. Canonical state must not drift: turn count, location, tension, vector, tier, memory flags remain invariant
+      expect(appStateAfter.turnCount).toBe(appStateBefore.turnCount);
+      expect(appStateAfter.currentNodeId).toBe(appStateBefore.currentNodeId);
+      expect(appStateAfter.tensionLevel).toBe(appStateBefore.tensionLevel);
+      expect(appStateAfter.activeVector).toBe(appStateBefore.activeVector);
+      expect(appStateAfter.activeTier).toBe(appStateBefore.activeTier);
+      expect(appStateAfter.activeMemory).toEqual(appStateBefore.activeMemory);
+      expect(appStateAfter.spatialGraph).toEqual(appStateBefore.spatialGraph);
+
+      // 3. Turn failure message recorded into history with failure receipt
+      expect(appStateAfter.history.length).toBe(appStateBefore.history.length + 2);
+      const lastMsg = appStateAfter.history[appStateAfter.history.length - 1];
+      expect(lastMsg.role).toBe('assistant');
+      expect(lastMsg.failureReceipt?.code).toBe('API_TIMEOUT');
+      expect(lastMsg.turnReceipt?.accepted).toBe(false);
+
+      // 4. Next turn context generation still includes full contracts
+      const nextTurnContext = buildEngineTurnContext({
+        blueprint: session.blueprint,
+        selectedRole: 'antagonist',
+        spatialGraph: appStateAfter.spatialGraph,
+        currentNodeId: appStateAfter.currentNodeId || session.initialSpatialNode.id,
+        participationContext: appStateAfter.participationContext,
+        history: appStateAfter.history,
+      });
+
+      expect(nextTurnContext.participationContext?.authorityContract?.authority).toContain('Direct physical pursuit');
+      expect(nextTurnContext.participationContext?.victimField?.kind).toBe('group');
+    });
+  });
+
+  describe('Conservative Legacy Antagonist Normalization', () => {
+    it('normalizes legacy antagonist character without authority contract into conservative non-fabricating contract', () => {
+      const legacyContext: ParticipationContext = {
+        mode: 'antagonist',
+        seat: {
+          kind: 'character',
+          name: 'The Lurker',
+          description: 'A legacy adversary from an older save.',
+        },
+        initialGoal: 'Infiltrate the perimeter',
+        boundedFacts: ['Legacy encounter'],
+      };
+
+      const normalized = normalizeParticipationContext(legacyContext);
+      expect(normalized).not.toBeNull();
+      expect(normalized?.authorityContract).toBeDefined();
+      expect(normalized?.authorityContract?.authority).toBe(
+        'Only already authored and ratified scenario facts apply. Grants no new reach, perception, mutation, omniscience, or control until re-inducted with an explicit Authority Contract.'
+      );
+      expect(normalized?.authorityContract?.limits).toBe(
+        'Strictly bounded to authored scenario facts and ratified state. Grants no new reach, perception, mutation, omniscience, or control without an explicit Authority Contract.'
+      );
+      // Ensures no fabricated mortal/physical presence strings
+      expect(normalized?.authorityContract?.authority).not.toContain('Local physical presence');
+      expect(normalized?.authorityContract?.limits).not.toContain('mortal counterplay');
+    });
+
+    it('normalizes legacy antagonist environmental force without imposing an embodied/mortal interpretation', () => {
+      const legacyForceContext: ParticipationContext = {
+        mode: 'antagonist',
+        seat: {
+          kind: 'force',
+          name: 'Cosmic Entropy',
+          description: 'An omnipresent cosmic force.',
+        },
+        initialGoal: 'Decay the containment perimeter',
+        boundedFacts: ['Universal constant'],
+      };
+
+      const normalized = normalizeParticipationContext(legacyForceContext);
+      expect(normalized).not.toBeNull();
+      expect(normalized?.authorityContract?.authority).toBe(
+        'Only already authored and ratified scenario facts apply. Grants no new reach, perception, mutation, omniscience, or control until re-inducted with an explicit Authority Contract.'
+      );
+      expect(normalized?.authorityContract?.limits).toBe(
+        'Strictly bounded to authored scenario facts and ratified state. Grants no new reach, perception, mutation, omniscience, or control without an explicit Authority Contract.'
+      );
+      expect(normalized?.authorityContract?.authority).not.toContain('Local physical presence');
+      expect(normalized?.authorityContract?.limits).not.toContain('mortal counterplay');
+    });
+
+    it('preserves legacy explicit seat ability and limitation when present', () => {
+      const legacyContextWithAbility: ParticipationContext = {
+        mode: 'antagonist',
+        seat: {
+          kind: 'character',
+          name: 'Cybernetically Enhanced Sentinel',
+          description: 'A hunter droid.',
+          ability: 'Thermal optic scanning and door bypass',
+          limitation: 'Vulnerable to EMP pulses',
+        },
+        initialGoal: 'Track survivors',
+        boundedFacts: [],
+      };
+
+      const normalized = normalizeParticipationContext(legacyContextWithAbility);
+      expect(normalized?.authorityContract?.authority).toBe('Thermal optic scanning and door bypass');
+      expect(normalized?.authorityContract?.limits).toBe('Vulnerable to EMP pulses');
+    });
+
+    it('leaves protagonist and director contexts untouched without injecting authority contracts', () => {
+      const protagonistContext: ParticipationContext = {
+        mode: 'protagonist',
+        seat: {
+          kind: 'protagonist',
+          name: 'Elena',
+        },
+        initialGoal: 'Escape',
+        boundedFacts: [],
+      };
+
+      const normalizedProtag = normalizeParticipationContext(protagonistContext);
+      expect(normalizedProtag?.authorityContract).toBeUndefined();
+      expect(normalizedProtag?.victimField).toBeUndefined();
     });
   });
 
