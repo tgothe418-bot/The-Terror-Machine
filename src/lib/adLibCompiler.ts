@@ -1,6 +1,7 @@
 import {
   AdLibInduction,
   AdLibInductionSchema,
+  CastMember,
   ParticipationContext,
   ScenarioBlueprint,
   SpatialNode,
@@ -106,7 +107,8 @@ export function compileAdLibInduction(induction: AdLibInduction): {
       perspectives: [
         {
           role: 'PROTAGONIST',
-          framingDirective: induction.unsettlingDetail || 'Focus on immediate physical and environmental threats.',
+          framingDirective:
+            induction.unsettlingDetail || 'Focus on immediate physical and environmental threats.',
           sensoryBias: ['auditory', 'visual'],
           startingSemanticState: 'STABLE',
         },
@@ -129,7 +131,7 @@ export function compileAdLibInduction(induction: AdLibInduction): {
         limitation: induction.limitation || undefined,
       },
       initialGoal: induction.goal,
-      boundedFacts,
+      boundedFacts: boundedFacts.slice(0, 8),
     };
 
     return { blueprint, participationContext, initialSpatialNode };
@@ -137,61 +139,112 @@ export function compileAdLibInduction(induction: AdLibInduction): {
 
   if (induction.participationMode === 'antagonist') {
     const isForce = induction.oppositionSeat.kind === 'force';
+    const cast: CastMember[] = [];
+
+    // 1. Controlled opposition seat character binding
+    if (!isForce) {
+      // Physical entity or creature avatar seat
+      const charId = 'char-antagonist';
+      cast.push({
+        id: charId,
+        name: induction.oppositionSeat.name,
+        description: induction.oppositionSeat.description,
+        role: 'antagonist',
+        isEntity: true,
+        isUserCharacter: true,
+        behaviorVector: 'ADAPTIVE',
+      });
+    }
+
+    // 2. Authored Victims compilation into non-user cast roster
+    if (induction.victimField.kind === 'individual') {
+      cast.push({
+        id: 'victim-1',
+        name: induction.victimField.name,
+        description: induction.victimField.description || 'Primary target of opposition.',
+        role: 'victim',
+        personality: induction.victimField.knownFact || '',
+        goals: induction.victimField.goal || '',
+        isEntity: false,
+        isUserCharacter: false,
+        behaviorVector: 'ADAPTIVE',
+      });
+    } else if (induction.victimField.kind === 'group') {
+      if (induction.victimField.members && induction.victimField.members.length > 0) {
+        induction.victimField.members.forEach((m, idx) => {
+          cast.push({
+            id: m.id || `victim-${idx + 1}`,
+            name: m.name,
+            description: m.description || `Member of ${induction.victimField.kind === 'group' ? induction.victimField.collectiveDesignation : 'the group'}`,
+            role: 'victim',
+            personality: m.knownFact || '',
+            goals: m.goal || '',
+            isEntity: false,
+            isUserCharacter: false,
+            behaviorVector: 'ADAPTIVE',
+          });
+        });
+      }
+      // If group has no named members, we do NOT fabricate fake individuals.
+    }
+
+    // 3. Compile Bounded Facts
     const boundedFacts: string[] = [
       `Location: ${induction.placeSeed}`,
       `Threat Objective: ${induction.oppositionSeat.goal || induction.goal}`,
       `Opposition Seat: ${induction.oppositionSeat.name} (${isForce ? 'Environmental Force' : 'Physical Entity'}) - ${induction.oppositionSeat.description}`,
+      `Authority Scope: ${induction.authorityContract.authority}`,
+      `Authority Limit: ${induction.authorityContract.limits}`,
     ];
-    if (induction.unsettlingDetail) {
-      boundedFacts.push(`Sensory Anomaly: ${induction.unsettlingDetail}`);
-    }
-    if (induction.oppositionSeat.ability) {
-      boundedFacts.push(`Threat Vector: ${induction.oppositionSeat.ability}`);
-    }
-    if (induction.oppositionSeat.limitation) {
-      boundedFacts.push(`Operational Limit: ${induction.oppositionSeat.limitation}`);
+
+    if (induction.victimField.kind === 'individual') {
+      boundedFacts.push(
+        `Target Victim: ${induction.victimField.name}${
+          induction.victimField.description ? ` (${induction.victimField.description})` : ''
+        }`
+      );
+      if (induction.victimField.knownFact) {
+        boundedFacts.push(`Victim Intel: ${induction.victimField.knownFact}`);
+      }
+    } else {
+      boundedFacts.push(
+        `Target Group: ${induction.victimField.collectiveDesignation}${
+          induction.victimField.description ? ` (${induction.victimField.description})` : ''
+        }`
+      );
+      if (induction.victimField.members && induction.victimField.members.length > 0) {
+        boundedFacts.push(
+          `Known Members: ${induction.victimField.members.map((m) => m.name).join(', ')}`
+        );
+      }
     }
 
+    if (induction.unsettlingDetail && boundedFacts.length < 8) {
+      boundedFacts.push(`Sensory Anomaly: ${induction.unsettlingDetail}`);
+    }
+
+    // 4. Compile Environmental Rules
     const environmentalRules: string[] = [
-      `Hostile Authority: ${induction.oppositionSeat.name} - ${induction.oppositionSeat.description}`,
+      `Hostile Authority: ${induction.oppositionSeat.name} - ${induction.authorityContract.authority}`,
+      `Operational Limits: ${induction.authorityContract.limits}`,
     ];
     if (induction.unsettlingDetail) {
       environmentalRules.push(induction.unsettlingDetail);
     }
-    if (induction.oppositionSeat.ability) {
-      environmentalRules.push(`Threat Influence: ${induction.oppositionSeat.ability}`);
-    }
-    if (induction.oppositionSeat.limitation) {
-      environmentalRules.push(`Boundary Constraint: ${induction.oppositionSeat.limitation}`);
-    }
 
-    let cast: ScenarioBlueprint['cast'] = [];
-
-    if (!isForce) {
-      // Hostile character/creature seat
-      const charId = 'char-antagonist';
-      cast = [
-        {
-          id: charId,
-          name: induction.oppositionSeat.name,
-          description: induction.oppositionSeat.description,
-          role: 'antagonist',
-          isEntity: true,
-          isUserCharacter: true,
-          behaviorVector: 'ADAPTIVE',
-        },
-      ];
-    } else {
-      // Force seat: DO NOT invent an NPC cast member
-      cast = [];
-    }
+    const victimTargetSummary =
+      induction.victimField.kind === 'individual'
+        ? induction.victimField.name
+        : induction.victimField.collectiveDesignation;
 
     const blueprint: ScenarioBlueprint = {
       id: scenarioId,
-      title: `${induction.placeSeed} (Ad Lib Force)`,
+      title: isForce
+        ? `${induction.placeSeed} (Ad Lib Force)`
+        : `${induction.placeSeed} (Ad Lib Antagonist)`,
       contentScale: 3,
       contentLevelDescription: 'ANTAGONIST AD LIB INDUCTION',
-      globalPremise: `Opposition agency (${induction.oppositionSeat.name}) operates within ${induction.placeSeed} toward: "${induction.oppositionSeat.goal || induction.goal}".`,
+      globalPremise: `Opposition agency (${induction.oppositionSeat.name}) operates within ${induction.placeSeed} toward: "${induction.oppositionSeat.goal || induction.goal}" against ${victimTargetSummary}.`,
       startingVector: 'SOMATIC',
       startingTier: 'LATENT',
       setting: {
@@ -207,7 +260,8 @@ export function compileAdLibInduction(induction: AdLibInduction): {
       perspectives: [
         {
           role: 'ANTAGONIST',
-          framingDirective: induction.unsettlingDetail || 'Focus on structural pressure and predatory observation.',
+          framingDirective:
+            induction.unsettlingDetail || 'Focus on structural pressure and predatory observation.',
           sensoryBias: ['tactile', 'spatial'],
           startingSemanticState: 'STABLE',
         },
@@ -226,11 +280,13 @@ export function compileAdLibInduction(induction: AdLibInduction): {
         kind: induction.oppositionSeat.kind,
         name: induction.oppositionSeat.name,
         description: induction.oppositionSeat.description,
-        ability: induction.oppositionSeat.ability || undefined,
-        limitation: induction.oppositionSeat.limitation || undefined,
+        ability: induction.authorityContract.authority,
+        limitation: induction.authorityContract.limits,
       },
       initialGoal: induction.oppositionSeat.goal || induction.goal,
-      boundedFacts,
+      boundedFacts: boundedFacts.slice(0, 8),
+      authorityContract: induction.authorityContract,
+      victimField: induction.victimField,
     };
 
     return { blueprint, participationContext, initialSpatialNode };
@@ -278,7 +334,9 @@ export function compileAdLibInduction(induction: AdLibInduction): {
     perspectives: [
       {
         role: 'DIRECTOR',
-        framingDirective: induction.directorFocus || 'Focus on scene tension, pacing, and dramatic withholding.',
+        framingDirective:
+          induction.directorFocus ||
+          'Focus on scene tension, pacing, and dramatic withholding.',
         sensoryBias: ['atmospheric', 'dramatic'],
         startingSemanticState: 'STABLE',
       },
@@ -299,7 +357,7 @@ export function compileAdLibInduction(induction: AdLibInduction): {
       description: 'External Narrative Framing & Pacing Authority',
     },
     initialGoal: induction.goal,
-    boundedFacts,
+    boundedFacts: boundedFacts.slice(0, 8),
   };
 
   return { blueprint, participationContext, initialSpatialNode };

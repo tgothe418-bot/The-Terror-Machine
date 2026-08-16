@@ -46,38 +46,92 @@ turnRouter.post('/', async (req, res) => {
           ? pc.boundedFacts.map((f) => `- ${f}`).join('\n')
           : 'None established';
 
-      let seatDetails = `Mode: ${pc.mode.toUpperCase()}`;
-      if (pc.seat) {
-        seatDetails += `\nSeat: ${pc.seat.name} (${pc.seat.kind})\nDescription: ${pc.seat.description || 'N/A'}`;
-        if (pc.seat.ability) seatDetails += `\nAptitude/Vector: ${pc.seat.ability}`;
-        if (pc.seat.limitation) seatDetails += `\nLimitation/Boundary: ${pc.seat.limitation}`;
-      }
-      seatDetails += `\nInitial Core Goal: ${pc.initialGoal}`;
+      if (pc.mode === 'antagonist') {
+        const isForce = pc.seat?.kind === 'force';
+        const authorityText =
+          pc.authorityContract?.authority ||
+          pc.seat?.ability ||
+          'Local physical presence, sensory manifestation, and physical interference.';
+        const limitsText =
+          pc.authorityContract?.limits ||
+          pc.seat?.limitation ||
+          'Bounded by local physical enclosure and mortal counterplay.';
 
-      let agencyGuidance = '';
-      if (pc.mode === 'protagonist') {
-        agencyGuidance =
-          'The user operates the mortal protagonist seat. Adjudicate their attempted physical and cognitive actions within their limitations. Narrate the world and environment consequences objectively.';
-      } else if (pc.mode === 'antagonist') {
-        if (pc.seat?.kind === 'force') {
-          agencyGuidance =
-            'The user directs an environmental/unseen hostile threat force (not a mortal body). Adjudicate atmospheric manipulation, environmental hazards, and sensory terror according to declared vectors and limits. The Engine adjudicates other actors\' reactions, knowledge, continuity, and consequences.';
+        let victimSection = '';
+        if (pc.victimField) {
+          if (pc.victimField.kind === 'individual') {
+            victimSection = `Victim Target: Individual (${pc.victimField.name})
+Victim Description: ${pc.victimField.description || 'Target subject within enclosure'}
+${pc.victimField.goal ? `Victim Immediate Goal: ${pc.victimField.goal}\n` : ''}${pc.victimField.knownFact ? `Known Intelligence: ${pc.victimField.knownFact}\n` : ''}`;
+          } else {
+            const memberProfiles =
+              pc.victimField.members && pc.victimField.members.length > 0
+                ? pc.victimField.members
+                    .map(
+                      (m) =>
+                        `  • ${m.name}${m.description ? ` - ${m.description}` : ''}${m.goal ? ` (Goal: ${m.goal})` : ''}${m.knownFact ? ` [Intel: ${m.knownFact}]` : ''}`
+                    )
+                    .join('\n')
+                : '  (No individually distinguished member profiles; collective target)';
+            victimSection = `Victim Target: Group (${pc.victimField.collectiveDesignation})
+Group Overview: ${pc.victimField.description || 'Target collective within enclosure'}
+Named Member Profiles:
+${memberProfiles}`;
+          }
         } else {
-          agencyGuidance =
-            'The user operates the hostile antagonist creature/entity seat. Adjudicate their predatory pursuit and terror interventions according to their declared vector and limits. The Engine adjudicates other actors\' reactions, knowledge, continuity, and consequences.';
+          victimSection = 'Victim Target: Subjects present within scenario enclosure.';
         }
-      } else if (pc.mode === 'director') {
-        agencyGuidance =
-          'The user acts as an external scene director. A direction is a proposal for focus, pressure, framing, pacing, or reveal/withhold—not a direct edit of canonical facts, topology, or actor outcomes. The Engine retains sole authority over physical consistency, state reconciliation, and causal world rules.';
-      }
 
-      participationSection = `\n[PARTICIPATION CONTRACT & AGENCY BOUNDARIES]
+        participationSection = `\n[ANTAGONIST SIMULATION CONTRACT & AUTHORITY BOUNDARIES]
+Antagonist Identity: ${pc.seat?.name || 'Unknown Opposition'}
+Seat Kind: ${isForce ? 'Environmental / Unseen Force' : 'Embodied Physical Entity / Avatar'}
+Manifestation: ${pc.seat?.description || 'N/A'}
+Current Objective: ${pc.initialGoal}
+
+[AUTHORITY CONTRACT]
+Granted Authority Scope: ${authorityText}
+
+[LIMITS, ANCHORS & COUNTERPLAY]
+Operational Limits & Boundaries: ${limitsText}
+
+[VICTIM FIELD]
+${victimSection}
+
+Bounded Facts:
+${boundedFactsFormatted}
+
+Agency Directives:
+1. USER AGENCY: The user input represents the direct intent and actions of the controlled Antagonist (${pc.seat?.name || 'Opposition'}).
+2. AUTHORED SCOPE: Permit actions and perceptions expressly granted by the Authority Contract, including supernatural, distributed, or godlike scope when authored.
+3. BOUNDARY ENFORCEMENT: Do not invent broader authority, omniscience, omnipresence, or reach than the contract grants. If an attempted action exceeds stated limits or counterplay anchors, make the boundary legible to the user in narrative prose without claiming forbidden mutations occurred.
+4. INDEPENDENT VICTIM AGENCY: The Engine controls all Victim reactions, decisions, emotional states, injuries, resistance, and flight. Victim internal thoughts and unobserved positions remain hidden from the Antagonist unless explicitly permitted by the Authority Contract.
+5. PERSPECTIVE CENTERING: Keep narrative framing anchored strictly to the Antagonist's situated perspective and observable sensory consequences. Do NOT recast any Victim as the player Protagonist.
+6. CANONICAL STATE: All spatial transitions and lasting world mutations remain subject to engine ratification and strict topology authorization.
+`;
+      } else if (pc.mode === 'protagonist') {
+        let seatDetails = `Mode: PROTAGONIST\nSeat: ${pc.seat?.name || 'Protagonist'} (${pc.seat?.kind || 'protagonist'})\nDescription: ${pc.seat?.description || 'N/A'}`;
+        if (pc.seat?.ability) seatDetails += `\nAptitude/Vector: ${pc.seat.ability}`;
+        if (pc.seat?.limitation) seatDetails += `\nLimitation/Boundary: ${pc.seat.limitation}`;
+        seatDetails += `\nInitial Core Goal: ${pc.initialGoal}`;
+
+        participationSection = `\n[PARTICIPATION CONTRACT & AGENCY BOUNDARIES]
 ${seatDetails}
 Bounded Facts:
 ${boundedFactsFormatted}
 Agency Directive:
-${agencyGuidance}
+The user operates the mortal protagonist seat. Adjudicate their attempted physical and cognitive actions within their limitations. Narrate the world and environment consequences objectively.
 `;
+      } else if (pc.mode === 'director') {
+        participationSection = `\n[PARTICIPATION CONTRACT & AGENCY BOUNDARIES]
+Mode: DIRECTOR
+Seat: Director (External Narrative Framing & Pacing Authority)
+Initial Core Goal: ${pc.initialGoal}
+Bounded Facts:
+${boundedFactsFormatted}
+Agency Directive:
+The user acts as an external scene director. A direction is a proposal for focus, pressure, framing, pacing, or reveal/withhold—not a direct edit of canonical facts, topology, or actor outcomes. The Engine retains sole authority over physical consistency, state reconciliation, and causal world rules.
+`;
+      }
     }
 
     const targetExample = context.topology.allowedOutgoingExits[0]?.to || 'TARGET_NODE_ID';

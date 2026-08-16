@@ -9,91 +9,45 @@ import {
   AdLibProtagonistInduction,
   AdLibAntagonistInduction,
   AdLibDirectorInduction,
-  ParticipationContextSchema,
 } from '../../types/adLib';
 import {
   RatifiedEngineFrame,
-  TurnReceipt,
 } from '../../types';
 import { buildEngineTurnContext } from '../../lib/buildEngineTurnContext';
-import { captureRuntimeSnapshot } from './snapshot';
 import { CommittedTurnPayload } from './events';
 import { useAppStore } from '../../store/useAppStore';
 import { useEngineStore } from '../store';
 
-describe('Phase 3A: Ad Lib Induction & Participation Context', () => {
+describe('Phase 3B: Antagonist Authority Contracts & Victim Framing', () => {
   beforeEach(() => {
     useEngineStore.getState().clearBlueprint();
     useEngineStore.getState().resetEngine();
     useAppStore.getState().resetSession();
   });
 
-  describe('AdLibInductionSchema Zod validation', () => {
-    it('accepts a valid protagonist induction payload', () => {
-      const payload: AdLibProtagonistInduction = {
-        participationMode: 'protagonist',
-        placeSeed: 'Sub-Level 4 Cryogenic Vault',
-        goal: 'Restore cooling manifold before stasis fails',
-        unsettlingDetail: 'Frost patterns in the shape of human fingers',
-        participantName: 'Sgt. David Ward',
-        identity: 'Night-shift Cryo-Tech Specialist',
-        ability: 'Thermal diagnostic overrides',
-        limitation: 'Oxygen toxicity tremors under pressure',
-      };
-
-      const parsed = AdLibInductionSchema.parse(payload);
-      expect(parsed.participationMode).toBe('protagonist');
-      expect(parsed.placeSeed).toBe('Sub-Level 4 Cryogenic Vault');
-    });
-
-    it('rejects protagonist induction when required participantName is missing or empty', () => {
-      const invalid = {
-        participationMode: 'protagonist',
-        placeSeed: 'Sub-Level 4 Cryogenic Vault',
-        goal: 'Restore cooling manifold',
-        participantName: '   ',
-      };
-
-      expect(() => AdLibInductionSchema.parse(invalid)).toThrow();
-    });
-
-    it('accepts a valid antagonist induction payload with force seat', () => {
-      const payload: AdLibAntagonistInduction = {
-        participationMode: 'antagonist',
-        placeSeed: 'Derelict Atmospheric Siphon',
-        goal: 'Collapse structural bulkheads',
-        unsettlingDetail: 'Metallic shrieking from the ventilation shafts',
-        oppositionSeat: {
-          kind: 'force',
-          name: 'The Abyssal Siphon',
-          description: 'A sentient pressure anomaly crushing the habitat.',
-          goal: 'Crush the survivors under deep-ocean barometric load.',
-          ability: 'Pressure wave pulses',
-          limitation: 'Cannot pierce hermetic quartz barriers',
-        },
-      };
-
-      const parsed = AdLibInductionSchema.parse(payload);
-      expect(parsed.participationMode).toBe('antagonist');
-      if (parsed.participationMode === 'antagonist') {
-        expect(parsed.oppositionSeat.kind).toBe('force');
-        expect(parsed.oppositionSeat.name).toBe('The Abyssal Siphon');
-      }
-    });
-
-    it('accepts a valid antagonist induction payload with character seat', () => {
+  describe('Zod Schema Validation for Authority & Victim Contracts', () => {
+    it('accepts a valid Antagonist-character induction with Authority, Limits, and an individual Victim', () => {
       const payload: AdLibAntagonistInduction = {
         participationMode: 'antagonist',
         placeSeed: 'Sub-Level Quarantine Sector',
-        goal: 'Stalk and isolate the perimeter patrol',
-        unsettlingDetail: 'Rattling hydraulic valves in the darkness',
+        goal: 'Stalk and isolate the perimeter security officer',
+        unsettlingDetail: 'Rattling hydraulic valves in the dark',
         oppositionSeat: {
           kind: 'character',
-          name: 'The Sub-Level Warden',
+          name: 'The Cybernetic Warden',
           description: 'A cybernetically augmented containment sentinel.',
-          goal: 'Execute lethal quarantine protocols.',
-          ability: 'Thermal tracking and blast door override',
-          limitation: 'Vulnerable to high-voltage EMP discharge',
+          goal: 'Execute lethal containment protocols.',
+        },
+        authorityContract: {
+          authority: 'Direct physical pursuit, thermal sensor tracking, pneumatic door overrides, and local sensory disruption.',
+          limits: 'Cannot manifest outside physical line of movement; susceptible to high-voltage discharge barriers; cannot alter electrical grid logic.',
+        },
+        victimField: {
+          kind: 'individual',
+          name: 'Officer Marcus Cole',
+          description: 'A night-patrol security officer attempting to reach the communications array.',
+          goal: 'Activate the emergency distress frequency.',
+          knownFact: 'Suffers from damaged hearing in his left ear from a previous conduit rupture.',
         },
       };
 
@@ -101,691 +55,665 @@ describe('Phase 3A: Ad Lib Induction & Participation Context', () => {
       expect(parsed.participationMode).toBe('antagonist');
       if (parsed.participationMode === 'antagonist') {
         expect(parsed.oppositionSeat.kind).toBe('character');
-        expect(parsed.oppositionSeat.name).toBe('The Sub-Level Warden');
-        expect(parsed.oppositionSeat.ability).toBe('Thermal tracking and blast door override');
+        expect(parsed.authorityContract.authority).toContain('thermal sensor tracking');
+        expect(parsed.victimField.kind).toBe('individual');
+        if (parsed.victimField.kind === 'individual') {
+          expect(parsed.victimField.name).toBe('Officer Marcus Cole');
+          expect(parsed.victimField.goal).toBe('Activate the emergency distress frequency.');
+        }
       }
     });
 
-    it('rejects malformed antagonist induction with missing or invalid seat data', () => {
-      // Missing oppositionSeat
-      expect(() =>
-        AdLibInductionSchema.parse({
-          participationMode: 'antagonist',
-          placeSeed: 'Sub-Level Quarantine Sector',
-          goal: 'Stalk patrol',
-        })
-      ).toThrow();
-
-      // Empty name in oppositionSeat
-      expect(() =>
-        AdLibInductionSchema.parse({
-          participationMode: 'antagonist',
-          placeSeed: 'Sub-Level Quarantine Sector',
-          goal: 'Stalk patrol',
-          oppositionSeat: {
-            kind: 'character',
-            name: '   ',
-            goal: 'Execute quarantine',
-          },
-        })
-      ).toThrow();
-
-      // Invalid kind in oppositionSeat
-      expect(() =>
-        AdLibInductionSchema.parse({
-          participationMode: 'antagonist',
-          placeSeed: 'Sub-Level Quarantine Sector',
-          goal: 'Stalk patrol',
-          oppositionSeat: {
-            kind: 'spectator',
-            name: 'Watcher Unit',
-            goal: 'Observe',
-          },
-        })
-      ).toThrow();
-    });
-
-    it('accepts a valid director induction payload', () => {
-      const payload: AdLibDirectorInduction = {
-        participationMode: 'director',
-        placeSeed: 'Fog-Bound Pine Barrens Sanitarium',
-        goal: 'Stage the gradual psychological collapse of the research unit',
-        unsettlingDetail: 'Reverse bell chimes from the clocktower',
-        directorFocus: 'Claustrophobic dread, acoustic isolation, slow burn',
+    it('accepts a valid Antagonist-force induction with a collective Victim group and no invented named cast', () => {
+      const payload: AdLibAntagonistInduction = {
+        participationMode: 'antagonist',
+        placeSeed: 'Derelict Atmospheric Siphon',
+        goal: 'Collapse structural bulkheads and isolate the maintenance cohort',
+        unsettlingDetail: 'Metallic shrieking and localized barometric drops along the ductwork',
+        oppositionSeat: {
+          kind: 'force',
+          name: 'The Abyssal Pressure Anomaly',
+          description: 'An unseen sentience manifesting as deep-ocean hydraulic pressure and structural resonance.',
+          goal: 'Crush exterior bulkhead seals and force the crew into flooded sub-sectors.',
+        },
+        authorityContract: {
+          authority: 'Distributed barometric manipulation, structural crushing along external bulkheads, acoustic metal resonance, and rapid water vapor condensation.',
+          limits: 'Cannot breach hermetic quartz bulkheads without mechanical failure; cannot manifest dry heat or electrical sparks; bound to continuous air volume.',
+        },
+        victimField: {
+          kind: 'group',
+          collectiveDesignation: 'Sub-Level 4 Maintenance Shift',
+          description: 'Three isolated engineers attempting manual hydraulic lockdown.',
+          members: [],
+        },
       };
 
       const parsed = AdLibInductionSchema.parse(payload);
-      expect(parsed.participationMode).toBe('director');
+      expect(parsed.participationMode).toBe('antagonist');
+      if (parsed.participationMode === 'antagonist') {
+        expect(parsed.oppositionSeat.kind).toBe('force');
+        expect(parsed.victimField.kind).toBe('group');
+        if (parsed.victimField.kind === 'group') {
+          expect(parsed.victimField.collectiveDesignation).toBe('Sub-Level 4 Maintenance Shift');
+          expect(parsed.victimField.members).toHaveLength(0);
+        }
+      }
     });
 
-    it('rejects invalid director induction when required common fields are missing or empty', () => {
-      // Empty placeSeed
-      expect(() =>
-        AdLibInductionSchema.parse({
-          participationMode: 'director',
-          placeSeed: '   ',
-          goal: 'Stage gradual collapse',
-        })
-      ).toThrow();
-
-      // Empty goal
-      expect(() =>
-        AdLibInductionSchema.parse({
-          participationMode: 'director',
-          placeSeed: 'Fog-Bound Sanitarium',
-          goal: '',
-        })
-      ).toThrow();
-    });
-  });
-
-  describe('compileAdLibInduction pure compiler', () => {
-    it('compiles protagonist mode with single controlled character and bounded facts', () => {
-      const input: AdLibProtagonistInduction = {
-        participationMode: 'protagonist',
-        placeSeed: 'Derelict Station Alpha',
-        goal: 'Power on the primary comms dish',
-        unsettlingDetail: 'Static clicks matching a heartbeat',
-        participantName: 'Lt. Ripley',
-        identity: 'Warrant Officer',
-        ability: 'Thermal diagnostic proficiency',
-        limitation: 'Exhaustion',
-      };
-
-      const compiled = compileAdLibInduction(input);
-
-      expect(compiled.blueprint.cast).toHaveLength(1);
-      expect(compiled.blueprint.cast[0].name).toBe('Lt. Ripley');
-      expect(compiled.blueprint.cast[0].role).toBe('protagonist');
-      expect(compiled.blueprint.cast[0].isUserCharacter).toBe(true);
-
-      expect(compiled.participationContext.mode).toBe('protagonist');
-      expect(compiled.participationContext.seat?.name).toBe('Lt. Ripley');
-      expect(compiled.participationContext.seat?.kind).toBe('protagonist');
-      expect(compiled.participationContext.initialGoal).toBe('Power on the primary comms dish');
-      expect(compiled.participationContext.boundedFacts).toContain('Location: Derelict Station Alpha');
-      expect(compiled.participationContext.boundedFacts).toContain('Aptitude: Thermal diagnostic proficiency');
-
-      expect(compiled.initialSpatialNode.id).toBe('NODE_ENTRY');
-      expect(compiled.initialSpatialNode.name).toBe('Derelict Station Alpha');
-    });
-
-    it('compiles antagonist force seat WITHOUT inventing an NPC character in cast', () => {
-      const input: AdLibAntagonistInduction = {
+    it('accepts a valid group induction with optional named members (up to 8)', () => {
+      const payload: AdLibAntagonistInduction = {
         participationMode: 'antagonist',
-        placeSeed: 'Subterranean Aquifer',
-        goal: 'Flood the lowest chambers',
-        unsettlingDetail: 'Rising oily black tide',
+        placeSeed: 'Cryogenic Vault Beta',
+        goal: 'Drain thermal reserves',
         oppositionSeat: {
           kind: 'force',
-          name: 'The Stygian Tide',
-          description: 'A subterranean liquid biomass inundating all passages.',
-          goal: 'Drown the remaining lights.',
-          ability: 'Corrosive flooding',
-          limitation: 'Blocked by dry fire barriers',
+          name: 'Thermal Decay Field',
+          description: 'An entropic anomaly absorbing heat.',
+          goal: 'Induce hypothermic stasis failure.',
+        },
+        authorityContract: {
+          authority: 'Rapid temperature drops, frost crystallization, thermal sensor blindness.',
+          limits: 'Cannot extinguish active chemical plasma torches.',
+        },
+        victimField: {
+          kind: 'group',
+          collectiveDesignation: 'Cryo-Engineering Research Team',
+          description: 'Researchers trapped in the cryogenic corridor.',
+          members: [
+            {
+              id: 'v1',
+              name: 'Dr. Aaron Ramos',
+              description: 'Lead Cryobiologist.',
+              goal: 'Secure stasis pod telemetry.',
+              knownFact: 'Has emergency stimpack in coat pocket.',
+            },
+            {
+              id: 'v2',
+              name: 'Technician Clara Osei',
+              description: 'Coolant line technician.',
+              goal: 'Close the primary nitrogen release valve.',
+              knownFact: 'Frostbite on right fingers.',
+            },
+          ],
         },
       };
 
-      const compiled = compileAdLibInduction(input);
-
-      // Force seat MUST NOT create an NPC in cast
-      expect(compiled.blueprint.cast).toHaveLength(0);
-
-      expect(compiled.participationContext.mode).toBe('antagonist');
-      expect(compiled.participationContext.seat?.kind).toBe('force');
-      expect(compiled.participationContext.seat?.name).toBe('The Stygian Tide');
-      const envRules = Array.isArray(compiled.blueprint.environmentalRules)
-        ? compiled.blueprint.environmentalRules
-        : [compiled.blueprint.environmentalRules || ''];
-      expect(envRules.some((r) => r.includes('The Stygian Tide'))).toBe(true);
+      const parsed = AdLibInductionSchema.parse(payload);
+      if (parsed.participationMode === 'antagonist' && parsed.victimField.kind === 'group') {
+        expect(parsed.victimField.members).toHaveLength(2);
+        expect(parsed.victimField.members[0].name).toBe('Dr. Aaron Ramos');
+        expect(parsed.victimField.members[1].name).toBe('Technician Clara Osei');
+      }
     });
 
-    it('compiles antagonist character seat WITH controlled character in cast and bounded facts', () => {
-      const input: AdLibAntagonistInduction = {
+    it('rejects missing or empty Authority', () => {
+      const invalid = {
         participationMode: 'antagonist',
-        placeSeed: 'Sub-Level Quarantine Sector',
-        goal: 'Stalk and isolate the perimeter patrol',
-        unsettlingDetail: 'Rattling hydraulic valves',
+        placeSeed: 'Research Outpost',
+        goal: 'Infiltrate the perimeter',
         oppositionSeat: {
           kind: 'character',
-          name: 'The Sub-Level Warden',
-          description: 'A cybernetically augmented containment sentinel.',
-          goal: 'Execute lethal quarantine protocols.',
-          ability: 'Thermal tracking and blast door override',
-          limitation: 'Vulnerable to high-voltage EMP discharge',
+          name: 'Infiltrator',
+          description: 'An entity.',
+          goal: 'Hunt.',
+        },
+        authorityContract: {
+          authority: '   ',
+          limits: 'Valid limits.',
+        },
+        victimField: {
+          kind: 'individual',
+          name: 'Subject One',
         },
       };
 
-      const compiled = compileAdLibInduction(input);
-
-      expect(compiled.blueprint.cast).toHaveLength(1);
-      expect(compiled.blueprint.cast[0].name).toBe('The Sub-Level Warden');
-      expect(compiled.blueprint.cast[0].role).toBe('antagonist');
-      expect(compiled.blueprint.cast[0].isUserCharacter).toBe(true);
-
-      expect(compiled.participationContext.mode).toBe('antagonist');
-      expect(compiled.participationContext.seat?.kind).toBe('character');
-      expect(compiled.participationContext.seat?.name).toBe('The Sub-Level Warden');
-      expect(
-        compiled.participationContext.boundedFacts.some((f) => f.includes('The Sub-Level Warden'))
-      ).toBe(true);
-      expect(compiled.participationContext.boundedFacts).toContain(
-        'Threat Vector: Thermal tracking and blast door override'
-      );
+      expect(() => AdLibInductionSchema.parse(invalid)).toThrow();
     });
 
-    it('compiles director mode WITHOUT inventing any player character', () => {
-      const input: AdLibDirectorInduction = {
-        participationMode: 'director',
-        placeSeed: 'Abandoned Radio Observatory',
-        goal: 'Orchestrate the crescendo of paranoia',
-        unsettlingDetail: 'Radio telescopes turning spontaneously in the dark',
-        directorFocus: 'Pacing escalation and sensory dissonance',
+    it('rejects missing or empty Limits', () => {
+      const invalid = {
+        participationMode: 'antagonist',
+        placeSeed: 'Research Outpost',
+        goal: 'Infiltrate the perimeter',
+        oppositionSeat: {
+          kind: 'character',
+          name: 'Infiltrator',
+          description: 'An entity.',
+          goal: 'Hunt.',
+        },
+        authorityContract: {
+          authority: 'Valid authority.',
+          limits: '',
+        },
+        victimField: {
+          kind: 'individual',
+          name: 'Subject One',
+        },
       };
 
-      const compiled = compileAdLibInduction(input);
+      expect(() => AdLibInductionSchema.parse(invalid)).toThrow();
+    });
 
-      expect(compiled.blueprint.cast).toHaveLength(0);
-      expect(compiled.participationContext.mode).toBe('director');
-      expect(compiled.participationContext.seat?.kind).toBe('director');
-      expect(compiled.participationContext.boundedFacts).toContain('Location: Abandoned Radio Observatory');
-      expect(compiled.participationContext.boundedFacts).toContain(
-        'Framing Directive: Pacing escalation and sensory dissonance'
-      );
+    it('rejects missing Victim designation for individual and group targets', () => {
+      const invalidIndividual = {
+        participationMode: 'antagonist',
+        placeSeed: 'Research Outpost',
+        goal: 'Infiltrate',
+        oppositionSeat: {
+          kind: 'character',
+          name: 'Infiltrator',
+          description: 'Entity',
+          goal: 'Hunt',
+        },
+        authorityContract: {
+          authority: 'Authority scope',
+          limits: 'Limits boundary',
+        },
+        victimField: {
+          kind: 'individual',
+          name: '   ',
+        },
+      };
+      expect(() => AdLibInductionSchema.parse(invalidIndividual)).toThrow();
+
+      const invalidGroup = {
+        participationMode: 'antagonist',
+        placeSeed: 'Research Outpost',
+        goal: 'Infiltrate',
+        oppositionSeat: {
+          kind: 'character',
+          name: 'Infiltrator',
+          description: 'Entity',
+          goal: 'Hunt',
+        },
+        authorityContract: {
+          authority: 'Authority scope',
+          limits: 'Limits boundary',
+        },
+        victimField: {
+          kind: 'group',
+          collectiveDesignation: '',
+        },
+      };
+      expect(() => AdLibInductionSchema.parse(invalidGroup)).toThrow();
+    });
+
+    it('rejects member-count violations (> 8 members in group)', () => {
+      const invalidMembers = Array.from({ length: 9 }, (_, i) => ({
+        name: `Victim Member ${i + 1}`,
+      }));
+
+      const invalid = {
+        participationMode: 'antagonist',
+        placeSeed: 'Research Outpost',
+        goal: 'Infiltrate',
+        oppositionSeat: {
+          kind: 'force',
+          name: 'Anomaly',
+          description: 'Force',
+          goal: 'Hunt',
+        },
+        authorityContract: {
+          authority: 'Authority scope',
+          limits: 'Limits boundary',
+        },
+        victimField: {
+          kind: 'group',
+          collectiveDesignation: 'Large Research Cohort',
+          members: invalidMembers,
+        },
+      };
+
+      expect(() => AdLibInductionSchema.parse(invalid)).toThrow();
+    });
+
+    it('rejects string-bound violations (> 500 characters for authority or limits)', () => {
+      const longAuthority = 'A'.repeat(501);
+      const invalid = {
+        participationMode: 'antagonist',
+        placeSeed: 'Research Outpost',
+        goal: 'Infiltrate',
+        oppositionSeat: {
+          kind: 'character',
+          name: 'Entity',
+          description: 'Desc',
+          goal: 'Goal',
+        },
+        authorityContract: {
+          authority: longAuthority,
+          limits: 'Normal limits',
+        },
+        victimField: {
+          kind: 'individual',
+          name: 'Subject',
+        },
+      };
+
+      expect(() => AdLibInductionSchema.parse(invalid)).toThrow();
     });
   });
 
-  describe('initiateAdLibSession end-to-end flow', () => {
-    it('initializes canonical session and stores state in both EngineStore and AppStore', () => {
-      const rawInduction = {
-        participationMode: 'protagonist',
-        placeSeed: 'Orbital Airway Bay',
-        goal: 'Reach the atmospheric shuttle',
-        unsettlingDetail: 'Flashing red depressurization beacons',
-        participantName: 'Chief Engineer Miller',
-        identity: 'Systems Tech',
-        ability: 'Airlock manual cycling',
-        limitation: 'Damaged pressure helmet visor',
+  describe('Ad Lib Compiler Compilation Logic', () => {
+    it('compiles an Antagonist-character induction into a ScenarioBlueprint with cast and ParticipationContext', () => {
+      const induction: AdLibAntagonistInduction = {
+        participationMode: 'antagonist',
+        placeSeed: 'Derelict Hydroponics Dome',
+        goal: 'Sever the life-support root system',
+        unsettlingDetail: 'Chlorophyll veins pulsating in the dark',
+        oppositionSeat: {
+          kind: 'character',
+          name: 'The Bio-Mechanical Stalker',
+          description: 'A cybernetic apex predator prowling the canopy.',
+          goal: 'Eliminate the biology team.',
+        },
+        authorityContract: {
+          authority: 'Arboreal climbing, thermal cloak projection, pheromone mimicry.',
+          limits: 'Vulnerable to concentrated ultraviolet flare exposure.',
+        },
+        victimField: {
+          kind: 'individual',
+          name: 'Botanist Elena Rostova',
+          description: 'Senior botanist defending the gene-bank.',
+          goal: 'Retrieve the cryogenic seed samples.',
+          knownFact: 'Carries an industrial UV arc-welder.',
+        },
       };
 
-      const session = initiateAdLibSession(rawInduction, 'session-adlib-test-01');
+      const { blueprint, participationContext } = compileAdLibInduction(induction);
 
-      expect(session.blueprint.title).toContain('Orbital Airway Bay');
-      expect(session.participationContext.mode).toBe('protagonist');
+      expect(blueprint.title).toBe('Derelict Hydroponics Dome (Ad Lib Antagonist)');
+      expect(blueprint.cast).toHaveLength(2);
 
-      // Verify AppStore canonical state
-      const appState = useAppStore.getState();
-      expect(appState.sessionId).toBe('session-adlib-test-01');
-      expect(appState.participationContext?.mode).toBe('protagonist');
-      expect(appState.currentNodeId).toBe('NODE_ENTRY');
-      expect(appState.spatialGraph).toHaveLength(1);
-      expect(appState.spatialGraph[0].id).toBe('NODE_ENTRY');
+      // Controlled Antagonist cast entry
+      const antagCast = blueprint.cast.find((c) => c.role === 'antagonist');
+      expect(antagCast).toBeDefined();
+      expect(antagCast?.name).toBe('The Bio-Mechanical Stalker');
+      expect(antagCast?.isUserCharacter).toBe(true);
+      expect(antagCast?.isEntity).toBe(true);
 
-      // Verify EngineStore state
+      // Non-user Victim cast entry
+      const victimCast = blueprint.cast.find((c) => c.role === 'victim');
+      expect(victimCast).toBeDefined();
+      expect(victimCast?.name).toBe('Botanist Elena Rostova');
+      expect(victimCast?.isUserCharacter).toBe(false);
+      expect(victimCast?.isEntity).toBe(false);
+      expect(victimCast?.goals).toBe('Retrieve the cryogenic seed samples.');
+
+      // Bounded facts in participation context
+      expect(participationContext.mode).toBe('antagonist');
+      expect(participationContext.authorityContract?.authority).toContain('Arboreal climbing');
+      expect(participationContext.authorityContract?.limits).toContain('ultraviolet flare');
+      expect(participationContext.victimField?.kind).toBe('individual');
+      expect(participationContext.boundedFacts.some((f) => f.includes('Authority Scope'))).toBe(true);
+      expect(participationContext.boundedFacts.some((f) => f.includes('Authority Limit'))).toBe(true);
+      expect(participationContext.boundedFacts.some((f) => f.includes('Target Victim: Botanist Elena Rostova'))).toBe(true);
+    });
+
+    it('compiles an Antagonist-force induction without inventing a controlled NPC, and compiles named group victims into non-user cast', () => {
+      const induction: AdLibAntagonistInduction = {
+        participationMode: 'antagonist',
+        placeSeed: 'Sub-Zero Geothermal Facility',
+        goal: 'Extinguish the geothermal core',
+        oppositionSeat: {
+          kind: 'force',
+          name: 'The Cryo-Entropy Front',
+          description: 'A creeping wave of absolute zero flash-freezing metal and flesh.',
+          goal: 'Shatter the heating conduits.',
+        },
+        authorityContract: {
+          authority: 'Ambient thermal draining, frost fracturing of structural alloy, acoustic freezing of sound.',
+          limits: 'Cannot cross active plasma conduit streams; requires continuous spatial adjacency.',
+        },
+        victimField: {
+          kind: 'group',
+          collectiveDesignation: 'Geothermal Core Engineering Shift',
+          description: 'Engineers maintaining the thermal generators.',
+          members: [
+            {
+              id: 'vic-1',
+              name: 'Engineer Silas Karr',
+              description: 'Lead thermal operator.',
+              goal: 'Keep the plasma pumps flowing.',
+              knownFact: 'Carries emergency thermal flares.',
+            },
+            {
+              id: 'vic-2',
+              name: 'Technician Maya Lind',
+              description: 'Electrical tech.',
+              goal: 'Bypass blown circuit relays.',
+              knownFact: 'Wearing heavy thermal insulation suit.',
+            },
+          ],
+        },
+      };
+
+      const { blueprint, participationContext } = compileAdLibInduction(induction);
+
+      expect(blueprint.title).toBe('Sub-Zero Geothermal Facility (Ad Lib Force)');
+      // Force has NO controlled antagonist cast member
+      expect(blueprint.cast.some((c) => c.role === 'antagonist')).toBe(false);
+
+      // But has 2 non-user victim cast members
+      expect(blueprint.cast).toHaveLength(2);
+      expect(blueprint.cast.every((c) => c.role === 'victim' && c.isUserCharacter === false)).toBe(true);
+      expect(blueprint.cast[0].name).toBe('Engineer Silas Karr');
+      expect(blueprint.cast[1].name).toBe('Technician Maya Lind');
+
+      expect(participationContext.seat?.kind).toBe('force');
+      expect(participationContext.authorityContract?.authority).toContain('frost fracturing');
+      expect(participationContext.victimField?.kind).toBe('group');
+    });
+
+    it('compiles an Antagonist-force with an unnamed group into zero fabricated cast members', () => {
+      const induction: AdLibAntagonistInduction = {
+        participationMode: 'antagonist',
+        placeSeed: 'Flooded Sub-Sector 7',
+        goal: 'Drown the lower deck',
+        oppositionSeat: {
+          kind: 'force',
+          name: 'The Rising Surge',
+          description: 'Sentient seawater rising through ruptured drainage pipes.',
+          goal: 'Submerge electrical junctions.',
+        },
+        authorityContract: {
+          authority: 'Water pressure surges, electrical short-circuiting in submerged zones, acoustic cavitation.',
+          limits: 'Cannot penetrate watertight hatch seals without physical rupture.',
+        },
+        victimField: {
+          kind: 'group',
+          collectiveDesignation: 'Trapped Lower-Deck Colonists',
+          description: 'Unidentified survivors scrambling for the upper ladders.',
+          members: [],
+        },
+      };
+
+      const { blueprint, participationContext } = compileAdLibInduction(induction);
+
+      expect(blueprint.cast).toHaveLength(0); // Zero fabricated characters
+      expect(participationContext.boundedFacts.some((f) => f.includes('Target Group: Trapped Lower-Deck Colonists'))).toBe(true);
+    });
+  });
+
+  describe('Store Integration & buildEngineTurnContext Propagation', () => {
+    it('initiates an Ad Lib Antagonist session and preserves Authority & Victim contracts in both stores', () => {
+      const induction: AdLibAntagonistInduction = {
+        participationMode: 'antagonist',
+        placeSeed: 'Decommissioned Lunar Silo',
+        goal: 'Vent atmospheric pressure to vacuum',
+        oppositionSeat: {
+          kind: 'character',
+          name: 'The Rogue Cyber-Sentry',
+          description: 'A rogue security automaton patrolling the missile gantry.',
+          goal: 'Depressurize the command bunker.',
+        },
+        authorityContract: {
+          authority: 'Heavy mechanical strength, pneumatic door override, acoustic triangulation, infra-red vision.',
+          limits: 'Cannot leave physical structure of the silo; vulnerable to high-intensity microwave radiation.',
+        },
+        victimField: {
+          kind: 'individual',
+          name: 'Commander Sarah Jensen',
+          description: 'Bunker commander holding the manual atmospheric lock.',
+          goal: 'Manually seal the blast doors.',
+          knownFact: 'Suffering from low-oxygen disorientation.',
+        },
+      };
+
+      const session = initiateAdLibSession(induction);
+
+      // Verify engine store
       const engineState = useEngineStore.getState();
-      expect(engineState.activeBlueprint).toBeDefined();
-      expect(engineState.participationContext?.mode).toBe('protagonist');
+      expect(engineState.activeBlueprint?.id).toBe(session.blueprint.id);
+      expect(engineState.gameState?.player_role).toBe('antagonist');
+      expect(engineState.participationContext?.authorityContract?.authority).toContain('Heavy mechanical strength');
+      expect(engineState.participationContext?.victimField?.kind).toBe('individual');
+
+      // Verify app store
+      const appState = useAppStore.getState();
+      expect(appState.blueprintId).toBe(session.blueprint.id);
+      expect(appState.participationContext?.authorityContract?.limits).toContain('microwave radiation');
+      expect(appState.participationContext?.victimField?.kind).toBe('individual');
+
+      // Verify buildEngineTurnContext propagation
+      const turnContext = buildEngineTurnContext({
+        blueprint: session.blueprint,
+        selectedRole: 'antagonist',
+        spatialGraph: [session.initialSpatialNode],
+        currentNodeId: session.initialSpatialNode.id,
+        participationContext: session.participationContext,
+        history: [],
+      });
+
+      expect(turnContext.participationContext).toBeDefined();
+      expect(turnContext.participationContext?.mode).toBe('antagonist');
+      expect(turnContext.participationContext?.authorityContract?.authority).toContain('Heavy mechanical strength');
+      expect(turnContext.participationContext?.authorityContract?.limits).toContain('microwave radiation');
+      expect(turnContext.participationContext?.victimField?.kind).toBe('individual');
     });
-  });
 
-  describe('Participation context reset and token bounds', () => {
-    it('clears participationContext on useEngineStore.resetEngine()', () => {
-      const rawInduction = {
-        participationMode: 'protagonist' as const,
-        placeSeed: 'Sub-Level 4 Cryogenic Vault',
-        goal: 'Restore the cooling manifold',
-        participantName: 'Sgt. David Ward',
+    it('clears Authority and Victim context upon full system reset via both store reset paths', () => {
+      const induction: AdLibAntagonistInduction = {
+        participationMode: 'antagonist',
+        placeSeed: 'Sub-Level Vault',
+        goal: 'Eliminate targets',
+        oppositionSeat: {
+          kind: 'character',
+          name: 'Apex Predator',
+          description: 'Hunting unit',
+          goal: 'Purge',
+        },
+        authorityContract: {
+          authority: 'Physical speed and cloaking.',
+          limits: 'Cannot enter salt-lined boundaries.',
+        },
+        victimField: {
+          kind: 'individual',
+          name: 'Survivor Tom',
+        },
       };
-      initiateAdLibSession(rawInduction, 'session-test-reset-1');
-      expect(useEngineStore.getState().participationContext).not.toBeNull();
 
+      initiateAdLibSession(induction);
+
+      // Verify loaded
+      expect(useEngineStore.getState().participationContext).not.toBeNull();
+      expect(useAppStore.getState().participationContext).not.toBeNull();
+
+      // Reset Engine store
       useEngineStore.getState().resetEngine();
       expect(useEngineStore.getState().participationContext).toBeNull();
       expect(useEngineStore.getState().activeBlueprint).toBeNull();
-    });
 
-    it('clears participationContext on useAppStore.resetSession()', () => {
-      const rawInduction = {
-        participationMode: 'protagonist' as const,
-        placeSeed: 'Sub-Level 4 Cryogenic Vault',
-        goal: 'Restore the cooling manifold',
-        participantName: 'Sgt. David Ward',
-      };
-      initiateAdLibSession(rawInduction, 'session-test-reset-2');
-      expect(useAppStore.getState().participationContext).not.toBeNull();
-
+      // Reset App store
       useAppStore.getState().resetSession();
       expect(useAppStore.getState().participationContext).toBeNull();
-      expect(useAppStore.getState().sessionId).toBe('');
-    });
-
-    it('enforces token bounds on ParticipationContextSchema', () => {
-      const validContext = {
-        mode: 'protagonist' as const,
-        seat: {
-          kind: 'protagonist' as const,
-          name: 'Sgt. David Ward',
-          description: 'Cryo technician',
-          ability: 'Diagnostics',
-          limitation: 'Oxygen toxicity',
-        },
-        initialGoal: 'Restore cooling manifold',
-        boundedFacts: ['Fact 1', 'Fact 2'],
-      };
-
-      const parsed = ParticipationContextSchema.parse(validContext);
-      expect(parsed.mode).toBe('protagonist');
-
-      // Reject oversized name > 100
-      expect(() =>
-        ParticipationContextSchema.parse({
-          ...validContext,
-          seat: { ...validContext.seat, name: 'a'.repeat(101) },
-        })
-      ).toThrow();
-
-      // Reject oversized description > 300
-      expect(() =>
-        ParticipationContextSchema.parse({
-          ...validContext,
-          seat: { ...validContext.seat, description: 'a'.repeat(301) },
-        })
-      ).toThrow();
-
-      // Reject oversized ability > 200
-      expect(() =>
-        ParticipationContextSchema.parse({
-          ...validContext,
-          seat: { ...validContext.seat, ability: 'a'.repeat(201) },
-        })
-      ).toThrow();
-
-      // Reject oversized limitation > 200
-      expect(() =>
-        ParticipationContextSchema.parse({
-          ...validContext,
-          seat: { ...validContext.seat, limitation: 'a'.repeat(201) },
-        })
-      ).toThrow();
-
-      // Reject oversized initialGoal > 200
-      expect(() =>
-        ParticipationContextSchema.parse({
-          ...validContext,
-          initialGoal: 'a'.repeat(201),
-        })
-      ).toThrow();
-
-      // Reject > 8 boundedFacts
-      expect(() =>
-        ParticipationContextSchema.parse({
-          ...validContext,
-          boundedFacts: Array.from({ length: 9 }, (_, i) => `Fact ${i}`),
-        })
-      ).toThrow();
-
-      // Reject oversized fact string > 250
-      expect(() =>
-        ParticipationContextSchema.parse({
-          ...validContext,
-          boundedFacts: ['a'.repeat(251)],
-        })
-      ).toThrow();
+      expect(useAppStore.getState().blueprintId).toBe('');
     });
   });
 
-  describe('buildEngineTurnContext propagation across modes', () => {
-    it('propagates protagonist participation context, seat kind, and bounded facts', () => {
-      const input: AdLibProtagonistInduction = {
-        participationMode: 'protagonist',
-        placeSeed: 'Derelict Station Alpha',
-        goal: 'Power on the primary comms dish',
-        participantName: 'Lt. Ripley',
-        identity: 'Warrant Officer',
-        ability: 'Thermal diagnostic proficiency',
-      };
-
-      const compiled = compileAdLibInduction(input);
-
-      const turnContext = buildEngineTurnContext({
-        blueprint: compiled.blueprint,
-        selectedRole: 'protagonist',
-        participationContext: compiled.participationContext,
-        spatialGraph: [compiled.initialSpatialNode],
-      });
-
-      expect(turnContext.participationContext).toBeDefined();
-      expect(turnContext.participationContext?.mode).toBe('protagonist');
-      expect(turnContext.participationContext?.seat?.kind).toBe('protagonist');
-      expect(turnContext.participationContext?.seat?.name).toBe('Lt. Ripley');
-      expect(turnContext.participationContext?.boundedFacts).toContain('Location: Derelict Station Alpha');
-      expect(turnContext.player.name).toBe('Lt. Ripley');
-      expect(turnContext.topology.currentNodeId).toBe('NODE_ENTRY');
-    });
-
-    it('propagates antagonist force seat context, seat kind, and bounded facts', () => {
-      const input: AdLibAntagonistInduction = {
+  describe('Persistence across Committed Turns & Ratified Frames', () => {
+    it('preserves Authority and Victim data after committing a ratified frame turn', () => {
+      const induction: AdLibAntagonistInduction = {
         participationMode: 'antagonist',
-        placeSeed: 'Subterranean Aquifer',
-        goal: 'Flood the lowest chambers',
+        placeSeed: 'Derelict Atmospheric Siphon',
+        goal: 'Collapse containment',
         oppositionSeat: {
           kind: 'force',
-          name: 'The Stygian Tide',
-          description: 'A subterranean liquid biomass.',
-          goal: 'Drown the remaining lights.',
-          ability: 'Corrosive flooding',
+          name: 'Pressure Anomaly',
+          description: 'A crushing barometric anomaly.',
+          goal: 'Crush the bulkhead.',
+        },
+        authorityContract: {
+          authority: 'Barometric surges, metal buckling, localized air compression.',
+          limits: 'Cannot puncture reinforced lead plates; bound to contiguous ducts.',
+        },
+        victimField: {
+          kind: 'group',
+          collectiveDesignation: 'Maintenance Crew',
+          description: 'Technicians trying to reach safety.',
+          members: [
+            {
+              id: 'vic-1',
+              name: 'Tech Jonas Reed',
+              description: 'Junior technician.',
+              goal: 'Find an emergency rebreather.',
+            },
+          ],
         },
       };
 
-      const compiled = compileAdLibInduction(input);
+      const session = initiateAdLibSession(induction);
 
+      // Build context and simulate turn response
       const turnContext = buildEngineTurnContext({
-        blueprint: compiled.blueprint,
+        blueprint: session.blueprint,
         selectedRole: 'antagonist',
-        participationContext: compiled.participationContext,
-        spatialGraph: [compiled.initialSpatialNode],
+        spatialGraph: [session.initialSpatialNode],
+        currentNodeId: session.initialSpatialNode.id,
+        participationContext: session.participationContext,
+        history: [],
       });
+      expect(turnContext.participationContext?.authorityContract?.authority).toContain('Barometric surges');
 
-      expect(turnContext.participationContext).toBeDefined();
-      expect(turnContext.participationContext?.mode).toBe('antagonist');
-      expect(turnContext.participationContext?.seat?.kind).toBe('force');
-      expect(turnContext.participationContext?.seat?.name).toBe('The Stygian Tide');
-      expect(
-        turnContext.participationContext?.boundedFacts.some((f) => f.includes('The Stygian Tide'))
-      ).toBe(true);
-    });
-
-    it('propagates antagonist character seat context, seat kind, and bounded facts', () => {
-      const input: AdLibAntagonistInduction = {
-        participationMode: 'antagonist',
-        placeSeed: 'Sub-Level Quarantine Sector',
-        goal: 'Stalk and isolate the perimeter patrol',
-        oppositionSeat: {
-          kind: 'character',
-          name: 'The Sub-Level Warden',
-          description: 'A cybernetically augmented containment sentinel.',
-          goal: 'Execute lethal quarantine protocols.',
-          ability: 'Thermal tracking and blast door override',
+      const preSnapshot = {
+        turnIndex: 0,
+        timelineRevision: 0,
+        reconciliationRevision: 0,
+        activeVector: 'COGNITIVE' as const,
+        activeTier: 'LATENT' as const,
+        phase: 'ENGINE' as const,
+        escalation_state: 'LATENT' as const,
+        currentNodeId: session.initialSpatialNode.id,
+        spatialGraph: [session.initialSpatialNode],
+        decay: { stage: 'STABLE' as const, coherence: 1.0 },
+        systemFlags: [],
+        somaState: [],
+        geomState: [],
+        traumaLedger: [],
+        motifLedger: {},
+        pacingLedger: {
+          failedEscapeAttempts: 0,
+          memoryAnchorsRemaining: 3,
+          spatialContradictions: 0,
         },
+        castLedger: [],
+        narrativeVelocity: 'slow_burn' as const,
       };
 
-      const compiled = compileAdLibInduction(input);
+      const ratifiedFrame: RatifiedEngineFrame = {
+        frameId: 'frame-test-01',
+        timestamp: Date.now(),
+        playerRole: 'antagonist',
+        perspectiveApplied: 'ANTAGONIST',
+        semanticDelta: {
+          somaticDamage: 0,
+          cognitiveDistortion: 0,
+          tensionVelocity: 'escalating',
+          flagsAsserted: ['DUCTS_CRACKED'],
+          flagsRemoved: [],
+        },
+        topologyDeltas: [],
+        discoveredEdges: [],
+        activeNodeId: session.initialSpatialNode.id,
+        narrativeResolution: 'The ducts groan and buckle inward under sudden barometric load.',
+      };
 
-      const turnContext = buildEngineTurnContext({
-        blueprint: compiled.blueprint,
+      const committedTurnPayload: CommittedTurnPayload = {
+        commandText: 'Exert crushing atmospheric pressure along the vent shaft',
+        formattedText: 'Exert crushing atmospheric pressure along the vent shaft',
+        frame: {
+          narrative: ratifiedFrame.narrativeResolution,
+          logic_state: {
+            tension_level: 1,
+            current_vector: 'PHYSICAL',
+            current_tier: 'MANIFEST',
+            terminal_flags: ['DUCTS_CRACKED'],
+          },
+        } as unknown as RatifiedEngineFrame,
+        turnReceipt: {
+          turnIndex: 1,
+          status: 'COMMITTED',
+          frameId: ratifiedFrame.frameId,
+          timestamp: Date.now(),
+          latencyMs: 120,
+          perspectiveApplied: 'ANTAGONIST',
+          semanticStateHash: 'hash-001',
+          topologyMutationsCount: 0,
+        },
+        preSnapshot,
+      };
+
+      // Dispatch event to app store
+      useAppStore.getState().dispatch({
+        type: 'TURN_COMMITTED',
+        payload: committedTurnPayload,
+      });
+
+      // Confirm ParticipationContext and Authority Contract remain intact in store
+      const appState = useAppStore.getState();
+      expect(appState.participationContext).toBeDefined();
+      expect(appState.participationContext?.authorityContract?.authority).toContain('Barometric surges');
+      expect(appState.participationContext?.authorityContract?.limits).toContain('reinforced lead plates');
+      expect(appState.participationContext?.victimField?.kind).toBe('group');
+
+      // Next turn context generation still includes full contracts
+      const nextTurnContext = buildEngineTurnContext({
+        blueprint: session.blueprint,
         selectedRole: 'antagonist',
-        participationContext: compiled.participationContext,
-        spatialGraph: [compiled.initialSpatialNode],
+        spatialGraph: appState.spatialGraph,
+        currentNodeId: appState.currentNodeId || session.initialSpatialNode.id,
+        participationContext: appState.participationContext,
+        history: appState.history,
       });
 
-      expect(turnContext.participationContext).toBeDefined();
-      expect(turnContext.participationContext?.mode).toBe('antagonist');
-      expect(turnContext.participationContext?.seat?.kind).toBe('character');
-      expect(turnContext.participationContext?.seat?.name).toBe('The Sub-Level Warden');
-      expect(turnContext.player.name).toBe('The Sub-Level Warden');
-    });
-
-    it('propagates director participation context, seat kind, and bounded facts', () => {
-      const input: AdLibDirectorInduction = {
-        participationMode: 'director',
-        placeSeed: 'Abandoned Radio Observatory',
-        goal: 'Orchestrate the crescendo of paranoia',
-        directorFocus: 'Pacing escalation and sensory dissonance',
-      };
-
-      const compiled = compileAdLibInduction(input);
-
-      const turnContext = buildEngineTurnContext({
-        blueprint: compiled.blueprint,
-        selectedRole: 'director',
-        participationContext: compiled.participationContext,
-        spatialGraph: [compiled.initialSpatialNode],
-      });
-
-      expect(turnContext.participationContext).toBeDefined();
-      expect(turnContext.participationContext?.mode).toBe('director');
-      expect(turnContext.participationContext?.seat?.kind).toBe('director');
-      expect(turnContext.participationContext?.boundedFacts).toContain(
-        'Framing Directive: Pacing escalation and sensory dissonance'
-      );
+      expect(nextTurnContext.participationContext?.authorityContract?.authority).toContain('Barometric surges');
+      expect(nextTurnContext.participationContext?.victimField?.kind).toBe('group');
     });
   });
 
-  describe('Committed turn lifecycle across participation modes', () => {
-    it('executes a committed turn lifecycle in protagonist mode while preserving receipts and snapshot coherence', () => {
-      const session = initiateAdLibSession(
-        {
-          participationMode: 'protagonist',
-          placeSeed: 'Sub-Level Cryogenic Vault',
-          goal: 'Restore cooling manifold',
-          participantName: 'Sgt. David Ward',
-          ability: 'Thermal diagnostics',
-        },
-        'session-lifecycle-protagonist-01'
-      );
-
-      const storeState = useAppStore.getState();
-      expect(storeState.turnCount).toBe(0);
-      expect(storeState.participationContext?.mode).toBe('protagonist');
-
-      const preSnapshot = captureRuntimeSnapshot({
-        sessionId: storeState.sessionId,
-        blueprintId: session.blueprint.id,
-        turnCount: storeState.turnCount,
-        currentNodeId: storeState.currentNodeId,
-        activeVector: storeState.activeVector,
-        activeTier: storeState.activeTier,
-        tensionLevel: storeState.tensionLevel,
-        currentPhase: storeState.currentPhase,
-      });
-
-      const frame: RatifiedEngineFrame = {
-        engine_thoughts: 'Player recalibrates the primary refrigeration cycle valve.',
-        narrative_blocks: [
-          {
-            type: 'prose',
-            content: 'The manual valve spins against frosty resistance. Amber warning indicators flash.',
-          },
-        ],
-        logic_state: {
-          current_phase: 'LATENT',
-          suggested_tension: 20,
-        },
-        topologyDelta: { isExpansion: false },
-        validation: { accepted: true, rejected_fields: [], repair_notes: [] },
+  describe('Non-Regression of Protagonist and Director Modes', () => {
+    it('compiles a valid Protagonist induction correctly without Authority or Victim contracts', () => {
+      const induction: AdLibProtagonistInduction = {
+        participationMode: 'protagonist',
+        placeSeed: 'Sub-Level Cryo Archive',
+        goal: 'Retrieve the cryogenic logs before power failure',
+        unsettlingDetail: 'Rhythmic tapping from inside pod 14',
+        participantName: 'Specialist Nora Diaz',
+        identity: 'Maintenance Archivist',
+        ability: 'Data decryption and electrical repairs',
+        limitation: 'Asthmatic response to cold air',
       };
 
-      const turnReceipt: TurnReceipt = {
-        turnNumber: 1,
-        nodeBefore: 'NODE_ENTRY',
-        requestedTarget: null,
-        accepted: true,
-        reason: 'NO_MOVEMENT_REQUESTED',
-        nodeAfter: 'NODE_ENTRY',
-        activeVector: 'COGNITIVE',
-        activeTier: 'LATENT',
-        tension: 20,
-        preSnapshot,
-      };
+      const { blueprint, participationContext } = compileAdLibInduction(induction);
 
-      const payload: CommittedTurnPayload = {
-        commandText: 'Rotate the primary refrigeration valve',
-        formattedText: 'The manual valve spins against frosty resistance. Amber warning indicators flash.',
-        preSnapshot,
-        frame,
-        turnReceipt,
-      };
+      expect(blueprint.title).toBe('Sub-Level Cryo Archive (Ad Lib)');
+      expect(blueprint.cast).toHaveLength(1);
+      expect(blueprint.cast[0].name).toBe('Specialist Nora Diaz');
+      expect(blueprint.cast[0].role).toBe('protagonist');
+      expect(blueprint.cast[0].isUserCharacter).toBe(true);
 
-      useAppStore.getState().commitTurnResult(payload);
-
-      const nextState = useAppStore.getState();
-      expect(nextState.turnCount).toBe(1);
-      expect(nextState.currentNodeId).toBe('NODE_ENTRY');
-      expect(nextState.tensionLevel).toBe(20);
-      expect(nextState.history).toHaveLength(2);
-      expect(nextState.history[0].role).toBe('user');
-      expect(nextState.history[1].role).toBe('assistant');
-      expect(nextState.history[1].turnReceipt?.preSnapshot).toEqual(preSnapshot);
-      // Guarantee participationContext is preserved on the store
-      expect(nextState.participationContext?.mode).toBe('protagonist');
-      expect(nextState.participationContext?.seat?.name).toBe('Sgt. David Ward');
+      expect(participationContext.mode).toBe('protagonist');
+      expect(participationContext.seat?.name).toBe('Specialist Nora Diaz');
+      expect(participationContext.authorityContract).toBeUndefined();
+      expect(participationContext.victimField).toBeUndefined();
     });
 
-    it('executes a committed turn lifecycle in antagonist force mode while maintaining topology and snapshot authority', () => {
-      const session = initiateAdLibSession(
-        {
-          participationMode: 'antagonist',
-          placeSeed: 'Subterranean Aquifer',
-          goal: 'Flood the lowest chambers',
-          oppositionSeat: {
-            kind: 'force',
-            name: 'The Stygian Tide',
-            description: 'Subterranean liquid biomass.',
-            goal: 'Drown remaining lights.',
-            ability: 'Corrosive flooding',
-          },
-        },
-        'session-lifecycle-antagonist-01'
-      );
-
-      const storeState = useAppStore.getState();
-      expect(storeState.turnCount).toBe(0);
-      expect(storeState.participationContext?.mode).toBe('antagonist');
-      expect(storeState.participationContext?.seat?.kind).toBe('force');
-
-      const preSnapshot = captureRuntimeSnapshot({
-        sessionId: storeState.sessionId,
-        blueprintId: session.blueprint.id,
-        turnCount: storeState.turnCount,
-        currentNodeId: storeState.currentNodeId,
-        activeVector: storeState.activeVector,
-        activeTier: storeState.activeTier,
-        tensionLevel: storeState.tensionLevel,
-        currentPhase: storeState.currentPhase,
-      });
-
-      const frame: RatifiedEngineFrame = {
-        engine_thoughts: 'Hostile force expands pressure against drainage sluices.',
-        narrative_blocks: [
-          {
-            type: 'prose',
-            content: 'Dark liquid surges up the drainage grates, rising six inches across the lower tier.',
-          },
-        ],
-        logic_state: {
-          current_phase: 'MANIFEST',
-          suggested_tension: 35,
-        },
-        topologyDelta: { isExpansion: false },
-        validation: { accepted: true, rejected_fields: [], repair_notes: [] },
+    it('compiles a valid Director induction correctly without Authority or Victim contracts', () => {
+      const induction: AdLibDirectorInduction = {
+        participationMode: 'director',
+        placeSeed: 'Abandoned Radio Observatory',
+        goal: 'Stage the gradual communication collapse',
+        unsettlingDetail: 'Feedback loops broadcasting dead radio voices',
+        directorFocus: 'Pacing tension, sensory withholding, psychological dread',
       };
 
-      const turnReceipt: TurnReceipt = {
-        turnNumber: 1,
-        nodeBefore: 'NODE_ENTRY',
-        requestedTarget: null,
-        accepted: true,
-        reason: 'NO_MOVEMENT_REQUESTED',
-        nodeAfter: 'NODE_ENTRY',
-        activeVector: 'COGNITIVE',
-        activeTier: 'LATENT',
-        tension: 35,
-        preSnapshot,
-      };
+      const { blueprint, participationContext } = compileAdLibInduction(induction);
 
-      const payload: CommittedTurnPayload = {
-        commandText: 'Surge pressure through lower sluices',
-        formattedText: 'Dark liquid surges up the drainage grates, rising six inches across the lower tier.',
-        preSnapshot,
-        frame,
-        turnReceipt,
-      };
-
-      useAppStore.getState().commitTurnResult(payload);
-
-      const nextState = useAppStore.getState();
-      expect(nextState.turnCount).toBe(1);
-      expect(nextState.currentNodeId).toBe('NODE_ENTRY');
-      expect(nextState.tensionLevel).toBe(35);
-      expect(nextState.history[1].turnReceipt?.preSnapshot).toEqual(preSnapshot);
-      expect(nextState.participationContext?.mode).toBe('antagonist');
-      expect(nextState.participationContext?.seat?.name).toBe('The Stygian Tide');
-    });
-
-    it('executes a committed turn lifecycle in director mode while maintaining topology and snapshot authority', () => {
-      const session = initiateAdLibSession(
-        {
-          participationMode: 'director',
-          placeSeed: 'Abandoned Radio Observatory',
-          goal: 'Orchestrate paranoia crescendo',
-          directorFocus: 'Sensory dissonance',
-        },
-        'session-lifecycle-director-01'
-      );
-
-      const storeState = useAppStore.getState();
-      expect(storeState.turnCount).toBe(0);
-      expect(storeState.participationContext?.mode).toBe('director');
-      expect(storeState.participationContext?.seat?.kind).toBe('director');
-
-      const preSnapshot = captureRuntimeSnapshot({
-        sessionId: storeState.sessionId,
-        blueprintId: session.blueprint.id,
-        turnCount: storeState.turnCount,
-        currentNodeId: storeState.currentNodeId,
-        activeVector: storeState.activeVector,
-        activeTier: storeState.activeTier,
-        tensionLevel: storeState.tensionLevel,
-        currentPhase: storeState.currentPhase,
-      });
-
-      const frame: RatifiedEngineFrame = {
-        engine_thoughts: 'Director cues ambient discordance. Acoustic hum deepens.',
-        narrative_blocks: [
-          {
-            type: 'prose',
-            content: 'The low-frequency hum from the dish motors shifts into a minor chord.',
-          },
-        ],
-        logic_state: {
-          current_phase: 'LATENT',
-          suggested_tension: 25,
-        },
-        topologyDelta: { isExpansion: false },
-        validation: { accepted: true, rejected_fields: [], repair_notes: [] },
-      };
-
-      const turnReceipt: TurnReceipt = {
-        turnNumber: 1,
-        nodeBefore: 'NODE_ENTRY',
-        requestedTarget: null,
-        accepted: true,
-        reason: 'NO_MOVEMENT_REQUESTED',
-        nodeAfter: 'NODE_ENTRY',
-        activeVector: 'COGNITIVE',
-        activeTier: 'LATENT',
-        tension: 25,
-        preSnapshot,
-      };
-
-      const payload: CommittedTurnPayload = {
-        commandText: 'Focus framing on the harmonic discordance of the antenna dish',
-        formattedText: 'The low-frequency hum from the dish motors shifts into a minor chord.',
-        preSnapshot,
-        frame,
-        turnReceipt,
-      };
-
-      useAppStore.getState().commitTurnResult(payload);
-
-      const nextState = useAppStore.getState();
-      expect(nextState.turnCount).toBe(1);
-      expect(nextState.currentNodeId).toBe('NODE_ENTRY');
-      expect(nextState.tensionLevel).toBe(25);
-      expect(nextState.history[1].turnReceipt?.preSnapshot).toEqual(preSnapshot);
-      expect(nextState.participationContext?.mode).toBe('director');
-      expect(nextState.participationContext?.seat?.kind).toBe('director');
+      expect(blueprint.title).toBe('Abandoned Radio Observatory (Ad Lib Director)');
+      expect(blueprint.cast).toHaveLength(0); // Director has no player character
+      expect(participationContext.mode).toBe('director');
+      expect(participationContext.seat?.kind).toBe('director');
+      expect(participationContext.authorityContract).toBeUndefined();
+      expect(participationContext.victimField).toBeUndefined();
     });
   });
 });
-

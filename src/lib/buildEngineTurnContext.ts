@@ -9,6 +9,7 @@ import {
   PlayerRole,
   SpatialNode,
   ParticipationContext,
+  normalizeParticipationContext,
 } from '../types';
 
 export interface BuildEngineTurnContextOptions {
@@ -43,10 +44,11 @@ export function buildEngineTurnContext({
   const effectiveRole = (selectedRole as PlayerRole) || 'protagonist';
 
   // 0. Participation Context resolution
-  const resolvedParticipation =
+  const rawParticipation =
     participationContext ??
     runtimeState.participationContext ??
     null;
+  const resolvedParticipation = normalizeParticipationContext(rawParticipation);
 
   // 1. World rules
   let worldRules: string[] = [];

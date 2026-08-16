@@ -77,21 +77,21 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
   };
 
   return (
-    <div className="min-h-screen bg-black text-zinc-100 flex flex-col p-8 font-mono selection:bg-white selection:text-black">
-      <header className="flex items-center justify-between mb-12">
+    <div className="min-h-screen bg-black text-zinc-100 flex flex-col p-6 sm:p-8 font-mono selection:bg-white selection:text-black">
+      <header className="flex items-center justify-between mb-8 sm:mb-12">
         <button
           onClick={() => (previewBlueprint ? setPreviewBlueprint(null) : setPhase('hub'))}
-          className="flex items-center gap-2 text-zinc-500 hover:text-white transition-colors uppercase text-[10px] tracking-[0.2em]"
+          className="flex items-center gap-2 text-zinc-400 hover:text-white transition-colors uppercase text-xs tracking-[0.2em] cursor-pointer"
         >
-          <ArrowLeft className="w-3 h-3" />
+          <ArrowLeft className="w-3.5 h-3.5" />
           {previewBlueprint ? 'Cancel Initialization' : 'Return to Hub'}
         </button>
-        <h1 className="text-[10px] font-bold tracking-[0.3em] uppercase text-zinc-400">
+        <h1 className="text-xs font-bold tracking-[0.3em] uppercase text-zinc-400">
           The Engine // Setup
         </h1>
       </header>
 
-      <div className="flex-1 flex flex-col items-center justify-center max-w-2xl mx-auto w-full">
+      <div className="flex-1 flex flex-col items-center justify-center max-w-4xl xl:max-w-5xl 2xl:max-w-6xl mx-auto w-full">
         <AnimatePresence mode="wait">
           {!previewBlueprint ? (
             <motion.div
@@ -99,23 +99,23 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className="w-full space-y-12"
+              className="w-full space-y-10"
             >
-              <div className="text-center space-y-4">
-                <h2 className="text-2xl font-light tracking-widest uppercase">
+              <div className="text-center space-y-3">
+                <h2 className="text-2xl sm:text-3xl font-light tracking-widest uppercase text-white">
                   Initialize Simulation
                 </h2>
-                <p className="text-zinc-500 text-xs tracking-tight uppercase leading-relaxed">
-                  Start a fresh nightmare or resume the existing narrative link.
+                <p className="text-zinc-400 text-xs sm:text-sm tracking-tight uppercase leading-relaxed">
+                  Start a procedural Ad Lib session, load a blueprint, or resume active link.
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Option 1: Continue */}
                 <button
                   onClick={onContinue}
                   disabled={!activeBlueprint}
-                  className={`p-8 border flex flex-col items-center justify-center gap-4 transition-all duration-500 group ${
+                  className={`p-8 border flex flex-col items-center justify-center gap-4 transition-all duration-500 rounded group ${
                     activeBlueprint
                       ? 'border-white bg-white/5 hover:bg-white/10 cursor-pointer'
                       : 'border-zinc-900 opacity-30 cursor-not-allowed'
@@ -124,11 +124,11 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
                   <Activity
                     className={`w-10 h-10 ${activeBlueprint ? 'text-white animate-pulse' : 'text-zinc-700'}`}
                   />
-                  <div className="text-center">
-                    <span className="text-[10px] uppercase tracking-[0.3em] block mb-1">
+                  <div className="text-center space-y-1">
+                    <span className="text-xs uppercase tracking-[0.25em] block font-bold text-white">
                       Resume Link
                     </span>
-                    <span className="text-[8px] text-zinc-500 uppercase tracking-widest">
+                    <span className="text-xs text-zinc-400 uppercase tracking-wider block">
                       {activeBlueprint ? `Active: ${activeBlueprint.title}` : 'No Active Session'}
                     </span>
                   </div>
@@ -137,7 +137,7 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
                 {/* Option 2: Upload New */}
                 <div
                   onClick={() => fileInputRef.current?.click()}
-                  className="p-8 border-2 border-dashed border-zinc-800 hover:border-zinc-500 transition-all duration-500 bg-zinc-950/30 flex flex-col items-center justify-center cursor-pointer group"
+                  className="p-8 border-2 border-dashed border-zinc-800 hover:border-zinc-500 transition-all duration-500 bg-zinc-950/40 rounded flex flex-col items-center justify-center cursor-pointer group"
                 >
                   <input
                     type="file"
@@ -146,53 +146,53 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
                     accept=".json"
                     className="hidden"
                   />
-                  <Upload className="w-10 h-10 text-zinc-700 group-hover:text-white transition-colors mb-4" />
-                  <div className="text-center">
-                    <span className="text-[10px] uppercase tracking-[0.3em] block mb-1">
-                      New Blueprint
+                  <Upload className="w-10 h-10 text-zinc-600 group-hover:text-white transition-colors mb-3" />
+                  <div className="text-center space-y-1">
+                    <span className="text-xs uppercase tracking-[0.25em] block font-bold text-white">
+                      Upload Blueprint
                     </span>
-                    <span className="text-[8px] text-zinc-500 uppercase tracking-widest">
-                      Override existing session
+                    <span className="text-xs text-zinc-400 uppercase tracking-wider block">
+                      Import structured JSON scenario
                     </span>
                   </div>
                 </div>
 
                 {/* Option 3: Ad-Lib Mode */}
-                <div className="md:col-span-2 p-8 border border-zinc-800 bg-zinc-950/30 flex flex-col items-center justify-center gap-6 shadow-[inset_0_0_20px_rgba(0,0,0,0.5)]">
+                <div className="md:col-span-2 p-8 border border-red-950/80 bg-zinc-950/60 rounded flex flex-col items-center justify-center gap-5 shadow-[inset_0_0_25px_rgba(239,68,68,0.05)]">
                   <div className="text-center">
-                    <Skull className="w-10 h-10 text-red-500 mx-auto mb-4" />
-                    <span className="text-[10px] uppercase tracking-[0.3em] block mb-1 text-zinc-200 font-bold">
+                    <Skull className="w-10 h-10 text-red-500 mx-auto mb-3" />
+                    <span className="text-sm uppercase tracking-[0.25em] block mb-1 text-zinc-100 font-bold">
                       Ad-Lib Induction Terminal
                     </span>
-                    <span className="text-[8px] text-zinc-500 uppercase tracking-widest">
-                      Custom Place, Seat & Bounded Horror Induction
+                    <span className="text-xs text-zinc-400 uppercase tracking-wider">
+                      Phase 3B Procedural Opposition & Victim Framing
                     </span>
                   </div>
 
-                  <p className="text-[9px] text-zinc-400 max-w-md text-center leading-relaxed">
-                    Induct a fresh simulation directly by configuring your participation mode (Protagonist, Antagonist Avatar/Force, or Director) with bounded world facts and goals.
+                  <p className="text-xs sm:text-sm text-zinc-300 max-w-xl text-center leading-relaxed font-sans">
+                    Induct a fresh simulation directly by configuring your participation mode (Antagonist Avatar/Force, Protagonist, or Director) with bounded Authority, non-negotiable Limits, and authored Victims.
                   </p>
 
                   <button
                     onClick={() => setIsAdLibModalOpen(true)}
-                    className="border-2 border-red-600 bg-red-950/30 hover:bg-red-600 hover:text-white text-red-400 px-8 py-3.5 text-[10px] tracking-[0.2em] uppercase font-bold transition-all duration-300 flex items-center gap-2 cursor-pointer shadow-lg hover:shadow-red-600/20"
+                    className="border-2 border-red-600 bg-red-950/40 hover:bg-red-600 hover:text-white text-red-300 px-8 py-3 text-xs tracking-[0.2em] uppercase font-bold transition-all duration-300 flex items-center gap-2 rounded cursor-pointer shadow-lg shadow-red-950/40 hover:shadow-red-600/30"
                   >
-                    <Sparkles className="w-3.5 h-3.5" />
+                    <Sparkles className="w-4 h-4 text-amber-400" />
                     <span>Launch Ad Lib Induction Terminal</span>
                   </button>
                 </div>
               </div>
 
               {error && (
-                <div className="flex items-center gap-3 text-red-500/80 bg-red-500/5 border border-red-500/20 p-4 w-full">
-                  <AlertCircle className="w-4 h-4 shrink-0" />
-                  <span className="text-[10px] uppercase tracking-widest">{error}</span>
+                <div className="flex items-center gap-3 text-red-400 bg-red-950/30 border border-red-800 p-4 w-full rounded">
+                  <AlertCircle className="w-5 h-5 shrink-0" />
+                  <span className="text-xs uppercase tracking-wider">{error}</span>
                 </div>
               )}
 
-              <div className="pt-12 text-center">
-                <p className="text-[8px] text-zinc-800 uppercase tracking-[0.4em]">
-                  Awaiting Valid JSON Payload // System Standby
+              <div className="pt-6 text-center">
+                <p className="text-xs text-zinc-600 uppercase tracking-[0.3em]">
+                  System Ready // Standby
                 </p>
               </div>
             </motion.div>
@@ -207,15 +207,15 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
               <div className="space-y-4">
                 <div className="flex items-end justify-between border-b border-zinc-800 pb-4">
                   <div>
-                    <span className="text-[10px] text-zinc-600 uppercase tracking-widest block mb-1">
+                    <span className="text-xs text-zinc-500 uppercase tracking-widest block mb-1">
                       Blueprint Loaded
                     </span>
-                    <h2 className="text-3xl font-bold tracking-tighter uppercase">
+                    <h2 className="text-2xl sm:text-3xl font-bold tracking-tight uppercase text-white">
                       {previewBlueprint.title}
                     </h2>
                   </div>
                   <div className="text-right">
-                    <span className="text-[10px] text-zinc-600 uppercase tracking-widest block mb-1">
+                    <span className="text-xs text-zinc-500 uppercase tracking-widest block mb-1">
                       Scale {previewBlueprint.contentScale}
                     </span>
                     <span className="text-xs text-zinc-400 uppercase tracking-widest">
@@ -224,11 +224,11 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-8 pt-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4">
                   <div className="space-y-6">
                     <div>
-                      <h3 className="flex items-center gap-2 text-[10px] text-zinc-500 uppercase tracking-[0.2em] mb-4">
-                        <Users className="w-3 h-3" />
+                      <h3 className="flex items-center gap-2 text-xs text-zinc-400 uppercase tracking-[0.2em] mb-4 font-bold">
+                        <Users className="w-4 h-4 text-zinc-300" />
                         Cast Members
                       </h3>
                       <div className="grid grid-cols-1 gap-3">
@@ -236,31 +236,31 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
                           <div
                             key={char.id || i}
                             onClick={() => forgeActions.setActiveCharacterId(char.id)}
-                            className={`p-4 border cursor-pointer transition-all duration-200 ${
+                            className={`p-4 border cursor-pointer transition-all duration-200 rounded ${
                               activeCharacterId === char.id
                                 ? 'border-red-500 bg-red-950/20 shadow-[0_0_15px_rgba(239,68,68,0.1)]'
-                                : 'border-zinc-800 hover:border-zinc-600 bg-black opacity-60 hover:opacity-100'
+                                : 'border-zinc-800 hover:border-zinc-600 bg-black opacity-80 hover:opacity-100'
                             }`}
                           >
                             <div className="flex justify-between items-center mb-2">
                               <h3
-                                className={`font-bold ${activeCharacterId === char.id ? 'text-red-400' : 'text-zinc-100'}`}
+                                className={`font-bold text-sm ${activeCharacterId === char.id ? 'text-red-400' : 'text-zinc-100'}`}
                               >
                                 {char.name}
                               </h3>
                               <div className="flex gap-2 items-center">
                                 {char.isEntity && (
-                                  <span className="text-[10px] text-red-500 border border-red-900 px-1 font-mono uppercase">
+                                  <span className="text-xs text-red-400 border border-red-900 px-1.5 py-0.5 rounded font-mono uppercase bg-red-950/30">
                                     ENTITY
                                   </span>
                                 )}
-                                <span className="text-[10px] uppercase font-mono text-cyan-600 px-2 py-1 border border-cyan-900 rounded bg-cyan-950/30">
+                                <span className="text-xs uppercase font-mono text-cyan-400 px-2 py-0.5 border border-cyan-900 rounded bg-cyan-950/30">
                                   {char.behaviorVector || 'ADAPTIVE'}
                                 </span>
                               </div>
                             </div>
                             {char.description && (
-                              <p className="text-[10px] text-zinc-400 leading-relaxed font-mono">
+                              <p className="text-xs text-zinc-400 leading-relaxed font-mono">
                                 {char.description}
                               </p>
                             )}
@@ -268,31 +268,31 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
                         ))}
                       </div>
                       {(!previewBlueprint.cast || previewBlueprint.cast.length === 0) && (
-                        <div className="text-[10px] text-zinc-600 italic">
+                        <div className="text-xs text-zinc-500 italic">
                           No cast identified in blueprint.
                         </div>
                       )}
                     </div>
 
                     <div>
-                      <h3 className="flex items-center gap-2 text-[10px] text-zinc-500 uppercase tracking-[0.2em] mb-4">
-                        <Activity className="w-3 h-3" />
+                      <h3 className="flex items-center gap-2 text-xs text-zinc-400 uppercase tracking-[0.2em] mb-4 font-bold">
+                        <Activity className="w-4 h-4 text-zinc-300" />
                         Environmental Intel
                       </h3>
-                      <div className="p-4 bg-zinc-950 border border-zinc-900 space-y-2">
-                        <div className="flex justify-between text-[10px]">
-                          <span className="text-zinc-600 uppercase">Location:</span>
-                          <span className="text-zinc-400 uppercase">
+                      <div className="p-4 bg-zinc-950 border border-zinc-800 space-y-2 rounded">
+                        <div className="flex justify-between text-xs">
+                          <span className="text-zinc-500 uppercase">Location:</span>
+                          <span className="text-zinc-300 uppercase font-semibold">
                             {previewBlueprint.setting.location}
                           </span>
                         </div>
-                        <div className="flex justify-between text-[10px]">
-                          <span className="text-zinc-600 uppercase">Period:</span>
-                          <span className="text-zinc-400 uppercase">
+                        <div className="flex justify-between text-xs">
+                          <span className="text-zinc-500 uppercase">Period:</span>
+                          <span className="text-zinc-300 uppercase font-semibold">
                             {previewBlueprint.setting.timePeriod}
                           </span>
                         </div>
-                        <p className="text-[10px] text-zinc-500 mt-2 border-t border-zinc-900 pt-2">
+                        <p className="text-xs text-zinc-400 mt-2 border-t border-zinc-800 pt-2 leading-relaxed">
                           {previewBlueprint.setting.atmosphere}
                         </p>
                       </div>
@@ -301,47 +301,47 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
 
                   <div className="space-y-8">
                     <div>
-                      <h3 className="flex items-center gap-2 text-[10px] text-zinc-500 uppercase tracking-[0.2em] mb-6">
-                        <Activity className="w-3 h-3" />
+                      <h3 className="flex items-center gap-2 text-xs text-zinc-400 uppercase tracking-[0.2em] mb-6 font-bold">
+                        <Activity className="w-4 h-4 text-zinc-300" />
                         Neural Link Identity
                       </h3>
                       <div className="grid grid-cols-2 gap-4">
                         <button
                           onClick={() => setSelectedRole('protagonist')}
-                          className={`p-6 border flex flex-col items-center gap-3 transition-all duration-300 ${
+                          className={`p-6 border flex flex-col items-center gap-3 transition-all duration-300 rounded cursor-pointer ${
                             selectedRole === 'protagonist'
                               ? 'border-white bg-white text-black shadow-[0_0_20px_rgba(255,255,255,0.2)]'
-                              : 'border-zinc-800 bg-black text-zinc-500 hover:border-zinc-600'
+                              : 'border-zinc-800 bg-black text-zinc-400 hover:border-zinc-600'
                           }`}
                         >
                           <Shield className="w-6 h-6" />
-                          <span className="text-[10px] uppercase font-bold tracking-[0.2em]">
+                          <span className="text-xs uppercase font-bold tracking-[0.2em]">
                             Protagonist
                           </span>
                         </button>
                         <button
                           onClick={() => setSelectedRole('antagonist')}
-                          className={`p-6 border flex flex-col items-center gap-3 transition-all duration-300 ${
+                          className={`p-6 border flex flex-col items-center gap-3 transition-all duration-300 rounded cursor-pointer ${
                             selectedRole === 'antagonist'
                               ? 'border-fresh-blood bg-fresh-blood text-white shadow-[0_0_20px_rgba(200,30,30,0.3)]'
-                              : 'border-zinc-800 bg-black text-zinc-500 hover:border-zinc-600'
+                              : 'border-zinc-800 bg-black text-zinc-400 hover:border-zinc-600'
                           }`}
                         >
                           <Skull className="w-6 h-6" />
-                          <span className="text-[10px] uppercase font-bold tracking-[0.2em]">
+                          <span className="text-xs uppercase font-bold tracking-[0.2em]">
                             Antagonist
                           </span>
                         </button>
                       </div>
-                      <p className="text-[9px] text-zinc-600 mt-4 leading-relaxed uppercase tracking-widest text-center">
+                      <p className="text-xs text-zinc-500 mt-4 leading-relaxed uppercase tracking-wider text-center">
                         Select your orientation within the nightmare architecture.
                       </p>
                     </div>
 
-                    <div className="pt-8">
+                    <div className="pt-4">
                       <button
                         onClick={handleStart}
-                        className="w-full py-6 bg-white text-black text-xs font-bold uppercase tracking-[0.5em] hover:bg-zinc-200 transition-all flex items-center justify-center gap-3 group shadow-[0_0_30px_rgba(255,255,255,0.1)] active:scale-[0.98]"
+                        className="w-full py-5 bg-white text-black text-xs font-bold uppercase tracking-[0.4em] hover:bg-zinc-200 transition-all flex items-center justify-center gap-3 group shadow-[0_0_30px_rgba(255,255,255,0.1)] active:scale-[0.98] rounded cursor-pointer"
                       >
                         <Play className="w-4 h-4 fill-current group-hover:scale-110 transition-transform" />
                         Initialize Neural Link

@@ -28,6 +28,7 @@ import type { TurnReceipt } from '../../types';
 import { toTurnFailureReceipt } from '../../lib/turnResponseReader';
 import { fetchSimulatedPlayerAction, triggerMemoryForge } from '../../services/geminiService';
 import ErgodicTextRenderer from './ErgodicTextRenderer';
+import AntagonistContractDisplay from './AntagonistContractDisplay';
 import { useTelemetryStore } from '../../store/useTelemetryStore';
 import { captureRuntimeSnapshot } from '../../core/engine/snapshot';
 import { projectPresentationPatch } from '../../core/engine/presentationProjection';
@@ -209,6 +210,8 @@ export default function Runtime() {
 
   const setPhase = useAppStore((state) => state.setPhase);
   const telemetry = useEngineStore((state) => state.telemetry);
+  const selectedRole = useEngineStore((state) => state.selectedRole);
+  const participationContext = useAppStore((state) => state.participationContext);
   const turnCount = useAppStore((state) => state.turnCount);
   const currentSimulationPhase = useTelemetryStore((state) => state.currentPhase);
 
@@ -553,30 +556,30 @@ export default function Runtime() {
       onClick={() => setLastActivity(Date.now())}
     >
       {/* Header */}
-      <header className="h-16 border-b border-zinc-900 flex items-center justify-between px-6 bg-black z-10">
+      <header className="h-16 border-b border-zinc-900 flex items-center justify-between px-6 bg-black z-10 shrink-0">
         <div className="flex items-center gap-6">
           <button
             onClick={handleExit}
-            className="flex items-center gap-2 text-zinc-500 hover:text-white transition-colors uppercase text-[10px] tracking-[0.2em]"
+            className="flex items-center gap-2 text-zinc-400 hover:text-white transition-colors uppercase text-xs tracking-[0.2em] cursor-pointer"
           >
-            <ArrowLeft className="w-3 h-3" />
+            <ArrowLeft className="w-3.5 h-3.5" />
             Exit
           </button>
           <div className="h-4 w-[1px] bg-zinc-800" />
           <div className="flex flex-col">
-            <h1 className="text-[10px] font-bold tracking-[0.3em] uppercase text-white">
+            <h1 className="text-xs font-bold tracking-[0.3em] uppercase text-white">
               {activeBlueprint?.title || 'Haunted House Ad-Lib'}
             </h1>
             <div className="flex items-center gap-2">
-              <span className="text-[8px] text-zinc-500 uppercase tracking-widest">
+              <span className="text-[11px] text-zinc-400 uppercase tracking-widest">
                 Scale: {activeBlueprint?.contentScale || 12}
               </span>
-              <span className="text-[8px] text-zinc-700 uppercase tracking-widest">
+              <span className="text-[11px] text-zinc-600 uppercase tracking-widest">
                 // {activeBlueprint?.contentLevelDescription || 'Procedural Architecture'}
               </span>
               <button
-                onClick={() => setPhase('hub')} // Redirecting to hub or we can add a 'switch'
-                className="ml-4 text-[8px] text-zinc-600 hover:text-white uppercase tracking-widest underline decoration-zinc-800"
+                onClick={() => setPhase('hub')}
+                className="ml-4 text-[11px] text-zinc-500 hover:text-white uppercase tracking-widest underline decoration-zinc-800 cursor-pointer"
               >
                 Change Scenario
               </button>
@@ -594,7 +597,7 @@ export default function Runtime() {
                 activeBlueprint || undefined
               )
             }
-            className="px-2 py-1 text-xs font-mono text-zinc-400 hover:text-zinc-100 bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800 transition-colors rounded"
+            className="px-2.5 py-1 text-xs font-mono text-zinc-400 hover:text-zinc-100 bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800 transition-colors rounded cursor-pointer"
             title="Export to Markdown"
           >
             [ EXPORT .MD ]
@@ -608,7 +611,7 @@ export default function Runtime() {
                 activeBlueprint || undefined
               )
             }
-            className="px-2 py-1 text-xs font-mono text-zinc-400 hover:text-zinc-100 bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800 transition-colors rounded"
+            className="px-2.5 py-1 text-xs font-mono text-zinc-400 hover:text-zinc-100 bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800 transition-colors rounded cursor-pointer"
             title="Export to HTML"
           >
             [ EXPORT .HTML ]
@@ -618,17 +621,20 @@ export default function Runtime() {
               resetEngine();
               useAppStore.getState().resetSession();
             }}
-            className="px-2 py-1 text-xs font-mono text-red-400 hover:text-red-100 bg-red-900/20 hover:bg-red-900/50 border border-red-900/50 transition-colors duration-150 rounded mr-4"
+            className="px-2.5 py-1 text-xs font-mono text-red-400 hover:text-red-100 bg-red-900/20 hover:bg-red-900/50 border border-red-900/50 transition-colors duration-150 rounded mr-4 cursor-pointer"
             title="Hard Reset Engine"
           >
             [ FLUSH STATE ]
           </button>
-          <div className="flex items-center gap-2 text-zinc-600">
-            <Terminal className="w-3 h-3" />
-            <span className="text-[8px] uppercase tracking-[0.3em]">Simulation Active</span>
+          <div className="flex items-center gap-2 text-zinc-500">
+            <Terminal className="w-3.5 h-3.5 text-zinc-400" />
+            <span className="text-[11px] uppercase tracking-[0.3em]">Simulation Active</span>
           </div>
         </div>
       </header>
+
+      {/* Persistent Antagonist Simulation Contract Strip (Read-Only) */}
+      <AntagonistContractDisplay />
 
       {/* THE VOID (Primary Reading Area Container) */}
       {/* CORRECTION: Swapping out default scroll utilities for custom-scrollbar / no-scrollbar tracking */}
@@ -689,8 +695,12 @@ export default function Runtime() {
 
             {/* The input container - seamlessly integrated into the void */}
             <div className="flex-1 relative flex items-end border-b border-zinc-800 focus-within:border-zinc-500 transition-colors duration-1000">
-              <span className="text-[10px] uppercase tracking-widest opacity-50 mr-4 mb-4 shrink-0 font-bold">
-                [ SUBJECT ]
+              <span className="text-xs uppercase tracking-widest opacity-80 mr-4 mb-4 shrink-0 font-bold text-zinc-400">
+                {participationContext?.mode === 'antagonist' || selectedRole === 'antagonist'
+                  ? '[ ANTAGONIST ]'
+                  : participationContext?.mode === 'director' || selectedRole === 'director'
+                    ? '[ DIRECTOR ]'
+                    : '[ PROTAGONIST ]'}
               </span>
 
               <textarea
@@ -714,7 +724,7 @@ export default function Runtime() {
                         ? 'Autopilot active...'
                         : 'What do you do? (Shift+Enter for new line)'
                 }
-                className="w-full bg-transparent text-sm py-3 resize-none focus:outline-none placeholder:text-zinc-700 min-h-[48px] max-h-[30vh] custom-scrollbar leading-relaxed disabled:opacity-50"
+                className="w-full bg-transparent text-sm py-3 resize-none focus:outline-none placeholder:text-zinc-700 min-h-[48px] max-h-[30vh] custom-scrollbar leading-relaxed disabled:opacity-50 text-zinc-100"
               />
 
               {/* Blinking indicator dot */}

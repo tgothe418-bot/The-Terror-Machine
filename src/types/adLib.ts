@@ -1,20 +1,11 @@
 import { z } from 'zod';
+import {
+  OppositionSeatSchema,
+  AuthorityContractSchema,
+  VictimFieldSchema,
+} from './participation';
 
-export const ParticipationModeSchema = z.enum(['protagonist', 'antagonist', 'director']);
-export type ParticipationMode = z.infer<typeof ParticipationModeSchema>;
-
-export const OppositionSeatKindSchema = z.enum(['character', 'force']);
-export type OppositionSeatKind = z.infer<typeof OppositionSeatKindSchema>;
-
-export const OppositionSeatSchema = z.object({
-  kind: OppositionSeatKindSchema,
-  name: z.string().trim().min(1, 'Name or designation is required').max(100),
-  description: z.string().trim().min(1, 'Description is required').max(300),
-  goal: z.string().trim().min(1, 'Opposition threat goal is required').max(200),
-  ability: z.string().trim().max(200).optional(),
-  limitation: z.string().trim().max(200).optional(),
-});
-export type OppositionSeat = z.infer<typeof OppositionSeatSchema>;
+export * from './participation';
 
 export const AdLibProtagonistInductionSchema = z.object({
   participationMode: z.literal('protagonist'),
@@ -28,12 +19,18 @@ export const AdLibProtagonistInductionSchema = z.object({
 });
 export type AdLibProtagonistInduction = z.infer<typeof AdLibProtagonistInductionSchema>;
 
+/**
+ * Phase 3B Antagonist Induction Schema.
+ * Requires scenario seeds, opposition seat, canonical Authority Contract, and Victim Field.
+ */
 export const AdLibAntagonistInductionSchema = z.object({
   participationMode: z.literal('antagonist'),
   placeSeed: z.string().trim().min(1, 'Location or haunted place seed is required').max(200),
   goal: z.string().trim().min(1, 'Core goal is required').max(200),
   unsettlingDetail: z.string().trim().max(200).optional(),
   oppositionSeat: OppositionSeatSchema,
+  authorityContract: AuthorityContractSchema,
+  victimField: VictimFieldSchema,
 });
 export type AdLibAntagonistInduction = z.infer<typeof AdLibAntagonistInductionSchema>;
 
@@ -52,20 +49,3 @@ export const AdLibInductionSchema = z.discriminatedUnion('participationMode', [
   AdLibDirectorInductionSchema,
 ]);
 export type AdLibInduction = z.infer<typeof AdLibInductionSchema>;
-
-export const ParticipationSeatSchema = z.object({
-  kind: z.enum(['protagonist', 'character', 'force', 'director']),
-  name: z.string().trim().min(1).max(100),
-  description: z.string().trim().max(300).optional(),
-  ability: z.string().trim().max(200).optional(),
-  limitation: z.string().trim().max(200).optional(),
-});
-export type ParticipationSeat = z.infer<typeof ParticipationSeatSchema>;
-
-export const ParticipationContextSchema = z.object({
-  mode: ParticipationModeSchema,
-  seat: ParticipationSeatSchema.optional(),
-  initialGoal: z.string().trim().min(1).max(200),
-  boundedFacts: z.array(z.string().trim().max(250)).max(8).default([]),
-});
-export type ParticipationContext = z.infer<typeof ParticipationContextSchema>;
