@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { Blueprint, LogicState, Message, PlayerRole, PerspectiveMode, ParticipationContext } from '../types';
+import { Blueprint, BlueprintSchema, LogicState, Message, PlayerRole, PerspectiveMode, ParticipationContext } from '../types';
 import { idbStorage } from '../lib/idbStorage';
 import { distillContext } from '../services/geminiService';
 import { useAppStore } from '../store/useAppStore';
@@ -101,8 +101,9 @@ export const useEngineStore = create<EngineState>()(
       telemetry: null,
       updateTelemetry: (metrics) => set({ telemetry: metrics }),
       setBlueprint: (blueprint, role, participationContext = null) => {
-        // Normalize blueprint before saving
-        const normalizedBlueprint = normalizeBlueprint(blueprint);
+        // If blueprint is already valid canonical Blueprint, preserve exact object reference; otherwise normalize
+        const parsed = BlueprintSchema.safeParse(blueprint);
+        const normalizedBlueprint = parsed.success ? (blueprint as Blueprint) : normalizeBlueprint(blueprint);
         const { playerRole, characterId, perspectiveMode } = resolvePerspectiveBinding(
           normalizedBlueprint,
           role

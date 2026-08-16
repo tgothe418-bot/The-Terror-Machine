@@ -234,7 +234,7 @@ describe('compileBlueprintDraft and prepareBlueprintExport', () => {
       cast: [
         {
           id: 'c1',
-          name: 'Archivist Thorne',
+          name: 'Archivist Calder',
           role: 'Observer',
           behaviorVector: 'ADAPTIVE',
           isEntity: false,
@@ -288,8 +288,8 @@ describe('compileBlueprintDraft and prepareBlueprintExport', () => {
     expect(Object.isFrozen(validDraft)).toBe(false);
     expect(Object.isFrozen(validDraft.cast)).toBe(false);
     expect(Object.isFrozen(validDraft.cast![0])).toBe(false);
-    validDraft.cast![0].name = 'Archivist Thorne Updated';
-    expect(validDraft.cast![0].name).toBe('Archivist Thorne Updated');
+    validDraft.cast![0].name = 'Archivist Calder Updated';
+    expect(validDraft.cast![0].name).toBe('Archivist Calder Updated');
   });
 
   it('is value-idempotent when compiling an already compiled Blueprint', () => {

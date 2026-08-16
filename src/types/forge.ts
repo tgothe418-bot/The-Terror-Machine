@@ -84,7 +84,7 @@ export const ForgeDraftTopologySchema = z.object({
 
 export const ForgeDraftNarrativeRulesSchema = z.object({
   incitingIncident: z.string().optional().default(''),
-  phaseDirectives: z.record(z.string()).optional().default({}),
+  phaseDirectives: z.record(z.string(), z.string()).optional().default({}),
   currentTensionLevel: z.string().optional().default('buildup'),
   keyPlotElements: z.array(z.string()).optional().default([]),
   pacingDirectives: z.string().optional(),
@@ -134,14 +134,14 @@ export const ForgeDraftSchema = z.object({
   hauntedHouse: HauntedHouseProvenanceSchema.optional(),
 });
 
-export type ForgeDraft = z.infer<typeof ForgeDraftSchema>;
+export type ForgeDraft = z.input<typeof ForgeDraftSchema>;
 export type ForgeDraftPatch = Partial<ForgeDraft>;
-export type ForgeDraftIdentity = z.infer<typeof ForgeDraftIdentitySchema>;
-export type ForgeDraftSetting = z.infer<typeof ForgeDraftSettingSchema>;
-export type ForgeDraftCastMember = z.infer<typeof ForgeDraftCastMemberSchema>;
-export type ForgeDraftPerspective = z.infer<typeof ForgeDraftPerspectiveSchema>;
-export type ForgeDraftTopology = z.infer<typeof ForgeDraftTopologySchema>;
-export type ForgeDraftNarrativeRules = z.infer<typeof ForgeDraftNarrativeRulesSchema>;
+export type ForgeDraftIdentity = z.input<typeof ForgeDraftIdentitySchema>;
+export type ForgeDraftSetting = z.input<typeof ForgeDraftSettingSchema>;
+export type ForgeDraftCastMember = z.input<typeof ForgeDraftCastMemberSchema>;
+export type ForgeDraftPerspective = z.input<typeof ForgeDraftPerspectiveSchema>;
+export type ForgeDraftTopology = z.input<typeof ForgeDraftTopologySchema>;
+export type ForgeDraftNarrativeRules = z.input<typeof ForgeDraftNarrativeRulesSchema>;
 
 export interface ForgeValidationResult {
   valid: boolean;

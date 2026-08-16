@@ -8,7 +8,6 @@ import {
   ProseStyleVector,
   Blueprint,
   ScenarioBlueprint,
-  TopologyEdge,
 } from '../types';
 import {
   ForgeDraft,
@@ -546,7 +545,7 @@ export const useForgeStoreInternal = create<ForgeStore>()(
               return false;
             });
 
-            let updatedConnections: (TopologyEdge | string)[];
+            let updatedConnections;
             if (existingIndex >= 0) {
               updatedConnections = connections.filter((_, idx) => idx !== existingIndex);
             } else {
@@ -555,7 +554,7 @@ export const useForgeStoreInternal = create<ForgeStore>()(
                 {
                   from: nodeA,
                   to: nodeB,
-                  kind: 'PHYSICAL',
+                  kind: 'PHYSICAL' as const,
                   userInitiated: true,
                 },
               ];

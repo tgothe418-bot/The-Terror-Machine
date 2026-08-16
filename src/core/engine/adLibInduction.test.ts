@@ -1148,7 +1148,7 @@ describe('Phase 3B: Antagonist Authority Contracts & Victim Framing', () => {
       expect(sessionResult.initialSpatialNode).toBe(originalNode);
 
       const engineState = useEngineStore.getState();
-      expect(engineState.activeBlueprint).toEqual(reviewedBlueprint);
+      expect(engineState.activeBlueprint).toBe(reviewedBlueprint);
       expect(engineState.participationContext).toBe(originalContext);
 
       const appState = useAppStore.getState();

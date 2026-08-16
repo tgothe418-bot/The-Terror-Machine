@@ -102,7 +102,7 @@ describe('Phase 3D-1: Forge Draft Contract, Review Validation, and Compiler Boun
       identity: {
         title: 'Obsidian Sub-Level 4',
         version: '1.0',
-        author: 'Dr. Aris Thorne',
+        author: 'Dr. Aris Calder',
         thematicAnchor: 'Biological decay and isolation',
       },
       setting: {

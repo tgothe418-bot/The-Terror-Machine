@@ -12,7 +12,7 @@ import { normalizeBlueprint } from './normalizeBlueprint';
  * Recursively freezes plain objects and arrays to ensure deep immutability.
  * Does not freeze or mutate non-object primitives.
  */
-export function deepFreeze<T>(obj: T): Readonly<T> {
+export function deepFreeze<T>(obj: T): T {
   if (obj === null || typeof obj !== 'object') {
     return obj;
   }
@@ -25,7 +25,7 @@ export function deepFreeze<T>(obj: T): Readonly<T> {
     }
   }
 
-  return Object.freeze(obj);
+  return Object.freeze(obj) as T;
 }
 
 export class ForgeCompilationError extends Error {

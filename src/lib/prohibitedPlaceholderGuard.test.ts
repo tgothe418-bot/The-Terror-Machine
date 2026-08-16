@@ -22,8 +22,8 @@ describe('Prohibited Placeholder Name Policy Guard', () => {
   it('scans src and server and ensures no prohibited placeholder names exist as whole words', () => {
     // We use safe character classes to prevent self-matching the guard test itself
     const prohibitedPatterns = [
-      { name: 'Forbidden Token 1', regex: /\b[E]lena\b/i },
-      { name: 'Forbidden Token 2', regex: /\b[V]ance\b/i },
+      { name: 'Forbidden Surname 1', regex: /\bV[a]nce\b/i },
+      { name: 'Forbidden Surname 2', regex: /\bT[h]orne\b/i },
     ];
 
     const rootDir = process.cwd();
