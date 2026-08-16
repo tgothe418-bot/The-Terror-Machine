@@ -105,7 +105,7 @@ describe('Phase 3A: Ad Lib Induction & Participation Context', () => {
       expect(compiled.blueprint.cast).toHaveLength(1);
       expect(compiled.blueprint.cast[0].name).toBe('Lt. Ripley');
       expect(compiled.blueprint.cast[0].role).toBe('protagonist');
-      expect(compiled.blueprint.userCharacterId).toBe('char-protagonist');
+      expect(compiled.blueprint.cast[0].isUserCharacter).toBe(true);
 
       expect(compiled.participationContext.mode).toBe('protagonist');
       expect(compiled.participationContext.seat?.name).toBe('Lt. Ripley');
@@ -138,12 +138,14 @@ describe('Phase 3A: Ad Lib Induction & Participation Context', () => {
 
       // Force seat MUST NOT create an NPC in cast
       expect(compiled.blueprint.cast).toHaveLength(0);
-      expect(compiled.blueprint.userCharacterId).toBeUndefined();
 
       expect(compiled.participationContext.mode).toBe('antagonist');
       expect(compiled.participationContext.seat?.kind).toBe('force');
       expect(compiled.participationContext.seat?.name).toBe('The Stygian Tide');
-      expect(compiled.blueprint.environmentalRules.some((r) => r.includes('The Stygian Tide'))).toBe(true);
+      const envRules = Array.isArray(compiled.blueprint.environmentalRules)
+        ? compiled.blueprint.environmentalRules
+        : [compiled.blueprint.environmentalRules || ''];
+      expect(envRules.some((r) => r.includes('The Stygian Tide'))).toBe(true);
     });
 
     it('compiles director mode WITHOUT inventing any player character', () => {
@@ -158,7 +160,6 @@ describe('Phase 3A: Ad Lib Induction & Participation Context', () => {
       const compiled = compileAdLibInduction(input);
 
       expect(compiled.blueprint.cast).toHaveLength(0);
-      expect(compiled.blueprint.userCharacterId).toBeUndefined();
       expect(compiled.participationContext.mode).toBe('director');
       expect(compiled.participationContext.seat?.kind).toBe('director');
     });

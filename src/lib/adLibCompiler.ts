@@ -92,7 +92,6 @@ export function compileAdLibInduction(induction: AdLibInduction): {
         nodes: [startNodeId],
         connections: [],
       },
-      userCharacterId: charId,
       cast: [
         {
           id: charId,
@@ -106,8 +105,10 @@ export function compileAdLibInduction(induction: AdLibInduction): {
       ],
       perspectives: [
         {
-          role: 'protagonist',
-          subjectCharacterId: charId,
+          role: 'PROTAGONIST',
+          framingDirective: induction.unsettlingDetail || 'Focus on immediate physical and environmental threats.',
+          sensoryBias: ['auditory', 'visual'],
+          startingSemanticState: 'STABLE',
         },
       ],
       environmentalRules,
@@ -165,12 +166,10 @@ export function compileAdLibInduction(induction: AdLibInduction): {
     }
 
     let cast: ScenarioBlueprint['cast'] = [];
-    let userCharId: string | undefined;
 
     if (!isForce) {
       // Hostile character/creature seat
       const charId = 'char-antagonist';
-      userCharId = charId;
       cast = [
         {
           id: charId,
@@ -185,7 +184,6 @@ export function compileAdLibInduction(induction: AdLibInduction): {
     } else {
       // Force seat: DO NOT invent an NPC cast member
       cast = [];
-      userCharId = undefined;
     }
 
     const blueprint: ScenarioBlueprint = {
@@ -205,12 +203,13 @@ export function compileAdLibInduction(induction: AdLibInduction): {
         nodes: [startNodeId],
         connections: [],
       },
-      userCharacterId: userCharId,
       cast,
       perspectives: [
         {
-          role: 'antagonist',
-          subjectCharacterId: userCharId || null,
+          role: 'ANTAGONIST',
+          framingDirective: induction.unsettlingDetail || 'Focus on structural pressure and predatory observation.',
+          sensoryBias: ['tactile', 'spatial'],
+          startingSemanticState: 'STABLE',
         },
       ],
       environmentalRules,
@@ -275,12 +274,13 @@ export function compileAdLibInduction(induction: AdLibInduction): {
       nodes: [startNodeId],
       connections: [],
     },
-    userCharacterId: undefined,
     cast: [],
     perspectives: [
       {
-        role: 'director',
-        subjectCharacterId: null,
+        role: 'DIRECTOR',
+        framingDirective: induction.directorFocus || 'Focus on scene tension, pacing, and dramatic withholding.',
+        sensoryBias: ['atmospheric', 'dramatic'],
+        startingSemanticState: 'STABLE',
       },
     ],
     environmentalRules,
