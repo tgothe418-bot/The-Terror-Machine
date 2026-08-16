@@ -331,4 +331,151 @@ describe('useForgeStore - draft state and actions', () => {
     expect(state.draftBlueprint).toBe(state.forgeDraft);
     expect(state.draftBlueprint?.title).toBe('Single Authority Confirmation');
   });
+
+  test('11. registerSourceAnalysis registers analysis without mutating forgeDraft', () => {
+    forgeActions.initializeDraft({ title: 'Untouched Title', premise: 'Untouched Premise' });
+    const draftBefore = getForgeState().forgeDraft;
+
+    const mockAnalysis = {
+      id: 'analysis-1',
+      sourceRecord: {
+        id: 'src-1',
+        fileName: 'imported.json',
+        mimeType: 'application/json',
+        kind: 'native_blueprint' as const,
+        receivedAt: Date.now(),
+      },
+      summary: 'Imported test scenario',
+      evidence: [
+        {
+          id: 'ev-1',
+          sourceId: 'src-1',
+          category: 'identity' as const,
+          claim: 'Title is Overwrite Attempt',
+        },
+      ],
+      candidates: [
+        {
+          id: 'cand-1',
+          sourceId: 'src-1',
+          classification: 'evidence' as const,
+          target: 'scenario_title' as const,
+          label: 'Scenario Title',
+          explanation: 'Extracted title',
+          evidenceIds: ['ev-1'],
+          proposedValue: 'Overwrite Attempt',
+          reviewState: 'pending' as const,
+        },
+      ],
+      unknowns: [],
+      status: 'completed' as const,
+    };
+
+    forgeActions.registerSourceAnalysis(mockAnalysis);
+
+    const state = getForgeState();
+    expect(state.sourceAnalyses['analysis-1']).toBeDefined();
+    // Invariant 1: Uploading must never mutate or overwrite forgeDraft
+    expect(state.forgeDraft?.title).toBe('Untouched Title');
+    expect(state.forgeDraft?.premise).toBe('Untouched Premise');
+    expect(state.forgeDraft).toEqual(draftBefore);
+  });
+
+  test('12. acceptCandidate is the only path updating forgeDraft, recording provenance once', () => {
+    forgeActions.initializeDraft({ title: 'Initial Title' });
+
+    const mockAnalysis = {
+      id: 'analysis-2',
+      sourceRecord: {
+        id: 'src-2',
+        fileName: 'story_notes.pdf',
+        mimeType: 'application/pdf',
+        kind: 'document' as const,
+        receivedAt: Date.now(),
+      },
+      evidence: [],
+      candidates: [
+        {
+          id: 'cand-setting',
+          sourceId: 'src-2',
+          classification: 'evidence' as const,
+          target: 'setting_location' as const,
+          label: 'Location',
+          explanation: 'Extracted setting',
+          evidenceIds: [],
+          proposedValue: 'The Sunken Crypt',
+          reviewState: 'pending' as const,
+        },
+      ],
+      unknowns: [],
+      status: 'completed' as const,
+    };
+
+    forgeActions.registerSourceAnalysis(mockAnalysis);
+    expect(getForgeState().forgeDraft?.setting?.location).toBe('');
+
+    // Explicit accept
+    forgeActions.acceptCandidate('analysis-2', 'cand-setting');
+
+    const stateAfterAccept = getForgeState();
+    expect(stateAfterAccept.forgeDraft?.setting?.location).toBe('The Sunken Crypt');
+    expect(stateAfterAccept.forgeDraft?.references).toContain('story_notes.pdf');
+    expect(stateAfterAccept.sourceAnalyses['analysis-2'].candidates[0].reviewState).toBe('accepted');
+
+    // Removing analysis does NOT roll back accepted draft content
+    forgeActions.removeSourceAnalysis('analysis-2');
+    const stateAfterRemove = getForgeState();
+    expect(stateAfterRemove.sourceAnalyses['analysis-2']).toBeUndefined();
+    expect(stateAfterRemove.forgeDraft?.setting?.location).toBe('The Sunken Crypt');
+    expect(stateAfterRemove.forgeDraft?.references).toContain('story_notes.pdf');
+  });
+
+  test('13. rejectCandidate and editPendingCandidate do not mutate forgeDraft', () => {
+    forgeActions.initializeDraft({ title: 'Authored Title' });
+
+    const mockAnalysis = {
+      id: 'analysis-3',
+      sourceRecord: {
+        id: 'src-3',
+        fileName: 'notes.txt',
+        mimeType: 'text/plain',
+        kind: 'document' as const,
+        receivedAt: Date.now(),
+      },
+      evidence: [],
+      candidates: [
+        {
+          id: 'cand-premise',
+          sourceId: 'src-3',
+          classification: 'inference' as const,
+          target: 'premise' as const,
+          label: 'Premise',
+          explanation: 'Inferred premise',
+          evidenceIds: [],
+          proposedValue: 'Inferred Premise text',
+          reviewState: 'pending' as const,
+        },
+      ],
+      unknowns: [],
+      status: 'completed' as const,
+    };
+
+    forgeActions.registerSourceAnalysis(mockAnalysis);
+
+    // Edit candidate proposal
+    forgeActions.editPendingCandidate('analysis-3', 'cand-premise', 'Polished Inferred Premise');
+    const stateAfterEdit = getForgeState();
+    expect(stateAfterEdit.sourceAnalyses['analysis-3'].candidates[0].proposedValue).toBe(
+      'Polished Inferred Premise'
+    );
+    expect(stateAfterEdit.forgeDraft?.premise).toBe('');
+
+    // Reject candidate
+    forgeActions.rejectCandidate('analysis-3', 'cand-premise');
+    const stateAfterReject = getForgeState();
+    expect(stateAfterReject.sourceAnalyses['analysis-3'].candidates[0].reviewState).toBe('rejected');
+    expect(stateAfterReject.forgeDraft?.premise).toBe('');
+    expect(stateAfterReject.forgeDraft?.title).toBe('Authored Title');
+  });
 });
+

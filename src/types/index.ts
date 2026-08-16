@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { EdgeKind, EdgeKindSchema, TopologyDelta, TransitionReceipt } from './engineContract';
 import { HauntedHouseProvenanceSchema, HauntedHouseProvenance } from './participation';
+import { CharacterExpressionProfileSchema, CharacterExpressionProfile } from './forge';
 export * from './engineContract';
 export * from './participation';
 export * from './forge';
@@ -59,6 +60,7 @@ export const CastMemberSchema = z.object({
   behaviorVector: z.string().optional().default('ADAPTIVE'),
   isEntity: z.boolean().optional().default(false),
   vulnerabilityBase: VulnerabilityIndexSchema.optional(),
+  expressionProfile: CharacterExpressionProfileSchema.optional(),
 });
 
 export const BlueprintSchema = z.object({
@@ -195,6 +197,7 @@ export interface CharacterProfile {
   behavioralVector?: string;
   isEntity?: boolean;
   vulnerabilityBase?: VulnerabilityIndex;
+  expressionProfile?: CharacterExpressionProfile;
 }
 
 export interface TerminalConditions {

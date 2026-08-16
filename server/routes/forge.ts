@@ -19,6 +19,7 @@ import {
   getDecodedBase64ByteLength,
   createPayloadTooLargeError
 } from "../../src/lib/referenceImportPolicy";
+import { buildSourceAnalysisFromBlueprint } from "../../src/lib/sourceBaseline";
 
 const router = express.Router();
 
@@ -456,8 +457,15 @@ router.post("/extract-blueprint", async (req, res) => {
     if (jsonMatch) {
       try {
         const parsedData = JSON.parse(jsonMatch[1] || jsonMatch[0]);
+        const analysis = buildSourceAnalysisFromBlueprint(
+          parsedData.blueprint,
+          fileName,
+          decodedByteLength
+        );
         
         res.json({ 
+          success: true,
+          analysis,
           blueprint: parsedData.blueprint, 
           architectGreeting: parsedData.architectGreeting 
         });

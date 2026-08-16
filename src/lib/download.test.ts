@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildEngineLogContent } from './download';
+import { buildEngineLogContent, generateTelemetryFilename } from './download';
 
 const mockReceipt = {
   version: 1,
@@ -182,5 +182,26 @@ describe('Engine telemetry export', () => {
     expect(md).toContain('"activeVector": "COSMIC"');
     expect(md).toContain('"activeTier": "MANIFEST"');
     expect(md).toContain('FLAG_ARCHWAY_CROSSED');
+  });
+
+  it('generates standardized structured telemetry export filenames', () => {
+    const filenameHtml = generateTelemetryFilename(
+      'The Drowned Bell',
+      'antagonist-bellkeeper',
+      new Date('2026-08-16T14:30:00Z'),
+      'html'
+    );
+    expect(filenameHtml).toBe('the-drowned-bell_antagonist-bellkeeper_2026-08-16.html');
+
+    const filenameMd = generateTelemetryFilename(
+      'Submerged Echo Chamber',
+      'protagonist',
+      new Date('2026-08-16T00:00:00Z'),
+      'md'
+    );
+    expect(filenameMd).toBe('submerged-echo-chamber_protagonist_2026-08-16.md');
+
+    const fallback = generateTelemetryFilename(undefined, undefined, new Date('2026-08-16T00:00:00Z'));
+    expect(fallback).toBe('scenario_session_2026-08-16.html');
   });
 });

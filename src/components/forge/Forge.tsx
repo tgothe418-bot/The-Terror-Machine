@@ -9,6 +9,7 @@ import { ArrowLeft, Trash2 } from 'lucide-react';
 import { AutopilotVector } from '../../types';
 
 import { CampaignTopologyPanel } from './CampaignTopologyPanel';
+import { ScenarioBaselinePanel } from './ScenarioBaselinePanel';
 import { prepareBlueprintExport } from '../../lib/compileBlueprintDraft';
 
 export default function Forge() {
@@ -161,6 +162,9 @@ export default function Forge() {
             <div className="col-span-7 flex flex-col space-y-6 overflow-y-auto pr-4 pb-8 custom-scrollbar">
               {/* Intake/Knowledgebase Dropzone */}
               <FileDropzone />
+
+              {/* Source Baseline & Scenario Intake Candidate Review */}
+              <ScenarioBaselinePanel />
 
               {/* SCENARIO IDENTITY (TITLE & STARTING LOCATION) */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -367,6 +371,41 @@ export default function Forge() {
                         className="w-full bg-transparent text-zinc-300 font-mono text-xs resize-none focus:outline-none custom-scrollbar min-h-[44px] leading-relaxed mt-1"
                         placeholder="Psychological profile, inventory, or narrative vulnerability..."
                       />
+
+                      {/* Cast Expression Profile Guidance (if present) */}
+                      {char.expressionProfile && (
+                        <div className="mt-1 pt-2 border-t border-zinc-900 flex flex-col gap-1 text-[11px] font-mono text-zinc-400">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] uppercase font-bold text-cyan-400">
+                              Expression Profile Guidance
+                            </span>
+                            {char.expressionProfile.demeanor && (
+                              <span className="text-[10px] text-zinc-400 italic">
+                                Demeanor: {char.expressionProfile.demeanor}
+                              </span>
+                            )}
+                          </div>
+                          {char.expressionProfile.styleGuidance && (
+                            <p className="text-[10px] text-zinc-400 leading-snug">
+                              {char.expressionProfile.styleGuidance}
+                            </p>
+                          )}
+                          {char.expressionProfile.forbiddenPhrases &&
+                            char.expressionProfile.forbiddenPhrases.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                <span className="text-[9px] text-red-400/80 uppercase">Avoid:</span>
+                                {char.expressionProfile.forbiddenPhrases.map((phrase, pi) => (
+                                  <span
+                                    key={pi}
+                                    className="text-[9px] px-1.5 py-0.2 bg-red-950/30 border border-red-900/40 text-red-300 rounded"
+                                  >
+                                    "{phrase}"
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                        </div>
+                      )}
                     </div>
                   ))}
 

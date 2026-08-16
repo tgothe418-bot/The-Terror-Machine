@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useForgeState, forgeActions, DraftBlueprintPatch } from '../../store/useForgeStore';
+import { useForgeState, forgeActions } from '../../store/useForgeStore';
 import { fileToBase64, parseBlueprintFile } from '../../lib/fileParser';
 import {
   REFERENCE_IMPORT_MAX_FILE_BYTES,
@@ -7,6 +7,7 @@ import {
   REFERENCE_IMPORT_HUMAN_MAX_SIZE,
 } from '../../lib/referenceImportPolicy';
 import { readSafeResponseError } from '../../lib/responseErrorReader';
+import { buildSourceAnalysisFromBlueprint } from '../../lib/sourceBaseline';
 
 export const FileDropzone = () => {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -14,7 +15,7 @@ export const FileDropzone = () => {
   const [error, setError] = useState('');
 
   const draftBlueprint = useForgeState((state) => state.draftBlueprint);
-  const { updateDraft, removeReference, addArchitectMessage } = forgeActions;
+  const { registerSourceAnalysis, removeReference, addArchitectMessage } = forgeActions;
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -23,14 +24,21 @@ export const FileDropzone = () => {
     setIsProcessing(true);
     setError('');
     setLoadingMsg(
-      `[ ARCHITECT ASSIMILATING LORE: ${file.name} ]\nThis may take a moment for large files...`
+      `[ ARCHITECT ASSIMILATING LORE: ${file.name} ]\nExtracting baseline candidates for review...`
     );
 
     try {
       // 1. JSON Blueprint Native Load (Local parsing)
-      if (file.type === 'application/json') {
-        const blueprint = (await parseBlueprintFile(file)) as DraftBlueprintPatch;
-        updateDraft(blueprint || {});
+      if (file.type === 'application/json' || file.name.endsWith('.json')) {
+        const rawJson = await parseBlueprintFile(file);
+        const analysis = buildSourceAnalysisFromBlueprint(rawJson, file.name, file.size);
+        registerSourceAnalysis(analysis);
+
+        addArchitectMessage({
+          role: 'architect',
+          content: `[KNOWLEDGEBASE ANALYZED: ${file.name}]\nExtracted ${analysis.candidates.length} baseline candidates for review. The active authoring draft remains unchanged until you accept candidates.`,
+        });
+
         setIsProcessing(false);
         return;
       }
@@ -67,24 +75,22 @@ export const FileDropzone = () => {
 
       if (data.error) throw new Error(data.error);
 
-      if (data.blueprint) {
-        // Merge existing references with the new one
-        const currentRefs = draftBlueprint?.references || [];
-        const updatedRefs = currentRefs.includes(file.name)
-          ? currentRefs
-          : [...currentRefs, file.name];
+      // Prefer server-generated analysis or build client-side from extracted blueprint
+      const analysis =
+        data.analysis ||
+        (data.blueprint
+          ? buildSourceAnalysisFromBlueprint(data.blueprint, file.name, file.size)
+          : null);
 
-        updateDraft({
-          ...data.blueprint,
-          references: updatedRefs,
+      if (analysis) {
+        registerSourceAnalysis(analysis);
+      }
+
+      if (data.architectGreeting) {
+        addArchitectMessage({
+          role: 'architect',
+          content: `[KNOWLEDGEBASE EXTRACTED: ${file.name}]\n\n${data.architectGreeting}\n\n[Baseline candidates generated. Review and accept candidates to apply them to your active draft.]`,
         });
-
-        if (data.architectGreeting) {
-          addArchitectMessage({
-            role: 'architect',
-            content: `[KNOWLEDGEBASE EXTRACTED: ${file.name}]\n\n${data.architectGreeting}`,
-          });
-        }
       }
     } catch (err: unknown) {
       console.error(

@@ -18,8 +18,14 @@ import {
   ForgeDraftIdentity,
   ForgeDraftSetting,
   ForgeDraftNarrativeRules,
+  ForgeSourceAnalysis,
 } from '../types/forge';
 import { idbStorage } from '../lib/idbStorage';
+import {
+  applyCandidateToDraft,
+  validateCandidateEdit,
+  rejectCandidate as rejectCandidatePure,
+} from '../lib/sourceBaseline';
 
 export const defaultStyleVector: ProseStyleVector = {
   sentenceStructure: 'clinical-flat',
@@ -137,6 +143,13 @@ export interface ForgeActions {
   resetStore: () => void;
   clearHistory: () => void;
 
+  // --- SOURCE INTAKE & SCENARIO BASELINE ACTIONS (Phase 3D-2) ---
+  registerSourceAnalysis: (analysis: ForgeSourceAnalysis) => void;
+  editPendingCandidate: (sourceId: string, candidateId: string, editedValue: unknown) => void;
+  acceptCandidate: (sourceId: string, candidateId: string) => void;
+  rejectCandidate: (sourceId: string, candidateId: string) => void;
+  removeSourceAnalysis: (sourceId: string) => void;
+
   // --- ARCHITECT CHAT (PROPOSAL-ONLY IN PHASE 3D-1) ---
   addArchitectMessage: (message: ArchitectMessage) => void;
   clearArchitectChat: () => void;
@@ -183,6 +196,9 @@ export interface ForgeState {
    * @deprecated Read/write forgeDraft instead. Synchronized alias to forgeDraft for legacy callers.
    */
   draftBlueprint: ForgeDraft | null;
+
+  // --- SOURCE INTAKE STATE (Phase 3D-2) ---
+  sourceAnalyses: Record<string, ForgeSourceAnalysis>;
 
   // --- ARCHITECT CHAT STATE ---
   architectMessages: ArchitectMessage[];
@@ -254,6 +270,7 @@ const createInitialDraft = (initial?: ForgeDraftPatch): ForgeDraft => ({
 const initialState: ForgeState = {
   forgeDraft: null,
   draftBlueprint: null,
+  sourceAnalyses: {},
   architectMessages: [
     {
       role: 'architect',
@@ -375,6 +392,105 @@ export const useForgeStoreInternal = create<ForgeStore>()(
 
         resetStore: () => set(initialState),
         clearHistory: () => set(initialState),
+
+        // --- SOURCE INTAKE & SCENARIO BASELINE ACTIONS (Phase 3D-2) ---
+        registerSourceAnalysis: (analysis: ForgeSourceAnalysis) =>
+          set((state: ForgeState) => ({
+            sourceAnalyses: {
+              ...state.sourceAnalyses,
+              [analysis.id]: analysis,
+            },
+          })),
+
+        editPendingCandidate: (sourceId: string, candidateId: string, editedValue: unknown) =>
+          set((state: ForgeState) => {
+            const analysis = state.sourceAnalyses[sourceId];
+            if (!analysis) return state;
+            const cand = analysis.candidates.find((c) => c.id === candidateId);
+            if (!cand) return state;
+
+            const editResult = validateCandidateEdit(cand, editedValue);
+            if (!editResult.valid || !editResult.updatedCandidate) return state;
+
+            const updatedCandidates = analysis.candidates.map((c) =>
+              c.id === candidateId ? editResult.updatedCandidate! : c
+            );
+
+            return {
+              sourceAnalyses: {
+                ...state.sourceAnalyses,
+                [sourceId]: {
+                  ...analysis,
+                  candidates: updatedCandidates,
+                },
+              },
+            };
+          }),
+
+        acceptCandidate: (sourceId: string, candidateId: string) =>
+          set((state: ForgeState) => {
+            const analysis = state.sourceAnalyses[sourceId];
+            if (!analysis) return state;
+            const cand = analysis.candidates.find((c) => c.id === candidateId);
+            if (!cand || cand.reviewState === 'accepted') return state;
+
+            const currentDraft = state.forgeDraft || createInitialDraft();
+            const updatedDraft = applyCandidateToDraft(
+              currentDraft,
+              cand,
+              analysis.sourceRecord.fileName
+            );
+
+            const updatedCandidates = analysis.candidates.map((c) =>
+              c.id === candidateId ? { ...c, reviewState: 'accepted' as const } : c
+            );
+
+            return {
+              forgeDraft: updatedDraft,
+              draftBlueprint: updatedDraft,
+              castLedger: deriveCastLedger(updatedDraft),
+              topology: deriveTopology(updatedDraft),
+              sourceAnalyses: {
+                ...state.sourceAnalyses,
+                [sourceId]: {
+                  ...analysis,
+                  candidates: updatedCandidates,
+                },
+              },
+            };
+          }),
+
+        rejectCandidate: (sourceId: string, candidateId: string) =>
+          set((state: ForgeState) => {
+            const analysis = state.sourceAnalyses[sourceId];
+            if (!analysis) return state;
+            const cand = analysis.candidates.find((c) => c.id === candidateId);
+            if (!cand) return state;
+
+            const updatedCand = rejectCandidatePure(cand);
+            const updatedCandidates = analysis.candidates.map((c) =>
+              c.id === candidateId ? updatedCand : c
+            );
+
+            return {
+              sourceAnalyses: {
+                ...state.sourceAnalyses,
+                [sourceId]: {
+                  ...analysis,
+                  candidates: updatedCandidates,
+                },
+              },
+            };
+          }),
+
+        removeSourceAnalysis: (sourceId: string) =>
+          set((state: ForgeState) => {
+            const remaining = { ...state.sourceAnalyses };
+            delete remaining[sourceId];
+            return {
+              sourceAnalyses: remaining,
+            };
+          }),
 
         // --- ARCHITECT CHAT ACTIONS ---
         addArchitectMessage: (message: ArchitectMessage) =>
@@ -721,6 +837,9 @@ export const useForgeStoreInternal = create<ForgeStore>()(
           if (!state.forgeDraft && stateRecord.draftBlueprint) {
             state.forgeDraft = stateRecord.draftBlueprint as ForgeDraft;
           }
+          if (!state.sourceAnalyses) {
+            state.sourceAnalyses = {};
+          }
           // Ensure draftBlueprint is aligned with forgeDraft
           state.draftBlueprint = state.forgeDraft;
           state.castLedger = deriveCastLedger(state.forgeDraft);
@@ -728,9 +847,10 @@ export const useForgeStoreInternal = create<ForgeStore>()(
         }
       },
       partialize: (state) => {
-        // Persist only canonical Forge draft and intentionally retained UI state
+        // Persist only canonical Forge draft, source baseline metadata, and intentionally retained UI state
         return {
           forgeDraft: state.forgeDraft,
+          sourceAnalyses: state.sourceAnalyses,
           architectMessages: state.architectMessages,
           who: state.who,
           what: state.what,

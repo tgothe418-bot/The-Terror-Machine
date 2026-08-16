@@ -445,24 +445,67 @@ export const buildEngineLogContent = (
   return { content, mimeType, extension };
 };
 
+export function generateTelemetryFilename(
+  scenarioTitle?: string,
+  roleOrSeat?: string,
+  date: Date = new Date(),
+  format: 'html' | 'md' = 'html'
+): string {
+  const cleanSlug = (str?: string): string => {
+    if (!str || typeof str !== 'string') return '';
+    return str
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+  };
+
+  const titleSlug = cleanSlug(scenarioTitle) || 'scenario';
+  const roleSlug = cleanSlug(roleOrSeat) || 'session';
+  const dateStr = date.toISOString().slice(0, 10); // YYYY-MM-DD
+
+  return `${titleSlug}_${roleSlug}_${dateStr}.${format}`;
+}
+
 export const exportEngineLog = (
   messages: any[],
   format: 'md' | 'html',
   title: string = 'engine-telemetry',
   blueprint?: any
 ) => {
-  const output = buildEngineLogContent(messages, format, title, blueprint);
+  const capturedAt = new Date();
+  const output = buildEngineLogContent(messages, format, title, blueprint, capturedAt);
   if (!output) {
     console.warn('// ENGINE EXPORT FAILED // Empty array state passed.');
     return;
   }
 
-  const { content, mimeType, extension } = output;
+  const recordedReceipt = messages.find((m) => m?.contextReceipt)?.contextReceipt;
+  const scenarioTitle =
+    blueprint?.identity?.title ||
+    blueprint?.title ||
+    blueprint?.setting?.location ||
+    recordedReceipt?.scenarioTitle ||
+    (title !== 'engine-telemetry' ? title : 'scenario');
+
+  let seatOrRole = 'session';
+  if (recordedReceipt?.selectedRole) {
+    seatOrRole = recordedReceipt.resolvedPlayerName
+      ? `${recordedReceipt.selectedRole}-${recordedReceipt.resolvedPlayerName}`
+      : recordedReceipt.selectedRole;
+  } else if (blueprint?.hauntedHouse?.recommendedParticipationMode) {
+    const rec = blueprint.hauntedHouse.recommendedParticipationMode;
+    const seatName = blueprint.hauntedHouse?.participationContext?.seat?.name;
+    seatOrRole = seatName ? `${rec}-${seatName}` : rec;
+  }
+
+  const filename = generateTelemetryFilename(scenarioTitle, seatOrRole, capturedAt, format);
+
+  const { content, mimeType } = output;
   const blob = new Blob([content], { type: mimeType });
   const url = URL.createObjectURL(blob);
   const downloadLink = document.createElement('a');
   downloadLink.href = url;
-  downloadLink.setAttribute('download', `${title}-${Date.now()}.${extension}`);
+  downloadLink.setAttribute('download', filename);
   document.body.appendChild(downloadLink);
   downloadLink.click();
   document.body.removeChild(downloadLink);
