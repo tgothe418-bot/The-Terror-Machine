@@ -96,7 +96,7 @@ export function generateAdLibCampaign(params: GenerateAdLibParams = {}) {
 
     const fallbackBlueprint: ScenarioBlueprint = {
       id: `adlib-${crypto.randomUUID()}`,
-      title: hauntedHouseData.title || 'Haunted House Ad-Lib',
+      title: hauntedHouseData.title || 'Ad Lib Scenario',
       contentScale: size,
       contentLevelDescription: `${aesthetic.toUpperCase()} AD-LIB INDUCTION`,
       aesthetic: aesthetic,
@@ -153,7 +153,7 @@ export function generateAdLibCampaign(params: GenerateAdLibParams = {}) {
   // Create & set adLibBlueprint in useEngineStore
   const adLibBlueprint: ScenarioBlueprint = {
     id: `adlib-${crypto.randomUUID()}`,
-    title: safeBundle.title || 'Haunted House Ad-Lib',
+    title: safeBundle.title || 'Ad Lib Scenario',
     contentScale: size,
     contentLevelDescription: `${aesthetic.toUpperCase()} AD-LIB INDUCTION`,
     aesthetic: aesthetic,

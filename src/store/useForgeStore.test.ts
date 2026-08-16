@@ -60,7 +60,7 @@ describe('useForgeStore - draft state and actions', () => {
   test('3. Updating nested cast or perspective data produces a new draft structure and does not mutate the prior state snapshot', () => {
     forgeActions.initializeDraft();
     const initialCast: DraftCastMember[] = [
-      { id: 'c1', name: 'Dr. Aris', description: 'Lead Researcher', behaviorVector: 'ADAPTIVE' },
+      { id: 'c1', name: 'Lead Researcher', description: 'Station Scientific Lead', behaviorVector: 'ADAPTIVE' },
     ];
     const initialPerspectives: DraftPerspective[] = [
       {
@@ -82,7 +82,7 @@ describe('useForgeStore - draft state and actions', () => {
 
     // Perform immutable nested cast update
     const updatedCast = castSnapshotBefore.map((c) =>
-      c.id === 'c1' ? { ...c, name: 'Dr. Aris Thorne', behaviorVector: 'PANIC' } : c
+      c.id === 'c1' ? { ...c, name: 'Senior Specialist', behaviorVector: 'PANIC' } : c
     );
     const updatedPerspectives = perspectiveSnapshotBefore.map((p) =>
       p.role === 'PROTAGONIST' ? { ...p, startingSemanticState: 'TRAPPED' } : p
@@ -97,12 +97,12 @@ describe('useForgeStore - draft state and actions', () => {
     const draftSnapshotAfter = snapshotAfter.draftBlueprint!;
 
     // Verify new state
-    expect(draftSnapshotAfter.cast?.[0].name).toBe('Dr. Aris Thorne');
+    expect(draftSnapshotAfter.cast?.[0].name).toBe('Senior Specialist');
     expect(draftSnapshotAfter.cast?.[0].behaviorVector).toBe('PANIC');
     expect(draftSnapshotAfter.perspectives?.[0].startingSemanticState).toBe('TRAPPED');
 
     // Verify snapshotBefore was not mutated
-    expect(castSnapshotBefore[0].name).toBe('Dr. Aris');
+    expect(castSnapshotBefore[0].name).toBe('Lead Researcher');
     expect(castSnapshotBefore[0].behaviorVector).toBe('ADAPTIVE');
     expect(perspectiveSnapshotBefore[0].startingSemanticState).toBe('ISOLATED');
     expect(draftSnapshotBefore).not.toBe(draftSnapshotAfter);

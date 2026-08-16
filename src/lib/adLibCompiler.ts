@@ -21,11 +21,12 @@ export interface CompiledAdLibSession {
  * Pure, deterministic compiler that translates a validated AdLibInduction
  * into a minimal valid ScenarioBlueprint and canonical ParticipationContext.
  */
-export function compileAdLibInduction(induction: AdLibInduction): {
+export function compileAdLibInduction(rawInduction: AdLibInduction): {
   blueprint: ScenarioBlueprint;
   participationContext: ParticipationContext;
   initialSpatialNode: SpatialNode;
 } {
+  const induction = AdLibInductionSchema.parse(rawInduction);
   const scenarioId = `adlib-${crypto.randomUUID()}`;
   const startNodeId = 'NODE_ENTRY';
 
@@ -53,20 +54,20 @@ export function compileAdLibInduction(induction: AdLibInduction): {
   if (induction.participationMode === 'protagonist') {
     const charId = 'char-protagonist';
     const boundedFacts: string[] = [
-      `Location: ${induction.placeSeed}`,
-      `Goal: ${induction.goal}`,
+      `Location: ${induction.placeSeed}`.slice(0, 250),
+      `Goal: ${induction.goal}`.slice(0, 250),
     ];
     if (induction.unsettlingDetail) {
-      boundedFacts.push(`Sensory Anomaly: ${induction.unsettlingDetail}`);
+      boundedFacts.push(`Sensory Anomaly: ${induction.unsettlingDetail}`.slice(0, 250));
     }
     if (induction.identity) {
-      boundedFacts.push(`Identity Connection: ${induction.identity}`);
+      boundedFacts.push(`Identity Connection: ${induction.identity}`.slice(0, 250));
     }
     if (induction.ability) {
-      boundedFacts.push(`Aptitude: ${induction.ability}`);
+      boundedFacts.push(`Aptitude: ${induction.ability}`.slice(0, 250));
     }
     if (induction.limitation) {
-      boundedFacts.push(`Limitation: ${induction.limitation}`);
+      boundedFacts.push(`Limitation: ${induction.limitation}`.slice(0, 250));
     }
 
     const environmentalRules: string[] = [];
@@ -94,7 +95,7 @@ export function compileAdLibInduction(induction: AdLibInduction): {
       id: scenarioId,
       title: `${induction.placeSeed} (Ad Lib)`,
       contentScale: 3,
-      contentLevelDescription: 'PROTAGONIST HAUNTED HOUSE INDUCTION',
+      contentLevelDescription: 'PROTAGONIST AD-LIB INDUCTION',
       globalPremise: `A mortal operative (${induction.participantName}) attempts to accomplish: "${induction.goal}" within ${induction.placeSeed}.`,
       startingVector: 'COGNITIVE',
       startingTier: 'LATENT',
@@ -202,37 +203,37 @@ export function compileAdLibInduction(induction: AdLibInduction): {
 
     // 3. Compile Bounded Facts
     const boundedFacts: string[] = [
-      `Location: ${induction.placeSeed}`,
-      `Threat Objective: ${induction.oppositionSeat.goal || induction.goal}`,
-      `Opposition Seat: ${induction.oppositionSeat.name} (${isForce ? 'Environmental Force' : 'Physical Entity'}) - ${induction.oppositionSeat.description}`,
-      `Authority Scope: ${induction.authorityContract.authority}`,
-      `Authority Limit: ${induction.authorityContract.limits}`,
+      `Location: ${induction.placeSeed}`.slice(0, 250),
+      `Threat Objective: ${induction.oppositionSeat.goal || induction.goal}`.slice(0, 250),
+      `Opposition Seat: ${induction.oppositionSeat.name} (${isForce ? 'Environmental Force' : 'Physical Entity'}) - ${induction.oppositionSeat.description}`.slice(0, 250),
+      `Authority Scope: ${induction.authorityContract.authority}`.slice(0, 250),
+      `Authority Limit: ${induction.authorityContract.limits}`.slice(0, 250),
     ];
 
     if (induction.victimField.kind === 'individual') {
       boundedFacts.push(
         `Target Victim: ${induction.victimField.name}${
           induction.victimField.description ? ` (${induction.victimField.description})` : ''
-        }`
+        }`.slice(0, 250)
       );
       if (induction.victimField.knownFact) {
-        boundedFacts.push(`Victim Intel: ${induction.victimField.knownFact}`);
+        boundedFacts.push(`Victim Intel: ${induction.victimField.knownFact}`.slice(0, 250));
       }
     } else {
       boundedFacts.push(
         `Target Group: ${induction.victimField.collectiveDesignation}${
           induction.victimField.description ? ` (${induction.victimField.description})` : ''
-        }`
+        }`.slice(0, 250)
       );
       if (induction.victimField.members && induction.victimField.members.length > 0) {
         boundedFacts.push(
-          `Known Members: ${induction.victimField.members.map((m) => m.name).join(', ')}`
+          `Known Members: ${induction.victimField.members.map((m) => m.name).join(', ')}`.slice(0, 250)
         );
       }
     }
 
     if (induction.unsettlingDetail && boundedFacts.length < 8) {
-      boundedFacts.push(`Sensory Anomaly: ${induction.unsettlingDetail}`);
+      boundedFacts.push(`Sensory Anomaly: ${induction.unsettlingDetail}`.slice(0, 250));
     }
 
     // 4. Compile Environmental Rules
@@ -273,8 +274,10 @@ export function compileAdLibInduction(induction: AdLibInduction): {
         ? `${induction.placeSeed} (Ad Lib Force)`
         : `${induction.placeSeed} (Ad Lib Antagonist)`,
       contentScale: 3,
-      contentLevelDescription: 'ANTAGONIST HAUNTED HOUSE INDUCTION',
-      globalPremise: `Opposition agency (${induction.oppositionSeat.name}) operates within ${induction.placeSeed} toward: "${induction.oppositionSeat.goal || induction.goal}" against ${victimTargetSummary}.`,
+      contentLevelDescription: 'ANTAGONIST AD-LIB INDUCTION',
+      globalPremise: induction.goal
+        ? `${induction.goal} - Opposition agency (${induction.oppositionSeat.name}) operates within ${induction.placeSeed} toward: "${induction.oppositionSeat.goal || induction.goal}" against ${victimTargetSummary}.`
+        : `Opposition agency (${induction.oppositionSeat.name}) operates within ${induction.placeSeed} toward: "${induction.oppositionSeat.goal || induction.goal}" against ${victimTargetSummary}.`,
       startingVector: 'SOMATIC',
       startingTier: 'LATENT',
       setting: {
@@ -315,14 +318,14 @@ export function compileAdLibInduction(induction: AdLibInduction): {
 
   // Director mode
   const boundedFacts: string[] = [
-    `Location: ${induction.placeSeed}`,
-    `Director Staging Goal: ${induction.goal}`,
+    `Location: ${induction.placeSeed}`.slice(0, 250),
+    `Director Staging Goal: ${induction.goal}`.slice(0, 250),
   ];
   if (induction.unsettlingDetail) {
-    boundedFacts.push(`Atmospheric Motif: ${induction.unsettlingDetail}`);
+    boundedFacts.push(`Atmospheric Motif: ${induction.unsettlingDetail}`.slice(0, 250));
   }
   if (induction.directorFocus) {
-    boundedFacts.push(`Framing Directive: ${induction.directorFocus}`);
+    boundedFacts.push(`Framing Directive: ${induction.directorFocus}`.slice(0, 250));
   }
 
   const environmentalRules: string[] = [];
@@ -349,7 +352,7 @@ export function compileAdLibInduction(induction: AdLibInduction): {
     id: scenarioId,
     title: `${induction.placeSeed} (Ad Lib Director)`,
     contentScale: 3,
-    contentLevelDescription: 'DIRECTOR HAUNTED HOUSE INDUCTION',
+    contentLevelDescription: 'DIRECTOR AD-LIB INDUCTION',
     globalPremise: `External director directs scene pacing and tension around: "${induction.goal}" within ${induction.placeSeed}.`,
     startingVector: 'COGNITIVE',
     startingTier: 'LATENT',

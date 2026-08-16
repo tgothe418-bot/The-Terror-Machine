@@ -3,6 +3,7 @@ import {
   ArrowLeft,
   Upload,
   AlertCircle,
+  AlertTriangle,
   Users,
   Shield,
   Skull,
@@ -35,7 +36,7 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
   const setBlueprint = useEngineStore((state) => state.setBlueprint);
   const [error, setError] = useState<string | null>(null);
   const [previewBlueprint, setPreviewBlueprint] = useState<Blueprint | null>(null);
-  const [selectedRole, setSelectedRole] = useState<ParticipationMode>('protagonist');
+  const [selectedRole, setSelectedRole] = useState<ParticipationMode | null>(null);
   const [isAdLibModalOpen, setIsAdLibModalOpen] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -45,6 +46,14 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
   const seatAvailabilities = useMemo(() => {
     return previewBlueprint ? resolveSeatAvailabilities(previewBlueprint) : null;
   }, [previewBlueprint]);
+
+  const isRecommendedSeatUnavailable = useMemo(() => {
+    if (!previewBlueprint?.hauntedHouse?.recommendedParticipationMode || !seatAvailabilities) {
+      return false;
+    }
+    const rec = previewBlueprint.hauntedHouse.recommendedParticipationMode;
+    return !seatAvailabilities[rec]?.available;
+  }, [previewBlueprint, seatAvailabilities]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -68,9 +77,14 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
             const rec = validated.hauntedHouse.recommendedParticipationMode;
             if (availabilities[rec]?.available) {
               setSelectedRole(rec);
-              return;
+            } else {
+              // Incompatible recommended seat: do not silently fall back. User must select explicitly.
+              setSelectedRole(null);
             }
+            return;
           }
+
+          // Legacy blueprint without Haunted House provenance: retain standard fallback selection
           if (availabilities.protagonist.available) {
             setSelectedRole('protagonist');
           } else if (availabilities.antagonist.available) {
@@ -98,7 +112,8 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
   };
 
   const handleStart = () => {
-    if (!previewBlueprint) return;
+    if (!previewBlueprint || !selectedRole) return;
+    if (!isRoleAvailable(selectedRole)) return;
 
     if (
       previewBlueprint.topology &&
@@ -399,6 +414,26 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
                         )}
                       </div>
 
+                      {/* Compatibility Warning for Incompatible Recommended Seat */}
+                      {isRecommendedSeatUnavailable && (
+                        <div className="p-3.5 bg-amber-950/30 border border-amber-800/80 rounded mb-4 space-y-1.5">
+                          <div className="flex items-center gap-2 text-amber-400 font-bold text-xs uppercase tracking-wider">
+                            <AlertTriangle className="w-3.5 h-3.5" />
+                            Recommended Seat Unavailable
+                          </div>
+                          <p className="text-[11px] text-zinc-300 leading-relaxed">
+                            This blueprint recommends{' '}
+                            <span className="text-amber-300 font-semibold uppercase">
+                              {previewBlueprint.hauntedHouse?.recommendedParticipationMode}
+                            </span>
+                            , but that seat is unavailable (
+                            {previewBlueprint.hauntedHouse?.recommendedParticipationMode &&
+                              seatAvailabilities?.[previewBlueprint.hauntedHouse.recommendedParticipationMode]?.reason}
+                            ). Please explicitly select an available seat below before initializing the simulation.
+                          </p>
+                        </div>
+                      )}
+
                       {/* 3-Role Seat Selection Grid */}
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         {/* Protagonist */}
@@ -422,7 +457,7 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
                             <span className="text-[10px] text-zinc-500 block mt-0.5">
                               {isRoleAvailable('protagonist')
                                 ? seatAvailabilities?.protagonist.boundCharacterName || 'Mortal Bound'
-                                : 'No Mortal Cast'}
+                                : seatAvailabilities?.protagonist.reason || 'No Mortal Cast'}
                             </span>
                           </div>
                         </button>
@@ -448,7 +483,7 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
                             <span className="text-[10px] text-zinc-500 block mt-0.5">
                               {isRoleAvailable('antagonist')
                                 ? seatAvailabilities?.antagonist.boundCharacterName || 'Opposition'
-                                : 'No Entity Found'}
+                                : seatAvailabilities?.antagonist.reason || 'No Entity Found'}
                             </span>
                           </div>
                         </button>
@@ -472,7 +507,9 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
                               Director
                             </span>
                             <span className="text-[10px] text-zinc-500 block mt-0.5">
-                              Narrative Framing
+                              {isRoleAvailable('director')
+                                ? 'Narrative Framing'
+                                : seatAvailabilities?.director.reason || 'Unavailable'}
                             </span>
                           </div>
                         </button>
@@ -486,16 +523,25 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
                           'Operating hostile opposition agency under explicit authority terms.'}
                         {selectedRole === 'director' &&
                           'External pacing and scene framing authority.'}
+                        {!selectedRole &&
+                          'Select an available seat above to configure your active neural link.'}
                       </p>
                     </div>
 
                     <div className="pt-4">
                       <button
                         onClick={handleStart}
-                        className="w-full py-5 bg-white text-black text-xs font-bold uppercase tracking-[0.4em] hover:bg-zinc-200 transition-all flex items-center justify-center gap-3 group shadow-[0_0_30px_rgba(255,255,255,0.1)] active:scale-[0.98] rounded cursor-pointer"
+                        disabled={!selectedRole || !isRoleAvailable(selectedRole)}
+                        className={`w-full py-5 text-xs font-bold uppercase tracking-[0.4em] transition-all flex items-center justify-center gap-3 group rounded ${
+                          !selectedRole || !isRoleAvailable(selectedRole)
+                            ? 'bg-zinc-800/60 text-zinc-500 cursor-not-allowed border border-zinc-700/40'
+                            : 'bg-white text-black hover:bg-zinc-200 shadow-[0_0_30px_rgba(255,255,255,0.1)] active:scale-[0.98] cursor-pointer'
+                        }`}
                       >
                         <Play className="w-4 h-4 fill-current group-hover:scale-110 transition-transform" />
-                        Initialize Neural Link ({selectedRole.toUpperCase()})
+                        {selectedRole
+                          ? `Initialize Neural Link (${selectedRole.toUpperCase()})`
+                          : 'Select Available Seat to Initialize'}
                       </button>
                     </div>
                   </div>

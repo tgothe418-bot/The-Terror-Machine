@@ -6,8 +6,8 @@ const mockReceipt = {
   scenarioTitle: 'The Cold Room',
   blueprintId: 'bp-101',
   selectedRole: 'protagonist',
-  resolvedPlayerName: 'Marcus Vance',
-  resolvedPlayerId: 'char-marcus',
+  resolvedPlayerName: 'Field Operative',
+  resolvedPlayerId: 'char-field-op',
   currentNodeId: 'VAULT_01',
   readableNodeLabel: 'Vault 01',
   activeVector: 'COGNITIVE',
@@ -23,7 +23,7 @@ const messages = [
     role: 'user',
     content: 'I test the latch.',
     timestamp: 1,
-    userCharacterName: 'Marcus Vance',
+    userCharacterName: 'Field Operative',
   },
   {
     role: 'assistant',
@@ -44,7 +44,7 @@ const messages = [
     role: 'user',
     content: 'I inspect the eastern seam.',
     timestamp: 3,
-    userCharacterName: 'Marcus Vance',
+    userCharacterName: 'Field Operative',
   },
 ];
 
@@ -65,11 +65,11 @@ describe('Engine telemetry export', () => {
     expect(html.match(/class="context-receipt"/g)).toHaveLength(1);
     expect(html).toContain('[ CONTEXT RECEIPT // SCENARIO BINDING v1 ]');
     expect(html).toContain('The Cold Room');
-    expect(html).toContain('Marcus Vance');
+    expect(html).toContain('Field Operative');
     expect(html).toContain('VAULT_01');
 
     // Verify user label
-    expect(html).toContain('[ USER: Marcus Vance ]');
+    expect(html).toContain('[ USER: Field Operative ]');
 
     // Verify user turns and logic panel
     expect(html.match(/<div class="user-input">/g)).toHaveLength(2);
@@ -101,8 +101,8 @@ describe('Engine telemetry export', () => {
 
     expect(md).toContain('### [ CONTEXT RECEIPT // SCENARIO BINDING v1 ]');
     expect(md).toContain('**Scenario:** The Cold Room (bp-101)');
-    expect(md).toContain('**Bound Player:** Marcus Vance');
-    expect(md).toContain('**[ USER: Marcus Vance ]**');
+    expect(md).toContain('**Bound Player:** Field Operative');
+    expect(md).toContain('**[ USER: Field Operative ]**');
     expect(md).toContain('// TTM LOGIC');
     expect(md).toContain('"current_phase": "LATENT"');
     expect(md).toContain('"isExpansion": false');
@@ -114,7 +114,7 @@ describe('Engine telemetry export', () => {
         role: 'user',
         content: 'Step through the archway',
         timestamp: 10,
-        userCharacterName: 'Marcus Vance',
+        userCharacterName: 'Field Operative',
       },
       {
         role: 'assistant',

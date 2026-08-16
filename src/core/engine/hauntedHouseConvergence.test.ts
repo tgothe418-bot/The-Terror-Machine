@@ -408,7 +408,141 @@ describe('Phase 3C: Haunted House Induction Convergence, Provenance & Seat Avail
     });
   });
 
-  describe('10. Session Initiation from Haunted House Induction', () => {
+  describe('10. 1,000-Character Premise End-to-End Preservation', () => {
+    it('accepts and preserves a full 1,000-character premise through compiler, provenance, normalization, export, and import', () => {
+      const premise1000 = 'A'.repeat(1000);
+      const induction: AdLibProtagonistInduction = {
+        participationMode: 'protagonist',
+        placeSeed: 'Deep Core Borehole',
+        goal: premise1000,
+        participantName: 'Core Driller Unit 7',
+      };
+
+      const compiled = compileAdLibInduction(induction);
+      expect(compiled.blueprint.hauntedHouse?.participationContext.initialGoal).toBe(premise1000);
+      expect(compiled.blueprint.hauntedHouse?.participationContext.initialGoal).toHaveLength(1000);
+
+      // JSON export & import round-trip
+      const serialized = JSON.stringify(compiled.blueprint);
+      const imported = normalizeBlueprint(JSON.parse(serialized));
+
+      expect(imported.hauntedHouse?.participationContext.initialGoal).toBe(premise1000);
+      expect(imported.hauntedHouse?.participationContext.initialGoal).toHaveLength(1000);
+      expect(imported.narrativeRules?.incitingIncident).toBe(premise1000);
+    });
+
+    it('preserves 1,000-character premise in Director mode without truncation', () => {
+      const premise1000 = 'D'.repeat(1000);
+      const induction: AdLibDirectorInduction = {
+        participationMode: 'director',
+        placeSeed: 'Observation Deck Omega',
+        goal: premise1000,
+      };
+
+      const compiled = compileAdLibInduction(induction);
+      expect(compiled.blueprint.hauntedHouse?.participationContext.initialGoal).toBe(premise1000);
+
+      const imported = normalizeBlueprint(JSON.parse(JSON.stringify(compiled.blueprint)));
+      expect(imported.hauntedHouse?.participationContext.initialGoal).toBe(premise1000);
+      expect(imported.hauntedHouse?.participationContext.initialGoal).toHaveLength(1000);
+    });
+
+    it('rejects 1,001-character premise at schema validation boundary', () => {
+      const premise1001 = 'X'.repeat(1001);
+      const invalidProtagonist = {
+        participationMode: 'protagonist',
+        placeSeed: 'Outpost 31',
+        goal: premise1001,
+        participantName: 'Operator',
+      };
+
+      expect(() => {
+        compileAdLibInduction(invalidProtagonist as AdLibProtagonistInduction);
+      }).toThrow();
+    });
+
+    it('keeps seat-specific goals separately bounded without truncating shared 1,000-character premise', () => {
+      const sharedPremise = 'Global premise stating that an ancient entity awakens: ' + 'Z'.repeat(900);
+      const seatGoal = 'Extinguish station main power relays';
+      const induction: AdLibAntagonistInduction = {
+        participationMode: 'antagonist',
+        placeSeed: 'Sub-Terra Station',
+        goal: sharedPremise,
+        oppositionSeat: {
+          kind: 'character',
+          name: 'The Lurker',
+          description: 'Hostile organism',
+          goal: seatGoal,
+        },
+        authorityContract: {
+          authority: 'Can cut power cables in duct sections.',
+          limits: 'Cannot enter emergency battery rooms.',
+        },
+        victimField: {
+          kind: 'individual',
+          name: 'Maintenance Chief',
+        },
+      };
+
+      const compiled = compileAdLibInduction(induction);
+      const imported = normalizeBlueprint(JSON.parse(JSON.stringify(compiled.blueprint)));
+
+      // Provenance carries seat initialGoal and shared premise in globalPremise/narrativeRules
+      expect(imported.hauntedHouse?.participationContext.initialGoal).toBe(seatGoal);
+      expect(imported.narrativeRules?.incitingIncident).toBe(seatGoal);
+      expect(imported.globalPremise).toContain(sharedPremise);
+    });
+  });
+
+  describe('11. Incompatible Recommended Seat Explicit Resolution on Import', () => {
+    it('identifies incompatible recommended seat, preserves provenance untouched, and allows explicit seat selection', () => {
+      // Create a blueprint where provenance recommends protagonist, but cast has ONLY an entity (no mortal cast)
+      const importedBlueprint: Blueprint = normalizeBlueprint({
+        title: 'Haunted Enclosure (Ad Lib)',
+        setting: { location: 'Ghost Station', timePeriod: '2099', atmosphere: 'Cold void' },
+        cast: [
+          {
+            id: 'ent-1',
+            name: 'Shadow Wraith',
+            role: 'antagonist',
+            isEntity: true,
+          },
+        ],
+        hauntedHouse: {
+          source: 'haunted-house',
+          version: 1,
+          recommendedParticipationMode: 'protagonist',
+          participationContext: {
+            mode: 'protagonist',
+            initialGoal: 'Investigate the spatial rupture',
+            boundedFacts: ['Location: Ghost Station'],
+          },
+        },
+      });
+
+      // 1. Provenance recommended mode is preserved exactly
+      expect(importedBlueprint.hauntedHouse?.recommendedParticipationMode).toBe('protagonist');
+
+      // 2. Resolver detects protagonist is unavailable because no mortal cast exists
+      const availabilities = resolveSeatAvailabilities(importedBlueprint);
+      expect(availabilities.protagonist.available).toBe(false);
+      expect(availabilities.protagonist.reason).toBe('No mortal protagonist cast member found in blueprint.');
+      expect(availabilities.antagonist.available).toBe(true);
+      expect(availabilities.director.available).toBe(true);
+
+      // 3. User explicitly selects Director seat: active context is built without mutating provenance
+      const activeDirector = buildActiveParticipationContext(importedBlueprint, 'director');
+      expect(activeDirector?.mode).toBe('director');
+      expect(importedBlueprint.hauntedHouse?.recommendedParticipationMode).toBe('protagonist');
+
+      // 4. User explicitly selects Antagonist seat: active context is built without mutating provenance
+      const activeAntagonist = buildActiveParticipationContext(importedBlueprint, 'antagonist');
+      expect(activeAntagonist?.mode).toBe('antagonist');
+      expect(importedBlueprint.hauntedHouse?.recommendedParticipationMode).toBe('protagonist');
+    });
+  });
+
+  describe('12. Session Initiation from Haunted House Induction', () => {
     it('initiates active session and registers participation context in EngineStore', () => {
       const induction: AdLibAntagonistInduction = {
         participationMode: 'antagonist',

@@ -91,7 +91,7 @@ export type ParticipationSeat = z.infer<typeof ParticipationSeatSchema>;
 export const ParticipationContextSchema = z.object({
   mode: ParticipationModeSchema,
   seat: ParticipationSeatSchema.optional(),
-  initialGoal: z.string().trim().min(1).max(500),
+  initialGoal: z.string().trim().min(1).max(1000),
   boundedFacts: z.array(z.string().trim().max(250)).max(8).default([]),
   authorityContract: AuthorityContractSchema.optional(),
   victimField: VictimFieldSchema.optional(),
