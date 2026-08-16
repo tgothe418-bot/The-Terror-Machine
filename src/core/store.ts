@@ -101,9 +101,15 @@ export const useEngineStore = create<EngineState>()(
       telemetry: null,
       updateTelemetry: (metrics) => set({ telemetry: metrics }),
       setBlueprint: (blueprint, role, participationContext = null) => {
-        // If blueprint is already valid canonical Blueprint, preserve exact object reference; otherwise normalize
+        // Preserve identity only for a fully canonical payload. BlueprintSchema has defaults,
+        // so safeParse success alone is insufficient: a partial legacy object can parse while
+        // still requiring normalization.
         const parsed = BlueprintSchema.safeParse(blueprint);
-        const normalizedBlueprint = parsed.success ? (blueprint as Blueprint) : normalizeBlueprint(blueprint);
+        const isAlreadyCanonical =
+          parsed.success && JSON.stringify(blueprint) === JSON.stringify(parsed.data);
+        const normalizedBlueprint = isAlreadyCanonical
+          ? (blueprint as Blueprint)
+          : normalizeBlueprint(blueprint);
         const { playerRole, characterId, perspectiveMode } = resolvePerspectiveBinding(
           normalizedBlueprint,
           role
