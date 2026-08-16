@@ -17,6 +17,7 @@ import {
   TopologyEdge,
   HorrorVector,
   ExposureTier,
+  ParticipationContext,
 } from '../types';
 import { EngineEvent, CommittedTurnPayload, FailedTurnPayload } from '../core/engine/events';
 import { engineReducer, initialEngineState, EngineState } from '../core/engine/reducer';
@@ -27,6 +28,8 @@ import { isHorrorVector, isExposureTier } from '../core/engine/snapshot';
 export interface InitializeSessionParams {
   blueprint: unknown;
   sessionId?: string;
+  participationContext?: ParticipationContext | null;
+  spatialGraph?: SpatialNode[];
 }
 
 export interface AppStore extends EngineState {
@@ -100,7 +103,7 @@ export const useAppStore = create<AppStore>((set) => ({
   executeTemporalShift: () => {},
   loadCampaignManifest: (manifest: CampaignManifest) => set({ activeCampaign: manifest }),
 
-  initializeSession: ({ blueprint, sessionId }) => {
+  initializeSession: ({ blueprint, sessionId, participationContext, spatialGraph }) => {
     const normalized = normalizeBlueprint(blueprint);
     const compiled = compileRuntimeTopology({
       topology: normalized.topology,
@@ -113,12 +116,14 @@ export const useAppStore = create<AppStore>((set) => ({
     const initialTier: ExposureTier = isExposureTier(normalized.startingTier)
       ? normalized.startingTier
       : 'LATENT';
-    const startNodeId = compiled.startNodeId || 'ORIGIN';
+    const effectiveGraph = spatialGraph && spatialGraph.length > 0 ? spatialGraph : compiled.spatialGraph;
+    const startNodeId = spatialGraph && spatialGraph[0]?.id ? spatialGraph[0].id : compiled.startNodeId || 'ORIGIN';
     const newSessionId = sessionId || crypto.randomUUID();
 
     set({
       sessionId: newSessionId,
       blueprintId: normalized.id || 'unknown',
+      participationContext: participationContext || null,
       phase: 'LATENT',
       currentPhase: 'LATENT',
       escalation_state: 'LATENT',
@@ -151,7 +156,7 @@ export const useAppStore = create<AppStore>((set) => ({
       reconciliationRevision: 0,
       history: [],
       storyLog: [],
-      spatialGraph: compiled.spatialGraph,
+      spatialGraph: effectiveGraph,
       isTransitioning: false,
       isShattered: false,
       uiTranscript: [],

@@ -8,12 +8,14 @@ import {
   ContextReceipt,
   PlayerRole,
   SpatialNode,
+  ParticipationContext,
 } from '../types';
 
 export interface BuildEngineTurnContextOptions {
   blueprint: unknown;
   selectedRole?: PlayerRole | string;
   spatialGraph?: SpatialNode[];
+  participationContext?: ParticipationContext | null;
   runtimeState?: {
     currentNodeId?: string | null;
     phase?: string;
@@ -23,6 +25,7 @@ export interface BuildEngineTurnContextOptions {
     activeVector?: string;
     activeTier?: string;
     activeFlags?: readonly string[] | string[];
+    participationContext?: ParticipationContext | null;
   };
 }
 
@@ -33,10 +36,17 @@ export function buildEngineTurnContext({
   blueprint,
   selectedRole = 'protagonist',
   spatialGraph,
+  participationContext,
   runtimeState = {},
 }: BuildEngineTurnContextOptions): EngineTurnContext {
   const normBp: Blueprint = normalizeBlueprint(blueprint);
   const effectiveRole = (selectedRole as PlayerRole) || 'protagonist';
+
+  // 0. Participation Context resolution
+  const resolvedParticipation =
+    participationContext ??
+    runtimeState.participationContext ??
+    null;
 
   // 1. World rules
   let worldRules: string[] = [];
@@ -192,6 +202,7 @@ export function buildEngineTurnContext({
       activeTier,
       activeFlags,
     },
+    participationContext: resolvedParticipation || undefined,
   };
 }
 

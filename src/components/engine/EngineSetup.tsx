@@ -1,12 +1,12 @@
 import React, { useRef, useState } from 'react';
-import { ArrowLeft, Upload, AlertCircle, Users, Shield, Skull, Activity, Play } from 'lucide-react';
+import { ArrowLeft, Upload, AlertCircle, Users, Shield, Skull, Activity, Play, Sparkles } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import { useEngineStore } from '../../core/store';
 import { forgeActions, useForgeState } from '../../store/useForgeStore';
 import { Blueprint } from '../../types';
 import { normalizeBlueprint } from '../../lib/normalizeBlueprint';
 import { motion, AnimatePresence } from 'motion/react';
-import { generateAdLibCampaign } from '../../lib/adLibGenerator';
+import AdLibInductionModal from './AdLibInductionModal';
 
 interface EngineSetupProps {
   onContinue?: () => void;
@@ -20,26 +20,8 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
   const [error, setError] = useState<string | null>(null);
   const [previewBlueprint, setPreviewBlueprint] = useState<Blueprint | null>(null);
   const [selectedRole, setSelectedRole] = useState<'protagonist' | 'antagonist'>('protagonist');
-  const [adLibSize, setAdLibSize] = useState<number>(12);
-  const [adLibAesthetic, setAdLibAesthetic] = useState<string>('gothic');
-  const [adLibTone, setAdLibTone] = useState<string>('LATENT');
-  const [isGenerating, setIsGenerating] = useState<boolean>(false);
+  const [isAdLibModalOpen, setIsAdLibModalOpen] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const handleStartHauntedHouse = async () => {
-    setIsGenerating(true);
-    try {
-      await generateAdLibCampaign({
-        aesthetic: adLibAesthetic,
-        scale: adLibSize,
-        tone: adLibTone,
-      });
-    } catch (err) {
-      console.error('Failed to generate Haunted House mode:', err);
-    } finally {
-      setIsGenerating(false);
-    }
-  };
 
   const compileTopology = useAppStore((state) => state.compileTopology);
 
@@ -178,67 +160,25 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
                 {/* Option 3: Ad-Lib Mode */}
                 <div className="md:col-span-2 p-8 border border-zinc-800 bg-zinc-950/30 flex flex-col items-center justify-center gap-6 shadow-[inset_0_0_20px_rgba(0,0,0,0.5)]">
                   <div className="text-center">
-                    <Skull className="w-10 h-10 text-zinc-700 mx-auto mb-4" />
-                    <span className="text-[10px] uppercase tracking-[0.3em] block mb-1 text-zinc-300 font-bold">
-                      Ad-Lib Induction
+                    <Skull className="w-10 h-10 text-red-500 mx-auto mb-4" />
+                    <span className="text-[10px] uppercase tracking-[0.3em] block mb-1 text-zinc-200 font-bold">
+                      Ad-Lib Induction Terminal
                     </span>
                     <span className="text-[8px] text-zinc-500 uppercase tracking-widest">
-                      Procedural Architecture
+                      Custom Place, Seat & Bounded Horror Induction
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full max-w-xl">
-                    <div className="flex flex-col gap-2">
-                      <label className="text-[8px] text-zinc-500 uppercase tracking-widest">
-                        Size
-                      </label>
-                      <select
-                        value={adLibSize}
-                        onChange={(e) => setAdLibSize(Number(e.target.value))}
-                        className="bg-zinc-900 border border-zinc-800 text-xs p-2 text-zinc-300 focus:border-red-900 focus:outline-none"
-                      >
-                        <option value={5}>Short (5 Rooms)</option>
-                        <option value={12}>Standard (12 Rooms)</option>
-                        <option value={25}>Labyrinth (25 Rooms)</option>
-                      </select>
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <label className="text-[8px] text-zinc-500 uppercase tracking-widest">
-                        Aesthetic
-                      </label>
-                      <select
-                        value={adLibAesthetic}
-                        onChange={(e) => setAdLibAesthetic(e.target.value)}
-                        className="bg-zinc-900 border border-zinc-800 text-xs p-2 text-zinc-300 focus:border-red-900 focus:outline-none"
-                      >
-                        <option value="gothic">Gothic</option>
-                        <option value="industrial">Industrial Rot</option>
-                        <option value="liminal">Liminal Suburbia</option>
-                        <option value="occult">Occult</option>
-                      </select>
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <label className="text-[8px] text-zinc-500 uppercase tracking-widest">
-                        Tone
-                      </label>
-                      <select
-                        value={adLibTone}
-                        onChange={(e) => setAdLibTone(e.target.value)}
-                        className="bg-zinc-900 border border-zinc-800 text-xs p-2 text-zinc-300 focus:border-red-900 focus:outline-none"
-                      >
-                        <option value="LATENT">Slow Burn</option>
-                        <option value="REACTIVE">Hostile</option>
-                        <option value="TRANSGRESSIVE">Nightmare</option>
-                      </select>
-                    </div>
-                  </div>
+                  <p className="text-[9px] text-zinc-400 max-w-md text-center leading-relaxed">
+                    Induct a fresh simulation directly by configuring your participation mode (Protagonist, Antagonist Avatar/Force, or Director) with bounded world facts and goals.
+                  </p>
 
                   <button
-                    disabled={isGenerating}
-                    onClick={handleStartHauntedHouse}
-                    className="mt-4 border border-red-900/50 hover:border-red-500 hover:bg-red-950/30 text-red-500 px-8 py-3 text-[10px] tracking-[0.2em] uppercase transition-all duration-300 disabled:opacity-50 cursor-pointer"
+                    onClick={() => setIsAdLibModalOpen(true)}
+                    className="border-2 border-red-600 bg-red-950/30 hover:bg-red-600 hover:text-white text-red-400 px-8 py-3.5 text-[10px] tracking-[0.2em] uppercase font-bold transition-all duration-300 flex items-center gap-2 cursor-pointer shadow-lg hover:shadow-red-600/20"
                   >
-                    {isGenerating ? 'Generating Architecture...' : 'Enter the House'}
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>Launch Ad Lib Induction Terminal</span>
                   </button>
                 </div>
               </div>
@@ -414,6 +354,12 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
           )}
         </AnimatePresence>
       </div>
+
+      <AdLibInductionModal
+        isOpen={isAdLibModalOpen}
+        onClose={() => setIsAdLibModalOpen(false)}
+        onSuccess={onContinue}
+      />
     </div>
   );
 }

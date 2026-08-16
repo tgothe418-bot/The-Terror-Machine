@@ -190,6 +190,7 @@ export const executeRatificationPipeline = async (
     blueprint: engineState.activeBlueprint,
     selectedRole,
     spatialGraph: state.spatialGraph,
+    participationContext: state.participationContext || engineState.participationContext || null,
     runtimeState: preSnapshot,
   });
 

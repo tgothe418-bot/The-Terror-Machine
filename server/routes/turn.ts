@@ -38,6 +38,48 @@ turnRouter.post('/', async (req, res) => {
       ? context.scenario.keyPlotElements.join(' | ')
       : 'Standard narrative progression.';
 
+    let participationSection = '';
+    if (context.participationContext) {
+      const pc = context.participationContext;
+      const boundedFactsFormatted =
+        pc.boundedFacts && pc.boundedFacts.length > 0
+          ? pc.boundedFacts.map((f) => `- ${f}`).join('\n')
+          : 'None established';
+
+      let seatDetails = `Mode: ${pc.mode.toUpperCase()}`;
+      if (pc.seat) {
+        seatDetails += `\nSeat: ${pc.seat.name} (${pc.seat.kind})\nDescription: ${pc.seat.description || 'N/A'}`;
+        if (pc.seat.ability) seatDetails += `\nAptitude/Vector: ${pc.seat.ability}`;
+        if (pc.seat.limitation) seatDetails += `\nLimitation/Boundary: ${pc.seat.limitation}`;
+      }
+      seatDetails += `\nInitial Core Goal: ${pc.initialGoal}`;
+
+      let agencyGuidance = '';
+      if (pc.mode === 'protagonist') {
+        agencyGuidance =
+          'The user operates the mortal protagonist seat. Adjudicate their attempted physical and cognitive actions within their limitations. Narrate the world and environment consequences objectively.';
+      } else if (pc.mode === 'antagonist') {
+        if (pc.seat?.kind === 'force') {
+          agencyGuidance =
+            'The user directs an environmental/unseen hostile threat force (not a mortal body). Adjudicate atmospheric manipulation, environmental hazards, and sensory terror. Narrate how the surroundings react and mortal subjects resist.';
+        } else {
+          agencyGuidance =
+            'The user operates the hostile antagonist creature/entity seat. Adjudicate their predatory pursuit and terror interventions according to their declared vector and limits.';
+        }
+      } else if (pc.mode === 'director') {
+        agencyGuidance =
+          'The user acts as an external scene director, framing environmental pacing, tension, and thematic staging. The Engine retains authority over physical consistency, state reconciliation, and causal world rules.';
+      }
+
+      participationSection = `\n[PARTICIPATION CONTRACT & AGENCY BOUNDARIES]
+${seatDetails}
+Bounded Facts:
+${boundedFactsFormatted}
+Agency Directive:
+${agencyGuidance}
+`;
+    }
+
     const targetExample = context.topology.allowedOutgoingExits[0]?.to || 'TARGET_NODE_ID';
 
     // Construct the dense, authoritative contract prompt
@@ -50,7 +92,7 @@ Setting: ${context.scenario.setting.location} | ${context.scenario.setting.atmos
 Inciting Incident: ${context.scenario.incitingIncident || 'None'}
 Pacing Directive: ${context.scenario.pacingDirective || 'None'}
 Key Plot Elements: ${keyPlotElementsFormatted}
-
+${participationSection}
 [PLAYABLE PERSPECTIVE]
 Role: ${context.player.role}
 Character: ${context.player.name} (ID: ${context.player.characterId || 'N/A'}) - ${context.player.description || 'Standard operative'}

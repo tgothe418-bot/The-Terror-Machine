@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { Blueprint, LogicState, Message, PlayerRole, PerspectiveMode } from '../types';
+import { Blueprint, LogicState, Message, PlayerRole, PerspectiveMode, ParticipationContext } from '../types';
 import { idbStorage } from '../lib/idbStorage';
 import { distillContext } from '../services/geminiService';
 import { useAppStore } from '../store/useAppStore';
@@ -21,6 +21,7 @@ export interface TelemetryMetrics {
 
 interface EngineState {
   activeBlueprint: Blueprint | null;
+  participationContext: ParticipationContext | null;
   gameState: LogicState | null;
   engineMessages: Message[]; // Used for UI display
   engineTextBuffer: Message[]; // The sliding window specifically for the Engine
@@ -28,7 +29,11 @@ interface EngineState {
   engineWorldStateSummary: string;
   telemetry: TelemetryMetrics | null;
   updateTelemetry: (metrics: TelemetryMetrics) => void;
-  setBlueprint: (blueprint: unknown, role: PlayerRole) => void;
+  setBlueprint: (
+    blueprint: unknown,
+    role: PlayerRole,
+    participationContext?: ParticipationContext | null
+  ) => void;
 
   clearBlueprint: () => void;
   updateGameState: (newState: LogicState) => void;
@@ -87,6 +92,7 @@ export const useEngineStore = create<EngineState>()(
   persist(
     (set, get) => ({
       activeBlueprint: null,
+      participationContext: null,
       gameState: null,
       engineMessages: [],
       engineTextBuffer: [],
@@ -94,7 +100,7 @@ export const useEngineStore = create<EngineState>()(
       engineWorldStateSummary: 'The subject is contained. Initial parameters active.',
       telemetry: null,
       updateTelemetry: (metrics) => set({ telemetry: metrics }),
-      setBlueprint: (blueprint, role) => {
+      setBlueprint: (blueprint, role, participationContext = null) => {
         // Normalize blueprint before saving
         const normalizedBlueprint = normalizeBlueprint(blueprint);
         const { playerRole, characterId, perspectiveMode } = resolvePerspectiveBinding(
@@ -105,10 +111,12 @@ export const useEngineStore = create<EngineState>()(
         // Invoke the canonical AppStore session initialization action
         useAppStore.getState().initializeSession({
           blueprint: normalizedBlueprint,
+          participationContext,
         });
 
         set({
           activeBlueprint: normalizedBlueprint,
+          participationContext: participationContext || null,
           engineMessages: [],
           engineTextBuffer: [],
           engineWorldStateSummary: 'The subject is contained. Initial parameters active.',
@@ -132,6 +140,7 @@ export const useEngineStore = create<EngineState>()(
       clearBlueprint: () =>
         set({
           activeBlueprint: null,
+          participationContext: null,
           gameState: null,
           engineMessages: [],
           engineTextBuffer: [],

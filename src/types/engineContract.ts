@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import { ParticipationContextSchema } from './adLib';
+export * from './adLib';
 
 export const EdgeKindSchema = z.enum([
   'PHYSICAL',
@@ -71,6 +73,7 @@ export const EngineTurnContextSchema = z.object({
     activeTier: z.string().default('LATENT'),
     activeFlags: z.array(z.string()).default([]),
   }),
+  participationContext: ParticipationContextSchema.optional(),
 });
 
 export type EngineTurnContext = z.infer<typeof EngineTurnContextSchema>;

@@ -7,6 +7,7 @@ import {
   ExposureTier,
   TurnReceipt,
   SpatialNode,
+  ParticipationContext,
 } from '../../types';
 import { EntityArchetype } from '../../types/reference';
 import { formatTurnFailureMessage } from '../../lib/turnResponseReader';
@@ -20,6 +21,7 @@ import { applyTopologyDeltaToGraph } from './topologyCommit';
 export interface EngineState {
   sessionId?: string;
   blueprintId?: string;
+  participationContext?: ParticipationContext | null;
   phase: Phase;
   escalation_state: 'LATENT' | 'REACTIVE' | 'TRANSGRESSIVE' | 'BLACKOUT';
   currentNodeId: string | null;
@@ -123,6 +125,7 @@ export function applyReconciliationPatch(
 export const initialEngineState: EngineState = {
   sessionId: '',
   blueprintId: '',
+  participationContext: null,
   phase: 'HUB',
   escalation_state: 'LATENT',
   currentNodeId: null,
