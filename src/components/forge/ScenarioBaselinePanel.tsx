@@ -1,6 +1,10 @@
 import React, { useState } from 'react';
 import { useForgeState, forgeActions } from '../../store/useForgeStore';
-import { ForgeSourceCandidate } from '../../types/forge';
+import {
+  ForgeSourceAnalysis,
+  ForgeSourceAnalysisSchema,
+  ForgeSourceCandidate,
+} from '../../types/forge';
 import {
   FileText,
   Check,
@@ -11,6 +15,7 @@ import {
   CheckCircle2,
   FileCode,
   Layers,
+  AlertTriangle,
 } from 'lucide-react';
 
 export const ScenarioBaselinePanel: React.FC = () => {
@@ -22,9 +27,20 @@ export const ScenarioBaselinePanel: React.FC = () => {
   const [editingCandidateId, setEditingCandidateId] = useState<string | null>(null);
   const [editingValueText, setEditingValueText] = useState<string>('');
 
-  const sourceList = Object.values(sourceAnalyses);
+  const rawEntries = Object.entries(sourceAnalyses);
+  const validAnalyses: ForgeSourceAnalysis[] = [];
+  const invalidKeys: string[] = [];
 
-  if (sourceList.length === 0) {
+  for (const [key, raw] of rawEntries) {
+    const parse = ForgeSourceAnalysisSchema.safeParse(raw);
+    if (parse.success) {
+      validAnalyses.push(parse.data);
+    } else {
+      invalidKeys.push(key);
+    }
+  }
+
+  if (validAnalyses.length === 0 && invalidKeys.length === 0) {
     return null;
   }
 
@@ -76,7 +92,7 @@ export const ScenarioBaselinePanel: React.FC = () => {
             SOURCE BASELINE // SCENARIO INTAKE
           </h3>
           <span className="text-[10px] font-mono px-2 py-0.5 bg-zinc-900 border border-zinc-800 text-zinc-400 rounded">
-            {sourceList.length} {sourceList.length === 1 ? 'Source' : 'Sources'}
+            {validAnalyses.length} {validAnalyses.length === 1 ? 'Source' : 'Sources'}
           </span>
         </div>
         <span className="text-[11px] font-mono text-zinc-500">
@@ -84,8 +100,34 @@ export const ScenarioBaselinePanel: React.FC = () => {
         </span>
       </div>
 
-      <div className="space-y-4">
-        {sourceList.map((analysis) => {
+      {/* RECOVERY NOTICE FOR INVALID PERSISTED ENTRIES */}
+      {invalidKeys.length > 0 && (
+        <div
+          id="source-baseline-recovery-notice"
+          className="bg-amber-950/30 border border-amber-800/60 p-3 rounded flex items-center justify-between gap-3 text-xs font-mono text-amber-200"
+        >
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+            <span>
+              Found {invalidKeys.length} legacy or malformed source intake{' '}
+              {invalidKeys.length === 1 ? 'entry' : 'entries'}.
+            </span>
+          </div>
+          <button
+            id="dismiss-invalid-source-analyses-btn"
+            onClick={() => {
+              invalidKeys.forEach((k) => removeSourceAnalysis(k));
+            }}
+            className="px-2.5 py-1 bg-amber-900/60 hover:bg-amber-800 border border-amber-700 text-amber-100 rounded text-[11px] font-bold transition-colors cursor-pointer shrink-0"
+          >
+            Dismiss Invalid Entries
+          </button>
+        </div>
+      )}
+
+      {validAnalyses.length > 0 && (
+        <div className="space-y-4">
+          {validAnalyses.map((analysis) => {
           const expanded = isExpanded(analysis.id);
           const pendingCount = analysis.candidates.filter((c) => c.reviewState === 'pending').length;
           const acceptedCount = analysis.candidates.filter((c) => c.reviewState === 'accepted').length;
@@ -351,7 +393,8 @@ export const ScenarioBaselinePanel: React.FC = () => {
             </div>
           );
         })}
-      </div>
+        </div>
+      )}
     </div>
   );
 };

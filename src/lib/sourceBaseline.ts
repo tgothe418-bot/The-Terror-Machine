@@ -1,6 +1,8 @@
 import {
   ForgeDraft,
   ForgeDraftCastMember,
+  ForgeDraftCastMemberOutput,
+  ForgeDraftCastMemberSchema,
   ForgeSourceAnalysis,
   ForgeSourceCandidate,
   ForgeSourceEvidence,
@@ -264,7 +266,7 @@ export function buildSourceAnalysisFromBlueprint(
       excerpt: member.description || member.personality || name,
     });
 
-    const castSeed: ForgeDraftCastMember = {
+    const castSeed: ForgeDraftCastMemberOutput = ForgeDraftCastMemberSchema.parse({
       id: charId,
       name,
       description: member.description || '',
@@ -279,7 +281,7 @@ export function buildSourceAnalysisFromBlueprint(
       starting_location: member.starting_location,
       vulnerabilityBase: member.vulnerabilityBase,
       expressionProfile: member.expressionProfile,
-    };
+    });
 
     candidates.push({
       id: `${sourceId}-cand-cast-${charId}`,
@@ -584,34 +586,12 @@ export function applyCandidateToDraft(
         return { success: false, draft, error: 'Cast seed proposed value must be a valid cast member object.' };
       }
       const currentCast = cloned.cast ? [...cloned.cast] : [];
-      const existingIndex = currentCast.findIndex(
-        (c) => c.id === proposedCast.id || c.name.toLowerCase() === proposedCast.name.toLowerCase()
-      );
-
-      const normalizedMember: ForgeDraftCastMember = {
-        id: proposedCast.id || `char-${Date.now()}`,
-        name: proposedCast.name.trim(),
-        description: proposedCast.description || '',
-        role: proposedCast.role || 'Subject',
-        personality: proposedCast.personality || '',
-        goals: proposedCast.goals || '',
-        traits: proposedCast.traits || [],
-        isUserCharacter: proposedCast.isUserCharacter ?? false,
-        behaviorVector: proposedCast.behaviorVector || 'ADAPTIVE',
-        isEntity: proposedCast.isEntity ?? false,
-        psychological_status: proposedCast.psychological_status,
-        starting_location: proposedCast.starting_location,
-        vulnerabilityBase: proposedCast.vulnerabilityBase,
-        expressionProfile: proposedCast.expressionProfile,
-      };
+      const existingIndex = currentCast.findIndex((c) => c.id === proposedCast.id);
 
       if (existingIndex >= 0) {
-        currentCast[existingIndex] = {
-          ...currentCast[existingIndex],
-          ...normalizedMember,
-        };
+        currentCast[existingIndex] = proposedCast;
       } else {
-        currentCast.push(normalizedMember);
+        currentCast.push(proposedCast);
       }
       cloned.cast = currentCast;
       break;

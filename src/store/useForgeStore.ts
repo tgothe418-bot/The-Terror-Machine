@@ -52,6 +52,27 @@ export type DraftNarrativeRules = ForgeDraftNarrativeRules;
 export type DraftBlueprint = ForgeDraft;
 export type DraftBlueprintPatch = ForgeDraftPatch;
 
+/**
+ * Sanitizes and normalizes persisted or incoming sourceAnalyses state.
+ * Deduplicates entries saved under alias keys by indexing strictly by analysis.id,
+ * and discards any malformed records that fail schema validation.
+ */
+export function sanitizeSourceAnalyses(value: unknown): Record<string, ForgeSourceAnalysis> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {};
+  }
+  const result: Record<string, ForgeSourceAnalysis> = {};
+  const entries = Object.values(value as Record<string, unknown>);
+  for (const item of entries) {
+    const parse = ForgeSourceAnalysisSchema.safeParse(item);
+    if (parse.success) {
+      const analysis = parse.data;
+      result[analysis.id] = analysis;
+    }
+  }
+  return result;
+}
+
 // ============================================================================
 // DERIVED COMPATIBILITY ADAPTERS (Phase 3D-1 Single Source of Truth)
 // forgeDraft is the sole mutable authoring authority. The helpers below
@@ -398,14 +419,15 @@ export const useForgeStoreInternal = create<ForgeStore>()(
         registerSourceAnalysis: (analysis: ForgeSourceAnalysis) =>
           set((state: ForgeState) => {
             const parse = ForgeSourceAnalysisSchema.safeParse(analysis);
-            const validAnalysis = parse.success ? parse.data : analysis;
+            if (!parse.success) {
+              console.warn('[FORGE BASELINE] Rejected malformed source analysis:', parse.error);
+              return state;
+            }
+            const validAnalysis = parse.data;
             return {
               sourceAnalyses: {
                 ...state.sourceAnalyses,
                 [validAnalysis.id]: validAnalysis,
-                ...(validAnalysis.sourceRecord?.id && validAnalysis.sourceRecord.id !== validAnalysis.id
-                  ? { [validAnalysis.sourceRecord.id]: validAnalysis }
-                  : {}),
               },
             };
           }),
@@ -433,7 +455,6 @@ export const useForgeStoreInternal = create<ForgeStore>()(
               sourceAnalyses: {
                 ...state.sourceAnalyses,
                 [analysis.id]: updatedAnalysis,
-                ...(analysis.sourceRecord?.id ? { [analysis.sourceRecord.id]: updatedAnalysis } : {}),
               },
             };
           }),
@@ -452,7 +473,7 @@ export const useForgeStoreInternal = create<ForgeStore>()(
               analysis.sourceRecord.fileName
             );
 
-            if (!applyResult.success) {
+            if (applyResult.success === false) {
               console.warn(`[FORGE BASELINE] Candidate application failed: ${applyResult.error}`);
               return state;
             }
@@ -475,7 +496,6 @@ export const useForgeStoreInternal = create<ForgeStore>()(
               sourceAnalyses: {
                 ...state.sourceAnalyses,
                 [analysis.id]: updatedAnalysis,
-                ...(analysis.sourceRecord?.id ? { [analysis.sourceRecord.id]: updatedAnalysis } : {}),
               },
             };
           }),
@@ -501,7 +521,6 @@ export const useForgeStoreInternal = create<ForgeStore>()(
               sourceAnalyses: {
                 ...state.sourceAnalyses,
                 [analysis.id]: updatedAnalysis,
-                ...(analysis.sourceRecord?.id ? { [analysis.sourceRecord.id]: updatedAnalysis } : {}),
               },
             };
           }),
@@ -843,13 +862,16 @@ export const useForgeStoreInternal = create<ForgeStore>()(
     {
       name: 'the-forge-memory',
       storage: createJSONStorage(() => idbStorage),
-      version: 2,
+      version: 3,
       migrate: (persistedState: unknown) => {
         if (!persistedState || typeof persistedState !== 'object') return persistedState;
         const stateRecord = persistedState as Record<string, unknown>;
         // Promote legacy draftBlueprint if forgeDraft is absent in persisted storage
         if (!stateRecord.forgeDraft && stateRecord.draftBlueprint) {
           stateRecord.forgeDraft = stateRecord.draftBlueprint;
+        }
+        if (stateRecord.sourceAnalyses !== undefined) {
+          stateRecord.sourceAnalyses = sanitizeSourceAnalyses(stateRecord.sourceAnalyses);
         }
         return stateRecord;
       },
@@ -860,9 +882,7 @@ export const useForgeStoreInternal = create<ForgeStore>()(
           if (!state.forgeDraft && stateRecord.draftBlueprint) {
             state.forgeDraft = stateRecord.draftBlueprint as ForgeDraft;
           }
-          if (!state.sourceAnalyses) {
-            state.sourceAnalyses = {};
-          }
+          state.sourceAnalyses = sanitizeSourceAnalyses(state.sourceAnalyses);
           // Ensure draftBlueprint is aligned with forgeDraft
           state.draftBlueprint = state.forgeDraft;
           state.castLedger = deriveCastLedger(state.forgeDraft);

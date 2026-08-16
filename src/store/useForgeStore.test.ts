@@ -5,6 +5,7 @@ import {
   getForgeState,
   DraftCastMember,
   DraftPerspective,
+  sanitizeSourceAnalyses,
 } from './useForgeStore';
 import { TopologyEdge } from '../types';
 import { useAppStore } from './useAppStore';
@@ -476,6 +477,65 @@ describe('useForgeStore - draft state and actions', () => {
     expect(stateAfterReject.sourceAnalyses['analysis-3'].candidates[0].reviewState).toBe('rejected');
     expect(stateAfterReject.forgeDraft?.premise).toBe('');
     expect(stateAfterReject.forgeDraft?.title).toBe('Authored Title');
+  });
+
+  test('14. sanitizeSourceAnalyses normalizes dual-keyed entries into one canonical entry and discards malformed entries', () => {
+    const validAnalysis = {
+      id: 'analysis-canon-1',
+      sourceRecord: {
+        id: 'src-rec-1',
+        fileName: 'blueprint.json',
+        mimeType: 'application/json',
+        kind: 'native_blueprint' as const,
+        receivedAt: 1234567890,
+      },
+      evidence: [],
+      candidates: [
+        {
+          id: 'cand-title-1',
+          sourceId: 'src-rec-1',
+          classification: 'evidence' as const,
+          target: 'scenario_title' as const,
+          label: 'Scenario Title',
+          explanation: 'Extracted title',
+          evidenceIds: [],
+          proposedValue: 'Canonical Scenario',
+          reviewState: 'pending' as const,
+        },
+      ],
+      unknowns: [],
+      status: 'completed' as const,
+    };
+
+    const malformedAnalysis = {
+      id: 'analysis-bad',
+      // missing sourceRecord
+      candidates: 'not-an-array',
+    };
+
+    // State persisted under dual keys: analysis.id and sourceRecord.id
+    const legacyPersisted = {
+      'analysis-canon-1': validAnalysis,
+      'src-rec-1': validAnalysis,
+      'analysis-bad': malformedAnalysis,
+      'not-even-an-object': 'random string',
+    };
+
+    const sanitized = sanitizeSourceAnalyses(legacyPersisted);
+
+    // Should only have exactly 1 entry keyed under 'analysis-canon-1'
+    expect(Object.keys(sanitized)).toEqual(['analysis-canon-1']);
+    expect(sanitized['analysis-canon-1']).toBeDefined();
+    expect(sanitized['analysis-canon-1'].id).toBe('analysis-canon-1');
+    expect(sanitized['analysis-canon-1'].candidates[0].proposedValue).toBe('Canonical Scenario');
+    expect(sanitized['src-rec-1']).toBeUndefined();
+    expect(sanitized['analysis-bad']).toBeUndefined();
+
+    // Handling of non-object values
+    expect(sanitizeSourceAnalyses(null)).toEqual({});
+    expect(sanitizeSourceAnalyses(undefined)).toEqual({});
+    expect(sanitizeSourceAnalyses([])).toEqual({});
+    expect(sanitizeSourceAnalyses('string')).toEqual({});
   });
 });
 

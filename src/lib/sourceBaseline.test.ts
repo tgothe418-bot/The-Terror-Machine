@@ -332,4 +332,183 @@ describe('sourceBaseline pure functions', () => {
     const rejected = rejectCandidate(cand);
     expect(rejected.reviewState).toBe('rejected');
   });
+
+  describe('cast_seed candidate application', () => {
+    it('applies a valid cast_seed candidate to the draft and subsequent blueprint compilation succeeds', () => {
+      const initialDraft: ForgeDraft = {
+        id: 'draft-test-cast',
+        title: 'Facility Omega',
+        premise: 'Deep ocean containment breach.',
+        setting: {
+          location: 'Sector 4',
+          atmosphere: 'Humid',
+          timePeriod: 'Present',
+        },
+        startingVector: 'COGNITIVE',
+        startingTier: 'LATENT',
+        cast: [],
+      };
+
+      const castCandidate: ForgeSourceCandidate = {
+        id: 'cand-cast-1',
+        sourceId: 'src-1',
+        classification: 'evidence',
+        target: 'cast_seed',
+        label: 'Cast Member: Chief Engineer Corvus',
+        explanation: 'Extracted from crew manifest.',
+        evidenceIds: ['ev-1'],
+        proposedValue: {
+          id: 'char-corvus',
+          name: 'Chief Engineer Corvus',
+          role: 'PROTAGONIST',
+          description: 'Systems specialist handling bulkhead repairs.',
+          personality: 'Cautious and methodical.',
+          goals: 'Restore primary life support.',
+          traits: ['Engine Technician', 'Cold Under Pressure'],
+          isUserCharacter: false,
+          behaviorVector: 'ADAPTIVE',
+          isEntity: false,
+        },
+        reviewState: 'pending',
+      };
+
+      const applyRes = applyCandidateToDraft(initialDraft, castCandidate, 'manifest.json');
+      expect(applyRes.success).toBe(true);
+      expect(applyRes.draft.cast?.length).toBe(1);
+      expect(applyRes.draft.cast?.[0].id).toBe('char-corvus');
+      expect(applyRes.draft.cast?.[0].name).toBe('Chief Engineer Corvus');
+      expect(applyRes.draft.cast?.[0].role).toBe('PROTAGONIST');
+      expect(applyRes.draft.references).toContain('manifest.json');
+
+      const compileRes = compileForgeDraft(applyRes.draft);
+      expect(compileRes.success).toBe(true);
+    });
+
+    it('updates an existing member when proposedValue shares the same stable id', () => {
+      const initialDraft: ForgeDraft = {
+        id: 'draft-test-update',
+        title: 'Facility Omega',
+        premise: 'Deep ocean containment breach.',
+        cast: [
+          {
+            id: 'char-corvus',
+            name: 'Corvus',
+            role: 'Subject',
+            description: 'Old description',
+            behaviorVector: 'ADAPTIVE',
+          },
+        ],
+      };
+
+      const updateCandidate: ForgeSourceCandidate = {
+        id: 'cand-cast-update',
+        sourceId: 'src-1',
+        classification: 'evidence',
+        target: 'cast_seed',
+        label: 'Cast Member: Chief Corvus',
+        explanation: 'Updated telemetry profile.',
+        evidenceIds: [],
+        proposedValue: {
+          id: 'char-corvus',
+          name: 'Chief Engineer Corvus',
+          role: 'PROTAGONIST',
+          description: 'Refined systems lead description.',
+          personality: 'Methodical',
+          goals: 'Restore life support',
+          traits: ['Technician'],
+          isUserCharacter: false,
+          behaviorVector: 'ADAPTIVE',
+          isEntity: false,
+        },
+        reviewState: 'pending',
+      };
+
+      const applyRes = applyCandidateToDraft(initialDraft, updateCandidate);
+      expect(applyRes.success).toBe(true);
+      expect(applyRes.draft.cast?.length).toBe(1);
+      expect(applyRes.draft.cast?.[0].id).toBe('char-corvus');
+      expect(applyRes.draft.cast?.[0].name).toBe('Chief Engineer Corvus');
+      expect(applyRes.draft.cast?.[0].role).toBe('PROTAGONIST');
+      expect(applyRes.draft.cast?.[0].description).toBe('Refined systems lead description.');
+    });
+
+    it('appends a new member when id is different even if names are identical', () => {
+      const initialDraft: ForgeDraft = {
+        id: 'draft-test-append',
+        title: 'Facility Omega',
+        premise: 'Deep ocean containment breach.',
+        cast: [
+          {
+            id: 'char-corvus-1',
+            name: 'Corvus',
+            role: 'PROTAGONIST',
+            behaviorVector: 'ADAPTIVE',
+          },
+        ],
+      };
+
+      const duplicateNameCandidate: ForgeSourceCandidate = {
+        id: 'cand-cast-2',
+        sourceId: 'src-1',
+        classification: 'evidence',
+        target: 'cast_seed',
+        label: 'Cast Member: Corvus',
+        explanation: 'Another entity with the same name.',
+        evidenceIds: [],
+        proposedValue: {
+          id: 'char-corvus-clone-2',
+          name: 'Corvus',
+          role: 'ANTAGONIST',
+          description: 'Synthetic mimic',
+          personality: 'Uncanny',
+          goals: 'Infiltrate the crew',
+          traits: ['Mimic'],
+          isUserCharacter: false,
+          behaviorVector: 'INSURGENT',
+          isEntity: true,
+        },
+        reviewState: 'pending',
+      };
+
+      const applyRes = applyCandidateToDraft(initialDraft, duplicateNameCandidate);
+      expect(applyRes.success).toBe(true);
+      expect(applyRes.draft.cast?.length).toBe(2);
+      expect(applyRes.draft.cast?.[0].id).toBe('char-corvus-1');
+      expect(applyRes.draft.cast?.[1].id).toBe('char-corvus-clone-2');
+      expect(applyRes.draft.cast?.[1].role).toBe('ANTAGONIST');
+    });
+
+    it('rejects invalid candidate values without corrupting the draft', () => {
+      const initialDraft: ForgeDraft = {
+        id: 'draft-test-invalid',
+        title: 'Facility Omega',
+        premise: 'Deep ocean containment breach.',
+        cast: [
+          {
+            id: 'char-corvus-1',
+            name: 'Corvus',
+            role: 'PROTAGONIST',
+            behaviorVector: 'ADAPTIVE',
+          },
+        ],
+      };
+
+      const invalidCandidate = {
+        id: 'cand-cast-bad',
+        sourceId: 'src-1',
+        classification: 'evidence' as const,
+        target: 'cast_seed' as const,
+        label: 'Invalid Cast',
+        explanation: 'Malformed',
+        evidenceIds: [],
+        proposedValue: null,
+        reviewState: 'pending' as const,
+      } as unknown as ForgeSourceCandidate;
+
+      const applyRes = applyCandidateToDraft(initialDraft, invalidCandidate);
+      expect(applyRes.success).toBe(false);
+      expect(applyRes.draft).toBe(initialDraft);
+      expect(applyRes.draft.cast?.length).toBe(1);
+    });
+  });
 });

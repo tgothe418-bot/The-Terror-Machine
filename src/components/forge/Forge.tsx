@@ -17,22 +17,74 @@ export default function Forge() {
   const { draftBlueprint } = useForgeState();
   const { updateDraft, clearHistory } = forgeActions;
   const [hydrated, setHydrated] = useState(() => useForgeStoreInternal.persist.hasHydrated());
+  const [timedOut, setTimedOut] = useState(false);
   const [isConfirmingClear, setIsConfirmingClear] = useState(false);
   const [activeTab, setActiveTab] = useState<'blueprint' | 'campaign'>('blueprint');
   const [exportError, setExportError] = useState<string | null>(null);
 
-  // Handle hydration
+  // Handle hydration with fallback recovery timeout
   useEffect(() => {
     const unsub = useForgeStoreInternal.persist.onHydrate(() => setHydrated(false));
     const unsubFinish = useForgeStoreInternal.persist.onFinishHydration(() => setHydrated(true));
 
+    const timer = setTimeout(() => {
+      if (!useForgeStoreInternal.persist.hasHydrated()) {
+        setTimedOut(true);
+      }
+    }, 2500);
+
     return () => {
       unsub();
       unsubFinish();
+      clearTimeout(timer);
     };
   }, []);
 
-  if (!hydrated) return null;
+  const handleCleanStart = async () => {
+    try {
+      await useForgeStoreInternal.persist.clearStorage();
+    } catch (e) {
+      console.warn('[FORGE RECOVERY] Failed to clear storage:', e);
+    }
+    clearHistory();
+    setHydrated(true);
+  };
+
+  if (!hydrated) {
+    return (
+      <div
+        id="forge-restoring-memory-screen"
+        className="w-[95vw] max-w-[2560px] mx-auto p-8 h-screen flex flex-col items-center justify-center bg-black text-zinc-300 font-mono"
+      >
+        <div className="border border-zinc-800 bg-zinc-950 p-8 rounded max-w-md w-full shadow-2xl flex flex-col items-center text-center space-y-4">
+          <div className="w-8 h-8 border-2 border-cyan-500/30 border-t-cyan-400 rounded-full animate-spin" />
+          <div className="space-y-1">
+            <h3 className="text-zinc-200 text-sm font-bold uppercase tracking-widest">
+              Restoring Forge memory…
+            </h3>
+            <p className="text-xs text-zinc-500">
+              Hydrating local draft and source baseline state.
+            </p>
+          </div>
+
+          {timedOut && (
+            <div className="pt-4 border-t border-zinc-800/80 w-full flex flex-col items-center space-y-3 animate-in fade-in">
+              <p className="text-[11px] text-amber-400/90 leading-relaxed">
+                Persisted memory is taking longer than expected to resolve or may be stale.
+              </p>
+              <button
+                id="forge-clean-start-btn"
+                onClick={handleCleanStart}
+                className="px-4 py-2 bg-amber-950/60 hover:bg-amber-900 border border-amber-800 text-amber-200 rounded text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
+              >
+                Start with a clean Forge
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="forge-container w-[95vw] max-w-[2560px] mx-auto p-8 h-screen flex flex-col bg-black text-zinc-300 overflow-hidden">
@@ -374,36 +426,35 @@ export default function Forge() {
 
                       {/* Cast Expression Profile Guidance (if present) */}
                       {char.expressionProfile && (
-                        <div className="mt-1 pt-2 border-t border-zinc-900 flex flex-col gap-1 text-[11px] font-mono text-zinc-400">
-                          <div className="flex items-center justify-between">
+                        <div className="mt-1 pt-2 border-t border-zinc-900 flex flex-col gap-1.5 text-[11px] font-mono text-zinc-400">
+                          <div className="flex items-center justify-between gap-2 flex-wrap">
                             <span className="text-[10px] uppercase font-bold text-cyan-400">
-                              Expression Profile Guidance
+                              Expression Guidance
                             </span>
-                            {char.expressionProfile.demeanor && (
-                              <span className="text-[10px] text-zinc-400 italic">
-                                Demeanor: {char.expressionProfile.demeanor}
-                              </span>
-                            )}
+                            {char.expressionProfile.communicationModes &&
+                              char.expressionProfile.communicationModes.length > 0 && (
+                                <div className="flex items-center gap-1">
+                                  {char.expressionProfile.communicationModes.map((mode, mi) => (
+                                    <span
+                                      key={mi}
+                                      className="text-[9px] px-1.5 py-0.2 bg-cyan-950/40 border border-cyan-800/50 text-cyan-300 rounded uppercase"
+                                    >
+                                      {mode}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
                           </div>
-                          {char.expressionProfile.styleGuidance && (
-                            <p className="text-[10px] text-zinc-400 leading-snug">
-                              {char.expressionProfile.styleGuidance}
+                          {char.expressionProfile.expressionGuidance && (
+                            <p className="text-[10px] text-zinc-300 leading-snug">
+                              {char.expressionProfile.expressionGuidance}
                             </p>
                           )}
-                          {char.expressionProfile.forbiddenPhrases &&
-                            char.expressionProfile.forbiddenPhrases.length > 0 && (
-                              <div className="flex flex-wrap gap-1 mt-1">
-                                <span className="text-[9px] text-red-400/80 uppercase">Avoid:</span>
-                                {char.expressionProfile.forbiddenPhrases.map((phrase, pi) => (
-                                  <span
-                                    key={pi}
-                                    className="text-[9px] px-1.5 py-0.2 bg-red-950/30 border border-red-900/40 text-red-300 rounded"
-                                  >
-                                    "{phrase}"
-                                  </span>
-                                ))}
-                              </div>
-                            )}
+                          {char.expressionProfile.silenceGuidance && (
+                            <p className="text-[10px] text-zinc-500 italic leading-snug">
+                              Silence: {char.expressionProfile.silenceGuidance}
+                            </p>
+                          )}
                         </div>
                       )}
                     </div>

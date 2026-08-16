@@ -153,6 +153,7 @@ export type ForgeDraftPatch = Partial<ForgeDraft>;
 export type ForgeDraftIdentity = z.input<typeof ForgeDraftIdentitySchema>;
 export type ForgeDraftSetting = z.input<typeof ForgeDraftSettingSchema>;
 export type ForgeDraftCastMember = z.input<typeof ForgeDraftCastMemberSchema>;
+export type ForgeDraftCastMemberOutput = z.output<typeof ForgeDraftCastMemberSchema>;
 export type ForgeDraftPerspective = z.input<typeof ForgeDraftPerspectiveSchema>;
 export type ForgeDraftTopology = z.input<typeof ForgeDraftTopologySchema>;
 export type ForgeDraftNarrativeRules = z.input<typeof ForgeDraftNarrativeRulesSchema>;
