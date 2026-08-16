@@ -616,6 +616,7 @@ export default function Runtime() {
           <button
             onClick={() => {
               resetEngine();
+              useAppStore.getState().resetSession();
             }}
             className="px-2 py-1 text-xs font-mono text-red-400 hover:text-red-100 bg-red-900/20 hover:bg-red-900/50 border border-red-900/50 transition-colors duration-150 rounded mr-4"
             title="Hard Reset Engine"

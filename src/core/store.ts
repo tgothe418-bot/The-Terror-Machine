@@ -229,6 +229,7 @@ export const useEngineStore = create<EngineState>()(
         set((state) => ({
           ...state,
           activeBlueprint: null,
+          participationContext: null,
           gameState: null,
           engineTextBuffer: [],
           engineMessages: [],

@@ -61,14 +61,14 @@ turnRouter.post('/', async (req, res) => {
       } else if (pc.mode === 'antagonist') {
         if (pc.seat?.kind === 'force') {
           agencyGuidance =
-            'The user directs an environmental/unseen hostile threat force (not a mortal body). Adjudicate atmospheric manipulation, environmental hazards, and sensory terror. Narrate how the surroundings react and mortal subjects resist.';
+            'The user directs an environmental/unseen hostile threat force (not a mortal body). Adjudicate atmospheric manipulation, environmental hazards, and sensory terror according to declared vectors and limits. The Engine adjudicates other actors\' reactions, knowledge, continuity, and consequences.';
         } else {
           agencyGuidance =
-            'The user operates the hostile antagonist creature/entity seat. Adjudicate their predatory pursuit and terror interventions according to their declared vector and limits.';
+            'The user operates the hostile antagonist creature/entity seat. Adjudicate their predatory pursuit and terror interventions according to their declared vector and limits. The Engine adjudicates other actors\' reactions, knowledge, continuity, and consequences.';
         }
       } else if (pc.mode === 'director') {
         agencyGuidance =
-          'The user acts as an external scene director, framing environmental pacing, tension, and thematic staging. The Engine retains authority over physical consistency, state reconciliation, and causal world rules.';
+          'The user acts as an external scene director. A direction is a proposal for focus, pressure, framing, pacing, or reveal/withhold—not a direct edit of canonical facts, topology, or actor outcomes. The Engine retains sole authority over physical consistency, state reconciliation, and causal world rules.';
       }
 
       participationSection = `\n[PARTICIPATION CONTRACT & AGENCY BOUNDARIES]

@@ -55,17 +55,17 @@ export type AdLibInduction = z.infer<typeof AdLibInductionSchema>;
 
 export const ParticipationSeatSchema = z.object({
   kind: z.enum(['protagonist', 'character', 'force', 'director']),
-  name: z.string(),
-  description: z.string().optional(),
-  ability: z.string().optional(),
-  limitation: z.string().optional(),
+  name: z.string().trim().min(1).max(100),
+  description: z.string().trim().max(300).optional(),
+  ability: z.string().trim().max(200).optional(),
+  limitation: z.string().trim().max(200).optional(),
 });
 export type ParticipationSeat = z.infer<typeof ParticipationSeatSchema>;
 
 export const ParticipationContextSchema = z.object({
   mode: ParticipationModeSchema,
   seat: ParticipationSeatSchema.optional(),
-  initialGoal: z.string(),
-  boundedFacts: z.array(z.string()).default([]),
+  initialGoal: z.string().trim().min(1).max(200),
+  boundedFacts: z.array(z.string().trim().max(250)).max(8).default([]),
 });
 export type ParticipationContext = z.infer<typeof ParticipationContextSchema>;

@@ -9,6 +9,7 @@ import {
   AdLibProtagonistInduction,
   AdLibAntagonistInduction,
   AdLibDirectorInduction,
+  ParticipationContextSchema,
 } from '../../types/adLib';
 import { buildEngineTurnContext } from '../../lib/buildEngineTurnContext';
 import { useAppStore } from '../../store/useAppStore';
@@ -193,6 +194,112 @@ describe('Phase 3A: Ad Lib Induction & Participation Context', () => {
       const engineState = useEngineStore.getState();
       expect(engineState.activeBlueprint).toBeDefined();
       expect(engineState.participationContext?.mode).toBe('protagonist');
+    });
+  });
+
+  describe('Participation context reset and token bounds', () => {
+    it('clears participationContext on useEngineStore.resetEngine()', () => {
+      const rawInduction = {
+        participationMode: 'protagonist' as const,
+        placeSeed: 'Sub-Level 4 Cryogenic Vault',
+        goal: 'Restore the cooling manifold',
+        participantName: 'Sgt. David Ward',
+      };
+      initiateAdLibSession(rawInduction, 'session-test-reset-1');
+      expect(useEngineStore.getState().participationContext).not.toBeNull();
+
+      useEngineStore.getState().resetEngine();
+      expect(useEngineStore.getState().participationContext).toBeNull();
+      expect(useEngineStore.getState().activeBlueprint).toBeNull();
+    });
+
+    it('clears participationContext on useAppStore.resetSession()', () => {
+      const rawInduction = {
+        participationMode: 'protagonist' as const,
+        placeSeed: 'Sub-Level 4 Cryogenic Vault',
+        goal: 'Restore the cooling manifold',
+        participantName: 'Sgt. David Ward',
+      };
+      initiateAdLibSession(rawInduction, 'session-test-reset-2');
+      expect(useAppStore.getState().participationContext).not.toBeNull();
+
+      useAppStore.getState().resetSession();
+      expect(useAppStore.getState().participationContext).toBeNull();
+      expect(useAppStore.getState().sessionId).toBe('');
+    });
+
+    it('enforces token bounds on ParticipationContextSchema', () => {
+      const validContext = {
+        mode: 'protagonist' as const,
+        seat: {
+          kind: 'protagonist' as const,
+          name: 'Sgt. David Ward',
+          description: 'Cryo technician',
+          ability: 'Diagnostics',
+          limitation: 'Oxygen toxicity',
+        },
+        initialGoal: 'Restore cooling manifold',
+        boundedFacts: ['Fact 1', 'Fact 2'],
+      };
+
+      const parsed = ParticipationContextSchema.parse(validContext);
+      expect(parsed.mode).toBe('protagonist');
+
+      // Reject oversized name > 100
+      expect(() =>
+        ParticipationContextSchema.parse({
+          ...validContext,
+          seat: { ...validContext.seat, name: 'a'.repeat(101) },
+        })
+      ).toThrow();
+
+      // Reject oversized description > 300
+      expect(() =>
+        ParticipationContextSchema.parse({
+          ...validContext,
+          seat: { ...validContext.seat, description: 'a'.repeat(301) },
+        })
+      ).toThrow();
+
+      // Reject oversized ability > 200
+      expect(() =>
+        ParticipationContextSchema.parse({
+          ...validContext,
+          seat: { ...validContext.seat, ability: 'a'.repeat(201) },
+        })
+      ).toThrow();
+
+      // Reject oversized limitation > 200
+      expect(() =>
+        ParticipationContextSchema.parse({
+          ...validContext,
+          seat: { ...validContext.seat, limitation: 'a'.repeat(201) },
+        })
+      ).toThrow();
+
+      // Reject oversized initialGoal > 200
+      expect(() =>
+        ParticipationContextSchema.parse({
+          ...validContext,
+          initialGoal: 'a'.repeat(201),
+        })
+      ).toThrow();
+
+      // Reject > 8 boundedFacts
+      expect(() =>
+        ParticipationContextSchema.parse({
+          ...validContext,
+          boundedFacts: Array.from({ length: 9 }, (_, i) => `Fact ${i}`),
+        })
+      ).toThrow();
+
+      // Reject oversized fact string > 250
+      expect(() =>
+        ParticipationContextSchema.parse({
+          ...validContext,
+          boundedFacts: ['a'.repeat(251)],
+        })
+      ).toThrow();
     });
   });
 

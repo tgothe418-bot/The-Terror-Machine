@@ -73,6 +73,7 @@ export interface AppStore extends EngineState {
   dispatch: (event: EngineEvent) => void;
   commitTurnResult: (payload: CommittedTurnPayload) => void;
   failTurnResult: (payload: FailedTurnPayload) => void;
+  resetSession: () => void;
 
   isGenerating: boolean;
   currentPhase: string;
@@ -195,6 +196,31 @@ export const useAppStore = create<AppStore>((set) => ({
     set((state) => engineReducer(state, { type: 'TURN_COMMITTED', payload })),
   failTurnResult: (payload: FailedTurnPayload) =>
     set((state) => engineReducer(state, { type: 'TURN_FAILED', payload })),
+  resetSession: () =>
+    set({
+      ...initialEngineState,
+      isTransitioning: false,
+      activeCampaign: null,
+      currentActId: null,
+      suspendedActs: {},
+      narrativeVelocity: 'slow_burn' as NarrativeVelocity,
+      reconciliationRevision: 0,
+      uiTranscript: [],
+      enginePayload: [],
+      turnSnapshot: null,
+      telemetry: null,
+      spatialGraph: [],
+      isShattered: false,
+      decayMetrics: {
+        currentStage: 'STABLE',
+        coherenceRating: 1.0,
+        divergenceMode: 'NONE',
+      },
+      isGenerating: false,
+      currentPhase: 'INIT',
+      tensionLevel: 0,
+      storyLog: [],
+    }),
 
   isGenerating: false,
   currentPhase: 'INIT',

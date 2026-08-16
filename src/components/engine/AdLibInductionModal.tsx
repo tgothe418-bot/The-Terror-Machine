@@ -36,38 +36,26 @@ export default function AdLibInductionModal({
   const [mode, setMode] = useState<ParticipationMode>('protagonist');
 
   // Shared inputs
-  const [placeSeed, setPlaceSeed] = useState('Derelict Deep-Sea Research Trench');
-  const [goal, setGoal] = useState('Recover the lost black box and seal the breach');
-  const [unsettlingDetail, setUnsettlingDetail] = useState(
-    'Rhythmic metallic knocking from the outer hull'
-  );
+  const [placeSeed, setPlaceSeed] = useState('');
+  const [goal, setGoal] = useState('');
+  const [unsettlingDetail, setUnsettlingDetail] = useState('');
 
   // Protagonist inputs
-  const [participantName, setParticipantName] = useState('Dr. Elena Vance');
-  const [identity, setIdentity] = useState('Chief Marine Biologist & Saturation Diver');
-  const [ability, setAbility] = useState('Atmospheric pressure calculations and manual bypass');
-  const [limitation, setLimitation] = useState('Crippling oxygen toxicity tremors under stress');
+  const [participantName, setParticipantName] = useState('');
+  const [identity, setIdentity] = useState('');
+  const [ability, setAbility] = useState('');
+  const [limitation, setLimitation] = useState('');
 
   // Antagonist inputs
   const [antagonistKind, setAntagonistKind] = useState<OppositionSeatKind>('force');
-  const [antagonistName, setAntagonistName] = useState('The Abyssal Siphon');
-  const [antagonistDescription, setAntagonistDescription] = useState(
-    'A sentient oceanic pressure anomaly that crushes structural bulkheads and mimics drowned voices.'
-  );
-  const [antagonistGoal, setAntagonistGoal] = useState(
-    'Collapse the habitat domes and consume the survivors into the trench depth.'
-  );
-  const [antagonistAbility, setAntagonistAbility] = useState(
-    'Pressure manipulation, structural fatigue induction, biometric echo distortion'
-  );
-  const [antagonistLimitation, setAntagonistLimitation] = useState(
-    'Cannot penetrate active hermetic quartz seals without physical decompression'
-  );
+  const [antagonistName, setAntagonistName] = useState('');
+  const [antagonistDescription, setAntagonistDescription] = useState('');
+  const [antagonistGoal, setAntagonistGoal] = useState('');
+  const [antagonistAbility, setAntagonistAbility] = useState('');
+  const [antagonistLimitation, setAntagonistLimitation] = useState('');
 
   // Director inputs
-  const [directorFocus, setDirectorFocus] = useState(
-    'Claustrophobic acoustic tension, creeping isolation, slow-burn structural dread'
-  );
+  const [directorFocus, setDirectorFocus] = useState('');
 
   // Error handling
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -375,7 +363,7 @@ export default function AdLibInductionModal({
                     type="text"
                     value={participantName}
                     onChange={(e) => setParticipantName(e.target.value)}
-                    placeholder="e.g. Dr. Elena Vance"
+                    placeholder="e.g. Sgt. David Ward"
                     maxLength={100}
                     className="w-full bg-zinc-900 border border-zinc-800 px-3 py-2 text-zinc-100 placeholder-zinc-600 focus:border-emerald-500 focus:outline-none"
                   />
