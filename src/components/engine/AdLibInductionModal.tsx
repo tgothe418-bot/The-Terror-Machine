@@ -149,7 +149,7 @@ export default function AdLibInductionModal({
 
       // 3. Set forge links for compatibility
       forgeActions.setActiveNeuralLink(
-        mode === 'antagonist' ? 'ANTAGONIST' : 'PROTAGONIST'
+        mode === 'antagonist' ? 'ANTAGONIST' : mode === 'director' ? 'DIRECTOR' : 'PROTAGONIST'
       );
       forgeActions.startSimulation(result.blueprint);
 

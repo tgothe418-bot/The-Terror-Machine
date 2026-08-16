@@ -186,7 +186,7 @@ export interface ForgeActions {
   setExtractedStyle: (style: string) => void;
   addReferenceMaterials: (materials: ReferenceMaterial[]) => void;
   removeReferenceMaterial: (id: string) => void;
-  setActiveNeuralLink: (role: 'PROTAGONIST' | 'ANTAGONIST') => void;
+  setActiveNeuralLink: (role: 'PROTAGONIST' | 'ANTAGONIST' | 'DIRECTOR') => void;
   setActiveCharacterId: (id: string | null) => void;
   startSimulation: (
     blueprint?: SimulationBlueprintInput | DraftBlueprint | Blueprint | ScenarioBlueprint | null
@@ -214,7 +214,7 @@ export interface ForgeState {
   where: string;
   when: string;
   whyHow: string;
-  activeNeuralLink: 'PROTAGONIST' | 'ANTAGONIST';
+  activeNeuralLink: 'PROTAGONIST' | 'ANTAGONIST' | 'DIRECTOR';
   activeCharacterId: string | null;
 }
 
@@ -419,7 +419,7 @@ export const useForgeStoreInternal = create<ForgeStore>()(
           set((state: ForgeState) => ({
             referenceMaterials: state.referenceMaterials.filter((m) => m.id !== id),
           })),
-        setActiveNeuralLink: (role: 'PROTAGONIST' | 'ANTAGONIST') =>
+        setActiveNeuralLink: (role: 'PROTAGONIST' | 'ANTAGONIST' | 'DIRECTOR') =>
           set({ activeNeuralLink: role }),
         setActiveCharacterId: (id: string | null) => set({ activeCharacterId: id }),
         startSimulation: (

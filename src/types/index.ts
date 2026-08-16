@@ -119,7 +119,6 @@ export const BlueprintSchema = z.object({
   // Explicitly require an array of characters, but allow infinite length
   cast: z
     .array(CastMemberSchema)
-    .min(1)
     .optional()
     .default(() => [
       {
