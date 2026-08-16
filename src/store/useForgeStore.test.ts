@@ -1,7 +1,13 @@
 import { expect, test, describe, beforeEach } from 'vitest';
 import 'fake-indexeddb/auto';
-import { forgeActions, getForgeState, DraftCastMember, DraftPerspective } from './useForgeStore';
+import {
+  forgeActions,
+  getForgeState,
+  DraftCastMember,
+  DraftPerspective,
+} from './useForgeStore';
 import { TopologyEdge } from '../types';
+import { useAppStore } from './useAppStore';
 
 describe('useForgeStore - draft state and actions', () => {
   beforeEach(() => {
@@ -13,46 +19,55 @@ describe('useForgeStore - draft state and actions', () => {
     forgeActions.initializeDraft();
     const state = getForgeState();
 
-    expect(state.draftBlueprint).not.toBeNull();
-    expect(state.draftBlueprint?.id).toBeDefined();
-    expect(typeof state.draftBlueprint?.id).toBe('string');
-    expect(state.draftBlueprint?.id?.length).toBeGreaterThan(0);
-    expect(state.draftBlueprint?.startingVector).toBe('COGNITIVE');
-    expect(state.draftBlueprint?.startingTier).toBe('LATENT');
-    expect(state.draftBlueprint?.title).toBe('');
-    expect(state.draftBlueprint?.premise).toBe('');
-    expect(state.draftBlueprint?.environmentalRules).toBe('');
+    expect(state.forgeDraft).not.toBeNull();
+    expect(state.draftBlueprint).toBe(state.forgeDraft);
+    expect(state.forgeDraft?.id).toBeDefined();
+    expect(typeof state.forgeDraft?.id).toBe('string');
+    expect(state.forgeDraft?.id?.length).toBeGreaterThan(0);
+    expect(state.forgeDraft?.startingVector).toBe('COGNITIVE');
+    expect(state.forgeDraft?.startingTier).toBe('LATENT');
+    expect(state.forgeDraft?.title).toBe('');
+    expect(state.forgeDraft?.premise).toBe('');
+    expect(state.forgeDraft?.environmentalRules).toBe('');
   });
 
   test('2. updateDraft merges a typed patch without losing existing draft values', () => {
     forgeActions.initializeDraft();
-    const initialDraft = getForgeState().draftBlueprint!;
+    const initialDraft = getForgeState().forgeDraft!;
 
     forgeActions.updateDraft({
       title: 'The Submerged Complex',
       environmentalRules: 'Pressure increases by 1 ATM per floor',
+      setting: {
+        location: 'Deep Trench Station',
+        atmosphere: 'High humidity',
+        timePeriod: '2099',
+      },
     });
 
     const updatedState = getForgeState();
-    expect(updatedState.draftBlueprint?.id).toBe(initialDraft.id);
-    expect(updatedState.draftBlueprint?.startingVector).toBe('COGNITIVE');
-    expect(updatedState.draftBlueprint?.startingTier).toBe('LATENT');
-    expect(updatedState.draftBlueprint?.title).toBe('The Submerged Complex');
-    expect(updatedState.draftBlueprint?.environmentalRules).toBe(
+    expect(updatedState.forgeDraft?.id).toBe(initialDraft.id);
+    expect(updatedState.forgeDraft?.startingVector).toBe('COGNITIVE');
+    expect(updatedState.forgeDraft?.startingTier).toBe('LATENT');
+    expect(updatedState.forgeDraft?.title).toBe('The Submerged Complex');
+    expect(updatedState.forgeDraft?.identity?.title).toBe('The Submerged Complex');
+    expect(updatedState.forgeDraft?.setting?.location).toBe('Deep Trench Station');
+    expect(updatedState.forgeDraft?.environmentalRules).toBe(
       'Pressure increases by 1 ATM per floor'
     );
 
-    // Further patch
+    // Further patch preserves existing setting and rules
     forgeActions.updateDraft({
       globalPremise: 'The facility is leaking containment fluid',
       startingTier: 'MANIFEST',
     });
 
     const secondPatchState = getForgeState();
-    expect(secondPatchState.draftBlueprint?.title).toBe('The Submerged Complex');
-    expect(secondPatchState.draftBlueprint?.startingVector).toBe('COGNITIVE');
-    expect(secondPatchState.draftBlueprint?.startingTier).toBe('MANIFEST');
-    expect(secondPatchState.draftBlueprint?.globalPremise).toBe(
+    expect(secondPatchState.forgeDraft?.title).toBe('The Submerged Complex');
+    expect(secondPatchState.forgeDraft?.startingVector).toBe('COGNITIVE');
+    expect(secondPatchState.forgeDraft?.startingTier).toBe('MANIFEST');
+    expect(secondPatchState.forgeDraft?.setting?.location).toBe('Deep Trench Station');
+    expect(secondPatchState.forgeDraft?.globalPremise).toBe(
       'The facility is leaking containment fluid'
     );
   });
@@ -60,7 +75,12 @@ describe('useForgeStore - draft state and actions', () => {
   test('3. Updating nested cast or perspective data produces a new draft structure and does not mutate the prior state snapshot', () => {
     forgeActions.initializeDraft();
     const initialCast: DraftCastMember[] = [
-      { id: 'c1', name: 'Lead Researcher', description: 'Station Scientific Lead', behaviorVector: 'ADAPTIVE' },
+      {
+        id: 'c1',
+        name: 'Lead Researcher',
+        description: 'Station Scientific Lead',
+        behaviorVector: 'ADAPTIVE',
+      },
     ];
     const initialPerspectives: DraftPerspective[] = [
       {
@@ -76,7 +96,7 @@ describe('useForgeStore - draft state and actions', () => {
     });
 
     const snapshotBefore = getForgeState();
-    const draftSnapshotBefore = snapshotBefore.draftBlueprint!;
+    const draftSnapshotBefore = snapshotBefore.forgeDraft!;
     const castSnapshotBefore = draftSnapshotBefore.cast!;
     const perspectiveSnapshotBefore = draftSnapshotBefore.perspectives!;
 
@@ -94,7 +114,7 @@ describe('useForgeStore - draft state and actions', () => {
     });
 
     const snapshotAfter = getForgeState();
-    const draftSnapshotAfter = snapshotAfter.draftBlueprint!;
+    const draftSnapshotAfter = snapshotAfter.forgeDraft!;
 
     // Verify new state
     expect(draftSnapshotAfter.cast?.[0].name).toBe('Senior Specialist');
@@ -120,14 +140,14 @@ describe('useForgeStore - draft state and actions', () => {
     forgeActions.removeReference('security_briefing.txt');
 
     const state = getForgeState();
-    expect(state.draftBlueprint?.references).toEqual(['manifest.pdf', 'audio_log_04.md']);
-    expect(state.draftBlueprint?.title).toBe('Facility Log Reference Test');
-    expect(state.draftBlueprint?.startingVector).toBe('SOMATIC');
-    expect(state.draftBlueprint?.startingTier).toBe('GATEWAY');
+    expect(state.forgeDraft?.references).toEqual(['manifest.pdf', 'audio_log_04.md']);
+    expect(state.forgeDraft?.title).toBe('Facility Log Reference Test');
+    expect(state.forgeDraft?.startingVector).toBe('SOMATIC');
+    expect(state.forgeDraft?.startingTier).toBe('GATEWAY');
 
     // Removing a non-existent reference leaves array intact
     forgeActions.removeReference('non_existent.doc');
-    expect(getForgeState().draftBlueprint?.references).toEqual(['manifest.pdf', 'audio_log_04.md']);
+    expect(getForgeState().forgeDraft?.references).toEqual(['manifest.pdf', 'audio_log_04.md']);
   });
 
   test('5. A draft containing both a legacy string connection and a canonical TopologyEdge is retained as authoring state', () => {
@@ -153,15 +173,15 @@ describe('useForgeStore - draft state and actions', () => {
     });
 
     const state = getForgeState();
-    expect(state.draftBlueprint?.topology).toBeDefined();
-    expect(state.draftBlueprint?.topology?.nodes).toEqual([
+    expect(state.forgeDraft?.topology).toBeDefined();
+    expect(state.forgeDraft?.topology?.nodes).toEqual([
       'Airlock',
       'Decontamination',
       'Bio-Lab',
     ]);
-    expect(state.draftBlueprint?.topology?.connections).toHaveLength(2);
-    expect(state.draftBlueprint?.topology?.connections?.[0]).toBe('Airlock -> Decontamination');
-    expect(state.draftBlueprint?.topology?.connections?.[1]).toEqual({
+    expect(state.forgeDraft?.topology?.connections).toHaveLength(2);
+    expect(state.forgeDraft?.topology?.connections?.[0]).toBe('Airlock -> Decontamination');
+    expect(state.forgeDraft?.topology?.connections?.[1]).toEqual({
       from: 'Decontamination',
       to: 'Bio-Lab',
       kind: 'PHYSICAL',
@@ -171,22 +191,62 @@ describe('useForgeStore - draft state and actions', () => {
     });
   });
 
-  test('should add a character to the cast correctly', () => {
-    const testChar = {
-      id: '1',
-      name: 'Test Victim',
-      description: 'A test victim for cast ledger insertion.',
-      role: 'Target',
-      personality: 'Anxious',
-      goals: 'Survive',
-      traits: ['Nervous'],
-      isUserCharacter: false,
+  test('6. replaceDraft completely replaces the current draft with a clean deep clone', () => {
+    forgeActions.initializeDraft();
+    const externalDraft = {
+      id: 'ext-draft-99',
+      title: 'Imported Scenario',
+      premise: 'Imported premise content',
+      globalPremise: 'Imported premise content',
+      startingVector: 'COSMIC' as const,
+      startingTier: 'MANIFEST' as const,
+      environmentalRules: 'Total silence',
+      constraints: ['No artificial light'],
+      contentScale: 5,
+      contentLevelDescription: 'Extreme',
+      identity: {
+        title: 'Imported Scenario',
+        version: '2.0',
+        author: 'Unknown Author',
+        thematicAnchor: 'Void',
+      },
+      setting: {
+        location: 'Derelict Deep Space Array',
+        atmosphere: 'Vacuum frost',
+        timePeriod: '3022',
+      },
+      cast: [],
+      perspectives: [],
+      topology: { nodes: [], connections: [] },
+      narrativeRules: {
+        incitingIncident: '',
+        phaseDirectives: {},
+        currentTensionLevel: 'buildup',
+        keyPlotElements: [],
+      },
+      references: [],
+      characters: [],
     };
 
-    forgeActions.addCharacterToCast(testChar);
+    forgeActions.replaceDraft(externalDraft);
 
     const state = getForgeState();
-    expect(state.selectedCharacters.length).toBe(1);
-    expect(state.selectedCharacters[0].name).toBe('Test Victim');
+    expect(state.forgeDraft?.id).toBe('ext-draft-99');
+    expect(state.forgeDraft?.title).toBe('Imported Scenario');
+    expect(state.forgeDraft?.startingVector).toBe('COSMIC');
+    expect(state.draftBlueprint).toEqual(state.forgeDraft);
+  });
+
+  test('7. Forge draft actions never mutate or reset App runtime state', () => {
+    const appBefore = useAppStore.getState();
+
+    forgeActions.initializeDraft();
+    forgeActions.updateDraft({ title: 'New Scenario Draft' });
+    forgeActions.resetStore();
+
+    const appAfter = useAppStore.getState();
+
+    expect(appAfter.sessionId).toBe(appBefore.sessionId);
+    expect(appAfter.phase).toBe(appBefore.phase);
   });
 });

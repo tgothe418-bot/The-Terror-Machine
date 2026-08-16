@@ -4,7 +4,7 @@ import { useForgeState, forgeActions, ArchitectMessage } from '../../store/useFo
 export const ArchitectChat = () => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { updateDraft, addArchitectMessage } = forgeActions;
+  const { addArchitectMessage } = forgeActions;
 
   const messages = useForgeState((state) => state.architectMessages);
 
@@ -29,13 +29,12 @@ export const ArchitectChat = () => {
 
       addArchitectMessage({ role: 'architect', content: data.text });
 
-      // CRITICAL: Auto-fill the Forge form if the Architect compiled a blueprint
+      // Phase 3D-1: Architect response is a proposal, not a direct state authority.
+      // Server-returned compiledBlueprint must NOT automatically replace the canonical Forge draft.
       if (data.compiledBlueprint) {
-        updateDraft({
-          ...data.compiledBlueprint,
-          title: data.compiledBlueprint.identity?.title || data.compiledBlueprint.title,
-          premise: data.compiledBlueprint.globalPremise || data.compiledBlueprint.premise,
-        });
+        console.info(
+          '[Forge Architect] Proposal received from Architect (auto-replacement disabled in Phase 3D-1)'
+        );
       }
     } catch (error) {
       console.error(error);

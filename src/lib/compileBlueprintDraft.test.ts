@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { ZodError } from 'zod';
 import { compileBlueprintDraft, prepareBlueprintExport } from './compileBlueprintDraft';
 import { BlueprintSchema, Blueprint } from '../types';
+import { ForgeDraft } from '../types/forge';
+import { ForgeCompilationError } from './forgeCompiler';
 
 describe('compileBlueprintDraft and prepareBlueprintExport', () => {
   it('compiles a partial legacy Forge draft into a Blueprint accepted by BlueprintSchema', () => {
@@ -48,58 +50,111 @@ describe('compileBlueprintDraft and prepareBlueprintExport', () => {
     ]);
   });
 
-  it('ensures schema defaults missing from raw draft are present in both compiled object and parsed export JSON', () => {
+  it('ensures schema defaults missing from raw draft are present in compiled object', () => {
     const rawDraft = {
       identity: { title: 'Minimal Draft' },
     };
 
-    const artifact = prepareBlueprintExport(rawDraft);
-    const parsedExport = JSON.parse(artifact.json);
-
-    expect(artifact.blueprint.identity.version).toBe('1.0');
-    expect(artifact.blueprint.contentScale).toBe(3);
-    expect(artifact.blueprint.setting.timePeriod).toBe('Present');
-    expect(artifact.blueprint.topology.nodes).toEqual([]);
-    expect(artifact.blueprint.topology.connections).toEqual([]);
-
-    expect(parsedExport.identity.version).toBe('1.0');
-    expect(parsedExport.contentScale).toBe(3);
-    expect(parsedExport.setting.timePeriod).toBe('Present');
-    expect(parsedExport.topology.nodes).toEqual([]);
-    expect(parsedExport.topology.connections).toEqual([]);
+    const compiled = compileBlueprintDraft(rawDraft);
+    expect(compiled.identity.version).toBe('1.0');
+    expect(compiled.contentScale).toBe(3);
+    expect(compiled.setting.timePeriod).toBe('Present');
+    expect(compiled.topology.nodes).toEqual([]);
+    expect(compiled.topology.connections).toEqual([]);
   });
 
   it('produces export JSON that deep-equals the compiled Blueprint and is not the raw draft representation', () => {
-    const rawDraft = {
+    const validDraft: ForgeDraft = {
+      id: 'draft-export-test',
       title: 'Legacy Representation',
+      premise: 'Old premise field',
       globalPremise: 'Old premise field',
+      startingVector: 'COGNITIVE',
+      startingTier: 'LATENT',
+      setting: {
+        location: 'Research Facility',
+      },
+      cast: [
+        {
+          id: 'c1',
+          name: 'Subject Alpha',
+          role: 'Subject',
+          behaviorVector: 'ADAPTIVE',
+          isEntity: false,
+        },
+      ],
       topology: {
         nodes: ['A', 'B'],
         connections: ['A -> B'],
       },
+      perspectives: [],
+      references: [],
+      narrativeRules: {
+        incitingIncident: '',
+        phaseDirectives: {},
+        currentTensionLevel: 'buildup',
+        keyPlotElements: [],
+      },
+      characters: [],
+      constraints: [],
+      contentScale: 3,
+      contentLevelDescription: 'Standard',
+      environmentalRules: '',
     };
 
-    const artifact = prepareBlueprintExport(rawDraft);
+    const artifact = prepareBlueprintExport(validDraft);
     const parsedFromJson = JSON.parse(artifact.json);
 
     expect(parsedFromJson).toEqual(artifact.blueprint);
-    expect(parsedFromJson).not.toEqual(rawDraft);
+    expect(parsedFromJson).not.toEqual(validDraft);
     expect(artifact.blueprint.topology.connections[0]).toHaveProperty('kind', 'PHYSICAL');
   });
 
   it('generates filename using compiled identity title and compiled references with lowercase/underscore sanitization', () => {
-    const rawDraftWithRefs = {
-      identity: { title: 'The Old Church & Bell Tower!' },
+    const validDraftWithRefs: ForgeDraft = {
+      id: 'draft-refs-test',
+      title: 'The Old Church & Bell Tower!',
+      premise: 'Explore the bell tower.',
+      startingVector: 'COSMIC',
+      startingTier: 'MANIFEST',
+      setting: {
+        location: 'The Old Church',
+      },
+      cast: [
+        {
+          id: 'c1',
+          name: 'Keeper Thomas',
+          role: 'Keeper',
+          behaviorVector: 'ADAPTIVE',
+          isEntity: false,
+        },
+      ],
+      perspectives: [],
+      topology: { nodes: [], connections: [] },
       references: ['Silent Hill 2', 'The Thing (1982)'],
+      narrativeRules: {
+        incitingIncident: '',
+        phaseDirectives: {},
+        currentTensionLevel: 'buildup',
+        keyPlotElements: [],
+      },
+      characters: [],
+      constraints: [],
+      contentScale: 3,
+      contentLevelDescription: 'Standard',
+      environmentalRules: '',
     };
 
-    const artifact = prepareBlueprintExport(rawDraftWithRefs);
+    const artifact = prepareBlueprintExport(validDraftWithRefs);
     expect(artifact.fileName).toBe('silent_hill_2_the_thing_1982__the_old_church_bell_tower_.json');
 
-    const rawDraftWithoutRefs = {
-      identity: { title: 'Cold Chamber' },
+    const validDraftWithoutRefs: ForgeDraft = {
+      ...validDraftWithRefs,
+      id: 'draft-norefs-test',
+      title: 'Cold Chamber',
+      references: [],
     };
-    const artifactNoRefs = prepareBlueprintExport(rawDraftWithoutRefs);
+    const artifactNoRefs = prepareBlueprintExport(validDraftWithoutRefs);
     expect(artifactNoRefs.fileName).toBe('cold_chamber.json');
   });
 
@@ -108,7 +163,7 @@ describe('compileBlueprintDraft and prepareBlueprintExport', () => {
       identity: 42,
     };
     expect(() => compileBlueprintDraft(malformedDraft1)).toThrow(ZodError);
-    expect(() => prepareBlueprintExport(malformedDraft1)).toThrow(ZodError);
+    expect(() => prepareBlueprintExport(malformedDraft1)).toThrow(ForgeCompilationError);
 
     const malformedDraft2 = {
       identity: { title: 'Valid' },
@@ -117,24 +172,53 @@ describe('compileBlueprintDraft and prepareBlueprintExport', () => {
       },
     };
     expect(() => compileBlueprintDraft(malformedDraft2)).toThrow(ZodError);
-    expect(() => prepareBlueprintExport(malformedDraft2)).toThrow(ZodError);
+    expect(() => prepareBlueprintExport(malformedDraft2)).toThrow(ForgeCompilationError);
   });
 
   it('does not mutate the source draft', () => {
-    const rawDraft = {
+    const validDraft: ForgeDraft = {
+      id: 'draft-immutable-test',
       title: 'Immutable Draft',
+      premise: 'Test premise.',
+      startingVector: 'SOMATIC',
+      startingTier: 'GATEWAY',
+      setting: {
+        location: 'Storage Bay',
+      },
+      cast: [
+        {
+          id: 'c1',
+          name: 'Officer Vance',
+          role: 'Officer',
+          behaviorVector: 'ADAPTIVE',
+          isEntity: false,
+        },
+      ],
       topology: {
         nodes: ['ROOM_A', 'ROOM_B'],
         connections: ['ROOM_A -> ROOM_B'],
       },
+      perspectives: [],
+      references: [],
+      narrativeRules: {
+        incitingIncident: '',
+        phaseDirectives: {},
+        currentTensionLevel: 'buildup',
+        keyPlotElements: [],
+      },
+      characters: [],
+      constraints: [],
+      contentScale: 3,
+      contentLevelDescription: 'Standard',
+      environmentalRules: '',
     };
 
-    const snapshot = JSON.parse(JSON.stringify(rawDraft));
-    compileBlueprintDraft(rawDraft);
-    prepareBlueprintExport(rawDraft);
+    const snapshot = JSON.parse(JSON.stringify(validDraft));
+    compileBlueprintDraft(validDraft);
+    prepareBlueprintExport(validDraft);
 
-    expect(rawDraft).toEqual(snapshot);
-    expect(typeof rawDraft.topology.connections[0]).toBe('string');
+    expect(validDraft).toEqual(snapshot);
+    expect(typeof validDraft.topology?.connections?.[0]).toBe('string');
   });
 
   it('is value-idempotent when compiling an already compiled Blueprint', () => {

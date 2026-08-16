@@ -1,4 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+/**
+ * QUARANTINED / DEPRECATED: Phase 3D-1 migration boundary.
+ * GuidedInduction is unmounted and is NOT an active authoring authority.
+ * Canonical authoring flows through useForgeStore (forgeDraft).
+ */
 import React, { useState } from 'react';
 import { AuthoritativeBlueprint } from '../../lib/schemaCompactor';
 

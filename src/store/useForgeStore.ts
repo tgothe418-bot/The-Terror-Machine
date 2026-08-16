@@ -6,14 +6,19 @@ import {
   ForgePhase,
   ReferenceMaterial,
   ProseStyleVector,
-  HorrorVector,
-  ExposureTier,
-  AutopilotVector,
-  TopologyEdge,
-  VulnerabilityIndex,
   Blueprint,
   ScenarioBlueprint,
 } from '../types';
+import {
+  ForgeDraft,
+  ForgeDraftPatch,
+  ForgeDraftCastMember,
+  ForgeDraftPerspective,
+  ForgeDraftTopology,
+  ForgeDraftIdentity,
+  ForgeDraftSetting,
+  ForgeDraftNarrativeRules,
+} from '../types/forge';
 import { idbStorage } from '../lib/idbStorage';
 
 export const defaultStyleVector: ProseStyleVector = {
@@ -30,6 +35,21 @@ export const defaultStyleVector: ProseStyleVector = {
   ],
 };
 
+// Re-export type aliases for backward compatibility across Forge components
+export type DraftIdentity = ForgeDraftIdentity;
+export type DraftCastMember = ForgeDraftCastMember;
+export type DraftPerspective = ForgeDraftPerspective;
+export type DraftTopology = ForgeDraftTopology;
+export type DraftSetting = ForgeDraftSetting;
+export type DraftNarrativeRules = ForgeDraftNarrativeRules;
+export type DraftBlueprint = ForgeDraft;
+export type DraftBlueprintPatch = ForgeDraftPatch;
+
+// ============================================================================
+// LEGACY COMPATIBILITY ADAPTER / QUARANTINE (Phase 3D Migration Boundary)
+// The fields and actions below are legacy authoring paths quarantined during
+// Phase 3D-1. The canonical authoring authority is forgeDraft.
+// ============================================================================
 export type CastRole = 'PROTAGONIST' | 'ANTAGONIST' | 'SENTINEL' | 'ENTITY' | 'OBSERVER';
 
 export interface CastMember {
@@ -41,93 +61,10 @@ export interface CastMember {
   isEntity?: boolean;
 }
 
-export interface DraftIdentity {
-  title?: string;
-  version?: string;
-  author?: string;
-  thematicAnchor?: string;
-}
-
-export interface DraftCastMember {
-  id: string;
-  name: string;
-  description?: string;
-  role?: string;
-  personality?: string;
-  goals?: string;
-  traits?: string[];
-  isUserCharacter?: boolean;
-  behaviorVector?: AutopilotVector | string;
-  isEntity?: boolean;
-  psychological_status?: string;
-  starting_location?: string;
-  vulnerabilityBase?: VulnerabilityIndex;
-}
-
-export type DraftPerspectiveRole =
-  | 'PROTAGONIST'
-  | 'ANTAGONIST'
-  | 'DIRECTOR'
-  | 'WITNESS'
-  | 'POSSESSED';
-
-export interface DraftPerspective {
-  role: DraftPerspectiveRole;
-  framingDirective?: string;
-  sensoryBias?: string[];
-  startingSemanticState?:
-    | string
-    | {
-        soma?: string[];
-        geom?: string[];
-        imp?: string;
-      };
-  subjectCharacterId?: string;
-}
-
-export interface DraftTopology {
-  nodes?: string[];
-  connections?: Array<TopologyEdge | string>;
-}
-
-export interface DraftBlueprint {
-  id?: string;
-  title?: string;
-  premise?: string;
-  globalPremise?: string;
-  references?: string[];
-  startingVector: HorrorVector;
-  startingTier: ExposureTier;
-  environmentalRules?: string | string[];
-  constraints?: string[];
-  contentScale?: number;
-  contentLevelDescription?: string;
-  cast?: DraftCastMember[];
-  perspectives?: DraftPerspective[];
-  topology?: DraftTopology;
-  identity?: DraftIdentity;
-  setting?: {
-    location?: string;
-    atmosphere?: string;
-    timePeriod?: string;
-  };
-  narrativeRules?: {
-    incitingIncident?: string;
-    phaseDirectives?: Record<string, string>;
-    currentTensionLevel?: string;
-    keyPlotElements?: string[];
-    pacingDirectives?: string;
-  };
-  terminalConditions?: unknown;
-  characters?: unknown[];
-}
-
-export type DraftBlueprintPatch = Partial<DraftBlueprint>;
-
 export interface EntityMemoryState {
-  tacticalImperative: string; // The immediate, shifting goal
-  somaticState: string[]; // Physical truths (e.g., "broken arm", "bleeding")
-  relationalWeb: string[]; // Environmental/Entity knowledge
+  tacticalImperative: string;
+  somaticState: string[];
+  relationalWeb: string[];
   systemFlags?: string[];
 }
 
@@ -152,20 +89,27 @@ export interface SimulationBlueprintInput {
 }
 
 export interface ForgeActions {
+  // --- CANONICAL FORGE DRAFT ACTIONS (Phase 3D-1 Single Source of Truth) ---
+  initializeDraft: (initial?: ForgeDraftPatch) => void;
+  replaceDraft: (draft: ForgeDraft) => void;
+  updateDraft: (updates: ForgeDraftPatch) => void;
+  removeReference: (fileName: string) => void;
+  resetStore: () => void;
+  clearHistory: () => void;
+
+  // --- ARCHITECT CHAT (PROPOSAL-ONLY IN PHASE 3D-1) ---
+  addArchitectMessage: (message: ArchitectMessage) => void;
+  clearArchitectChat: () => void;
+
+  // --- QUARANTINED LEGACY FORGE ACTIONS (Retained for temporary UI bridging) ---
   addCastMember: (member: Omit<CastMember, 'id'>) => void;
   updateCastMember: (id: string, updates: Partial<CastMember>) => void;
   removeCastMember: (id: string) => void;
-  resetStore: () => void;
   addSpatialNode: (nodeId: string) => void;
   removeSpatialNode: (nodeId: string) => void;
   toggleSpatialEdge: (nodeA: string, nodeB: string) => void;
   updateActiveMemory: (updates: Partial<EntityMemoryState>) => void;
   commitSemanticTags: (parsedTags: Record<string, string[]>) => void;
-  addArchitectMessage: (message: ArchitectMessage) => void;
-  clearArchitectChat: () => void;
-  initializeDraft: () => void;
-  updateDraft: (updates: DraftBlueprintPatch) => void;
-  removeReference: (fileName: string) => void;
   setWho: (val: string) => void;
   setWhat: (val: string) => void;
   setWhere: (val: string) => void;
@@ -173,7 +117,6 @@ export interface ForgeActions {
   setWhyHow: (val: string) => void;
   clearForgeInputs: () => void;
   addMessage: (message: Message) => void;
-  clearHistory: () => void;
   setAvailableReferenceCharacters: (characters: CharacterProfile[]) => void;
   addCharacterToCast: (character: CharacterProfile) => void;
   removeCharacterFromCast: (id: string) => void;
@@ -194,6 +137,17 @@ export interface ForgeActions {
 }
 
 export interface ForgeState {
+  // --- CANONICAL FORGE AUTHORING STATE ---
+  forgeDraft: ForgeDraft | null;
+  /**
+   * @deprecated Read/write forgeDraft instead. Synchronized alias to forgeDraft for legacy callers.
+   */
+  draftBlueprint: ForgeDraft | null;
+
+  // --- ARCHITECT CHAT STATE ---
+  architectMessages: ArchitectMessage[];
+
+  // --- QUARANTINED LEGACY STATE ---
   castLedger: CastMember[];
   topology: Record<string, string[]>;
   activeMemory: EntityMemoryState;
@@ -207,8 +161,6 @@ export interface ForgeState {
   extractedSetting: string;
   extractedThreat: string;
   extractedStyle: string;
-  draftBlueprint: DraftBlueprint | null;
-  architectMessages: ArchitectMessage[];
   who: string;
   what: string;
   where: string;
@@ -218,7 +170,56 @@ export interface ForgeState {
   activeCharacterId: string | null;
 }
 
+const createInitialDraft = (initial?: ForgeDraftPatch): ForgeDraft => ({
+  id: initial?.id || crypto.randomUUID(),
+  title: initial?.title || initial?.identity?.title || '',
+  premise: initial?.premise || initial?.globalPremise || '',
+  globalPremise: initial?.globalPremise || initial?.premise || '',
+  startingVector: initial?.startingVector || 'COGNITIVE',
+  startingTier: initial?.startingTier || 'LATENT',
+  environmentalRules: initial?.environmentalRules !== undefined ? initial.environmentalRules : '',
+  constraints: initial?.constraints || [],
+  contentScale: initial?.contentScale ?? 3,
+  contentLevelDescription: initial?.contentLevelDescription || 'Standard',
+  identity: {
+    title: initial?.identity?.title || initial?.title || '',
+    version: initial?.identity?.version || '1.0',
+    author: initial?.identity?.author || '',
+    thematicAnchor: initial?.identity?.thematicAnchor || '',
+  },
+  setting: {
+    location: initial?.setting?.location || '',
+    atmosphere: initial?.setting?.atmosphere || '',
+    timePeriod: initial?.setting?.timePeriod || '',
+  },
+  cast: initial?.cast ? [...initial.cast] : [],
+  perspectives: initial?.perspectives ? [...initial.perspectives] : [],
+  topology: {
+    nodes: initial?.topology?.nodes ? [...initial.topology.nodes] : [],
+    connections: initial?.topology?.connections ? [...initial.topology.connections] : [],
+  },
+  narrativeRules: {
+    incitingIncident: initial?.narrativeRules?.incitingIncident || '',
+    phaseDirectives: initial?.narrativeRules?.phaseDirectives ? { ...initial.narrativeRules.phaseDirectives } : {},
+    currentTensionLevel: initial?.narrativeRules?.currentTensionLevel || 'buildup',
+    keyPlotElements: initial?.narrativeRules?.keyPlotElements ? [...initial.narrativeRules.keyPlotElements] : [],
+    pacingDirectives: initial?.narrativeRules?.pacingDirectives,
+  },
+  references: initial?.references ? [...initial.references] : [],
+  terminalConditions: initial?.terminalConditions,
+  characters: initial?.characters ? [...initial.characters] : [],
+  hauntedHouse: initial?.hauntedHouse,
+});
+
 const initialState: ForgeState = {
+  forgeDraft: null,
+  draftBlueprint: null,
+  architectMessages: [
+    {
+      role: 'architect',
+      content: 'I am the Architect. Tell me what kind of nightmare we are building today.',
+    },
+  ],
   castLedger: [],
   topology: {
     NODE_INIT: [],
@@ -244,18 +245,11 @@ const initialState: ForgeState = {
   extractedSetting: '',
   extractedThreat: '',
   extractedStyle: '',
-  architectMessages: [
-    {
-      role: 'architect',
-      content: 'I am the Architect. Tell me what kind of nightmare we are building today.',
-    },
-  ],
   who: '',
   what: '',
   where: '',
   when: '',
   whyHow: '',
-  draftBlueprint: null,
   activeNeuralLink: 'PROTAGONIST',
   activeCharacterId: null,
 };
@@ -267,34 +261,122 @@ export const useForgeStoreInternal = create<ForgeStore>()(
     (set) => ({
       ...initialState,
       actions: {
+        // --- CANONICAL DRAFT ACTIONS ---
+        initializeDraft: (initial?: ForgeDraftPatch) => {
+          const draft = createInitialDraft(initial);
+          set({
+            forgeDraft: draft,
+            draftBlueprint: draft,
+          });
+        },
+
+        replaceDraft: (draft: ForgeDraft) => {
+          const clonedDraft = JSON.parse(JSON.stringify(draft));
+          set({
+            forgeDraft: clonedDraft,
+            draftBlueprint: clonedDraft,
+          });
+        },
+
+        updateDraft: (updates: ForgeDraftPatch) => {
+          set((state: ForgeState) => {
+            const current = state.forgeDraft || createInitialDraft();
+            const merged: ForgeDraft = {
+              ...current,
+              ...updates,
+              // Deep-merge identity if provided in patch
+              identity: {
+                ...current.identity,
+                ...(updates.identity || {}),
+                title: updates.title !== undefined ? updates.title : (updates.identity?.title !== undefined ? updates.identity.title : current.identity?.title || current.title || ''),
+              },
+              title: updates.title !== undefined ? updates.title : (updates.identity?.title !== undefined ? updates.identity.title : current.title || current.identity?.title || ''),
+              premise: updates.premise !== undefined ? updates.premise : (updates.globalPremise !== undefined ? updates.globalPremise : current.premise || current.globalPremise || ''),
+              globalPremise: updates.globalPremise !== undefined ? updates.globalPremise : (updates.premise !== undefined ? updates.premise : current.globalPremise || current.premise || ''),
+              // Deep-merge setting if provided
+              setting: updates.setting !== undefined ? { ...current.setting, ...updates.setting } : current.setting,
+              // Preserve nested objects/arrays unless explicitly updated
+              cast: updates.cast !== undefined ? updates.cast : current.cast,
+              perspectives: updates.perspectives !== undefined ? updates.perspectives : current.perspectives,
+              topology: updates.topology !== undefined ? updates.topology : current.topology,
+              narrativeRules: updates.narrativeRules !== undefined ? updates.narrativeRules : current.narrativeRules,
+              references: updates.references !== undefined ? updates.references : current.references,
+            };
+
+            return {
+              forgeDraft: merged,
+              draftBlueprint: merged,
+            };
+          });
+        },
+
+        removeReference: (fileName: string) => {
+          set((state: ForgeState) => {
+            if (!state.forgeDraft) return state;
+            const updatedRefs = (state.forgeDraft.references || []).filter((ref) => ref !== fileName);
+            const updatedDraft: ForgeDraft = {
+              ...state.forgeDraft,
+              references: updatedRefs,
+            };
+            return {
+              forgeDraft: updatedDraft,
+              draftBlueprint: updatedDraft,
+            };
+          });
+        },
+
+        resetStore: () => set(initialState),
+        clearHistory: () => set(initialState),
+
+        // --- ARCHITECT CHAT ACTIONS ---
+        addArchitectMessage: (message: ArchitectMessage) =>
+          set((state: ForgeState) => ({
+            architectMessages: [...state.architectMessages, message],
+          })),
+
+        clearArchitectChat: () =>
+          set({
+            architectMessages: [
+              {
+                role: 'architect',
+                content:
+                  'I am the Architect. Tell me what kind of nightmare we are building today.',
+              },
+            ],
+          }),
+
+        // --- QUARANTINED LEGACY ACTIONS ---
         addCastMember: (member: Omit<CastMember, 'id'>) =>
           set((state: ForgeState) => ({
             castLedger: [...state.castLedger, { ...member, id: crypto.randomUUID() }],
           })),
+
         updateCastMember: (id: string, updates: Partial<CastMember>) =>
           set((state: ForgeState) => ({
             castLedger: state.castLedger.map((m) => (m.id === id ? { ...m, ...updates } : m)),
           })),
+
         removeCastMember: (id: string) =>
           set((state: ForgeState) => ({
             castLedger: state.castLedger.filter((m) => m.id !== id),
           })),
-        resetStore: () => set(initialState),
+
         addSpatialNode: (nodeId: string) =>
           set((state: ForgeState) => {
-            if (state.topology[nodeId]) return state; // Prevent duplicates
+            if (state.topology[nodeId]) return state;
             return { topology: { ...state.topology, [nodeId]: [] } };
           }),
+
         removeSpatialNode: (nodeId: string) =>
           set((state: ForgeState) => {
             const newTopology = { ...state.topology };
             delete newTopology[nodeId];
-            // Clean up orphaned edges
             Object.keys(newTopology).forEach((key) => {
               newTopology[key] = newTopology[key].filter((id) => id !== nodeId);
             });
             return { topology: newTopology };
           }),
+
         toggleSpatialEdge: (nodeA: string, nodeB: string) =>
           set((state: ForgeState) => {
             const edgesA = state.topology[nodeA] || [];
@@ -304,17 +386,18 @@ export const useForgeStoreInternal = create<ForgeStore>()(
               topology: {
                 ...state.topology,
                 [nodeA]: isConnected ? edgesA.filter((id) => id !== nodeB) : [...edgesA, nodeB],
-                // Bi-directional constraint enforcement
                 [nodeB]: isConnected
                   ? (state.topology[nodeB] || []).filter((id) => id !== nodeA)
                   : [...(state.topology[nodeB] || []), nodeA],
               },
             };
           }),
+
         updateActiveMemory: (updates: Partial<EntityMemoryState>) =>
           set((state: ForgeState) => ({
             activeMemory: { ...state.activeMemory, ...updates },
           })),
+
         commitSemanticTags: (parsedTags: Record<string, string[]>) =>
           set((state: ForgeState) => {
             const nextMemory = { ...state.activeMemory };
@@ -326,52 +409,7 @@ export const useForgeStoreInternal = create<ForgeStore>()(
 
             return { activeMemory: nextMemory };
           }),
-        addArchitectMessage: (message: ArchitectMessage) =>
-          set((state: ForgeState) => ({
-            architectMessages: [...state.architectMessages, message],
-          })),
-        clearArchitectChat: () =>
-          set({
-            architectMessages: [
-              {
-                role: 'architect',
-                content:
-                  'I am the Architect. Tell me what kind of nightmare we are building today.',
-              },
-            ],
-          }),
-        initializeDraft: () =>
-          set({
-            draftBlueprint: {
-              id: crypto.randomUUID(),
-              title: '',
-              premise: '',
-              startingVector: 'COGNITIVE',
-              startingTier: 'LATENT',
-              environmentalRules: '',
-            },
-          }),
-        updateDraft: (updates: DraftBlueprintPatch) =>
-          set((state: ForgeState) => ({
-            draftBlueprint: state.draftBlueprint
-              ? { ...state.draftBlueprint, ...updates }
-              : {
-                  startingVector: 'COGNITIVE',
-                  startingTier: 'GATEWAY',
-                  ...updates,
-                },
-          })),
-        removeReference: (fileName: string) =>
-          set((state: ForgeState) => {
-            if (!state.draftBlueprint) return state;
-            return {
-              draftBlueprint: {
-                ...state.draftBlueprint,
-                references:
-                  state.draftBlueprint.references?.filter((ref) => ref !== fileName) || [],
-              },
-            };
-          }),
+
         setWho: (val: string) => set({ who: val }),
         setWhat: (val: string) => set({ what: val }),
         setWhere: (val: string) => set({ where: val }),
@@ -382,12 +420,10 @@ export const useForgeStoreInternal = create<ForgeStore>()(
           set((state: ForgeState) => ({
             messages: [...state.messages, message],
           })),
-        clearHistory: () =>
-          set({
-            ...initialState,
-          }),
+
         setAvailableReferenceCharacters: (characters: CharacterProfile[]) =>
           set({ availableReferenceCharacters: characters }),
+
         addCharacterToCast: (character: CharacterProfile) =>
           set((state: ForgeState) => {
             const npcCount = state.selectedCharacters.filter((c) => !c.isUserCharacter).length;
@@ -395,16 +431,19 @@ export const useForgeStoreInternal = create<ForgeStore>()(
             if (state.selectedCharacters.find((c) => c.id === character.id)) return state;
             return { selectedCharacters: [...state.selectedCharacters, character] };
           }),
+
         removeCharacterFromCast: (id: string) =>
           set((state: ForgeState) => ({
             selectedCharacters: state.selectedCharacters.filter((c) => c.id !== id),
           })),
+
         updateCharacterDetails: (id: string, updates: Partial<CharacterProfile>) =>
           set((state: ForgeState) => ({
             selectedCharacters: state.selectedCharacters.map((c) =>
               c.id === id ? { ...c, ...updates } : c
             ),
           })),
+
         setHasReferenceMaterial: (has: boolean) => set({ hasReferenceMaterial: has }),
         setForgePhase: (phase: ForgePhase) => set({ forgePhase: phase }),
         setSummaryContext: (context: string) => set({ summaryContext: context }),
@@ -415,13 +454,17 @@ export const useForgeStoreInternal = create<ForgeStore>()(
           set((state: ForgeState) => ({
             referenceMaterials: [...state.referenceMaterials, ...materials],
           })),
+
         removeReferenceMaterial: (id: string) =>
           set((state: ForgeState) => ({
             referenceMaterials: state.referenceMaterials.filter((m) => m.id !== id),
           })),
+
         setActiveNeuralLink: (role: 'PROTAGONIST' | 'ANTAGONIST' | 'DIRECTOR') =>
           set({ activeNeuralLink: role }),
+
         setActiveCharacterId: (id: string | null) => set({ activeCharacterId: id }),
+
         startSimulation: (
           blueprint?:
             | SimulationBlueprintInput
@@ -478,16 +521,18 @@ export const useForgeStoreInternal = create<ForgeStore>()(
       name: 'the-forge-memory',
       storage: createJSONStorage(() => idbStorage),
       partialize: (state) => {
-        const stateCopy = { ...state } as Partial<ForgeStore>;
-        delete stateCopy.actions;
+        // Persist only canonical Forge draft and intentionally retained UI state
         return {
-          ...(stateCopy as ForgeState),
-          messages: (stateCopy.messages || []).map((msg) => {
-            const msgCopy = { ...msg };
-            delete msgCopy.attachments;
-            return msgCopy;
-          }),
-        };
+          forgeDraft: state.forgeDraft,
+          draftBlueprint: state.forgeDraft,
+          architectMessages: state.architectMessages,
+          who: state.who,
+          what: state.what,
+          where: state.where,
+          when: state.when,
+          whyHow: state.whyHow,
+          forgePhase: state.forgePhase,
+        } as unknown as ForgeState;
       },
     }
   )

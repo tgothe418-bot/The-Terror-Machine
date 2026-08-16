@@ -3,6 +3,7 @@ import { EdgeKind, EdgeKindSchema, TopologyDelta, TransitionReceipt } from './en
 import { HauntedHouseProvenanceSchema, HauntedHouseProvenance } from './participation';
 export * from './engineContract';
 export * from './participation';
+export * from './forge';
 
 export type AppPhase = 'hub' | 'forge' | 'engine' | 'voice';
 

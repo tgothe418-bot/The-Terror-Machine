@@ -1,3 +1,8 @@
+/**
+ * QUARANTINED / DEPRECATED: Phase 3D-1 migration boundary.
+ * schemaCompactor is NOT an active authoring authority.
+ * Canonical authoring flows through useForgeStore (forgeDraft) and forgeCompiler.
+ */
 import { ForgeState } from '../store/useForgeStore';
 
 import { TopologyEdge, SubjectivePerspective } from '../types';
