@@ -4,6 +4,7 @@ import {
   CastMember,
   ParticipationContext,
   ScenarioBlueprint,
+  Blueprint,
   SpatialNode,
   normalizeParticipationContext,
 } from '../types';
@@ -394,7 +395,7 @@ export function compileAdLibInduction(rawInduction: AdLibInduction): {
 }
 
 export interface CompiledHauntedHousePayload {
-  blueprint: ScenarioBlueprint;
+  blueprint: Blueprint;
   participationContext: ParticipationContext;
   initialSpatialNode: SpatialNode;
   sessionId?: string;
@@ -409,23 +410,21 @@ export function initiateCompiledAdLibSession(
   payload: CompiledHauntedHousePayload
 ): CompiledAdLibSession {
   const { blueprint, participationContext, initialSpatialNode, sessionId: customSessionId } = payload;
-  const normalized = normalizeBlueprint(blueprint);
   const mode = participationContext.mode;
 
-  // 1. Initialize engine store directly from supplied values
-  useEngineStore.getState().setBlueprint(normalized, mode, participationContext);
+  // Initialize from the exact reviewed payload; validation/normalization occurred before review.
+  useEngineStore.getState().setBlueprint(blueprint, mode, participationContext);
 
-  // 2. Initialize app runtime store with single source of truth
   const sessionId = customSessionId || `session-adlib-${crypto.randomUUID()}`;
   useAppStore.getState().initializeSession({
-    blueprint: normalized,
+    blueprint,
     sessionId,
     participationContext,
     spatialGraph: [initialSpatialNode],
   });
 
   return {
-    blueprint: normalized,
+    blueprint,
     participationContext,
     initialSpatialNode,
   };
