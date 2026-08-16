@@ -8,6 +8,7 @@ import {
   ProseStyleVector,
   Blueprint,
   ScenarioBlueprint,
+  TopologyEdge,
 } from '../types';
 import {
   ForgeDraft,
@@ -46,10 +47,50 @@ export type DraftBlueprint = ForgeDraft;
 export type DraftBlueprintPatch = ForgeDraftPatch;
 
 // ============================================================================
-// LEGACY COMPATIBILITY ADAPTER / QUARANTINE (Phase 3D Migration Boundary)
-// The fields and actions below are legacy authoring paths quarantined during
-// Phase 3D-1. The canonical authoring authority is forgeDraft.
+// DERIVED COMPATIBILITY ADAPTERS (Phase 3D-1 Single Source of Truth)
+// forgeDraft is the sole mutable authoring authority. The helpers below
+// derive legacy-shaped views directly from forgeDraft without duplicate state.
 // ============================================================================
+export function deriveCastLedger(draft: ForgeDraft | null): CastMember[] {
+  if (!draft || !draft.cast) return [];
+  return draft.cast.map((c) => ({
+    id: c.id || '',
+    name: c.name || '',
+    role: (c.role as CastRole) || 'PROTAGONIST',
+    psychological_status: c.psychological_status || '',
+    starting_location: c.starting_location || 'NODE_INIT',
+    isEntity: c.isEntity ?? false,
+  }));
+}
+
+export function deriveTopology(draft: ForgeDraft | null): Record<string, string[]> {
+  if (!draft || !draft.topology || !draft.topology.nodes || draft.topology.nodes.length === 0) {
+    return { NODE_INIT: [] };
+  }
+  const result: Record<string, string[]> = {};
+  for (const node of draft.topology.nodes) {
+    result[node] = [];
+  }
+  for (const conn of draft.topology.connections || []) {
+    if (typeof conn === 'string') {
+      const parts = conn.split('->').map((s) => s.trim());
+      if (parts.length === 2) {
+        const [from, to] = parts;
+        if (!result[from]) result[from] = [];
+        if (!result[from].includes(to)) result[from].push(to);
+        if (!result[to]) result[to] = [];
+        if (!result[to].includes(from)) result[to].push(from);
+      }
+    } else if (conn && typeof conn === 'object' && conn.from && conn.to) {
+      if (!result[conn.from]) result[conn.from] = [];
+      if (!result[conn.from].includes(conn.to)) result[conn.from].push(conn.to);
+      if (!result[conn.to]) result[conn.to] = [];
+      if (!result[conn.to].includes(conn.from)) result[conn.to].push(conn.from);
+    }
+  }
+  return result;
+}
+
 export type CastRole = 'PROTAGONIST' | 'ANTAGONIST' | 'SENTINEL' | 'ENTITY' | 'OBSERVER';
 
 export interface CastMember {
@@ -267,6 +308,8 @@ export const useForgeStoreInternal = create<ForgeStore>()(
           set({
             forgeDraft: draft,
             draftBlueprint: draft,
+            castLedger: deriveCastLedger(draft),
+            topology: deriveTopology(draft),
           });
         },
 
@@ -275,6 +318,8 @@ export const useForgeStoreInternal = create<ForgeStore>()(
           set({
             forgeDraft: clonedDraft,
             draftBlueprint: clonedDraft,
+            castLedger: deriveCastLedger(clonedDraft),
+            topology: deriveTopology(clonedDraft),
           });
         },
 
@@ -306,6 +351,8 @@ export const useForgeStoreInternal = create<ForgeStore>()(
             return {
               forgeDraft: merged,
               draftBlueprint: merged,
+              castLedger: deriveCastLedger(merged),
+              topology: deriveTopology(merged),
             };
           });
         },
@@ -321,6 +368,8 @@ export const useForgeStoreInternal = create<ForgeStore>()(
             return {
               forgeDraft: updatedDraft,
               draftBlueprint: updatedDraft,
+              castLedger: deriveCastLedger(updatedDraft),
+              topology: deriveTopology(updatedDraft),
             };
           });
         },
@@ -345,51 +394,187 @@ export const useForgeStoreInternal = create<ForgeStore>()(
             ],
           }),
 
-        // --- QUARANTINED LEGACY ACTIONS ---
+        // --- LEGACY-COMPATIBLE ADAPTER ACTIONS (Read/Write through forgeDraft) ---
         addCastMember: (member: Omit<CastMember, 'id'>) =>
-          set((state: ForgeState) => ({
-            castLedger: [...state.castLedger, { ...member, id: crypto.randomUUID() }],
-          })),
+          set((state: ForgeState) => {
+            const draft = state.forgeDraft || createInitialDraft();
+            const newId = crypto.randomUUID();
+            const newCastMember: ForgeDraftCastMember = {
+              id: newId,
+              name: member.name,
+              role: member.role,
+              psychological_status: member.psychological_status,
+              starting_location: member.starting_location,
+              isEntity: member.isEntity ?? false,
+              isUserCharacter: member.role === 'PROTAGONIST',
+              behaviorVector: 'ADAPTIVE',
+            };
+            const updatedCast = [...(draft.cast || []), newCastMember];
+            const updatedDraft: ForgeDraft = {
+              ...draft,
+              cast: updatedCast,
+            };
+            return {
+              forgeDraft: updatedDraft,
+              draftBlueprint: updatedDraft,
+              castLedger: deriveCastLedger(updatedDraft),
+              topology: deriveTopology(updatedDraft),
+            };
+          }),
 
         updateCastMember: (id: string, updates: Partial<CastMember>) =>
-          set((state: ForgeState) => ({
-            castLedger: state.castLedger.map((m) => (m.id === id ? { ...m, ...updates } : m)),
-          })),
+          set((state: ForgeState) => {
+            const draft = state.forgeDraft || createInitialDraft();
+            const updatedCast = (draft.cast || []).map((m) => {
+              if (m.id !== id) return m;
+              return {
+                ...m,
+                ...(updates.name !== undefined ? { name: updates.name } : {}),
+                ...(updates.role !== undefined
+                  ? { role: updates.role, isUserCharacter: updates.role === 'PROTAGONIST' }
+                  : {}),
+                ...(updates.psychological_status !== undefined
+                  ? { psychological_status: updates.psychological_status }
+                  : {}),
+                ...(updates.starting_location !== undefined
+                  ? { starting_location: updates.starting_location }
+                  : {}),
+                ...(updates.isEntity !== undefined ? { isEntity: updates.isEntity } : {}),
+              };
+            });
+            const updatedDraft: ForgeDraft = {
+              ...draft,
+              cast: updatedCast,
+            };
+            return {
+              forgeDraft: updatedDraft,
+              draftBlueprint: updatedDraft,
+              castLedger: deriveCastLedger(updatedDraft),
+              topology: deriveTopology(updatedDraft),
+            };
+          }),
 
         removeCastMember: (id: string) =>
-          set((state: ForgeState) => ({
-            castLedger: state.castLedger.filter((m) => m.id !== id),
-          })),
+          set((state: ForgeState) => {
+            if (!state.forgeDraft) return state;
+            const updatedCast = (state.forgeDraft.cast || []).filter((m) => m.id !== id);
+            const updatedDraft: ForgeDraft = {
+              ...state.forgeDraft,
+              cast: updatedCast,
+            };
+            return {
+              forgeDraft: updatedDraft,
+              draftBlueprint: updatedDraft,
+              castLedger: deriveCastLedger(updatedDraft),
+              topology: deriveTopology(updatedDraft),
+            };
+          }),
 
         addSpatialNode: (nodeId: string) =>
           set((state: ForgeState) => {
-            if (state.topology[nodeId]) return state;
-            return { topology: { ...state.topology, [nodeId]: [] } };
+            const draft = state.forgeDraft || createInitialDraft();
+            const currentNodes = draft.topology?.nodes || [];
+            if (currentNodes.includes(nodeId)) return state;
+            const updatedNodes = [...currentNodes, nodeId];
+            const updatedDraft: ForgeDraft = {
+              ...draft,
+              topology: {
+                ...(draft.topology || { connections: [] }),
+                nodes: updatedNodes,
+              },
+            };
+            return {
+              forgeDraft: updatedDraft,
+              draftBlueprint: updatedDraft,
+              castLedger: deriveCastLedger(updatedDraft),
+              topology: deriveTopology(updatedDraft),
+            };
           }),
 
         removeSpatialNode: (nodeId: string) =>
           set((state: ForgeState) => {
-            const newTopology = { ...state.topology };
-            delete newTopology[nodeId];
-            Object.keys(newTopology).forEach((key) => {
-              newTopology[key] = newTopology[key].filter((id) => id !== nodeId);
+            if (!state.forgeDraft) return state;
+            const currentTopology = state.forgeDraft.topology || { nodes: [], connections: [] };
+            const updatedNodes = (currentTopology.nodes || []).filter((id) => id !== nodeId);
+            const updatedConnections = (currentTopology.connections || []).filter((conn) => {
+              if (typeof conn === 'string') {
+                const parts = conn.split('->').map((s) => s.trim());
+                return parts[0] !== nodeId && parts[1] !== nodeId;
+              } else if (conn && typeof conn === 'object') {
+                return conn.from !== nodeId && conn.to !== nodeId;
+              }
+              return true;
             });
-            return { topology: newTopology };
+            const updatedDraft: ForgeDraft = {
+              ...state.forgeDraft,
+              topology: {
+                ...currentTopology,
+                nodes: updatedNodes,
+                connections: updatedConnections,
+              },
+            };
+            return {
+              forgeDraft: updatedDraft,
+              draftBlueprint: updatedDraft,
+              castLedger: deriveCastLedger(updatedDraft),
+              topology: deriveTopology(updatedDraft),
+            };
           }),
 
         toggleSpatialEdge: (nodeA: string, nodeB: string) =>
           set((state: ForgeState) => {
-            const edgesA = state.topology[nodeA] || [];
-            const isConnected = edgesA.includes(nodeB);
+            const draft = state.forgeDraft || createInitialDraft();
+            const currentTopology = draft.topology || { nodes: [], connections: [] };
+            const nodes = [...(currentTopology.nodes || [])];
+            if (!nodes.includes(nodeA)) nodes.push(nodeA);
+            if (!nodes.includes(nodeB)) nodes.push(nodeB);
+
+            const connections = [...(currentTopology.connections || [])];
+            const existingIndex = connections.findIndex((conn) => {
+              if (typeof conn === 'string') {
+                const parts = conn.split('->').map((s) => s.trim());
+                return (
+                  (parts[0] === nodeA && parts[1] === nodeB) ||
+                  (parts[0] === nodeB && parts[1] === nodeA)
+                );
+              } else if (conn && typeof conn === 'object') {
+                return (
+                  (conn.from === nodeA && conn.to === nodeB) ||
+                  (conn.from === nodeB && conn.to === nodeA)
+                );
+              }
+              return false;
+            });
+
+            let updatedConnections: (TopologyEdge | string)[];
+            if (existingIndex >= 0) {
+              updatedConnections = connections.filter((_, idx) => idx !== existingIndex);
+            } else {
+              updatedConnections = [
+                ...connections,
+                {
+                  from: nodeA,
+                  to: nodeB,
+                  kind: 'PHYSICAL',
+                  userInitiated: true,
+                },
+              ];
+            }
+
+            const updatedDraft: ForgeDraft = {
+              ...draft,
+              topology: {
+                ...currentTopology,
+                nodes,
+                connections: updatedConnections,
+              },
+            };
 
             return {
-              topology: {
-                ...state.topology,
-                [nodeA]: isConnected ? edgesA.filter((id) => id !== nodeB) : [...edgesA, nodeB],
-                [nodeB]: isConnected
-                  ? (state.topology[nodeB] || []).filter((id) => id !== nodeA)
-                  : [...(state.topology[nodeB] || []), nodeA],
-              },
+              forgeDraft: updatedDraft,
+              draftBlueprint: updatedDraft,
+              castLedger: deriveCastLedger(updatedDraft),
+              topology: deriveTopology(updatedDraft),
             };
           }),
 
@@ -520,11 +705,33 @@ export const useForgeStoreInternal = create<ForgeStore>()(
     {
       name: 'the-forge-memory',
       storage: createJSONStorage(() => idbStorage),
+      version: 2,
+      migrate: (persistedState: unknown) => {
+        if (!persistedState || typeof persistedState !== 'object') return persistedState;
+        const stateRecord = persistedState as Record<string, unknown>;
+        // Promote legacy draftBlueprint if forgeDraft is absent in persisted storage
+        if (!stateRecord.forgeDraft && stateRecord.draftBlueprint) {
+          stateRecord.forgeDraft = stateRecord.draftBlueprint;
+        }
+        return stateRecord;
+      },
+      onRehydrateStorage: () => (state) => {
+        if (state) {
+          const stateRecord = state as unknown as Record<string, unknown>;
+          // Reconcile and promote legacy draftBlueprint if forgeDraft is missing
+          if (!state.forgeDraft && stateRecord.draftBlueprint) {
+            state.forgeDraft = stateRecord.draftBlueprint as ForgeDraft;
+          }
+          // Ensure draftBlueprint is aligned with forgeDraft
+          state.draftBlueprint = state.forgeDraft;
+          state.castLedger = deriveCastLedger(state.forgeDraft);
+          state.topology = deriveTopology(state.forgeDraft);
+        }
+      },
       partialize: (state) => {
         // Persist only canonical Forge draft and intentionally retained UI state
         return {
           forgeDraft: state.forgeDraft,
-          draftBlueprint: state.forgeDraft,
           architectMessages: state.architectMessages,
           who: state.who,
           what: state.what,

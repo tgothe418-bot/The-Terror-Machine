@@ -162,6 +162,69 @@ export default function Forge() {
               {/* Intake/Knowledgebase Dropzone */}
               <FileDropzone />
 
+              {/* SCENARIO IDENTITY (TITLE & STARTING LOCATION) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* SCENARIO TITLE */}
+                <div className="bg-zinc-950 border border-zinc-800 focus-within:border-zinc-700 p-4 rounded flex flex-col shadow-lg transition-colors">
+                  <label className="text-zinc-400 font-mono text-xs uppercase tracking-wider mb-2 font-bold flex justify-between items-center">
+                    <span>SCENARIO TITLE</span>
+                    {!draftBlueprint?.identity?.title && !draftBlueprint?.title && (
+                      <span className="text-amber-500/80 font-normal text-[10px] tracking-normal">
+                        Required
+                      </span>
+                    )}
+                  </label>
+                  <input
+                    type="text"
+                    value={draftBlueprint?.identity?.title || draftBlueprint?.title || ''}
+                    onChange={(e) =>
+                      updateDraft({
+                        title: e.target.value,
+                        identity: {
+                          ...(draftBlueprint?.identity || {
+                            version: '1.0',
+                            author: '',
+                            thematicAnchor: '',
+                          }),
+                          title: e.target.value,
+                        },
+                      })
+                    }
+                    placeholder="e.g. Sub-Level 4 Containment"
+                    className="w-full bg-transparent text-zinc-200 font-mono text-xs sm:text-sm focus:outline-none border-b border-zinc-800 focus:border-cyan-500/80 pb-1 placeholder:text-zinc-600"
+                  />
+                </div>
+
+                {/* STARTING LOCATION */}
+                <div className="bg-zinc-950 border border-zinc-800 focus-within:border-zinc-700 p-4 rounded flex flex-col shadow-lg transition-colors">
+                  <label className="text-zinc-400 font-mono text-xs uppercase tracking-wider mb-2 font-bold flex justify-between items-center">
+                    <span>STARTING LOCATION</span>
+                    {!draftBlueprint?.setting?.location && (
+                      <span className="text-amber-500/80 font-normal text-[10px] tracking-normal">
+                        Required
+                      </span>
+                    )}
+                  </label>
+                  <input
+                    type="text"
+                    value={draftBlueprint?.setting?.location || ''}
+                    onChange={(e) =>
+                      updateDraft({
+                        setting: {
+                          ...(draftBlueprint?.setting || {
+                            atmosphere: '',
+                            timePeriod: '',
+                          }),
+                          location: e.target.value,
+                        },
+                      })
+                    }
+                    placeholder="e.g. Observation Room Delta"
+                    className="w-full bg-transparent text-zinc-200 font-mono text-xs sm:text-sm focus:outline-none border-b border-zinc-800 focus:border-cyan-500/80 pb-1 placeholder:text-zinc-600"
+                  />
+                </div>
+              </div>
+
               {/* Matrix Coordinates */}
               <MatrixSelector />
 
@@ -176,21 +239,33 @@ export default function Forge() {
                 <textarea
                   value={draftBlueprint?.environmentalRules || ''}
                   onChange={(e) => updateDraft({ environmentalRules: e.target.value })}
-                  className="w-full bg-transparent text-zinc-200 font-mono text-xs sm:text-sm resize-none focus:outline-none custom-scrollbar min-h-[120px] leading-relaxed"
+                  className="w-full bg-transparent text-zinc-200 font-mono text-xs sm:text-sm resize-none focus:outline-none custom-scrollbar min-h-[100px] leading-relaxed placeholder:text-zinc-600"
                   placeholder="Define the rules this world must obey: limits, conditions, places, and systemic behavior."
                 />
               </div>
 
               {/* SCENARIO PREMISE */}
               <div className="bg-zinc-950 border border-zinc-800 focus-within:border-zinc-700 p-5 rounded flex flex-col shadow-lg transition-colors">
-                <label className="text-zinc-400 font-mono text-xs uppercase tracking-widest mb-2 font-bold">
-                  SCENARIO PREMISE
+                <label className="text-zinc-400 font-mono text-xs uppercase tracking-widest mb-2 font-bold flex justify-between items-center">
+                  <span>SCENARIO PREMISE</span>
+                  {!draftBlueprint?.globalPremise && !draftBlueprint?.premise && (
+                    <span className="text-amber-500/80 font-normal text-[10px] tracking-normal">
+                      Required
+                    </span>
+                  )}
                 </label>
-                <div className="text-zinc-300 text-xs sm:text-sm font-mono whitespace-pre-wrap min-h-[120px] leading-relaxed">
-                  {draftBlueprint?.globalPremise ||
-                    draftBlueprint?.premise ||
-                    'Calibrate primary narrative trajectories, logic overrides, or operational vector conditions...'}
-                </div>
+                <textarea
+                  value={draftBlueprint?.globalPremise || draftBlueprint?.premise || ''}
+                  onChange={(e) =>
+                    updateDraft({
+                      premise: e.target.value,
+                      globalPremise: e.target.value,
+                    })
+                  }
+                  rows={4}
+                  className="w-full bg-transparent text-zinc-200 font-mono text-xs sm:text-sm resize-none focus:outline-none custom-scrollbar min-h-[100px] leading-relaxed placeholder:text-zinc-600"
+                  placeholder="Calibrate primary narrative trajectories, logic overrides, or operational vector conditions..."
+                />
               </div>
             </div>
 

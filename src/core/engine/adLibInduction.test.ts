@@ -5,6 +5,7 @@ import {
   initiateAdLibSession,
   initiateCompiledAdLibSession,
 } from '../../lib/adLibCompiler';
+import { normalizeBlueprint } from '../../lib/normalizeBlueprint';
 import {
   AdLibInductionSchema,
   AdLibProtagonistInduction,
@@ -519,7 +520,7 @@ describe('Phase 3B: Antagonist Authority Contracts & Victim Framing', () => {
         },
         victimField: {
           kind: 'individual',
-          name: 'Botanist Elena Rostova',
+          name: 'Botanist Maya Lin',
           description: 'Senior botanist defending the gene-bank.',
           goal: 'Retrieve the cryogenic seed samples.',
           knownFact: 'Carries an industrial UV arc-welder.',
@@ -542,7 +543,7 @@ describe('Phase 3B: Antagonist Authority Contracts & Victim Framing', () => {
       // Non-user Victim cast entry
       const victimCast = blueprint.cast.find((c) => c.role === 'victim');
       expect(victimCast).toBeDefined();
-      expect(victimCast?.name).toBe('Botanist Elena Rostova');
+      expect(victimCast?.name).toBe('Botanist Maya Lin');
       expect(victimCast?.isUserCharacter).toBe(false);
       expect(victimCast?.isEntity).toBe(false);
       expect(victimCast?.goals).toBe('Retrieve the cryogenic seed samples.');
@@ -554,7 +555,7 @@ describe('Phase 3B: Antagonist Authority Contracts & Victim Framing', () => {
       expect(participationContext.victimField?.kind).toBe('individual');
       expect(participationContext.boundedFacts.some((f) => f.includes('Authority Scope'))).toBe(true);
       expect(participationContext.boundedFacts.some((f) => f.includes('Authority Limit'))).toBe(true);
-      expect(participationContext.boundedFacts.some((f) => f.includes('Target Victim: Botanist Elena Rostova'))).toBe(true);
+      expect(participationContext.boundedFacts.some((f) => f.includes('Target Victim: Botanist Maya Lin'))).toBe(true);
     });
 
     it('compiles an Antagonist-force induction without inventing a controlled NPC, and compiles named group victims into non-user cast', () => {
@@ -1063,7 +1064,7 @@ describe('Phase 3B: Antagonist Authority Contracts & Victim Framing', () => {
         mode: 'protagonist',
         seat: {
           kind: 'protagonist',
-          name: 'Elena',
+          name: 'Nora',
         },
         initialGoal: 'Escape',
         boundedFacts: [],
@@ -1132,29 +1133,28 @@ describe('Phase 3B: Antagonist Authority Contracts & Victim Framing', () => {
       };
 
       const compiled = compileAdLibInduction(induction);
-      const originalBlueprint = compiled.blueprint;
+      const reviewedBlueprint = normalizeBlueprint(compiled.blueprint);
       const originalContext = compiled.participationContext;
       const originalNode = compiled.initialSpatialNode;
 
       const sessionResult = initiateCompiledAdLibSession({
-        blueprint: originalBlueprint,
+        blueprint: reviewedBlueprint,
         participationContext: originalContext,
         initialSpatialNode: originalNode,
       });
 
-      expect(sessionResult.blueprint.id).toBe(originalBlueprint.id);
-      expect(sessionResult.blueprint.title).toBe(originalBlueprint.title);
-      expect(sessionResult.participationContext.mode).toBe(originalContext.mode);
+      expect(sessionResult.blueprint).toBe(reviewedBlueprint);
+      expect(sessionResult.participationContext).toBe(originalContext);
       expect(sessionResult.initialSpatialNode).toBe(originalNode);
 
       const engineState = useEngineStore.getState();
-      expect(engineState.activeBlueprint?.id).toBe(originalBlueprint.id);
-      expect(engineState.participationContext?.mode).toBe(originalContext.mode);
+      expect(engineState.activeBlueprint).toEqual(reviewedBlueprint);
+      expect(engineState.participationContext).toBe(originalContext);
 
       const appState = useAppStore.getState();
-      expect(appState.blueprintId).toBe(originalBlueprint.id);
-      expect(appState.participationContext?.mode).toBe(originalContext.mode);
-      expect(appState.spatialGraph.some((n) => n.id === originalNode.id)).toBe(true);
+      expect(appState.blueprintId).toBe(reviewedBlueprint.id);
+      expect(appState.participationContext).toBe(originalContext);
+      expect(appState.spatialGraph[0]).toBe(originalNode);
     });
   });
 });

@@ -8,6 +8,26 @@ import {
 } from '../types/forge';
 import { normalizeBlueprint } from './normalizeBlueprint';
 
+/**
+ * Recursively freezes plain objects and arrays to ensure deep immutability.
+ * Does not freeze or mutate non-object primitives.
+ */
+export function deepFreeze<T>(obj: T): Readonly<T> {
+  if (obj === null || typeof obj !== 'object') {
+    return obj;
+  }
+
+  const propNames = Object.getOwnPropertyNames(obj);
+  for (const name of propNames) {
+    const value = (obj as Record<string, unknown>)[name];
+    if (value !== null && typeof value === 'object' && !Object.isFrozen(value)) {
+      deepFreeze(value);
+    }
+  }
+
+  return Object.freeze(obj);
+}
+
 export class ForgeCompilationError extends Error {
   readonly errors: Record<string, string[]>;
 
@@ -144,13 +164,16 @@ export function compileForgeDraft(rawDraft: unknown): ForgeCompileResult {
 
   const fileName = `${safeRefs}${safeTitle}.json`;
 
-  const artifact: ForgeReviewArtifact = {
-    blueprint: Object.freeze(parsedBlueprint),
+  const deepClonedBlueprint = JSON.parse(JSON.stringify(parsedBlueprint));
+  const frozenBlueprint = deepFreeze(deepClonedBlueprint);
+
+  const artifact: ForgeReviewArtifact = deepFreeze({
+    blueprint: frozenBlueprint,
     json,
     fileName,
     compiledAt: Date.now(),
     sourceDraftId: draft.id,
-  };
+  });
 
   return {
     success: true,

@@ -188,7 +188,7 @@ describe('compileBlueprintDraft and prepareBlueprintExport', () => {
       cast: [
         {
           id: 'c1',
-          name: 'Officer Vance',
+          name: 'Officer Cole',
           role: 'Officer',
           behaviorVector: 'ADAPTIVE',
           isEntity: false,
@@ -219,6 +219,77 @@ describe('compileBlueprintDraft and prepareBlueprintExport', () => {
 
     expect(validDraft).toEqual(snapshot);
     expect(typeof validDraft.topology?.connections?.[0]).toBe('string');
+  });
+
+  it('deep-freezes review artifact and compiled Blueprint so nested structures cannot be mutated, while source draft remains mutable', () => {
+    const validDraft: ForgeDraft = {
+      id: 'draft-deepfreeze-test',
+      title: 'Deep Freeze Scenario',
+      premise: 'Testing deep immutability of compiled artifacts.',
+      startingVector: 'COGNITIVE',
+      startingTier: 'LATENT',
+      setting: {
+        location: 'Secure Sub-level 9',
+      },
+      cast: [
+        {
+          id: 'c1',
+          name: 'Archivist Thorne',
+          role: 'Observer',
+          behaviorVector: 'ADAPTIVE',
+          isEntity: false,
+        },
+      ],
+      topology: {
+        nodes: ['NODE_A', 'NODE_B'],
+        connections: ['NODE_A -> NODE_B'],
+      },
+      perspectives: [],
+      references: [],
+      narrativeRules: {
+        incitingIncident: '',
+        phaseDirectives: {},
+        currentTensionLevel: 'buildup',
+        keyPlotElements: [],
+      },
+      characters: [],
+      constraints: [],
+      contentScale: 3,
+      contentLevelDescription: 'Standard',
+      environmentalRules: '',
+    };
+
+    const artifact = prepareBlueprintExport(validDraft);
+
+    // 1. Verify artifact and nested compiled objects are frozen
+    expect(Object.isFrozen(artifact)).toBe(true);
+    expect(Object.isFrozen(artifact.blueprint)).toBe(true);
+    expect(Object.isFrozen(artifact.blueprint.cast)).toBe(true);
+    expect(Object.isFrozen(artifact.blueprint.cast[0])).toBe(true);
+    expect(Object.isFrozen(artifact.blueprint.setting)).toBe(true);
+    expect(Object.isFrozen(artifact.blueprint.topology)).toBe(true);
+    expect(Object.isFrozen(artifact.blueprint.topology.connections)).toBe(true);
+    expect(Object.isFrozen(artifact.blueprint.topology.connections[0])).toBe(true);
+
+    // 2. Mutations to nested properties on compiled artifact should throw in strict mode
+    expect(() => {
+      (artifact.blueprint.cast[0] as unknown as Record<string, unknown>).name = 'Tampered Name';
+    }).toThrow();
+
+    expect(() => {
+      (artifact.blueprint.setting as unknown as Record<string, unknown>).location = 'Tampered Location';
+    }).toThrow();
+
+    expect(() => {
+      (artifact.blueprint.topology.connections as unknown as Array<unknown>).push({ from: 'X', to: 'Y' });
+    }).toThrow();
+
+    // 3. Verify source draft was NOT frozen and remains freely mutable
+    expect(Object.isFrozen(validDraft)).toBe(false);
+    expect(Object.isFrozen(validDraft.cast)).toBe(false);
+    expect(Object.isFrozen(validDraft.cast![0])).toBe(false);
+    validDraft.cast![0].name = 'Archivist Thorne Updated';
+    expect(validDraft.cast![0].name).toBe('Archivist Thorne Updated');
   });
 
   it('is value-idempotent when compiling an already compiled Blueprint', () => {

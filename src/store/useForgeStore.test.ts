@@ -249,4 +249,86 @@ describe('useForgeStore - draft state and actions', () => {
     expect(appAfter.sessionId).toBe(appBefore.sessionId);
     expect(appAfter.phase).toBe(appBefore.phase);
   });
+
+  test('8. Legacy-compatible cast actions write directly to canonical forgeDraft and keep castLedger synchronized', () => {
+    forgeActions.initializeDraft();
+
+    // Add cast member via legacy action
+    forgeActions.addCastMember({
+      name: 'Dr. John Croft',
+      role: 'PROTAGONIST',
+      psychological_status: 'Hyper-vigilant and experiencing auditory anomalies.',
+      starting_location: 'Sub-Level 3 Security Airlock',
+      isEntity: false,
+    });
+
+    const stateAfterAdd = getForgeState();
+    expect(stateAfterAdd.forgeDraft?.cast).toHaveLength(1);
+    expect(stateAfterAdd.forgeDraft?.cast?.[0].name).toBe('Dr. John Croft');
+    expect(stateAfterAdd.forgeDraft?.cast?.[0].role).toBe('PROTAGONIST');
+    expect(stateAfterAdd.forgeDraft?.cast?.[0].isUserCharacter).toBe(true);
+    expect(stateAfterAdd.forgeDraft?.cast?.[0].starting_location).toBe('Sub-Level 3 Security Airlock');
+
+    // castLedger should match canonical draft
+    expect(stateAfterAdd.castLedger).toHaveLength(1);
+    expect(stateAfterAdd.castLedger[0].name).toBe('Dr. John Croft');
+    expect(stateAfterAdd.castLedger[0].id).toBe(stateAfterAdd.forgeDraft?.cast?.[0].id);
+
+    // Update cast member via legacy action
+    const castId = stateAfterAdd.castLedger[0].id;
+    forgeActions.updateCastMember(castId, {
+      name: 'Dr. Jonathan Croft',
+      psychological_status: 'Auditory hallucinations escalating rapidly.',
+    });
+
+    const stateAfterUpdate = getForgeState();
+    expect(stateAfterUpdate.forgeDraft?.cast?.[0].name).toBe('Dr. Jonathan Croft');
+    expect(stateAfterUpdate.forgeDraft?.cast?.[0].psychological_status).toBe(
+      'Auditory hallucinations escalating rapidly.'
+    );
+    expect(stateAfterUpdate.castLedger[0].name).toBe('Dr. Jonathan Croft');
+
+    // Remove cast member via legacy action
+    forgeActions.removeCastMember(castId);
+    const stateAfterRemove = getForgeState();
+    expect(stateAfterRemove.forgeDraft?.cast).toHaveLength(0);
+    expect(stateAfterRemove.castLedger).toHaveLength(0);
+  });
+
+  test('9. Legacy-compatible topology actions write directly to canonical forgeDraft and keep topology synchronized', () => {
+    forgeActions.initializeDraft();
+
+    // Add nodes via legacy action
+    forgeActions.addSpatialNode('NODE_VAULT');
+    forgeActions.addSpatialNode('NODE_CONTROL');
+
+    const stateAfterNodes = getForgeState();
+    expect(stateAfterNodes.forgeDraft?.topology?.nodes).toContain('NODE_VAULT');
+    expect(stateAfterNodes.forgeDraft?.topology?.nodes).toContain('NODE_CONTROL');
+    expect(stateAfterNodes.topology['NODE_VAULT']).toBeDefined();
+    expect(stateAfterNodes.topology['NODE_CONTROL']).toBeDefined();
+
+    // Toggle edge between nodes
+    forgeActions.toggleSpatialEdge('NODE_VAULT', 'NODE_CONTROL');
+    const stateAfterEdge = getForgeState();
+    expect(stateAfterEdge.forgeDraft?.topology?.connections).toHaveLength(1);
+    expect(stateAfterEdge.topology['NODE_VAULT']).toContain('NODE_CONTROL');
+    expect(stateAfterEdge.topology['NODE_CONTROL']).toContain('NODE_VAULT');
+
+    // Remove node cleans up connections in canonical draft and derived topology
+    forgeActions.removeSpatialNode('NODE_CONTROL');
+    const stateAfterRemoveNode = getForgeState();
+    expect(stateAfterRemoveNode.forgeDraft?.topology?.nodes).not.toContain('NODE_CONTROL');
+    expect(stateAfterRemoveNode.forgeDraft?.topology?.connections).toHaveLength(0);
+    expect(stateAfterRemoveNode.topology['NODE_CONTROL']).toBeUndefined();
+  });
+
+  test('10. draftBlueprint remains strictly identical to forgeDraft with no separate authoring fork', () => {
+    forgeActions.initializeDraft();
+    forgeActions.updateDraft({ title: 'Single Authority Confirmation' });
+
+    const state = getForgeState();
+    expect(state.draftBlueprint).toBe(state.forgeDraft);
+    expect(state.draftBlueprint?.title).toBe('Single Authority Confirmation');
+  });
 });

@@ -22,8 +22,8 @@ describe('buildEngineTurnContext & buildContextReceipt', () => {
     keyPlotElements: ['The rusted syringe', 'The ledger of wardens'],
     cast: [
       {
-        id: 'char-elena',
-        name: 'Elena Rostova',
+        id: 'char-clara',
+        name: 'Nurse Clara Reed',
         role: 'Protagonist',
         description: 'Night shift nurse.',
         isUserCharacter: true,
@@ -74,8 +74,8 @@ describe('buildEngineTurnContext & buildContextReceipt', () => {
       'Shadows cannot detach in darkness.',
     ]);
     expect(context.player.role).toBe('protagonist');
-    expect(context.player.name).toBe('Elena Rostova');
-    expect(context.player.characterId).toBe('char-elena');
+    expect(context.player.name).toBe('Nurse Clara Reed');
+    expect(context.player.characterId).toBe('char-clara');
     expect(context.player.isEntity).toBe(false);
 
     // Cast roster includes ALL cast (including antagonist)
@@ -122,7 +122,7 @@ describe('buildEngineTurnContext & buildContextReceipt', () => {
     expect(receipt.scenarioTitle).toBe('The Blackwood Sanatorium');
     expect(receipt.blueprintId).toBe('bp-sanatorium-99');
     expect(receipt.selectedRole).toBe('protagonist');
-    expect(receipt.resolvedPlayerName).toBe('Elena Rostova');
+    expect(receipt.resolvedPlayerName).toBe('Nurse Clara Reed');
     expect(receipt.castCount).toBe(2);
     expect(receipt.worldRuleCount).toBe(2);
     expect(receipt.topologyNodeCount).toBe(3);
