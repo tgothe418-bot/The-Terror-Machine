@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import 'fake-indexeddb/auto';
-import { executeRatificationPipeline, formatRecentHistory, TurnResponseError } from './ratificationPipeline';
+import { executeRatificationPipeline, formatRecentHistory, validateEngineFrame, TurnResponseError } from './ratificationPipeline';
 import { useAppStore } from '../store/useAppStore';
 import { useEngineStore } from '../core/store';
 import { engineReducer } from '../core/engine/reducer';
@@ -287,6 +287,41 @@ describe('executeRatificationPipeline single pre-turn snapshot lifecycle', () =>
       '[DIALOGUE | Jules Mercer]: The receiver only repeats what it heard....\n' +
       '[PROSE]: Rain tightens against the shutters....'
     );
+  });
+
+  describe('validateEngineFrame cast_deltas ratification', () => {
+    it('retains cast_deltas through validateEngineFrame for a structurally valid response', () => {
+      const validPayload = {
+        narrative_blocks: [{ type: 'prose', content: 'Shadows lengthen along the corridor.' }],
+        logic_state: {
+          current_phase: 'MANIFEST',
+          cast_deltas: [
+            { character_id: 'char-1', skepticism_delta: 0.1 },
+            { character_id: 'char-2', skepticism_delta: -0.05 },
+          ],
+        },
+      };
+
+      const ratified = validateEngineFrame(validPayload);
+      expect(ratified.validation.accepted).toBe(true);
+      expect(ratified.logic_state.cast_deltas).toEqual([
+        { character_id: 'char-1', skepticism_delta: 0.1 },
+        { character_id: 'char-2', skepticism_delta: -0.05 },
+      ]);
+    });
+
+    it('falls back to an empty array when cast_deltas is missing or not an array', () => {
+      const missingPayload = {
+        narrative_blocks: [{ type: 'prose', content: 'The turbine hum fades.' }],
+        logic_state: {
+          current_phase: 'MANIFEST',
+        },
+      };
+
+      const ratified = validateEngineFrame(missingPayload);
+      expect(ratified.validation.accepted).toBe(true);
+      expect(ratified.logic_state.cast_deltas).toEqual([]);
+    });
   });
 });
 

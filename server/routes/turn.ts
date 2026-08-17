@@ -9,6 +9,7 @@ import {
 } from '../schemas/engine';
 import { generateStructuredResponse } from '../utils/aiClient';
 import { resolveTransition } from '../engine/transitionResolver';
+import { clampSkepticismDelta } from '../../src/lib/castContinuity';
 
 function normalizeDialogueAddress(value: string): string {
   return ` ${value
@@ -89,6 +90,39 @@ export function validateDialogueBlocks(
   return null;
 }
 
+export function normalizeCastSkepticismDeltas(
+  deltas: Array<{ character_id: string; skepticism_delta: number }>,
+  context: EngineTurnContext,
+): Array<{ character_id: string; skepticism_delta: number }> {
+  const eligibleIds = new Set(
+    context.cast
+      .filter(
+        (member) =>
+          member.id !== context.player.characterId && !member.isUserCharacter,
+      )
+      .map((member) => member.id),
+  );
+  const accepted = new Set<string>();
+  const normalized: Array<{ character_id: string; skepticism_delta: number }> = [];
+
+  for (const delta of deltas) {
+    if (!eligibleIds.has(delta.character_id) || accepted.has(delta.character_id)) {
+      continue;
+    }
+
+    const skepticismDelta = clampSkepticismDelta(delta.skepticism_delta);
+    if (skepticismDelta === 0) continue;
+
+    accepted.add(delta.character_id);
+    normalized.push({
+      character_id: delta.character_id,
+      skepticism_delta: skepticismDelta,
+    });
+  }
+
+  return normalized;
+}
+
 export function formatCastLedger(context: EngineTurnContext): string {
   if (context.cast.length === 0) {
     return '• Solitary subject.';
@@ -117,7 +151,9 @@ export function formatCastLedger(context: EngineTurnContext): string {
         .filter(Boolean)
         .join(' ');
 
-      return `• ${member.name} (ID: ${member.id}, Role: ${member.role}, Entity: ${member.isEntity ? 'TRUE' : 'FALSE'}): ${member.description || 'No additional details.'} ${behaviorLines} ${expressionLines}`
+      const skepticismFormatted = typeof member.skepticism === 'number' ? member.skepticism.toFixed(2) : '0.50';
+
+      return `• ${member.name} (ID: ${member.id}, Role: ${member.role}, Entity: ${member.isEntity ? 'TRUE' : 'FALSE'}, Skepticism: ${skepticismFormatted}): ${member.description || 'No additional details.'} ${behaviorLines} ${expressionLines}`
         .replace(/\s+/g, ' ')
         .trim();
     })
@@ -285,6 +321,12 @@ ${castLedgerFormatted}
 - Treat them as authored characterization only. They do not authorize new facts, powers, locations, knowledge, cast members, or outcomes.
 - If authored behavior conflicts with a communication-mode or silence directive, honor the communication directive.
 
+[CAST CONTINUITY]
+- Each CAST LEDGER skepticism value is a bounded continuity signal: 1.00 is strongly rational/anchored; 0.00 is complete surrender to the scenario's abnormal reality.
+- logic_state.cast_deltas is optional. Emit a delta only for an eligible non-player cast member whose observable experience during this turn materially changed that signal.
+- Emit at most one delta per eligible cast member. Each delta must be between -0.15 and 0.15. Use an empty array when no material change occurred.
+- A continuity delta controls no facts, authority, location, injury, action, relationship, or outcome. It only informs later characterization.
+
 [TOPOLOGY BOUNDARY]
 Current Node: ${context.topology.readableNodeLabel} (ID: ${context.topology.currentNodeId})
 Allowed Exits:
@@ -354,6 +396,11 @@ ${recentHistory}
         details: dialogueContractError,
       });
     }
+
+    engineResponse.logic_state.cast_deltas = normalizeCastSkepticismDeltas(
+      engineResponse.logic_state.cast_deltas,
+      context,
+    );
 
     // Authoritative server-side static topology normalization
     if (!isExpansionExpected) {

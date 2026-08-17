@@ -111,11 +111,13 @@ describe('buildEngineTurnContext & buildContextReceipt', () => {
     expect(clara?.personality).toBe('Methodical and protective under acute duress.');
     expect(clara?.goals).toBe('Locate the missing ward records and escort patients to safety.');
     expect(clara?.traits).toEqual(['Clinical', 'Vigilant', 'Insomniac']);
+    expect(clara?.skepticism).toBe(0.5);
 
     const warden = context.cast.find((member) => member.id === 'char-warden');
     expect(warden?.personality).toBe('Relentless, patient, and surgically detached.');
     expect(warden?.goals).toBe('Contain the quarantine breach and sever external communication.');
     expect(warden?.traits).toEqual(['Implacable', 'Observant']);
+    expect(warden?.skepticism).toBe(0.5);
     expect(warden?.expressionProfile).toEqual({
       communicationModes: ['mediated'],
       expressionGuidance: 'Uses short transmissions through the ward intercom.',
@@ -126,6 +128,7 @@ describe('buildEngineTurnContext & buildContextReceipt', () => {
     expect(orderly?.personality).toBe('');
     expect(orderly?.goals).toBe('');
     expect(orderly?.traits).toEqual([]);
+    expect(orderly?.skepticism).toBe(0.5);
 
     // Topology boundaries
     expect(context.topology.currentNodeId).toBe('WARD_4B');
@@ -172,5 +175,24 @@ describe('buildEngineTurnContext & buildContextReceipt', () => {
     expect(receipt.worldRuleCount).toBe(2);
     expect(receipt.topologyNodeCount).toBe(3);
     expect(receipt.topologyConnectionCount).toBe(1);
+  });
+
+  it('populates cast skepticism accurately from characterContinuity map', () => {
+    const context = buildEngineTurnContext({
+      blueprint: mockBlueprint,
+      selectedRole: 'protagonist',
+      characterContinuity: {
+        'char-clara': { skepticism: 0.85 },
+        'char-warden': { skepticism: 0.15 },
+      },
+    });
+
+    const clara = context.cast.find((c) => c.id === 'char-clara');
+    const warden = context.cast.find((c) => c.id === 'char-warden');
+    const orderly = context.cast.find((c) => c.id === 'char-orderly');
+
+    expect(clara?.skepticism).toBe(0.85);
+    expect(warden?.skepticism).toBe(0.15);
+    expect(orderly?.skepticism).toBe(0.5);
   });
 });

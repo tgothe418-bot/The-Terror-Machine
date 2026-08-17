@@ -147,6 +147,7 @@ export const validateEngineFrame = (rawPayload: any): RatifiedEngineFrame => {
       matrix_mutation: matrixMutation,
       terminal_flags: Array.isArray(logic.terminal_flags) ? logic.terminal_flags : [],
       cast_ledger: Array.isArray(logic.cast_ledger) ? logic.cast_ledger : [],
+      cast_deltas: Array.isArray(logic.cast_deltas) ? logic.cast_deltas : [],
     },
     topologyDelta: rawPayload.topologyDelta || null,
     validation: {
@@ -206,6 +207,7 @@ export const executeRatificationPipeline = async (
     selectedRole,
     spatialGraph: state.spatialGraph,
     participationContext: state.participationContext || engineState.participationContext || null,
+    characterContinuity: engineState.gameState?.character_continuity,
     runtimeState: preSnapshot,
   });
 

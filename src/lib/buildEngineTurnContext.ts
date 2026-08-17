@@ -9,14 +9,17 @@ import {
   PlayerRole,
   SpatialNode,
   ParticipationContext,
+  CharacterContinuityById,
   normalizeParticipationContext,
 } from '../types';
+import { buildCharacterContinuity, DEFAULT_SKEPTICISM } from './castContinuity';
 
 export interface BuildEngineTurnContextOptions {
   blueprint: unknown;
   selectedRole?: PlayerRole | string;
   spatialGraph?: SpatialNode[];
   participationContext?: ParticipationContext | null;
+  characterContinuity?: CharacterContinuityById | null;
   runtimeState?: {
     currentNodeId?: string | null;
     phase?: string;
@@ -38,6 +41,7 @@ export function buildEngineTurnContext({
   selectedRole = 'protagonist',
   spatialGraph,
   participationContext,
+  characterContinuity,
   runtimeState = {},
 }: BuildEngineTurnContextOptions): EngineTurnContext {
   const normBp: Blueprint = normalizeBlueprint(blueprint);
@@ -95,18 +99,28 @@ export function buildEngineTurnContext({
   }
 
   // 3. Full canonical cast roster (does NOT omit the antagonist)
-  const cast = (normBp.cast || []).map((c) => ({
-    id: c.id || `char-${c.name}`,
-    name: c.name || 'Unknown',
-    role: c.role || 'Subject',
-    description: c.description || '',
-    personality: c.personality || '',
-    goals: c.goals || '',
-    traits: c.traits || [],
-    isEntity: Boolean(c.isEntity),
-    isUserCharacter: Boolean(c.isUserCharacter),
-    expressionProfile: c.expressionProfile,
-  }));
+  const continuityMap = buildCharacterContinuity(normBp.cast || [], characterContinuity);
+  const cast = (normBp.cast || []).map((c) => {
+    const resolvedId = c.id || `char-${c.name}`;
+    const resolvedSkepticism =
+      (c.id && continuityMap[c.id]?.skepticism !== undefined)
+        ? continuityMap[c.id].skepticism
+        : (continuityMap[resolvedId]?.skepticism ?? DEFAULT_SKEPTICISM);
+
+    return {
+      id: resolvedId,
+      name: c.name || 'Unknown',
+      role: c.role || 'Subject',
+      description: c.description || '',
+      personality: c.personality || '',
+      goals: c.goals || '',
+      traits: c.traits || [],
+      skepticism: resolvedSkepticism,
+      isEntity: Boolean(c.isEntity),
+      isUserCharacter: Boolean(c.isUserCharacter),
+      expressionProfile: c.expressionProfile,
+    };
+  });
 
   // 4. Topology boundary
   const nodes = normBp.topology?.nodes || [];

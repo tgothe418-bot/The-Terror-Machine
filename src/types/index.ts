@@ -356,6 +356,13 @@ export interface Message {
   visibleToTelemetry?: boolean;
 }
 
+export interface CharacterContinuityRecord {
+  skepticism: number;
+}
+
+export type CharacterContinuityById =
+  Record<string, CharacterContinuityRecord>;
+
 export interface CastLedgerEntry {
   id?: string;
   character_id?: string;
@@ -483,6 +490,7 @@ export interface LogicState {
     character_id: string;
     skepticism_delta: number;
   }>;
+  character_continuity?: CharacterContinuityById;
   current_location?: string;
   player_character_id?: string | null;
   player_role?: PlayerRole | string;

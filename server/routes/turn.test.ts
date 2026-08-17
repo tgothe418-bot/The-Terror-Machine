@@ -4,6 +4,7 @@ import {
   validateDialogueBlocks,
   resolveExplicitAddressedSpeakerId,
   formatCastLedger,
+  normalizeCastSkepticismDeltas,
 } from './turn';
 
 describe('Turn schemas validation', () => {
@@ -545,7 +546,7 @@ describe('Turn schemas validation', () => {
       const formatted = formatCastLedger(contextWithAuthored);
 
       // Assert member with all three authored behavioral fields and expression profile
-      expect(formatted).toContain('• Jules Mercer (ID: char-jules, Role: Technician, Entity: FALSE): Avionics and radio technician.');
+      expect(formatted).toContain('• Jules Mercer (ID: char-jules, Role: Technician, Entity: FALSE, Skepticism: 0.50): Avionics and radio technician.');
       expect(formatted).toContain('Personality: Taciturn and anxious under pressure.');
       expect(formatted).toContain('Goals: Restore primary relay power without alerting the entity.');
       expect(formatted).toContain('Traits: Analytical, Pragmatic, Jittery.');
@@ -554,7 +555,7 @@ describe('Turn schemas validation', () => {
       expect(formatted).toContain('Silence guidance: Long pauses mean manual re-wiring.');
 
       // Assert member with empty behavioral fields
-      expect(formatted).toContain('• Automated Sentry (ID: char-sentry, Role: Defense Grid, Entity: TRUE): Hardwired ceiling turret.');
+      expect(formatted).toContain('• Automated Sentry (ID: char-sentry, Role: Defense Grid, Entity: TRUE, Skepticism: 0.50): Hardwired ceiling turret.');
       expect(formatted).toContain('Communication modes: spoken (legacy compatibility; no additional expression guidance).');
 
       // Ensure empty member line does NOT contain "Personality:", "Goals:", or "Traits:"
@@ -581,6 +582,101 @@ describe('Turn schemas validation', () => {
         runtime: {},
       });
       expect(formatCastLedger(emptyContext)).toBe('• Solitary subject.');
+    });
+  });
+
+  describe('normalizeCastSkepticismDeltas', () => {
+    const dummyContext = EngineTurnContextSchema.parse({
+      scenario: {
+        title: 'Bunker',
+        setting: { location: 'Sub-Level', atmosphere: '', timePeriod: '' },
+      },
+      player: {
+        role: 'protagonist',
+        name: 'Dr. Evans',
+        characterId: 'char-player',
+      },
+      cast: [
+        {
+          id: 'char-player',
+          name: 'Dr. Evans',
+          role: 'Scientist',
+          isUserCharacter: true,
+        },
+        {
+          id: 'char-npc-1',
+          name: 'Officer Holt',
+          role: 'Security',
+          isUserCharacter: false,
+        },
+        {
+          id: 'char-npc-2',
+          name: 'Analyst Sterling',
+          role: 'Communications',
+          isUserCharacter: false,
+        },
+      ],
+      topology: {
+        currentNodeId: 'ROOM_01',
+        readableNodeLabel: 'Room 01',
+      },
+      runtime: {},
+    });
+
+    it('filters out player character and user character deltas', () => {
+      const rawDeltas = [
+        { character_id: 'char-player', skepticism_delta: -0.1 },
+        { character_id: 'char-npc-1', skepticism_delta: 0.05 },
+      ];
+      const result = normalizeCastSkepticismDeltas(rawDeltas, dummyContext);
+      expect(result).toEqual([
+        { character_id: 'char-npc-1', skepticism_delta: 0.05 },
+      ]);
+    });
+
+    it('ignores unknown cast IDs', () => {
+      const rawDeltas = [
+        { character_id: 'ghost-character', skepticism_delta: 0.1 },
+        { character_id: 'char-npc-2', skepticism_delta: -0.05 },
+      ];
+      const result = normalizeCastSkepticismDeltas(rawDeltas, dummyContext);
+      expect(result).toEqual([
+        { character_id: 'char-npc-2', skepticism_delta: -0.05 },
+      ]);
+    });
+
+    it('clamps deltas to [-0.15, 0.15]', () => {
+      const rawDeltas = [
+        { character_id: 'char-npc-1', skepticism_delta: 0.5 },
+        { character_id: 'char-npc-2', skepticism_delta: -0.9 },
+      ];
+      const result = normalizeCastSkepticismDeltas(rawDeltas, dummyContext);
+      expect(result).toEqual([
+        { character_id: 'char-npc-1', skepticism_delta: 0.15 },
+        { character_id: 'char-npc-2', skepticism_delta: -0.15 },
+      ]);
+    });
+
+    it('drops 0 deltas and non-finite deltas', () => {
+      const rawDeltas = [
+        { character_id: 'char-npc-1', skepticism_delta: 0 },
+        { character_id: 'char-npc-2', skepticism_delta: 0.08 },
+      ];
+      const result = normalizeCastSkepticismDeltas(rawDeltas, dummyContext);
+      expect(result).toEqual([
+        { character_id: 'char-npc-2', skepticism_delta: 0.08 },
+      ]);
+    });
+
+    it('enforces a single delta per cast member by using the first seen delta', () => {
+      const rawDeltas = [
+        { character_id: 'char-npc-1', skepticism_delta: 0.1 },
+        { character_id: 'char-npc-1', skepticism_delta: -0.1 },
+      ];
+      const result = normalizeCastSkepticismDeltas(rawDeltas, dummyContext);
+      expect(result).toEqual([
+        { character_id: 'char-npc-1', skepticism_delta: 0.1 },
+      ]);
     });
   });
 });

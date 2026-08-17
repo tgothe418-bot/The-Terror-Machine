@@ -16,7 +16,6 @@ export function projectPresentationPatch(logicState?: LogicState | null): Partia
   if (logicState.npc_fixations !== undefined) patch.npc_fixations = logicState.npc_fixations;
   if (logicState.psychological_status !== undefined) patch.psychological_status = logicState.psychological_status;
   if (logicState.cast_ledger !== undefined) patch.cast_ledger = logicState.cast_ledger;
-  if (logicState.cast_deltas !== undefined) patch.cast_deltas = logicState.cast_deltas;
 
   return patch;
 }

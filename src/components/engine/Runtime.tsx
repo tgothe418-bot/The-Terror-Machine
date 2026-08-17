@@ -32,6 +32,7 @@ import AntagonistContractDisplay from './AntagonistContractDisplay';
 import { useTelemetryStore } from '../../store/useTelemetryStore';
 import { captureRuntimeSnapshot } from '../../core/engine/snapshot';
 import { projectPresentationPatch } from '../../core/engine/presentationProjection';
+import { applyCastSkepticismDeltas } from '../../lib/castContinuity';
 
 const SESSION_TIMEOUT = 60 * 60 * 1000; // 60 minutes
 const HEARTBEAT_INTERVAL = 30000; // 30 seconds
@@ -462,6 +463,18 @@ export default function Runtime() {
       };
 
       dispatch({ type: 'TURN_COMMITTED', payload: committedTurnPayload });
+
+      const latestEngineState = useEngineStore.getState();
+      if (activeBlueprint) {
+        const nextCharacterContinuity = applyCastSkepticismDeltas(
+          activeBlueprint.cast || [],
+          latestEngineState.gameState?.character_continuity,
+          response.logic_state.cast_deltas,
+        );
+        latestEngineState.patchGameState({
+          character_continuity: nextCharacterContinuity,
+        });
+      }
 
       const presentationPatch = projectPresentationPatch(response.logic_state);
       if (Object.keys(presentationPatch).length > 0) {
