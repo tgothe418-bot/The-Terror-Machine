@@ -356,7 +356,14 @@ describe('Turn schemas validation', () => {
         },
       ];
       const parsed = EngineTurnContextSchema.parse({
-        scenario: { title: 'Test' },
+        scenario: {
+          title: 'Test',
+          setting: {
+            location: 'Relay Room',
+            atmosphere: '',
+            timePeriod: 'Present',
+          },
+        },
         player: { role: 'protagonist', name: 'Aria' },
         cast: castWithProfile,
         topology: { currentNodeId: 'ROOM_1', readableNodeLabel: 'Room 1' },
