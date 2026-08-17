@@ -13,6 +13,14 @@ export const EdgeKindSchema = z.enum([
 
 export type EdgeKind = z.infer<typeof EdgeKindSchema>;
 
+export const EngineCharacterExpressionProfileSchema = z.object({
+  communicationModes: z.array(z.enum(['spoken', 'nonverbal', 'mediated'])).min(1),
+  expressionGuidance: z.string().min(1),
+  silenceGuidance: z.string().optional(),
+});
+
+export type EngineCharacterExpressionProfile = z.infer<typeof EngineCharacterExpressionProfileSchema>;
+
 export const EngineTurnContextSchema = z.object({
   version: z.literal(1).default(1),
   scenario: z.object({
@@ -24,7 +32,7 @@ export const EngineTurnContextSchema = z.object({
       location: z.string().default('Unknown'),
       atmosphere: z.string().default(''),
       timePeriod: z.string().default(''),
-    }),
+    }).default({ location: 'Unknown', atmosphere: '', timePeriod: '' }),
     startingVector: z.string().default('COGNITIVE'),
     startingTier: z.string().default('LATENT'),
     incitingIncident: z.string().default(''),
@@ -46,6 +54,8 @@ export const EngineTurnContextSchema = z.object({
         role: z.string().default('Subject'),
         description: z.string().default(''),
         isEntity: z.boolean().default(false),
+        isUserCharacter: z.boolean().default(false),
+        expressionProfile: EngineCharacterExpressionProfileSchema.optional(),
       })
     )
     .default([]),

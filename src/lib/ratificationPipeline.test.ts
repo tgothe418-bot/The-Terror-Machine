@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import 'fake-indexeddb/auto';
-import { executeRatificationPipeline, TurnResponseError } from './ratificationPipeline';
+import { executeRatificationPipeline, formatRecentHistory, TurnResponseError } from './ratificationPipeline';
 import { useAppStore } from '../store/useAppStore';
 import { useEngineStore } from '../core/store';
 import { engineReducer } from '../core/engine/reducer';
@@ -277,6 +277,16 @@ describe('executeRatificationPipeline single pre-turn snapshot lifecycle', () =>
     expect(failMsg.turnReceipt?.accepted).toBe(false);
     expect(failMsg.turnReceipt?.preSnapshot).toEqual(preSnapshot);
     expect(failMsg.turnReceipt?.postSnapshot).toEqual(preSnapshot);
+  });
+
+  it('preserves dialogue speaker attribution in compact history', () => {
+    expect(formatRecentHistory([
+      { type: 'dialogue', speaker: 'Jules Mercer', content: 'The receiver only repeats what it heard.' },
+      { type: 'prose', content: 'Rain tightens against the shutters.' },
+    ])).toBe(
+      '[DIALOGUE | Jules Mercer]: The receiver only repeats what it heard....\n' +
+      '[PROSE]: Rain tightens against the shutters....'
+    );
   });
 });
 

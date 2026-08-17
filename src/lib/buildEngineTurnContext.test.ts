@@ -28,6 +28,11 @@ describe('buildEngineTurnContext & buildContextReceipt', () => {
         description: 'Night shift nurse.',
         isUserCharacter: true,
         isEntity: false,
+        expressionProfile: {
+          communicationModes: ['spoken'],
+          expressionGuidance: 'Speaks with clipped clinical precision.',
+          silenceGuidance: 'Hesitates when asked about the basement.',
+        },
       },
       {
         id: 'char-warden',
@@ -36,6 +41,11 @@ describe('buildEngineTurnContext & buildContextReceipt', () => {
         description: 'Faceless entity in surgeon coat.',
         isUserCharacter: false,
         isEntity: true,
+        expressionProfile: {
+          communicationModes: ['mediated'],
+          expressionGuidance: 'Uses short transmissions through the ward intercom.',
+          silenceGuidance: 'A closed channel is not consent or absence.',
+        },
       },
     ],
     topology: {
@@ -81,6 +91,16 @@ describe('buildEngineTurnContext & buildContextReceipt', () => {
     // Cast roster includes ALL cast (including antagonist)
     expect(context.cast).toHaveLength(2);
     expect(context.cast.find((c) => c.name === 'The Quiet Warden')).toBeDefined();
+
+    const clara = context.cast.find((member) => member.id === 'char-clara');
+    expect(clara?.isUserCharacter).toBe(true);
+
+    const warden = context.cast.find((member) => member.id === 'char-warden');
+    expect(warden?.expressionProfile).toEqual({
+      communicationModes: ['mediated'],
+      expressionGuidance: 'Uses short transmissions through the ward intercom.',
+      silenceGuidance: 'A closed channel is not consent or absence.',
+    });
 
     // Topology boundaries
     expect(context.topology.currentNodeId).toBe('WARD_4B');

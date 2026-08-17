@@ -101,6 +101,8 @@ export function buildEngineTurnContext({
     role: c.role || 'Subject',
     description: c.description || '',
     isEntity: Boolean(c.isEntity),
+    isUserCharacter: Boolean(c.isUserCharacter),
+    expressionProfile: c.expressionProfile,
   }));
 
   // 4. Topology boundary

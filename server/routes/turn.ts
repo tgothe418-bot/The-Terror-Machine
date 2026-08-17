@@ -1,8 +1,53 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { TurnRequestSchema, TurnResultSchema, TurnResponse, normalizeParticipationContext } from '../schemas/engine';
+import {
+  TurnRequestSchema,
+  TurnResultSchema,
+  TurnResponse,
+  normalizeParticipationContext,
+  type EngineTurnContext,
+} from '../schemas/engine';
 import { generateStructuredResponse } from '../utils/aiClient';
 import { resolveTransition } from '../engine/transitionResolver';
+
+export function validateDialogueBlocks(
+  blocks: Array<{ type: string; speaker?: string | null }>,
+  context: EngineTurnContext
+): string | null {
+  let dialogueCount = 0;
+
+  for (const block of blocks) {
+    if (block.type !== 'dialogue') continue;
+    dialogueCount += 1;
+
+    if (dialogueCount > 1) {
+      return 'Turn response may contain at most one dialogue block.';
+    }
+
+    const speaker = block.speaker?.trim();
+    if (!speaker) {
+      return 'Dialogue block is missing a speaker.';
+    }
+
+    const castMember = context.cast.find((member) => member.name === speaker);
+    if (!castMember) {
+      return `Dialogue speaker "${speaker}" is not in the authorized cast.`;
+    }
+
+    if (castMember.id === context.player.characterId || castMember.isUserCharacter) {
+      return `Dialogue speaker "${speaker}" is the player-controlled character.`;
+    }
+
+    const communicationModes = castMember.expressionProfile?.communicationModes ?? ['spoken'];
+    const canSpeak = communicationModes.includes('spoken') || communicationModes.includes('mediated');
+
+    if (!canSpeak) {
+      return `Dialogue speaker "${speaker}" lacks spoken or mediated communication.`;
+    }
+  }
+
+  return null;
+}
 
 export const turnRouter = Router();
 
@@ -27,7 +72,20 @@ turnRouter.post('/', async (req, res) => {
       : '• No explicit world constraints recorded.';
 
     const castLedgerFormatted = context.cast.length > 0
-      ? context.cast.map((c) => `• ${c.name} (ID: ${c.id}, Role: ${c.role}, Entity: ${c.isEntity ? 'TRUE' : 'FALSE'}): ${c.description || 'No additional details.'}`).join('\n')
+      ? context.cast.map((c) => {
+          const profile = c.expressionProfile;
+          const expressionLines = profile
+            ? [
+                `Communication modes: ${profile.communicationModes.join(', ')}.`,
+                `Expression guidance: ${profile.expressionGuidance}`,
+                profile.silenceGuidance ? `Silence guidance: ${profile.silenceGuidance}` : null,
+              ]
+                .filter(Boolean)
+                .join(' ')
+            : 'Communication modes: spoken (legacy compatibility; no additional expression guidance).';
+
+          return `• ${c.name} (ID: ${c.id}, Role: ${c.role}, Entity: ${c.isEntity ? 'TRUE' : 'FALSE'}): ${c.description || 'No additional details.'} ${expressionLines}`;
+        }).join('\n')
       : '• Solitary subject.';
 
     const exitsFormatted = context.topology.allowedOutgoingExits.length > 0
@@ -154,6 +212,13 @@ Entity Status: ${context.player.isEntity ? 'Entity' : 'Mortal'}
 [CAST LEDGER]
 ${castLedgerFormatted}
 
+[CHARACTER DIALOGUE CONTRACT]
+- A dialogue block is optional. When the user's action directly addresses a cast member whose communication modes include spoken or mediated, answer with at most one dialogue block when that member gives a material response.
+- For a dialogue block, type must be "dialogue", speaker must be the exact existing CAST LEDGER name, and content must contain only that character's concise utterance.
+- Never fabricate a speaker, an alias, a new cast member, or a line of dialogue for the player-controlled character. The user's typed action already represents that character's words and choices.
+- A cast member with nonverbal as its only communication mode must not receive a dialogue block. Render its response, if any, as prose or environmental description.
+- Treat expression and silence guidance as behavioral constraints, not permission to add facts, powers, locations, or knowledge.
+
 [TOPOLOGY BOUNDARY]
 Current Node: ${context.topology.readableNodeLabel} (ID: ${context.topology.currentNodeId})
 Allowed Exits:
@@ -201,6 +266,20 @@ ${recentHistory}
         error: 'AI provider turn generation failed',
         code: 'PROVIDER_FAILURE',
         message,
+      });
+    }
+
+    const dialogueContractError = validateDialogueBlocks(
+      engineResponse.narrative_blocks,
+      context
+    );
+
+    if (dialogueContractError) {
+      console.error('[API /turn] Model dialogue contract mismatch:', dialogueContractError);
+      return res.status(502).json({
+        error: 'Model output violated dialogue contract',
+        code: 'MODEL_CONTRACT_MISMATCH',
+        details: dialogueContractError,
       });
     }
 

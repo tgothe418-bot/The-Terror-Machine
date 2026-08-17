@@ -6,6 +6,7 @@ import {
   PlayerRole,
   RuntimeStateSnapshot,
   TurnResponseSchema,
+  NarrativeBlock,
 } from '../types';
 import { useAppStore } from '../store/useAppStore';
 import { useEngineStore } from '../core/store';
@@ -170,6 +171,20 @@ const createFailedFrame = (errorType: string, note: string): RatifiedEngineFrame
   validation: { accepted: false, rejected_fields: [errorType], repair_notes: [note] },
 });
 
+export function formatRecentHistory(blocks: NarrativeBlock[]): string {
+  return blocks
+    .slice(-6)
+    .map((block) => {
+      const type = (block.type || 'PROSE').toUpperCase();
+      const speaker =
+        block.type === 'dialogue' && block.speaker
+          ? ` | ${block.speaker}`
+          : '';
+      return `[${type}${speaker}]: ${(block.content || '').substring(0, 60)}...`;
+    })
+    .join('\n');
+}
+
 export const executeRatificationPipeline = async (
   userAction: string,
   suppliedSnapshot?: RuntimeStateSnapshot
@@ -227,13 +242,7 @@ export const executeRatificationPipeline = async (
   }
 
   // Distill the history to a compressed array instead of full prose
-  const recentHistory = (state.storyLog || [])
-    .slice(-6)
-    .map(
-      (block) =>
-        `[${(block.type || 'PROSE').toUpperCase()}]: ${(block.content || '').substring(0, 60)}...`
-    )
-    .join('\n');
+  const recentHistory = formatRecentHistory(state.storyLog || []);
 
   const currentNode = state.spatialGraph?.find((n: any) => n.id === preSnapshot.currentNodeId);
   let matchingExitDirection: string | null = null;

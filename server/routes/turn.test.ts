@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { TurnRequestSchema, TurnResultSchema, EngineTurnContextSchema } from '../schemas/engine';
+import { validateDialogueBlocks } from './turn';
 
 describe('Turn schemas validation', () => {
   describe('EngineTurnContextSchema', () => {
@@ -240,6 +241,132 @@ describe('Turn schemas validation', () => {
         logic_state: {},
         topologyDelta: { isExpansion: 'false' },
       })).toThrow();
+    });
+  });
+
+  describe('validateDialogueBlocks', () => {
+    const context = EngineTurnContextSchema.parse({
+      scenario: {
+        title: 'Relay Outpost',
+        premise: 'Isolated transmission tower.',
+        worldRules: ['Atmospheric interference.'],
+        setting: { location: 'Control Room', atmosphere: 'Cold', timePeriod: '1984' },
+      },
+      player: {
+        role: 'protagonist',
+        characterId: 'char-aria',
+        name: 'Aria Bell',
+        description: 'Protagonist operator.',
+        isEntity: false,
+      },
+      cast: [
+        {
+          id: 'char-aria',
+          name: 'Aria Bell',
+          role: 'Protagonist',
+          description: 'Lead operator.',
+          isUserCharacter: true,
+          isEntity: false,
+          expressionProfile: {
+            communicationModes: ['spoken'],
+            expressionGuidance: 'Direct tone.',
+          },
+        },
+        {
+          id: 'char-jules',
+          name: 'Jules Mercer',
+          role: 'Technician',
+          description: 'Relay technician.',
+          isUserCharacter: false,
+          isEntity: false,
+          expressionProfile: {
+            communicationModes: ['spoken', 'mediated'],
+            expressionGuidance: 'Speaks rapidly.',
+          },
+        },
+        {
+          id: 'char-signal',
+          name: 'The Signal',
+          role: 'Entity',
+          description: 'An anomalous static frequency.',
+          isUserCharacter: false,
+          isEntity: true,
+          expressionProfile: {
+            communicationModes: ['nonverbal'],
+            expressionGuidance: 'Pulsing interference.',
+          },
+        },
+      ],
+      topology: {
+        currentNodeId: 'RELAY_ROOM',
+        readableNodeLabel: 'Relay Room',
+        allowedOutgoingExits: [],
+      },
+      runtime: {
+        phase: 'LATENT',
+        tension: 0,
+        coherence: 1.0,
+        reconciliationRevision: 0,
+        activeVector: 'COGNITIVE',
+        activeTier: 'LATENT',
+      },
+    });
+
+    it('validates dialogue blocks correctly against authorized cast and constraints', () => {
+      expect(validateDialogueBlocks(
+        [{ type: 'dialogue', speaker: 'Jules Mercer' }],
+        context
+      )).toBeNull();
+
+      expect(validateDialogueBlocks(
+        [{ type: 'dialogue', speaker: 'A Stranger' }],
+        context
+      )).toContain('authorized cast');
+
+      expect(validateDialogueBlocks(
+        [{ type: 'dialogue', speaker: 'Aria Bell' }],
+        context
+      )).toContain('player-controlled');
+
+      expect(validateDialogueBlocks(
+        [{ type: 'dialogue', speaker: 'The Signal' }],
+        context
+      )).toContain('lacks spoken or mediated');
+
+      expect(validateDialogueBlocks(
+        [
+          { type: 'dialogue', speaker: 'Jules Mercer' },
+          { type: 'dialogue', speaker: 'Jules Mercer' },
+        ],
+        context
+      )).toContain('at most one');
+    });
+
+    it('preserves cast expression profile through EngineTurnContextSchema.parse', () => {
+      const castWithProfile = [
+        {
+          id: 'char-jules',
+          name: 'Jules Mercer',
+          role: 'Technician',
+          expressionProfile: {
+            communicationModes: ['spoken', 'mediated'] as const,
+            expressionGuidance: 'Terse sentences.',
+            silenceGuidance: 'Silence means checking instruments.',
+          },
+        },
+      ];
+      const parsed = EngineTurnContextSchema.parse({
+        scenario: { title: 'Test' },
+        player: { role: 'protagonist', name: 'Aria' },
+        cast: castWithProfile,
+        topology: { currentNodeId: 'ROOM_1', readableNodeLabel: 'Room 1' },
+        runtime: {},
+      });
+      expect(parsed.cast[0].expressionProfile).toEqual({
+        communicationModes: ['spoken', 'mediated'],
+        expressionGuidance: 'Terse sentences.',
+        silenceGuidance: 'Silence means checking instruments.',
+      });
     });
   });
 });
