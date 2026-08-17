@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { TurnRequestSchema, TurnResultSchema, EngineTurnContextSchema } from '../schemas/engine';
-import { validateDialogueBlocks } from './turn';
+import { validateDialogueBlocks, resolveExplicitAddressedSpeakerId } from './turn';
 
 describe('Turn schemas validation', () => {
   describe('EngineTurnContextSchema', () => {
@@ -244,7 +244,7 @@ describe('Turn schemas validation', () => {
     });
   });
 
-  describe('validateDialogueBlocks', () => {
+  describe('validateDialogueBlocks and resolveExplicitAddressedSpeakerId', () => {
     const context = EngineTurnContextSchema.parse({
       scenario: {
         title: 'Relay Outpost',
@@ -285,6 +285,18 @@ describe('Turn schemas validation', () => {
           },
         },
         {
+          id: 'char-marcus',
+          name: 'Dr. Marcus Sterling',
+          role: 'Scientist',
+          description: 'Station researcher.',
+          isUserCharacter: false,
+          isEntity: false,
+          expressionProfile: {
+            communicationModes: ['spoken'],
+            expressionGuidance: 'Measured and analytical.',
+          },
+        },
+        {
           id: 'char-signal',
           name: 'The Signal',
           role: 'Entity',
@@ -312,9 +324,82 @@ describe('Turn schemas validation', () => {
       },
     });
 
+    describe('resolveExplicitAddressedSpeakerId', () => {
+      it('resolves an action with exactly one eligible full authored name to that member ID', () => {
+        expect(
+          resolveExplicitAddressedSpeakerId(
+            'I turn to Jules Mercer and ask if the signal is stable.',
+            context
+          )
+        ).toBe('char-jules');
+
+        expect(
+          resolveExplicitAddressedSpeakerId(
+            'I request an analysis from Dr. Marcus Sterling on the readings.',
+            context
+          )
+        ).toBe('char-marcus');
+      });
+
+      it('matches full authored names regardless of punctuation and case', () => {
+        expect(
+          resolveExplicitAddressedSpeakerId(
+            'Hey, "jules mercer"... can you hear that frequency?!',
+            context
+          )
+        ).toBe('char-jules');
+
+        expect(
+          resolveExplicitAddressedSpeakerId(
+            'DR. MARCUS STERLING: check the oscilloscope right now!',
+            context
+          )
+        ).toBe('char-marcus');
+      });
+
+      it('resolves to null when two or more eligible names appear in the action', () => {
+        expect(
+          resolveExplicitAddressedSpeakerId(
+            'I look between Jules Mercer and Dr. Marcus Sterling for an explanation.',
+            context
+          )
+        ).toBeNull();
+      });
+
+      it('resolves to null when naming only a nonverbal-only member', () => {
+        expect(
+          resolveExplicitAddressedSpeakerId(
+            'I tune the radio dial toward The Signal to analyze its cadence.',
+            context
+          )
+        ).toBeNull();
+      });
+
+      it('resolves to null when no eligible full name is addressed', () => {
+        expect(
+          resolveExplicitAddressedSpeakerId('I check the dials on the mainframe.', context)
+        ).toBeNull();
+
+        // Partial name only - should not infer
+        expect(
+          resolveExplicitAddressedSpeakerId('I ask Jules if the breaker tripped.', context)
+        ).toBeNull();
+
+        // Player character addressed - should not match non-player target
+        expect(
+          resolveExplicitAddressedSpeakerId('Aria Bell inspects her own reflection.', context)
+        ).toBeNull();
+      });
+    });
+
     it('validates dialogue blocks correctly against authorized cast and constraints', () => {
       expect(validateDialogueBlocks(
         [{ type: 'dialogue', speaker: 'Jules Mercer' }],
+        context
+      )).toBeNull();
+
+      expect(validateDialogueBlocks(
+        [{ type: 'dialogue', speaker: 'Dr. Marcus Sterling' }],
         context
       )).toBeNull();
 
@@ -340,6 +425,26 @@ describe('Turn schemas validation', () => {
         ],
         context
       )).toContain('at most one');
+    });
+
+    it('accepts dialogue from the explicitly addressed speaker and rejects dialogue from a different speaker', () => {
+      // Explicitly addressed speaker matches returned dialogue block
+      expect(
+        validateDialogueBlocks(
+          [{ type: 'dialogue', speaker: 'Jules Mercer' }],
+          context,
+          'char-jules'
+        )
+      ).toBeNull();
+
+      // Explicitly addressed speaker differs from returned dialogue block
+      expect(
+        validateDialogueBlocks(
+          [{ type: 'dialogue', speaker: 'Dr. Marcus Sterling' }],
+          context,
+          'char-jules'
+        )
+      ).toContain('does not match the explicitly addressed cast member');
     });
 
     it('preserves cast expression profile through EngineTurnContextSchema.parse', () => {

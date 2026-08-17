@@ -10,9 +10,42 @@ import {
 import { generateStructuredResponse } from '../utils/aiClient';
 import { resolveTransition } from '../engine/transitionResolver';
 
+function normalizeDialogueAddress(value: string): string {
+  return ` ${value
+    .toLocaleLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .trim()} `;
+}
+
+export function resolveExplicitAddressedSpeakerId(
+  userAction: string,
+  context: EngineTurnContext
+): string | null {
+  const normalizedAction = normalizeDialogueAddress(userAction);
+
+  const matches = context.cast.filter((member) => {
+    if (member.id === context.player.characterId || member.isUserCharacter) {
+      return false;
+    }
+
+    const communicationModes = member.expressionProfile?.communicationModes ?? ['spoken'];
+    const canSpeak =
+      communicationModes.includes('spoken') || communicationModes.includes('mediated');
+
+    if (!canSpeak) {
+      return false;
+    }
+
+    return normalizedAction.includes(normalizeDialogueAddress(member.name));
+  });
+
+  return matches.length === 1 ? matches[0].id : null;
+}
+
 export function validateDialogueBlocks(
   blocks: Array<{ type: string; speaker?: string | null }>,
-  context: EngineTurnContext
+  context: EngineTurnContext,
+  explicitlyAddressedSpeakerId: string | null = null
 ): string | null {
   let dialogueCount = 0;
 
@@ -43,6 +76,13 @@ export function validateDialogueBlocks(
 
     if (!canSpeak) {
       return `Dialogue speaker "${speaker}" lacks spoken or mediated communication.`;
+    }
+
+    if (
+      explicitlyAddressedSpeakerId &&
+      castMember.id !== explicitlyAddressedSpeakerId
+    ) {
+      return `Dialogue speaker "${speaker}" does not match the explicitly addressed cast member.`;
     }
   }
 
@@ -218,6 +258,7 @@ ${castLedgerFormatted}
 - Never fabricate a speaker, an alias, a new cast member, or a line of dialogue for the player-controlled character. The user's typed action already represents that character's words and choices.
 - A cast member with nonverbal as its only communication mode must not receive a dialogue block. Render its response, if any, as prose or environmental description.
 - Treat expression and silence guidance as behavioral constraints, not permission to add facts, powers, locations, or knowledge.
+- If the USER ACTION explicitly names exactly one eligible non-player CAST LEDGER member, that member is the only permitted dialogue speaker for this turn. If it names none or more than one eligible member, do not infer a deterministic target.
 
 [TOPOLOGY BOUNDARY]
 Current Node: ${context.topology.readableNodeLabel} (ID: ${context.topology.currentNodeId})
@@ -269,9 +310,15 @@ ${recentHistory}
       });
     }
 
+    const explicitlyAddressedSpeakerId = resolveExplicitAddressedSpeakerId(
+      userAction,
+      context
+    );
+
     const dialogueContractError = validateDialogueBlocks(
       engineResponse.narrative_blocks,
-      context
+      context,
+      explicitlyAddressedSpeakerId
     );
 
     if (dialogueContractError) {
