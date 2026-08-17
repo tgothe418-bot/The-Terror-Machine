@@ -10,6 +10,8 @@ import {
   ForgeSourceUnknown,
   ForgeSourceAnalysisSchema,
   ForgeSourceCandidateSchema,
+  ForgeSourceEvidenceSchema,
+  ForgeSourceUnknownSchema,
 } from '../types/forge';
 import { normalizeBlueprint } from './normalizeBlueprint';
 
@@ -388,7 +390,7 @@ export function validateAndNormalizeDocumentAnalysis(
   payload: unknown,
   sourceRecord: ForgeSourceRecord
 ): ForgeSourceAnalysis {
-  if (!payload || typeof payload !== 'object') {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
     return {
       id: `${sourceRecord.id}-analysis-err`,
       sourceRecord,
@@ -402,61 +404,123 @@ export function validateAndNormalizeDocumentAnalysis(
   }
 
   const rawObj = payload as Record<string, unknown>;
-  const normalizedCandidate = {
-    id: typeof rawObj.id === 'string' && rawObj.id.trim() ? rawObj.id : `${sourceRecord.id}-analysis`,
+  const sourceId = sourceRecord.id;
+
+  // 1. Normalize and filter evidence entries
+  const evidence: ForgeSourceEvidence[] = [];
+  if (Array.isArray(rawObj.evidence)) {
+    rawObj.evidence.forEach((e: unknown, idx: number) => {
+      if (!e || typeof e !== 'object' || Array.isArray(e)) return;
+      const item = e as Record<string, unknown>;
+      const rawEvidence = {
+        id: typeof item.id === 'string' && item.id.trim() ? item.id.trim() : `${sourceId}-ev-${idx}`,
+        sourceId,
+        category: item.category,
+        claim: typeof item.claim === 'string' && item.claim.trim() ? item.claim.trim() : '',
+        excerpt: typeof item.excerpt === 'string' && item.excerpt.trim() ? item.excerpt.trim() : undefined,
+      };
+      const parseRes = ForgeSourceEvidenceSchema.safeParse(rawEvidence);
+      if (parseRes.success) {
+        evidence.push(parseRes.data);
+      }
+    });
+  }
+
+  // 2. Normalize and filter candidates entries
+  const candidates: ForgeSourceCandidate[] = [];
+  if (Array.isArray(rawObj.candidates)) {
+    rawObj.candidates.forEach((c: unknown, idx: number) => {
+      if (!c || typeof c !== 'object' || Array.isArray(c)) return;
+      const item = c as Record<string, unknown>;
+      if (item.proposedValue === undefined || item.proposedValue === null) return;
+
+      let proposedValue = item.proposedValue;
+      if (
+        item.target === 'cast_seed' &&
+        typeof proposedValue === 'object' &&
+        proposedValue !== null &&
+        !Array.isArray(proposedValue)
+      ) {
+        const castObj = { ...(proposedValue as Record<string, unknown>) };
+        if (!castObj.id || typeof castObj.id !== 'string' || !castObj.id.trim()) {
+          castObj.id = `${sourceId}-cast-${idx}`;
+        }
+        proposedValue = castObj;
+      } else if (typeof proposedValue === 'string') {
+        proposedValue = proposedValue.trim();
+      }
+
+      const rawCandidate = {
+        id: typeof item.id === 'string' && item.id.trim() ? item.id.trim() : `${sourceId}-cand-${idx}`,
+        sourceId,
+        classification: item.classification === 'inference' ? ('inference' as const) : ('evidence' as const),
+        target: item.target,
+        label: typeof item.label === 'string' && item.label.trim() ? item.label.trim() : `Candidate ${idx + 1}`,
+        explanation:
+          typeof item.explanation === 'string' && item.explanation.trim()
+            ? item.explanation.trim()
+            : 'Extracted from source document.',
+        evidenceIds: Array.isArray(item.evidenceIds)
+          ? item.evidenceIds.filter((id: unknown): id is string => typeof id === 'string' && id.trim().length > 0)
+          : [],
+        proposedValue,
+        targetCastMemberId:
+          typeof item.targetCastMemberId === 'string' && item.targetCastMemberId.trim()
+            ? item.targetCastMemberId.trim()
+            : undefined,
+        reviewState: 'pending' as const,
+      };
+
+      const parseRes = ForgeSourceCandidateSchema.safeParse(rawCandidate);
+      if (parseRes.success) {
+        candidates.push(parseRes.data);
+      }
+    });
+  }
+
+  // 3. Normalize and filter unknowns entries
+  const unknowns: ForgeSourceUnknown[] = [];
+  if (Array.isArray(rawObj.unknowns)) {
+    rawObj.unknowns.forEach((u: unknown, idx: number) => {
+      if (!u || typeof u !== 'object' || Array.isArray(u)) return;
+      const item = u as Record<string, unknown>;
+      const rawUnknown = {
+        id: typeof item.id === 'string' && item.id.trim() ? item.id.trim() : `${sourceId}-unk-${idx}`,
+        sourceId,
+        category: item.category,
+        question: typeof item.question === 'string' && item.question.trim() ? item.question.trim() : '',
+      };
+      const parseRes = ForgeSourceUnknownSchema.safeParse(rawUnknown);
+      if (parseRes.success) {
+        unknowns.push(parseRes.data);
+      }
+    });
+  }
+
+  const normalizedAnalysis = {
+    id: typeof rawObj.id === 'string' && rawObj.id.trim() ? rawObj.id.trim() : `${sourceId}-analysis`,
     sourceRecord,
-    summary: typeof rawObj.summary === 'string' ? rawObj.summary : `Source intake analysis for ${sourceRecord.fileName}`,
-    evidence: Array.isArray(rawObj.evidence)
-      ? rawObj.evidence.map((e: unknown, idx: number) => {
-          const item = (e && typeof e === 'object' ? e : {}) as Record<string, unknown>;
-          return {
-            id: typeof item.id === 'string' ? item.id : `${sourceRecord.id}-ev-${idx}`,
-            sourceId: sourceRecord.id,
-            category: typeof item.category === 'string' ? item.category : 'other',
-            claim: String(item.claim || '').trim() || 'Extracted claim',
-            excerpt: item.excerpt ? String(item.excerpt).trim() : undefined,
-          };
-        })
-      : [],
-    candidates: Array.isArray(rawObj.candidates)
-      ? rawObj.candidates.map((c: unknown, idx: number) => {
-          const item = (c && typeof c === 'object' ? c : {}) as Record<string, unknown>;
-          return {
-            id: typeof item.id === 'string' ? item.id : `${sourceRecord.id}-cand-${idx}`,
-            sourceId: sourceRecord.id,
-            classification: item.classification === 'inference' ? ('inference' as const) : ('evidence' as const),
-            target: item.target,
-            label: String(item.label || '').trim() || `Candidate ${idx + 1}`,
-            explanation: String(item.explanation || '').trim() || 'Extracted from source document.',
-            evidenceIds: Array.isArray(item.evidenceIds) ? (item.evidenceIds as string[]) : [],
-            proposedValue: item.proposedValue,
-            targetCastMemberId: item.targetCastMemberId ? String(item.targetCastMemberId) : undefined,
-            reviewState: 'pending' as const,
-          };
-        })
-      : [],
-    unknowns: Array.isArray(rawObj.unknowns)
-      ? rawObj.unknowns.map((u: unknown, idx: number) => {
-          const item = (u && typeof u === 'object' ? u : {}) as Record<string, unknown>;
-          return {
-            id: typeof item.id === 'string' ? item.id : `${sourceRecord.id}-unk-${idx}`,
-            sourceId: sourceRecord.id,
-            category: typeof item.category === 'string' ? item.category : 'other',
-            question: String(item.question || '').trim() || 'Unresolved detail.',
-          };
-        })
-      : [],
+    summary:
+      typeof rawObj.summary === 'string' && rawObj.summary.trim()
+        ? rawObj.summary.trim()
+        : `Source intake analysis for ${sourceRecord.fileName}`,
+    evidence,
+    candidates,
+    unknowns,
     status: (rawObj.status === 'error' ? 'error' : 'completed') as 'completed' | 'error',
-    errorMessage: typeof rawObj.errorMessage === 'string' ? rawObj.errorMessage : undefined,
+    errorMessage:
+      typeof rawObj.errorMessage === 'string' && rawObj.errorMessage.trim()
+        ? rawObj.errorMessage.trim()
+        : undefined,
   };
 
-  const parseResult = ForgeSourceAnalysisSchema.safeParse(normalizedCandidate);
+  const parseResult = ForgeSourceAnalysisSchema.safeParse(normalizedAnalysis);
   if (parseResult.success) {
     return parseResult.data;
   }
 
   return {
-    id: `${sourceRecord.id}-analysis-err`,
+    id: `${sourceId}-analysis-err`,
     sourceRecord,
     summary: 'Analysis payload validation failed.',
     evidence: [],

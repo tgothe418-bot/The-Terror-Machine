@@ -19,7 +19,8 @@ import {
   getDecodedBase64ByteLength,
   createPayloadTooLargeError
 } from "../../src/lib/referenceImportPolicy";
-import { ForgeSourceRecord, ForgeSourceAnalysisSchema } from "../../src/types/forge";
+import { ForgeSourceRecord } from "../../src/types/forge";
+import { validateAndNormalizeDocumentAnalysis } from "../../src/lib/sourceBaseline";
 
 const router = express.Router();
 
@@ -437,65 +438,18 @@ router.post("/extract-blueprint", async (req, res) => {
     try {
       const parsedData = JSON.parse(jsonMatch[1] || jsonMatch[0]);
       
-      // Map evidence, candidates, and unknowns with consistent sourceId
-      const evidence = Array.isArray(parsedData.evidence)
-        ? parsedData.evidence.map((e: any, idx: number) => ({
-            id: e.id || `${sourceId}-ev-${idx}`,
-            sourceId,
-            category: e.category || 'other',
-            claim: String(e.claim || '').trim() || 'Extracted claim',
-            excerpt: e.excerpt ? String(e.excerpt).trim() : undefined,
-          }))
-        : [];
-
-      const candidates = Array.isArray(parsedData.candidates)
-        ? parsedData.candidates
-            .map((c: any, idx: number) => ({
-              id: c.id || `${sourceId}-cand-${idx}`,
-              sourceId,
-              classification: c.classification === 'inference' ? ('inference' as const) : ('evidence' as const),
-              target: c.target,
-              label: String(c.label || '').trim() || `Candidate ${idx + 1}`,
-              explanation: String(c.explanation || '').trim() || 'Extracted from source document.',
-              evidenceIds: Array.isArray(c.evidenceIds) ? c.evidenceIds : [],
-              proposedValue: c.proposedValue,
-              targetCastMemberId: c.targetCastMemberId ? String(c.targetCastMemberId) : undefined,
-              reviewState: 'pending' as const,
-            }))
-            .filter((c: any) => c.proposedValue !== undefined && c.proposedValue !== null && c.target)
-        : [];
-
-      const unknowns = Array.isArray(parsedData.unknowns)
-        ? parsedData.unknowns.map((u: any, idx: number) => ({
-            id: u.id || `${sourceId}-unk-${idx}`,
-            sourceId,
-            category: u.category || 'other',
-            question: String(u.question || '').trim() || 'Unresolved narrative detail.',
-          }))
-        : [];
-
-      const rawAnalysis = {
-        id: `${sourceId}-analysis`,
-        sourceRecord,
-        summary: parsedData.summary || `Source intake analysis for ${fileName}`,
-        evidence,
-        candidates,
-        unknowns,
-        status: 'completed' as const,
-      };
-
-      const validated = ForgeSourceAnalysisSchema.safeParse(rawAnalysis);
-      if (!validated.success) {
-        console.error("Source analysis schema validation failed:", validated.error);
+      const analysis = validateAndNormalizeDocumentAnalysis(parsedData, sourceRecord);
+      if (analysis.status === 'error') {
+        console.error("Source analysis normalization failed:", analysis.errorMessage);
         return res.status(500).json({
           error: "Failed to validate source analysis schema.",
-          details: validated.error.issues.map((i) => i.message),
+          details: analysis.errorMessage ? [analysis.errorMessage] : [],
         });
       }
 
       res.json({
         success: true,
-        analysis: validated.data,
+        analysis,
       });
     } catch (e: any) {
       console.error("Failed to parse Architect Extraction JSON:", e);

@@ -511,4 +511,135 @@ describe('sourceBaseline pure functions', () => {
       expect(applyRes.draft.cast?.length).toBe(1);
     });
   });
+
+  describe('validateAndNormalizeDocumentAnalysis partial extraction recovery', () => {
+    it('retains valid entries and drops invalid candidates/evidence/unknowns without failing the analysis', () => {
+      const sourceRecord: ForgeSourceRecord = {
+        id: 'src-test-recovery-1',
+        fileName: 'research_notes.txt',
+        mimeType: 'text/plain',
+        kind: 'document',
+        receivedAt: Date.now(),
+        fileSizeBytes: 1024,
+      };
+
+      const payload = {
+        summary: 'Preliminary research on Submerged Station Sector 9.',
+        evidence: [
+          {
+            id: 'ev-valid-1',
+            category: 'setting',
+            claim: 'The station is located in the Marianas Trench.',
+            excerpt: 'Marianas Trench Station Sector 9.',
+          },
+          {
+            id: 'ev-invalid-cat',
+            category: 'unsupported_category_name',
+            claim: 'Some claim with bad category.',
+          },
+        ],
+        candidates: [
+          {
+            id: 'cand-valid-loc',
+            classification: 'evidence',
+            target: 'setting_location',
+            label: 'Setting Location',
+            explanation: 'Extracted from research notes.',
+            evidenceIds: ['ev-valid-1'],
+            proposedValue: 'Marianas Trench Station Sector 9',
+          },
+          {
+            id: 'cand-invalid-expr',
+            classification: 'evidence',
+            target: 'cast_expression_guidance',
+            targetCastMemberId: 'char-scientist-1',
+            label: 'Scientist Expression',
+            explanation: 'Has invalid communication mode.',
+            evidenceIds: ['ev-valid-1'],
+            proposedValue: {
+              communicationModes: ['telepathic_projection'], // unsupported communication mode
+              expressionGuidance: 'Project thoughts into minds.',
+            },
+          },
+          {
+            id: 'cand-invalid-target',
+            classification: 'evidence',
+            target: 'unknown_unsupported_target',
+            label: 'Invalid Target Candidate',
+            explanation: 'Invalid target type.',
+            evidenceIds: [],
+            proposedValue: 'some value',
+          },
+        ],
+        unknowns: [
+          {
+            id: 'unk-valid-1',
+            category: 'setting',
+            question: 'What is the primary power source?',
+          },
+          {
+            id: 'unk-invalid-cat',
+            category: 'bad_unknown_cat',
+            question: 'Invalid category unknown.',
+          },
+        ],
+      };
+
+      const analysis = validateAndNormalizeDocumentAnalysis(payload, sourceRecord);
+      expect(analysis.status).toBe('completed');
+      expect(analysis.id).toBe('src-test-recovery-1-analysis');
+      expect(analysis.errorMessage).toBeUndefined();
+
+      // Only valid evidence kept
+      expect(analysis.evidence).toHaveLength(1);
+      expect(analysis.evidence[0].id).toBe('ev-valid-1');
+      expect(analysis.evidence[0].category).toBe('setting');
+
+      // Only valid candidates kept
+      expect(analysis.candidates).toHaveLength(1);
+      expect(analysis.candidates[0].target).toBe('setting_location');
+      expect(analysis.candidates[0].proposedValue).toBe('Marianas Trench Station Sector 9');
+      expect(analysis.candidates[0].reviewState).toBe('pending');
+
+      // Only valid unknowns kept
+      expect(analysis.unknowns).toHaveLength(1);
+      expect(analysis.unknowns[0].id).toBe('unk-valid-1');
+    });
+
+    it('supplies stable fallback id for cast_seed without id and forces reviewState to pending', () => {
+      const sourceRecord: ForgeSourceRecord = {
+        id: 'src-test-cast-fallback',
+        fileName: 'cast_log.txt',
+        mimeType: 'text/plain',
+        kind: 'document',
+        receivedAt: Date.now(),
+      };
+
+      const payload = {
+        candidates: [
+          {
+            target: 'cast_seed',
+            label: 'Station Engineer',
+            explanation: 'Extracted character',
+            proposedValue: {
+              name: 'Engineer Mercer',
+              role: 'PROTAGONIST',
+              description: 'Chief maintenance specialist.',
+              isEntity: false,
+              behaviorVector: 'ADAPTIVE',
+            },
+          },
+        ],
+      };
+
+      const analysis = validateAndNormalizeDocumentAnalysis(payload, sourceRecord);
+      expect(analysis.status).toBe('completed');
+      expect(analysis.candidates).toHaveLength(1);
+      expect(analysis.candidates[0].target).toBe('cast_seed');
+      expect(analysis.candidates[0].reviewState).toBe('pending');
+      const castMember = analysis.candidates[0].proposedValue as { id: string; name: string };
+      expect(castMember.id).toBe('src-test-cast-fallback-cast-0');
+      expect(castMember.name).toBe('Engineer Mercer');
+    });
+  });
 });
