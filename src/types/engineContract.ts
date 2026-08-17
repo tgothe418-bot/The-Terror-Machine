@@ -107,56 +107,14 @@ export const TransitionReceiptSchema = z.object({
 export type TransitionReceipt = z.infer<typeof TransitionReceiptSchema>;
 
 export const NarrativeBlockSchema = z.object({
-  type: z.preprocess((val) => {
-    if (typeof val !== 'string') return 'prose';
-    const lower = val.toLowerCase().trim();
-    if (lower === 'dialog' || lower === 'dialogue') return 'dialogue';
-    if (lower === 'system_alert' || lower === 'system' || lower === 'system_voice') return 'system_voice';
-    if (lower === 'environmental' || lower === 'environmental_description' || lower === 'sensory') return 'environmental_description';
-    if (lower === 'internal_monologue') return 'internal_monologue';
-    if (lower === 'exposition' || lower === 'narration' || lower === 'action' || lower === 'prose') return 'prose';
-    return lower || 'prose';
-  }, z.string()),
+  type: z.enum(['prose', 'dialogue', 'system_voice', 'environmental_description']),
   speaker: z.string().nullable().optional(),
-  content: z.preprocess((val) => (val == null ? '' : String(val)), z.string()),
+  content: z.string(),
 });
 
 export type NarrativeBlock = z.infer<typeof NarrativeBlockSchema>;
 
-export const TopologyDeltaSchema = z.preprocess((val) => {
-  if (val === null || val === undefined) return val;
-  if (typeof val !== 'object') return { isExpansion: false, newNodeDef: null };
-  const obj = val as Record<string, unknown>;
-  const isExpansion = Boolean(obj.isExpansion);
-  const rawDef = obj.newNodeDef;
-  if (!isExpansion || !rawDef || typeof rawDef !== 'object') {
-    return {
-      isExpansion: false,
-      exitDirection: typeof obj.exitDirection === 'string' ? obj.exitDirection : null,
-      newNodeDef: null,
-    };
-  }
-  const def = rawDef as Record<string, unknown>;
-  const rawExitVectors = Array.isArray(def.exitVectors) ? def.exitVectors : [];
-  return {
-    isExpansion: true,
-    exitDirection: typeof obj.exitDirection === 'string' ? obj.exitDirection : null,
-    newNodeDef: {
-      id: String(def.id || `NODE_${Date.now()}`),
-      geometry: String(def.geometry || 'Uncharted Chamber'),
-      hazards: Array.isArray(def.hazards) ? def.hazards.map(String) : [],
-      exitVectors: rawExitVectors
-        .filter((ev): ev is Record<string, unknown> => Boolean(ev && typeof ev === 'object'))
-        .map((ev) => ({
-          direction: String(ev.direction || 'UNKNOWN'),
-          targetNodeId: String(ev.targetNodeId || 'ORIGIN'),
-          kind: ev.kind,
-          requires: Array.isArray(ev.requires) ? ev.requires.map(String) : undefined,
-          userInitiated: typeof ev.userInitiated === 'boolean' ? ev.userInitiated : true,
-        })),
-    },
-  };
-}, z.object({
+export const TopologyDeltaSchema = z.object({
   isExpansion: z.boolean(),
   exitDirection: z.string().nullable().optional(),
   newNodeDef: z
@@ -176,69 +134,28 @@ export const TopologyDeltaSchema = z.preprocess((val) => {
     })
     .nullable()
     .optional(),
-}));
+});
 
 export type TopologyDelta = z.infer<typeof TopologyDeltaSchema>;
 
 export const TurnResultSchema = z.object({
-  narrative_blocks: z.preprocess((val) => {
-    if (!Array.isArray(val)) return val;
-    return val.map((item) => {
-      if (typeof item === 'string') {
-        return { type: 'prose', content: item };
-      }
-      if (item && typeof item === 'object') {
-        return {
-          type: item.type || 'prose',
-          speaker: item.speaker ?? null,
-          content: item.content ?? item.text ?? '',
-        };
-      }
-      return item;
-    });
-  }, z.array(NarrativeBlockSchema)),
-  engine_thoughts: z.preprocess((val) => (val == null ? undefined : String(val)), z.string().optional()),
+  narrative_blocks: z.array(NarrativeBlockSchema).max(2),
+  engine_thoughts: z.string().optional(),
   logic_state: z
     .object({
-      current_phase: z.preprocess((val) => (val == null ? undefined : String(val)), z.string().optional()),
-      requested_transition: z.preprocess((val) => {
-        if (val == null || val === 'null' || val === 'none') return null;
-        return String(val);
-      }, z.string().nullable().optional().default(null)),
-      suggested_tension: z.preprocess((val) => {
-        if (typeof val === 'number') return Math.round(Math.max(0, Math.min(100, val)));
-        if (typeof val === 'string') {
-          const parsed = parseFloat(val);
-          if (!isNaN(parsed)) return Math.round(Math.max(0, Math.min(100, parsed)));
-        }
-        return undefined;
-      }, z.number().int().min(0).max(100).optional()),
-      intent_classification: z.preprocess((val) => {
-        if (typeof val === 'string' && val.trim().length > 0) return val.trim();
-        return 'PROSE_ADVANCE';
-      }, z.string().default('PROSE_ADVANCE')),
-      terminal_flags: z.preprocess((val) => {
-        if (!Array.isArray(val)) return [];
-        return val.map((f) => String(f)).filter(Boolean);
-      }, z.array(z.string())).default([]),
-      cast_deltas: z.preprocess((val) => {
-        if (!Array.isArray(val)) return [];
-        return val
-          .filter((item) => item && typeof item === 'object')
-          .map((item) => ({
-            character_id: String(item.character_id || item.id || ''),
-            skepticism_delta:
-              typeof item.skepticism_delta === 'number'
-                ? item.skepticism_delta
-                : parseFloat(item.skepticism_delta) || 0,
-          }))
-          .filter((item) => item.character_id.length > 0);
-      }, z.array(
-        z.object({
-          character_id: z.string(),
-          skepticism_delta: z.number(),
-        })
-      )).default([]),
+      current_phase: z.string().optional(),
+      requested_transition: z.string().nullable().optional().default(null),
+      suggested_tension: z.number().int().min(0).max(100).optional(),
+      intent_classification: z.string().default('PROSE_ADVANCE'),
+      terminal_flags: z.array(z.string()).default([]),
+      cast_deltas: z
+        .array(
+          z.object({
+            character_id: z.string(),
+            skepticism_delta: z.number(),
+          })
+        )
+        .default([]),
       cast_ledger: z.array(z.any()).default([]),
       inventory: z.array(z.string()).optional(),
       player_injuries: z.array(z.string()).optional(),

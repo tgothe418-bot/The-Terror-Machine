@@ -202,12 +202,12 @@ describe('Turn schemas validation', () => {
       expect(parsed.topologyDelta?.newNodeDef?.id).toBe('ROOM_02');
     });
 
-    it('validates and normalizes multiple narrative blocks and diverse types', () => {
-      const result = {
+    it('rejects more than 2 narrative blocks', () => {
+      const invalidResult = {
         narrative_blocks: [
           { type: 'prose', content: 'Block 1' },
-          { type: 'environmental_description', content: 'Block 2' },
-          { type: 'dialogue', speaker: 'Entity', content: 'Block 3' },
+          { type: 'prose', content: 'Block 2' },
+          { type: 'prose', content: 'Block 3' },
         ],
         logic_state: {
           current_phase: 'LATENT',
@@ -217,9 +217,29 @@ describe('Turn schemas validation', () => {
         },
       };
 
-      const parsed = TurnResultSchema.parse(result);
-      expect(parsed.narrative_blocks).toHaveLength(3);
-      expect(parsed.narrative_blocks[2].speaker).toBe('Entity');
+      expect(() => TurnResultSchema.parse(invalidResult)).toThrow();
+    });
+
+    it('rejects an unknown narrative block type', () => {
+      expect(() => TurnResultSchema.parse({
+        narrative_blocks: [{ type: 'invented_type', content: 'Not a valid block.' }],
+        logic_state: {},
+      })).toThrow();
+    });
+
+    it('rejects non-string narrative content', () => {
+      expect(() => TurnResultSchema.parse({
+        narrative_blocks: [{ type: 'prose', content: 42 }],
+        logic_state: {},
+      })).toThrow();
+    });
+
+    it('rejects an invalid topology expansion flag rather than coercing it', () => {
+      expect(() => TurnResultSchema.parse({
+        narrative_blocks: [{ type: 'prose', content: 'The corridor remains still.' }],
+        logic_state: {},
+        topologyDelta: { isExpansion: 'false' },
+      })).toThrow();
     });
   });
 });

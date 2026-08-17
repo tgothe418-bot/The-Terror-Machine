@@ -150,6 +150,12 @@ export const turnResponseSchema = {
   required: ["narrative_blocks", "logic_state"]
 };
 
+export function unwrapStrictJsonResponse(text: string): string {
+  const trimmed = text.trim();
+  const fenced = trimmed.match(/^```(?:json)?[ \t]*\r?\n([\s\S]*?)\r?\n```$/i);
+  return fenced ? fenced[1].trim() : trimmed;
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const generateStructuredResponse = async (prompt: string, zodSchema: any) => {
   const contents = [{ role: "user", parts: [{ text: prompt }] }];
@@ -168,10 +174,7 @@ export const generateStructuredResponse = async (prompt: string, zodSchema: any)
   });
 
   try {
-    const text = response.text || "{}";
-    const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/) || text.match(/{[\s\S]*}/);
-    const jsonString = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : text;
-    const raw = JSON.parse(jsonString);
+    const raw = JSON.parse(unwrapStrictJsonResponse(response.text ?? ''));
     return zodSchema.parse(raw);
   } catch (err) {
     console.error("Failed to parse or validate schema:", err);
