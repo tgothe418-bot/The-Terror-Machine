@@ -32,7 +32,7 @@ export const EngineTurnContextSchema = z.object({
       location: z.string().default('Unknown'),
       atmosphere: z.string().default(''),
       timePeriod: z.string().default(''),
-    }).default({ location: 'Unknown', atmosphere: '', timePeriod: '' }),
+    }),
     startingVector: z.string().default('COGNITIVE'),
     startingTier: z.string().default('LATENT'),
     incitingIncident: z.string().default(''),
