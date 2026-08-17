@@ -168,7 +168,10 @@ export const generateStructuredResponse = async (prompt: string, zodSchema: any)
   });
 
   try {
-    const raw = JSON.parse(response.text);
+    const text = response.text || "{}";
+    const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/) || text.match(/{[\s\S]*}/);
+    const jsonString = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : text;
+    const raw = JSON.parse(jsonString);
     return zodSchema.parse(raw);
   } catch (err) {
     console.error("Failed to parse or validate schema:", err);

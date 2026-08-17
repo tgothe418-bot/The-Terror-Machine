@@ -202,12 +202,12 @@ describe('Turn schemas validation', () => {
       expect(parsed.topologyDelta?.newNodeDef?.id).toBe('ROOM_02');
     });
 
-    it('rejects more than 2 narrative blocks', () => {
-      const invalidResult = {
+    it('validates and normalizes multiple narrative blocks and diverse types', () => {
+      const result = {
         narrative_blocks: [
           { type: 'prose', content: 'Block 1' },
-          { type: 'prose', content: 'Block 2' },
-          { type: 'prose', content: 'Block 3' },
+          { type: 'environmental_description', content: 'Block 2' },
+          { type: 'dialogue', speaker: 'Entity', content: 'Block 3' },
         ],
         logic_state: {
           current_phase: 'LATENT',
@@ -217,7 +217,9 @@ describe('Turn schemas validation', () => {
         },
       };
 
-      expect(() => TurnResultSchema.parse(invalidResult)).toThrow();
+      const parsed = TurnResultSchema.parse(result);
+      expect(parsed.narrative_blocks).toHaveLength(3);
+      expect(parsed.narrative_blocks[2].speaker).toBe('Entity');
     });
   });
 });
