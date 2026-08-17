@@ -89,6 +89,41 @@ export function validateDialogueBlocks(
   return null;
 }
 
+export function formatCastLedger(context: EngineTurnContext): string {
+  if (context.cast.length === 0) {
+    return '• Solitary subject.';
+  }
+
+  return context.cast
+    .map((member) => {
+      const profile = member.expressionProfile;
+      const expressionLines = profile
+        ? [
+            `Communication modes: ${profile.communicationModes.join(', ')}.`,
+            `Expression guidance: ${profile.expressionGuidance}`,
+            profile.silenceGuidance
+              ? `Silence guidance: ${profile.silenceGuidance}`
+              : null,
+          ]
+            .filter(Boolean)
+            .join(' ')
+        : 'Communication modes: spoken (legacy compatibility; no additional expression guidance).';
+
+      const behaviorLines = [
+        member.personality ? `Personality: ${member.personality}` : null,
+        member.goals ? `Goals: ${member.goals}` : null,
+        member.traits.length > 0 ? `Traits: ${member.traits.join(', ')}.` : null,
+      ]
+        .filter(Boolean)
+        .join(' ');
+
+      return `• ${member.name} (ID: ${member.id}, Role: ${member.role}, Entity: ${member.isEntity ? 'TRUE' : 'FALSE'}): ${member.description || 'No additional details.'} ${behaviorLines} ${expressionLines}`
+        .replace(/\s+/g, ' ')
+        .trim();
+    })
+    .join('\n');
+}
+
 export const turnRouter = Router();
 
 turnRouter.post('/', async (req, res) => {
@@ -111,22 +146,7 @@ turnRouter.post('/', async (req, res) => {
       ? context.scenario.worldRules.map((r) => `• ${r}`).join('\n')
       : '• No explicit world constraints recorded.';
 
-    const castLedgerFormatted = context.cast.length > 0
-      ? context.cast.map((c) => {
-          const profile = c.expressionProfile;
-          const expressionLines = profile
-            ? [
-                `Communication modes: ${profile.communicationModes.join(', ')}.`,
-                `Expression guidance: ${profile.expressionGuidance}`,
-                profile.silenceGuidance ? `Silence guidance: ${profile.silenceGuidance}` : null,
-              ]
-                .filter(Boolean)
-                .join(' ')
-            : 'Communication modes: spoken (legacy compatibility; no additional expression guidance).';
-
-          return `• ${c.name} (ID: ${c.id}, Role: ${c.role}, Entity: ${c.isEntity ? 'TRUE' : 'FALSE'}): ${c.description || 'No additional details.'} ${expressionLines}`;
-        }).join('\n')
-      : '• Solitary subject.';
+    const castLedgerFormatted = formatCastLedger(context);
 
     const exitsFormatted = context.topology.allowedOutgoingExits.length > 0
       ? context.topology.allowedOutgoingExits.map((e) => `• Exit to ${e.to} (Kind: ${e.kind}, User Initiated: ${e.userInitiated}${e.requires && e.requires.length > 0 ? `, Requires: ${e.requires.join(', ')}` : ''})`).join('\n')
@@ -259,6 +279,11 @@ ${castLedgerFormatted}
 - A cast member with nonverbal as its only communication mode must not receive a dialogue block. Render its response, if any, as prose or environmental description.
 - Treat expression and silence guidance as behavioral constraints, not permission to add facts, powers, locations, or knowledge.
 - If the USER ACTION explicitly names exactly one eligible non-player CAST LEDGER member, that member is the only permitted dialogue speaker for this turn. If it names none or more than one eligible member, do not infer a deterministic target.
+
+[AUTHORED CAST BEHAVIOR]
+- Personality, goals, and traits constrain each cast member's tone, immediate priorities, and willingness to disclose information.
+- Treat them as authored characterization only. They do not authorize new facts, powers, locations, knowledge, cast members, or outcomes.
+- If authored behavior conflicts with a communication-mode or silence directive, honor the communication directive.
 
 [TOPOLOGY BOUNDARY]
 Current Node: ${context.topology.readableNodeLabel} (ID: ${context.topology.currentNodeId})

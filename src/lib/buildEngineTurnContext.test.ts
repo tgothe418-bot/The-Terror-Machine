@@ -26,6 +26,9 @@ describe('buildEngineTurnContext & buildContextReceipt', () => {
         name: 'Nurse Clara Reed',
         role: 'Protagonist',
         description: 'Night shift nurse.',
+        personality: 'Methodical and protective under acute duress.',
+        goals: 'Locate the missing ward records and escort patients to safety.',
+        traits: ['Clinical', 'Vigilant', 'Insomniac'],
         isUserCharacter: true,
         isEntity: false,
         expressionProfile: {
@@ -39,6 +42,9 @@ describe('buildEngineTurnContext & buildContextReceipt', () => {
         name: 'The Quiet Warden',
         role: 'Antagonist',
         description: 'Faceless entity in surgeon coat.',
+        personality: 'Relentless, patient, and surgically detached.',
+        goals: 'Contain the quarantine breach and sever external communication.',
+        traits: ['Implacable', 'Observant'],
         isUserCharacter: false,
         isEntity: true,
         expressionProfile: {
@@ -46,6 +52,14 @@ describe('buildEngineTurnContext & buildContextReceipt', () => {
           expressionGuidance: 'Uses short transmissions through the ward intercom.',
           silenceGuidance: 'A closed channel is not consent or absence.',
         },
+      },
+      {
+        id: 'char-orderly',
+        name: 'Orderly Thomas',
+        role: 'Custodian',
+        description: 'Night orderly.',
+        isUserCharacter: false,
+        isEntity: false,
       },
     ],
     topology: {
@@ -89,18 +103,29 @@ describe('buildEngineTurnContext & buildContextReceipt', () => {
     expect(context.player.isEntity).toBe(false);
 
     // Cast roster includes ALL cast (including antagonist)
-    expect(context.cast).toHaveLength(2);
+    expect(context.cast).toHaveLength(3);
     expect(context.cast.find((c) => c.name === 'The Quiet Warden')).toBeDefined();
 
     const clara = context.cast.find((member) => member.id === 'char-clara');
     expect(clara?.isUserCharacter).toBe(true);
+    expect(clara?.personality).toBe('Methodical and protective under acute duress.');
+    expect(clara?.goals).toBe('Locate the missing ward records and escort patients to safety.');
+    expect(clara?.traits).toEqual(['Clinical', 'Vigilant', 'Insomniac']);
 
     const warden = context.cast.find((member) => member.id === 'char-warden');
+    expect(warden?.personality).toBe('Relentless, patient, and surgically detached.');
+    expect(warden?.goals).toBe('Contain the quarantine breach and sever external communication.');
+    expect(warden?.traits).toEqual(['Implacable', 'Observant']);
     expect(warden?.expressionProfile).toEqual({
       communicationModes: ['mediated'],
       expressionGuidance: 'Uses short transmissions through the ward intercom.',
       silenceGuidance: 'A closed channel is not consent or absence.',
     });
+
+    const orderly = context.cast.find((member) => member.id === 'char-orderly');
+    expect(orderly?.personality).toBe('');
+    expect(orderly?.goals).toBe('');
+    expect(orderly?.traits).toEqual([]);
 
     // Topology boundaries
     expect(context.topology.currentNodeId).toBe('WARD_4B');
@@ -143,7 +168,7 @@ describe('buildEngineTurnContext & buildContextReceipt', () => {
     expect(receipt.blueprintId).toBe('bp-sanatorium-99');
     expect(receipt.selectedRole).toBe('protagonist');
     expect(receipt.resolvedPlayerName).toBe('Nurse Clara Reed');
-    expect(receipt.castCount).toBe(2);
+    expect(receipt.castCount).toBe(3);
     expect(receipt.worldRuleCount).toBe(2);
     expect(receipt.topologyNodeCount).toBe(3);
     expect(receipt.topologyConnectionCount).toBe(1);

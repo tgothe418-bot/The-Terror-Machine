@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { TurnRequestSchema, TurnResultSchema, EngineTurnContextSchema } from '../schemas/engine';
-import { validateDialogueBlocks, resolveExplicitAddressedSpeakerId } from './turn';
+import {
+  validateDialogueBlocks,
+  resolveExplicitAddressedSpeakerId,
+  formatCastLedger,
+} from './turn';
 
 describe('Turn schemas validation', () => {
   describe('EngineTurnContextSchema', () => {
@@ -26,6 +30,10 @@ describe('Turn schemas validation', () => {
             id: 'char-1',
             name: 'Nurse Finch',
             role: 'Custodian',
+            description: 'Night shift custodian.',
+            personality: 'Guarded and obsessive about door seals.',
+            goals: 'Ensure no corridor breaches occur before dawn.',
+            traits: ['Methodical', 'Paranoid'],
             isEntity: false
           }
         ],
@@ -55,6 +63,9 @@ describe('Turn schemas validation', () => {
       expect(parsed.scenario.title).toBe('The Blackwood Sanatorium');
       expect(parsed.player.name).toBe('Arthur Pendelton');
       expect(parsed.cast).toHaveLength(1);
+      expect(parsed.cast[0].personality).toBe('Guarded and obsessive about door seals.');
+      expect(parsed.cast[0].goals).toBe('Ensure no corridor breaches occur before dawn.');
+      expect(parsed.cast[0].traits).toEqual(['Methodical', 'Paranoid']);
       expect(parsed.topology.allowedOutgoingExits).toHaveLength(1);
     });
   });
@@ -479,6 +490,97 @@ describe('Turn schemas validation', () => {
         expressionGuidance: 'Terse sentences.',
         silenceGuidance: 'Silence means checking instruments.',
       });
+    });
+  });
+
+  describe('formatCastLedger', () => {
+    it('formats authored behavior and expression profile when present and gracefully handles empty behavioral fields and missing profiles', () => {
+      const contextWithAuthored = EngineTurnContextSchema.parse({
+        scenario: {
+          title: 'Deep Research Station',
+          setting: {
+            location: 'Sub-Level 4',
+            atmosphere: 'Pressurized humming',
+            timePeriod: '2088',
+          },
+        },
+        player: {
+          role: 'protagonist',
+          name: 'Elena Rostova',
+        },
+        cast: [
+          {
+            id: 'char-jules',
+            name: 'Jules Mercer',
+            role: 'Technician',
+            description: 'Avionics and radio technician.',
+            personality: 'Taciturn and anxious under pressure.',
+            goals: 'Restore primary relay power without alerting the entity.',
+            traits: ['Analytical', 'Pragmatic', 'Jittery'],
+            isEntity: false,
+            expressionProfile: {
+              communicationModes: ['spoken', 'mediated'],
+              expressionGuidance: 'Terse, fragmented telemetry reports.',
+              silenceGuidance: 'Long pauses mean manual re-wiring.',
+            },
+          },
+          {
+            id: 'char-sentry',
+            name: 'Automated Sentry',
+            role: 'Defense Grid',
+            description: 'Hardwired ceiling turret.',
+            personality: '',
+            goals: '',
+            traits: [],
+            isEntity: true,
+          },
+        ],
+        topology: {
+          currentNodeId: 'SUB_04',
+          readableNodeLabel: 'Sub-Level 04',
+        },
+        runtime: {},
+      });
+
+      const formatted = formatCastLedger(contextWithAuthored);
+
+      // Assert member with all three authored behavioral fields and expression profile
+      expect(formatted).toContain('• Jules Mercer (ID: char-jules, Role: Technician, Entity: FALSE): Avionics and radio technician.');
+      expect(formatted).toContain('Personality: Taciturn and anxious under pressure.');
+      expect(formatted).toContain('Goals: Restore primary relay power without alerting the entity.');
+      expect(formatted).toContain('Traits: Analytical, Pragmatic, Jittery.');
+      expect(formatted).toContain('Communication modes: spoken, mediated.');
+      expect(formatted).toContain('Expression guidance: Terse, fragmented telemetry reports.');
+      expect(formatted).toContain('Silence guidance: Long pauses mean manual re-wiring.');
+
+      // Assert member with empty behavioral fields
+      expect(formatted).toContain('• Automated Sentry (ID: char-sentry, Role: Defense Grid, Entity: TRUE): Hardwired ceiling turret.');
+      expect(formatted).toContain('Communication modes: spoken (legacy compatibility; no additional expression guidance).');
+
+      // Ensure empty member line does NOT contain "Personality:", "Goals:", or "Traits:"
+      const sentryLine = formatted.split('\n').find((l) => l.includes('Automated Sentry'));
+      expect(sentryLine).toBeDefined();
+      expect(sentryLine).not.toContain('Personality:');
+      expect(sentryLine).not.toContain('Goals:');
+      expect(sentryLine).not.toContain('Traits:');
+    });
+
+    it('returns solitary subject when cast is empty', () => {
+      const emptyContext = EngineTurnContextSchema.parse({
+        scenario: {
+          title: 'Empty Void',
+          setting: {
+            location: 'Void',
+            atmosphere: '',
+            timePeriod: '',
+          },
+        },
+        player: { role: 'protagonist', name: 'Alone' },
+        cast: [],
+        topology: { currentNodeId: 'VOID', readableNodeLabel: 'Void' },
+        runtime: {},
+      });
+      expect(formatCastLedger(emptyContext)).toBe('• Solitary subject.');
     });
   });
 });
