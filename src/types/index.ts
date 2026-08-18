@@ -198,6 +198,7 @@ export interface CharacterProfile {
   behaviorVector?: AutopilotVector | string;
   behavioralVector?: string;
   isEntity?: boolean;
+  starting_location?: string;
   vulnerabilityBase?: VulnerabilityIndex;
   expressionProfile?: CharacterExpressionProfile;
 }

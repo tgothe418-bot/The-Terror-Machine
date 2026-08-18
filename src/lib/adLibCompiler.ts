@@ -118,6 +118,7 @@ export function compileAdLibInduction(rawInduction: AdLibInduction): {
           isEntity: false,
           isUserCharacter: true,
           behaviorVector: 'ADAPTIVE',
+          starting_location: startNodeId,
         },
       ],
       perspectives: [
@@ -165,6 +166,7 @@ export function compileAdLibInduction(rawInduction: AdLibInduction): {
         isEntity: true,
         isUserCharacter: true,
         behaviorVector: 'ADAPTIVE',
+        starting_location: startNodeId,
       });
     }
 
@@ -181,6 +183,7 @@ export function compileAdLibInduction(rawInduction: AdLibInduction): {
         isEntity: false,
         isUserCharacter: false,
         behaviorVector: 'ADAPTIVE',
+        starting_location: startNodeId,
       });
     } else if (induction.victimField.kind === 'group') {
       if (induction.victimField.members && induction.victimField.members.length > 0) {
@@ -196,6 +199,7 @@ export function compileAdLibInduction(rawInduction: AdLibInduction): {
             isEntity: false,
             isUserCharacter: false,
             behaviorVector: 'ADAPTIVE',
+            starting_location: startNodeId,
           });
         });
       }

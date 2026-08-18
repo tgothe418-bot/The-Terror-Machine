@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildEngineTurnContext, buildContextReceipt } from './buildEngineTurnContext';
+import { SpatialNode } from '../types';
 
 describe('buildEngineTurnContext & buildContextReceipt', () => {
   const mockBlueprint = {
@@ -269,5 +270,177 @@ describe('buildEngineTurnContext & buildContextReceipt', () => {
     expect(warden?.isPresent).toBe(false);
     // Orderly is at WARD_4B (persisted), matching currentNodeId
     expect(orderly?.isPresent).toBe(true);
+  });
+
+  it('rejects authored or persisted locations absent from a populated runtime graph', () => {
+    const blueprint = {
+      ...mockBlueprint,
+      topology: {
+        nodes: ['BLUEPRINT_OLD_VAULT', 'BLUEPRINT_ATTIC'],
+      },
+      cast: [
+        {
+          id: 'char-player',
+          name: 'Player Investgator',
+          isUserCharacter: true,
+          starting_location: 'BLUEPRINT_OLD_VAULT',
+        },
+        {
+          id: 'char-companion',
+          name: 'Companion Scholar',
+          starting_location: 'BLUEPRINT_OLD_VAULT', // Authored in blueprint node that is absent from runtime graph
+        },
+        {
+          id: 'char-ghost',
+          name: 'Haunting Spirit',
+          starting_location: 'RUNTIME_NODE_CHAMBER',
+        },
+      ],
+    };
+
+    // Populated runtime graph with nodes: ['RUNTIME_NODE_CHAMBER', 'RUNTIME_NODE_HALLWAY']
+    const spatialGraph: SpatialNode[] = [
+      {
+        id: 'RUNTIME_NODE_CHAMBER',
+        type: 'physical',
+        name: 'Chamber',
+        description: 'A stone chamber.',
+        sensoryProfile: [],
+        exits: [],
+        environmentalHazards: [],
+        linkedCharacters: [],
+        structuralAnomalies: [],
+      },
+      {
+        id: 'RUNTIME_NODE_HALLWAY',
+        type: 'physical',
+        name: 'Hallway',
+        description: 'A narrow hallway.',
+        sensoryProfile: [],
+        exits: [],
+        environmentalHazards: [],
+        linkedCharacters: [],
+        structuralAnomalies: [],
+      },
+    ];
+
+    const context = buildEngineTurnContext({
+      blueprint,
+      selectedRole: 'protagonist',
+      spatialGraph,
+      characterPresence: {
+        'char-companion': { nodeId: 'BLUEPRINT_OLD_VAULT' }, // Persisted to a stale Blueprint-only node
+      },
+      runtimeState: {
+        currentNodeId: 'RUNTIME_NODE_CHAMBER',
+      },
+    });
+
+    const player = context.cast.find((c) => c.id === 'char-player');
+    const companion = context.cast.find((c) => c.id === 'char-companion');
+    const ghost = context.cast.find((c) => c.id === 'char-ghost');
+
+    // Player character remains present at the actual current runtime node
+    expect(player?.isPresent).toBe(true);
+
+    // Companion's stale location (BLUEPRINT_OLD_VAULT) is absent from runtime graph and rejected;
+    // buildCharacterPresence falls back to currentNodeId ('RUNTIME_NODE_CHAMBER') for invalid node
+    expect(companion?.isPresent).toBe(true);
+
+    // Haunting spirit at RUNTIME_NODE_CHAMBER is at current node
+    expect(ghost?.isPresent).toBe(true);
+  });
+
+  it('proves runtime graph authority over blueprint topology and blueprint fallback when no runtime graph exists', () => {
+    const blueprint = {
+      ...mockBlueprint,
+      topology: {
+        nodes: ['BP_NODE_A', 'BP_NODE_B'],
+      },
+      cast: [
+        {
+          id: 'char-protagonist',
+          name: 'Protagonist',
+          isUserCharacter: true,
+          starting_location: 'BP_NODE_A',
+        },
+        {
+          id: 'char-npc1',
+          name: 'NPC 1',
+          starting_location: 'BP_NODE_B', // Valid in blueprint, invalid in runtime graph
+        },
+        {
+          id: 'char-npc2',
+          name: 'NPC 2',
+          starting_location: 'RUNTIME_NODE_2',
+        },
+      ],
+    };
+
+    // Case 1: Populated runtime graph provided -> runtime graph is authoritative
+    const runtimeContext = buildEngineTurnContext({
+      blueprint,
+      selectedRole: 'protagonist',
+      spatialGraph: [
+        {
+          id: 'RUNTIME_NODE_1',
+          type: 'physical',
+          name: 'Runtime Node 1',
+          description: 'First node.',
+          sensoryProfile: [],
+          exits: [],
+          environmentalHazards: [],
+          linkedCharacters: [],
+          structuralAnomalies: [],
+        },
+        {
+          id: 'RUNTIME_NODE_2',
+          type: 'physical',
+          name: 'Runtime Node 2',
+          description: 'Second node.',
+          sensoryProfile: [],
+          exits: [],
+          environmentalHazards: [],
+          linkedCharacters: [],
+          structuralAnomalies: [],
+        },
+      ],
+      runtimeState: {
+        currentNodeId: 'RUNTIME_NODE_1',
+      },
+    });
+
+    const runtimeProtagonist = runtimeContext.cast.find((c) => c.id === 'char-protagonist');
+    const runtimeNpc1 = runtimeContext.cast.find((c) => c.id === 'char-npc1');
+    const runtimeNpc2 = runtimeContext.cast.find((c) => c.id === 'char-npc2');
+
+    // Player remains present at actual current runtime node
+    expect(runtimeProtagonist?.isPresent).toBe(true);
+    // NPC 1's starting_location 'BP_NODE_B' is rejected because runtime graph is authoritative and does not contain 'BP_NODE_B'
+    // Fallback in buildCharacterPresence makes presenceNodeId = currentNodeId ('RUNTIME_NODE_1')
+    expect(runtimeNpc1?.isPresent).toBe(true);
+    // NPC 2's starting_location 'RUNTIME_NODE_2' is valid in runtime graph, so it resolves to 'RUNTIME_NODE_2' (not current node RUNTIME_NODE_1)
+    expect(runtimeNpc2?.isPresent).toBe(false);
+
+    // Case 2: No runtime graph provided -> Blueprint topology remains the fallback source
+    const fallbackContext = buildEngineTurnContext({
+      blueprint,
+      selectedRole: 'protagonist',
+      spatialGraph: undefined,
+      runtimeState: {
+        currentNodeId: 'BP_NODE_A',
+      },
+    });
+
+    const fallbackProtagonist = fallbackContext.cast.find((c) => c.id === 'char-protagonist');
+    const fallbackNpc1 = fallbackContext.cast.find((c) => c.id === 'char-npc1');
+    const fallbackNpc2 = fallbackContext.cast.find((c) => c.id === 'char-npc2');
+
+    // Player remains present at actual current runtime node
+    expect(fallbackProtagonist?.isPresent).toBe(true);
+    // NPC 1's starting_location 'BP_NODE_B' is valid in blueprint topology (not current node BP_NODE_A)
+    expect(fallbackNpc1?.isPresent).toBe(false);
+    // NPC 2's starting_location 'RUNTIME_NODE_2' is NOT in blueprint topology, so it falls back to BP_NODE_A
+    expect(fallbackNpc2?.isPresent).toBe(true);
   });
 });

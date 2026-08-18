@@ -144,7 +144,7 @@ describe('castPresence', () => {
       expect(result['char-npc-3'].nodeId).toBe('NODE_CURRENT');
     });
 
-    it('treats currentNodeId as only fallback when validNodeIds is empty', () => {
+    it('treats currentNodeId as fallback only when valid and present; does not synthesize a node when validNodeIds is empty', () => {
       const cast: CastPresenceSeed[] = [
         {
           id: 'char-npc',
@@ -163,6 +163,54 @@ describe('castPresence', () => {
       );
 
       expect(result['char-npc'].nodeId).toBe('NODE_FALLBACK');
+    });
+
+    it('fails closed without fabricating synthetic node ID when currentNodeId is missing, blank, or whitespace', () => {
+      const cast: CastPresenceSeed[] = [
+        {
+          id: 'char-player',
+          isUserCharacter: true,
+          starting_location: 'NODE_AUTHORED',
+        },
+        {
+          id: 'char-npc-valid-persisted',
+          starting_location: 'NODE_AUTHORED',
+        },
+        {
+          id: 'char-npc-valid-authored',
+          starting_location: 'NODE_AUTHORED',
+        },
+        {
+          id: 'char-npc-invalid',
+          starting_location: 'NODE_UNKNOWN',
+        },
+      ];
+      const persisted: CharacterPresenceById = {
+        'char-npc-valid-persisted': { nodeId: 'NODE_PERSISTED' },
+        'char-npc-invalid': { nodeId: 'NODE_UNKNOWN' },
+      };
+      const validNodes = ['NODE_PERSISTED', 'NODE_AUTHORED'];
+
+      // Test with null currentNodeId
+      const resultNull = buildCharacterPresence(cast, persisted, validNodes, null);
+      expect(resultNull['char-player']).toBeUndefined();
+      expect(resultNull['char-npc-valid-persisted']).toEqual({ nodeId: 'NODE_PERSISTED' });
+      expect(resultNull['char-npc-valid-authored']).toEqual({ nodeId: 'NODE_AUTHORED' });
+      expect(resultNull['char-npc-invalid']).toBeUndefined();
+
+      // Test with undefined currentNodeId
+      const resultUndefined = buildCharacterPresence(cast, persisted, validNodes, undefined);
+      expect(resultUndefined['char-player']).toBeUndefined();
+      expect(resultUndefined['char-npc-valid-persisted']).toEqual({ nodeId: 'NODE_PERSISTED' });
+      expect(resultUndefined['char-npc-valid-authored']).toEqual({ nodeId: 'NODE_AUTHORED' });
+      expect(resultUndefined['char-npc-invalid']).toBeUndefined();
+
+      // Test with blank or whitespace currentNodeId
+      const resultBlank = buildCharacterPresence(cast, persisted, validNodes, '   ');
+      expect(resultBlank['char-player']).toBeUndefined();
+      expect(resultBlank['char-npc-valid-persisted']).toEqual({ nodeId: 'NODE_PERSISTED' });
+      expect(resultBlank['char-npc-valid-authored']).toEqual({ nodeId: 'NODE_AUTHORED' });
+      expect(resultBlank['char-npc-invalid']).toBeUndefined();
     });
 
     it('returns fresh records and does not retain input object references', () => {

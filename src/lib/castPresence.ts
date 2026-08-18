@@ -13,7 +13,7 @@ export function buildCharacterPresence(
   cast: readonly CastPresenceSeed[],
   persisted: CharacterPresenceById | null | undefined,
   validNodeIds: readonly string[],
-  currentNodeId: string,
+  currentNodeId?: string | null,
   playerCharacterId?: string | null,
 ): CharacterPresenceById {
   const result: CharacterPresenceById = {};
@@ -28,7 +28,7 @@ export function buildCharacterPresence(
   const cleanCurrentNodeId =
     typeof currentNodeId === 'string' && currentNodeId.trim().length > 0
       ? currentNodeId.trim()
-      : 'ORIGIN';
+      : null;
 
   const cleanPlayerId =
     typeof playerCharacterId === 'string' && playerCharacterId.trim().length > 0
@@ -51,9 +51,11 @@ export function buildCharacterPresence(
       Boolean(member.isUserCharacter);
 
     if (isPlayer) {
-      result[charId] = {
-        nodeId: cleanCurrentNodeId,
-      };
+      if (cleanCurrentNodeId) {
+        result[charId] = {
+          nodeId: cleanCurrentNodeId,
+        };
+      }
       continue;
     }
 
@@ -81,9 +83,11 @@ export function buildCharacterPresence(
       continue;
     }
 
-    result[charId] = {
-      nodeId: cleanCurrentNodeId,
-    };
+    if (cleanCurrentNodeId) {
+      result[charId] = {
+        nodeId: cleanCurrentNodeId,
+      };
+    }
   }
 
   return result;

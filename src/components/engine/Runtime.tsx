@@ -464,12 +464,22 @@ export default function Runtime() {
         );
 
         const runtimeSpatialGraph = useAppStore.getState().spatialGraph || [];
-        const validNodeIds = runtimeSpatialGraph.map((n) => n.id);
+        const runtimeNodeIds = runtimeSpatialGraph
+          .map((node) => node.id)
+          .filter(
+            (id): id is string =>
+              typeof id === 'string' && id.trim().length > 0,
+          )
+          .map((id) => id.trim());
+
+        const blueprintNodes = activeBlueprint.topology?.nodes || [];
+        const validNodeIds = runtimeNodeIds.length > 0 ? runtimeNodeIds : blueprintNodes;
+
         nextCharacterPresence = buildCharacterPresence(
           activeBlueprint.cast || [],
           latestEngineState.gameState?.character_presence,
           validNodeIds,
-          postTurnNodeId || 'ORIGIN',
+          postTurnNodeId,
           latestEngineState.gameState?.player_character_id,
         );
         castPresenceReceipt = createCastPresenceReceipt(nextCharacterPresence);

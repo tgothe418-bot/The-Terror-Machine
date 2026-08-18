@@ -107,12 +107,15 @@ export function buildEngineTurnContext({
   const currentNodeId = runtimeState.currentNodeId || nodes[0] || 'ORIGIN';
   const connections = normBp.topology?.connections || [];
 
-  const validNodeIds = Array.from(
-    new Set([
-      ...(spatialGraph || []).map((n) => n.id),
-      ...nodes,
-    ])
-  );
+  const runtimeNodeIds = (spatialGraph ?? [])
+    .map((node) => node.id)
+    .filter(
+      (id): id is string =>
+        typeof id === 'string' && id.trim().length > 0,
+    )
+    .map((id) => id.trim());
+
+  const validNodeIds = runtimeNodeIds.length > 0 ? runtimeNodeIds : nodes;
 
   const continuity = buildCharacterContinuity(normBp.cast || [], characterContinuity);
   const presence = buildCharacterPresence(

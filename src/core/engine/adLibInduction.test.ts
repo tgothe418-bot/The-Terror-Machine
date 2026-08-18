@@ -539,6 +539,7 @@ describe('Phase 3B: Antagonist Authority Contracts & Victim Framing', () => {
       expect(antagCast?.name).toBe('The Bio-Mechanical Stalker');
       expect(antagCast?.isUserCharacter).toBe(true);
       expect(antagCast?.isEntity).toBe(true);
+      expect(antagCast?.starting_location).toBe('NODE_ENTRY');
 
       // Non-user Victim cast entry
       const victimCast = blueprint.cast.find((c) => c.role === 'victim');
@@ -547,6 +548,9 @@ describe('Phase 3B: Antagonist Authority Contracts & Victim Framing', () => {
       expect(victimCast?.isUserCharacter).toBe(false);
       expect(victimCast?.isEntity).toBe(false);
       expect(victimCast?.goals).toBe('Retrieve the cryogenic seed samples.');
+      expect(victimCast?.starting_location).toBe('NODE_ENTRY');
+
+      expect(blueprint.cast.every((c) => c.starting_location === 'NODE_ENTRY')).toBe(true);
 
       // Bounded facts in participation context
       expect(participationContext.mode).toBe('antagonist');
@@ -606,6 +610,7 @@ describe('Phase 3B: Antagonist Authority Contracts & Victim Framing', () => {
       // But has 2 non-user victim cast members
       expect(blueprint.cast).toHaveLength(2);
       expect(blueprint.cast.every((c) => c.role === 'victim' && c.isUserCharacter === false)).toBe(true);
+      expect(blueprint.cast.every((c) => c.starting_location === 'NODE_ENTRY')).toBe(true);
       expect(blueprint.cast[0].name).toBe('Engineer Silas Karr');
       expect(blueprint.cast[1].name).toBe('Technician Maya Lind');
 
@@ -641,6 +646,26 @@ describe('Phase 3B: Antagonist Authority Contracts & Victim Framing', () => {
 
       expect(blueprint.cast).toHaveLength(0); // Zero fabricated characters
       expect(participationContext.boundedFacts.some((f) => f.includes('Target Group: Trapped Lower-Deck Colonists'))).toBe(true);
+    });
+
+    it('compiles a Protagonist induction with protagonist cast member starting_location set to startNodeId', () => {
+      const induction: AdLibProtagonistInduction = {
+        participationMode: 'protagonist',
+        placeSeed: 'Abandoned Radio Tower',
+        goal: 'Broadcast emergency signal',
+        participantName: 'Tech Nora Vance',
+        identity: 'Communications officer',
+        ability: 'Signal modulation',
+        limitation: 'Injured left arm',
+      };
+
+      const { blueprint, initialSpatialNode } = compileAdLibInduction(induction);
+
+      expect(blueprint.cast).toHaveLength(1);
+      expect(blueprint.cast[0].name).toBe('Tech Nora Vance');
+      expect(blueprint.cast[0].role).toBe('protagonist');
+      expect(blueprint.cast[0].isUserCharacter).toBe(true);
+      expect(blueprint.cast[0].starting_location).toBe(initialSpatialNode.id);
     });
   });
 
