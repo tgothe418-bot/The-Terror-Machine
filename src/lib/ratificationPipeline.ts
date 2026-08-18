@@ -167,6 +167,7 @@ const createFailedFrame = (errorType: string, note: string): RatifiedEngineFrame
     current_phase: 'LATENT',
     terminal_flags: [],
     cast_ledger: [],
+    cast_deltas: [],
   },
   topologyDelta: { isExpansion: false },
   validation: { accepted: false, rejected_fields: [errorType], repair_notes: [note] },

@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import {
-  buildCharacterContinuity,
-  applyCastSkepticismDeltas,
   clampSkepticism,
   clampSkepticismDelta,
+  buildCharacterContinuity,
+  applyCastSkepticismDeltas,
   DEFAULT_SKEPTICISM,
   MIN_SKEPTICISM,
   MAX_SKEPTICISM,
@@ -12,139 +12,193 @@ import {
 import type { CastMember, CharacterContinuityById } from '../types';
 
 describe('castContinuity', () => {
-  describe('clamp helpers', () => {
-    it('clampSkepticism clamps values into [0, 1] and handles non-finite values', () => {
-      expect(clampSkepticism(0.5)).toBe(0.5);
-      expect(clampSkepticism(-0.2)).toBe(MIN_SKEPTICISM);
-      expect(clampSkepticism(1.4)).toBe(MAX_SKEPTICISM);
+  describe('clampSkepticism', () => {
+    it('clamps values below minimum to 0', () => {
+      expect(clampSkepticism(-0.5)).toBe(MIN_SKEPTICISM);
+    });
+
+    it('clamps values above maximum to 1', () => {
+      expect(clampSkepticism(1.5)).toBe(MAX_SKEPTICISM);
+    });
+
+    it('returns default skepticism for non-finite values', () => {
       expect(clampSkepticism(NaN)).toBe(DEFAULT_SKEPTICISM);
       expect(clampSkepticism(Infinity)).toBe(DEFAULT_SKEPTICISM);
     });
 
-    it('clampSkepticismDelta clamps values into [-0.15, 0.15] and handles non-finite values', () => {
+    it('returns valid values unchanged', () => {
+      expect(clampSkepticism(0.72)).toBe(0.72);
+      expect(clampSkepticism(0)).toBe(0);
+      expect(clampSkepticism(1)).toBe(1);
+    });
+  });
+
+  describe('clampSkepticismDelta', () => {
+    it('clamps deltas to [-0.15, 0.15]', () => {
+      expect(clampSkepticismDelta(-0.5)).toBe(-MAX_SKEPTICISM_DELTA);
+      expect(clampSkepticismDelta(0.5)).toBe(MAX_SKEPTICISM_DELTA);
       expect(clampSkepticismDelta(0.1)).toBe(0.1);
-      expect(clampSkepticismDelta(0.25)).toBe(MAX_SKEPTICISM_DELTA);
-      expect(clampSkepticismDelta(-0.3)).toBe(-MAX_SKEPTICISM_DELTA);
+      expect(clampSkepticismDelta(-0.08)).toBe(-0.08);
+    });
+
+    it('returns 0 for non-finite values', () => {
       expect(clampSkepticismDelta(NaN)).toBe(0);
-      expect(clampSkepticismDelta(Infinity)).toBe(0);
+      expect(clampSkepticismDelta(-Infinity)).toBe(0);
     });
   });
 
   describe('buildCharacterContinuity', () => {
-    it('falls back to DEFAULT_SKEPTICISM (0.50) when no persisted value or vulnerability is present', () => {
+    it('returns records only for supplied, non-empty cast IDs', () => {
       const cast: CastMember[] = [
-        { id: 'c1', name: 'Alice', role: 'Engineer' } as CastMember,
+        { id: 'char-1', name: 'Alice' },
+        { id: '', name: 'Empty' },
+        { id: '   ', name: 'Whitespace' },
       ];
       const result = buildCharacterContinuity(cast);
-      expect(result).toEqual({
-        c1: { skepticism: 0.5 },
-      });
+      expect(Object.keys(result)).toEqual(['char-1']);
     });
 
-    it('uses vulnerabilityBase.skepticism when available and clamps it', () => {
+    it('prefers finite persisted value over vulnerabilityBase and default', () => {
       const cast: CastMember[] = [
         {
-          id: 'c1',
+          id: 'char-1',
           name: 'Alice',
-          vulnerabilityBase: { skepticism: 0.75, fear: 0.2, isolation: 0.1 },
-        } as unknown as CastMember,
+          vulnerabilityBase: { resilience: 0.5, skepticism: 0.3, baggage: 0.5 },
+        },
+      ];
+      const persisted: CharacterContinuityById = {
+        'char-1': { skepticism: 0.8 },
+      };
+
+      const result = buildCharacterContinuity(cast, persisted);
+      expect(result['char-1'].skepticism).toBe(0.8);
+    });
+
+    it('uses vulnerabilityBase when persisted is missing or non-finite', () => {
+      const cast: CastMember[] = [
         {
-          id: 'c2',
+          id: 'char-1',
+          name: 'Alice',
+          vulnerabilityBase: { resilience: 0.5, skepticism: 0.35, baggage: 0.5 },
+        },
+      ];
+      const persisted: CharacterContinuityById = {
+        'char-1': { skepticism: NaN },
+      };
+
+      const result = buildCharacterContinuity(cast, persisted);
+      expect(result['char-1'].skepticism).toBe(0.35);
+    });
+
+    it('falls back to DEFAULT_SKEPTICISM when neither persisted nor vulnerabilityBase is present', () => {
+      const cast: CastMember[] = [{ id: 'char-1', name: 'Alice' }];
+      const result = buildCharacterContinuity(cast);
+      expect(result['char-1'].skepticism).toBe(DEFAULT_SKEPTICISM);
+    });
+
+    it('clamps resolved values to [0, 1]', () => {
+      const cast: CastMember[] = [
+        {
+          id: 'char-1',
+          name: 'Alice',
+          vulnerabilityBase: { resilience: 0.5, skepticism: 2.5, baggage: 0.5 },
+        },
+        {
+          id: 'char-2',
           name: 'Bob',
-          vulnerabilityBase: { skepticism: 1.5, fear: 0.2, isolation: 0.1 },
-        } as unknown as CastMember,
+          vulnerabilityBase: { resilience: 0.5, skepticism: -1.0, baggage: 0.5 },
+        },
       ];
+
       const result = buildCharacterContinuity(cast);
-      expect(result).toEqual({
-        c1: { skepticism: 0.75 },
-        c2: { skepticism: 1.0 },
-      });
+      expect(result['char-1'].skepticism).toBe(1);
+      expect(result['char-2'].skepticism).toBe(0);
     });
 
-    it('prioritizes persisted value over vulnerabilityBase.skepticism', () => {
-      const cast: CastMember[] = [
-        {
-          id: 'c1',
-          name: 'Alice',
-          vulnerabilityBase: { skepticism: 0.8, fear: 0.2, isolation: 0.1 },
-        } as unknown as CastMember,
-      ];
+    it('creates new objects and does not mutate inputs', () => {
+      const cast: CastMember[] = [{ id: 'char-1', name: 'Alice' }];
       const persisted: CharacterContinuityById = {
-        c1: { skepticism: 0.35 },
+        'char-1': { skepticism: 0.6 },
       };
-      const result = buildCharacterContinuity(cast, persisted);
-      expect(result).toEqual({
-        c1: { skepticism: 0.35 },
-      });
-    });
+      const castCopy = JSON.parse(JSON.stringify(cast));
+      const persistedCopy = JSON.parse(JSON.stringify(persisted));
 
-    it('ignores empty cast IDs and does not mutate inputs', () => {
-      const cast: CastMember[] = [
-        { id: '', name: 'Blank' } as CastMember,
-        { id: 'c1', name: 'Valid' } as CastMember,
-      ];
-      const persisted: CharacterContinuityById = {
-        c1: { skepticism: 0.6 },
-      };
       const result = buildCharacterContinuity(cast, persisted);
-      expect(result).toEqual({
-        c1: { skepticism: 0.6 },
-      });
-      expect(persisted.c1.skepticism).toBe(0.6);
+      expect(cast).toEqual(castCopy);
+      expect(persisted).toEqual(persistedCopy);
+      expect(result['char-1']).not.toBe(persisted['char-1']);
     });
   });
 
   describe('applyCastSkepticismDeltas', () => {
-    const cast: CastMember[] = [
-      { id: 'c1', name: 'Alice' } as CastMember,
-      { id: 'c2', name: 'Bob', vulnerabilityBase: { skepticism: 0.9, fear: 0, isolation: 0 } } as unknown as CastMember,
-    ];
-
-    it('returns baseline continuity when deltas are empty or null', () => {
-      const result = applyCastSkepticismDeltas(cast, undefined, null);
-      expect(result).toEqual({
-        c1: { skepticism: 0.5 },
-        c2: { skepticism: 0.9 },
-      });
-    });
-
-    it('applies valid deltas, clamping delta to [-0.15, 0.15] and final result to [0, 1]', () => {
-      const deltas = [
-        { character_id: 'c1', skepticism_delta: -0.1 },
-        { character_id: 'c2', skepticism_delta: 0.3 }, // should clamp delta to +0.15 -> 0.9 + 0.15 = 1.0 (clamped)
-      ];
-      const result = applyCastSkepticismDeltas(cast, null, deltas);
-      expect(result.c1.skepticism).toBeCloseTo(0.4, 5);
-      expect(result.c2.skepticism).toBe(1.0);
-    });
-
-    it('ignores deltas for unknown cast IDs', () => {
-      const deltas = [
-        { character_id: 'unknown-id', skepticism_delta: -0.15 },
-        { character_id: 'c1', skepticism_delta: -0.05 },
-      ];
-      const result = applyCastSkepticismDeltas(cast, null, deltas);
-      expect(result['unknown-id']).toBeUndefined();
-      expect(result.c1.skepticism).toBeCloseTo(0.45, 5);
-      expect(result.c2.skepticism).toBe(0.9);
-    });
-
-    it('applies only the first delta if duplicate cast IDs appear in the delta array', () => {
-      const deltas = [
-        { character_id: 'c1', skepticism_delta: 0.1 },
-        { character_id: 'c1', skepticism_delta: 0.1 },
-      ];
-      const result = applyCastSkepticismDeltas(cast, null, deltas);
-      expect(result.c1.skepticism).toBeCloseTo(0.6, 5);
-    });
-
-    it('clamps lower bound to 0.0 when negative delta exceeds available skepticism', () => {
+    it('returns base continuity when deltas are empty or null', () => {
+      const cast: CastMember[] = [{ id: 'char-1', name: 'Alice' }];
       const persisted: CharacterContinuityById = {
-        c1: { skepticism: 0.05 },
+        'char-1': { skepticism: 0.6 },
       };
-      const deltas = [{ character_id: 'c1', skepticism_delta: -0.15 }];
-      const result = applyCastSkepticismDeltas(cast, persisted, deltas);
-      expect(result.c1.skepticism).toBe(0.0);
+
+      const resNull = applyCastSkepticismDeltas(cast, persisted, null);
+      expect(resNull['char-1'].skepticism).toBe(0.6);
+
+      const resEmpty = applyCastSkepticismDeltas(cast, persisted, []);
+      expect(resEmpty['char-1'].skepticism).toBe(0.6);
+    });
+
+    it('applies valid deltas clamped between -0.15 and 0.15 and bounds final skepticism to [0, 1]', () => {
+      const cast: CastMember[] = [
+        { id: 'char-1', name: 'Alice' },
+        { id: 'char-2', name: 'Bob' },
+        { id: 'char-3', name: 'Charlie' },
+      ];
+      const persisted: CharacterContinuityById = {
+        'char-1': { skepticism: 0.5 },
+        'char-2': { skepticism: 0.95 },
+        'char-3': { skepticism: 0.05 },
+      };
+
+      const result = applyCastSkepticismDeltas(cast, persisted, [
+        { character_id: 'char-1', skepticism_delta: 0.1 },
+        { character_id: 'char-2', skepticism_delta: 0.5 }, // will clamp to +0.15, final clamped to 1.0
+        { character_id: 'char-3', skepticism_delta: -0.5 }, // will clamp to -0.15, final clamped to 0.0
+      ]);
+
+      expect(result['char-1'].skepticism).toBeCloseTo(0.6);
+      expect(result['char-2'].skepticism).toBe(1.0);
+      expect(result['char-3'].skepticism).toBe(0.0);
+    });
+
+    it('ignores unknown IDs and applies only the first valid delta for duplicate IDs', () => {
+      const cast: CastMember[] = [{ id: 'char-1', name: 'Alice' }];
+      const persisted: CharacterContinuityById = {
+        'char-1': { skepticism: 0.5 },
+      };
+
+      const result = applyCastSkepticismDeltas(cast, persisted, [
+        { character_id: 'unknown-char', skepticism_delta: -0.1 },
+        { character_id: 'char-1', skepticism_delta: 0.1 },
+        { character_id: 'char-1', skepticism_delta: -0.15 }, // duplicate: should be ignored
+      ]);
+
+      expect(result['char-1'].skepticism).toBeCloseTo(0.6);
+      expect(result['unknown-char']).toBeUndefined();
+    });
+
+    it('does not mutate input objects', () => {
+      const cast: CastMember[] = [{ id: 'char-1', name: 'Alice' }];
+      const persisted: CharacterContinuityById = {
+        'char-1': { skepticism: 0.5 },
+      };
+      const deltas = [{ character_id: 'char-1', skepticism_delta: 0.1 }];
+
+      const castCopy = JSON.parse(JSON.stringify(cast));
+      const persistedCopy = JSON.parse(JSON.stringify(persisted));
+      const deltasCopy = JSON.parse(JSON.stringify(deltas));
+
+      applyCastSkepticismDeltas(cast, persisted, deltas);
+
+      expect(cast).toEqual(castCopy);
+      expect(persisted).toEqual(persistedCopy);
+      expect(deltas).toEqual(deltasCopy);
     });
   });
 });

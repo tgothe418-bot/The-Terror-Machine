@@ -1,10 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import 'fake-indexeddb/auto';
-import { executeRatificationPipeline, formatRecentHistory, validateEngineFrame, TurnResponseError } from './ratificationPipeline';
+import { executeRatificationPipeline, formatRecentHistory, TurnResponseError } from './ratificationPipeline';
 import { useAppStore } from '../store/useAppStore';
 import { useEngineStore } from '../core/store';
 import { engineReducer } from '../core/engine/reducer';
-import { Blueprint, RuntimeStateSnapshot } from '../types';
+import { Blueprint, RuntimeStateSnapshot, LogicState } from '../types';
+import type { EngineTurnContext } from '../types/engineContract';
 
 describe('executeRatificationPipeline single pre-turn snapshot lifecycle', () => {
   const originalFetch = globalThis.fetch;
@@ -120,6 +121,65 @@ describe('executeRatificationPipeline single pre-turn snapshot lifecycle', () =>
     expect(frame.preSnapshot).toBe(suppliedSnapshot);
     expect(frame.preSnapshot?.currentNodeId).toBe('SUPPLIED_SANCTUM_NODE');
     expect(frame.preSnapshot?.activeVector).toBe('SOMATIC');
+  });
+
+  it('passes characterContinuity from engine gameState and preserves cast_deltas in ratified frame', async () => {
+    useEngineStore.setState({
+      activeBlueprint: {
+        title: 'Continuity Lab',
+        cast: [
+          { id: 'char-1', name: 'Alice', vulnerabilityBase: { resilience: 0.5, skepticism: 0.2, baggage: 0.5 } },
+          { id: 'char-2', name: 'Bob' },
+        ],
+        topology: { nodes: ['LAB_01'], connections: [] },
+      } as unknown as Blueprint,
+      gameState: {
+        character_continuity: {
+          'char-1': { skepticism: 0.75 },
+        },
+      } as unknown as LogicState,
+    });
+
+    let sentContext: EngineTurnContext | null = null;
+
+    globalThis.fetch = vi.fn().mockImplementation(async (_url: string, init?: RequestInit) => {
+      if (init?.body) {
+        sentContext = (JSON.parse(init.body as string) as { context: EngineTurnContext }).context;
+      }
+      return new Response(
+        JSON.stringify({
+          narrative_blocks: [{ type: 'prose', content: 'The lights flicker.' }],
+          logic_state: {
+            current_phase: 'LATENT',
+            cast_deltas: [
+              { character_id: 'char-1', skepticism_delta: -0.1 },
+            ],
+          },
+          topologyDelta: { isExpansion: false },
+          validation: { accepted: true },
+        }),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
+    });
+
+    const frame = await executeRatificationPipeline('Check lights');
+
+    // Context received resolved character continuity
+    expect(sentContext).not.toBeNull();
+    const aliceInContext = sentContext?.cast.find((c) => c.id === 'char-1');
+    const bobInContext = sentContext?.cast.find((c) => c.id === 'char-2');
+    expect(aliceInContext?.skepticism).toBe(0.75);
+    expect(bobInContext?.skepticism).toBe(0.5);
+
+    // Frame logic_state retains cast_deltas
+    expect(frame.logic_state.cast_deltas).toEqual([
+      { character_id: 'char-1', skepticism_delta: -0.1 },
+    ]);
+    // Frame logic_state does not leak client-side character_continuity
+    expect((frame.logic_state as Record<string, unknown>).character_continuity).toBeUndefined();
   });
 
   it('falls back to local capture only when no snapshot is supplied (e.g. internal/SYSTEM_INIT caller)', async () => {
@@ -287,41 +347,6 @@ describe('executeRatificationPipeline single pre-turn snapshot lifecycle', () =>
       '[DIALOGUE | Jules Mercer]: The receiver only repeats what it heard....\n' +
       '[PROSE]: Rain tightens against the shutters....'
     );
-  });
-
-  describe('validateEngineFrame cast_deltas ratification', () => {
-    it('retains cast_deltas through validateEngineFrame for a structurally valid response', () => {
-      const validPayload = {
-        narrative_blocks: [{ type: 'prose', content: 'Shadows lengthen along the corridor.' }],
-        logic_state: {
-          current_phase: 'MANIFEST',
-          cast_deltas: [
-            { character_id: 'char-1', skepticism_delta: 0.1 },
-            { character_id: 'char-2', skepticism_delta: -0.05 },
-          ],
-        },
-      };
-
-      const ratified = validateEngineFrame(validPayload);
-      expect(ratified.validation.accepted).toBe(true);
-      expect(ratified.logic_state.cast_deltas).toEqual([
-        { character_id: 'char-1', skepticism_delta: 0.1 },
-        { character_id: 'char-2', skepticism_delta: -0.05 },
-      ]);
-    });
-
-    it('falls back to an empty array when cast_deltas is missing or not an array', () => {
-      const missingPayload = {
-        narrative_blocks: [{ type: 'prose', content: 'The turbine hum fades.' }],
-        logic_state: {
-          current_phase: 'MANIFEST',
-        },
-      };
-
-      const ratified = validateEngineFrame(missingPayload);
-      expect(ratified.validation.accepted).toBe(true);
-      expect(ratified.logic_state.cast_deltas).toEqual([]);
-    });
   });
 });
 

@@ -56,10 +56,10 @@ export const EngineTurnContextSchema = z.object({
         personality: z.string().default(''),
         goals: z.string().default(''),
         traits: z.array(z.string()).default([]),
-        skepticism: z.number().finite().min(0).max(1).default(0.5),
         isEntity: z.boolean().default(false),
         isUserCharacter: z.boolean().default(false),
         expressionProfile: EngineCharacterExpressionProfileSchema.optional(),
+        skepticism: z.number().finite().min(0).max(1).default(0.5),
       })
     )
     .default([]),

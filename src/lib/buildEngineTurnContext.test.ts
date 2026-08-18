@@ -111,13 +111,11 @@ describe('buildEngineTurnContext & buildContextReceipt', () => {
     expect(clara?.personality).toBe('Methodical and protective under acute duress.');
     expect(clara?.goals).toBe('Locate the missing ward records and escort patients to safety.');
     expect(clara?.traits).toEqual(['Clinical', 'Vigilant', 'Insomniac']);
-    expect(clara?.skepticism).toBe(0.5);
 
     const warden = context.cast.find((member) => member.id === 'char-warden');
     expect(warden?.personality).toBe('Relentless, patient, and surgically detached.');
     expect(warden?.goals).toBe('Contain the quarantine breach and sever external communication.');
     expect(warden?.traits).toEqual(['Implacable', 'Observant']);
-    expect(warden?.skepticism).toBe(0.5);
     expect(warden?.expressionProfile).toEqual({
       communicationModes: ['mediated'],
       expressionGuidance: 'Uses short transmissions through the ward intercom.',
@@ -177,22 +175,50 @@ describe('buildEngineTurnContext & buildContextReceipt', () => {
     expect(receipt.topologyConnectionCount).toBe(1);
   });
 
-  it('populates cast skepticism accurately from characterContinuity map', () => {
+  it('maps resolved character continuity onto cast members', () => {
+    const blueprintWithVulnerability = {
+      ...mockBlueprint,
+      cast: [
+        {
+          id: 'char-1',
+          name: 'Alice',
+          vulnerabilityBase: { skepticism: 0.35 },
+        },
+        {
+          id: 'char-2',
+          name: 'Bob',
+          vulnerabilityBase: { skepticism: 0.4 },
+        },
+      ],
+    };
+
     const context = buildEngineTurnContext({
-      blueprint: mockBlueprint,
-      selectedRole: 'protagonist',
+      blueprint: blueprintWithVulnerability,
       characterContinuity: {
-        'char-clara': { skepticism: 0.85 },
-        'char-warden': { skepticism: 0.15 },
+        'char-1': { skepticism: 0.85 },
       },
     });
 
-    const clara = context.cast.find((c) => c.id === 'char-clara');
-    const warden = context.cast.find((c) => c.id === 'char-warden');
-    const orderly = context.cast.find((c) => c.id === 'char-orderly');
+    const alice = context.cast.find((c) => c.id === 'char-1');
+    const bob = context.cast.find((c) => c.id === 'char-2');
 
-    expect(clara?.skepticism).toBe(0.85);
-    expect(warden?.skepticism).toBe(0.15);
-    expect(orderly?.skepticism).toBe(0.5);
+    // Alice prefers persisted (0.85) over vulnerabilityBase (0.35)
+    expect(alice?.skepticism).toBe(0.85);
+    // Bob falls back to vulnerabilityBase (0.4)
+    expect(bob?.skepticism).toBe(0.4);
+  });
+
+  it('falls back to DEFAULT_SKEPTICISM for legacy blueprints with no continuity or vulnerability', () => {
+    const legacyBlueprint = {
+      title: 'Legacy',
+      cast: [{ id: 'char-legacy', name: 'Old Ghost' }],
+    };
+
+    const context = buildEngineTurnContext({
+      blueprint: legacyBlueprint,
+    });
+
+    const ghost = context.cast.find((c) => c.id === 'char-legacy');
+    expect(ghost?.skepticism).toBe(0.5);
   });
 });

@@ -356,13 +356,6 @@ export interface Message {
   visibleToTelemetry?: boolean;
 }
 
-export interface CharacterContinuityRecord {
-  skepticism: number;
-}
-
-export type CharacterContinuityById =
-  Record<string, CharacterContinuityRecord>;
-
 export interface CastLedgerEntry {
   id?: string;
   character_id?: string;
@@ -476,6 +469,13 @@ export interface LoreAndMemory {
   established_facts: string[];
   permanent_consequences: string[];
 }
+
+export interface CharacterContinuityRecord {
+  skepticism: number;
+}
+
+export type CharacterContinuityById =
+  Record<string, CharacterContinuityRecord>;
 
 export interface LogicState {
   current_phase?: string;

@@ -1,41 +1,54 @@
 import { describe, it, expect } from 'vitest';
 import { projectPresentationPatch } from './presentationProjection';
-import { LogicState } from '../../types';
+import type { LogicState } from '../../types';
 
-describe('presentationProjection', () => {
-  it('produces no presentation patch for raw cast_deltas alone', () => {
+describe('projectPresentationPatch', () => {
+  it('returns empty object when logicState is null or undefined', () => {
+    expect(projectPresentationPatch(null)).toEqual({});
+    expect(projectPresentationPatch(undefined)).toEqual({});
+  });
+
+  it('projects presentation fields without including cast_deltas', () => {
     const logicState: LogicState = {
+      inventory: ['RUSTED_KEY'],
+      player_injuries: ['BRUISED_RIB'],
+      lore_and_memory: {
+        narrative_anchors: ['THE_FIRE'],
+        revelations_unlocked: [],
+        permanent_consequences: [],
+      },
+      npc_fixations: ['DOOR_LOCK'],
+      psychological_status: 'ELEVATED_HEART_RATE',
+      cast_ledger: [
+        {
+          character_id: 'char-1',
+          name: 'Alice',
+          role: 'Technician',
+          status: 'ACTIVE',
+        },
+      ],
       cast_deltas: [
-        { character_id: 'char-1', skepticism_delta: 0.1 },
-        { character_id: 'char-2', skepticism_delta: -0.05 },
+        {
+          character_id: 'char-1',
+          skepticism_delta: -0.1,
+        },
       ],
     };
 
     const patch = projectPresentationPatch(logicState);
-    expect(patch).toEqual({});
-    expect('cast_deltas' in patch).toBe(false);
-  });
 
-  it('preserves existing supported presentation fields', () => {
-    const logicState: LogicState = {
-      inventory: ['brass_key'],
-      player_injuries: ['bruised_wrist'],
-      lore_and_memory: ['The relay was built in 2088.'],
-      npc_fixations: ['terminal_door'],
-      psychological_status: 'PARANOID',
-      cast_ledger: [{ id: 'char-1', name: 'Dr. Evans' }],
-      cast_deltas: [{ character_id: 'char-1', skepticism_delta: 0.1 }],
-    };
-
-    const patch = projectPresentationPatch(logicState);
-    expect(patch).toEqual({
-      inventory: ['brass_key'],
-      player_injuries: ['bruised_wrist'],
-      lore_and_memory: ['The relay was built in 2088.'],
-      npc_fixations: ['terminal_door'],
-      psychological_status: 'PARANOID',
-      cast_ledger: [{ id: 'char-1', name: 'Dr. Evans' }],
+    expect(patch.inventory).toEqual(['RUSTED_KEY']);
+    expect(patch.player_injuries).toEqual(['BRUISED_RIB']);
+    expect(patch.lore_and_memory).toEqual({
+      narrative_anchors: ['THE_FIRE'],
+      revelations_unlocked: [],
+      permanent_consequences: [],
     });
-    expect('cast_deltas' in patch).toBe(false);
+    expect(patch.npc_fixations).toEqual(['DOOR_LOCK']);
+    expect(patch.psychological_status).toBe('ELEVATED_HEART_RATE');
+    expect(patch.cast_ledger).toBeDefined();
+
+    // cast_deltas MUST NOT be projected into presentation patch
+    expect((patch as Record<string, unknown>).cast_deltas).toBeUndefined();
   });
 });

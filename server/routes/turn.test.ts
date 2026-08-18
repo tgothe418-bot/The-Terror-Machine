@@ -586,96 +586,69 @@ describe('Turn schemas validation', () => {
   });
 
   describe('normalizeCastSkepticismDeltas', () => {
-    const dummyContext = EngineTurnContextSchema.parse({
+    const testContext = EngineTurnContextSchema.parse({
       scenario: {
-        title: 'Bunker',
-        setting: { location: 'Sub-Level', atmosphere: '', timePeriod: '' },
+        title: 'Facility',
+        setting: { location: 'Lab', atmosphere: '', timePeriod: '' },
       },
       player: {
         role: 'protagonist',
-        name: 'Dr. Evans',
         characterId: 'char-player',
+        name: 'Player',
       },
       cast: [
         {
           id: 'char-player',
-          name: 'Dr. Evans',
-          role: 'Scientist',
+          name: 'Player',
           isUserCharacter: true,
         },
         {
-          id: 'char-npc-1',
-          name: 'Officer Holt',
-          role: 'Security',
-          isUserCharacter: false,
+          id: 'char-npc1',
+          name: 'NPC 1',
+          skepticism: 0.7,
         },
         {
-          id: 'char-npc-2',
-          name: 'Analyst Sterling',
-          role: 'Communications',
-          isUserCharacter: false,
+          id: 'char-npc2',
+          name: 'NPC 2',
+          skepticism: 0.4,
         },
       ],
       topology: {
-        currentNodeId: 'ROOM_01',
-        readableNodeLabel: 'Room 01',
+        currentNodeId: 'LAB',
+        readableNodeLabel: 'Lab',
       },
       runtime: {},
     });
 
-    it('filters out player character and user character deltas', () => {
-      const rawDeltas = [
-        { character_id: 'char-player', skepticism_delta: -0.1 },
-        { character_id: 'char-npc-1', skepticism_delta: 0.05 },
-      ];
-      const result = normalizeCastSkepticismDeltas(rawDeltas, dummyContext);
+    it('normalizes valid deltas and clamps magnitude to [-0.15, 0.15]', () => {
+      const result = normalizeCastSkepticismDeltas(
+        [
+          { character_id: 'char-npc1', skepticism_delta: 0.1 },
+          { character_id: 'char-npc2', skepticism_delta: -0.5 }, // clamped to -0.15
+        ],
+        testContext
+      );
+
       expect(result).toEqual([
-        { character_id: 'char-npc-1', skepticism_delta: 0.05 },
+        { character_id: 'char-npc1', skepticism_delta: 0.1 },
+        { character_id: 'char-npc2', skepticism_delta: -0.15 },
       ]);
     });
 
-    it('ignores unknown cast IDs', () => {
-      const rawDeltas = [
-        { character_id: 'ghost-character', skepticism_delta: 0.1 },
-        { character_id: 'char-npc-2', skepticism_delta: -0.05 },
-      ];
-      const result = normalizeCastSkepticismDeltas(rawDeltas, dummyContext);
-      expect(result).toEqual([
-        { character_id: 'char-npc-2', skepticism_delta: -0.05 },
-      ]);
-    });
+    it('discards deltas for player character, unknown IDs, duplicates, and zero deltas', () => {
+      const result = normalizeCastSkepticismDeltas(
+        [
+          { character_id: 'char-player', skepticism_delta: -0.1 }, // player: discard
+          { character_id: 'unknown-npc', skepticism_delta: 0.05 }, // unknown: discard
+          { character_id: 'char-npc1', skepticism_delta: 0.12 }, // valid
+          { character_id: 'char-npc1', skepticism_delta: -0.05 }, // duplicate: discard
+          { character_id: 'char-npc2', skepticism_delta: 0 }, // zero delta: discard
+        ],
+        testContext
+      );
 
-    it('clamps deltas to [-0.15, 0.15]', () => {
-      const rawDeltas = [
-        { character_id: 'char-npc-1', skepticism_delta: 0.5 },
-        { character_id: 'char-npc-2', skepticism_delta: -0.9 },
-      ];
-      const result = normalizeCastSkepticismDeltas(rawDeltas, dummyContext);
       expect(result).toEqual([
-        { character_id: 'char-npc-1', skepticism_delta: 0.15 },
-        { character_id: 'char-npc-2', skepticism_delta: -0.15 },
-      ]);
-    });
-
-    it('drops 0 deltas and non-finite deltas', () => {
-      const rawDeltas = [
-        { character_id: 'char-npc-1', skepticism_delta: 0 },
-        { character_id: 'char-npc-2', skepticism_delta: 0.08 },
-      ];
-      const result = normalizeCastSkepticismDeltas(rawDeltas, dummyContext);
-      expect(result).toEqual([
-        { character_id: 'char-npc-2', skepticism_delta: 0.08 },
-      ]);
-    });
-
-    it('enforces a single delta per cast member by using the first seen delta', () => {
-      const rawDeltas = [
-        { character_id: 'char-npc-1', skepticism_delta: 0.1 },
-        { character_id: 'char-npc-1', skepticism_delta: -0.1 },
-      ];
-      const result = normalizeCastSkepticismDeltas(rawDeltas, dummyContext);
-      expect(result).toEqual([
-        { character_id: 'char-npc-1', skepticism_delta: 0.1 },
+        { character_id: 'char-npc1', skepticism_delta: 0.12 },
       ]);
     });
   });

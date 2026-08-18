@@ -151,7 +151,10 @@ export function formatCastLedger(context: EngineTurnContext): string {
         .filter(Boolean)
         .join(' ');
 
-      const skepticismFormatted = typeof member.skepticism === 'number' ? member.skepticism.toFixed(2) : '0.50';
+      const skepticismFormatted = (typeof member.skepticism === 'number'
+        ? member.skepticism
+        : 0.5
+      ).toFixed(2);
 
       return `• ${member.name} (ID: ${member.id}, Role: ${member.role}, Entity: ${member.isEntity ? 'TRUE' : 'FALSE'}, Skepticism: ${skepticismFormatted}): ${member.description || 'No additional details.'} ${behaviorLines} ${expressionLines}`
         .replace(/\s+/g, ' ')

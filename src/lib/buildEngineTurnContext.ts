@@ -9,8 +9,8 @@ import {
   PlayerRole,
   SpatialNode,
   ParticipationContext,
-  CharacterContinuityById,
   normalizeParticipationContext,
+  CharacterContinuityById,
 } from '../types';
 import { buildCharacterContinuity, DEFAULT_SKEPTICISM } from './castContinuity';
 
@@ -98,27 +98,25 @@ export function buildEngineTurnContext({
     }
   }
 
-  // 3. Full canonical cast roster (does NOT omit the antagonist)
-  const continuityMap = buildCharacterContinuity(normBp.cast || [], characterContinuity);
-  const cast = (normBp.cast || []).map((c) => {
-    const resolvedId = c.id || `char-${c.name}`;
-    const resolvedSkepticism =
-      (c.id && continuityMap[c.id]?.skepticism !== undefined)
-        ? continuityMap[c.id].skepticism
-        : (continuityMap[resolvedId]?.skepticism ?? DEFAULT_SKEPTICISM);
+  const continuity = buildCharacterContinuity(normBp.cast || [], characterContinuity);
 
+  // 3. Full canonical cast roster (does NOT omit the antagonist)
+  const cast = (normBp.cast || []).map((c) => {
+    const canonicalId = c.id || `char-${c.name}`;
     return {
-      id: resolvedId,
+      id: canonicalId,
       name: c.name || 'Unknown',
       role: c.role || 'Subject',
       description: c.description || '',
       personality: c.personality || '',
       goals: c.goals || '',
       traits: c.traits || [],
-      skepticism: resolvedSkepticism,
       isEntity: Boolean(c.isEntity),
       isUserCharacter: Boolean(c.isUserCharacter),
       expressionProfile: c.expressionProfile,
+      skepticism: (c.id && continuity[c.id]?.skepticism !== undefined)
+        ? continuity[c.id].skepticism
+        : (continuity[canonicalId]?.skepticism ?? DEFAULT_SKEPTICISM),
     };
   });
 

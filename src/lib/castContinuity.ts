@@ -33,21 +33,27 @@ export function buildCharacterContinuity(
   const result: CharacterContinuityById = {};
 
   for (const member of cast) {
-    const id = member.id?.trim();
-    if (!id) continue;
+    if (!member || typeof member.id !== 'string' || member.id.trim().length === 0) {
+      continue;
+    }
 
-    let rawValue: number = DEFAULT_SKEPTICISM;
-    if (persisted && persisted[id] && Number.isFinite(persisted[id].skepticism)) {
-      rawValue = persisted[id].skepticism;
+    const id = member.id.trim();
+    const persistedRecord = persisted?.[id];
+    let resolvedValue: number;
+
+    if (persistedRecord && Number.isFinite(persistedRecord.skepticism)) {
+      resolvedValue = persistedRecord.skepticism;
     } else if (
       member.vulnerabilityBase &&
       Number.isFinite(member.vulnerabilityBase.skepticism)
     ) {
-      rawValue = member.vulnerabilityBase.skepticism;
+      resolvedValue = member.vulnerabilityBase.skepticism;
+    } else {
+      resolvedValue = DEFAULT_SKEPTICISM;
     }
 
     result[id] = {
-      skepticism: clampSkepticism(rawValue),
+      skepticism: clampSkepticism(resolvedValue),
     };
   }
 
@@ -59,31 +65,35 @@ export function applyCastSkepticismDeltas(
   persisted: CharacterContinuityById | null | undefined,
   deltas: readonly CastSkepticismDelta[] | null | undefined,
 ): CharacterContinuityById {
-  const currentContinuity = buildCharacterContinuity(cast, persisted);
-  if (!deltas || deltas.length === 0) {
-    return currentContinuity;
+  const continuity = buildCharacterContinuity(cast, persisted);
+  if (!deltas || !Array.isArray(deltas) || deltas.length === 0) {
+    return continuity;
   }
 
-  const result: CharacterContinuityById = { ...currentContinuity };
   const seenIds = new Set<string>();
 
   for (const delta of deltas) {
-    const id = delta.character_id?.trim();
-    if (!id || !result[id] || seenIds.has(id)) {
+    if (!delta || typeof delta.character_id !== 'string') {
       continue;
     }
 
-    seenIds.add(id);
+    const charId = delta.character_id.trim();
+    if (!continuity[charId] || seenIds.has(charId)) {
+      continue;
+    }
+
+    seenIds.add(charId);
+
     const clampedDelta = clampSkepticismDelta(delta.skepticism_delta);
     if (clampedDelta === 0) {
       continue;
     }
 
-    const nextSkepticism = clampSkepticism(result[id].skepticism + clampedDelta);
-    result[id] = {
-      skepticism: nextSkepticism,
+    const currentSkepticism = continuity[charId].skepticism;
+    continuity[charId] = {
+      skepticism: clampSkepticism(currentSkepticism + clampedDelta),
     };
   }
 
-  return result;
+  return continuity;
 }
