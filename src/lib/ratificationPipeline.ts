@@ -326,6 +326,10 @@ export const executeRatificationPipeline = async (
     validatedEvent.transitionReceipt = parsedResult.data.transitionReceipt;
   }
 
+  if (parsedResult.data.castInteractionReceipt) {
+    validatedEvent.castInteractionReceipt = parsedResult.data.castInteractionReceipt;
+  }
+
   // Attach context receipt for SYSTEM_INIT
   if (userAction === 'SYSTEM_INIT') {
     validatedEvent.contextReceipt = buildContextReceipt(turnContext, engineState.activeBlueprint);

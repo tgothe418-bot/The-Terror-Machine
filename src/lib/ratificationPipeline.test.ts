@@ -348,5 +348,65 @@ describe('executeRatificationPipeline single pre-turn snapshot lifecycle', () =>
       '[PROSE]: Rain tightens against the shutters....'
     );
   });
+
+  it('preserves valid server castInteractionReceipt through ratification pipeline onto returned frame', async () => {
+    const preSnapshot: RuntimeStateSnapshot = {
+      version: 1,
+      sessionId: 'sess_1',
+      blueprintId: 'bp_1',
+      turnCount: 2,
+      currentNodeId: 'STORE_NODE_ORIGIN',
+      activeVector: 'COGNITIVE',
+      activeTier: 'LATENT',
+      phase: 'LATENT',
+      tension: 10,
+      coherence: 1.0,
+      decayRate: 0.01,
+      reconciliationRevision: 0,
+      activeFlags: [],
+    };
+
+    const serverReceipt = {
+      version: 1,
+      addressedCharacterId: 'char-a',
+      respondingCharacterId: 'char-a',
+      outcome: 'RESPONDED' as const,
+    };
+
+    globalThis.fetch = vi.fn().mockImplementation(async () => {
+      return new Response(
+        JSON.stringify({
+          narrative_blocks: [
+            { type: 'dialogue', speaker: 'Cast Member A', content: 'Affirmative.' },
+          ],
+          logic_state: {
+            current_phase: 'LATENT',
+            suggested_tension: 15,
+            intent_classification: 'QUERY',
+          },
+          transitionReceipt: {
+            requestedNodeId: 'STORE_NODE_ORIGIN',
+            accepted: true,
+            fromNodeId: 'STORE_NODE_ORIGIN',
+            toNodeId: 'STORE_NODE_ORIGIN',
+            reason: 'TRANSITION_ACCEPTED',
+          },
+          castInteractionReceipt: serverReceipt,
+        }),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
+    });
+
+    const result = await executeRatificationPipeline('Speak to Cast Member A', preSnapshot);
+
+    expect(result.castInteractionReceipt).toBeDefined();
+    expect(result.castInteractionReceipt).toEqual(serverReceipt);
+    expect(result.castInteractionReceipt?.outcome).toBe('RESPONDED');
+    expect(result.castInteractionReceipt?.addressedCharacterId).toBe('char-a');
+    expect(result.castInteractionReceipt?.respondingCharacterId).toBe('char-a');
+  });
 });
 

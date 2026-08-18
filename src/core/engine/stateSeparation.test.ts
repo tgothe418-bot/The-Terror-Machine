@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { engineReducer, initialEngineState, EngineState } from './reducer';
 import { EngineEvent, CommittedTurnPayload } from './events';
 import { captureRuntimeSnapshot } from './snapshot';
-import { RatifiedEngineFrame, CastContinuityReceipt, CastPresenceReceipt } from '../../types';
+import { RatifiedEngineFrame, CastContinuityReceipt, CastPresenceReceipt, CastInteractionReceipt } from '../../types';
 
 describe('State separation and history preservation', () => {
   it('does not mutate current state until explicit action dispatch', () => {
@@ -150,6 +150,13 @@ describe('State separation and history preservation', () => {
       },
     };
 
+    const castInteractionReceipt: CastInteractionReceipt = {
+      version: 1,
+      addressedCharacterId: 'char-1',
+      respondingCharacterId: 'char-1',
+      outcome: 'RESPONDED',
+    };
+
     const payload: CommittedTurnPayload = {
       commandText: 'Proceed to Node B',
       formattedText: 'You enter Node B.',
@@ -180,6 +187,7 @@ describe('State separation and history preservation', () => {
         preSnapshot,
         castContinuityReceipt,
         castPresenceReceipt,
+        castInteractionReceipt,
       },
     };
 
@@ -193,6 +201,11 @@ describe('State separation and history preservation', () => {
     expect(assistantMsg.role).toBe('assistant');
     expect(assistantMsg.turnReceipt?.castContinuityReceipt).toEqual(castContinuityReceipt);
     expect(assistantMsg.turnReceipt?.castPresenceReceipt).toEqual(castPresenceReceipt);
+    expect(assistantMsg.turnReceipt?.castInteractionReceipt).toEqual(castInteractionReceipt);
+    expect(assistantMsg.turnReceipt?.castInteractionReceipt?.version).toBe(1);
+    expect(assistantMsg.turnReceipt?.castInteractionReceipt?.outcome).toBe('RESPONDED');
+    expect(assistantMsg.turnReceipt?.castInteractionReceipt?.addressedCharacterId).toBe('char-1');
+    expect(assistantMsg.turnReceipt?.castInteractionReceipt?.respondingCharacterId).toBe('char-1');
     expect(assistantMsg.turnReceipt?.castPresenceReceipt?.version).toBe(1);
     expect(assistantMsg.turnReceipt?.castPresenceReceipt?.state).toEqual({
       'char-1': { nodeId: 'NODE_B' },

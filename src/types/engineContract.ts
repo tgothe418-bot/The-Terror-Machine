@@ -211,8 +211,24 @@ export const TurnResultSchema = z.object({
 
 export type TurnResult = z.infer<typeof TurnResultSchema>;
 
+export const CastInteractionReceiptSchema = z.object({
+  version: z.literal(1),
+  addressedCharacterId: z.string().nullable(),
+  respondingCharacterId: z.string().nullable(),
+  outcome: z.enum([
+    'RESPONDED',
+    'ADDRESS_UNANSWERED',
+    'UNSOLICITED_DIALOGUE',
+    'MISMATCH',
+    'NONE',
+  ]),
+});
+
+export type CastInteractionReceipt = z.infer<typeof CastInteractionReceiptSchema>;
+
 export const TurnResponseSchema = TurnResultSchema.extend({
   transitionReceipt: TransitionReceiptSchema.optional(),
+  castInteractionReceipt: CastInteractionReceiptSchema.optional(),
 });
 
 export type TurnResponse = z.infer<typeof TurnResponseSchema>;

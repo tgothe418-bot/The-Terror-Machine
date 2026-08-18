@@ -10,6 +10,7 @@ import {
 import { generateStructuredResponse } from '../utils/aiClient';
 import { resolveTransition } from '../engine/transitionResolver';
 import { clampSkepticismDelta } from '../../src/lib/castContinuity';
+import { createCastInteractionReceipt } from '../../src/lib/castInteraction';
 
 function normalizeDialogueAddress(value: string): string {
   return ` ${value
@@ -96,6 +97,18 @@ export function validateDialogueBlocks(
   }
 
   return null;
+}
+
+export function resolveDialogueSpeakerId(
+  narrativeBlocks: Array<{ type: string; speaker?: string | null }>,
+  context: EngineTurnContext
+): string | null {
+  const dialogueBlocks = narrativeBlocks.filter((b) => b.type === 'dialogue');
+  if (dialogueBlocks.length !== 1) return null;
+  const speaker = dialogueBlocks[0].speaker?.trim();
+  if (!speaker) return null;
+  const matchingMembers = context.cast.filter((member) => member.name === speaker);
+  return matchingMembers.length === 1 ? matchingMembers[0].id : null;
 }
 
 export function normalizeCastSkepticismDeltas(
@@ -415,6 +428,16 @@ ${recentHistory}
       });
     }
 
+    const respondingCharacterId = resolveDialogueSpeakerId(
+      engineResponse.narrative_blocks,
+      context,
+    );
+
+    const castInteractionReceipt = createCastInteractionReceipt({
+      addressedCharacterId: explicitlyAddressedSpeakerId,
+      respondingCharacterId,
+    });
+
     engineResponse.logic_state.cast_deltas = normalizeCastSkepticismDeltas(
       engineResponse.logic_state.cast_deltas,
       context,
@@ -436,6 +459,7 @@ ${recentHistory}
     const finalResponse: TurnResponse = {
       ...engineResponse,
       transitionReceipt,
+      castInteractionReceipt,
     };
 
     return res.json(finalResponse);

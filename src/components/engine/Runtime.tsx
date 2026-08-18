@@ -34,6 +34,7 @@ import { captureRuntimeSnapshot } from '../../core/engine/snapshot';
 import { projectPresentationPatch } from '../../core/engine/presentationProjection';
 import { applyCastSkepticismDeltas, createCastContinuityReceipt } from '../../lib/castContinuity';
 import { buildCharacterPresence, createCastPresenceReceipt } from '../../lib/castPresence';
+import { createCastInteractionReceipt } from '../../lib/castInteraction';
 import type {
   CharacterContinuityById,
   CastContinuityReceipt,
@@ -509,6 +510,9 @@ export default function Runtime() {
         preSnapshot,
         castContinuityReceipt,
         castPresenceReceipt,
+        castInteractionReceipt:
+          response.castInteractionReceipt ||
+          createCastInteractionReceipt({}),
       };
 
       const committedTurnPayload: CommittedTurnPayload = {

@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { TurnRequestSchema, TurnResultSchema, EngineTurnContextSchema } from '../schemas/engine';
+import { TurnRequestSchema, TurnResultSchema, EngineTurnContextSchema, TurnResponseSchema } from '../schemas/engine';
 import {
   validateDialogueBlocks,
   resolveExplicitAddressedSpeakerId,
+  resolveDialogueSpeakerId,
   formatCastLedger,
   normalizeCastSkepticismDeltas,
 } from './turn';
+import { createCastInteractionReceipt } from '../../src/lib/castInteraction';
 
 describe('Turn schemas validation', () => {
   describe('EngineTurnContextSchema', () => {
@@ -712,6 +714,229 @@ describe('Turn schemas validation', () => {
       expect(result).toEqual([
         { character_id: 'char-npc1', skepticism_delta: 0.12 },
       ]);
+    });
+  });
+
+  describe('resolveDialogueSpeakerId', () => {
+    const testContext = EngineTurnContextSchema.parse({
+      scenario: {
+        title: 'Facility',
+        setting: { location: 'Node-1', atmosphere: '', timePeriod: '' },
+      },
+      player: {
+        role: 'protagonist',
+        characterId: 'char-p',
+        name: 'Subject P',
+      },
+      cast: [
+        {
+          id: 'char-a',
+          name: 'Operative A',
+          isUserCharacter: false,
+        },
+        {
+          id: 'char-b',
+          name: 'Operative B',
+          isUserCharacter: false,
+        },
+      ],
+      topology: {
+        currentNodeId: 'NODE_01',
+        readableNodeLabel: 'Node 01',
+      },
+      runtime: {},
+    });
+
+    it('resolves dialogue speaker name to corresponding authorized cast member ID, not raw speaker text', () => {
+      const blocks = [
+        { type: 'prose', content: 'Observation recorded.' },
+        { type: 'dialogue', speaker: 'Operative A', content: 'Status normal.' },
+      ];
+
+      const resolvedId = resolveDialogueSpeakerId(blocks, testContext);
+      expect(resolvedId).toBe('char-a');
+      expect(resolvedId).not.toBe('Operative A');
+    });
+
+    it('returns null when no dialogue block is present', () => {
+      const blocks = [
+        { type: 'prose', content: 'Only ambient prose.' },
+        { type: 'environmental_description', content: 'Humming frequency.' },
+      ];
+
+      expect(resolveDialogueSpeakerId(blocks, testContext)).toBeNull();
+    });
+
+    it('returns null when dialogue speaker is missing or does not match authorized cast', () => {
+      expect(
+        resolveDialogueSpeakerId(
+          [{ type: 'dialogue', speaker: '', content: '...' }],
+          testContext
+        )
+      ).toBeNull();
+
+      expect(
+        resolveDialogueSpeakerId(
+          [{ type: 'dialogue', speaker: 'Unknown Subject', content: '...' }],
+          testContext
+        )
+      ).toBeNull();
+    });
+
+    it('returns null when multiple dialogue blocks exist', () => {
+      const blocks = [
+        { type: 'dialogue', speaker: 'Operative A', content: 'First line.' },
+        { type: 'dialogue', speaker: 'Operative A', content: 'Second line.' },
+      ];
+
+      expect(resolveDialogueSpeakerId(blocks, testContext)).toBeNull();
+    });
+  });
+
+  describe('Server response cast interaction receipt derivation', () => {
+    const testContext = EngineTurnContextSchema.parse({
+      scenario: {
+        title: 'Enclosure',
+        setting: { location: 'Node-1', atmosphere: '', timePeriod: '' },
+      },
+      player: {
+        role: 'protagonist',
+        characterId: 'char-p',
+        name: 'Player',
+      },
+      cast: [
+        {
+          id: 'char-a',
+          name: 'Operative A',
+          isPresent: true,
+          expressionProfile: { communicationModes: ['spoken'], expressionGuidance: 'Terse' },
+        },
+        {
+          id: 'char-b',
+          name: 'Operative B',
+          isPresent: true,
+          expressionProfile: { communicationModes: ['spoken'], expressionGuidance: 'Direct' },
+        },
+      ],
+      topology: {
+        currentNodeId: 'NODE_01',
+        readableNodeLabel: 'Node 01',
+      },
+      runtime: {},
+    });
+
+    it('derives RESPONDED receipt with cast IDs for valid addressed reply', () => {
+      const userAction = 'I speak to Operative A about telemetry.';
+      const addressedId = resolveExplicitAddressedSpeakerId(userAction, testContext);
+      expect(addressedId).toBe('char-a');
+
+      const narrativeBlocks = [
+        { type: 'dialogue', speaker: 'Operative A', content: 'Telemetry verified.' },
+      ];
+
+      const respondingId = resolveDialogueSpeakerId(narrativeBlocks, testContext);
+      expect(respondingId).toBe('char-a');
+
+      const receipt = createCastInteractionReceipt({
+        addressedCharacterId: addressedId,
+        respondingCharacterId: respondingId,
+      });
+
+      expect(receipt).toEqual({
+        version: 1,
+        addressedCharacterId: 'char-a',
+        respondingCharacterId: 'char-a',
+        outcome: 'RESPONDED',
+      });
+
+      // Verify TurnResponseSchema parses the response with receipt
+      const validatedEnvelope = TurnResponseSchema.parse({
+        narrative_blocks: narrativeBlocks,
+        logic_state: {},
+        castInteractionReceipt: receipt,
+      });
+
+      expect(validatedEnvelope.castInteractionReceipt?.outcome).toBe('RESPONDED');
+      expect(validatedEnvelope.castInteractionReceipt?.addressedCharacterId).toBe('char-a');
+      expect(validatedEnvelope.castInteractionReceipt?.respondingCharacterId).toBe('char-a');
+    });
+
+    it('derives ADDRESS_UNANSWERED receipt for addressed turn with no dialogue', () => {
+      const userAction = 'I ask Operative A for confirmation.';
+      const addressedId = resolveExplicitAddressedSpeakerId(userAction, testContext);
+      expect(addressedId).toBe('char-a');
+
+      const narrativeBlocks = [
+        { type: 'prose', content: 'Operative A remains silent, observing the monitor.' },
+      ];
+
+      const respondingId = resolveDialogueSpeakerId(narrativeBlocks, testContext);
+      expect(respondingId).toBeNull();
+
+      const receipt = createCastInteractionReceipt({
+        addressedCharacterId: addressedId,
+        respondingCharacterId: respondingId,
+      });
+
+      expect(receipt).toEqual({
+        version: 1,
+        addressedCharacterId: 'char-a',
+        respondingCharacterId: null,
+        outcome: 'ADDRESS_UNANSWERED',
+      });
+    });
+
+    it('derives UNSOLICITED_DIALOGUE receipt for valid unaddressed dialogue turn', () => {
+      const userAction = 'I check the console interface.';
+      const addressedId = resolveExplicitAddressedSpeakerId(userAction, testContext);
+      expect(addressedId).toBeNull();
+
+      const narrativeBlocks = [
+        { type: 'dialogue', speaker: 'Operative B', content: 'Grid power fluctuating.' },
+      ];
+
+      const respondingId = resolveDialogueSpeakerId(narrativeBlocks, testContext);
+      expect(respondingId).toBe('char-b');
+
+      const receipt = createCastInteractionReceipt({
+        addressedCharacterId: addressedId,
+        respondingCharacterId: respondingId,
+      });
+
+      expect(receipt).toEqual({
+        version: 1,
+        addressedCharacterId: null,
+        respondingCharacterId: 'char-b',
+        outcome: 'UNSOLICITED_DIALOGUE',
+      });
+    });
+
+    it('derives MISMATCH receipt when addressed and responding characters are distinct', () => {
+      const receipt = createCastInteractionReceipt({
+        addressedCharacterId: 'char-a',
+        respondingCharacterId: 'char-b',
+      });
+
+      expect(receipt).toEqual({
+        version: 1,
+        addressedCharacterId: 'char-a',
+        respondingCharacterId: 'char-b',
+        outcome: 'MISMATCH',
+      });
+    });
+
+    it('derives NONE receipt when neither addressed nor responding dialogue is present', () => {
+      const receipt = createCastInteractionReceipt({
+        addressedCharacterId: null,
+        respondingCharacterId: null,
+      });
+
+      expect(receipt).toEqual({
+        version: 1,
+        addressedCharacterId: null,
+        respondingCharacterId: null,
+        outcome: 'NONE',
+      });
     });
   });
 });
