@@ -43,4 +43,3 @@ describe('projectPresentationPatch', () => {
     expect((patch as Record<string, unknown>).cast_deltas).toBeUndefined();
   });
 });
-
