@@ -167,4 +167,18 @@ describe('narrativeReconciliation', () => {
     });
     expect(parsed.success).toBe(false);
   });
+
+  it('rejects a reconciliation proposal with an unknown key due to strict object schema', () => {
+    const withUnknownKey = {
+      mode: 'CANONICAL',
+      feasibility: 'SUPPORTED',
+      reason_code: 'NONE',
+      fictional_time_cost: 'MOMENT',
+      authority_alignment: 'NOT_APPLICABLE',
+      memory_echo_candidate: null,
+      unknown_extra_field: 'unexpected',
+    };
+    const parsed = NarrativeReconciliationProposalSchema.safeParse(withUnknownKey);
+    expect(parsed.success).toBe(false);
+  });
 });

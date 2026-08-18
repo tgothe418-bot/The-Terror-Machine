@@ -135,4 +135,17 @@ describe('intentReceipt', () => {
     });
     expect(invalidSubtype.success).toBe(false);
   });
+
+  it('rejects an intent proposal with an unknown key due to strict object schema', () => {
+    const withUnknownKey = {
+      action_kind: 'OBSERVE',
+      action_subtype: null,
+      pressure_direction: 'MAINTAIN',
+      dramatic_tactic: 'NONE',
+      intent_synergy: 'N/A',
+      unknown_extra_field: 'unexpected',
+    };
+    const parsed = IntentProposalSchema.safeParse(withUnknownKey);
+    expect(parsed.success).toBe(false);
+  });
 });

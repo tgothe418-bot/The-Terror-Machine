@@ -208,7 +208,7 @@ export const IntentProposalSchema = z.object({
   pressure_direction: PressureDirectionSchema,
   dramatic_tactic: DramaticTacticSchema,
   intent_synergy: IntentSynergySchema,
-});
+}).strict();
 export type IntentProposal = z.infer<typeof IntentProposalSchema>;
 
 export const IntentReceiptSchema = IntentProposalSchema.extend({
@@ -277,7 +277,7 @@ export const NarrativeReconciliationProposalSchema = z.object({
   fictional_time_cost: FictionalTimeCostSchema,
   authority_alignment: AuthorityAlignmentSchema,
   memory_echo_candidate: z.string().trim().min(1).max(240).nullable(),
-});
+}).strict();
 export type NarrativeReconciliationProposal = z.infer<typeof NarrativeReconciliationProposalSchema>;
 
 export const NarrativeReconciliationReceiptSchema = NarrativeReconciliationProposalSchema.extend({
