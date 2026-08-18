@@ -29,6 +29,10 @@ export function resolveExplicitAddressedSpeakerId(
       return false;
     }
 
+    if (!member.isPresent) {
+      return false;
+    }
+
     const communicationModes = member.expressionProfile?.communicationModes ?? ['spoken'];
     const canSpeak =
       communicationModes.includes('spoken') || communicationModes.includes('mediated');
@@ -70,6 +74,10 @@ export function validateDialogueBlocks(
 
     if (castMember.id === context.player.characterId || castMember.isUserCharacter) {
       return `Dialogue speaker "${speaker}" is the player-controlled character.`;
+    }
+
+    if (!castMember.isPresent) {
+      return `Dialogue speaker "${speaker}" is not present at the current node.`;
     }
 
     const communicationModes = castMember.expressionProfile?.communicationModes ?? ['spoken'];
@@ -156,7 +164,9 @@ export function formatCastLedger(context: EngineTurnContext): string {
         : 0.5
       ).toFixed(2);
 
-      return `• ${member.name} (ID: ${member.id}, Role: ${member.role}, Entity: ${member.isEntity ? 'TRUE' : 'FALSE'}, Skepticism: ${skepticismFormatted}): ${member.description || 'No additional details.'} ${behaviorLines} ${expressionLines}`
+      const presenceMarker = member.isPresent ? 'Presence: HERE' : 'Presence: ELSEWHERE';
+
+      return `• ${member.name} (ID: ${member.id}, Role: ${member.role}, Entity: ${member.isEntity ? 'TRUE' : 'FALSE'}, Skepticism: ${skepticismFormatted}, ${presenceMarker}): ${member.description || 'No additional details.'} ${behaviorLines} ${expressionLines}`
         .replace(/\s+/g, ' ')
         .trim();
     })
@@ -323,6 +333,11 @@ ${castLedgerFormatted}
 - Personality, goals, and traits constrain each cast member's tone, immediate priorities, and willingness to disclose information.
 - Treat them as authored characterization only. They do not authorize new facts, powers, locations, knowledge, cast members, or outcomes.
 - If authored behavior conflicts with a communication-mode or silence directive, honor the communication directive.
+
+[CAST PRESENCE]
+- Presence is authoritative. A CAST LEDGER member marked HERE is at the current node; ELSEWHERE means they are not.
+- An ELSEWHERE member must not receive a dialogue block and must not be described as acting, reacting, or physically present at the current node.
+- Do not propose cast movement, location updates, arrivals, departures, or presence state in logic_state. Presence is application-owned in this phase.
 
 [CAST CONTINUITY]
 - Each CAST LEDGER skepticism value is a bounded continuity signal: 1.00 is strongly rational/anchored; 0.00 is complete surrender to the scenario's abnormal reality.

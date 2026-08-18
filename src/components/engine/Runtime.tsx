@@ -33,7 +33,13 @@ import { useTelemetryStore } from '../../store/useTelemetryStore';
 import { captureRuntimeSnapshot } from '../../core/engine/snapshot';
 import { projectPresentationPatch } from '../../core/engine/presentationProjection';
 import { applyCastSkepticismDeltas, createCastContinuityReceipt } from '../../lib/castContinuity';
-import type { CharacterContinuityById, CastContinuityReceipt } from '../../types';
+import { buildCharacterPresence, createCastPresenceReceipt } from '../../lib/castPresence';
+import type {
+  CharacterContinuityById,
+  CastContinuityReceipt,
+  CharacterPresenceById,
+  CastPresenceReceipt,
+} from '../../types';
 
 const SESSION_TIMEOUT = 60 * 60 * 1000; // 60 minutes
 const HEARTBEAT_INTERVAL = 30000; // 30 seconds
@@ -435,9 +441,16 @@ export default function Runtime() {
         reason: 'NO_RECEIPT_ATTACHED',
       };
 
+      const postTurnNodeId =
+        transitionReceipt.accepted && transitionReceipt.toNodeId
+          ? transitionReceipt.toNodeId
+          : effectiveCurrentNode;
+
       const latestEngineState = useEngineStore.getState();
       let nextCharacterContinuity: CharacterContinuityById | null = null;
       let castContinuityReceipt: CastContinuityReceipt;
+      let nextCharacterPresence: CharacterPresenceById | null = null;
+      let castPresenceReceipt: CastPresenceReceipt;
 
       if (activeBlueprint) {
         nextCharacterContinuity = applyCastSkepticismDeltas(
@@ -449,10 +462,24 @@ export default function Runtime() {
           nextCharacterContinuity,
           response.logic_state.cast_deltas,
         );
+
+        const runtimeSpatialGraph = useAppStore.getState().spatialGraph || [];
+        const validNodeIds = runtimeSpatialGraph.map((n) => n.id);
+        nextCharacterPresence = buildCharacterPresence(
+          activeBlueprint.cast || [],
+          latestEngineState.gameState?.character_presence,
+          validNodeIds,
+          postTurnNodeId || 'ORIGIN',
+          latestEngineState.gameState?.player_character_id,
+        );
+        castPresenceReceipt = createCastPresenceReceipt(nextCharacterPresence);
       } else {
         castContinuityReceipt = createCastContinuityReceipt(
           latestEngineState.gameState?.character_continuity || {},
           [],
+        );
+        castPresenceReceipt = createCastPresenceReceipt(
+          latestEngineState.gameState?.character_presence || {},
         );
       }
 
@@ -462,10 +489,7 @@ export default function Runtime() {
         requestedTarget: response.logic_state.requested_transition || null,
         accepted: transitionReceipt.accepted,
         reason: transitionReceipt.reason,
-        nodeAfter:
-          transitionReceipt.accepted && transitionReceipt.toNodeId
-            ? transitionReceipt.toNodeId
-            : effectiveCurrentNode,
+        nodeAfter: postTurnNodeId,
         activeVector: preSnapshot.activeVector,
         activeTier: preSnapshot.activeTier,
         tension:
@@ -474,6 +498,7 @@ export default function Runtime() {
             : preSnapshot.tension,
         preSnapshot,
         castContinuityReceipt,
+        castPresenceReceipt,
       };
 
       const committedTurnPayload: CommittedTurnPayload = {
@@ -487,10 +512,17 @@ export default function Runtime() {
 
       dispatch({ type: 'TURN_COMMITTED', payload: committedTurnPayload });
 
-      if (activeBlueprint && nextCharacterContinuity) {
-        latestEngineState.patchGameState({
-          character_continuity: nextCharacterContinuity,
-        });
+      if (activeBlueprint) {
+        const patchPayload: Partial<typeof latestEngineState.gameState> = {};
+        if (nextCharacterContinuity) {
+          patchPayload.character_continuity = nextCharacterContinuity;
+        }
+        if (nextCharacterPresence) {
+          patchPayload.character_presence = nextCharacterPresence;
+        }
+        if (Object.keys(patchPayload).length > 0) {
+          latestEngineState.patchGameState(patchPayload);
+        }
       }
 
       const presentationPatch = projectPresentationPatch(response.logic_state);

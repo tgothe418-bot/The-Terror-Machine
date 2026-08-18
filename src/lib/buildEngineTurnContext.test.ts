@@ -221,4 +221,53 @@ describe('buildEngineTurnContext & buildContextReceipt', () => {
     const ghost = context.cast.find((c) => c.id === 'char-legacy');
     expect(ghost?.skepticism).toBe(0.5);
   });
+
+  it('resolves isPresent based on player binding, characterPresence, and starting_location', () => {
+    const blueprint = {
+      ...mockBlueprint,
+      topology: {
+        nodes: ['WARD_4B', 'STAIRWELL', 'OPERATING_THEATRE'],
+      },
+      cast: [
+        {
+          id: 'char-clara',
+          name: 'Nurse Clara Reed',
+          isUserCharacter: true,
+          starting_location: 'OPERATING_THEATRE',
+        },
+        {
+          id: 'char-warden',
+          name: 'The Quiet Warden',
+          starting_location: 'STAIRWELL',
+        },
+        {
+          id: 'char-orderly',
+          name: 'Orderly Thomas',
+          starting_location: 'OPERATING_THEATRE',
+        },
+      ],
+    };
+
+    const context = buildEngineTurnContext({
+      blueprint,
+      selectedRole: 'protagonist',
+      characterPresence: {
+        'char-orderly': { nodeId: 'WARD_4B' }, // Overrides starting_location
+      },
+      runtimeState: {
+        currentNodeId: 'WARD_4B',
+      },
+    });
+
+    const clara = context.cast.find((c) => c.id === 'char-clara');
+    const warden = context.cast.find((c) => c.id === 'char-warden');
+    const orderly = context.cast.find((c) => c.id === 'char-orderly');
+
+    // Player character is always at currentNodeId (WARD_4B)
+    expect(clara?.isPresent).toBe(true);
+    // Warden is at STAIRWELL (starting_location), not WARD_4B
+    expect(warden?.isPresent).toBe(false);
+    // Orderly is at WARD_4B (persisted), matching currentNodeId
+    expect(orderly?.isPresent).toBe(true);
+  });
 });

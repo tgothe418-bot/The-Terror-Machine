@@ -11,8 +11,10 @@ import {
   ParticipationContext,
   normalizeParticipationContext,
   CharacterContinuityById,
+  CharacterPresenceById,
 } from '../types';
 import { buildCharacterContinuity, DEFAULT_SKEPTICISM } from './castContinuity';
+import { buildCharacterPresence } from './castPresence';
 
 export interface BuildEngineTurnContextOptions {
   blueprint: unknown;
@@ -20,6 +22,7 @@ export interface BuildEngineTurnContextOptions {
   spatialGraph?: SpatialNode[];
   participationContext?: ParticipationContext | null;
   characterContinuity?: CharacterContinuityById | null;
+  characterPresence?: CharacterPresenceById | null;
   runtimeState?: {
     currentNodeId?: string | null;
     phase?: string;
@@ -42,6 +45,7 @@ export function buildEngineTurnContext({
   spatialGraph,
   participationContext,
   characterContinuity,
+  characterPresence,
   runtimeState = {},
 }: BuildEngineTurnContextOptions): EngineTurnContext {
   const normBp: Blueprint = normalizeBlueprint(blueprint);
@@ -98,11 +102,32 @@ export function buildEngineTurnContext({
     }
   }
 
-  const continuity = buildCharacterContinuity(normBp.cast || [], characterContinuity);
+  // 3. Topology boundary (resolved early for presence calculations)
+  const nodes = normBp.topology?.nodes || [];
+  const currentNodeId = runtimeState.currentNodeId || nodes[0] || 'ORIGIN';
+  const connections = normBp.topology?.connections || [];
 
-  // 3. Full canonical cast roster (does NOT omit the antagonist)
+  const validNodeIds = Array.from(
+    new Set([
+      ...(spatialGraph || []).map((n) => n.id),
+      ...nodes,
+    ])
+  );
+
+  const continuity = buildCharacterContinuity(normBp.cast || [], characterContinuity);
+  const presence = buildCharacterPresence(
+    normBp.cast || [],
+    characterPresence,
+    validNodeIds,
+    currentNodeId,
+    characterId,
+  );
+
+  // 4. Full canonical cast roster (does NOT omit the antagonist)
   const cast = (normBp.cast || []).map((c) => {
     const canonicalId = c.id || `char-${c.name}`;
+    const resolvedPresenceNodeId =
+      (c.id && presence[c.id]?.nodeId) ?? presence[canonicalId]?.nodeId;
     return {
       id: canonicalId,
       name: c.name || 'Unknown',
@@ -117,13 +142,9 @@ export function buildEngineTurnContext({
       skepticism: (c.id && continuity[c.id]?.skepticism !== undefined)
         ? continuity[c.id].skepticism
         : (continuity[canonicalId]?.skepticism ?? DEFAULT_SKEPTICISM),
+      isPresent: resolvedPresenceNodeId === currentNodeId,
     };
   });
-
-  // 4. Topology boundary
-  const nodes = normBp.topology?.nodes || [];
-  const currentNodeId = runtimeState.currentNodeId || nodes[0] || 'ORIGIN';
-  const connections = normBp.topology?.connections || [];
 
   const runtimeNode = spatialGraph?.find((n) => n.id === currentNodeId);
   const readableNodeLabel = runtimeNode?.name || currentNodeId.replace(/_/g, ' ');

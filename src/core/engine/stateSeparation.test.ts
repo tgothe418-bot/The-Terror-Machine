@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { engineReducer, initialEngineState, EngineState } from './reducer';
 import { EngineEvent, CommittedTurnPayload } from './events';
 import { captureRuntimeSnapshot } from './snapshot';
-import { RatifiedEngineFrame, CastContinuityReceipt } from '../../types';
+import { RatifiedEngineFrame, CastContinuityReceipt, CastPresenceReceipt } from '../../types';
 
 describe('State separation and history preservation', () => {
   it('does not mutate current state until explicit action dispatch', () => {
@@ -142,6 +142,14 @@ describe('State separation and history preservation', () => {
       ],
     };
 
+    const castPresenceReceipt: CastPresenceReceipt = {
+      version: 1,
+      state: {
+        'char-1': { nodeId: 'NODE_B' },
+        'char-2': { nodeId: 'NODE_A' },
+      },
+    };
+
     const payload: CommittedTurnPayload = {
       commandText: 'Proceed to Node B',
       formattedText: 'You enter Node B.',
@@ -171,6 +179,7 @@ describe('State separation and history preservation', () => {
         tension: 30,
         preSnapshot,
         castContinuityReceipt,
+        castPresenceReceipt,
       },
     };
 
@@ -183,6 +192,12 @@ describe('State separation and history preservation', () => {
     const assistantMsg = nextState.history[1];
     expect(assistantMsg.role).toBe('assistant');
     expect(assistantMsg.turnReceipt?.castContinuityReceipt).toEqual(castContinuityReceipt);
+    expect(assistantMsg.turnReceipt?.castPresenceReceipt).toEqual(castPresenceReceipt);
+    expect(assistantMsg.turnReceipt?.castPresenceReceipt?.version).toBe(1);
+    expect(assistantMsg.turnReceipt?.castPresenceReceipt?.state).toEqual({
+      'char-1': { nodeId: 'NODE_B' },
+      'char-2': { nodeId: 'NODE_A' },
+    });
     expect(assistantMsg.turnReceipt?.castContinuityReceipt?.version).toBe(1);
     expect(assistantMsg.turnReceipt?.castContinuityReceipt?.state).toEqual({
       'char-1': { skepticism: 0.6 },

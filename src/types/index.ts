@@ -59,6 +59,7 @@ export const CastMemberSchema = z.object({
   isUserCharacter: z.boolean().optional().default(false),
   behaviorVector: z.string().optional().default('ADAPTIVE'),
   isEntity: z.boolean().optional().default(false),
+  starting_location: z.string().optional().default(''),
   vulnerabilityBase: VulnerabilityIndexSchema.optional(),
   expressionProfile: CharacterExpressionProfileSchema.optional(),
 });
@@ -137,6 +138,7 @@ export const BlueprintSchema = z.object({
         isUserCharacter: false,
         behaviorVector: 'ADAPTIVE',
         isEntity: false,
+        starting_location: '',
       },
     ]),
   characters: z.array(z.any()).optional().default([]),
@@ -317,6 +319,7 @@ export interface TurnReceipt {
   preSnapshot: RuntimeStateSnapshot;
   postSnapshot?: RuntimeStateSnapshot;
   castContinuityReceipt?: CastContinuityReceipt;
+  castPresenceReceipt?: CastPresenceReceipt;
 }
 
 export interface TurnFailureReceipt {
@@ -487,6 +490,18 @@ export interface CastContinuityReceipt {
   }>;
 }
 
+export interface CharacterPresenceRecord {
+  nodeId: string;
+}
+
+export type CharacterPresenceById =
+  Record<string, CharacterPresenceRecord>;
+
+export interface CastPresenceReceipt {
+  version: 1;
+  state: CharacterPresenceById;
+}
+
 export interface LogicState {
   current_phase?: string;
   requested_transition?: string | null;
@@ -501,6 +516,7 @@ export interface LogicState {
     skepticism_delta: number;
   }>;
   character_continuity?: CharacterContinuityById;
+  character_presence?: CharacterPresenceById;
   current_location?: string;
   player_character_id?: string | null;
   player_role?: PlayerRole | string;

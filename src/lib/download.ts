@@ -174,6 +174,18 @@ const getEngineLogicSummary = (logicData: Record<string, unknown>): string => {
       const count = Object.keys(castReceipt.state).length;
       summary.push(`CAST CONTINUITY: ${count}`);
     }
+
+    const presenceReceipt = turn.castPresenceReceipt as Record<string, unknown> | undefined;
+    if (
+      presenceReceipt &&
+      typeof presenceReceipt === 'object' &&
+      presenceReceipt.state &&
+      typeof presenceReceipt.state === 'object' &&
+      !Array.isArray(presenceReceipt.state)
+    ) {
+      const count = Object.keys(presenceReceipt.state).length;
+      summary.push(`CAST PRESENCE: ${count}`);
+    }
   }
 
   return `[ ${summary.join(' // ')} ]`;

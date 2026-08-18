@@ -378,6 +378,22 @@ describe('Turn schemas validation', () => {
         ).toBeNull();
       });
 
+      it('resolves to null when naming a member whose isPresent is false', () => {
+        const contextWithRemote = EngineTurnContextSchema.parse({
+          ...context,
+          cast: context.cast.map((c) =>
+            c.id === 'char-jules' ? { ...c, isPresent: false } : c
+          ),
+        });
+
+        expect(
+          resolveExplicitAddressedSpeakerId(
+            'I shout to Jules Mercer across the intercom.',
+            contextWithRemote
+          )
+        ).toBeNull();
+      });
+
       it('resolves to null when naming only a nonverbal-only member', () => {
         expect(
           resolveExplicitAddressedSpeakerId(
@@ -429,6 +445,18 @@ describe('Turn schemas validation', () => {
         [{ type: 'dialogue', speaker: 'The Signal' }],
         context
       )).toContain('lacks spoken or mediated');
+
+      const contextWithRemote = EngineTurnContextSchema.parse({
+        ...context,
+        cast: context.cast.map((c) =>
+          c.id === 'char-jules' ? { ...c, isPresent: false } : c
+        ),
+      });
+
+      expect(validateDialogueBlocks(
+        [{ type: 'dialogue', speaker: 'Jules Mercer' }],
+        contextWithRemote
+      )).toBe('Dialogue speaker "Jules Mercer" is not present at the current node.');
 
       expect(validateDialogueBlocks(
         [
@@ -546,7 +574,7 @@ describe('Turn schemas validation', () => {
       const formatted = formatCastLedger(contextWithAuthored);
 
       // Assert member with all three authored behavioral fields and expression profile
-      expect(formatted).toContain('• Jules Mercer (ID: char-jules, Role: Technician, Entity: FALSE, Skepticism: 0.50): Avionics and radio technician.');
+      expect(formatted).toContain('• Jules Mercer (ID: char-jules, Role: Technician, Entity: FALSE, Skepticism: 0.50, Presence: HERE): Avionics and radio technician.');
       expect(formatted).toContain('Personality: Taciturn and anxious under pressure.');
       expect(formatted).toContain('Goals: Restore primary relay power without alerting the entity.');
       expect(formatted).toContain('Traits: Analytical, Pragmatic, Jittery.');
@@ -555,7 +583,7 @@ describe('Turn schemas validation', () => {
       expect(formatted).toContain('Silence guidance: Long pauses mean manual re-wiring.');
 
       // Assert member with empty behavioral fields
-      expect(formatted).toContain('• Automated Sentry (ID: char-sentry, Role: Defense Grid, Entity: TRUE, Skepticism: 0.50): Hardwired ceiling turret.');
+      expect(formatted).toContain('• Automated Sentry (ID: char-sentry, Role: Defense Grid, Entity: TRUE, Skepticism: 0.50, Presence: HERE): Hardwired ceiling turret.');
       expect(formatted).toContain('Communication modes: spoken (legacy compatibility; no additional expression guidance).');
 
       // Ensure empty member line does NOT contain "Personality:", "Goals:", or "Traits:"
@@ -564,6 +592,40 @@ describe('Turn schemas validation', () => {
       expect(sentryLine).not.toContain('Personality:');
       expect(sentryLine).not.toContain('Goals:');
       expect(sentryLine).not.toContain('Traits:');
+    });
+
+    it('formats Presence: ELSEWHERE when isPresent is false', () => {
+      const contextWithRemote = EngineTurnContextSchema.parse({
+        scenario: {
+          title: 'Deep Research Station',
+          setting: {
+            location: 'Sub-Level 4',
+            atmosphere: '',
+            timePeriod: '',
+          },
+        },
+        player: {
+          role: 'protagonist',
+          name: 'Elena Rostova',
+        },
+        cast: [
+          {
+            id: 'char-remote',
+            name: 'Remote Observer',
+            role: 'Witness',
+            description: 'Monitoring from surface station.',
+            isPresent: false,
+          },
+        ],
+        topology: {
+          currentNodeId: 'SUB_04',
+          readableNodeLabel: 'Sub-Level 04',
+        },
+        runtime: {},
+      });
+
+      const formatted = formatCastLedger(contextWithRemote);
+      expect(formatted).toContain('• Remote Observer (ID: char-remote, Role: Witness, Entity: FALSE, Skepticism: 0.50, Presence: ELSEWHERE): Monitoring from surface station.');
     });
 
     it('returns solitary subject when cast is empty', () => {

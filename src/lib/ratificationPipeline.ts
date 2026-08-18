@@ -209,6 +209,7 @@ export const executeRatificationPipeline = async (
     spatialGraph: state.spatialGraph,
     participationContext: state.participationContext || engineState.participationContext || null,
     characterContinuity: engineState.gameState?.character_continuity,
+    characterPresence: engineState.gameState?.character_presence,
     runtimeState: preSnapshot,
   });
 

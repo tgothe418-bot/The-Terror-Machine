@@ -253,6 +253,13 @@ describe('Engine telemetry export', () => {
               { character_id: 'char-1', skepticism_delta: 0.1 },
             ],
           },
+          castPresenceReceipt: {
+            version: 1,
+            state: {
+              'char-1': { nodeId: 'NODE_2' },
+              'char-2': { nodeId: 'NODE_1' },
+            },
+          },
         },
       },
     ];
@@ -262,24 +269,29 @@ describe('Engine telemetry export', () => {
     const html = htmlOutput!.content;
 
     expect(html).toContain('CAST CONTINUITY: 2');
+    expect(html).toContain('CAST PRESENCE: 2');
     expect(html).toContain('&quot;castContinuityReceipt&quot;');
+    expect(html).toContain('&quot;castPresenceReceipt&quot;');
     expect(html).toContain('&quot;char-1&quot;');
     expect(html).toContain('&quot;char-2&quot;');
     expect(html).toContain('&quot;skepticism&quot;: 0.7');
     expect(html).toContain('&quot;skepticism_delta&quot;: 0.1');
+    expect(html).toContain('&quot;nodeId&quot;: &quot;NODE_2&quot;');
 
     const mdOutput = buildEngineLogContent(messagesWithCastReceipt, 'md', 'continuity-test');
     expect(mdOutput).not.toBeNull();
     const md = mdOutput!.content;
 
     expect(md).toContain('"castContinuityReceipt"');
+    expect(md).toContain('"castPresenceReceipt"');
     expect(md).toContain('"char-1"');
     expect(md).toContain('"char-2"');
     expect(md).toContain('"skepticism": 0.7');
     expect(md).toContain('"skepticism_delta": 0.1');
+    expect(md).toContain('"nodeId": "NODE_2"');
   });
 
-  it('does not display CAST CONTINUITY in HTML summary when castContinuityReceipt is not present', () => {
+  it('does not display CAST CONTINUITY or CAST PRESENCE in HTML summary when receipts are not present', () => {
     const messagesWithoutReceipt = [
       {
         role: 'user',
@@ -300,5 +312,6 @@ describe('Engine telemetry export', () => {
     const htmlOutput = buildEngineLogContent(messagesWithoutReceipt, 'html', 'no-receipt-test');
     expect(htmlOutput).not.toBeNull();
     expect(htmlOutput!.content).not.toContain('CAST CONTINUITY');
+    expect(htmlOutput!.content).not.toContain('CAST PRESENCE');
   });
 });
