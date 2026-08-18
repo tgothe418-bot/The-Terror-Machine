@@ -2,7 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { engineReducer, initialEngineState, EngineState } from './reducer';
 import { EngineEvent, CommittedTurnPayload } from './events';
 import { captureRuntimeSnapshot } from './snapshot';
-import { RatifiedEngineFrame, CastContinuityReceipt, CastPresenceReceipt, CastInteractionReceipt } from '../../types';
+import {
+  RatifiedEngineFrame,
+  CastContinuityReceipt,
+  CastPresenceReceipt,
+  CastInteractionReceipt,
+  IntentReceipt,
+  NarrativeReconciliationReceipt,
+} from '../../types';
 
 describe('State separation and history preservation', () => {
   it('does not mutate current state until explicit action dispatch', () => {
@@ -157,6 +164,26 @@ describe('State separation and history preservation', () => {
       outcome: 'RESPONDED',
     };
 
+    const intentReceipt: IntentReceipt = {
+      version: 1,
+      action_kind: 'MOVE',
+      action_subtype: 'FLEE',
+      pressure_direction: 'DE_ESCALATE',
+      dramatic_tactic: 'FLIGHT',
+      intent_synergy: 'SUCCESS',
+    };
+
+    const narrativeReconciliationReceipt: NarrativeReconciliationReceipt = {
+      version: 1,
+      mode: 'CANONICAL',
+      feasibility: 'SUPPORTED',
+      reason_code: 'NONE',
+      fictional_time_cost: 'MOMENT',
+      authority_alignment: 'NOT_APPLICABLE',
+      memory_echo_candidate: null,
+      revision_increment: 0,
+    };
+
     const payload: CommittedTurnPayload = {
       commandText: 'Proceed to Node B',
       formattedText: 'You enter Node B.',
@@ -188,6 +215,8 @@ describe('State separation and history preservation', () => {
         castContinuityReceipt,
         castPresenceReceipt,
         castInteractionReceipt,
+        intentReceipt,
+        narrativeReconciliationReceipt,
       },
     };
 
@@ -202,6 +231,8 @@ describe('State separation and history preservation', () => {
     expect(assistantMsg.turnReceipt?.castContinuityReceipt).toEqual(castContinuityReceipt);
     expect(assistantMsg.turnReceipt?.castPresenceReceipt).toEqual(castPresenceReceipt);
     expect(assistantMsg.turnReceipt?.castInteractionReceipt).toEqual(castInteractionReceipt);
+    expect(assistantMsg.turnReceipt?.intentReceipt).toEqual(intentReceipt);
+    expect(assistantMsg.turnReceipt?.narrativeReconciliationReceipt).toEqual(narrativeReconciliationReceipt);
     expect(assistantMsg.turnReceipt?.castInteractionReceipt?.version).toBe(1);
     expect(assistantMsg.turnReceipt?.castInteractionReceipt?.outcome).toBe('RESPONDED');
     expect(assistantMsg.turnReceipt?.castInteractionReceipt?.addressedCharacterId).toBe('char-1');
@@ -222,5 +253,10 @@ describe('State separation and history preservation', () => {
     expect(assistantMsg.turnReceipt?.preSnapshot.currentNodeId).toBe('NODE_A');
     expect(assistantMsg.turnReceipt?.postSnapshot?.currentNodeId).toBe('NODE_B');
     expect(assistantMsg.turnReceipt?.nodeAfter).toBe('NODE_B');
+
+    // Verify receipts do not pollute canonical game state
+    const stateRecord = nextState as unknown as Record<string, unknown>;
+    expect(stateRecord.intentReceipt).toBeUndefined();
+    expect(stateRecord.narrativeReconciliationReceipt).toBeUndefined();
   });
 });

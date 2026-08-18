@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { engineReducer, initialEngineState } from './reducer';
 import type { CommittedTurnPayload, FailedTurnPayload } from './events';
 import { captureRuntimeSnapshot } from './snapshot';
-import { HorrorVector } from '../../types';
+import { HorrorVector, NarrativeReconciliationReceipt } from '../../types';
 
 describe('engineReducer atomic turn commits', () => {
   it('atomically commits a successful turn and updates state in a single step', () => {
@@ -467,7 +467,126 @@ describe('engineReducer atomic turn commits', () => {
     expect(receipt?.postSnapshot?.tension).toBe(40);
   });
 
-  it('increments reconciliationRevision exactly once during hallucination collision', () => {
+  it('increments reconciliationRevision exactly once when narrativeReconciliationReceipt has EXPERIENTIAL_REANCHORED and commits turn', () => {
+    const startState = {
+      ...initialEngineState,
+      turnCount: 4,
+      reconciliationRevision: 2,
+    };
+
+    const preSnapshot = captureRuntimeSnapshot(startState);
+
+    const reconciliationReceipt: NarrativeReconciliationReceipt = {
+      version: 1,
+      mode: 'EXPERIENTIAL_REANCHORED',
+      feasibility: 'IMPOSSIBLE',
+      reason_code: 'UNSUPPORTED_PREMISE',
+      fictional_time_cost: 'MOMENT',
+      authority_alignment: 'NOT_APPLICABLE',
+      memory_echo_candidate: null,
+      revision_increment: 1,
+    };
+
+    const payload: CommittedTurnPayload = {
+      commandText: 'Take the non-existent pistol',
+      formattedText: 'You reach out, but your hand grasps empty air.',
+      preSnapshot,
+      frame: {
+        engine_thoughts: 'Experientially reanchored.',
+        narrative_blocks: [
+          { type: 'prose', content: 'You reach out, but your hand grasps empty air.' },
+        ],
+        logic_state: {
+          suggested_tension: 25,
+        },
+        narrativeReconciliationReceipt: reconciliationReceipt,
+      },
+      turnReceipt: {
+        turnNumber: 5,
+        nodeBefore: 'ORIGIN',
+        requestedTarget: 'ORIGIN',
+        accepted: true,
+        nodeAfter: 'ORIGIN',
+        activeVector: 'COGNITIVE',
+        activeTier: 'LATENT',
+        tension: 25,
+        preSnapshot,
+        narrativeReconciliationReceipt: reconciliationReceipt,
+      },
+    };
+
+    const nextState = engineReducer(startState, {
+      type: 'TURN_COMMITTED',
+      payload,
+    });
+
+    expect(nextState.reconciliationRevision).toBe(3);
+    expect(nextState.turnCount).toBe(5);
+    expect(nextState.storyLog).toHaveLength(1);
+    expect(nextState.storyLog?.[0].content).toContain('grasps empty air');
+  });
+
+  it('does not increment reconciliationRevision for CANONICAL, MIXED, or NOT_REQUIRED receipts', () => {
+    const modes: Array<'CANONICAL' | 'MIXED' | 'NOT_REQUIRED'> = [
+      'CANONICAL',
+      'MIXED',
+      'NOT_REQUIRED',
+    ];
+
+    for (const mode of modes) {
+      const startState = {
+        ...initialEngineState,
+        turnCount: 2,
+        reconciliationRevision: 5,
+      };
+
+      const preSnapshot = captureRuntimeSnapshot(startState);
+
+      const reconciliationReceipt: NarrativeReconciliationReceipt = {
+        version: 1,
+        mode,
+        feasibility: mode === 'CANONICAL' ? 'SUPPORTED' : 'CONSTRAINED',
+        reason_code: 'NONE',
+        fictional_time_cost: 'MOMENT',
+        authority_alignment: 'NOT_APPLICABLE',
+        memory_echo_candidate: null,
+        revision_increment: 0,
+      };
+
+      const payload: CommittedTurnPayload = {
+        commandText: 'Examine surroundings',
+        formattedText: 'You look around.',
+        preSnapshot,
+        frame: {
+          narrative_blocks: [{ type: 'prose', content: 'You look around.' }],
+          logic_state: { suggested_tension: 20 },
+          narrativeReconciliationReceipt: reconciliationReceipt,
+        },
+        turnReceipt: {
+          turnNumber: 3,
+          nodeBefore: 'ORIGIN',
+          requestedTarget: 'ORIGIN',
+          accepted: true,
+          nodeAfter: 'ORIGIN',
+          activeVector: 'COGNITIVE',
+          activeTier: 'LATENT',
+          tension: 20,
+          preSnapshot,
+          narrativeReconciliationReceipt: reconciliationReceipt,
+        },
+      };
+
+      const nextState = engineReducer(startState, {
+        type: 'TURN_COMMITTED',
+        payload,
+      });
+
+      expect(nextState.reconciliationRevision).toBe(5);
+      expect(nextState.turnCount).toBe(3);
+    }
+  });
+
+  it('preserves legacy reconciliation increment fallback when receipts are absent', () => {
     const startState = {
       ...initialEngineState,
       turnCount: 4,
@@ -477,17 +596,15 @@ describe('engineReducer atomic turn commits', () => {
     const preSnapshot = captureRuntimeSnapshot(startState);
 
     const payload: CommittedTurnPayload = {
-      commandText: 'Take the non-existent pistol',
-      formattedText: 'There is no weapon here. The cold floor remains bare.',
+      commandText: 'Old legacy action',
+      formattedText: 'Old legacy response.',
       preSnapshot,
       frame: {
-        engine_thoughts: 'Hallucination collision handled.',
         narrative_blocks: [
-          { type: 'system_voice', content: 'There is no weapon here. The cold floor remains bare.' },
+          { type: 'system_voice', content: 'Legacy collision' },
         ],
         logic_state: {
           intent_classification: 'HALLUCINATION_COLLISION',
-          suggested_tension: 25,
         },
       },
       turnReceipt: {
@@ -509,9 +626,6 @@ describe('engineReducer atomic turn commits', () => {
     });
 
     expect(nextState.reconciliationRevision).toBe(3);
-    expect(nextState.turnCount).toBe(5);
-    expect(nextState.storyLog).toHaveLength(1);
-    expect(nextState.storyLog?.[0].content).toContain('There is no weapon here');
   });
 
   it('preserves the submitted preSnapshot object by reference identity in receipt', () => {

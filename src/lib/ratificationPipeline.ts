@@ -11,7 +11,6 @@ import {
 import { useAppStore } from '../store/useAppStore';
 import { useEngineStore } from '../core/store';
 import { calculatePhysicsState } from '../core/matrix/physicsMatrix';
-import { reconcilePerception } from '../core/memory/reconciler';
 import { buildEngineTurnContext, buildContextReceipt } from './buildEngineTurnContext';
 import { readTurnResponse, createNetworkTurnError, TurnResponseError } from './turnResponseReader';
 export { TurnResponseError };
@@ -213,38 +212,6 @@ export const executeRatificationPipeline = async (
     runtimeState: preSnapshot,
   });
 
-  const reconciliation = reconcilePerception(
-    userAction,
-    state.storyLog || [],
-    (selectedRole as any) || 'PROTAGONIST',
-    physicsMatrix.realityState
-  );
-
-  if (reconciliation.isHallucinationCollision && reconciliation.correctedProse) {
-    return {
-      narrative_blocks: [{ type: 'system_voice', content: reconciliation.correctedProse }],
-      engine_thoughts: 'HALLUCINATION_COLLISION RECONCILIATION',
-      logic_state: {
-        current_phase: preSnapshot.phase,
-        suggested_tension: currentTension,
-        intent_classification: 'HALLUCINATION_COLLISION',
-        terminal_flags: [],
-      },
-      topologyDelta: { isExpansion: false },
-      validation: {
-        accepted: true,
-        rejected_fields: [],
-        repair_notes: ['Hallucination collision reconciled'],
-      },
-      preSnapshot,
-      reconciliation: {
-        isHallucinationCollision: true,
-        revisionIncrement: reconciliation.revisionIncrement,
-        correctedProse: reconciliation.correctedProse,
-      },
-    };
-  }
-
   // Distill the history to a compressed array instead of full prose
   const recentHistory = formatRecentHistory(state.storyLog || []);
 
@@ -329,6 +296,10 @@ export const executeRatificationPipeline = async (
   if (parsedResult.data.castInteractionReceipt) {
     validatedEvent.castInteractionReceipt = parsedResult.data.castInteractionReceipt;
   }
+
+  validatedEvent.intentReceipt = parsedResult.data.intentReceipt;
+  validatedEvent.narrativeReconciliationReceipt =
+    parsedResult.data.narrativeReconciliationReceipt;
 
   // Attach context receipt for SYSTEM_INIT
   if (userAction === 'SYSTEM_INIT') {

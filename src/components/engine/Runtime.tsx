@@ -35,6 +35,8 @@ import { projectPresentationPatch } from '../../core/engine/presentationProjecti
 import { applyCastSkepticismDeltas, createCastContinuityReceipt } from '../../lib/castContinuity';
 import { buildCharacterPresence, createCastPresenceReceipt } from '../../lib/castPresence';
 import { createCastInteractionReceipt } from '../../lib/castInteraction';
+import { createFallbackIntentReceipt } from '../../lib/intentReceipt';
+import { createFallbackNarrativeReconciliationReceipt } from '../../lib/narrativeReconciliation';
 import type {
   CharacterContinuityById,
   CastContinuityReceipt,
@@ -513,6 +515,12 @@ export default function Runtime() {
         castInteractionReceipt:
           response.castInteractionReceipt ||
           createCastInteractionReceipt({}),
+        intentReceipt:
+          response.intentReceipt ||
+          createFallbackIntentReceipt(),
+        narrativeReconciliationReceipt:
+          response.narrativeReconciliationReceipt ||
+          createFallbackNarrativeReconciliationReceipt(),
       };
 
       const committedTurnPayload: CommittedTurnPayload = {

@@ -408,5 +408,154 @@ describe('executeRatificationPipeline single pre-turn snapshot lifecycle', () =>
     expect(result.castInteractionReceipt?.addressedCharacterId).toBe('char-a');
     expect(result.castInteractionReceipt?.respondingCharacterId).toBe('char-a');
   });
+
+  it('preserves valid server intent and reconciliation receipts through ratification pipeline onto returned frame', async () => {
+    const preSnapshot: RuntimeStateSnapshot = {
+      version: 1,
+      sessionId: 'sess_1',
+      blueprintId: 'bp_1',
+      turnCount: 3,
+      currentNodeId: 'STORE_NODE_ORIGIN',
+      activeVector: 'COGNITIVE',
+      activeTier: 'LATENT',
+      phase: 'LATENT',
+      tension: 20,
+      coherence: 0.9,
+      decayRate: 0.01,
+      reconciliationRevision: 0,
+      activeFlags: [],
+    };
+
+    const serverIntentReceipt = {
+      version: 1 as const,
+      action_kind: 'INVESTIGATE' as const,
+      action_subtype: null,
+      pressure_direction: 'ESCALATE' as const,
+      dramatic_tactic: 'FIXATION' as const,
+      intent_synergy: 'N/A' as const,
+    };
+
+    const serverReconciliationReceipt = {
+      version: 1 as const,
+      mode: 'CANONICAL' as const,
+      feasibility: 'SUPPORTED' as const,
+      reason_code: 'NONE' as const,
+      fictional_time_cost: 'MOMENT' as const,
+      authority_alignment: 'NOT_APPLICABLE' as const,
+      memory_echo_candidate: null,
+      revision_increment: 0 as const,
+    };
+
+    globalThis.fetch = vi.fn().mockImplementation(async () => {
+      return new Response(
+        JSON.stringify({
+          narrative_blocks: [
+            { type: 'prose', content: 'You examine the rusted metal hinges.' },
+          ],
+          logic_state: {
+            current_phase: 'LATENT',
+            suggested_tension: 25,
+          },
+          intentReceipt: serverIntentReceipt,
+          narrativeReconciliationReceipt: serverReconciliationReceipt,
+        }),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
+    });
+
+    const result = await executeRatificationPipeline('Search the hinges', preSnapshot);
+
+    expect(result.intentReceipt).toBeDefined();
+    expect(result.intentReceipt).toEqual(serverIntentReceipt);
+    expect(result.narrativeReconciliationReceipt).toBeDefined();
+    expect(result.narrativeReconciliationReceipt).toEqual(serverReconciliationReceipt);
+  });
+
+  it('submits actions with old collision keywords to /api/turn even in high-tension/low-coherence ONTOLOGICAL_SHEAR state without client-side interception', async () => {
+    // Configure high tension and low coherence state that previously triggered ONTOLOGICAL_SHEAR
+    useAppStore.setState({
+      tensionLevel: 90,
+      storyLog: [
+        { type: 'prose', content: 'The walls twist under severe geometric stress.' },
+      ],
+    });
+
+    const highTensionLowCoherenceSnapshot: RuntimeStateSnapshot = {
+      version: 1,
+      sessionId: 'sess_shear',
+      blueprintId: 'bp_shear',
+      turnCount: 8,
+      currentNodeId: 'STORE_NODE_ORIGIN',
+      activeVector: 'COSMIC',
+      activeTier: 'TERMINAL',
+      phase: 'TERMINAL',
+      tension: 90,
+      coherence: 0.1,
+      decayRate: 0.05,
+      reconciliationRevision: 1,
+      activeFlags: [],
+    };
+
+    let fetchCalled = false;
+    let requestAction = '';
+
+    globalThis.fetch = vi.fn().mockImplementation(async (_url: string, init?: RequestInit) => {
+      fetchCalled = true;
+      if (init?.body) {
+        requestAction = JSON.parse(init.body as string).userAction;
+      }
+      return new Response(
+        JSON.stringify({
+          narrative_blocks: [
+            { type: 'prose', content: 'The impossible door creaks, answering your touch.' },
+          ],
+          logic_state: {
+            current_phase: 'TERMINAL',
+            suggested_tension: 95,
+          },
+          intentReceipt: {
+            version: 1,
+            action_kind: 'MANIPULATE',
+            action_subtype: null,
+            pressure_direction: 'ESCALATE',
+            dramatic_tactic: 'NONE',
+            intent_synergy: 'N/A',
+          },
+          narrativeReconciliationReceipt: {
+            version: 1,
+            mode: 'CANONICAL',
+            feasibility: 'SUPPORTED',
+            reason_code: 'NONE',
+            fictional_time_cost: 'MOMENT',
+            authority_alignment: 'NOT_APPLICABLE',
+            memory_echo_candidate: null,
+            revision_increment: 0,
+          },
+        }),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
+    });
+
+    const result = await executeRatificationPipeline('Open the impossible door', highTensionLowCoherenceSnapshot);
+
+    // 1. Fetch was invoked directly
+    expect(fetchCalled).toBe(true);
+    expect(requestAction).toBe('Open the impossible door');
+
+    // 2. Server's ordinary narrative prose is returned
+    expect(result.narrative_blocks).toHaveLength(1);
+    expect(result.narrative_blocks[0].type).toBe('prose');
+    expect(result.narrative_blocks[0].content).toBe('The impossible door creaks, answering your touch.');
+
+    // 3. No client-side system correction replaced the response
+    expect(result.narrative_blocks[0].type).not.toBe('system_voice');
+    expect(result.reconciliation).toBeUndefined();
+  });
 });
 

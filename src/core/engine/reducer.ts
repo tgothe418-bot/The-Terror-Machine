@@ -201,12 +201,27 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
         }
       }
 
-      // 4. Hallucination collision reconciliation revision
-      const revisionIncrement =
-        event.payload.frame.reconciliation?.revisionIncrement ??
-        (event.payload.frame.logic_state?.intent_classification === 'HALLUCINATION_COLLISION'
-          ? 1
-          : 0);
+      // 4. Narrative reconciliation revision ownership
+      let revisionIncrement = 0;
+      if (
+        typeof event.payload.turnReceipt?.narrativeReconciliationReceipt?.revision_increment ===
+        'number'
+      ) {
+        revisionIncrement =
+          event.payload.turnReceipt.narrativeReconciliationReceipt.revision_increment;
+      } else if (
+        typeof event.payload.frame?.narrativeReconciliationReceipt?.revision_increment === 'number'
+      ) {
+        revisionIncrement = event.payload.frame.narrativeReconciliationReceipt.revision_increment;
+      } else if (typeof event.payload.frame?.reconciliation?.revisionIncrement === 'number') {
+        revisionIncrement = event.payload.frame.reconciliation.revisionIncrement;
+      } else if (
+        event.payload.frame?.logic_state?.intent_classification === 'HALLUCINATION_COLLISION'
+      ) {
+        revisionIncrement = 1;
+      } else {
+        revisionIncrement = 0;
+      }
       const nextReconciliationRevision = (state.reconciliationRevision || 0) + revisionIncrement;
 
       const nextPhase =
