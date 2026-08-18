@@ -146,4 +146,3 @@ export function createCastContinuityReceipt(
     acceptedDeltas: deltasCopy,
   };
 }
-
