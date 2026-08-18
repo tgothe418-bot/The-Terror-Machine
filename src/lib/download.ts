@@ -160,6 +160,22 @@ const getEngineLogicSummary = (logicData: Record<string, unknown>): string => {
       summary.push(`EXPANSION: ${String(Boolean(topology.isExpansion)).toUpperCase()}`);
   }
 
+  const turnReceipt = logicData.turnReceipt;
+  if (turnReceipt && typeof turnReceipt === 'object') {
+    const turn = turnReceipt as Record<string, unknown>;
+    const castReceipt = turn.castContinuityReceipt as Record<string, unknown> | undefined;
+    if (
+      castReceipt &&
+      typeof castReceipt === 'object' &&
+      castReceipt.state &&
+      typeof castReceipt.state === 'object' &&
+      !Array.isArray(castReceipt.state)
+    ) {
+      const count = Object.keys(castReceipt.state).length;
+      summary.push(`CAST CONTINUITY: ${count}`);
+    }
+  }
+
   return `[ ${summary.join(' // ')} ]`;
 };
 

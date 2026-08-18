@@ -4,6 +4,7 @@ import {
   clampSkepticismDelta,
   buildCharacterContinuity,
   applyCastSkepticismDeltas,
+  createCastContinuityReceipt,
   DEFAULT_SKEPTICISM,
   MIN_SKEPTICISM,
   MAX_SKEPTICISM,
@@ -198,4 +199,87 @@ describe('castContinuity', () => {
       expect(deltas).toEqual(deltasCopy);
     });
   });
+
+  describe('createCastContinuityReceipt', () => {
+    it('returns version 1 and produces empty state and deltas for null/undefined inputs', () => {
+      const receiptNull = createCastContinuityReceipt(null, null);
+      expect(receiptNull).toEqual({
+        version: 1,
+        state: {},
+        acceptedDeltas: [],
+      });
+
+      const receiptUndefined = createCastContinuityReceipt(undefined, undefined);
+      expect(receiptUndefined).toEqual({
+        version: 1,
+        state: {},
+        acceptedDeltas: [],
+      });
+    });
+
+    it('copies and key-sorts state using localeCompare', () => {
+      const state: CharacterContinuityById = {
+        'char-z': { skepticism: 0.4 },
+        'char-a': { skepticism: 0.8 },
+        'char-m': { skepticism: 0.6 },
+      };
+
+      const receipt = createCastContinuityReceipt(state, []);
+      expect(receipt.version).toBe(1);
+      expect(Object.keys(receipt.state)).toEqual(['char-a', 'char-m', 'char-z']);
+      expect(receipt.state['char-a'].skepticism).toBe(0.8);
+      expect(receipt.state['char-m'].skepticism).toBe(0.6);
+      expect(receipt.state['char-z'].skepticism).toBe(0.4);
+    });
+
+    it('clamps copied skepticism values', () => {
+      const state: CharacterContinuityById = {
+        'char-1': { skepticism: 1.5 },
+        'char-2': { skepticism: -0.5 },
+      };
+
+      const receipt = createCastContinuityReceipt(state, []);
+      expect(receipt.state['char-1'].skepticism).toBe(1);
+      expect(receipt.state['char-2'].skepticism).toBe(0);
+    });
+
+    it('preserves accepted-delta array order and copies delta objects', () => {
+      const state: CharacterContinuityById = {
+        'char-1': { skepticism: 0.5 },
+      };
+      const deltas = [
+        { character_id: 'char-2', skepticism_delta: 0.1 },
+        { character_id: 'char-1', skepticism_delta: -0.05 },
+        { character_id: 'char-3', skepticism_delta: 0.15 },
+      ];
+
+      const receipt = createCastContinuityReceipt(state, deltas);
+      expect(receipt.acceptedDeltas).toEqual([
+        { character_id: 'char-2', skepticism_delta: 0.1 },
+        { character_id: 'char-1', skepticism_delta: -0.05 },
+        { character_id: 'char-3', skepticism_delta: 0.15 },
+      ]);
+      expect(receipt.acceptedDeltas[0]).not.toBe(deltas[0]);
+    });
+
+    it('does not mutate input state or deltas', () => {
+      const state: CharacterContinuityById = {
+        'char-2': { skepticism: 0.7 },
+        'char-1': { skepticism: 0.3 },
+      };
+      const deltas = [{ character_id: 'char-1', skepticism_delta: 0.1 }];
+
+      const stateCopy = JSON.parse(JSON.stringify(state));
+      const deltasCopy = JSON.parse(JSON.stringify(deltas));
+
+      const receipt = createCastContinuityReceipt(state, deltas);
+
+      expect(state).toEqual(stateCopy);
+      expect(deltas).toEqual(deltasCopy);
+      expect(receipt.state).not.toBe(state);
+      expect(receipt.state['char-1']).not.toBe(state['char-1']);
+      expect(receipt.acceptedDeltas).not.toBe(deltas);
+    });
+  });
 });
+

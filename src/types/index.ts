@@ -316,6 +316,7 @@ export interface TurnReceipt {
   tension: number;
   preSnapshot: RuntimeStateSnapshot;
   postSnapshot?: RuntimeStateSnapshot;
+  castContinuityReceipt?: CastContinuityReceipt;
 }
 
 export interface TurnFailureReceipt {
@@ -476,6 +477,15 @@ export interface CharacterContinuityRecord {
 
 export type CharacterContinuityById =
   Record<string, CharacterContinuityRecord>;
+
+export interface CastContinuityReceipt {
+  version: 1;
+  state: CharacterContinuityById;
+  acceptedDeltas: Array<{
+    character_id: string;
+    skepticism_delta: number;
+  }>;
+}
 
 export interface LogicState {
   current_phase?: string;

@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { engineReducer, initialEngineState, EngineState } from './reducer';
-import { EngineEvent } from './events';
-import { RatifiedEngineFrame } from '../../types';
+import { EngineEvent, CommittedTurnPayload } from './events';
+import { captureRuntimeSnapshot } from './snapshot';
+import { RatifiedEngineFrame, CastContinuityReceipt } from '../../types';
 
 describe('State separation and history preservation', () => {
   it('does not mutate current state until explicit action dispatch', () => {
@@ -116,5 +117,82 @@ describe('State separation and history preservation', () => {
     expect(storedMsg.topologyDelta?.newNodeDef?.id).toBe('NODE_COURTYARD');
     expect(storedMsg.validation?.accepted).toBe(true);
     expect(storedMsg.validation?.repair_notes).toContain('Edge auto-ratified');
+  });
+
+  it('preserves castContinuityReceipt in history message upon TURN_COMMITTED', () => {
+    const startState: EngineState = {
+      ...initialEngineState,
+      currentNodeId: 'NODE_A',
+      spatialGraph: [
+        { id: 'NODE_A', name: 'Node A', description: '', exits: [] },
+        { id: 'NODE_B', name: 'Node B', description: '', exits: [] },
+      ],
+    };
+
+    const preSnapshot = captureRuntimeSnapshot(startState);
+
+    const castContinuityReceipt: CastContinuityReceipt = {
+      version: 1,
+      state: {
+        'char-1': { skepticism: 0.6 },
+        'char-2': { skepticism: 0.35 },
+      },
+      acceptedDeltas: [
+        { character_id: 'char-1', skepticism_delta: 0.1 },
+      ],
+    };
+
+    const payload: CommittedTurnPayload = {
+      commandText: 'Proceed to Node B',
+      formattedText: 'You enter Node B.',
+      preSnapshot,
+      frame: {
+        narrative_blocks: [{ type: 'prose', content: 'You enter Node B.' }],
+        logic_state: {
+          current_phase: 'MANIFEST',
+          suggested_tension: 30,
+        },
+      },
+      transitionReceipt: {
+        requestedNodeId: 'NODE_B',
+        accepted: true,
+        fromNodeId: 'NODE_A',
+        toNodeId: 'NODE_B',
+        reason: 'TRANSITION_ACCEPTED',
+      },
+      turnReceipt: {
+        turnNumber: 1,
+        nodeBefore: 'NODE_A',
+        requestedTarget: 'NODE_B',
+        accepted: true,
+        nodeAfter: 'NODE_B',
+        activeVector: 'COGNITIVE',
+        activeTier: 'LATENT',
+        tension: 30,
+        preSnapshot,
+        castContinuityReceipt,
+      },
+    };
+
+    const nextState = engineReducer(startState, {
+      type: 'TURN_COMMITTED',
+      payload,
+    });
+
+    expect(nextState.history).toHaveLength(2);
+    const assistantMsg = nextState.history[1];
+    expect(assistantMsg.role).toBe('assistant');
+    expect(assistantMsg.turnReceipt?.castContinuityReceipt).toEqual(castContinuityReceipt);
+    expect(assistantMsg.turnReceipt?.castContinuityReceipt?.version).toBe(1);
+    expect(assistantMsg.turnReceipt?.castContinuityReceipt?.state).toEqual({
+      'char-1': { skepticism: 0.6 },
+      'char-2': { skepticism: 0.35 },
+    });
+    expect(assistantMsg.turnReceipt?.castContinuityReceipt?.acceptedDeltas).toEqual([
+      { character_id: 'char-1', skepticism_delta: 0.1 },
+    ]);
+    expect(assistantMsg.turnReceipt?.preSnapshot.currentNodeId).toBe('NODE_A');
+    expect(assistantMsg.turnReceipt?.postSnapshot?.currentNodeId).toBe('NODE_B');
+    expect(assistantMsg.turnReceipt?.nodeAfter).toBe('NODE_B');
   });
 });

@@ -1,4 +1,5 @@
 import type {
+  CastContinuityReceipt,
   CharacterContinuityById,
 } from '../types';
 
@@ -104,3 +105,45 @@ export function applyCastSkepticismDeltas(
 
   return continuity;
 }
+
+export function createCastContinuityReceipt(
+  state: CharacterContinuityById | null | undefined,
+  acceptedDeltas: readonly CastSkepticismDelta[] | null | undefined,
+): CastContinuityReceipt {
+  const sortedKeys = state
+    ? Object.keys(state).sort((a, b) => a.localeCompare(b))
+    : [];
+
+  const stateCopy: CharacterContinuityById = {};
+  for (const key of sortedKeys) {
+    const item = state![key];
+    if (item && typeof item === 'object') {
+      stateCopy[key] = {
+        skepticism: clampSkepticism(item.skepticism),
+      };
+    }
+  }
+
+  const deltasCopy: Array<{
+    character_id: string;
+    skepticism_delta: number;
+  }> = [];
+
+  if (acceptedDeltas && Array.isArray(acceptedDeltas)) {
+    for (const delta of acceptedDeltas) {
+      if (delta && typeof delta === 'object') {
+        deltasCopy.push({
+          character_id: delta.character_id,
+          skepticism_delta: delta.skepticism_delta,
+        });
+      }
+    }
+  }
+
+  return {
+    version: 1,
+    state: stateCopy,
+    acceptedDeltas: deltasCopy,
+  };
+}
+

@@ -32,7 +32,8 @@ import AntagonistContractDisplay from './AntagonistContractDisplay';
 import { useTelemetryStore } from '../../store/useTelemetryStore';
 import { captureRuntimeSnapshot } from '../../core/engine/snapshot';
 import { projectPresentationPatch } from '../../core/engine/presentationProjection';
-import { applyCastSkepticismDeltas } from '../../lib/castContinuity';
+import { applyCastSkepticismDeltas, createCastContinuityReceipt } from '../../lib/castContinuity';
+import type { CharacterContinuityById, CastContinuityReceipt } from '../../types';
 
 const SESSION_TIMEOUT = 60 * 60 * 1000; // 60 minutes
 const HEARTBEAT_INTERVAL = 30000; // 30 seconds
@@ -434,6 +435,27 @@ export default function Runtime() {
         reason: 'NO_RECEIPT_ATTACHED',
       };
 
+      const latestEngineState = useEngineStore.getState();
+      let nextCharacterContinuity: CharacterContinuityById | null = null;
+      let castContinuityReceipt: CastContinuityReceipt;
+
+      if (activeBlueprint) {
+        nextCharacterContinuity = applyCastSkepticismDeltas(
+          activeBlueprint.cast || [],
+          latestEngineState.gameState?.character_continuity,
+          response.logic_state.cast_deltas,
+        );
+        castContinuityReceipt = createCastContinuityReceipt(
+          nextCharacterContinuity,
+          response.logic_state.cast_deltas,
+        );
+      } else {
+        castContinuityReceipt = createCastContinuityReceipt(
+          latestEngineState.gameState?.character_continuity || {},
+          [],
+        );
+      }
+
       const turnReceipt: TurnReceipt = {
         turnNumber: effectiveTurnNumber,
         nodeBefore: effectiveCurrentNode,
@@ -451,6 +473,7 @@ export default function Runtime() {
             ? response.logic_state.suggested_tension
             : preSnapshot.tension,
         preSnapshot,
+        castContinuityReceipt,
       };
 
       const committedTurnPayload: CommittedTurnPayload = {
@@ -464,13 +487,7 @@ export default function Runtime() {
 
       dispatch({ type: 'TURN_COMMITTED', payload: committedTurnPayload });
 
-      const latestEngineState = useEngineStore.getState();
-      if (activeBlueprint) {
-        const nextCharacterContinuity = applyCastSkepticismDeltas(
-          activeBlueprint.cast || [],
-          latestEngineState.gameState?.character_continuity,
-          response.logic_state.cast_deltas,
-        );
+      if (activeBlueprint && nextCharacterContinuity) {
         latestEngineState.patchGameState({
           character_continuity: nextCharacterContinuity,
         });

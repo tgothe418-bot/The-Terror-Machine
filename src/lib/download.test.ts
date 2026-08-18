@@ -204,4 +204,101 @@ describe('Engine telemetry export', () => {
     const fallback = generateTelemetryFilename(undefined, undefined, new Date('2026-08-16T00:00:00Z'));
     expect(fallback).toBe('scenario_session_2026-08-16.html');
   });
+
+  it('includes castContinuityReceipt in Markdown and HTML exports and shows CAST CONTINUITY count in summary', () => {
+    const messagesWithCastReceipt = [
+      {
+        role: 'user',
+        content: 'Action text',
+        timestamp: 10,
+        userCharacterName: 'Player 1',
+      },
+      {
+        role: 'assistant',
+        content: 'Narrative response.',
+        timestamp: 11,
+        blocks: [{ type: 'prose', content: 'Narrative response.' }],
+        logic_state: {
+          current_phase: 'MANIFEST',
+          suggested_tension: 25,
+        },
+        turnReceipt: {
+          turnNumber: 1,
+          nodeBefore: 'NODE_1',
+          requestedTarget: 'NODE_2',
+          accepted: true,
+          nodeAfter: 'NODE_2',
+          activeVector: 'COGNITIVE',
+          activeTier: 'LATENT',
+          tension: 25,
+          preSnapshot: {
+            version: 1,
+            turnCount: 0,
+            currentNodeId: 'NODE_1',
+            activeVector: 'COGNITIVE',
+            activeTier: 'LATENT',
+            phase: 'LATENT',
+            tension: 10,
+            coherence: 1.0,
+            reconciliationRevision: 0,
+            activeFlags: [],
+          },
+          castContinuityReceipt: {
+            version: 1,
+            state: {
+              'char-1': { skepticism: 0.7 },
+              'char-2': { skepticism: 0.4 },
+            },
+            acceptedDeltas: [
+              { character_id: 'char-1', skepticism_delta: 0.1 },
+            ],
+          },
+        },
+      },
+    ];
+
+    const htmlOutput = buildEngineLogContent(messagesWithCastReceipt, 'html', 'continuity-test');
+    expect(htmlOutput).not.toBeNull();
+    const html = htmlOutput!.content;
+
+    expect(html).toContain('CAST CONTINUITY: 2');
+    expect(html).toContain('&quot;castContinuityReceipt&quot;');
+    expect(html).toContain('&quot;char-1&quot;');
+    expect(html).toContain('&quot;char-2&quot;');
+    expect(html).toContain('&quot;skepticism&quot;: 0.7');
+    expect(html).toContain('&quot;skepticism_delta&quot;: 0.1');
+
+    const mdOutput = buildEngineLogContent(messagesWithCastReceipt, 'md', 'continuity-test');
+    expect(mdOutput).not.toBeNull();
+    const md = mdOutput!.content;
+
+    expect(md).toContain('"castContinuityReceipt"');
+    expect(md).toContain('"char-1"');
+    expect(md).toContain('"char-2"');
+    expect(md).toContain('"skepticism": 0.7');
+    expect(md).toContain('"skepticism_delta": 0.1');
+  });
+
+  it('does not display CAST CONTINUITY in HTML summary when castContinuityReceipt is not present', () => {
+    const messagesWithoutReceipt = [
+      {
+        role: 'user',
+        content: 'Action text',
+        timestamp: 10,
+      },
+      {
+        role: 'assistant',
+        content: 'Narrative response.',
+        timestamp: 11,
+        blocks: [{ type: 'prose', content: 'Narrative response.' }],
+        logic_state: {
+          current_phase: 'MANIFEST',
+        },
+      },
+    ];
+
+    const htmlOutput = buildEngineLogContent(messagesWithoutReceipt, 'html', 'no-receipt-test');
+    expect(htmlOutput).not.toBeNull();
+    expect(htmlOutput!.content).not.toContain('CAST CONTINUITY');
+  });
 });
