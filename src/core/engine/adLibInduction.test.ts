@@ -653,7 +653,7 @@ describe('Phase 3B: Antagonist Authority Contracts & Victim Framing', () => {
         participationMode: 'protagonist',
         placeSeed: 'Abandoned Radio Tower',
         goal: 'Broadcast emergency signal',
-        participantName: 'Tech Nora Vance',
+        participantName: 'Tech Nora Hale',
         identity: 'Communications officer',
         ability: 'Signal modulation',
         limitation: 'Injured left arm',
@@ -662,7 +662,7 @@ describe('Phase 3B: Antagonist Authority Contracts & Victim Framing', () => {
       const { blueprint, initialSpatialNode } = compileAdLibInduction(induction);
 
       expect(blueprint.cast).toHaveLength(1);
-      expect(blueprint.cast[0].name).toBe('Tech Nora Vance');
+      expect(blueprint.cast[0].name).toBe('Tech Nora Hale');
       expect(blueprint.cast[0].role).toBe('protagonist');
       expect(blueprint.cast[0].isUserCharacter).toBe(true);
       expect(blueprint.cast[0].starting_location).toBe(initialSpatialNode.id);
