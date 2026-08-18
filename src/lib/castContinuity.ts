@@ -1,5 +1,4 @@
 import type {
-  CastMember,
   CharacterContinuityById,
 } from '../types';
 
@@ -7,6 +6,13 @@ export const DEFAULT_SKEPTICISM = 0.5;
 export const MIN_SKEPTICISM = 0;
 export const MAX_SKEPTICISM = 1;
 export const MAX_SKEPTICISM_DELTA = 0.15;
+
+export interface CastContinuitySeed {
+  id?: string | null;
+  vulnerabilityBase?: {
+    skepticism?: number | null;
+  } | null;
+}
 
 export interface CastSkepticismDelta {
   character_id: string;
@@ -27,7 +33,7 @@ export function clampSkepticismDelta(value: number): number {
 }
 
 export function buildCharacterContinuity(
-  cast: readonly CastMember[],
+  cast: readonly CastContinuitySeed[],
   persisted?: CharacterContinuityById | null,
 ): CharacterContinuityById {
   const result: CharacterContinuityById = {};
@@ -45,6 +51,7 @@ export function buildCharacterContinuity(
       resolvedValue = persistedRecord.skepticism;
     } else if (
       member.vulnerabilityBase &&
+      typeof member.vulnerabilityBase.skepticism === 'number' &&
       Number.isFinite(member.vulnerabilityBase.skepticism)
     ) {
       resolvedValue = member.vulnerabilityBase.skepticism;
@@ -61,7 +68,7 @@ export function buildCharacterContinuity(
 }
 
 export function applyCastSkepticismDeltas(
-  cast: readonly CastMember[],
+  cast: readonly CastContinuitySeed[],
   persisted: CharacterContinuityById | null | undefined,
   deltas: readonly CastSkepticismDelta[] | null | undefined,
 ): CharacterContinuityById {

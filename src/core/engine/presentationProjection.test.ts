@@ -13,20 +13,12 @@ describe('projectPresentationPatch', () => {
       inventory: ['RUSTED_KEY'],
       player_injuries: ['BRUISED_RIB'],
       lore_and_memory: {
-        narrative_anchors: ['THE_FIRE'],
-        revelations_unlocked: [],
+        established_facts: ['fact-1'],
         permanent_consequences: [],
       },
       npc_fixations: ['DOOR_LOCK'],
       psychological_status: 'ELEVATED_HEART_RATE',
-      cast_ledger: [
-        {
-          character_id: 'char-1',
-          name: 'Alice',
-          role: 'Technician',
-          status: 'ACTIVE',
-        },
-      ],
+      cast_ledger: [{ id: 'id-1', skepticism: 0.5 }],
       cast_deltas: [
         {
           character_id: 'char-1',
@@ -40,8 +32,7 @@ describe('projectPresentationPatch', () => {
     expect(patch.inventory).toEqual(['RUSTED_KEY']);
     expect(patch.player_injuries).toEqual(['BRUISED_RIB']);
     expect(patch.lore_and_memory).toEqual({
-      narrative_anchors: ['THE_FIRE'],
-      revelations_unlocked: [],
+      established_facts: ['fact-1'],
       permanent_consequences: [],
     });
     expect(patch.npc_fixations).toEqual(['DOOR_LOCK']);
@@ -52,3 +43,4 @@ describe('projectPresentationPatch', () => {
     expect((patch as Record<string, unknown>).cast_deltas).toBeUndefined();
   });
 });
+

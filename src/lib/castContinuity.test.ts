@@ -8,8 +8,9 @@ import {
   MIN_SKEPTICISM,
   MAX_SKEPTICISM,
   MAX_SKEPTICISM_DELTA,
+  type CastContinuitySeed,
 } from './castContinuity';
-import type { CastMember, CharacterContinuityById } from '../types';
+import type { CharacterContinuityById } from '../types';
 
 describe('castContinuity', () => {
   describe('clampSkepticism', () => {
@@ -49,21 +50,20 @@ describe('castContinuity', () => {
 
   describe('buildCharacterContinuity', () => {
     it('returns records only for supplied, non-empty cast IDs', () => {
-      const cast: CastMember[] = [
-        { id: 'char-1', name: 'Alice' },
-        { id: '', name: 'Empty' },
-        { id: '   ', name: 'Whitespace' },
+      const cast: CastContinuitySeed[] = [
+        { id: 'char-1' },
+        { id: '' },
+        { id: '   ' },
       ];
       const result = buildCharacterContinuity(cast);
       expect(Object.keys(result)).toEqual(['char-1']);
     });
 
     it('prefers finite persisted value over vulnerabilityBase and default', () => {
-      const cast: CastMember[] = [
+      const cast: CastContinuitySeed[] = [
         {
           id: 'char-1',
-          name: 'Alice',
-          vulnerabilityBase: { resilience: 0.5, skepticism: 0.3, baggage: 0.5 },
+          vulnerabilityBase: { skepticism: 0.3 },
         },
       ];
       const persisted: CharacterContinuityById = {
@@ -75,11 +75,10 @@ describe('castContinuity', () => {
     });
 
     it('uses vulnerabilityBase when persisted is missing or non-finite', () => {
-      const cast: CastMember[] = [
+      const cast: CastContinuitySeed[] = [
         {
           id: 'char-1',
-          name: 'Alice',
-          vulnerabilityBase: { resilience: 0.5, skepticism: 0.35, baggage: 0.5 },
+          vulnerabilityBase: { skepticism: 0.35 },
         },
       ];
       const persisted: CharacterContinuityById = {
@@ -91,22 +90,20 @@ describe('castContinuity', () => {
     });
 
     it('falls back to DEFAULT_SKEPTICISM when neither persisted nor vulnerabilityBase is present', () => {
-      const cast: CastMember[] = [{ id: 'char-1', name: 'Alice' }];
+      const cast: CastContinuitySeed[] = [{ id: 'char-1' }];
       const result = buildCharacterContinuity(cast);
       expect(result['char-1'].skepticism).toBe(DEFAULT_SKEPTICISM);
     });
 
     it('clamps resolved values to [0, 1]', () => {
-      const cast: CastMember[] = [
+      const cast: CastContinuitySeed[] = [
         {
           id: 'char-1',
-          name: 'Alice',
-          vulnerabilityBase: { resilience: 0.5, skepticism: 2.5, baggage: 0.5 },
+          vulnerabilityBase: { skepticism: 2.5 },
         },
         {
           id: 'char-2',
-          name: 'Bob',
-          vulnerabilityBase: { resilience: 0.5, skepticism: -1.0, baggage: 0.5 },
+          vulnerabilityBase: { skepticism: -1.0 },
         },
       ];
 
@@ -116,7 +113,7 @@ describe('castContinuity', () => {
     });
 
     it('creates new objects and does not mutate inputs', () => {
-      const cast: CastMember[] = [{ id: 'char-1', name: 'Alice' }];
+      const cast: CastContinuitySeed[] = [{ id: 'char-1' }];
       const persisted: CharacterContinuityById = {
         'char-1': { skepticism: 0.6 },
       };
@@ -132,7 +129,7 @@ describe('castContinuity', () => {
 
   describe('applyCastSkepticismDeltas', () => {
     it('returns base continuity when deltas are empty or null', () => {
-      const cast: CastMember[] = [{ id: 'char-1', name: 'Alice' }];
+      const cast: CastContinuitySeed[] = [{ id: 'char-1' }];
       const persisted: CharacterContinuityById = {
         'char-1': { skepticism: 0.6 },
       };
@@ -145,10 +142,10 @@ describe('castContinuity', () => {
     });
 
     it('applies valid deltas clamped between -0.15 and 0.15 and bounds final skepticism to [0, 1]', () => {
-      const cast: CastMember[] = [
-        { id: 'char-1', name: 'Alice' },
-        { id: 'char-2', name: 'Bob' },
-        { id: 'char-3', name: 'Charlie' },
+      const cast: CastContinuitySeed[] = [
+        { id: 'char-1' },
+        { id: 'char-2' },
+        { id: 'char-3' },
       ];
       const persisted: CharacterContinuityById = {
         'char-1': { skepticism: 0.5 },
@@ -168,7 +165,7 @@ describe('castContinuity', () => {
     });
 
     it('ignores unknown IDs and applies only the first valid delta for duplicate IDs', () => {
-      const cast: CastMember[] = [{ id: 'char-1', name: 'Alice' }];
+      const cast: CastContinuitySeed[] = [{ id: 'char-1' }];
       const persisted: CharacterContinuityById = {
         'char-1': { skepticism: 0.5 },
       };
@@ -184,7 +181,7 @@ describe('castContinuity', () => {
     });
 
     it('does not mutate input objects', () => {
-      const cast: CastMember[] = [{ id: 'char-1', name: 'Alice' }];
+      const cast: CastContinuitySeed[] = [{ id: 'char-1' }];
       const persisted: CharacterContinuityById = {
         'char-1': { skepticism: 0.5 },
       };
