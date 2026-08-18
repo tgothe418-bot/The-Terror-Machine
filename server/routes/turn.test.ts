@@ -6,8 +6,11 @@ import {
   resolveDialogueSpeakerId,
   formatCastLedger,
   normalizeCastSkepticismDeltas,
+  enforceNarrativeReconciliationBoundaries,
 } from './turn';
 import { createCastInteractionReceipt } from '../../src/lib/castInteraction';
+import { createIntentReceipt } from '../../src/lib/intentReceipt';
+import { createNarrativeReconciliationReceipt } from '../../src/lib/narrativeReconciliation';
 
 describe('Turn schemas validation', () => {
   describe('EngineTurnContextSchema', () => {
@@ -168,8 +171,25 @@ describe('Turn schemas validation', () => {
     });
   });
 
-  describe('TurnResultSchema', () => {
-    it('validates a well-formed turn result frame', () => {
+  describe('TurnResultSchema and TurnResponseSchema', () => {
+    const validIntentProposal = {
+      action_kind: 'INVESTIGATE' as const,
+      action_subtype: null,
+      pressure_direction: 'MAINTAIN' as const,
+      dramatic_tactic: 'NONE' as const,
+      intent_synergy: 'N/A' as const,
+    };
+
+    const validReconciliationProposal = {
+      mode: 'CANONICAL' as const,
+      feasibility: 'SUPPORTED' as const,
+      reason_code: 'NONE' as const,
+      fictional_time_cost: 'MOMENT' as const,
+      authority_alignment: 'NOT_APPLICABLE' as const,
+      memory_echo_candidate: null,
+    };
+
+    it('validates a well-formed turn result frame with proposals', () => {
       const validResult = {
         narrative_blocks: [
           {
@@ -181,10 +201,11 @@ describe('Turn schemas validation', () => {
             content: 'The air smells faintly of sulfur.',
           },
         ],
+        intent_proposal: validIntentProposal,
+        reconciliation_proposal: validReconciliationProposal,
         logic_state: {
           current_phase: 'LATENT',
           suggested_tension: 3,
-          intent_classification: 'INSPECT',
           terminal_flags: [],
           cast_deltas: [
             {
@@ -212,9 +233,61 @@ describe('Turn schemas validation', () => {
       const parsed = TurnResultSchema.parse(validResult);
       expect(parsed.narrative_blocks).toHaveLength(2);
       expect(parsed.narrative_blocks[0].type).toBe('prose');
+      expect(parsed.intent_proposal.action_kind).toBe('INVESTIGATE');
+      expect(parsed.reconciliation_proposal.mode).toBe('CANONICAL');
       expect(parsed.logic_state.suggested_tension).toBe(3);
       expect(parsed.topologyDelta?.isExpansion).toBe(true);
       expect(parsed.topologyDelta?.newNodeDef?.id).toBe('ROOM_02');
+    });
+
+    it('rejects missing intent_proposal or reconciliation_proposal', () => {
+      const baseResult = {
+        narrative_blocks: [{ type: 'prose', content: 'Observation.' }],
+        logic_state: {},
+      };
+
+      expect(() =>
+        TurnResultSchema.parse({
+          ...baseResult,
+          reconciliation_proposal: validReconciliationProposal,
+        })
+      ).toThrow();
+
+      expect(() =>
+        TurnResultSchema.parse({
+          ...baseResult,
+          intent_proposal: validIntentProposal,
+        })
+      ).toThrow();
+    });
+
+    it('rejects invalid enum values in proposals', () => {
+      const baseResult = {
+        narrative_blocks: [{ type: 'prose', content: 'Observation.' }],
+        logic_state: {},
+      };
+
+      expect(() =>
+        TurnResultSchema.parse({
+          ...baseResult,
+          intent_proposal: {
+            ...validIntentProposal,
+            action_kind: 'INVALID_ACTION',
+          },
+          reconciliation_proposal: validReconciliationProposal,
+        })
+      ).toThrow();
+
+      expect(() =>
+        TurnResultSchema.parse({
+          ...baseResult,
+          intent_proposal: validIntentProposal,
+          reconciliation_proposal: {
+            ...validReconciliationProposal,
+            mode: 'INVALID_MODE',
+          },
+        })
+      ).toThrow();
     });
 
     it('rejects more than 2 narrative blocks', () => {
@@ -224,10 +297,11 @@ describe('Turn schemas validation', () => {
           { type: 'prose', content: 'Block 2' },
           { type: 'prose', content: 'Block 3' },
         ],
+        intent_proposal: validIntentProposal,
+        reconciliation_proposal: validReconciliationProposal,
         logic_state: {
           current_phase: 'LATENT',
           suggested_tension: 1,
-          intent_classification: 'WAIT',
           terminal_flags: [],
         },
       };
@@ -236,25 +310,168 @@ describe('Turn schemas validation', () => {
     });
 
     it('rejects an unknown narrative block type', () => {
-      expect(() => TurnResultSchema.parse({
-        narrative_blocks: [{ type: 'invented_type', content: 'Not a valid block.' }],
-        logic_state: {},
-      })).toThrow();
+      expect(() =>
+        TurnResultSchema.parse({
+          narrative_blocks: [{ type: 'invented_type', content: 'Not a valid block.' }],
+          intent_proposal: validIntentProposal,
+          reconciliation_proposal: validReconciliationProposal,
+          logic_state: {},
+        })
+      ).toThrow();
     });
 
     it('rejects non-string narrative content', () => {
-      expect(() => TurnResultSchema.parse({
-        narrative_blocks: [{ type: 'prose', content: 42 }],
-        logic_state: {},
-      })).toThrow();
+      expect(() =>
+        TurnResultSchema.parse({
+          narrative_blocks: [{ type: 'prose', content: 42 }],
+          intent_proposal: validIntentProposal,
+          reconciliation_proposal: validReconciliationProposal,
+          logic_state: {},
+        })
+      ).toThrow();
     });
 
     it('rejects an invalid topology expansion flag rather than coercing it', () => {
-      expect(() => TurnResultSchema.parse({
-        narrative_blocks: [{ type: 'prose', content: 'The corridor remains still.' }],
-        logic_state: {},
-        topologyDelta: { isExpansion: 'false' },
-      })).toThrow();
+      expect(() =>
+        TurnResultSchema.parse({
+          narrative_blocks: [{ type: 'prose', content: 'The corridor remains still.' }],
+          intent_proposal: validIntentProposal,
+          reconciliation_proposal: validReconciliationProposal,
+          logic_state: {},
+          topologyDelta: { isExpansion: 'false' },
+        })
+      ).toThrow();
+    });
+
+    it('validates TurnResponseSchema and confirms proposal keys are omitted from required schema', () => {
+      const responseEnvelope = {
+        narrative_blocks: [{ type: 'prose', content: 'Neutral observation.' }],
+        logic_state: {
+          current_phase: 'LATENT',
+          suggested_tension: 1,
+          requested_transition: null,
+          terminal_flags: [],
+          cast_deltas: [],
+        },
+        intentReceipt: createIntentReceipt(validIntentProposal),
+        narrativeReconciliationReceipt: createNarrativeReconciliationReceipt(
+          validReconciliationProposal,
+          'protagonist'
+        ),
+      };
+
+      const parsed = TurnResponseSchema.parse(responseEnvelope);
+      expect(parsed.intentReceipt?.action_kind).toBe('INVESTIGATE');
+      expect(parsed.narrativeReconciliationReceipt?.mode).toBe('CANONICAL');
+      expect((parsed as Record<string, unknown>).intent_proposal).toBeUndefined();
+      expect((parsed as Record<string, unknown>).reconciliation_proposal).toBeUndefined();
+    });
+  });
+
+  describe('enforceNarrativeReconciliationBoundaries', () => {
+    const baseModelResult = {
+      narrative_blocks: [
+        { type: 'prose' as const, content: 'A sudden burst of unreal light appears.' },
+      ],
+      intent_proposal: {
+        action_kind: 'MOVE' as const,
+        action_subtype: null,
+        pressure_direction: 'MAINTAIN' as const,
+        dramatic_tactic: 'NONE' as const,
+        intent_synergy: 'N/A' as const,
+      },
+      reconciliation_proposal: {
+        mode: 'EXPERIENTIAL_REANCHORED' as const,
+        feasibility: 'IMPOSSIBLE' as const,
+        reason_code: 'PHYSICAL_LIMIT' as const,
+        fictional_time_cost: 'MOMENT' as const,
+        authority_alignment: 'NOT_APPLICABLE' as const,
+        memory_echo_candidate: 'Unreal light flash.',
+      },
+      logic_state: {
+        current_phase: 'LATENT',
+        suggested_tension: 4,
+        requested_transition: 'IMPOSSIBLE_ROOM',
+        terminal_flags: ['FLAG_A'],
+        cast_deltas: [{ character_id: 'char_1', skepticism_delta: 0.1 }],
+        cast_ledger: [],
+      },
+      topologyDelta: {
+        isExpansion: true,
+        newNodeDef: {
+          id: 'IMPOSSIBLE_ROOM',
+          geometry: 'Chamber',
+          hazards: [],
+          exitVectors: [],
+        },
+      },
+    };
+
+    it('suppresses transition, expansion, and cast deltas for EXPERIENTIAL_REANCHORED mode', () => {
+      const bounded = enforceNarrativeReconciliationBoundaries(baseModelResult);
+
+      expect(bounded.logic_state.requested_transition).toBeNull();
+      expect(bounded.logic_state.cast_deltas).toEqual([]);
+      expect(bounded.topologyDelta).toEqual({ isExpansion: false, newNodeDef: null });
+
+      // Preserves narrative, phase, tension, terminal flags, and proposals
+      expect(bounded.narrative_blocks).toEqual(baseModelResult.narrative_blocks);
+      expect(bounded.logic_state.current_phase).toBe('LATENT');
+      expect(bounded.logic_state.suggested_tension).toBe(4);
+      expect(bounded.logic_state.terminal_flags).toEqual(['FLAG_A']);
+      expect(bounded.intent_proposal).toEqual(baseModelResult.intent_proposal);
+      expect(bounded.reconciliation_proposal).toEqual(baseModelResult.reconciliation_proposal);
+    });
+
+    it('does not alter CANONICAL or MIXED results', () => {
+      const canonicalResult = {
+        ...baseModelResult,
+        reconciliation_proposal: {
+          ...baseModelResult.reconciliation_proposal,
+          mode: 'CANONICAL' as const,
+        },
+      };
+
+      const boundedCanonical = enforceNarrativeReconciliationBoundaries(canonicalResult);
+      expect(boundedCanonical.logic_state.requested_transition).toBe('IMPOSSIBLE_ROOM');
+      expect(boundedCanonical.logic_state.cast_deltas).toHaveLength(1);
+      expect(boundedCanonical.topologyDelta?.isExpansion).toBe(true);
+
+      const mixedResult = {
+        ...baseModelResult,
+        reconciliation_proposal: {
+          ...baseModelResult.reconciliation_proposal,
+          mode: 'MIXED' as const,
+        },
+      };
+
+      const boundedMixed = enforceNarrativeReconciliationBoundaries(mixedResult);
+      expect(boundedMixed.logic_state.requested_transition).toBe('IMPOSSIBLE_ROOM');
+      expect(boundedMixed.logic_state.cast_deltas).toHaveLength(1);
+      expect(boundedMixed.topologyDelta?.isExpansion).toBe(true);
+    });
+
+    it('normalizes authority alignment for antagonist vs non-antagonist roles', () => {
+      const antagonistProposal = {
+        mode: 'CANONICAL' as const,
+        feasibility: 'SUPPORTED' as const,
+        reason_code: 'NONE' as const,
+        fictional_time_cost: 'MOMENT' as const,
+        authority_alignment: 'WITHIN_CONTRACT' as const,
+        memory_echo_candidate: null,
+      };
+
+      const nonAntagonistReceipt = createNarrativeReconciliationReceipt(
+        antagonistProposal,
+        'protagonist'
+      );
+      expect(nonAntagonistReceipt.authority_alignment).toBe('NOT_APPLICABLE');
+
+      const antagonistReceipt = createNarrativeReconciliationReceipt(
+        antagonistProposal,
+        'antagonist'
+      );
+      expect(antagonistReceipt.authority_alignment).toBe('WITHIN_CONTRACT');
     });
   });
 

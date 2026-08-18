@@ -1,5 +1,17 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { getGeminiPolicy } from "../ai/modelPolicy";
+import {
+  ACTION_KINDS,
+  ACTION_SUBTYPES,
+  PRESSURE_DIRECTIONS,
+  DRAMATIC_TACTICS,
+  INTENT_SYNERGIES,
+  RECONCILIATION_MODES,
+  RECONCILIATION_FEASIBILITIES,
+  RECONCILIATION_REASON_CODES,
+  FICTIONAL_TIME_COSTS,
+  AUTHORITY_ALIGNMENTS,
+} from "../schemas/engine";
 
 let aiClient: GoogleGenAI | null = null;
 const STARTUP_API_KEY = process.env.GEMINI_API_KEY;
@@ -95,13 +107,48 @@ export const turnResponseSchema = {
         required: ["type", "content"]
       }
     },
+    intent_proposal: {
+      type: Type.OBJECT,
+      properties: {
+        action_kind: { type: Type.STRING, enum: [...ACTION_KINDS] },
+        action_subtype: { type: Type.STRING, enum: [...ACTION_SUBTYPES], nullable: true },
+        pressure_direction: { type: Type.STRING, enum: [...PRESSURE_DIRECTIONS] },
+        dramatic_tactic: { type: Type.STRING, enum: [...DRAMATIC_TACTICS] },
+        intent_synergy: { type: Type.STRING, enum: [...INTENT_SYNERGIES] },
+      },
+      required: [
+        "action_kind",
+        "action_subtype",
+        "pressure_direction",
+        "dramatic_tactic",
+        "intent_synergy",
+      ]
+    },
+    reconciliation_proposal: {
+      type: Type.OBJECT,
+      properties: {
+        mode: { type: Type.STRING, enum: [...RECONCILIATION_MODES] },
+        feasibility: { type: Type.STRING, enum: [...RECONCILIATION_FEASIBILITIES] },
+        reason_code: { type: Type.STRING, enum: [...RECONCILIATION_REASON_CODES] },
+        fictional_time_cost: { type: Type.STRING, enum: [...FICTIONAL_TIME_COSTS] },
+        authority_alignment: { type: Type.STRING, enum: [...AUTHORITY_ALIGNMENTS] },
+        memory_echo_candidate: { type: Type.STRING, nullable: true },
+      },
+      required: [
+        "mode",
+        "feasibility",
+        "reason_code",
+        "fictional_time_cost",
+        "authority_alignment",
+        "memory_echo_candidate",
+      ]
+    },
     logic_state: {
       type: Type.OBJECT,
       properties: {
         current_phase: { type: Type.STRING },
         requested_transition: { type: Type.STRING, nullable: true, description: "Exact target node ID if movement along an allowed exit completed, or null if no movement occurred." },
         suggested_tension: { type: Type.INTEGER },
-        intent_classification: { type: Type.STRING },
         terminal_flags: { type: Type.ARRAY, items: { type: Type.STRING } },
         cast_deltas: {
           type: Type.ARRAY,
@@ -115,7 +162,7 @@ export const turnResponseSchema = {
           }
         }
       },
-      required: ["current_phase", "suggested_tension", "intent_classification", "terminal_flags", "cast_deltas"]
+      required: ["current_phase", "suggested_tension", "terminal_flags", "cast_deltas"]
     },
     topologyDelta: {
       type: Type.OBJECT,
@@ -147,7 +194,7 @@ export const turnResponseSchema = {
       nullable: true
     }
   },
-  required: ["narrative_blocks", "logic_state"]
+  required: ["narrative_blocks", "logic_state", "intent_proposal", "reconciliation_proposal"]
 };
 
 export function unwrapStrictJsonResponse(text: string): string {

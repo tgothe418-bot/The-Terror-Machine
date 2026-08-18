@@ -1,5 +1,13 @@
 import { z } from 'zod';
-import { EdgeKind, EdgeKindSchema, TopologyDelta, TransitionReceipt, CastInteractionReceipt } from './engineContract';
+import {
+  EdgeKind,
+  EdgeKindSchema,
+  TopologyDelta,
+  TransitionReceipt,
+  CastInteractionReceipt,
+  IntentReceipt,
+  NarrativeReconciliationReceipt,
+} from './engineContract';
 import { HauntedHouseProvenanceSchema, HauntedHouseProvenance } from './participation';
 import { CharacterExpressionProfileSchema, CharacterExpressionProfile } from './forge';
 export * from './engineContract';
@@ -322,6 +330,8 @@ export interface TurnReceipt {
   castContinuityReceipt?: CastContinuityReceipt;
   castPresenceReceipt?: CastPresenceReceipt;
   castInteractionReceipt?: CastInteractionReceipt;
+  intentReceipt?: IntentReceipt;
+  narrativeReconciliationReceipt?: NarrativeReconciliationReceipt;
 }
 
 export interface TurnFailureReceipt {
@@ -570,6 +580,8 @@ export interface RatifiedEngineFrame {
   transitionReceipt?: TransitionReceipt;
   turnReceipt?: TurnReceipt;
   castInteractionReceipt?: CastInteractionReceipt;
+  intentReceipt?: IntentReceipt;
+  narrativeReconciliationReceipt?: NarrativeReconciliationReceipt;
   preSnapshot?: RuntimeStateSnapshot;
   reconciliation?: {
     isHallucinationCollision: boolean;

@@ -3,6 +3,7 @@ import { z } from 'zod';
 import {
   TurnRequestSchema,
   TurnResultSchema,
+  type TurnResult,
   TurnResponse,
   normalizeParticipationContext,
   type EngineTurnContext,
@@ -11,6 +12,25 @@ import { generateStructuredResponse } from '../utils/aiClient';
 import { resolveTransition } from '../engine/transitionResolver';
 import { clampSkepticismDelta } from '../../src/lib/castContinuity';
 import { createCastInteractionReceipt } from '../../src/lib/castInteraction';
+import { createIntentReceipt } from '../../src/lib/intentReceipt';
+import { createNarrativeReconciliationReceipt } from '../../src/lib/narrativeReconciliation';
+
+export function enforceNarrativeReconciliationBoundaries<T extends TurnResult>(
+  result: T
+): T {
+  if (result.reconciliation_proposal.mode === 'EXPERIENTIAL_REANCHORED') {
+    return {
+      ...result,
+      logic_state: {
+        ...result.logic_state,
+        requested_transition: null,
+        cast_deltas: [],
+      },
+      topologyDelta: { isExpansion: false, newNodeDef: null },
+    };
+  }
+  return result;
+}
 
 function normalizeDialogueAddress(value: string): string {
   return ` ${value
@@ -358,6 +378,22 @@ ${castLedgerFormatted}
 - Emit at most one delta per eligible cast member. Each delta must be between -0.15 and 0.15. Use an empty array when no material change occurred.
 - A continuity delta controls no facts, authority, location, injury, action, relationship, or outcome. It only informs later characterization.
 
+[INTERPRETATION & CAUSAL RECONCILIATION CONTRACT]
+- The intent_proposal and reconciliation_proposal interpret an attempted action; they are metadata, never player commands or proof of success.
+- intent_synergy is intent–state coherence, not outcome.
+- Pressure direction is a dramatic reading. DE_ESCALATE and ESCALATE do not directly change tension or state.
+- Every structurally valid free-form action receives natural prose, including dangerous, ineffective, or physically impossible attempts.
+- Blueprint world rules decide whether strange effects can be canonical.
+- Unsupported effects may receive one vivid experiential beat, but the prose must re-anchor to authoritative reality in the same turn.
+- Do not automatically diagnose the beat as a dream, psychosis, hallucination, or Hell. Use such language only when the authored fiction supports it.
+- Plausible consequences of an attempted act may be described. The unsupported declared effect itself cannot create powers, destroy topology, move cast, or establish facts.
+- fictional_time_cost guides prose only; every response remains one committed turn.
+- A memory echo is a telemetry candidate only. It does not write lore_and_memory or character continuity.
+- For an Antagonist, compare the attempt with the explicit Authority Contract and counterplay limits. authority_alignment remains a narrative reading, not a mutation command.
+- Item use has no authority or consumption semantics in this phase; do not invent them.
+- None of the field names or enum labels should appear in ordinary narrative prose unless those words arise naturally in the fiction.
+- For SYSTEM_INIT, require action_kind: SYSTEM, null subtype, mode: NOT_REQUIRED, and no memory candidate.
+
 [TOPOLOGY BOUNDARY]
 Current Node: ${context.topology.readableNodeLabel} (ID: ${context.topology.currentNodeId})
 Allowed Exits:
@@ -438,28 +474,40 @@ ${recentHistory}
       respondingCharacterId,
     });
 
-    engineResponse.logic_state.cast_deltas = normalizeCastSkepticismDeltas(
-      engineResponse.logic_state.cast_deltas,
+    const boundedEngineResponse = enforceNarrativeReconciliationBoundaries(engineResponse);
+
+    const intentReceipt = createIntentReceipt(boundedEngineResponse.intent_proposal);
+    const narrativeReconciliationReceipt = createNarrativeReconciliationReceipt(
+      boundedEngineResponse.reconciliation_proposal,
+      context.player.role
+    );
+
+    boundedEngineResponse.logic_state.cast_deltas = normalizeCastSkepticismDeltas(
+      boundedEngineResponse.logic_state.cast_deltas,
       context,
     );
 
     // Authoritative server-side static topology normalization
     if (!isExpansionExpected) {
-      engineResponse.topologyDelta = { isExpansion: false, newNodeDef: null };
+      boundedEngineResponse.topologyDelta = { isExpansion: false, newNodeDef: null };
     }
 
     // Deterministic transition resolution at the server boundary
     const transitionReceipt = resolveTransition({
       currentNodeId: context.topology.currentNodeId,
-      requestedTransition: engineResponse.logic_state.requested_transition,
+      requestedTransition: boundedEngineResponse.logic_state.requested_transition,
       allowedOutgoingExits: context.topology.allowedOutgoingExits,
       activeFlags: context.runtime.activeFlags || [],
     });
 
     const finalResponse: TurnResponse = {
-      ...engineResponse,
+      narrative_blocks: boundedEngineResponse.narrative_blocks,
+      logic_state: boundedEngineResponse.logic_state,
+      topologyDelta: boundedEngineResponse.topologyDelta,
       transitionReceipt,
       castInteractionReceipt,
+      intentReceipt,
+      narrativeReconciliationReceipt,
     };
 
     return res.json(finalResponse);

@@ -153,15 +153,164 @@ export const TopologyDeltaSchema = z.object({
 
 export type TopologyDelta = z.infer<typeof TopologyDeltaSchema>;
 
+export const ACTION_KINDS = [
+  'OBSERVE',
+  'INVESTIGATE',
+  'COMMUNICATE',
+  'MOVE',
+  'MANIPULATE',
+  'WAIT',
+  'SYSTEM',
+  'OTHER',
+] as const;
+
+export const ACTION_SUBTYPES = ['FLEE', 'HIDE'] as const;
+
+export const PRESSURE_DIRECTIONS = [
+  'DE_ESCALATE',
+  'MAINTAIN',
+  'ESCALATE',
+  'MIXED',
+  'UNCLEAR',
+] as const;
+
+export const DRAMATIC_TACTICS = [
+  'FLIGHT',
+  'DENIAL',
+  'FIXATION',
+  'EXPOSURE',
+  'CONCEALMENT',
+  'MISDIRECTION',
+  'SUBVERSION',
+  'NONE',
+] as const;
+
+export const INTENT_SYNERGIES = ['SUCCESS', 'FAILURE', 'N/A'] as const;
+
+export const ActionKindSchema = z.enum(ACTION_KINDS);
+export type ActionKind = z.infer<typeof ActionKindSchema>;
+
+export const ActionSubtypeSchema = z.enum(ACTION_SUBTYPES).nullable();
+export type ActionSubtype = z.infer<typeof ActionSubtypeSchema>;
+
+export const PressureDirectionSchema = z.enum(PRESSURE_DIRECTIONS);
+export type PressureDirection = z.infer<typeof PressureDirectionSchema>;
+
+export const DramaticTacticSchema = z.enum(DRAMATIC_TACTICS);
+export type DramaticTactic = z.infer<typeof DramaticTacticSchema>;
+
+export const IntentSynergySchema = z.enum(INTENT_SYNERGIES);
+export type IntentSynergy = z.infer<typeof IntentSynergySchema>;
+
+export const IntentProposalSchema = z.object({
+  action_kind: ActionKindSchema,
+  action_subtype: ActionSubtypeSchema,
+  pressure_direction: PressureDirectionSchema,
+  dramatic_tactic: DramaticTacticSchema,
+  intent_synergy: IntentSynergySchema,
+});
+export type IntentProposal = z.infer<typeof IntentProposalSchema>;
+
+export const IntentReceiptSchema = IntentProposalSchema.extend({
+  version: z.literal(1),
+});
+export type IntentReceipt = z.infer<typeof IntentReceiptSchema>;
+
+export const RECONCILIATION_MODES = [
+  'NOT_REQUIRED',
+  'CANONICAL',
+  'EXPERIENTIAL_REANCHORED',
+  'MIXED',
+] as const;
+
+export const RECONCILIATION_FEASIBILITIES = [
+  'SUPPORTED',
+  'CONSTRAINED',
+  'IMPOSSIBLE',
+  'UNCLEAR',
+] as const;
+
+export const RECONCILIATION_REASON_CODES = [
+  'NONE',
+  'BLUEPRINT_RULE',
+  'AUTHORITY_LIMIT',
+  'TOPOLOGY_LIMIT',
+  'CAST_PRESENCE_LIMIT',
+  'PHYSICAL_LIMIT',
+  'UNSUPPORTED_PREMISE',
+  'OTHER_CONSTRAINT',
+] as const;
+
+export const FICTIONAL_TIME_COSTS = [
+  'MOMENT',
+  'SCENE_BEAT',
+  'EXTENDED',
+  'UNCLEAR',
+] as const;
+
+export const AUTHORITY_ALIGNMENTS = [
+  'WITHIN_CONTRACT',
+  'EXCEEDS_CONTRACT',
+  'NOT_APPLICABLE',
+  'UNCLEAR',
+] as const;
+
+export const ReconciliationModeSchema = z.enum(RECONCILIATION_MODES);
+export type ReconciliationMode = z.infer<typeof ReconciliationModeSchema>;
+
+export const ReconciliationFeasibilitySchema = z.enum(RECONCILIATION_FEASIBILITIES);
+export type ReconciliationFeasibility = z.infer<typeof ReconciliationFeasibilitySchema>;
+
+export const ReconciliationReasonCodeSchema = z.enum(RECONCILIATION_REASON_CODES);
+export type ReconciliationReasonCode = z.infer<typeof ReconciliationReasonCodeSchema>;
+
+export const FictionalTimeCostSchema = z.enum(FICTIONAL_TIME_COSTS);
+export type FictionalTimeCost = z.infer<typeof FictionalTimeCostSchema>;
+
+export const AuthorityAlignmentSchema = z.enum(AUTHORITY_ALIGNMENTS);
+export type AuthorityAlignment = z.infer<typeof AuthorityAlignmentSchema>;
+
+export const NarrativeReconciliationProposalSchema = z.object({
+  mode: ReconciliationModeSchema,
+  feasibility: ReconciliationFeasibilitySchema,
+  reason_code: ReconciliationReasonCodeSchema,
+  fictional_time_cost: FictionalTimeCostSchema,
+  authority_alignment: AuthorityAlignmentSchema,
+  memory_echo_candidate: z.string().trim().min(1).max(240).nullable(),
+});
+export type NarrativeReconciliationProposal = z.infer<typeof NarrativeReconciliationProposalSchema>;
+
+export const NarrativeReconciliationReceiptSchema = NarrativeReconciliationProposalSchema.extend({
+  version: z.literal(1),
+  revision_increment: z.union([z.literal(0), z.literal(1)]),
+});
+export type NarrativeReconciliationReceipt = z.infer<typeof NarrativeReconciliationReceiptSchema>;
+
+export const CastInteractionReceiptSchema = z.object({
+  version: z.literal(1),
+  addressedCharacterId: z.string().nullable(),
+  respondingCharacterId: z.string().nullable(),
+  outcome: z.enum([
+    'RESPONDED',
+    'ADDRESS_UNANSWERED',
+    'UNSOLICITED_DIALOGUE',
+    'MISMATCH',
+    'NONE',
+  ]),
+});
+
+export type CastInteractionReceipt = z.infer<typeof CastInteractionReceiptSchema>;
+
 export const TurnResultSchema = z.object({
   narrative_blocks: z.array(NarrativeBlockSchema).max(2),
   engine_thoughts: z.string().optional(),
+  intent_proposal: IntentProposalSchema,
+  reconciliation_proposal: NarrativeReconciliationProposalSchema,
   logic_state: z
     .object({
       current_phase: z.string().optional(),
       requested_transition: z.string().nullable().optional().default(null),
       suggested_tension: z.number().int().min(0).max(100).optional(),
-      intent_classification: z.string().default('PROSE_ADVANCE'),
       terminal_flags: z.array(z.string()).default([]),
       cast_deltas: z
         .array(
@@ -211,24 +360,14 @@ export const TurnResultSchema = z.object({
 
 export type TurnResult = z.infer<typeof TurnResultSchema>;
 
-export const CastInteractionReceiptSchema = z.object({
-  version: z.literal(1),
-  addressedCharacterId: z.string().nullable(),
-  respondingCharacterId: z.string().nullable(),
-  outcome: z.enum([
-    'RESPONDED',
-    'ADDRESS_UNANSWERED',
-    'UNSOLICITED_DIALOGUE',
-    'MISMATCH',
-    'NONE',
-  ]),
-});
-
-export type CastInteractionReceipt = z.infer<typeof CastInteractionReceiptSchema>;
-
-export const TurnResponseSchema = TurnResultSchema.extend({
+export const TurnResponseSchema = TurnResultSchema.omit({
+  intent_proposal: true,
+  reconciliation_proposal: true,
+}).extend({
   transitionReceipt: TransitionReceiptSchema.optional(),
   castInteractionReceipt: CastInteractionReceiptSchema.optional(),
+  intentReceipt: IntentReceiptSchema.optional(),
+  narrativeReconciliationReceipt: NarrativeReconciliationReceiptSchema.optional(),
 });
 
 export type TurnResponse = z.infer<typeof TurnResponseSchema>;
