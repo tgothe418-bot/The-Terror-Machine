@@ -1,12 +1,18 @@
 # THE TERROR MACHINE // THE NIGHTMARE MACHINE
 
 <p align="center">
+  <img src="./assets/TNM_Logo_1.png" alt="TNM Logo 1" width="800"/>
+</p>
+
+<p align="center">
   <img src="./assets/free-haunted-house.svg" alt="Free Haunted House" width="620"/>
 </p>
 
 The Terror Machine is an experimental, state-driven horror simulator. A language model interprets actions, performs characters, and renders the experience—but the application is supposed to own what is true.
 
 The room exists even when the prose looks away.
+
+> **Development status:** TTM is an active contract-driven build. The Voice, Forge, and Engine surfaces are present, and the current branch has green local verification gates. The Engine now carries authored dialogue context through the turn contract and maintains bounded cast-continuity state across committed turns, with continuity receipts retained in diagnostic exports. Broader world-state coverage, richer memory, and additional role behavior remain active roadmap work.
 
 ## What TTM Is
 
@@ -62,9 +68,20 @@ Antagonist participation is governed by an explicit Authority Contract describin
 
 Victims remain independent participants rather than puppets or substitute protagonists. Their reactions, decisions, fear, resistance, injuries, and escape attempts belong to the simulation.
 
+## Current Implementation Status
+
+The current build has a working foundation across all three nodes:
+
+- **Forge:** source material can be ingested, reviewed, and shaped into a structured Blueprint for the Engine.
+- **Engine contracts:** Blueprint and Ad-Lib entry paths converge on a schema-bound, ratified turn pipeline with deterministic state application.
+- **Dialogue vertical slice:** authored expression and behavior profiles are carried into Engine context; dialogue blocks are validated against context boundaries; and explicit addressed-speaker selection is deterministic.
+- **Cast continuity:** each eligible cast member has bounded skepticism state. Server-accepted continuity deltas are normalized, committed with the turn, and retained in a versioned cast-continuity receipt for diagnostic export.
+
+This is a foundation, not the finished simulation. Presence/location, bounded stance, relationships, durable memory, and broader world-state mutation remain deliberately staged follow-on work.
+
 ## How a Turn Works
 
-TTM is organized around one authoritative transaction:
+TTM is organized around one authoritative transaction. The current dialogue and cast-continuity slices exercise this contract; wider world-state coverage is still being built on the same boundary.
 
 | Stage | Responsibility |
 |---|---|
@@ -100,18 +117,13 @@ The simulation may be hostile to the character, but it should never be hostile t
 
 ## Testing
 
-The project uses Vitest for behavioral, integration, schema, reducer, topology, and lifecycle verification.
+The project uses Vitest for behavioral, integration, schema, reducer, topology, dialogue, continuity, export, and lifecycle verification. TypeScript checking, ESLint, production builds, and whitespace/conflict checks are part of the local verification path.
 
-The latest verified repository gate includes:
+The current live branch passes its local verification gates. These checks verify contracts and state behavior at the repository level; they do not replace a separate hands-on review of the running interface.
 
-- 30 targeted tests across the Haunted House induction and Phase 2F behavioral suites;
-- 187 tests across 25 Vitest files;
-- clean TypeScript compilation;
-- clean ESLint results;
-- successful production client and server builds; and
-- a clean Git diff check.
+## Near-Term Direction
 
-These checks are intended to verify that the simulation remains coherent at the state and contract level, not merely that the interface compiles.
+The next foundation layers are intentionally narrow: bounded cast presence, then bounded character stance, followed later by relationships and durable memory. Each layer will be ratified, observable, and independently verified before it is allowed to influence more of the simulation.
 
 ## Current Technology
 
