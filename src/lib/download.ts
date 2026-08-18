@@ -1,6 +1,61 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { Message, ContextReceipt } from '../types';
+import type { Message, ContextReceipt, RuntimeStateSnapshot } from '../types';
 import { buildEngineTurnContext, buildContextReceipt } from './buildEngineTurnContext';
+
+/**
+ * Pure canonical-state-diff helper comparing pre- and post-runtime state snapshots.
+ */
+export function buildCanonicalStateDiff(
+  preSnapshot?: RuntimeStateSnapshot,
+  postSnapshot?: RuntimeStateSnapshot
+): string[] {
+  if (!preSnapshot || !postSnapshot) {
+    return ['Canonical snapshot diff unavailable.'];
+  }
+
+  const diffs: string[] = [];
+
+  const scalarFields: Array<{
+    key: keyof RuntimeStateSnapshot;
+    label: string;
+  }> = [
+    { key: 'turnCount', label: 'TURN COUNT' },
+    { key: 'currentNodeId', label: 'CURRENT NODE' },
+    { key: 'activeVector', label: 'ACTIVE VECTOR' },
+    { key: 'activeTier', label: 'ACTIVE TIER' },
+    { key: 'phase', label: 'PHASE' },
+    { key: 'tension', label: 'TENSION' },
+    { key: 'coherence', label: 'COHERENCE' },
+    { key: 'reconciliationRevision', label: 'RECONCILIATION REVISION' },
+  ];
+
+  for (const { key, label } of scalarFields) {
+    const preVal = preSnapshot[key];
+    const postVal = postSnapshot[key];
+    if (preVal !== postVal) {
+      diffs.push(`${label}: ${String(preVal)} → ${String(postVal)}`);
+    }
+  }
+
+  const preFlags = new Set(preSnapshot.activeFlags || []);
+  const postFlags = new Set(postSnapshot.activeFlags || []);
+
+  const addedFlags = [...postFlags].filter((flag) => !preFlags.has(flag));
+  const removedFlags = [...preFlags].filter((flag) => !postFlags.has(flag));
+
+  if (addedFlags.length > 0) {
+    diffs.push(`ACTIVE FLAGS ADDED: ${addedFlags.join(', ')}`);
+  }
+  if (removedFlags.length > 0) {
+    diffs.push(`ACTIVE FLAGS REMOVED: ${removedFlags.join(', ')}`);
+  }
+
+  if (diffs.length === 0) {
+    return ['No canonical snapshot changes.'];
+  }
+
+  return diffs;
+}
 
 /**
  * Converts a structured message array into a standardized markdown file and downloads it.
@@ -130,6 +185,7 @@ export const getEngineLogicData = (message: any): Record<string, unknown> | null
 
 const getEngineLogicSummary = (logicData: Record<string, unknown>): string => {
   const summary = ['TTM LOGIC'];
+  const turnReceipt = logicData.turnReceipt;
   const logicState = logicData.logic_state;
   const topologyDelta = logicData.topologyDelta;
   const failureReceipt = logicData.failureReceipt;
@@ -150,8 +206,36 @@ const getEngineLogicSummary = (logicData: Record<string, unknown>): string => {
       summary.push(`PHASE: ${String(state.current_phase).toUpperCase()}`);
     if (state.suggested_tension != null)
       summary.push(`TENSION: ${String(state.suggested_tension)}`);
-    if (state.intent_classification != null)
+  }
+
+  let turn: Record<string, unknown> | undefined;
+  if (turnReceipt && typeof turnReceipt === 'object') {
+    turn = turnReceipt as Record<string, unknown>;
+  }
+
+  const intentReceipt = turn?.intentReceipt as Record<string, unknown> | undefined;
+  if (intentReceipt && typeof intentReceipt === 'object' && intentReceipt.action_kind) {
+    const kind = String(intentReceipt.action_kind).toUpperCase();
+    const subtype = intentReceipt.action_subtype
+      ? `/${String(intentReceipt.action_subtype).toUpperCase()}`
+      : '';
+    summary.push(`INTENT: ${kind}${subtype}`);
+    if (intentReceipt.pressure_direction) {
+      summary.push(`PRESSURE: ${String(intentReceipt.pressure_direction).toUpperCase()}`);
+    }
+    if (intentReceipt.intent_synergy) {
+      summary.push(`SYNERGY: ${String(intentReceipt.intent_synergy).toUpperCase()}`);
+    }
+  } else if (logicState && typeof logicState === 'object') {
+    const state = logicState as Record<string, unknown>;
+    if (state.intent_classification != null) {
       summary.push(`INTENT: ${String(state.intent_classification).toUpperCase()}`);
+    }
+  }
+
+  const reconciliationReceipt = turn?.narrativeReconciliationReceipt as Record<string, unknown> | undefined;
+  if (reconciliationReceipt && typeof reconciliationReceipt === 'object' && reconciliationReceipt.mode) {
+    summary.push(`RECONCILIATION: ${String(reconciliationReceipt.mode).toUpperCase()}`);
   }
 
   if (topologyDelta && typeof topologyDelta === 'object') {
@@ -160,9 +244,7 @@ const getEngineLogicSummary = (logicData: Record<string, unknown>): string => {
       summary.push(`EXPANSION: ${String(Boolean(topology.isExpansion)).toUpperCase()}`);
   }
 
-  const turnReceipt = logicData.turnReceipt;
-  if (turnReceipt && typeof turnReceipt === 'object') {
-    const turn = turnReceipt as Record<string, unknown>;
+  if (turn) {
     const castReceipt = turn.castContinuityReceipt as Record<string, unknown> | undefined;
     if (
       castReceipt &&
@@ -190,6 +272,518 @@ const getEngineLogicSummary = (logicData: Record<string, unknown>): string => {
 
   return `[ ${summary.join(' // ')} ]`;
 };
+
+interface ParsedTelemetrySections {
+  intentAndPressure: Array<{ label: string; value: string }>;
+  intentSynergy: { value: string; note: string };
+  narrativeReconciliation: Array<{ label: string; value: string }>;
+  canonicalStateDiff: {
+    diffLines: string[];
+    transition: Array<{ label: string; value: string }>;
+  };
+  castPresenceAndInteraction: {
+    presenceCount: string;
+    interaction: Array<{ label: string; value: string }>;
+  };
+  continuityAndMemory: {
+    continuityCount: string;
+    acceptedDeltaCount: string;
+    acceptedDeltas: string[];
+    memoryEchoCandidate: string;
+  };
+  schemaRepairsAndValidation: {
+    validation: Array<{ label: string; value: string }>;
+    failure?: Array<{ label: string; value: string }>;
+  };
+  rawPayload: Record<string, unknown>;
+}
+
+function parseTelemetrySections(logicData: Record<string, unknown>): ParsedTelemetrySections {
+  const turn = (typeof logicData.turnReceipt === 'object' && logicData.turnReceipt !== null
+    ? logicData.turnReceipt
+    : undefined) as Record<string, unknown> | undefined;
+
+  const intentReceipt = (turn && typeof turn.intentReceipt === 'object' && turn.intentReceipt !== null
+    ? turn.intentReceipt
+    : undefined) as Record<string, unknown> | undefined;
+
+  const reconciliationReceipt = (turn &&
+  typeof turn.narrativeReconciliationReceipt === 'object' &&
+  turn.narrativeReconciliationReceipt !== null
+    ? turn.narrativeReconciliationReceipt
+    : undefined) as Record<string, unknown> | undefined;
+
+  const castPresenceReceipt = (turn &&
+  typeof turn.castPresenceReceipt === 'object' &&
+  turn.castPresenceReceipt !== null
+    ? turn.castPresenceReceipt
+    : undefined) as Record<string, unknown> | undefined;
+
+  const castInteractionReceipt = (turn &&
+  typeof turn.castInteractionReceipt === 'object' &&
+  turn.castInteractionReceipt !== null
+    ? turn.castInteractionReceipt
+    : undefined) as Record<string, unknown> | undefined;
+
+  const castContinuityReceipt = (turn &&
+  typeof turn.castContinuityReceipt === 'object' &&
+  turn.castContinuityReceipt !== null
+    ? turn.castContinuityReceipt
+    : undefined) as Record<string, unknown> | undefined;
+
+  const transitionReceipt = (
+    (typeof logicData.transitionReceipt === 'object' && logicData.transitionReceipt !== null
+      ? logicData.transitionReceipt
+      : undefined) ||
+    (turn && typeof turn.requestedTarget !== 'undefined'
+      ? {
+          requestedNodeId: turn.requestedTarget,
+          accepted: turn.accepted,
+          fromNodeId: turn.nodeBefore,
+          toNodeId: turn.nodeAfter,
+          reason: turn.reason,
+        }
+      : undefined)
+  ) as Record<string, unknown> | undefined;
+
+  const validation = (typeof logicData.validation === 'object' && logicData.validation !== null
+    ? logicData.validation
+    : undefined) as Record<string, unknown> | undefined;
+
+  const failureReceipt = (typeof logicData.failureReceipt === 'object' &&
+  logicData.failureReceipt !== null
+    ? logicData.failureReceipt
+    : undefined) as Record<string, unknown> | undefined;
+
+  // 1. Intent & Pressure
+  const intentAndPressure = [
+    {
+      label: 'Action Kind',
+      value: intentReceipt?.action_kind != null ? String(intentReceipt.action_kind) : 'Not recorded',
+    },
+    {
+      label: 'Action Subtype',
+      value:
+        intentReceipt?.action_subtype != null ? String(intentReceipt.action_subtype) : 'Not recorded',
+    },
+    {
+      label: 'Pressure Direction',
+      value:
+        intentReceipt?.pressure_direction != null
+          ? String(intentReceipt.pressure_direction)
+          : 'Not recorded',
+    },
+    {
+      label: 'Dramatic Tactic',
+      value:
+        intentReceipt?.dramatic_tactic != null
+          ? String(intentReceipt.dramatic_tactic)
+          : 'Not recorded',
+    },
+  ];
+
+  // 2. Intent Synergy
+  const intentSynergy = {
+    value:
+      intentReceipt?.intent_synergy != null
+        ? String(intentReceipt.intent_synergy)
+        : 'Not recorded',
+    note: 'Intent–state coherence; not action outcome.',
+  };
+
+  // 3. Narrative Reconciliation
+  const narrativeReconciliation = [
+    {
+      label: 'Mode',
+      value:
+        reconciliationReceipt?.mode != null
+          ? String(reconciliationReceipt.mode)
+          : 'Not recorded',
+    },
+    {
+      label: 'Feasibility',
+      value:
+        reconciliationReceipt?.feasibility != null
+          ? String(reconciliationReceipt.feasibility)
+          : 'Not recorded',
+    },
+    {
+      label: 'Reason Code',
+      value:
+        reconciliationReceipt?.reason_code != null
+          ? String(reconciliationReceipt.reason_code)
+          : 'Not recorded',
+    },
+    {
+      label: 'Fictional Time Cost',
+      value:
+        reconciliationReceipt?.fictional_time_cost != null
+          ? String(reconciliationReceipt.fictional_time_cost)
+          : 'Not recorded',
+    },
+    {
+      label: 'Authority Alignment',
+      value:
+        reconciliationReceipt?.authority_alignment != null
+          ? String(reconciliationReceipt.authority_alignment)
+          : 'Not recorded',
+    },
+  ];
+
+  // 4. Canonical State Diff
+  const preSnapshot = turn?.preSnapshot as RuntimeStateSnapshot | undefined;
+  const postSnapshot = turn?.postSnapshot as RuntimeStateSnapshot | undefined;
+  const diffLines = buildCanonicalStateDiff(preSnapshot, postSnapshot);
+
+  const transition = transitionReceipt
+    ? [
+        {
+          label: 'Requested Node',
+          value:
+            transitionReceipt.requestedNodeId != null
+              ? String(transitionReceipt.requestedNodeId)
+              : 'None',
+        },
+        {
+          label: 'Accepted',
+          value:
+            transitionReceipt.accepted != null
+              ? String(transitionReceipt.accepted)
+              : 'Not recorded',
+        },
+        {
+          label: 'From Node',
+          value:
+            transitionReceipt.fromNodeId != null
+              ? String(transitionReceipt.fromNodeId)
+              : 'None',
+        },
+        {
+          label: 'To Node',
+          value:
+            transitionReceipt.toNodeId != null
+              ? String(transitionReceipt.toNodeId)
+              : 'None',
+        },
+        {
+          label: 'Reason',
+          value:
+            transitionReceipt.reason != null
+              ? String(transitionReceipt.reason)
+              : 'None',
+        },
+      ]
+    : [{ label: 'Transition', value: 'Not recorded' }];
+
+  // 5. Cast Presence & Interaction
+  let presenceCount = 'Not recorded';
+  if (
+    castPresenceReceipt &&
+    typeof castPresenceReceipt.state === 'object' &&
+    castPresenceReceipt.state !== null &&
+    !Array.isArray(castPresenceReceipt.state)
+  ) {
+    presenceCount = String(Object.keys(castPresenceReceipt.state).length);
+  }
+
+  const interaction = [
+    {
+      label: 'Outcome',
+      value:
+        castInteractionReceipt?.outcome != null
+          ? String(castInteractionReceipt.outcome)
+          : 'Not recorded',
+    },
+    {
+      label: 'Addressed Character ID',
+      value:
+        castInteractionReceipt?.addressedCharacterId != null
+          ? String(castInteractionReceipt.addressedCharacterId)
+          : 'Not recorded',
+    },
+    {
+      label: 'Responding Character ID',
+      value:
+        castInteractionReceipt?.respondingCharacterId != null
+          ? String(castInteractionReceipt.respondingCharacterId)
+          : 'Not recorded',
+    },
+  ];
+
+  // 6. Continuity / Memory Candidates
+  let continuityCount = 'Not recorded';
+  if (
+    castContinuityReceipt &&
+    typeof castContinuityReceipt.state === 'object' &&
+    castContinuityReceipt.state !== null &&
+    !Array.isArray(castContinuityReceipt.state)
+  ) {
+    continuityCount = String(Object.keys(castContinuityReceipt.state).length);
+  }
+
+  let acceptedDeltaCount = 'Not recorded';
+  const acceptedDeltas: string[] = [];
+  if (castContinuityReceipt && Array.isArray(castContinuityReceipt.acceptedDeltas)) {
+    acceptedDeltaCount = String(castContinuityReceipt.acceptedDeltas.length);
+    for (const d of castContinuityReceipt.acceptedDeltas) {
+      if (d && typeof d === 'object') {
+        const charId = (d as any).character_id != null ? String((d as any).character_id) : 'unknown';
+        const delta = (d as any).skepticism_delta != null ? String((d as any).skepticism_delta) : '0';
+        acceptedDeltas.push(`${charId}: ${delta}`);
+      }
+    }
+  }
+
+  let memoryEchoCandidate = 'Not recorded';
+  if (reconciliationReceipt) {
+    const cand = reconciliationReceipt.memory_echo_candidate;
+    if (typeof cand === 'string' && cand.trim().length > 0) {
+      memoryEchoCandidate = cand;
+    } else {
+      memoryEchoCandidate = 'None';
+    }
+  }
+
+  // 7. Schema Repairs and Validation
+  const validationItems = [
+    {
+      label: 'Accepted',
+      value:
+        validation?.accepted != null ? String(validation.accepted) : 'Not recorded',
+    },
+    {
+      label: 'Rejected Fields',
+      value:
+        Array.isArray(validation?.rejected_fields) && validation.rejected_fields.length > 0
+          ? validation.rejected_fields.map((f) => String(f)).join(', ')
+          : validation ? 'None' : 'Not recorded',
+    },
+    {
+      label: 'Repair Notes',
+      value:
+        Array.isArray(validation?.repair_notes) && validation.repair_notes.length > 0
+          ? validation.repair_notes.map((n) => String(n)).join('; ')
+          : validation ? 'None' : 'Not recorded',
+    },
+  ];
+
+  let failureItems: Array<{ label: string; value: string }> | undefined;
+  if (failureReceipt) {
+    failureItems = [
+      {
+        label: 'Failure Code',
+        value: failureReceipt.code != null ? String(failureReceipt.code) : 'Not recorded',
+      },
+      {
+        label: 'HTTP Status',
+        value: failureReceipt.status != null ? String(failureReceipt.status) : 'Not recorded',
+      },
+      {
+        label: 'Content Type',
+        value: failureReceipt.contentType != null ? String(failureReceipt.contentType) : 'Not recorded',
+      },
+      {
+        label: 'Message',
+        value: failureReceipt.message != null ? String(failureReceipt.message) : 'Not recorded',
+      },
+    ];
+  }
+
+  return {
+    intentAndPressure,
+    intentSynergy,
+    narrativeReconciliation,
+    canonicalStateDiff: {
+      diffLines,
+      transition,
+    },
+    castPresenceAndInteraction: {
+      presenceCount,
+      interaction,
+    },
+    continuityAndMemory: {
+      continuityCount,
+      acceptedDeltaCount,
+      acceptedDeltas,
+      memoryEchoCandidate,
+    },
+    schemaRepairsAndValidation: {
+      validation: validationItems,
+      failure: failureItems,
+    },
+    rawPayload: logicData,
+  };
+}
+
+function renderHtmlTelemetrySections(logicData: Record<string, unknown>): string {
+  const sections = parseTelemetrySections(logicData);
+
+  let html = `<div class="logic-content">`;
+
+  // 1. Intent & Pressure
+  html += `<div class="telemetry-section">`;
+  html += `<h4>Intent &amp; Pressure</h4>`;
+  html += `<ul>`;
+  for (const item of sections.intentAndPressure) {
+    html += `<li><strong>${escapeHtml(item.label)}:</strong> ${escapeHtml(item.value)}</li>`;
+  }
+  html += `</ul>`;
+  html += `</div>`;
+
+  // 2. Intent Synergy
+  html += `<div class="telemetry-section">`;
+  html += `<h4>Intent Synergy</h4>`;
+  html += `<ul>`;
+  html += `<li><strong>Synergy:</strong> ${escapeHtml(sections.intentSynergy.value)}</li>`;
+  html += `<li><small>${escapeHtml(sections.intentSynergy.note)}</small></li>`;
+  html += `</ul>`;
+  html += `</div>`;
+
+  // 3. Narrative Reconciliation
+  html += `<div class="telemetry-section">`;
+  html += `<h4>Narrative Reconciliation</h4>`;
+  html += `<ul>`;
+  for (const item of sections.narrativeReconciliation) {
+    html += `<li><strong>${escapeHtml(item.label)}:</strong> ${escapeHtml(item.value)}</li>`;
+  }
+  html += `</ul>`;
+  html += `</div>`;
+
+  // 4. Canonical State Diff
+  html += `<div class="telemetry-section">`;
+  html += `<h4>Canonical State Diff</h4>`;
+  html += `<ul>`;
+  for (const diff of sections.canonicalStateDiff.diffLines) {
+    html += `<li>${escapeHtml(diff)}</li>`;
+  }
+  for (const item of sections.canonicalStateDiff.transition) {
+    html += `<li><strong>${escapeHtml(item.label)}:</strong> ${escapeHtml(item.value)}</li>`;
+  }
+  html += `</ul>`;
+  html += `</div>`;
+
+  // 5. Cast Presence & Interaction
+  html += `<div class="telemetry-section">`;
+  html += `<h4>Cast Presence &amp; Interaction</h4>`;
+  html += `<ul>`;
+  html += `<li><strong>Active Presence Count:</strong> ${escapeHtml(sections.castPresenceAndInteraction.presenceCount)}</li>`;
+  for (const item of sections.castPresenceAndInteraction.interaction) {
+    html += `<li><strong>${escapeHtml(item.label)}:</strong> ${escapeHtml(item.value)}</li>`;
+  }
+  html += `</ul>`;
+  html += `</div>`;
+
+  // 6. Continuity / Memory Candidates
+  html += `<div class="telemetry-section">`;
+  html += `<h4>Continuity / Memory Candidates</h4>`;
+  html += `<ul>`;
+  html += `<li><strong>Tracked Characters:</strong> ${escapeHtml(sections.continuityAndMemory.continuityCount)}</li>`;
+  html += `<li><strong>Accepted Deltas Count:</strong> ${escapeHtml(sections.continuityAndMemory.acceptedDeltaCount)}</li>`;
+  if (sections.continuityAndMemory.acceptedDeltas.length > 0) {
+    for (const delta of sections.continuityAndMemory.acceptedDeltas) {
+      html += `<li><strong>Delta:</strong> ${escapeHtml(delta)}</li>`;
+    }
+  }
+  html += `<li><strong>Memory Echo Candidate:</strong> ${escapeHtml(sections.continuityAndMemory.memoryEchoCandidate)}</li>`;
+  html += `</ul>`;
+  html += `</div>`;
+
+  // 7. Schema Repairs and Validation
+  html += `<div class="telemetry-section">`;
+  html += `<h4>Schema Repairs and Validation</h4>`;
+  html += `<ul>`;
+  for (const item of sections.schemaRepairsAndValidation.validation) {
+    html += `<li><strong>${escapeHtml(item.label)}:</strong> ${escapeHtml(item.value)}</li>`;
+  }
+  if (sections.schemaRepairsAndValidation.failure) {
+    for (const item of sections.schemaRepairsAndValidation.failure) {
+      html += `<li><strong>${escapeHtml(item.label)}:</strong> ${escapeHtml(item.value)}</li>`;
+    }
+  }
+  html += `</ul>`;
+  html += `</div>`;
+
+  // 8. Raw Structured Payload
+  html += `<details class="raw-payload-panel">`;
+  html += `<summary class="speaker-label speaker-engine">Raw Structured Payload</summary>`;
+  html += `<pre><code>${escapeHtml(JSON.stringify(sections.rawPayload, null, 2))}</code></pre>`;
+  html += `</details>`;
+
+  html += `</div>`;
+  return html;
+}
+
+function renderMarkdownTelemetrySections(logicData: Record<string, unknown>): string {
+  const sections = parseTelemetrySections(logicData);
+
+  let md = '';
+
+  // 1. Intent & Pressure
+  md += `#### Intent & Pressure\n`;
+  for (const item of sections.intentAndPressure) {
+    md += `- **${item.label}:** ${item.value}\n`;
+  }
+  md += `\n`;
+
+  // 2. Intent Synergy
+  md += `#### Intent Synergy\n`;
+  md += `- **Synergy:** ${sections.intentSynergy.value}\n`;
+  md += `- *${sections.intentSynergy.note}*\n\n`;
+
+  // 3. Narrative Reconciliation
+  md += `#### Narrative Reconciliation\n`;
+  for (const item of sections.narrativeReconciliation) {
+    md += `- **${item.label}:** ${item.value}\n`;
+  }
+  md += `\n`;
+
+  // 4. Canonical State Diff
+  md += `#### Canonical State Diff\n`;
+  for (const diff of sections.canonicalStateDiff.diffLines) {
+    md += `- ${diff}\n`;
+  }
+  for (const item of sections.canonicalStateDiff.transition) {
+    md += `- **${item.label}:** ${item.value}\n`;
+  }
+  md += `\n`;
+
+  // 5. Cast Presence & Interaction
+  md += `#### Cast Presence & Interaction\n`;
+  md += `- **Active Presence Count:** ${sections.castPresenceAndInteraction.presenceCount}\n`;
+  for (const item of sections.castPresenceAndInteraction.interaction) {
+    md += `- **${item.label}:** ${item.value}\n`;
+  }
+  md += `\n`;
+
+  // 6. Continuity / Memory Candidates
+  md += `#### Continuity / Memory Candidates\n`;
+  md += `- **Tracked Characters:** ${sections.continuityAndMemory.continuityCount}\n`;
+  md += `- **Accepted Deltas Count:** ${sections.continuityAndMemory.acceptedDeltaCount}\n`;
+  if (sections.continuityAndMemory.acceptedDeltas.length > 0) {
+    for (const delta of sections.continuityAndMemory.acceptedDeltas) {
+      md += `- **Delta:** ${delta}\n`;
+    }
+  }
+  md += `- **Memory Echo Candidate:** ${sections.continuityAndMemory.memoryEchoCandidate}\n\n`;
+
+  // 7. Schema Repairs and Validation
+  md += `#### Schema Repairs and Validation\n`;
+  for (const item of sections.schemaRepairsAndValidation.validation) {
+    md += `- **${item.label}:** ${item.value}\n`;
+  }
+  if (sections.schemaRepairsAndValidation.failure) {
+    for (const item of sections.schemaRepairsAndValidation.failure) {
+      md += `- **${item.label}:** ${item.value}\n`;
+    }
+  }
+  md += `\n`;
+
+  // 8. Raw Structured Payload
+  md += `#### Raw Structured Payload\n`;
+  md += `\`\`\`json\n${JSON.stringify(sections.rawPayload, null, 2)}\n\`\`\`\n\n`;
+
+  return md;
+}
 
 export const buildEngineLogContent = (
   messages: any[],
@@ -340,8 +934,44 @@ export const buildEngineLogContent = (
           .logic-content {
             padding: 1rem;
             border-top: 1px dashed #27272a;
+            color: #e4e4e7;
+            background-color: #09090b;
+          }
+          .telemetry-section {
+            margin-bottom: 1.25rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid #18181b;
+          }
+          .telemetry-section h4 {
             color: #22c55e;
+            font-size: 0.85rem;
+            letter-spacing: 0.05em;
+            margin: 0 0 0.5rem 0;
+            text-transform: uppercase;
+          }
+          .telemetry-section ul {
+            margin: 0;
+            padding-left: 1.25rem;
+            list-style-type: square;
+          }
+          .telemetry-section li {
+            margin-bottom: 0.25rem;
+            line-height: 1.5;
+            color: #d1d5db;
+          }
+          .telemetry-section strong {
+            color: #a1a1aa;
+          }
+          .raw-payload-panel {
+            margin-top: 1rem;
+            border: 1px solid #27272a;
+            border-radius: 4px;
             background-color: #020617;
+          }
+          .raw-payload-panel pre {
+            margin: 0;
+            padding: 1rem;
+            color: #22c55e;
             overflow-x: auto;
             white-space: pre-wrap;
           }
@@ -409,13 +1039,13 @@ export const buildEngineLogContent = (
         // Keep the structured Engine decision record between narrative turns.
         const logicData = getEngineLogicData(msg);
         if (logicData) {
-          const displayString = JSON.stringify(logicData, null, 2);
           const summary = getEngineLogicSummary(logicData);
+          const readableSections = renderHtmlTelemetrySections(logicData);
 
           content += `
             <details class="logic-panel">
               <summary class="speaker-label speaker-engine">${escapeHtml(summary)}</summary>
-              <pre class="logic-content"><code>${escapeHtml(displayString)}</code></pre>
+              ${readableSections}
             </details>
           `;
         }
@@ -463,7 +1093,7 @@ export const buildEngineLogContent = (
 
         const logicData = getEngineLogicData(msg);
         if (logicData) {
-          content += `\`\`\`json\n// TTM LOGIC\n${JSON.stringify(logicData, null, 2)}\n\`\`\`\n\n`;
+          content += renderMarkdownTelemetrySections(logicData);
         }
       }
       content += `---\n\n`;

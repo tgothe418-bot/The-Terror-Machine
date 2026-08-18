@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { buildEngineLogContent, generateTelemetryFilename } from './download';
+import { buildEngineLogContent, generateTelemetryFilename, buildCanonicalStateDiff } from './download';
+import type { RuntimeStateSnapshot } from '../types';
 
 const mockReceipt = {
   version: 1,
@@ -103,7 +104,12 @@ describe('Engine telemetry export', () => {
     expect(md).toContain('**Scenario:** The Cold Room (bp-101)');
     expect(md).toContain('**Bound Player:** Field Operative');
     expect(md).toContain('**[ USER: Field Operative ]**');
-    expect(md).toContain('// TTM LOGIC');
+    expect(md).toContain('#### Intent & Pressure');
+    expect(md).toContain('#### Intent Synergy');
+    expect(md).toContain('#### Narrative Reconciliation');
+    expect(md).toContain('#### Canonical State Diff');
+    expect(md).toContain('#### Schema Repairs and Validation');
+    expect(md).toContain('#### Raw Structured Payload');
     expect(md).toContain('"current_phase": "LATENT"');
     expect(md).toContain('"isExpansion": false');
   });
@@ -313,5 +319,208 @@ describe('Engine telemetry export', () => {
     expect(htmlOutput).not.toBeNull();
     expect(htmlOutput!.content).not.toContain('CAST CONTINUITY');
     expect(htmlOutput!.content).not.toContain('CAST PRESENCE');
+  });
+
+  describe('buildCanonicalStateDiff helper', () => {
+    it('returns diff unavailable when snapshots are missing', () => {
+      expect(buildCanonicalStateDiff(undefined, undefined)).toEqual(['Canonical snapshot diff unavailable.']);
+    });
+
+    it('returns no changes message when snapshots are identical', () => {
+      const snap: RuntimeStateSnapshot = {
+        version: 1,
+        turnCount: 1,
+        currentNodeId: 'NODE_A',
+        activeVector: 'COGNITIVE',
+        activeTier: 'LATENT',
+        phase: 'LATENT',
+        tension: 10,
+        coherence: 1.0,
+        reconciliationRevision: 0,
+        activeFlags: ['FLAG_1'],
+      };
+      expect(buildCanonicalStateDiff(snap, snap)).toEqual(['No canonical snapshot changes.']);
+    });
+
+    it('reports scalar mutations and added/removed activeFlags', () => {
+      const pre: RuntimeStateSnapshot = {
+        version: 1,
+        turnCount: 1,
+        currentNodeId: 'NODE_A',
+        activeVector: 'COGNITIVE',
+        activeTier: 'LATENT',
+        phase: 'LATENT',
+        tension: 10,
+        coherence: 1.0,
+        reconciliationRevision: 0,
+        activeFlags: ['FLAG_OLD', 'FLAG_PERSIST'],
+      };
+      const post: RuntimeStateSnapshot = {
+        version: 1,
+        turnCount: 2,
+        currentNodeId: 'NODE_B',
+        activeVector: 'COSMIC',
+        activeTier: 'MANIFEST',
+        phase: 'MANIFEST',
+        tension: 35,
+        coherence: 0.85,
+        reconciliationRevision: 1,
+        activeFlags: ['FLAG_PERSIST', 'FLAG_NEW'],
+      };
+
+      const diff = buildCanonicalStateDiff(pre, post);
+      expect(diff).toContain('TURN COUNT: 1 → 2');
+      expect(diff).toContain('CURRENT NODE: NODE_A → NODE_B');
+      expect(diff).toContain('ACTIVE VECTOR: COGNITIVE → COSMIC');
+      expect(diff).toContain('ACTIVE TIER: LATENT → MANIFEST');
+      expect(diff).toContain('PHASE: LATENT → MANIFEST');
+      expect(diff).toContain('TENSION: 10 → 35');
+      expect(diff).toContain('COHERENCE: 1 → 0.85');
+      expect(diff).toContain('RECONCILIATION REVISION: 0 → 1');
+      expect(diff).toContain('ACTIVE FLAGS ADDED: FLAG_NEW');
+      expect(diff).toContain('ACTIVE FLAGS REMOVED: FLAG_OLD');
+    });
+  });
+
+  it('renders IntentReceipt and NarrativeReconciliationReceipt in both HTML and Markdown exports (Phase 3G.1D)', () => {
+    const messagesWith3G1DReceipts = [
+      {
+        role: 'user',
+        content: 'I examine the ancient altar.',
+        timestamp: 100,
+        userCharacterName: 'Investigator',
+      },
+      {
+        role: 'assistant',
+        content: 'The runes pulse faintly under your trembling fingertips.',
+        timestamp: 101,
+        blocks: [{ type: 'prose', content: 'The runes pulse faintly under your trembling fingertips.' }],
+        logic_state: {
+          current_phase: 'MANIFEST',
+          suggested_tension: 30,
+        },
+        turnReceipt: {
+          turnNumber: 3,
+          nodeBefore: 'NODE_CHAMBER',
+          requestedTarget: 'NODE_ALTAR',
+          accepted: true,
+          nodeAfter: 'NODE_ALTAR',
+          activeVector: 'COGNITIVE',
+          activeTier: 'MANIFEST',
+          tension: 30,
+          preSnapshot: {
+            version: 1,
+            turnCount: 2,
+            currentNodeId: 'NODE_CHAMBER',
+            activeVector: 'COGNITIVE',
+            activeTier: 'LATENT',
+            phase: 'LATENT',
+            tension: 20,
+            coherence: 1.0,
+            reconciliationRevision: 0,
+            activeFlags: [],
+          },
+          postSnapshot: {
+            version: 1,
+            turnCount: 3,
+            currentNodeId: 'NODE_ALTAR',
+            activeVector: 'COGNITIVE',
+            activeTier: 'MANIFEST',
+            phase: 'MANIFEST',
+            tension: 30,
+            coherence: 0.9,
+            reconciliationRevision: 1,
+            activeFlags: ['FLAG_ALTAR_TOUCHED'],
+          },
+          intentReceipt: {
+            version: 1,
+            action_kind: 'examine',
+            action_subtype: 'sensory',
+            pressure_direction: 'inward',
+            dramatic_tactic: 'scrutinize',
+            intent_synergy: 'SUCCESS',
+          },
+          narrativeReconciliationReceipt: {
+            version: 1,
+            mode: 'harmonize',
+            feasibility: 'plausible',
+            reason_code: 'DIRECT_ACCESS',
+            fictional_time_cost: 'instantaneous',
+            authority_alignment: 'aligned',
+            memory_echo_candidate: 'The altar was cold and vibrating with low resonance.',
+          },
+          castInteractionReceipt: {
+            outcome: 'dialogue_progressed',
+            addressedCharacterId: 'char-cultist',
+            respondingCharacterId: 'char-cultist',
+          },
+        },
+      },
+    ];
+
+    const htmlOutput = buildEngineLogContent(messagesWith3G1DReceipts, 'html', '3g1d-test');
+    expect(htmlOutput).not.toBeNull();
+    const html = htmlOutput!.content;
+
+    // Header summary tests
+    expect(html).toContain('INTENT: EXAMINE/SENSORY');
+    expect(html).toContain('PRESSURE: INWARD');
+    expect(html).toContain('SYNERGY: SUCCESS');
+    expect(html).toContain('RECONCILIATION: HARMONIZE');
+
+    // Section header tests
+    expect(html).toContain('<h4>Intent &amp; Pressure</h4>');
+    expect(html).toContain('<li><strong>Action Kind:</strong> examine</li>');
+    expect(html).toContain('<li><strong>Action Subtype:</strong> sensory</li>');
+    expect(html).toContain('<li><strong>Pressure Direction:</strong> inward</li>');
+    expect(html).toContain('<li><strong>Dramatic Tactic:</strong> scrutinize</li>');
+
+    expect(html).toContain('<h4>Intent Synergy</h4>');
+    expect(html).toContain('<li><strong>Synergy:</strong> SUCCESS</li>');
+    expect(html).toContain('Intent–state coherence; not action outcome.');
+
+    expect(html).toContain('<h4>Narrative Reconciliation</h4>');
+    expect(html).toContain('<li><strong>Mode:</strong> harmonize</li>');
+    expect(html).toContain('<li><strong>Feasibility:</strong> plausible</li>');
+    expect(html).toContain('<li><strong>Reason Code:</strong> DIRECT_ACCESS</li>');
+    expect(html).toContain('<li><strong>Fictional Time Cost:</strong> instantaneous</li>');
+    expect(html).toContain('<li><strong>Authority Alignment:</strong> aligned</li>');
+
+    expect(html).toContain('<h4>Canonical State Diff</h4>');
+    expect(html).toContain('<li>CURRENT NODE: NODE_CHAMBER → NODE_ALTAR</li>');
+    expect(html).toContain('<li>ACTIVE FLAGS ADDED: FLAG_ALTAR_TOUCHED</li>');
+
+    expect(html).toContain('<h4>Cast Presence &amp; Interaction</h4>');
+    expect(html).toContain('<li><strong>Outcome:</strong> dialogue_progressed</li>');
+    expect(html).toContain('<li><strong>Addressed Character ID:</strong> char-cultist</li>');
+
+    expect(html).toContain('<h4>Continuity / Memory Candidates</h4>');
+    expect(html).toContain('<li><strong>Memory Echo Candidate:</strong> The altar was cold and vibrating with low resonance.</li>');
+
+    // Markdown tests
+    const mdOutput = buildEngineLogContent(messagesWith3G1DReceipts, 'md', '3g1d-test');
+    expect(mdOutput).not.toBeNull();
+    const md = mdOutput!.content;
+
+    expect(md).toContain('#### Intent & Pressure');
+    expect(md).toContain('- **Action Kind:** examine');
+    expect(md).toContain('- **Action Subtype:** sensory');
+    expect(md).toContain('- **Pressure Direction:** inward');
+    expect(md).toContain('- **Dramatic Tactic:** scrutinize');
+
+    expect(md).toContain('#### Intent Synergy');
+    expect(md).toContain('- **Synergy:** SUCCESS');
+
+    expect(md).toContain('#### Narrative Reconciliation');
+    expect(md).toContain('- **Mode:** harmonize');
+    expect(md).toContain('- **Feasibility:** plausible');
+    expect(md).toContain('- **Reason Code:** DIRECT_ACCESS');
+
+    expect(md).toContain('#### Canonical State Diff');
+    expect(md).toContain('- CURRENT NODE: NODE_CHAMBER → NODE_ALTAR');
+    expect(md).toContain('- ACTIVE FLAGS ADDED: FLAG_ALTAR_TOUCHED');
+
+    expect(md).toContain('#### Continuity / Memory Candidates');
+    expect(md).toContain('- **Memory Echo Candidate:** The altar was cold and vibrating with low resonance.');
   });
 });
