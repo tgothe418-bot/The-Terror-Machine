@@ -100,7 +100,7 @@ export function validateDialogueBlocks(
 }
 
 export function resolveDialogueSpeakerId(
-  narrativeBlocks: Array<{ type: string; speaker?: string | null }>,
+  narrativeBlocks: Array<{ type: string; speaker?: string | null; content?: string }>,
   context: EngineTurnContext
 ): string | null {
   const dialogueBlocks = narrativeBlocks.filter((b) => b.type === 'dialogue');
