@@ -3,8 +3,9 @@ import {
   createIntentBoundCastInteractionReceipt,
   getIntentBoundAddressedCharacterId,
   getIntentBoundRequestedTransition,
+  getIntentBoundTopologyDelta,
 } from './intentConsequenceBridge';
-import type { IntentReceipt } from '../types/engineContract';
+import type { IntentReceipt, TopologyDelta } from '../types/engineContract';
 import type { CastTargetResolution } from './causalFeasibility';
 
 function createMockIntentReceipt(action_kind: IntentReceipt['action_kind']): IntentReceipt {
@@ -17,6 +18,22 @@ function createMockIntentReceipt(action_kind: IntentReceipt['action_kind']): Int
     intent_synergy: 'N/A',
   };
 }
+
+const mockProposedExpansion: TopologyDelta = {
+  isExpansion: true,
+  exitDirection: 'NORTH',
+  newNodeDef: {
+    id: 'EXPANDED_NODE_01',
+    geometry: 'Subterranean Vault',
+    hazards: ['toxic_fumes'],
+    exitVectors: [
+      {
+        direction: 'SOUTH',
+        targetNodeId: 'ORIGIN_NODE',
+      },
+    ],
+  },
+};
 
 describe('intentConsequenceBridge', () => {
   describe('getIntentBoundRequestedTransition', () => {
@@ -202,6 +219,95 @@ describe('intentConsequenceBridge', () => {
 
       expect(commReceipt).toEqual(commReceiptCopy);
       expect(target).toEqual(targetCopy);
+    });
+  });
+
+  describe('getIntentBoundTopologyDelta', () => {
+    it('1. INVESTIGATE + isExpansionExpected: true + proposed expansion → expansion suppressed', () => {
+      const receipt = createMockIntentReceipt('INVESTIGATE');
+      const result = getIntentBoundTopologyDelta(receipt, mockProposedExpansion, true);
+      expect(result).toEqual({ isExpansion: false, newNodeDef: null });
+    });
+
+    it('2. OBSERVE + isExpansionExpected: true + proposed expansion → expansion suppressed', () => {
+      const receipt = createMockIntentReceipt('OBSERVE');
+      const result = getIntentBoundTopologyDelta(receipt, mockProposedExpansion, true);
+      expect(result).toEqual({ isExpansion: false, newNodeDef: null });
+    });
+
+    it('3. COMMUNICATE + isExpansionExpected: true + proposed expansion → expansion suppressed', () => {
+      const receipt = createMockIntentReceipt('COMMUNICATE');
+      const result = getIntentBoundTopologyDelta(receipt, mockProposedExpansion, true);
+      expect(result).toEqual({ isExpansion: false, newNodeDef: null });
+    });
+
+    it('suppresses expansion for all other non-MOVE kinds even if isExpansionExpected is true and expansion is proposed', () => {
+      const nonMoveKinds: IntentReceipt['action_kind'][] = [
+        'MANIPULATE',
+        'WAIT',
+        'SYSTEM',
+        'OTHER',
+      ];
+
+      for (const kind of nonMoveKinds) {
+        const receipt = createMockIntentReceipt(kind);
+        const result = getIntentBoundTopologyDelta(receipt, mockProposedExpansion, true);
+        expect(result).toEqual({ isExpansion: false, newNodeDef: null });
+      }
+    });
+
+    it('4. MOVE + isExpansionExpected: true + valid proposed expansion → expansion preserved', () => {
+      const moveReceipt = createMockIntentReceipt('MOVE');
+      const result = getIntentBoundTopologyDelta(moveReceipt, mockProposedExpansion, true);
+      expect(result).toEqual(mockProposedExpansion);
+      expect(result.isExpansion).toBe(true);
+      expect(result.newNodeDef?.id).toBe('EXPANDED_NODE_01');
+    });
+
+    it('5. MOVE + isExpansionExpected: false + proposed expansion → expansion suppressed', () => {
+      const moveReceipt = createMockIntentReceipt('MOVE');
+      const result = getIntentBoundTopologyDelta(moveReceipt, mockProposedExpansion, false);
+      expect(result).toEqual({ isExpansion: false, newNodeDef: null });
+    });
+
+    it('returns { isExpansion: false, newNodeDef: null } when proposedTopologyDelta is null, undefined, or not an expansion', () => {
+      const moveReceipt = createMockIntentReceipt('MOVE');
+      expect(getIntentBoundTopologyDelta(moveReceipt, null, true)).toEqual({
+        isExpansion: false,
+        newNodeDef: null,
+      });
+      expect(getIntentBoundTopologyDelta(moveReceipt, undefined, true)).toEqual({
+        isExpansion: false,
+        newNodeDef: null,
+      });
+      expect(
+        getIntentBoundTopologyDelta(
+          moveReceipt,
+          { isExpansion: false, newNodeDef: null },
+          true
+        )
+      ).toEqual({
+        isExpansion: false,
+        newNodeDef: null,
+      });
+    });
+
+    it('7. Helper inputs are not mutated', () => {
+      const moveReceipt = createMockIntentReceipt('MOVE');
+      const moveReceiptCopy = JSON.parse(JSON.stringify(moveReceipt));
+      const proposedDeltaCopy = JSON.parse(JSON.stringify(mockProposedExpansion));
+
+      // Test preserving branch
+      getIntentBoundTopologyDelta(moveReceipt, mockProposedExpansion, true);
+      expect(moveReceipt).toEqual(moveReceiptCopy);
+      expect(mockProposedExpansion).toEqual(proposedDeltaCopy);
+
+      // Test suppressing branch
+      const investReceipt = createMockIntentReceipt('INVESTIGATE');
+      const investReceiptCopy = JSON.parse(JSON.stringify(investReceipt));
+      getIntentBoundTopologyDelta(investReceipt, mockProposedExpansion, true);
+      expect(investReceipt).toEqual(investReceiptCopy);
+      expect(mockProposedExpansion).toEqual(proposedDeltaCopy);
     });
   });
 });

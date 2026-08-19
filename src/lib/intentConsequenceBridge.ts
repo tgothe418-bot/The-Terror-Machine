@@ -1,5 +1,9 @@
 import { createCastInteractionReceipt } from './castInteraction';
-import type { CastInteractionReceipt, IntentReceipt } from '../types/engineContract';
+import type {
+  CastInteractionReceipt,
+  IntentReceipt,
+  TopologyDelta,
+} from '../types/engineContract';
 import type { CastTargetResolution } from './causalFeasibility';
 
 export function getIntentBoundRequestedTransition(
@@ -38,4 +42,19 @@ export function createIntentBoundCastInteractionReceipt(input: {
     addressedCharacterId,
     respondingCharacterId: input.respondingCharacterId,
   });
+}
+
+export function getIntentBoundTopologyDelta(
+  intentReceipt: IntentReceipt,
+  proposedTopologyDelta: TopologyDelta | null | undefined,
+  isExpansionExpected: boolean
+): TopologyDelta {
+  if (
+    intentReceipt.action_kind === 'MOVE' &&
+    isExpansionExpected === true &&
+    proposedTopologyDelta?.isExpansion === true
+  ) {
+    return proposedTopologyDelta;
+  }
+  return { isExpansion: false, newNodeDef: null };
 }

@@ -18,7 +18,9 @@ import {
   createIntentBoundCastInteractionReceipt,
   getIntentBoundAddressedCharacterId,
   getIntentBoundRequestedTransition,
+  getIntentBoundTopologyDelta,
 } from '../../src/lib/intentConsequenceBridge';
+import type { TurnResponse } from '../../src/types/engineContract';
 
 describe('Turn schemas validation', () => {
   describe('EngineTurnContextSchema', () => {
@@ -1994,6 +1996,411 @@ describe('Turn schemas validation', () => {
           addressedCharacterId: 'char-elena',
           respondingCharacterId: 'char-elena',
           outcome: 'RESPONDED',
+        });
+      });
+
+      describe('Phase 3G.4R Intent-Bound Topology Expansion Remediation', () => {
+        const mockProposedExpansion = {
+          isExpansion: true,
+          exitDirection: 'EAST',
+          newNodeDef: {
+            id: 'EXPANDED_VAULT_02',
+            geometry: 'Reinforced Sub-basement',
+            hazards: ['electrified_flooring'],
+            exitVectors: [
+              {
+                direction: 'WEST',
+                targetNodeId: 'LAB_01',
+              },
+            ],
+          },
+        };
+
+        it('suppresses proposed topology expansion when intent is INVESTIGATE even if isExpansionExpected is true', () => {
+          const modelResult = TurnResultSchema.parse({
+            narrative_blocks: [
+              { type: 'prose', content: 'You shine your flashlight into the dark breach.' },
+            ],
+            intent_proposal: {
+              action_kind: 'INVESTIGATE',
+              action_subtype: null,
+              pressure_direction: 'MAINTAIN',
+              dramatic_tactic: 'NONE',
+              intent_synergy: 'N/A',
+            },
+            reconciliation_proposal: {
+              mode: 'CANONICAL',
+              feasibility: 'SUPPORTED',
+              reason_code: 'NONE',
+              fictional_time_cost: 'MOMENT',
+              authority_alignment: 'NOT_APPLICABLE',
+              memory_echo_candidate: null,
+            },
+            logic_state: {},
+            topologyDelta: mockProposedExpansion,
+          });
+
+          const output = finalizeTurnCausality({
+            result: modelResult,
+            userAction: 'I peer into the dark breach to inspect the machinery.',
+            context: baseContext,
+          });
+
+          const finalTopologyDelta = getIntentBoundTopologyDelta(
+            output.intentReceipt,
+            output.boundedResult.topologyDelta,
+            true
+          );
+
+          expect(output.intentReceipt.action_kind).toBe('INVESTIGATE');
+          expect(finalTopologyDelta).toEqual({
+            isExpansion: false,
+            newNodeDef: null,
+          });
+        });
+
+        it('suppresses proposed topology expansion when intent is OBSERVE even if isExpansionExpected is true', () => {
+          const modelResult = TurnResultSchema.parse({
+            narrative_blocks: [
+              { type: 'prose', content: 'You scan the perimeter of the unmapped boundary.' },
+            ],
+            intent_proposal: {
+              action_kind: 'OBSERVE',
+              action_subtype: null,
+              pressure_direction: 'MAINTAIN',
+              dramatic_tactic: 'NONE',
+              intent_synergy: 'N/A',
+            },
+            reconciliation_proposal: {
+              mode: 'CANONICAL',
+              feasibility: 'SUPPORTED',
+              reason_code: 'NONE',
+              fictional_time_cost: 'MOMENT',
+              authority_alignment: 'NOT_APPLICABLE',
+              memory_echo_candidate: null,
+            },
+            logic_state: {},
+            topologyDelta: mockProposedExpansion,
+          });
+
+          const output = finalizeTurnCausality({
+            result: modelResult,
+            userAction: 'I watch the shadows shifting in the breach.',
+            context: baseContext,
+          });
+
+          const finalTopologyDelta = getIntentBoundTopologyDelta(
+            output.intentReceipt,
+            output.boundedResult.topologyDelta,
+            true
+          );
+
+          expect(output.intentReceipt.action_kind).toBe('OBSERVE');
+          expect(finalTopologyDelta).toEqual({
+            isExpansion: false,
+            newNodeDef: null,
+          });
+        });
+
+        it('suppresses proposed topology expansion when intent is COMMUNICATE even if isExpansionExpected is true', () => {
+          const modelResult = TurnResultSchema.parse({
+            narrative_blocks: [
+              { type: 'prose', content: 'You shout through the opening.' },
+            ],
+            intent_proposal: {
+              action_kind: 'COMMUNICATE',
+              action_subtype: null,
+              pressure_direction: 'MAINTAIN',
+              dramatic_tactic: 'NONE',
+              intent_synergy: 'N/A',
+            },
+            reconciliation_proposal: {
+              mode: 'CANONICAL',
+              feasibility: 'SUPPORTED',
+              reason_code: 'NONE',
+              fictional_time_cost: 'MOMENT',
+              authority_alignment: 'NOT_APPLICABLE',
+              memory_echo_candidate: null,
+            },
+            logic_state: {},
+            topologyDelta: mockProposedExpansion,
+          });
+
+          const output = finalizeTurnCausality({
+            result: modelResult,
+            userAction: 'I yell into the dark opening.',
+            context: baseContext,
+          });
+
+          const finalTopologyDelta = getIntentBoundTopologyDelta(
+            output.intentReceipt,
+            output.boundedResult.topologyDelta,
+            true
+          );
+
+          expect(output.intentReceipt.action_kind).toBe('COMMUNICATE');
+          expect(finalTopologyDelta).toEqual({
+            isExpansion: false,
+            newNodeDef: null,
+          });
+        });
+
+        it('preserves proposed topology expansion when intent is MOVE and isExpansionExpected is true', () => {
+          const modelResult = TurnResultSchema.parse({
+            narrative_blocks: [
+              { type: 'prose', content: 'You cross the breach into the reinforced sub-basement.' },
+            ],
+            intent_proposal: {
+              action_kind: 'MOVE',
+              action_subtype: null,
+              pressure_direction: 'MAINTAIN',
+              dramatic_tactic: 'NONE',
+              intent_synergy: 'N/A',
+            },
+            reconciliation_proposal: {
+              mode: 'CANONICAL',
+              feasibility: 'SUPPORTED',
+              reason_code: 'NONE',
+              fictional_time_cost: 'MOMENT',
+              authority_alignment: 'NOT_APPLICABLE',
+              memory_echo_candidate: null,
+            },
+            logic_state: {},
+            topologyDelta: mockProposedExpansion,
+          });
+
+          const output = finalizeTurnCausality({
+            result: modelResult,
+            userAction: 'I crawl through the breach into the sub-basement.',
+            context: baseContext,
+          });
+
+          const finalTopologyDelta = getIntentBoundTopologyDelta(
+            output.intentReceipt,
+            output.boundedResult.topologyDelta,
+            true
+          );
+
+          expect(output.intentReceipt.action_kind).toBe('MOVE');
+          expect(finalTopologyDelta).toEqual(mockProposedExpansion);
+          expect(finalTopologyDelta.isExpansion).toBe(true);
+          expect(finalTopologyDelta.newNodeDef?.id).toBe('EXPANDED_VAULT_02');
+        });
+
+        it('suppresses proposed topology expansion when isExpansionExpected is false even for MOVE actions', () => {
+          const modelResult = TurnResultSchema.parse({
+            narrative_blocks: [
+              { type: 'prose', content: 'You move towards the sealed bulkhead.' },
+            ],
+            intent_proposal: {
+              action_kind: 'MOVE',
+              action_subtype: null,
+              pressure_direction: 'MAINTAIN',
+              dramatic_tactic: 'NONE',
+              intent_synergy: 'N/A',
+            },
+            reconciliation_proposal: {
+              mode: 'CANONICAL',
+              feasibility: 'SUPPORTED',
+              reason_code: 'NONE',
+              fictional_time_cost: 'MOMENT',
+              authority_alignment: 'NOT_APPLICABLE',
+              memory_echo_candidate: null,
+            },
+            logic_state: {},
+            topologyDelta: mockProposedExpansion,
+          });
+
+          const output = finalizeTurnCausality({
+            result: modelResult,
+            userAction: 'I step forward.',
+            context: baseContext,
+          });
+
+          const finalTopologyDelta = getIntentBoundTopologyDelta(
+            output.intentReceipt,
+            output.boundedResult.topologyDelta,
+            false
+          );
+
+          expect(output.intentReceipt.action_kind).toBe('MOVE');
+          expect(finalTopologyDelta).toEqual({
+            isExpansion: false,
+            newNodeDef: null,
+          });
+        });
+
+        it('maintains structural suppression when EXPERIENTIAL_REANCHORED mode is active', () => {
+          // A witness mortal trying to manifest an impossible teleporting expansion across reality
+          const witnessContext = EngineTurnContextSchema.parse({
+            ...baseContext,
+            player: {
+              role: 'witness',
+              name: 'Observer Mark',
+              description: 'Passive witness',
+              isEntity: false,
+            },
+          });
+
+          const modelResult = TurnResultSchema.parse({
+            narrative_blocks: [
+              { type: 'prose', content: 'You imagine a new corridor tearing into reality.' },
+            ],
+            intent_proposal: {
+              action_kind: 'MOVE',
+              action_subtype: null,
+              pressure_direction: 'MAINTAIN',
+              dramatic_tactic: 'NONE',
+              intent_synergy: 'N/A',
+            },
+            reconciliation_proposal: {
+              mode: 'CANONICAL',
+              feasibility: 'SUPPORTED',
+              reason_code: 'NONE',
+              fictional_time_cost: 'MOMENT',
+              authority_alignment: 'NOT_APPLICABLE',
+              memory_echo_candidate: null,
+            },
+            logic_state: {},
+            topologyDelta: mockProposedExpansion,
+          });
+
+          const output = finalizeTurnCausality({
+            result: modelResult,
+            userAction: 'I teleport through the unmapped dimensional rift.',
+            context: witnessContext,
+          });
+
+          expect(output.causal.suppressStructuralDeltas).toBe(true);
+          expect(output.narrativeReconciliationReceipt.mode).toBe('EXPERIENTIAL_REANCHORED');
+          expect(output.boundedResult.topologyDelta).toEqual({
+            isExpansion: false,
+            newNodeDef: null,
+          });
+
+          const finalTopologyDelta = getIntentBoundTopologyDelta(
+            output.intentReceipt,
+            output.boundedResult.topologyDelta,
+            true
+          );
+
+          expect(finalTopologyDelta).toEqual({
+            isExpansion: false,
+            newNodeDef: null,
+          });
+        });
+
+        it('route-level regression: final TurnResponse payload enforces intent-bound topology expansion authorization', () => {
+          // Case A: User investigates unmapped threshold with isExpansionExpected=true.
+          // Model mistakenly returned isExpansion=true with newNodeDef.
+          // Route-level response must return topologyDelta.isExpansion=false and newNodeDef=null.
+          const investigateModelResult = TurnResultSchema.parse({
+            narrative_blocks: [
+              { type: 'prose', content: 'You examine the glowing symbols around the portal.' },
+            ],
+            intent_proposal: {
+              action_kind: 'INVESTIGATE',
+              action_subtype: null,
+              pressure_direction: 'MAINTAIN',
+              dramatic_tactic: 'NONE',
+              intent_synergy: 'N/A',
+            },
+            reconciliation_proposal: {
+              mode: 'CANONICAL',
+              feasibility: 'SUPPORTED',
+              reason_code: 'NONE',
+              fictional_time_cost: 'MOMENT',
+              authority_alignment: 'NOT_APPLICABLE',
+              memory_echo_candidate: null,
+            },
+            logic_state: {},
+            topologyDelta: mockProposedExpansion,
+          });
+
+          const investigateCausality = finalizeTurnCausality({
+            result: investigateModelResult,
+            userAction: 'I examine the portal symbols.',
+            context: baseContext,
+          });
+
+          // Simulate turn route response assembly
+          const investigateResponse: TurnResponse = {
+            narrative_blocks: investigateCausality.boundedResult.narrative_blocks,
+            logic_state: investigateCausality.boundedResult.logic_state,
+            topologyDelta: getIntentBoundTopologyDelta(
+              investigateCausality.intentReceipt,
+              investigateCausality.boundedResult.topologyDelta,
+              true // isExpansionExpected
+            ),
+            transitionReceipt: investigateCausality.transitionReceipt,
+            castInteractionReceipt: createIntentBoundCastInteractionReceipt({
+              intentReceipt: investigateCausality.intentReceipt,
+              castTarget: investigateCausality.castTarget,
+              respondingCharacterId: null,
+            }),
+            intentReceipt: investigateCausality.intentReceipt,
+            narrativeReconciliationReceipt: investigateCausality.narrativeReconciliationReceipt,
+          };
+
+          const parsedInvestigateResponse = TurnResponseSchema.parse(investigateResponse);
+          expect(parsedInvestigateResponse.intentReceipt.action_kind).toBe('INVESTIGATE');
+          expect(parsedInvestigateResponse.topologyDelta).toEqual({
+            isExpansion: false,
+            newNodeDef: null,
+          });
+
+          // Case B: User moves across threshold with isExpansionExpected=true and valid model expansion.
+          const moveModelResult = TurnResultSchema.parse({
+            narrative_blocks: [
+              { type: 'prose', content: 'You step through the archway into the vault.' },
+            ],
+            intent_proposal: {
+              action_kind: 'MOVE',
+              action_subtype: null,
+              pressure_direction: 'MAINTAIN',
+              dramatic_tactic: 'NONE',
+              intent_synergy: 'N/A',
+            },
+            reconciliation_proposal: {
+              mode: 'CANONICAL',
+              feasibility: 'SUPPORTED',
+              reason_code: 'NONE',
+              fictional_time_cost: 'MOMENT',
+              authority_alignment: 'NOT_APPLICABLE',
+              memory_echo_candidate: null,
+            },
+            logic_state: {},
+            topologyDelta: mockProposedExpansion,
+          });
+
+          const moveCausality = finalizeTurnCausality({
+            result: moveModelResult,
+            userAction: 'I step through the archway into the unknown room.',
+            context: baseContext,
+          });
+
+          const moveResponse: TurnResponse = {
+            narrative_blocks: moveCausality.boundedResult.narrative_blocks,
+            logic_state: moveCausality.boundedResult.logic_state,
+            topologyDelta: getIntentBoundTopologyDelta(
+              moveCausality.intentReceipt,
+              moveCausality.boundedResult.topologyDelta,
+              true // isExpansionExpected
+            ),
+            transitionReceipt: moveCausality.transitionReceipt,
+            castInteractionReceipt: createIntentBoundCastInteractionReceipt({
+              intentReceipt: moveCausality.intentReceipt,
+              castTarget: moveCausality.castTarget,
+              respondingCharacterId: null,
+            }),
+            intentReceipt: moveCausality.intentReceipt,
+            narrativeReconciliationReceipt: moveCausality.narrativeReconciliationReceipt,
+          };
+
+          const parsedMoveResponse = TurnResponseSchema.parse(moveResponse);
+          expect(parsedMoveResponse.intentReceipt.action_kind).toBe('MOVE');
+          expect(parsedMoveResponse.topologyDelta?.isExpansion).toBe(true);
+          expect(parsedMoveResponse.topologyDelta?.newNodeDef?.id).toBe('EXPANDED_VAULT_02');
         });
       });
     });

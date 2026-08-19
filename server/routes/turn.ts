@@ -24,6 +24,7 @@ import {
   createIntentBoundCastInteractionReceipt,
   getIntentBoundAddressedCharacterId,
   getIntentBoundRequestedTransition,
+  getIntentBoundTopologyDelta,
 } from '../../src/lib/intentConsequenceBridge';
 import type {
   IntentReceipt,
@@ -512,7 +513,7 @@ ${systemDirective}
 ${recentHistory}
 --- END HISTORY ---
 
-[USER ACTION]: ${userAction}${isExpansionExpected ? '\n\n[SYSTEM OVERRIDE: Threshold entry detected. You MUST set `isExpansion: true` and populate `newNodeDef`.]' : '\n\n[TOPOLOGY DIRECTIVE: Static authored topology active. Do NOT invent new nodes. Set isExpansion: false and newNodeDef: null.]'}${stateContext.reconciliationRevision > 0 ? `\n[MEMORY REVISION ID: ${stateContext.reconciliationRevision}. User perception fractured.]` : ''}`;
+[USER ACTION]: ${userAction}${isExpansionExpected ? '\n\n[SYSTEM OVERRIDE: Threshold entry detected. If the user action is a real movement attempt across the detected unmapped boundary, set `isExpansion: true` and populate `newNodeDef`. Otherwise, set isExpansion: false and newNodeDef: null.]' : '\n\n[TOPOLOGY DIRECTIVE: Static authored topology active. Do NOT invent new nodes. Set isExpansion: false and newNodeDef: null.]'}${stateContext.reconciliationRevision > 0 ? `\n[MEMORY REVISION ID: ${stateContext.reconciliationRevision}. User perception fractured.]` : ''}`;
 
     // Call the LLM with strict Zod schema enforcement
     let engineResponse;
@@ -584,10 +585,12 @@ ${recentHistory}
       context
     );
 
-    // Authoritative server-side static topology normalization
-    if (!isExpansionExpected) {
-      boundedResult.topologyDelta = { isExpansion: false, newNodeDef: null };
-    }
+    // Authoritative server-side intent-bound topology delta authorization and static topology normalization
+    boundedResult.topologyDelta = getIntentBoundTopologyDelta(
+      intentReceipt,
+      boundedResult.topologyDelta,
+      isExpansionExpected
+    );
 
     const finalResponse: TurnResponse = {
       narrative_blocks: boundedResult.narrative_blocks,
