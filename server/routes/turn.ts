@@ -14,11 +14,27 @@ import { clampSkepticismDelta } from '../../src/lib/castContinuity';
 import { createCastInteractionReceipt } from '../../src/lib/castInteraction';
 import { createIntentReceipt } from '../../src/lib/intentReceipt';
 import { createNarrativeReconciliationReceipt } from '../../src/lib/narrativeReconciliation';
+import {
+  evaluateCausalFeasibility,
+  resolveExplicitCastTarget,
+  type CastTargetResolution,
+  type CausalFeasibilityResult,
+} from '../../src/lib/causalFeasibility';
+import type {
+  IntentReceipt,
+  NarrativeReconciliationReceipt,
+  TransitionReceipt,
+} from '../../src/types/engineContract';
 
 export function enforceNarrativeReconciliationBoundaries<T extends TurnResult>(
-  result: T
+  result: T,
+  reconciliationReceipt?: NarrativeReconciliationReceipt
 ): T {
-  if (result.reconciliation_proposal.mode === 'EXPERIENTIAL_REANCHORED') {
+  const mode = reconciliationReceipt
+    ? reconciliationReceipt.mode
+    : result.reconciliation_proposal.mode;
+
+  if (mode === 'EXPERIENTIAL_REANCHORED') {
     return {
       ...result,
       logic_state: {
@@ -30,6 +46,89 @@ export function enforceNarrativeReconciliationBoundaries<T extends TurnResult>(
     };
   }
   return result;
+}
+
+export interface FinalizeTurnCausalityParams {
+  result: TurnResult;
+  userAction: string;
+  context: EngineTurnContext;
+}
+
+export interface FinalizeTurnCausalityResult {
+  boundedResult: TurnResult;
+  intentReceipt: IntentReceipt;
+  narrativeReconciliationReceipt: NarrativeReconciliationReceipt;
+  transitionReceipt: TransitionReceipt;
+  castTarget: CastTargetResolution;
+  causal: CausalFeasibilityResult;
+}
+
+export function finalizeTurnCausality({
+  result,
+  userAction,
+  context,
+}: FinalizeTurnCausalityParams): FinalizeTurnCausalityResult {
+  // 1. Build intentReceipt from result.intent_proposal with the existing version-1 builder.
+  const intentReceipt = createIntentReceipt(result.intent_proposal);
+
+  // 2. Resolve castTarget with resolveExplicitCastTarget(userAction, context).
+  const castTarget = resolveExplicitCastTarget(userAction, context);
+
+  // 3. Run the existing deterministic transition resolver against the model's raw logic_state.requested_transition.
+  const preliminaryTransitionReceipt = resolveTransition({
+    currentNodeId: context.topology.currentNodeId,
+    requestedTransition: result.logic_state.requested_transition,
+    allowedOutgoingExits: context.topology.allowedOutgoingExits,
+    activeFlags: context.runtime.activeFlags || [],
+  });
+
+  // 4. Call evaluateCausalFeasibility with the intent receipt, authoritative context, preliminary transition receipt, and cast target.
+  const causal = evaluateCausalFeasibility({
+    intentReceipt,
+    context,
+    transitionReceipt: preliminaryTransitionReceipt,
+    castTarget,
+  });
+
+  // 5. Build a fresh server-normalized reconciliation proposal:
+  const serverProposal = {
+    ...result.reconciliation_proposal,
+    feasibility: causal.feasibility,
+    reason_code: causal.reason_code,
+    authority_alignment: causal.authority_alignment,
+    mode: causal.suppressStructuralDeltas
+      ? ('EXPERIENTIAL_REANCHORED' as const)
+      : result.reconciliation_proposal.mode,
+  };
+
+  // 6. Pass serverProposal through the existing createNarrativeReconciliationReceipt builder.
+  const narrativeReconciliationReceipt = createNarrativeReconciliationReceipt(
+    serverProposal,
+    context.player.role
+  );
+
+  // 7. Refactor enforceNarrativeReconciliationBoundaries so its decision uses the final reconciliation receipt.
+  const boundedResult = enforceNarrativeReconciliationBoundaries(
+    result,
+    narrativeReconciliationReceipt
+  );
+
+  // 8. Run the existing deterministic transition resolver again against the bounded result.
+  const transitionReceipt = resolveTransition({
+    currentNodeId: context.topology.currentNodeId,
+    requestedTransition: boundedResult.logic_state.requested_transition,
+    allowedOutgoingExits: context.topology.allowedOutgoingExits,
+    activeFlags: context.runtime.activeFlags || [],
+  });
+
+  return {
+    boundedResult,
+    intentReceipt,
+    narrativeReconciliationReceipt,
+    transitionReceipt,
+    castTarget,
+    causal,
+  };
 }
 
 function normalizeDialogueAddress(value: string): string {
@@ -444,13 +543,24 @@ ${recentHistory}
       });
     }
 
+    const {
+      boundedResult,
+      intentReceipt,
+      narrativeReconciliationReceipt,
+      transitionReceipt,
+    } = finalizeTurnCausality({
+      result: engineResponse,
+      userAction,
+      context,
+    });
+
     const explicitlyAddressedSpeakerId = resolveExplicitAddressedSpeakerId(
       userAction,
       context
     );
 
     const dialogueContractError = validateDialogueBlocks(
-      engineResponse.narrative_blocks,
+      boundedResult.narrative_blocks,
       context,
       explicitlyAddressedSpeakerId
     );
@@ -465,8 +575,8 @@ ${recentHistory}
     }
 
     const respondingCharacterId = resolveDialogueSpeakerId(
-      engineResponse.narrative_blocks,
-      context,
+      boundedResult.narrative_blocks,
+      context
     );
 
     const castInteractionReceipt = createCastInteractionReceipt({
@@ -474,36 +584,20 @@ ${recentHistory}
       respondingCharacterId,
     });
 
-    const boundedEngineResponse = enforceNarrativeReconciliationBoundaries(engineResponse);
-
-    const intentReceipt = createIntentReceipt(boundedEngineResponse.intent_proposal);
-    const narrativeReconciliationReceipt = createNarrativeReconciliationReceipt(
-      boundedEngineResponse.reconciliation_proposal,
-      context.player.role
-    );
-
-    boundedEngineResponse.logic_state.cast_deltas = normalizeCastSkepticismDeltas(
-      boundedEngineResponse.logic_state.cast_deltas,
-      context,
+    boundedResult.logic_state.cast_deltas = normalizeCastSkepticismDeltas(
+      boundedResult.logic_state.cast_deltas,
+      context
     );
 
     // Authoritative server-side static topology normalization
     if (!isExpansionExpected) {
-      boundedEngineResponse.topologyDelta = { isExpansion: false, newNodeDef: null };
+      boundedResult.topologyDelta = { isExpansion: false, newNodeDef: null };
     }
 
-    // Deterministic transition resolution at the server boundary
-    const transitionReceipt = resolveTransition({
-      currentNodeId: context.topology.currentNodeId,
-      requestedTransition: boundedEngineResponse.logic_state.requested_transition,
-      allowedOutgoingExits: context.topology.allowedOutgoingExits,
-      activeFlags: context.runtime.activeFlags || [],
-    });
-
     const finalResponse: TurnResponse = {
-      narrative_blocks: boundedEngineResponse.narrative_blocks,
-      logic_state: boundedEngineResponse.logic_state,
-      topologyDelta: boundedEngineResponse.topologyDelta,
+      narrative_blocks: boundedResult.narrative_blocks,
+      logic_state: boundedResult.logic_state,
+      topologyDelta: boundedResult.topologyDelta,
       transitionReceipt,
       castInteractionReceipt,
       intentReceipt,

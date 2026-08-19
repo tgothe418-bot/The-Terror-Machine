@@ -1,3 +1,5 @@
+import * as fs from 'fs';
+import * as path from 'path';
 import { describe, expect, it } from 'vitest';
 import { TurnRequestSchema, TurnResultSchema, EngineTurnContextSchema, TurnResponseSchema } from '../schemas/engine';
 import {
@@ -7,6 +9,7 @@ import {
   formatCastLedger,
   normalizeCastSkepticismDeltas,
   enforceNarrativeReconciliationBoundaries,
+  finalizeTurnCausality,
 } from './turn';
 import { createCastInteractionReceipt } from '../../src/lib/castInteraction';
 import { createIntentReceipt } from '../../src/lib/intentReceipt';
@@ -1154,6 +1157,475 @@ describe('Turn schemas validation', () => {
         respondingCharacterId: null,
         outcome: 'NONE',
       });
+    });
+  });
+
+  describe('Phase 3G.2B: Causal Feasibility Integration (finalizeTurnCausality)', () => {
+    const baseContext = EngineTurnContextSchema.parse({
+      scenario: {
+        title: 'Sector 7 Facility',
+        premise: 'Contained environmental research compound.',
+        worldRules: ['Air filtration requires active power.'],
+        setting: { location: 'Control Hub', atmosphere: 'Sterile', timePeriod: '2094' },
+      },
+      player: {
+        role: 'protagonist',
+        characterId: 'char-player',
+        name: 'Operative Cole',
+        description: 'Lead surveyor',
+      },
+      cast: [
+        {
+          id: 'char-player',
+          name: 'Operative Cole',
+          role: 'Surveyor',
+          isUserCharacter: true,
+        },
+        {
+          id: 'char-elena',
+          name: 'Dr. Elena Rhodes',
+          role: 'Analyst',
+          isPresent: true,
+          skepticism: 0.8,
+          expressionProfile: {
+            communicationModes: ['spoken', 'mediated'],
+            expressionGuidance: 'Precise and methodical.',
+          },
+        },
+        {
+          id: 'char-remote',
+          name: 'Supervisor Ward',
+          role: 'Coordinator',
+          isPresent: false,
+          skepticism: 0.5,
+          expressionProfile: {
+            communicationModes: ['spoken'],
+            expressionGuidance: 'Remote coordination instructions.',
+          },
+        },
+        {
+          id: 'char-probe',
+          name: 'Autonomous Probe',
+          role: 'Sensor Drone',
+          isPresent: true,
+          skepticism: 0.5,
+          expressionProfile: {
+            communicationModes: ['nonverbal'],
+            expressionGuidance: 'Mechanical sensor sweeps and light indicators.',
+          },
+        },
+      ],
+      topology: {
+        currentNodeId: 'CONTROL_HUB',
+        readableNodeLabel: 'Control Hub',
+        allowedOutgoingExits: [
+          {
+            from: 'CONTROL_HUB',
+            to: 'AIRLOCK_01',
+            kind: 'PHYSICAL',
+            userInitiated: true,
+          },
+        ],
+      },
+      runtime: {
+        phase: 'LATENT',
+        tension: 1,
+        coherence: 1.0,
+        reconciliationRevision: 0,
+        activeVector: 'COGNITIVE',
+        activeTier: 'LATENT',
+      },
+    });
+
+    it('handles invalid move despite optimistic model metadata (Case 1)', () => {
+      const modelResult = TurnResultSchema.parse({
+        narrative_blocks: [
+          { type: 'prose', content: 'You sprint through a non-existent breach into Sector Zero.' },
+        ],
+        intent_proposal: {
+          action_kind: 'MOVE',
+          action_subtype: null,
+          pressure_direction: 'MAINTAIN',
+          dramatic_tactic: 'NONE',
+          intent_synergy: 'N/A',
+        },
+        reconciliation_proposal: {
+          mode: 'CANONICAL',
+          feasibility: 'SUPPORTED',
+          reason_code: 'NONE',
+          fictional_time_cost: 'MOMENT',
+          authority_alignment: 'NOT_APPLICABLE',
+          memory_echo_candidate: null,
+        },
+        logic_state: {
+          current_phase: 'LATENT',
+          suggested_tension: 3,
+          requested_transition: 'UNCONNECTED_SECTOR_ZERO',
+          terminal_flags: [],
+          cast_deltas: [{ character_id: 'char-elena', skepticism_delta: -0.1 }],
+        },
+        topologyDelta: {
+          isExpansion: true,
+          newNodeDef: {
+            id: 'UNCONNECTED_SECTOR_ZERO',
+            geometry: 'Chamber',
+            hazards: [],
+            exitVectors: [],
+          },
+        },
+      });
+
+      const userAction = 'I run into Sector Zero.';
+      const output = finalizeTurnCausality({
+        result: modelResult,
+        userAction,
+        context: baseContext,
+      });
+
+      // Assert causal feasibility result
+      expect(output.causal.feasibility).toBe('IMPOSSIBLE');
+      expect(output.causal.reason_code).toBe('TOPOLOGY_LIMIT');
+      expect(output.causal.suppressStructuralDeltas).toBe(true);
+
+      // Assert narrative reconciliation receipt
+      expect(output.narrativeReconciliationReceipt.feasibility).toBe('IMPOSSIBLE');
+      expect(output.narrativeReconciliationReceipt.reason_code).toBe('TOPOLOGY_LIMIT');
+      expect(output.narrativeReconciliationReceipt.mode).toBe('EXPERIENTIAL_REANCHORED');
+      expect(output.narrativeReconciliationReceipt.revision_increment).toBe(1);
+
+      // Assert structural suppression
+      expect(output.boundedResult.logic_state.requested_transition).toBeNull();
+      expect(output.boundedResult.logic_state.cast_deltas).toEqual([]);
+      expect(output.boundedResult.topologyDelta).toEqual({ isExpansion: false, newNodeDef: null });
+
+      // Assert narrative blocks preserved
+      expect(output.boundedResult.narrative_blocks).toEqual(modelResult.narrative_blocks);
+
+      // Assert final transition is not accepted
+      expect(output.transitionReceipt.accepted).toBe(false);
+      expect(output.transitionReceipt.requestedNodeId).toBeNull();
+    });
+
+    it('handles accepted mapped move (Case 2)', () => {
+      const modelResult = TurnResultSchema.parse({
+        narrative_blocks: [
+          { type: 'prose', content: 'You cycle through the primary airlock hatch.' },
+        ],
+        intent_proposal: {
+          action_kind: 'MOVE',
+          action_subtype: null,
+          pressure_direction: 'MAINTAIN',
+          dramatic_tactic: 'NONE',
+          intent_synergy: 'N/A',
+        },
+        reconciliation_proposal: {
+          mode: 'CANONICAL',
+          feasibility: 'SUPPORTED',
+          reason_code: 'NONE',
+          fictional_time_cost: 'MOMENT',
+          authority_alignment: 'NOT_APPLICABLE',
+          memory_echo_candidate: null,
+        },
+        logic_state: {
+          current_phase: 'LATENT',
+          suggested_tension: 2,
+          requested_transition: 'AIRLOCK_01',
+          terminal_flags: [],
+          cast_deltas: [{ character_id: 'char-elena', skepticism_delta: 0.05 }],
+        },
+        topologyDelta: { isExpansion: false, newNodeDef: null },
+      });
+
+      const userAction = 'I proceed to Airlock 01.';
+      const output = finalizeTurnCausality({
+        result: modelResult,
+        userAction,
+        context: baseContext,
+      });
+
+      // Assert causal feasibility and receipt
+      expect(output.causal.feasibility).toBe('SUPPORTED');
+      expect(output.causal.reason_code).toBe('NONE');
+      expect(output.causal.suppressStructuralDeltas).toBe(false);
+      expect(output.narrativeReconciliationReceipt.feasibility).toBe('SUPPORTED');
+      expect(output.narrativeReconciliationReceipt.reason_code).toBe('NONE');
+      expect(output.narrativeReconciliationReceipt.mode).toBe('CANONICAL');
+      expect(output.narrativeReconciliationReceipt.revision_increment).toBe(0);
+
+      // Assert transition remains accepted
+      expect(output.transitionReceipt.accepted).toBe(true);
+      expect(output.transitionReceipt.toNodeId).toBe('AIRLOCK_01');
+      expect(output.boundedResult.logic_state.requested_transition).toBe('AIRLOCK_01');
+    });
+
+    it('handles communication to an absent exact target (Case 3)', () => {
+      const modelResult = TurnResultSchema.parse({
+        narrative_blocks: [
+          { type: 'prose', content: 'You speak into the empty control room calling for Ward.' },
+        ],
+        intent_proposal: {
+          action_kind: 'COMMUNICATE',
+          action_subtype: null,
+          pressure_direction: 'MAINTAIN',
+          dramatic_tactic: 'NONE',
+          intent_synergy: 'N/A',
+        },
+        reconciliation_proposal: {
+          mode: 'CANONICAL',
+          feasibility: 'SUPPORTED',
+          reason_code: 'NONE',
+          fictional_time_cost: 'MOMENT',
+          authority_alignment: 'NOT_APPLICABLE',
+          memory_echo_candidate: null,
+        },
+        logic_state: {
+          current_phase: 'LATENT',
+          suggested_tension: 2,
+          requested_transition: null,
+          terminal_flags: [],
+          cast_deltas: [{ character_id: 'char-elena', skepticism_delta: 0.1 }],
+        },
+        topologyDelta: {
+          isExpansion: true,
+          newNodeDef: { id: 'EXTRA_ROOM', geometry: 'Chamber', hazards: [], exitVectors: [] },
+        },
+      });
+
+      const userAction = 'I ask Supervisor Ward for clearance.';
+      const output = finalizeTurnCausality({
+        result: modelResult,
+        userAction,
+        context: baseContext,
+      });
+
+      expect(output.castTarget.status).toBe('ABSENT');
+      expect(output.causal.feasibility).toBe('IMPOSSIBLE');
+      expect(output.causal.reason_code).toBe('CAST_PRESENCE_LIMIT');
+      expect(output.causal.suppressStructuralDeltas).toBe(true);
+      expect(output.narrativeReconciliationReceipt.feasibility).toBe('IMPOSSIBLE');
+      expect(output.narrativeReconciliationReceipt.reason_code).toBe('CAST_PRESENCE_LIMIT');
+      expect(output.narrativeReconciliationReceipt.mode).toBe('EXPERIENTIAL_REANCHORED');
+
+      // Assert structural deltas suppressed while prose remains
+      expect(output.boundedResult.logic_state.cast_deltas).toEqual([]);
+      expect(output.boundedResult.topologyDelta).toEqual({ isExpansion: false, newNodeDef: null });
+      expect(output.boundedResult.narrative_blocks).toEqual(modelResult.narrative_blocks);
+    });
+
+    it('handles communication to an ineligible nonverbal exact target (Case 3 variant)', () => {
+      const modelResult = TurnResultSchema.parse({
+        narrative_blocks: [
+          { type: 'prose', content: 'You talk to the sensor drone.' },
+        ],
+        intent_proposal: {
+          action_kind: 'COMMUNICATE',
+          action_subtype: null,
+          pressure_direction: 'MAINTAIN',
+          dramatic_tactic: 'NONE',
+          intent_synergy: 'N/A',
+        },
+        reconciliation_proposal: {
+          mode: 'CANONICAL',
+          feasibility: 'SUPPORTED',
+          reason_code: 'NONE',
+          fictional_time_cost: 'MOMENT',
+          authority_alignment: 'NOT_APPLICABLE',
+          memory_echo_candidate: null,
+        },
+        logic_state: {
+          current_phase: 'LATENT',
+          suggested_tension: 1,
+          requested_transition: null,
+          terminal_flags: [],
+          cast_deltas: [],
+        },
+      });
+
+      const userAction = 'I ask Autonomous Probe for a status report.';
+      const output = finalizeTurnCausality({
+        result: modelResult,
+        userAction,
+        context: baseContext,
+      });
+
+      expect(output.castTarget.status).toBe('INELIGIBLE');
+      expect(output.causal.feasibility).toBe('IMPOSSIBLE');
+      expect(output.causal.reason_code).toBe('CAST_PRESENCE_LIMIT');
+      expect(output.causal.suppressStructuralDeltas).toBe(true);
+    });
+
+    it('evaluates insufficient server evidence as UNCLEAR / NONE without forced suppression (Case 4)', () => {
+      const modelResult = TurnResultSchema.parse({
+        narrative_blocks: [
+          { type: 'prose', content: 'You attempt to bypass the pneumatic valve linkage.' },
+        ],
+        intent_proposal: {
+          action_kind: 'MANIPULATE',
+          action_subtype: null,
+          pressure_direction: 'MAINTAIN',
+          dramatic_tactic: 'NONE',
+          intent_synergy: 'N/A',
+        },
+        reconciliation_proposal: {
+          mode: 'CANONICAL',
+          feasibility: 'SUPPORTED',
+          reason_code: 'NONE',
+          fictional_time_cost: 'MOMENT',
+          authority_alignment: 'NOT_APPLICABLE',
+          memory_echo_candidate: null,
+        },
+        logic_state: {
+          current_phase: 'LATENT',
+          suggested_tension: 2,
+          requested_transition: null,
+          terminal_flags: [],
+          cast_deltas: [{ character_id: 'char-elena', skepticism_delta: 0.05 }],
+        },
+      });
+
+      const userAction = 'I force the pneumatic valve lever.';
+      const output = finalizeTurnCausality({
+        result: modelResult,
+        userAction,
+        context: baseContext,
+      });
+
+      // Feasibility becomes UNCLEAR / NONE
+      expect(output.causal.feasibility).toBe('UNCLEAR');
+      expect(output.causal.reason_code).toBe('NONE');
+      expect(output.causal.suppressStructuralDeltas).toBe(false);
+
+      expect(output.narrativeReconciliationReceipt.feasibility).toBe('UNCLEAR');
+      expect(output.narrativeReconciliationReceipt.reason_code).toBe('NONE');
+      expect(output.narrativeReconciliationReceipt.mode).toBe('CANONICAL');
+
+      // Does not gain structural suppression merely because evidence is unknown
+      expect(output.boundedResult.logic_state.cast_deltas).toHaveLength(1);
+    });
+
+    it('normalizes authority alignment for non-antagonist and antagonist roles (Case 5)', () => {
+      const modelResult = TurnResultSchema.parse({
+        narrative_blocks: [{ type: 'prose', content: 'Observation.' }],
+        intent_proposal: {
+          action_kind: 'INVESTIGATE',
+          action_subtype: null,
+          pressure_direction: 'MAINTAIN',
+          dramatic_tactic: 'NONE',
+          intent_synergy: 'N/A',
+        },
+        reconciliation_proposal: {
+          mode: 'CANONICAL',
+          feasibility: 'SUPPORTED',
+          reason_code: 'NONE',
+          fictional_time_cost: 'MOMENT',
+          authority_alignment: 'WITHIN_CONTRACT',
+          memory_echo_candidate: null,
+        },
+        logic_state: {},
+      });
+
+      // 1. Non-antagonist: role is protagonist -> NOT_APPLICABLE
+      const nonAntagonistOutput = finalizeTurnCausality({
+        result: modelResult,
+        userAction: 'I inspect the gauges.',
+        context: baseContext,
+      });
+      expect(nonAntagonistOutput.causal.authority_alignment).toBe('NOT_APPLICABLE');
+      expect(nonAntagonistOutput.narrativeReconciliationReceipt.authority_alignment).toBe(
+        'NOT_APPLICABLE'
+      );
+
+      // 2. Antagonist: role is antagonist -> UNCLEAR in this phase
+      const antagonistContext = EngineTurnContextSchema.parse({
+        ...baseContext,
+        player: {
+          role: 'antagonist',
+          characterId: 'char-antagonist',
+          name: 'The Facility AI',
+          description: 'Hostile mainframe',
+        },
+        participationContext: {
+          mode: 'antagonist',
+          seat: { kind: 'force', name: 'The Facility AI' },
+          initialGoal: 'Subdue occupants',
+          boundedFacts: ['All cameras are functional.'],
+          authorityContract: {
+            authority: 'Can control facility lighting and door seals.',
+            limits: 'Cannot mutate physical bulkheads directly.',
+          },
+          victimField: {
+            kind: 'group',
+            collectiveDesignation: 'Survivors',
+            members: [],
+          },
+        },
+      });
+
+      const antagonistOutput = finalizeTurnCausality({
+        result: modelResult,
+        userAction: 'I observe the survivors from the ceiling monitors.',
+        context: antagonistContext,
+      });
+      expect(antagonistOutput.causal.authority_alignment).toBe('UNCLEAR');
+      expect(antagonistOutput.narrativeReconciliationReceipt.authority_alignment).toBe('UNCLEAR');
+    });
+
+    it('ensures final TurnResponseSchema output omits proposal keys (Case 6)', () => {
+      const modelResult = TurnResultSchema.parse({
+        narrative_blocks: [{ type: 'prose', content: 'Telemetry updated.' }],
+        intent_proposal: {
+          action_kind: 'SYSTEM',
+          action_subtype: null,
+          pressure_direction: 'MAINTAIN',
+          dramatic_tactic: 'NONE',
+          intent_synergy: 'N/A',
+        },
+        reconciliation_proposal: {
+          mode: 'CANONICAL',
+          feasibility: 'SUPPORTED',
+          reason_code: 'NONE',
+          fictional_time_cost: 'MOMENT',
+          authority_alignment: 'NOT_APPLICABLE',
+          memory_echo_candidate: null,
+        },
+        logic_state: {},
+      });
+
+      const {
+        boundedResult,
+        intentReceipt,
+        narrativeReconciliationReceipt,
+        transitionReceipt,
+      } = finalizeTurnCausality({
+        result: modelResult,
+        userAction: 'SYSTEM_INIT',
+        context: baseContext,
+      });
+
+      const responseEnvelope: Record<string, unknown> = {
+        narrative_blocks: boundedResult.narrative_blocks,
+        logic_state: boundedResult.logic_state,
+        topologyDelta: boundedResult.topologyDelta,
+        transitionReceipt,
+        intentReceipt,
+        narrativeReconciliationReceipt,
+      };
+
+      const validated = TurnResponseSchema.parse(responseEnvelope);
+      expect(validated.intentReceipt).toBeDefined();
+      expect(validated.narrativeReconciliationReceipt).toBeDefined();
+      expect((validated as Record<string, unknown>).intent_proposal).toBeUndefined();
+      expect((validated as Record<string, unknown>).reconciliation_proposal).toBeUndefined();
+    });
+
+    it('verifies the route file contains one and only one generateStructuredResponse invocation (Case 8)', () => {
+      const turnRoutePath = path.resolve(__dirname, 'turn.ts');
+      const turnRouteCode = fs.readFileSync(turnRoutePath, 'utf-8');
+
+      // Match all function call occurrences of generateStructuredResponse(
+      const matches = turnRouteCode.match(/generateStructuredResponse\s*\(/g);
+      expect(matches).not.toBeNull();
+      expect(matches?.length).toBe(1);
     });
   });
 });
