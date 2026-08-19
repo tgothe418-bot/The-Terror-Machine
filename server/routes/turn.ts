@@ -20,6 +20,7 @@ import {
   type CastTargetResolution,
   type CausalFeasibilityResult,
 } from '../../src/lib/causalFeasibility';
+import { applyRoleAwareIntentPolicy } from '../../src/lib/roleAwareIntentPolicy';
 import type {
   IntentReceipt,
   NarrativeReconciliationReceipt,
@@ -83,14 +84,22 @@ export function finalizeTurnCausality({
   });
 
   // 4. Call evaluateCausalFeasibility with the intent receipt, authoritative context, preliminary transition receipt, and cast target.
-  const causal = evaluateCausalFeasibility({
+  const baseCausal = evaluateCausalFeasibility({
     intentReceipt,
     context,
     transitionReceipt: preliminaryTransitionReceipt,
     castTarget,
   });
 
-  // 5. Build a fresh server-normalized reconciliation proposal:
+  // 5. Apply role-aware intent policy over the base causal evaluation.
+  const causal = applyRoleAwareIntentPolicy({
+    base: baseCausal,
+    intentReceipt,
+    context,
+    proposedAuthorityAlignment: result.reconciliation_proposal.authority_alignment,
+  });
+
+  // 6. Build a fresh server-normalized reconciliation proposal from the policy result:
   const serverProposal = {
     ...result.reconciliation_proposal,
     feasibility: causal.feasibility,
@@ -101,19 +110,19 @@ export function finalizeTurnCausality({
       : result.reconciliation_proposal.mode,
   };
 
-  // 6. Pass serverProposal through the existing createNarrativeReconciliationReceipt builder.
+  // 7. Pass serverProposal through the existing createNarrativeReconciliationReceipt builder.
   const narrativeReconciliationReceipt = createNarrativeReconciliationReceipt(
     serverProposal,
     context.player.role
   );
 
-  // 7. Refactor enforceNarrativeReconciliationBoundaries so its decision uses the final reconciliation receipt.
+  // 8. Enforce narrative reconciliation boundaries so its decision uses the final reconciliation receipt.
   const boundedResult = enforceNarrativeReconciliationBoundaries(
     result,
     narrativeReconciliationReceipt
   );
 
-  // 8. Run the existing deterministic transition resolver again against the bounded result.
+  // 9. Run the existing deterministic transition resolver again against the bounded result.
   const transitionReceipt = resolveTransition({
     currentNodeId: context.topology.currentNodeId,
     requestedTransition: boundedResult.logic_state.requested_transition,

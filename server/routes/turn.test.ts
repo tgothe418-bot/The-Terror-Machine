@@ -1535,7 +1535,7 @@ describe('Turn schemas validation', () => {
         'NOT_APPLICABLE'
       );
 
-      // 2. Antagonist: role is antagonist -> UNCLEAR in this phase
+      // 2. Antagonist with complete contract: preserves WITHIN_CONTRACT
       const antagonistContext = EngineTurnContextSchema.parse({
         ...baseContext,
         player: {
@@ -1566,8 +1566,135 @@ describe('Turn schemas validation', () => {
         userAction: 'I observe the survivors from the ceiling monitors.',
         context: antagonistContext,
       });
-      expect(antagonistOutput.causal.authority_alignment).toBe('UNCLEAR');
-      expect(antagonistOutput.narrativeReconciliationReceipt.authority_alignment).toBe('UNCLEAR');
+      expect(antagonistOutput.causal.authority_alignment).toBe('WITHIN_CONTRACT');
+      expect(antagonistOutput.narrativeReconciliationReceipt.authority_alignment).toBe('WITHIN_CONTRACT');
+
+      // 3. Antagonist without contract: normalized to EXCEEDS_CONTRACT
+      const antagonistNoContractContext = EngineTurnContextSchema.parse({
+        ...baseContext,
+        player: {
+          role: 'antagonist',
+          characterId: 'char-antagonist',
+          name: 'The Facility AI',
+          description: 'Hostile mainframe',
+        },
+      });
+
+      const antagonistNoContractOutput = finalizeTurnCausality({
+        result: modelResult,
+        userAction: 'I observe the survivors.',
+        context: antagonistNoContractContext,
+      });
+      expect(antagonistNoContractOutput.causal.feasibility).toBe('IMPOSSIBLE');
+      expect(antagonistNoContractOutput.causal.reason_code).toBe('AUTHORITY_LIMIT');
+      expect(antagonistNoContractOutput.causal.authority_alignment).toBe('EXCEEDS_CONTRACT');
+      expect(antagonistNoContractOutput.narrativeReconciliationReceipt.authority_alignment).toBe('EXCEEDS_CONTRACT');
+    });
+
+    it('suppresses structural deltas for Director MOVE and MANIPULATE while retaining prose', () => {
+      const directorContext = EngineTurnContextSchema.parse({
+        ...baseContext,
+        player: {
+          role: 'director',
+          name: 'Director',
+          description: 'Framing narrative',
+        },
+      });
+
+      const modelResult = TurnResultSchema.parse({
+        narrative_blocks: [
+          { type: 'prose', content: 'The camera cuts to the airlock corridor.' },
+        ],
+        intent_proposal: {
+          action_kind: 'MOVE',
+          action_subtype: null,
+          pressure_direction: 'MAINTAIN',
+          dramatic_tactic: 'NONE',
+          intent_synergy: 'N/A',
+        },
+        reconciliation_proposal: {
+          mode: 'CANONICAL',
+          feasibility: 'SUPPORTED',
+          reason_code: 'NONE',
+          fictional_time_cost: 'MOMENT',
+          authority_alignment: 'NOT_APPLICABLE',
+          memory_echo_candidate: null,
+        },
+        logic_state: {
+          requested_transition: 'AIRLOCK_01',
+          cast_deltas: [{ character_id: 'char-elena', skepticism_delta: 0.1 }],
+        },
+        topologyDelta: {
+          isExpansion: true,
+          newNodeDef: { id: 'NEW_ZONE', geometry: 'Corridor', hazards: [], exitVectors: [] },
+        },
+      });
+
+      const output = finalizeTurnCausality({
+        result: modelResult,
+        userAction: 'Cut to the airlock corridor.',
+        context: directorContext,
+      });
+
+      expect(output.causal.feasibility).toBe('CONSTRAINED');
+      expect(output.causal.reason_code).toBe('AUTHORITY_LIMIT');
+      expect(output.causal.suppressStructuralDeltas).toBe(true);
+      expect(output.narrativeReconciliationReceipt.mode).toBe('EXPERIENTIAL_REANCHORED');
+
+      expect(output.boundedResult.logic_state.requested_transition).toBeNull();
+      expect(output.boundedResult.logic_state.cast_deltas).toEqual([]);
+      expect(output.boundedResult.topologyDelta).toEqual({ isExpansion: false, newNodeDef: null });
+      expect(output.boundedResult.narrative_blocks).toEqual(modelResult.narrative_blocks);
+      expect(output.transitionReceipt.accepted).toBe(false);
+    });
+
+    it('suppresses structural deltas for Witness active actions while retaining prose', () => {
+      const witnessContext = EngineTurnContextSchema.parse({
+        ...baseContext,
+        player: {
+          role: 'witness',
+          name: 'Witness',
+          description: 'Observer in shadows',
+        },
+      });
+
+      const modelResult = TurnResultSchema.parse({
+        narrative_blocks: [
+          { type: 'prose', content: 'You try to turn the lever but remain merely a phantom observer.' },
+        ],
+        intent_proposal: {
+          action_kind: 'MANIPULATE',
+          action_subtype: null,
+          pressure_direction: 'MAINTAIN',
+          dramatic_tactic: 'NONE',
+          intent_synergy: 'N/A',
+        },
+        reconciliation_proposal: {
+          mode: 'CANONICAL',
+          feasibility: 'SUPPORTED',
+          reason_code: 'NONE',
+          fictional_time_cost: 'MOMENT',
+          authority_alignment: 'NOT_APPLICABLE',
+          memory_echo_candidate: null,
+        },
+        logic_state: {
+          cast_deltas: [{ character_id: 'char-elena', skepticism_delta: 0.1 }],
+        },
+      });
+
+      const output = finalizeTurnCausality({
+        result: modelResult,
+        userAction: 'I pull the lever.',
+        context: witnessContext,
+      });
+
+      expect(output.causal.feasibility).toBe('CONSTRAINED');
+      expect(output.causal.reason_code).toBe('AUTHORITY_LIMIT');
+      expect(output.causal.suppressStructuralDeltas).toBe(true);
+      expect(output.narrativeReconciliationReceipt.mode).toBe('EXPERIENTIAL_REANCHORED');
+
+      expect(output.boundedResult.logic_state.cast_deltas).toEqual([]);
+      expect(output.boundedResult.narrative_blocks).toEqual(modelResult.narrative_blocks);
     });
 
     it('ensures final TurnResponseSchema output omits proposal keys (Case 6)', () => {
