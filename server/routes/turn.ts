@@ -11,7 +11,6 @@ import {
 import { generateStructuredResponse } from '../utils/aiClient';
 import { resolveTransition } from '../engine/transitionResolver';
 import { clampSkepticismDelta } from '../../src/lib/castContinuity';
-import { createCastInteractionReceipt } from '../../src/lib/castInteraction';
 import { createIntentReceipt } from '../../src/lib/intentReceipt';
 import { createNarrativeReconciliationReceipt } from '../../src/lib/narrativeReconciliation';
 import {
@@ -21,6 +20,11 @@ import {
   type CausalFeasibilityResult,
 } from '../../src/lib/causalFeasibility';
 import { applyRoleAwareIntentPolicy } from '../../src/lib/roleAwareIntentPolicy';
+import {
+  createIntentBoundCastInteractionReceipt,
+  getIntentBoundAddressedCharacterId,
+  getIntentBoundRequestedTransition,
+} from '../../src/lib/intentConsequenceBridge';
 import type {
   IntentReceipt,
   NarrativeReconciliationReceipt,
@@ -75,15 +79,29 @@ export function finalizeTurnCausality({
   // 2. Resolve castTarget with resolveExplicitCastTarget(userAction, context).
   const castTarget = resolveExplicitCastTarget(userAction, context);
 
-  // 3. Run the existing deterministic transition resolver against the model's raw logic_state.requested_transition.
+  // 3. Compute intent-bound requested transition.
+  const intentBoundRequestedTransition = getIntentBoundRequestedTransition(
+    intentReceipt,
+    result.logic_state.requested_transition
+  );
+
+  const resultWithIntentBoundTransition = {
+    ...result,
+    logic_state: {
+      ...result.logic_state,
+      requested_transition: intentBoundRequestedTransition,
+    },
+  };
+
+  // 4. Run the existing deterministic transition resolver against the intent-bound requested transition.
   const preliminaryTransitionReceipt = resolveTransition({
     currentNodeId: context.topology.currentNodeId,
-    requestedTransition: result.logic_state.requested_transition,
+    requestedTransition: intentBoundRequestedTransition,
     allowedOutgoingExits: context.topology.allowedOutgoingExits,
     activeFlags: context.runtime.activeFlags || [],
   });
 
-  // 4. Call evaluateCausalFeasibility with the intent receipt, authoritative context, preliminary transition receipt, and cast target.
+  // 5. Call evaluateCausalFeasibility with the intent receipt, authoritative context, preliminary transition receipt, and cast target.
   const baseCausal = evaluateCausalFeasibility({
     intentReceipt,
     context,
@@ -91,7 +109,7 @@ export function finalizeTurnCausality({
     castTarget,
   });
 
-  // 5. Apply role-aware intent policy over the base causal evaluation.
+  // 6. Apply role-aware intent policy over the base causal evaluation.
   const causal = applyRoleAwareIntentPolicy({
     base: baseCausal,
     intentReceipt,
@@ -99,7 +117,7 @@ export function finalizeTurnCausality({
     proposedAuthorityAlignment: result.reconciliation_proposal.authority_alignment,
   });
 
-  // 6. Build a fresh server-normalized reconciliation proposal from the policy result:
+  // 7. Build a fresh server-normalized reconciliation proposal from the policy result:
   const serverProposal = {
     ...result.reconciliation_proposal,
     feasibility: causal.feasibility,
@@ -110,19 +128,19 @@ export function finalizeTurnCausality({
       : result.reconciliation_proposal.mode,
   };
 
-  // 7. Pass serverProposal through the existing createNarrativeReconciliationReceipt builder.
+  // 8. Pass serverProposal through the existing createNarrativeReconciliationReceipt builder.
   const narrativeReconciliationReceipt = createNarrativeReconciliationReceipt(
     serverProposal,
     context.player.role
   );
 
-  // 8. Enforce narrative reconciliation boundaries so its decision uses the final reconciliation receipt.
+  // 9. Enforce narrative reconciliation boundaries so its decision uses the final reconciliation receipt.
   const boundedResult = enforceNarrativeReconciliationBoundaries(
-    result,
+    resultWithIntentBoundTransition,
     narrativeReconciliationReceipt
   );
 
-  // 9. Run the existing deterministic transition resolver again against the bounded result.
+  // 10. Run the existing deterministic transition resolver again against the bounded result.
   const transitionReceipt = resolveTransition({
     currentNodeId: context.topology.currentNodeId,
     requestedTransition: boundedResult.logic_state.requested_transition,
@@ -138,42 +156,6 @@ export function finalizeTurnCausality({
     castTarget,
     causal,
   };
-}
-
-function normalizeDialogueAddress(value: string): string {
-  return ` ${value
-    .toLocaleLowerCase()
-    .replace(/[^\p{L}\p{N}]+/gu, ' ')
-    .trim()} `;
-}
-
-export function resolveExplicitAddressedSpeakerId(
-  userAction: string,
-  context: EngineTurnContext
-): string | null {
-  const normalizedAction = normalizeDialogueAddress(userAction);
-
-  const matches = context.cast.filter((member) => {
-    if (member.id === context.player.characterId || member.isUserCharacter) {
-      return false;
-    }
-
-    if (!member.isPresent) {
-      return false;
-    }
-
-    const communicationModes = member.expressionProfile?.communicationModes ?? ['spoken'];
-    const canSpeak =
-      communicationModes.includes('spoken') || communicationModes.includes('mediated');
-
-    if (!canSpeak) {
-      return false;
-    }
-
-    return normalizedAction.includes(normalizeDialogueAddress(member.name));
-  });
-
-  return matches.length === 1 ? matches[0].id : null;
 }
 
 export function validateDialogueBlocks(
@@ -469,6 +451,7 @@ ${castLedgerFormatted}
 - A cast member with nonverbal as its only communication mode must not receive a dialogue block. Render its response, if any, as prose or environmental description.
 - Treat expression and silence guidance as behavioral constraints, not permission to add facts, powers, locations, or knowledge.
 - If the USER ACTION explicitly names exactly one eligible non-player CAST LEDGER member, that member is the only permitted dialogue speaker for this turn. If it names none or more than one eligible member, do not infer a deterministic target.
+- A cast member's full name is an addressed-speaker target only when action_kind is COMMUNICATE. In other action kinds, a name may identify the subject, object, or observed person and must not be treated as an attempted conversation merely because it appears in the action text.
 
 [AUTHORED CAST BEHAVIOR]
 - Personality, goals, and traits constrain each cast member's tone, immediate priorities, and willingness to disclose information.
@@ -498,6 +481,7 @@ ${castLedgerFormatted}
 - fictional_time_cost guides prose only; every response remains one committed turn.
 - A memory echo is a telemetry candidate only. It does not write lore_and_memory or character continuity.
 - For an Antagonist, compare the attempt with the explicit Authority Contract and counterplay limits. authority_alignment remains a narrative reading, not a mutation command.
+- A cast member's full name is an addressed-speaker target only when action_kind is COMMUNICATE. In other action kinds, a name may identify the subject, object, or observed person and must not be treated as an attempted conversation merely because it appears in the action text.
 - Item use has no authority or consumption semantics in this phase; do not invent them.
 - None of the field names or enum labels should appear in ordinary narrative prose unless those words arise naturally in the fiction.
 - For SYSTEM_INIT, require action_kind: SYSTEM, null subtype, mode: NOT_REQUIRED, and no memory candidate.
@@ -557,15 +541,16 @@ ${recentHistory}
       intentReceipt,
       narrativeReconciliationReceipt,
       transitionReceipt,
+      castTarget,
     } = finalizeTurnCausality({
       result: engineResponse,
       userAction,
       context,
     });
 
-    const explicitlyAddressedSpeakerId = resolveExplicitAddressedSpeakerId(
-      userAction,
-      context
+    const explicitlyAddressedSpeakerId = getIntentBoundAddressedCharacterId(
+      intentReceipt,
+      castTarget
     );
 
     const dialogueContractError = validateDialogueBlocks(
@@ -588,8 +573,9 @@ ${recentHistory}
       context
     );
 
-    const castInteractionReceipt = createCastInteractionReceipt({
-      addressedCharacterId: explicitlyAddressedSpeakerId,
+    const castInteractionReceipt = createIntentBoundCastInteractionReceipt({
+      intentReceipt,
+      castTarget,
       respondingCharacterId,
     });
 

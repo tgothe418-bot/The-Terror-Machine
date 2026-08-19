@@ -4,7 +4,6 @@ import { describe, expect, it } from 'vitest';
 import { TurnRequestSchema, TurnResultSchema, EngineTurnContextSchema, TurnResponseSchema } from '../schemas/engine';
 import {
   validateDialogueBlocks,
-  resolveExplicitAddressedSpeakerId,
   resolveDialogueSpeakerId,
   formatCastLedger,
   normalizeCastSkepticismDeltas,
@@ -14,6 +13,12 @@ import {
 import { createCastInteractionReceipt } from '../../src/lib/castInteraction';
 import { createIntentReceipt } from '../../src/lib/intentReceipt';
 import { createNarrativeReconciliationReceipt } from '../../src/lib/narrativeReconciliation';
+import { resolveExplicitCastTarget } from '../../src/lib/causalFeasibility';
+import {
+  createIntentBoundCastInteractionReceipt,
+  getIntentBoundAddressedCharacterId,
+  getIntentBoundRequestedTransition,
+} from '../../src/lib/intentConsequenceBridge';
 
 describe('Turn schemas validation', () => {
   describe('EngineTurnContextSchema', () => {
@@ -558,44 +563,67 @@ describe('Turn schemas validation', () => {
       },
     });
 
-    describe('resolveExplicitAddressedSpeakerId', () => {
+    describe('getIntentBoundAddressedCharacterId with resolveExplicitCastTarget', () => {
+      const commReceipt = createIntentReceipt({
+        action_kind: 'COMMUNICATE',
+        action_subtype: null,
+        pressure_direction: 'MAINTAIN',
+        dramatic_tactic: 'NONE',
+        intent_synergy: 'N/A',
+      });
+
       it('resolves an action with exactly one eligible full authored name to that member ID', () => {
         expect(
-          resolveExplicitAddressedSpeakerId(
-            'I turn to Jules Mercer and ask if the signal is stable.',
-            context
+          getIntentBoundAddressedCharacterId(
+            commReceipt,
+            resolveExplicitCastTarget(
+              'I turn to Jules Mercer and ask if the relay is stable.',
+              context
+            )
           )
         ).toBe('char-jules');
 
         expect(
-          resolveExplicitAddressedSpeakerId(
-            'I request an analysis from Dr. Marcus Sterling on the readings.',
-            context
+          getIntentBoundAddressedCharacterId(
+            commReceipt,
+            resolveExplicitCastTarget(
+              'I request an analysis from Dr. Marcus Sterling on the readings.',
+              context
+            )
           )
         ).toBe('char-marcus');
       });
 
       it('matches full authored names regardless of punctuation and case', () => {
         expect(
-          resolveExplicitAddressedSpeakerId(
-            'Hey, "jules mercer"... can you hear that frequency?!',
-            context
+          getIntentBoundAddressedCharacterId(
+            commReceipt,
+            resolveExplicitCastTarget(
+              'Hey, "jules mercer"... can you hear that frequency?!',
+              context
+            )
           )
         ).toBe('char-jules');
 
         expect(
-          resolveExplicitAddressedSpeakerId(
-            'DR. MARCUS STERLING: check the oscilloscope right now!',
-            context
+          getIntentBoundAddressedCharacterId(
+            commReceipt,
+            resolveExplicitCastTarget(
+              'DR. MARCUS STERLING: check the oscilloscope right now!',
+              context
+            )
           )
         ).toBe('char-marcus');
       });
 
       it('resolves to null when two or more eligible names appear in the action', () => {
         expect(
-          resolveExplicitAddressedSpeakerId(
-            'I look between Jules Mercer and Dr. Marcus Sterling for an explanation.',
-            context
+          getIntentBoundAddressedCharacterId(
+            commReceipt,
+            resolveExplicitCastTarget(
+              'I look between Jules Mercer and Dr. Marcus Sterling for an explanation.',
+              context
+            )
           )
         ).toBeNull();
       });
@@ -609,35 +637,50 @@ describe('Turn schemas validation', () => {
         });
 
         expect(
-          resolveExplicitAddressedSpeakerId(
-            'I shout to Jules Mercer across the intercom.',
-            contextWithRemote
+          getIntentBoundAddressedCharacterId(
+            commReceipt,
+            resolveExplicitCastTarget(
+              'I shout to Jules Mercer across the intercom.',
+              contextWithRemote
+            )
           )
         ).toBeNull();
       });
 
       it('resolves to null when naming only a nonverbal-only member', () => {
         expect(
-          resolveExplicitAddressedSpeakerId(
-            'I tune the radio dial toward The Signal to analyze its cadence.',
-            context
+          getIntentBoundAddressedCharacterId(
+            commReceipt,
+            resolveExplicitCastTarget(
+              'I tune the radio dial toward The Signal to analyze its cadence.',
+              context
+            )
           )
         ).toBeNull();
       });
 
       it('resolves to null when no eligible full name is addressed', () => {
         expect(
-          resolveExplicitAddressedSpeakerId('I check the dials on the mainframe.', context)
+          getIntentBoundAddressedCharacterId(
+            commReceipt,
+            resolveExplicitCastTarget('I check the dials on the mainframe.', context)
+          )
         ).toBeNull();
 
         // Partial name only - should not infer
         expect(
-          resolveExplicitAddressedSpeakerId('I ask Jules if the breaker tripped.', context)
+          getIntentBoundAddressedCharacterId(
+            commReceipt,
+            resolveExplicitCastTarget('I ask Jules if the breaker tripped.', context)
+          )
         ).toBeNull();
 
         // Player character addressed - should not match non-player target
         expect(
-          resolveExplicitAddressedSpeakerId('Aria Bell inspects her own reflection.', context)
+          getIntentBoundAddressedCharacterId(
+            commReceipt,
+            resolveExplicitCastTarget('Aria Bell inspects her own reflection.', context)
+          )
         ).toBeNull();
       });
     });
@@ -1047,7 +1090,15 @@ describe('Turn schemas validation', () => {
 
     it('derives RESPONDED receipt with cast IDs for valid addressed reply', () => {
       const userAction = 'I speak to Operative A about telemetry.';
-      const addressedId = resolveExplicitAddressedSpeakerId(userAction, testContext);
+      const castTarget = resolveExplicitCastTarget(userAction, testContext);
+      const intentReceipt = createIntentReceipt({
+        action_kind: 'COMMUNICATE',
+        action_subtype: null,
+        pressure_direction: 'MAINTAIN',
+        dramatic_tactic: 'NONE',
+        intent_synergy: 'N/A',
+      });
+      const addressedId = getIntentBoundAddressedCharacterId(intentReceipt, castTarget);
       expect(addressedId).toBe('char-a');
 
       const narrativeBlocks = [
@@ -1057,8 +1108,9 @@ describe('Turn schemas validation', () => {
       const respondingId = resolveDialogueSpeakerId(narrativeBlocks, testContext);
       expect(respondingId).toBe('char-a');
 
-      const receipt = createCastInteractionReceipt({
-        addressedCharacterId: addressedId,
+      const receipt = createIntentBoundCastInteractionReceipt({
+        intentReceipt,
+        castTarget,
         respondingCharacterId: respondingId,
       });
 
@@ -1083,7 +1135,15 @@ describe('Turn schemas validation', () => {
 
     it('derives ADDRESS_UNANSWERED receipt for addressed turn with no dialogue', () => {
       const userAction = 'I ask Operative A for confirmation.';
-      const addressedId = resolveExplicitAddressedSpeakerId(userAction, testContext);
+      const castTarget = resolveExplicitCastTarget(userAction, testContext);
+      const intentReceipt = createIntentReceipt({
+        action_kind: 'COMMUNICATE',
+        action_subtype: null,
+        pressure_direction: 'MAINTAIN',
+        dramatic_tactic: 'NONE',
+        intent_synergy: 'N/A',
+      });
+      const addressedId = getIntentBoundAddressedCharacterId(intentReceipt, castTarget);
       expect(addressedId).toBe('char-a');
 
       const narrativeBlocks = [
@@ -1093,8 +1153,9 @@ describe('Turn schemas validation', () => {
       const respondingId = resolveDialogueSpeakerId(narrativeBlocks, testContext);
       expect(respondingId).toBeNull();
 
-      const receipt = createCastInteractionReceipt({
-        addressedCharacterId: addressedId,
+      const receipt = createIntentBoundCastInteractionReceipt({
+        intentReceipt,
+        castTarget,
         respondingCharacterId: respondingId,
       });
 
@@ -1108,7 +1169,15 @@ describe('Turn schemas validation', () => {
 
     it('derives UNSOLICITED_DIALOGUE receipt for valid unaddressed dialogue turn', () => {
       const userAction = 'I check the console interface.';
-      const addressedId = resolveExplicitAddressedSpeakerId(userAction, testContext);
+      const castTarget = resolveExplicitCastTarget(userAction, testContext);
+      const intentReceipt = createIntentReceipt({
+        action_kind: 'MANIPULATE',
+        action_subtype: null,
+        pressure_direction: 'MAINTAIN',
+        dramatic_tactic: 'NONE',
+        intent_synergy: 'N/A',
+      });
+      const addressedId = getIntentBoundAddressedCharacterId(intentReceipt, castTarget);
       expect(addressedId).toBeNull();
 
       const narrativeBlocks = [
@@ -1118,8 +1187,9 @@ describe('Turn schemas validation', () => {
       const respondingId = resolveDialogueSpeakerId(narrativeBlocks, testContext);
       expect(respondingId).toBe('char-b');
 
-      const receipt = createCastInteractionReceipt({
-        addressedCharacterId: addressedId,
+      const receipt = createIntentBoundCastInteractionReceipt({
+        intentReceipt,
+        castTarget,
         respondingCharacterId: respondingId,
       });
 
@@ -1753,6 +1823,179 @@ describe('Turn schemas validation', () => {
       const matches = turnRouteCode.match(/generateStructuredResponse\s*\(/g);
       expect(matches).not.toBeNull();
       expect(matches?.length).toBe(1);
+    });
+
+    describe('Phase 3G.4 Intent Consequence Bridge Integration', () => {
+      it('rejects requested transition and preserves current node for non-MOVE proposals', () => {
+        const modelResult = TurnResultSchema.parse({
+          narrative_blocks: [
+            { type: 'prose', content: 'You examine the doorway to Airlock 01.' },
+          ],
+          intent_proposal: {
+            action_kind: 'INVESTIGATE',
+            action_subtype: null,
+            pressure_direction: 'MAINTAIN',
+            dramatic_tactic: 'NONE',
+            intent_synergy: 'N/A',
+          },
+          reconciliation_proposal: {
+            mode: 'CANONICAL',
+            feasibility: 'SUPPORTED',
+            reason_code: 'NONE',
+            fictional_time_cost: 'MOMENT',
+            authority_alignment: 'NOT_APPLICABLE',
+            memory_echo_candidate: null,
+          },
+          logic_state: {
+            requested_transition: 'AIRLOCK_01',
+          },
+        });
+
+        const output = finalizeTurnCausality({
+          result: modelResult,
+          userAction: 'I inspect the doorway to Airlock 01.',
+          context: baseContext,
+        });
+
+        expect(
+          getIntentBoundRequestedTransition(
+            output.intentReceipt,
+            modelResult.logic_state?.requested_transition ?? null
+          )
+        ).toBeNull();
+        expect(output.boundedResult.logic_state.requested_transition).toBeNull();
+        expect(output.transitionReceipt.accepted).toBe(false);
+        expect(output.transitionReceipt.requestedNodeId).toBeNull();
+      });
+
+      it('accepts requested transition for a valid MOVE proposal to a connected exit', () => {
+        const modelResult = TurnResultSchema.parse({
+          narrative_blocks: [
+            { type: 'prose', content: 'You step through the hatch into Airlock 01.' },
+          ],
+          intent_proposal: {
+            action_kind: 'MOVE',
+            action_subtype: null,
+            pressure_direction: 'MAINTAIN',
+            dramatic_tactic: 'NONE',
+            intent_synergy: 'N/A',
+          },
+          reconciliation_proposal: {
+            mode: 'CANONICAL',
+            feasibility: 'SUPPORTED',
+            reason_code: 'NONE',
+            fictional_time_cost: 'MOMENT',
+            authority_alignment: 'NOT_APPLICABLE',
+            memory_echo_candidate: null,
+          },
+          logic_state: {
+            requested_transition: 'AIRLOCK_01',
+          },
+        });
+
+        const output = finalizeTurnCausality({
+          result: modelResult,
+          userAction: 'I move through the hatch to Airlock 01.',
+          context: baseContext,
+        });
+
+        expect(
+          getIntentBoundRequestedTransition(
+            output.intentReceipt,
+            modelResult.logic_state?.requested_transition ?? null
+          )
+        ).toBe('AIRLOCK_01');
+        expect(output.boundedResult.logic_state.requested_transition).toBe('AIRLOCK_01');
+        expect(output.transitionReceipt.accepted).toBe(true);
+        expect(output.transitionReceipt.toNodeId).toBe('AIRLOCK_01');
+      });
+
+      it('derives NONE outcome when a MANIPULATE action names a cast member without dialogue', () => {
+        const userAction = 'I push past Dr. Elena Rhodes to grab the fire extinguisher.';
+        const castTarget = resolveExplicitCastTarget(userAction, baseContext);
+        expect(castTarget.status).toBe('PRESENT_ELIGIBLE');
+        expect(castTarget.characterId).toBe('char-elena');
+
+        const intentReceipt = createIntentReceipt({
+          action_kind: 'MANIPULATE',
+          action_subtype: null,
+          pressure_direction: 'MAINTAIN',
+          dramatic_tactic: 'NONE',
+          intent_synergy: 'N/A',
+        });
+
+        const addressedId = getIntentBoundAddressedCharacterId(intentReceipt, castTarget);
+        expect(addressedId).toBeNull();
+
+        const interactionReceipt = createIntentBoundCastInteractionReceipt({
+          intentReceipt,
+          castTarget,
+          respondingCharacterId: null,
+        });
+
+        expect(interactionReceipt).toEqual({
+          version: 1,
+          addressedCharacterId: null,
+          respondingCharacterId: null,
+          outcome: 'NONE',
+        });
+      });
+
+      it('derives UNSOLICITED_DIALOGUE outcome when a MANIPULATE action naming a cast member receives spontaneous dialogue', () => {
+        const userAction = 'I push past Dr. Elena Rhodes to grab the fire extinguisher.';
+        const castTarget = resolveExplicitCastTarget(userAction, baseContext);
+        const intentReceipt = createIntentReceipt({
+          action_kind: 'MANIPULATE',
+          action_subtype: null,
+          pressure_direction: 'MAINTAIN',
+          dramatic_tactic: 'NONE',
+          intent_synergy: 'N/A',
+        });
+
+        const addressedId = getIntentBoundAddressedCharacterId(intentReceipt, castTarget);
+        expect(addressedId).toBeNull();
+
+        const interactionReceipt = createIntentBoundCastInteractionReceipt({
+          intentReceipt,
+          castTarget,
+          respondingCharacterId: 'char-elena',
+        });
+
+        expect(interactionReceipt).toEqual({
+          version: 1,
+          addressedCharacterId: null,
+          respondingCharacterId: 'char-elena',
+          outcome: 'UNSOLICITED_DIALOGUE',
+        });
+      });
+
+      it('retains green addressed dialogue behavior for COMMUNICATE actions to present eligible targets', () => {
+        const userAction = 'I ask Dr. Elena Rhodes what she discovered.';
+        const castTarget = resolveExplicitCastTarget(userAction, baseContext);
+        const intentReceipt = createIntentReceipt({
+          action_kind: 'COMMUNICATE',
+          action_subtype: null,
+          pressure_direction: 'MAINTAIN',
+          dramatic_tactic: 'NONE',
+          intent_synergy: 'N/A',
+        });
+
+        const addressedId = getIntentBoundAddressedCharacterId(intentReceipt, castTarget);
+        expect(addressedId).toBe('char-elena');
+
+        const interactionReceipt = createIntentBoundCastInteractionReceipt({
+          intentReceipt,
+          castTarget,
+          respondingCharacterId: 'char-elena',
+        });
+
+        expect(interactionReceipt).toEqual({
+          version: 1,
+          addressedCharacterId: 'char-elena',
+          respondingCharacterId: 'char-elena',
+          outcome: 'RESPONDED',
+        });
+      });
     });
   });
 });
