@@ -465,7 +465,7 @@ describe('buildEngineTurnContext & buildContextReceipt', () => {
         consequenceState: {
           inventory: ['  Rusted Key  ', 'rusted key', 'Flashlight'],
           player_injuries: [' lacerated arm ', 'LACERATED ARM', 'Broken Rib'],
-          psychological_status: 'distressed' as unknown as PsychologicalStatus,
+          psychological_status: 'distressed',
         },
       });
 

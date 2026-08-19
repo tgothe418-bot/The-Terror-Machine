@@ -84,4 +84,3 @@ describe('projectPresentationPatch', () => {
     expect(Object.keys(patch)).toEqual(['npc_fixations', 'cast_ledger']);
   });
 });
-

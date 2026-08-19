@@ -46,6 +46,11 @@ function createMockContext(overrides: Partial<EngineTurnContext> = {}): EngineTu
       activeTier: 'LATENT',
       activeFlags: [],
     },
+    consequenceState: {
+      inventory: [],
+      player_injuries: [],
+      psychological_status: 'STABLE',
+    },
     ...overrides,
   };
 }

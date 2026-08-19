@@ -3,6 +3,7 @@ import { useAppStore } from './useAppStore';
 import { useEngineStore } from '../core/store';
 import { captureRuntimeSnapshot } from '../core/engine/snapshot';
 import { CommittedTurnPayload } from '../core/engine/events';
+import type { CanonicalConsequenceReceipt } from '../types';
 
 describe('useAppStore retakeLastTurn integration', () => {
   beforeEach(() => {
@@ -207,47 +208,53 @@ describe('useAppStore retakeLastTurn integration', () => {
 
     // 2. Prepare turn commitment with canonicalConsequenceReceipt
     const preSnapshot = captureRuntimeSnapshot(useAppStore.getState());
-    const consequenceReceipt = {
+    const consequenceReceipt: CanonicalConsequenceReceipt = {
+      version: 1,
+      pre_state: {
+        inventory: [...initialInventory],
+        player_injuries: [...initialInjuries],
+        psychological_status: 'UNEASY',
+      },
       decisions: [
         {
           mutation: {
             domain: 'INVENTORY' as const,
-            operation: 'ACQUIRE' as const,
+            operation: 'ADD' as const,
             value: 'Brass Crowbar',
             rationale: 'Pried from heavy tool crate',
           },
-          outcome: 'ACCEPTED' as const,
-          reason: 'Valid item acquisition within location context',
+          outcome: 'APPLIED' as const,
+          reason: 'APPLIED' as const,
         },
         {
           mutation: {
             domain: 'INVENTORY' as const,
-            operation: 'LOSE' as const,
+            operation: 'REMOVE' as const,
             value: 'Flashlight',
             rationale: 'Dropped into flooded elevator shaft',
           },
-          outcome: 'ACCEPTED' as const,
-          reason: 'Item discarded under extreme duress',
+          outcome: 'APPLIED' as const,
+          reason: 'APPLIED' as const,
         },
         {
           mutation: {
-            domain: 'INJURY' as const,
-            operation: 'SUSTAIN' as const,
+            domain: 'PLAYER_INJURY' as const,
+            operation: 'ADD' as const,
             value: 'Glass Shards in Palm',
             rationale: 'Shattered window frame during escape',
           },
-          outcome: 'ACCEPTED' as const,
-          reason: 'Direct physical trauma',
+          outcome: 'APPLIED' as const,
+          reason: 'APPLIED' as const,
         },
         {
           mutation: {
-            domain: 'PSYCHOLOGY' as const,
-            operation: 'SHIFT' as const,
+            domain: 'PSYCHOLOGICAL_STATUS' as const,
+            operation: 'SET' as const,
             value: 'PANICKED',
             rationale: 'Sudden sensory deprivation',
           },
-          outcome: 'ACCEPTED' as const,
-          reason: 'Severe environmental stressor',
+          outcome: 'APPLIED' as const,
+          reason: 'APPLIED' as const,
         },
       ],
       patch: {

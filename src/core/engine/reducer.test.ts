@@ -2,7 +2,12 @@ import { describe, it, expect } from 'vitest';
 import { engineReducer, initialEngineState } from './reducer';
 import type { CommittedTurnPayload, FailedTurnPayload } from './events';
 import { captureRuntimeSnapshot } from './snapshot';
-import type { HorrorVector, NarrativeReconciliationReceipt, LogicState } from '../../types';
+import type {
+  CanonicalConsequenceReceipt,
+  HorrorVector,
+  NarrativeReconciliationReceipt,
+  LogicState,
+} from '../../types';
 
 describe('engineReducer atomic turn commits', () => {
   it('atomically commits a successful turn and updates state in a single step', () => {
@@ -1145,17 +1150,23 @@ describe('engineReducer atomic turn commits', () => {
       const state = { ...initialEngineState };
       const preSnapshot = captureRuntimeSnapshot(state);
 
-      const consequenceReceipt = {
+      const consequenceReceipt: CanonicalConsequenceReceipt = {
+        version: 1,
+        pre_state: {
+          inventory: [],
+          player_injuries: [],
+          psychological_status: 'STABLE',
+        },
         decisions: [
           {
             mutation: {
               domain: 'INVENTORY' as const,
-              operation: 'ACQUIRE' as const,
+              operation: 'ADD' as const,
               value: 'Rusty Screwdriver',
               rationale: 'Found in tool rack',
             },
-            outcome: 'ACCEPTED' as const,
-            reason: 'Contextually appropriate',
+            outcome: 'APPLIED' as const,
+            reason: 'APPLIED' as const,
           },
         ],
         patch: {
@@ -1168,7 +1179,7 @@ describe('engineReducer atomic turn commits', () => {
         post_state: {
           inventory: ['Rusty Screwdriver'],
           player_injuries: [],
-          psychological_status: 'CALM',
+          psychological_status: 'STABLE',
         },
       };
 

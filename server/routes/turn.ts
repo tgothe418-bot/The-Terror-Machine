@@ -7,9 +7,11 @@ import {
   TurnResponse,
   normalizeParticipationContext,
   type EngineTurnContext,
-  type CanonicalConsequenceProposal,
-  type CanonicalConsequenceReceipt,
 } from '../schemas/engine';
+import type {
+  CanonicalConsequenceProposal,
+  CanonicalConsequenceReceipt,
+} from '../../src/types/consequence';
 import { generateStructuredResponse } from '../utils/aiClient';
 import { resolveTransition } from '../engine/transitionResolver';
 import { clampSkepticismDelta } from '../../src/lib/castContinuity';

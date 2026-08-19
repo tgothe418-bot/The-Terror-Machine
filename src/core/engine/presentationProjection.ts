@@ -17,4 +17,3 @@ export function projectPresentationPatch(logicState?: LogicState | null): Partia
 
   return patch;
 }
-
