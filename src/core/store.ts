@@ -37,6 +37,7 @@ interface EngineState {
 
   clearBlueprint: () => void;
   updateGameState: (newState: LogicState) => void;
+  setGameState: (newState: LogicState | null) => void;
   patchGameState: (patch: Partial<LogicState>) => void;
   addEngineMessage: (message: Message) => void;
   setEngineMessages: (messages: Message[]) => void;
@@ -154,6 +155,7 @@ export const useEngineStore = create<EngineState>()(
           engineWorldStateSummary: 'The subject is contained. Initial parameters active.',
         }),
       updateGameState: (newState) => set({ gameState: newState }),
+      setGameState: (newState) => set({ gameState: newState }),
       patchGameState: (patch) =>
         set((state) => {
           if (!state.gameState) return state;

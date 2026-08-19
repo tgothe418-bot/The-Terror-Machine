@@ -5,6 +5,7 @@ import {
   TurnReceipt,
   TurnFailureReceipt,
   RuntimeStateSnapshot,
+  LogicState,
 } from '../../types';
 
 export type Phase =
@@ -31,6 +32,8 @@ export interface CommittedTurnPayload {
   turnReceipt: TurnReceipt;
   preSnapshot: RuntimeStateSnapshot;
   timestamp?: number;
+  engineGameStateBefore?: LogicState | null;
+  allowRetake?: boolean;
 }
 
 export interface FailedTurnPayload {
@@ -42,12 +45,15 @@ export interface FailedTurnPayload {
   statusCode?: number | null;
   contentType?: string | null;
   timestamp?: number;
+  engineGameStateBefore?: LogicState | null;
+  allowRetake?: boolean;
 }
 
 // The definitive list of all legal engine events
 export type EngineEvent =
   | { type: 'TURN_COMMITTED'; payload: CommittedTurnPayload }
   | { type: 'TURN_FAILED'; payload: FailedTurnPayload }
+  | { type: 'TURN_RETAKEN' }
   | { type: 'SIMULATION_STARTED'; initialNodeId: string }
   | { type: 'USER_ACTION'; payload: string }
   | { type: 'SYSTEM_MESSAGE'; payload: string }

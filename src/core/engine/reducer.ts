@@ -8,6 +8,7 @@ import {
   TurnReceipt,
   SpatialNode,
   ParticipationContext,
+  LogicState,
 } from '../../types';
 import { EntityArchetype } from '../../types/reference';
 import { formatTurnFailureMessage } from '../../lib/turnResponseReader';
@@ -18,7 +19,7 @@ import {
 } from './snapshot';
 import { applyTopologyDeltaToGraph } from './topologyCommit';
 
-export interface EngineState {
+export interface RetakeRestorableEngineState {
   sessionId?: string;
   blueprintId?: string;
   participationContext?: ParticipationContext | null;
@@ -56,6 +57,51 @@ export interface EngineState {
   nodeState?: {
     dynamic_conditions?: Record<string, unknown>;
   };
+}
+
+export interface RetakeCheckpoint {
+  version: 1;
+  commandText: string;
+  engineStateBefore: RetakeRestorableEngineState;
+  engineGameStateBefore: LogicState | null;
+}
+
+export interface EngineState extends RetakeRestorableEngineState {
+  lastTurnCheckpoint: RetakeCheckpoint | null;
+}
+
+export function captureRetakeRestorableState(
+  state: EngineState
+): RetakeRestorableEngineState {
+  return {
+    sessionId: state.sessionId,
+    blueprintId: state.blueprintId,
+    participationContext: state.participationContext,
+    phase: state.phase,
+    escalation_state: state.escalation_state,
+    currentNodeId: state.currentNodeId,
+    spatialGraph: state.spatialGraph,
+    activeVector: state.activeVector,
+    activeTier: state.activeTier,
+    decay: state.decay,
+    turnCount: state.turnCount,
+    roomsGenerated: state.roomsGenerated,
+    maxRooms: state.maxRooms,
+    aesthetic: state.aesthetic,
+    activeEntities: state.activeEntities,
+    traumaLedger: state.traumaLedger,
+    activeMemory: state.activeMemory,
+    motifLedger: state.motifLedger,
+    pacingLedger: state.pacingLedger,
+    timelineRevision: state.timelineRevision,
+    lastDistilledRevision: state.lastDistilledRevision,
+    reconciliationRevision: state.reconciliationRevision,
+    history: state.history,
+    storyLog: state.storyLog,
+    currentPhase: state.currentPhase,
+    tensionLevel: state.tensionLevel,
+    nodeState: state.nodeState,
+  } satisfies RetakeRestorableEngineState;
 }
 
 export function applyReconciliationPatch(
@@ -151,11 +197,22 @@ export const initialEngineState: EngineState = {
   lastDistilledRevision: -1,
   reconciliationRevision: 0,
   history: [],
+  lastTurnCheckpoint: null,
 };
 
 export function engineReducer(state: EngineState, event: EngineEvent): EngineState {
   switch (event.type) {
     case 'TURN_COMMITTED': {
+      const lastTurnCheckpoint =
+        event.payload.allowRetake === false
+          ? null
+          : {
+              version: 1 as const,
+              commandText: event.payload.commandText,
+              engineStateBefore: captureRetakeRestorableState(state),
+              engineGameStateBefore: event.payload.engineGameStateBefore ?? null,
+            };
+
       // 1. Consume required pre-turn snapshot directly from the payload
       const preSnapshot = event.payload.preSnapshot;
 
@@ -278,6 +335,7 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
 
       return {
         ...state,
+        lastTurnCheckpoint,
         history: [...(state.history || []), userMsg, engineMsg],
         turnCount: updatedTurnCount,
         currentNodeId: nextNodeId,
@@ -296,6 +354,16 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
     }
 
     case 'TURN_FAILED': {
+      const lastTurnCheckpoint =
+        event.payload.allowRetake === false
+          ? null
+          : {
+              version: 1 as const,
+              commandText: event.payload.commandText,
+              engineStateBefore: captureRetakeRestorableState(state),
+              engineGameStateBefore: event.payload.engineGameStateBefore ?? null,
+            };
+
       const receipt: TurnFailureReceipt = event.payload.failureReceipt || {
         code: event.payload.errorCategory || 'UNKNOWN_ERROR',
         status: event.payload.statusCode ?? null,
@@ -349,7 +417,18 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
 
       return {
         ...state,
+        lastTurnCheckpoint,
         history: [...(state.history || []), userMsg, failMsg],
+      };
+    }
+
+    case 'TURN_RETAKEN': {
+      if (!state.lastTurnCheckpoint) return state;
+
+      return {
+        ...state,
+        ...state.lastTurnCheckpoint.engineStateBefore,
+        lastTurnCheckpoint: null,
       };
     }
 

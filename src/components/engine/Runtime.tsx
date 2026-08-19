@@ -225,6 +225,8 @@ export default function Runtime() {
   const participationContext = useAppStore((state) => state.participationContext);
   const turnCount = useAppStore((state) => state.turnCount);
   const currentSimulationPhase = useTelemetryStore((state) => state.currentPhase);
+  const lastTurnCheckpoint = useAppStore((state) => state.lastTurnCheckpoint);
+  const retakeLastTurn = useAppStore((state) => state.retakeLastTurn);
 
   const prevPhaseRef = useRef<string | null>(null);
 
@@ -346,6 +348,15 @@ export default function Runtime() {
     setPhase('hub');
   }, [setPhase]);
 
+  const handleRetake = useCallback(() => {
+    if (!lastTurnCheckpoint) return;
+    const previousCommand = lastTurnCheckpoint.commandText;
+    const success = retakeLastTurn();
+    if (success) {
+      setInput(previousCommand);
+    }
+  }, [lastTurnCheckpoint, retakeLastTurn]);
+
   const startSimulation = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -428,6 +439,10 @@ export default function Runtime() {
     setIsLoading(true);
 
     const preSnapshot = captureRuntimeSnapshot(useAppStore.getState());
+    const currentGameState = useEngineStore.getState().gameState;
+    const engineGameStateBefore = currentGameState
+      ? JSON.parse(JSON.stringify(currentGameState))
+      : null;
 
     try {
       const response = await executeRatificationPipeline(commandText, preSnapshot);
@@ -530,6 +545,7 @@ export default function Runtime() {
         transitionReceipt,
         turnReceipt,
         preSnapshot,
+        engineGameStateBefore,
       };
 
       dispatch({ type: 'TURN_COMMITTED', payload: committedTurnPayload });
@@ -565,6 +581,7 @@ export default function Runtime() {
           statusCode: failureReceipt.status,
           contentType: failureReceipt.contentType,
           preSnapshot,
+          engineGameStateBefore,
         },
       });
     } finally {
@@ -705,10 +722,18 @@ export default function Runtime() {
               resetEngine();
               useAppStore.getState().resetSession();
             }}
-            className="px-3 py-1.5 text-xs font-mono text-red-400 hover:text-red-100 bg-red-900/20 hover:bg-red-900/50 border border-red-900/50 transition-colors duration-150 rounded mr-4 cursor-pointer"
+            className="px-3 py-1.5 text-xs font-mono text-red-400 hover:text-red-100 bg-red-900/20 hover:bg-red-900/50 border border-red-900/50 transition-colors duration-150 rounded cursor-pointer"
             title="Hard Reset Engine"
           >
             [ FLUSH STATE ]
+          </button>
+          <button
+            onClick={handleRetake}
+            disabled={isLoading || isAutopilotRunning || isTerminated || !lastTurnCheckpoint}
+            className="px-3 py-1.5 text-xs font-mono text-amber-400 hover:text-amber-100 bg-amber-900/20 hover:bg-amber-900/50 border border-amber-900/50 disabled:opacity-30 disabled:pointer-events-none transition-colors duration-150 rounded mr-4 cursor-pointer"
+            title="Retake last turn (restore state and previous input)"
+          >
+            [ RETAKE ]
           </button>
           <div className="flex items-center gap-2 text-zinc-500">
             <Terminal className="w-4 h-4 text-zinc-400" />

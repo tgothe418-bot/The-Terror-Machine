@@ -811,4 +811,334 @@ describe('engineReducer atomic turn commits', () => {
 
     expect(stateAfterStale.currentNodeId).toBe('ORIGIN'); // Kept current node due to stale fromNodeId
   });
+
+  describe('Phase 3G.5: Single-turn bounded checkpointing & TURN_RETAKEN', () => {
+    it('records a valid lastTurnCheckpoint holding pre-turn state, commandText, and engineGameStateBefore on TURN_COMMITTED', () => {
+      const startState = {
+        ...initialEngineState,
+        turnCount: 2,
+        currentNodeId: 'ORIGIN',
+        activeVector: 'COGNITIVE' as const,
+        activeTier: 'LATENT' as const,
+        tensionLevel: 10,
+        reconciliationRevision: 1,
+        activeMemory: {
+          systemFlags: ['FLAG_A'],
+          somaState: [],
+          geomState: [],
+        },
+      };
+
+      const preSnapshot = captureRuntimeSnapshot(startState);
+      const prevGameState: LogicState = {
+        current_location: 'Origin Chamber',
+        player_injuries: [],
+        inventory: [],
+        psychological_status: 'Stable',
+        player_role: 'witness',
+        player_character_id: null,
+        perspective_mode: 'witness',
+        current_tension_level: 'buildup',
+        lore_and_memory: {
+          established_facts: [],
+          permanent_consequences: [],
+        },
+        npc_fixations: [],
+      };
+
+      const payload: CommittedTurnPayload = {
+        commandText: 'Examine the anomaly',
+        formattedText: 'The anomaly hums with dark frequency.',
+        preSnapshot,
+        engineGameStateBefore: prevGameState,
+        frame: {
+          narrative_blocks: [{ type: 'prose', content: 'The anomaly hums.' }],
+          logic_state: {
+            current_phase: 'MANIFEST',
+            suggested_tension: 30,
+            terminal_flags: ['FLAG_B'],
+          },
+        },
+        turnReceipt: {
+          turnNumber: 3,
+          nodeBefore: 'ORIGIN',
+          requestedTarget: 'ORIGIN',
+          accepted: true,
+          nodeAfter: 'ORIGIN',
+          activeVector: 'COGNITIVE',
+          activeTier: 'LATENT',
+          tension: 30,
+          preSnapshot,
+        },
+      };
+
+      const nextState = engineReducer(startState, {
+        type: 'TURN_COMMITTED',
+        payload,
+      });
+
+      expect(nextState.turnCount).toBe(3);
+      expect(nextState.tensionLevel).toBe(30);
+      expect(nextState.lastTurnCheckpoint).toBeDefined();
+      expect(nextState.lastTurnCheckpoint?.version).toBe(1);
+      expect(nextState.lastTurnCheckpoint?.commandText).toBe('Examine the anomaly');
+      expect(nextState.lastTurnCheckpoint?.engineGameStateBefore).toEqual(prevGameState);
+      expect(nextState.lastTurnCheckpoint?.engineStateBefore.turnCount).toBe(2);
+      expect(nextState.lastTurnCheckpoint?.engineStateBefore.tensionLevel).toBe(10);
+      expect(nextState.lastTurnCheckpoint?.engineStateBefore.activeMemory.systemFlags).toEqual(['FLAG_A']);
+    });
+
+    it('sets lastTurnCheckpoint to null when allowRetake is false', () => {
+      const startState = {
+        ...initialEngineState,
+        turnCount: 2,
+      };
+
+      const preSnapshot = captureRuntimeSnapshot(startState);
+      const payload: CommittedTurnPayload = {
+        commandText: 'Commit irreversible action',
+        formattedText: 'The gateway seals permanently.',
+        preSnapshot,
+        allowRetake: false,
+        frame: {
+          narrative_blocks: [{ type: 'prose', content: 'The gateway seals permanently.' }],
+          logic_state: { suggested_tension: 50 },
+        },
+        turnReceipt: {
+          turnNumber: 3,
+          nodeBefore: 'ORIGIN',
+          requestedTarget: 'ORIGIN',
+          accepted: true,
+          nodeAfter: 'ORIGIN',
+          activeVector: 'COGNITIVE',
+          activeTier: 'LATENT',
+          tension: 50,
+          preSnapshot,
+        },
+      };
+
+      const nextState = engineReducer(startState, {
+        type: 'TURN_COMMITTED',
+        payload,
+      });
+
+      expect(nextState.lastTurnCheckpoint).toBeNull();
+    });
+
+    it('records a valid lastTurnCheckpoint on TURN_FAILED', () => {
+      const startState = {
+        ...initialEngineState,
+        turnCount: 4,
+        currentNodeId: 'VAULT',
+        tensionLevel: 25,
+      };
+
+      const preSnapshot = captureRuntimeSnapshot(startState);
+      const prevGameState: LogicState = {
+        current_location: 'Vault',
+        player_injuries: [],
+        inventory: [],
+        psychological_status: 'Tense',
+        player_role: 'witness',
+        player_character_id: null,
+        perspective_mode: 'witness',
+        current_tension_level: 'peak',
+        lore_and_memory: {
+          established_facts: [],
+          permanent_consequences: [],
+        },
+        npc_fixations: [],
+      };
+
+      const payload: FailedTurnPayload = {
+        commandText: 'Force door open',
+        errorCategory: 'NETWORK_TIMEOUT',
+        errorMessage: 'The connection timed out.',
+        preSnapshot,
+        engineGameStateBefore: prevGameState,
+      };
+
+      const nextState = engineReducer(startState, {
+        type: 'TURN_FAILED',
+        payload,
+      });
+
+      expect(nextState.lastTurnCheckpoint).toBeDefined();
+      expect(nextState.lastTurnCheckpoint?.commandText).toBe('Force door open');
+      expect(nextState.lastTurnCheckpoint?.engineGameStateBefore).toEqual(prevGameState);
+      expect(nextState.lastTurnCheckpoint?.engineStateBefore.turnCount).toBe(4);
+      expect(nextState.lastTurnCheckpoint?.engineStateBefore.currentNodeId).toBe('VAULT');
+    });
+
+    it('restores exact pre-turn state and clears checkpoint on TURN_RETAKEN', () => {
+      const startState = {
+        ...initialEngineState,
+        turnCount: 2,
+        currentNodeId: 'ORIGIN',
+        activeVector: 'SOMATIC' as const,
+        activeTier: 'GATEWAY' as const,
+        tensionLevel: 15,
+        reconciliationRevision: 2,
+        activeMemory: {
+          systemFlags: ['FLAG_INITIAL'],
+          somaState: [],
+          geomState: [],
+        },
+        history: [
+          { id: '1', role: 'user' as const, content: 'Initial prompt', timestamp: 1000 },
+          { id: '2', role: 'assistant' as const, content: 'Initial narrative', timestamp: 1001 },
+        ],
+      };
+
+      const preSnapshot = captureRuntimeSnapshot(startState);
+
+      // Execute a turn that advances state
+      const committedPayload: CommittedTurnPayload = {
+        commandText: 'Step into the abyss',
+        formattedText: 'You fall into darkness.',
+        preSnapshot,
+        frame: {
+          narrative_blocks: [{ type: 'prose', content: 'You fall into darkness.' }],
+          logic_state: {
+            current_phase: 'MANIFEST',
+            suggested_tension: 65,
+            terminal_flags: ['FLAG_FALLEN'],
+            matrix_mutation: {
+              next_vector: 'COSMIC',
+              next_tier: 'MANIFEST',
+            },
+          },
+        },
+        turnReceipt: {
+          turnNumber: 3,
+          nodeBefore: 'ORIGIN',
+          requestedTarget: 'ORIGIN',
+          accepted: true,
+          nodeAfter: 'ORIGIN',
+          activeVector: 'COSMIC',
+          activeTier: 'MANIFEST',
+          tension: 65,
+          preSnapshot,
+        },
+      };
+
+      const stateAfterTurn = engineReducer(startState, {
+        type: 'TURN_COMMITTED',
+        payload: committedPayload,
+      });
+
+      expect(stateAfterTurn.turnCount).toBe(3);
+      expect(stateAfterTurn.activeVector).toBe('COSMIC');
+      expect(stateAfterTurn.activeTier).toBe('MANIFEST');
+      expect(stateAfterTurn.tensionLevel).toBe(65);
+      expect(stateAfterTurn.activeMemory.systemFlags).toContain('FLAG_FALLEN');
+      expect(stateAfterTurn.history.length).toBe(4);
+      expect(stateAfterTurn.lastTurnCheckpoint).not.toBeNull();
+
+      // Now retake the turn
+      const stateAfterRetake = engineReducer(stateAfterTurn, {
+        type: 'TURN_RETAKEN',
+      });
+
+      expect(stateAfterRetake.turnCount).toBe(2);
+      expect(stateAfterRetake.currentNodeId).toBe('ORIGIN');
+      expect(stateAfterRetake.activeVector).toBe('SOMATIC');
+      expect(stateAfterRetake.activeTier).toBe('GATEWAY');
+      expect(stateAfterRetake.tensionLevel).toBe(15);
+      expect(stateAfterRetake.reconciliationRevision).toBe(2);
+      expect(stateAfterRetake.activeMemory.systemFlags).toEqual(['FLAG_INITIAL']);
+      expect(stateAfterRetake.history.length).toBe(2);
+      expect(stateAfterRetake.history[0].content).toBe('Initial prompt');
+      expect(stateAfterRetake.history[1].content).toBe('Initial narrative');
+      expect(stateAfterRetake.lastTurnCheckpoint).toBeNull();
+    });
+
+    it('returns state unchanged when TURN_RETAKEN is dispatched without a checkpoint', () => {
+      const stateWithoutCheckpoint = {
+        ...initialEngineState,
+        turnCount: 5,
+        lastTurnCheckpoint: null,
+      };
+
+      const resultState = engineReducer(stateWithoutCheckpoint, {
+        type: 'TURN_RETAKEN',
+      });
+
+      expect(resultState).toBe(stateWithoutCheckpoint);
+      expect(resultState.turnCount).toBe(5);
+    });
+
+    it('bounds checkpoints to exactly 1 level across successive turns', () => {
+      let state = {
+        ...initialEngineState,
+        turnCount: 0,
+      };
+
+      // Turn 1
+      const preSnapshot1 = captureRuntimeSnapshot(state);
+      state = engineReducer(state, {
+        type: 'TURN_COMMITTED',
+        payload: {
+          commandText: 'Turn 1 command',
+          formattedText: 'Turn 1 result',
+          preSnapshot: preSnapshot1,
+          frame: {
+            narrative_blocks: [{ type: 'prose', content: 'Turn 1 result' }],
+            logic_state: { suggested_tension: 10 },
+          },
+          turnReceipt: {
+            turnNumber: 1,
+            nodeBefore: 'ORIGIN',
+            requestedTarget: 'ORIGIN',
+            accepted: true,
+            nodeAfter: 'ORIGIN',
+            activeVector: 'COGNITIVE',
+            activeTier: 'LATENT',
+            tension: 10,
+            preSnapshot: preSnapshot1,
+          },
+        },
+      });
+
+      expect(state.turnCount).toBe(1);
+      expect(state.lastTurnCheckpoint?.commandText).toBe('Turn 1 command');
+      expect(state.lastTurnCheckpoint?.engineStateBefore.turnCount).toBe(0);
+
+      // Turn 2
+      const preSnapshot2 = captureRuntimeSnapshot(state);
+      state = engineReducer(state, {
+        type: 'TURN_COMMITTED',
+        payload: {
+          commandText: 'Turn 2 command',
+          formattedText: 'Turn 2 result',
+          preSnapshot: preSnapshot2,
+          frame: {
+            narrative_blocks: [{ type: 'prose', content: 'Turn 2 result' }],
+            logic_state: { suggested_tension: 20 },
+          },
+          turnReceipt: {
+            turnNumber: 2,
+            nodeBefore: 'ORIGIN',
+            requestedTarget: 'ORIGIN',
+            accepted: true,
+            nodeAfter: 'ORIGIN',
+            activeVector: 'COGNITIVE',
+            activeTier: 'LATENT',
+            tension: 20,
+            preSnapshot: preSnapshot2,
+          },
+        },
+      });
+
+      expect(state.turnCount).toBe(2);
+      // Checkpoint holds Turn 2's pre-turn state (Turn 1 state), not Turn 0
+      expect(state.lastTurnCheckpoint?.commandText).toBe('Turn 2 command');
+      expect(state.lastTurnCheckpoint?.engineStateBefore.turnCount).toBe(1);
+
+      // Retake restores Turn 1
+      state = engineReducer(state, { type: 'TURN_RETAKEN' });
+      expect(state.turnCount).toBe(1);
+      expect(state.lastTurnCheckpoint).toBeNull();
+    });
+  });
 });

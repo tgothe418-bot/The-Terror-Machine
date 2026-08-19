@@ -24,6 +24,7 @@ import { engineReducer, initialEngineState, EngineState } from '../core/engine/r
 import { compileRuntimeTopology } from '../lib/compileRuntimeTopology';
 import { normalizeBlueprint } from '../lib/normalizeBlueprint';
 import { isHorrorVector, isExposureTier } from '../core/engine/snapshot';
+import { useEngineStore } from '../core/store';
 
 export interface InitializeSessionParams {
   blueprint: unknown;
@@ -73,6 +74,7 @@ export interface AppStore extends EngineState {
   dispatch: (event: EngineEvent) => void;
   commitTurnResult: (payload: CommittedTurnPayload) => void;
   failTurnResult: (payload: FailedTurnPayload) => void;
+  retakeLastTurn: () => boolean;
   resetSession: () => void;
 
   isGenerating: boolean;
@@ -82,7 +84,7 @@ export interface AppStore extends EngineState {
   setGenerating: (status: boolean) => void;
 }
 
-export const useAppStore = create<AppStore>((set) => ({
+export const useAppStore = create<AppStore>((set, get) => ({
   ...initialEngineState,
   isTransitioning: false,
   activeCampaign: null,
@@ -164,6 +166,7 @@ export const useAppStore = create<AppStore>((set) => ({
       enginePayload: [],
       turnSnapshot: null,
       isGenerating: false,
+      lastTurnCheckpoint: null,
     });
   },
 
@@ -196,6 +199,19 @@ export const useAppStore = create<AppStore>((set) => ({
     set((state) => engineReducer(state, { type: 'TURN_COMMITTED', payload })),
   failTurnResult: (payload: FailedTurnPayload) =>
     set((state) => engineReducer(state, { type: 'TURN_FAILED', payload })),
+  retakeLastTurn: () => {
+    const currentEngineState = get();
+    const checkpoint = currentEngineState.lastTurnCheckpoint;
+    if (!checkpoint) return false;
+
+    const previousGameState = checkpoint.engineGameStateBefore;
+    if (previousGameState !== undefined) {
+      useEngineStore.getState().setGameState(previousGameState);
+    }
+
+    get().dispatch({ type: 'TURN_RETAKEN' });
+    return true;
+  },
   resetSession: () =>
     set({
       ...initialEngineState,
@@ -220,6 +236,7 @@ export const useAppStore = create<AppStore>((set) => ({
       currentPhase: 'INIT',
       tensionLevel: 0,
       storyLog: [],
+      lastTurnCheckpoint: null,
     }),
 
   isGenerating: false,
