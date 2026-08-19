@@ -12,9 +12,11 @@ import {
   normalizeParticipationContext,
   CharacterContinuityById,
   CharacterPresenceById,
+  CanonicalConsequenceStateInput,
 } from '../types';
 import { buildCharacterContinuity, DEFAULT_SKEPTICISM } from './castContinuity';
 import { buildCharacterPresence } from './castPresence';
+import { createCanonicalConsequenceState } from './canonicalConsequences';
 
 export interface BuildEngineTurnContextOptions {
   blueprint: unknown;
@@ -23,6 +25,7 @@ export interface BuildEngineTurnContextOptions {
   participationContext?: ParticipationContext | null;
   characterContinuity?: CharacterContinuityById | null;
   characterPresence?: CharacterPresenceById | null;
+  consequenceState?: CanonicalConsequenceStateInput | null;
   runtimeState?: {
     currentNodeId?: string | null;
     phase?: string;
@@ -46,10 +49,13 @@ export function buildEngineTurnContext({
   participationContext,
   characterContinuity,
   characterPresence,
+  consequenceState: rawConsequenceState,
   runtimeState = {},
 }: BuildEngineTurnContextOptions): EngineTurnContext {
   const normBp: Blueprint = normalizeBlueprint(blueprint);
   const effectiveRole = (selectedRole as PlayerRole) || 'protagonist';
+
+  const consequenceState = createCanonicalConsequenceState(rawConsequenceState);
 
   // 0. Participation Context resolution
   const rawParticipation =
@@ -246,6 +252,7 @@ export function buildEngineTurnContext({
       activeFlags,
     },
     participationContext: resolvedParticipation || undefined,
+    consequenceState,
   };
 }
 

@@ -7,12 +7,15 @@ import {
   TurnResponse,
   normalizeParticipationContext,
   type EngineTurnContext,
+  type CanonicalConsequenceProposal,
+  type CanonicalConsequenceReceipt,
 } from '../schemas/engine';
 import { generateStructuredResponse } from '../utils/aiClient';
 import { resolveTransition } from '../engine/transitionResolver';
 import { clampSkepticismDelta } from '../../src/lib/castContinuity';
 import { createIntentReceipt } from '../../src/lib/intentReceipt';
 import { createNarrativeReconciliationReceipt } from '../../src/lib/narrativeReconciliation';
+import { resolveCanonicalConsequences } from '../../src/lib/canonicalConsequences';
 import {
   evaluateCausalFeasibility,
   resolveExplicitCastTarget,
@@ -157,6 +160,24 @@ export function finalizeTurnCausality({
     castTarget,
     causal,
   };
+}
+
+export function finalizeCanonicalConsequences(input: {
+  proposal: CanonicalConsequenceProposal;
+  context: EngineTurnContext;
+  intentReceipt: IntentReceipt;
+  narrativeReconciliationReceipt: NarrativeReconciliationReceipt;
+}): CanonicalConsequenceReceipt {
+  const effectiveRole =
+    input.context.participationContext?.mode ?? input.context.player.role;
+
+  return resolveCanonicalConsequences({
+    proposal: input.proposal,
+    currentState: input.context.consequenceState,
+    intentReceipt: input.intentReceipt,
+    reconciliationReceipt: input.narrativeReconciliationReceipt,
+    effectiveRole,
+  });
 }
 
 export function validateDialogueBlocks(
@@ -321,6 +342,16 @@ turnRouter.post('/', async (req, res) => {
 
     const castLedgerFormatted = formatCastLedger(context);
 
+    const inventoryFormatted =
+      context.consequenceState.inventory.length > 0
+        ? context.consequenceState.inventory.join(', ')
+        : 'None';
+    const injuriesFormatted =
+      context.consequenceState.player_injuries.length > 0
+        ? context.consequenceState.player_injuries.join(', ')
+        : 'None';
+    const psychStatusFormatted = context.consequenceState.psychological_status;
+
     const exitsFormatted = context.topology.allowedOutgoingExits.length > 0
       ? context.topology.allowedOutgoingExits.map((e) => `• Exit to ${e.to} (Kind: ${e.kind}, User Initiated: ${e.userInitiated}${e.requires && e.requires.length > 0 ? `, Requires: ${e.requires.join(', ')}` : ''})`).join('\n')
       : '• No unsealed exits.';
@@ -470,6 +501,21 @@ ${castLedgerFormatted}
 - Emit at most one delta per eligible cast member. Each delta must be between -0.15 and 0.15. Use an empty array when no material change occurred.
 - A continuity delta controls no facts, authority, location, injury, action, relationship, or outcome. It only informs later characterization.
 
+[CANONICAL CONSEQUENCE CONTRACT]
+Current Inventory: ${inventoryFormatted}
+Current Player Injuries: ${injuriesFormatted}
+Current Psychological Status: ${psychStatusFormatted}
+- consequence_proposal.mutations describes proposed canonical changes; it is not itself state.
+- Use an empty array when nothing materially changes.
+- Never repeat unchanged state as a mutation.
+- Inventory ADD/REMOVE requires an attempted MANIPULATE action.
+- Injury ADD requires MOVE or MANIPULATE; injury REMOVE requires MANIPULATE.
+- Psychological SET uses only the five closed status labels: STABLE, UNEASY, DISTRESSED, PANICKED, DISSOCIATED.
+- Do not propose more than four mutations.
+- Do not write these values in logic_state.
+- SYSTEM_INIT must emit an empty mutation array.
+- A proposal may be rejected while ordinary prose is preserved.
+
 [INTERPRETATION & CAUSAL RECONCILIATION CONTRACT]
 - The intent_proposal and reconciliation_proposal interpret an attempted action; they are metadata, never player commands or proof of success.
 - intent_synergy is intent–state coherence, not outcome.
@@ -483,7 +529,6 @@ ${castLedgerFormatted}
 - A memory echo is a telemetry candidate only. It does not write lore_and_memory or character continuity.
 - For an Antagonist, compare the attempt with the explicit Authority Contract and counterplay limits. authority_alignment remains a narrative reading, not a mutation command.
 - A cast member's full name is an addressed-speaker target only when action_kind is COMMUNICATE. In other action kinds, a name may identify the subject, object, or observed person and must not be treated as an attempted conversation merely because it appears in the action text.
-- Item use has no authority or consumption semantics in this phase; do not invent them.
 - None of the field names or enum labels should appear in ordinary narrative prose unless those words arise naturally in the fiction.
 - For SYSTEM_INIT, require action_kind: SYSTEM, null subtype, mode: NOT_REQUIRED, and no memory candidate.
 
@@ -592,6 +637,13 @@ ${recentHistory}
       isExpansionExpected
     );
 
+    const canonicalConsequenceReceipt = finalizeCanonicalConsequences({
+      proposal: engineResponse.consequence_proposal,
+      context,
+      intentReceipt,
+      narrativeReconciliationReceipt,
+    });
+
     const finalResponse: TurnResponse = {
       narrative_blocks: boundedResult.narrative_blocks,
       logic_state: boundedResult.logic_state,
@@ -600,6 +652,7 @@ ${recentHistory}
       castInteractionReceipt,
       intentReceipt,
       narrativeReconciliationReceipt,
+      canonicalConsequenceReceipt,
     };
 
     return res.json(finalResponse);

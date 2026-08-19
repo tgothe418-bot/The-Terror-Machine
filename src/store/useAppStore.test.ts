@@ -181,4 +181,212 @@ describe('useAppStore retakeLastTurn integration', () => {
     expect(useEngineStore.getState().gameState?.inventory).toEqual(['Obsidian Dagger']);
     expect(useEngineStore.getState().gameState?.psychological_status).toBe('Terrified');
   });
+
+  it('restores exact canonical consequence state (inventory, injuries, psych status) on retakeLastTurn', () => {
+    // 1. Initialize non-empty initial consequence state in useEngineStore
+    const initialInventory = ['Flashlight', 'Iron Key'];
+    const initialInjuries = ['Sprained Ankle'];
+    const initialPsychStatus = 'UNEASY';
+
+    const initialGameState = {
+      current_location: 'Sub-Basement B2',
+      player_injuries: [...initialInjuries],
+      inventory: [...initialInventory],
+      psychological_status: initialPsychStatus,
+      player_role: 'witness' as const,
+      player_character_id: null,
+      perspective_mode: 'witness' as const,
+      current_tension_level: 'buildup' as const,
+      lore_and_memory: {
+        established_facts: ['Pipe burst in sector 4'],
+        permanent_consequences: [],
+      },
+      npc_fixations: ['Broken valve'],
+    };
+    useEngineStore.getState().setGameState(initialGameState);
+
+    // 2. Prepare turn commitment with canonicalConsequenceReceipt
+    const preSnapshot = captureRuntimeSnapshot(useAppStore.getState());
+    const consequenceReceipt = {
+      decisions: [
+        {
+          mutation: {
+            domain: 'INVENTORY' as const,
+            operation: 'ACQUIRE' as const,
+            value: 'Brass Crowbar',
+            rationale: 'Pried from heavy tool crate',
+          },
+          outcome: 'ACCEPTED' as const,
+          reason: 'Valid item acquisition within location context',
+        },
+        {
+          mutation: {
+            domain: 'INVENTORY' as const,
+            operation: 'LOSE' as const,
+            value: 'Flashlight',
+            rationale: 'Dropped into flooded elevator shaft',
+          },
+          outcome: 'ACCEPTED' as const,
+          reason: 'Item discarded under extreme duress',
+        },
+        {
+          mutation: {
+            domain: 'INJURY' as const,
+            operation: 'SUSTAIN' as const,
+            value: 'Glass Shards in Palm',
+            rationale: 'Shattered window frame during escape',
+          },
+          outcome: 'ACCEPTED' as const,
+          reason: 'Direct physical trauma',
+        },
+        {
+          mutation: {
+            domain: 'PSYCHOLOGY' as const,
+            operation: 'SHIFT' as const,
+            value: 'PANICKED',
+            rationale: 'Sudden sensory deprivation',
+          },
+          outcome: 'ACCEPTED' as const,
+          reason: 'Severe environmental stressor',
+        },
+      ],
+      patch: {
+        inventory_added: ['Brass Crowbar'],
+        inventory_removed: ['Flashlight'],
+        injuries_added: ['Glass Shards in Palm'],
+        injuries_removed: [],
+        psychological_status_change: {
+          before: 'UNEASY',
+          after: 'PANICKED',
+        },
+      },
+      post_state: {
+        inventory: ['Iron Key', 'Brass Crowbar'],
+        player_injuries: ['Sprained Ankle', 'Glass Shards in Palm'],
+        psychological_status: 'PANICKED',
+      },
+    };
+
+    const committedPayload: CommittedTurnPayload = {
+      commandText: 'Pry open the rusted container and leap away',
+      formattedText: 'Metal gives way with a screech. Glass rains down.',
+      preSnapshot,
+      engineGameStateBefore: JSON.parse(JSON.stringify(initialGameState)),
+      frame: {
+        narrative_blocks: [
+          {
+            type: 'prose',
+            content: 'Metal gives way with a screech. Glass rains down.',
+          },
+        ],
+        logic_state: {
+          current_phase: 'MANIFEST',
+          suggested_tension: 65,
+        },
+      },
+      turnReceipt: {
+        turnNumber: 1,
+        nodeBefore: 'SUB_BASEMENT',
+        requestedTarget: 'SUB_BASEMENT',
+        accepted: true,
+        nodeAfter: 'SUB_BASEMENT',
+        activeVector: 'SOMATIC',
+        activeTier: 'LATENT',
+        tension: 65,
+        preSnapshot,
+        canonicalConsequenceReceipt: consequenceReceipt,
+      },
+    };
+
+    // 3. Commit turn in useAppStore and apply post_state to useEngineStore
+    useAppStore.getState().commitTurnResult(committedPayload);
+    useEngineStore.getState().patchGameState({
+      inventory: [...consequenceReceipt.post_state.inventory],
+      player_injuries: [...consequenceReceipt.post_state.player_injuries],
+      psychological_status: consequenceReceipt.post_state.psychological_status,
+    });
+
+    // Verify turn committed state
+    expect(useAppStore.getState().turnCount).toBe(1);
+    expect(useAppStore.getState().tensionLevel).toBe(65);
+    const history = useAppStore.getState().history;
+    expect(history.length).toBe(2); // user command + assistant response
+    const assistantMsg = history[1];
+    expect(assistantMsg.turnReceipt?.canonicalConsequenceReceipt).toBeDefined();
+    expect(assistantMsg.turnReceipt?.canonicalConsequenceReceipt?.post_state.inventory).toEqual([
+      'Iron Key',
+      'Brass Crowbar',
+    ]);
+
+    // Verify Engine store contains updated post_state
+    expect(useEngineStore.getState().gameState?.inventory).toEqual(['Iron Key', 'Brass Crowbar']);
+    expect(useEngineStore.getState().gameState?.player_injuries).toEqual([
+      'Sprained Ankle',
+      'Glass Shards in Palm',
+    ]);
+    expect(useEngineStore.getState().gameState?.psychological_status).toBe('PANICKED');
+
+    // 4. Trigger retakeLastTurn()
+    const retakeSuccess = useAppStore.getState().retakeLastTurn();
+    expect(retakeSuccess).toBe(true);
+
+    // 5. Verify useAppStore rolled back completely
+    expect(useAppStore.getState().turnCount).toBe(0);
+    expect(useAppStore.getState().tensionLevel).toBe(0);
+    expect(useAppStore.getState().history.length).toBe(0);
+    expect(useAppStore.getState().lastTurnCheckpoint).toBeNull();
+
+    // 6. Verify useEngineStore restored exact pre-turn consequence state (values, ordering, spelling)
+    const restoredGameState = useEngineStore.getState().gameState;
+    expect(restoredGameState?.inventory).toEqual(['Flashlight', 'Iron Key']);
+    expect(restoredGameState?.player_injuries).toEqual(['Sprained Ankle']);
+    expect(restoredGameState?.psychological_status).toBe('UNEASY');
+
+    // 7. Verify subsequent retake fails because checkpoint was consumed
+    const secondRetake = useAppStore.getState().retakeLastTurn();
+    expect(secondRetake).toBe(false);
+  });
+
+  it('proves failed turn does not alter consequence state and maintains retake integrity', () => {
+    const initialGameState = {
+      current_location: 'Control Center',
+      player_injuries: ['Superficial Scratch'],
+      inventory: ['Access Card'],
+      psychological_status: 'STEADY',
+      player_role: 'witness' as const,
+      player_character_id: null,
+      perspective_mode: 'witness' as const,
+      current_tension_level: 'buildup' as const,
+      lore_and_memory: {
+        established_facts: [],
+        permanent_consequences: [],
+      },
+      npc_fixations: [],
+    };
+    useEngineStore.getState().setGameState(initialGameState);
+
+    const preSnapshot = captureRuntimeSnapshot(useAppStore.getState());
+
+    // Record a failed turn
+    useAppStore.getState().failTurnResult({
+      commandText: 'Force open the blast doors',
+      failureReceipt: {
+        code: 'STRUCTURAL_RESPONSE_MISMATCH',
+        status: 500,
+        contentType: 'application/json',
+        message: 'Invalid engine output frame',
+      },
+      errorCategory: 'STRUCTURAL_RESPONSE_MISMATCH',
+      errorMessage: 'Invalid engine output frame',
+      statusCode: 500,
+      contentType: 'application/json',
+      preSnapshot,
+      engineGameStateBefore: JSON.parse(JSON.stringify(initialGameState)),
+    });
+
+    // Engine store remains untouched
+    expect(useEngineStore.getState().gameState?.inventory).toEqual(['Access Card']);
+    expect(useEngineStore.getState().gameState?.player_injuries).toEqual(['Superficial Scratch']);
+    expect(useEngineStore.getState().gameState?.psychological_status).toBe('STEADY');
+  });
 });

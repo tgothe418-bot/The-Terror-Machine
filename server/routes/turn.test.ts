@@ -9,6 +9,7 @@ import {
   normalizeCastSkepticismDeltas,
   enforceNarrativeReconciliationBoundaries,
   finalizeTurnCausality,
+  finalizeCanonicalConsequences,
 } from './turn';
 import { createCastInteractionReceipt } from '../../src/lib/castInteraction';
 import { createIntentReceipt } from '../../src/lib/intentReceipt';
@@ -199,6 +200,10 @@ describe('Turn schemas validation', () => {
       memory_echo_candidate: null,
     };
 
+    const validConsequenceProposal = {
+      mutations: [],
+    };
+
     it('validates a well-formed turn result frame with proposals', () => {
       const validResult = {
         narrative_blocks: [
@@ -213,6 +218,7 @@ describe('Turn schemas validation', () => {
         ],
         intent_proposal: validIntentProposal,
         reconciliation_proposal: validReconciliationProposal,
+        consequence_proposal: validConsequenceProposal,
         logic_state: {
           current_phase: 'LATENT',
           suggested_tension: 3,
@@ -245,12 +251,13 @@ describe('Turn schemas validation', () => {
       expect(parsed.narrative_blocks[0].type).toBe('prose');
       expect(parsed.intent_proposal.action_kind).toBe('INVESTIGATE');
       expect(parsed.reconciliation_proposal.mode).toBe('CANONICAL');
+      expect(parsed.consequence_proposal.mutations).toHaveLength(0);
       expect(parsed.logic_state.suggested_tension).toBe(3);
       expect(parsed.topologyDelta?.isExpansion).toBe(true);
       expect(parsed.topologyDelta?.newNodeDef?.id).toBe('ROOM_02');
     });
 
-    it('rejects missing intent_proposal or reconciliation_proposal', () => {
+    it('rejects missing intent_proposal or reconciliation_proposal or consequence_proposal', () => {
       const baseResult = {
         narrative_blocks: [{ type: 'prose', content: 'Observation.' }],
         logic_state: {},
@@ -260,6 +267,7 @@ describe('Turn schemas validation', () => {
         TurnResultSchema.parse({
           ...baseResult,
           reconciliation_proposal: validReconciliationProposal,
+          consequence_proposal: validConsequenceProposal,
         })
       ).toThrow();
 
@@ -267,6 +275,15 @@ describe('Turn schemas validation', () => {
         TurnResultSchema.parse({
           ...baseResult,
           intent_proposal: validIntentProposal,
+          consequence_proposal: validConsequenceProposal,
+        })
+      ).toThrow();
+
+      expect(() =>
+        TurnResultSchema.parse({
+          ...baseResult,
+          intent_proposal: validIntentProposal,
+          reconciliation_proposal: validReconciliationProposal,
         })
       ).toThrow();
     });
@@ -275,6 +292,7 @@ describe('Turn schemas validation', () => {
       const baseResult = {
         narrative_blocks: [{ type: 'prose', content: 'Observation.' }],
         logic_state: {},
+        consequence_proposal: validConsequenceProposal,
       };
 
       expect(() =>
@@ -309,6 +327,7 @@ describe('Turn schemas validation', () => {
         ],
         intent_proposal: validIntentProposal,
         reconciliation_proposal: validReconciliationProposal,
+        consequence_proposal: validConsequenceProposal,
         logic_state: {
           current_phase: 'LATENT',
           suggested_tension: 1,
@@ -325,6 +344,7 @@ describe('Turn schemas validation', () => {
           narrative_blocks: [{ type: 'invented_type', content: 'Not a valid block.' }],
           intent_proposal: validIntentProposal,
           reconciliation_proposal: validReconciliationProposal,
+          consequence_proposal: validConsequenceProposal,
           logic_state: {},
         })
       ).toThrow();
@@ -336,6 +356,7 @@ describe('Turn schemas validation', () => {
           narrative_blocks: [{ type: 'prose', content: 42 }],
           intent_proposal: validIntentProposal,
           reconciliation_proposal: validReconciliationProposal,
+          consequence_proposal: validConsequenceProposal,
           logic_state: {},
         })
       ).toThrow();
@@ -347,6 +368,7 @@ describe('Turn schemas validation', () => {
           narrative_blocks: [{ type: 'prose', content: 'The corridor remains still.' }],
           intent_proposal: validIntentProposal,
           reconciliation_proposal: validReconciliationProposal,
+          consequence_proposal: validConsequenceProposal,
           logic_state: {},
           topologyDelta: { isExpansion: 'false' },
         })
@@ -368,13 +390,36 @@ describe('Turn schemas validation', () => {
           validReconciliationProposal,
           'protagonist'
         ),
+        canonicalConsequenceReceipt: {
+          version: 1,
+          pre_state: {
+            inventory: [],
+            player_injuries: [],
+            psychological_status: 'STABLE',
+          },
+          post_state: {
+            inventory: [],
+            player_injuries: [],
+            psychological_status: 'STABLE',
+          },
+          patch: {
+            inventory_added: [],
+            inventory_removed: [],
+            injuries_added: [],
+            injuries_removed: [],
+            psychological_status_change: null,
+          },
+          decisions: [],
+        },
       };
 
       const parsed = TurnResponseSchema.parse(responseEnvelope);
       expect(parsed.intentReceipt?.action_kind).toBe('INVESTIGATE');
       expect(parsed.narrativeReconciliationReceipt?.mode).toBe('CANONICAL');
+      expect(parsed.canonicalConsequenceReceipt?.version).toBe(1);
       expect((parsed as Record<string, unknown>).intent_proposal).toBeUndefined();
       expect((parsed as Record<string, unknown>).reconciliation_proposal).toBeUndefined();
+      expect((parsed as Record<string, unknown>).consequence_proposal).toBeUndefined();
     });
   });
 
@@ -397,6 +442,9 @@ describe('Turn schemas validation', () => {
         fictional_time_cost: 'MOMENT' as const,
         authority_alignment: 'NOT_APPLICABLE' as const,
         memory_echo_candidate: 'Unreal light flash.',
+      },
+      consequence_proposal: {
+        mutations: [],
       },
       logic_state: {
         current_phase: 'LATENT',
@@ -1128,6 +1176,27 @@ describe('Turn schemas validation', () => {
         narrative_blocks: narrativeBlocks,
         logic_state: {},
         castInteractionReceipt: receipt,
+        canonicalConsequenceReceipt: {
+          version: 1,
+          pre_state: {
+            inventory: [],
+            player_injuries: [],
+            psychological_status: 'STABLE',
+          },
+          post_state: {
+            inventory: [],
+            player_injuries: [],
+            psychological_status: 'STABLE',
+          },
+          patch: {
+            inventory_added: [],
+            inventory_removed: [],
+            injuries_added: [],
+            injuries_removed: [],
+            psychological_status_change: null,
+          },
+          decisions: [],
+        },
       });
 
       expect(validatedEnvelope.castInteractionReceipt?.outcome).toBe('RESPONDED');
@@ -1329,6 +1398,9 @@ describe('Turn schemas validation', () => {
           authority_alignment: 'NOT_APPLICABLE',
           memory_echo_candidate: null,
         },
+        consequence_proposal: {
+          mutations: [],
+        },
         logic_state: {
           current_phase: 'LATENT',
           suggested_tension: 3,
@@ -1398,6 +1470,9 @@ describe('Turn schemas validation', () => {
           authority_alignment: 'NOT_APPLICABLE',
           memory_echo_candidate: null,
         },
+        consequence_proposal: {
+          mutations: [],
+        },
         logic_state: {
           current_phase: 'LATENT',
           suggested_tension: 2,
@@ -1449,6 +1524,9 @@ describe('Turn schemas validation', () => {
           fictional_time_cost: 'MOMENT',
           authority_alignment: 'NOT_APPLICABLE',
           memory_echo_candidate: null,
+        },
+        consequence_proposal: {
+          mutations: [],
         },
         logic_state: {
           current_phase: 'LATENT',
@@ -1504,6 +1582,9 @@ describe('Turn schemas validation', () => {
           authority_alignment: 'NOT_APPLICABLE',
           memory_echo_candidate: null,
         },
+        consequence_proposal: {
+          mutations: [],
+        },
         logic_state: {
           current_phase: 'LATENT',
           suggested_tension: 1,
@@ -1545,6 +1626,9 @@ describe('Turn schemas validation', () => {
           fictional_time_cost: 'MOMENT',
           authority_alignment: 'NOT_APPLICABLE',
           memory_echo_candidate: null,
+        },
+        consequence_proposal: {
+          mutations: [],
         },
         logic_state: {
           current_phase: 'LATENT',
@@ -1592,6 +1676,9 @@ describe('Turn schemas validation', () => {
           fictional_time_cost: 'MOMENT',
           authority_alignment: 'WITHIN_CONTRACT',
           memory_echo_candidate: null,
+        },
+        consequence_proposal: {
+          mutations: [],
         },
         logic_state: {},
       });
@@ -1692,6 +1779,9 @@ describe('Turn schemas validation', () => {
           authority_alignment: 'NOT_APPLICABLE',
           memory_echo_candidate: null,
         },
+        consequence_proposal: {
+          mutations: [],
+        },
         logic_state: {
           requested_transition: 'AIRLOCK_01',
           cast_deltas: [{ character_id: 'char-elena', skepticism_delta: 0.1 }],
@@ -1749,6 +1839,9 @@ describe('Turn schemas validation', () => {
           authority_alignment: 'NOT_APPLICABLE',
           memory_echo_candidate: null,
         },
+        consequence_proposal: {
+          mutations: [],
+        },
         logic_state: {
           cast_deltas: [{ character_id: 'char-elena', skepticism_delta: 0.1 }],
         },
@@ -1787,6 +1880,9 @@ describe('Turn schemas validation', () => {
           authority_alignment: 'NOT_APPLICABLE',
           memory_echo_candidate: null,
         },
+        consequence_proposal: {
+          mutations: [],
+        },
         logic_state: {},
       });
 
@@ -1808,13 +1904,36 @@ describe('Turn schemas validation', () => {
         transitionReceipt,
         intentReceipt,
         narrativeReconciliationReceipt,
+        canonicalConsequenceReceipt: {
+          version: 1,
+          pre_state: {
+            inventory: [],
+            player_injuries: [],
+            psychological_status: 'STABLE',
+          },
+          post_state: {
+            inventory: [],
+            player_injuries: [],
+            psychological_status: 'STABLE',
+          },
+          patch: {
+            inventory_added: [],
+            inventory_removed: [],
+            injuries_added: [],
+            injuries_removed: [],
+            psychological_status_change: null,
+          },
+          decisions: [],
+        },
       };
 
       const validated = TurnResponseSchema.parse(responseEnvelope);
       expect(validated.intentReceipt).toBeDefined();
       expect(validated.narrativeReconciliationReceipt).toBeDefined();
+      expect(validated.canonicalConsequenceReceipt).toBeDefined();
       expect((validated as Record<string, unknown>).intent_proposal).toBeUndefined();
       expect((validated as Record<string, unknown>).reconciliation_proposal).toBeUndefined();
+      expect((validated as Record<string, unknown>).consequence_proposal).toBeUndefined();
     });
 
     it('verifies the route file contains one and only one generateStructuredResponse invocation (Case 8)', () => {
@@ -1847,6 +1966,9 @@ describe('Turn schemas validation', () => {
             fictional_time_cost: 'MOMENT',
             authority_alignment: 'NOT_APPLICABLE',
             memory_echo_candidate: null,
+          },
+          consequence_proposal: {
+            mutations: [],
           },
           logic_state: {
             requested_transition: 'AIRLOCK_01',
@@ -1889,6 +2011,9 @@ describe('Turn schemas validation', () => {
             fictional_time_cost: 'MOMENT',
             authority_alignment: 'NOT_APPLICABLE',
             memory_echo_candidate: null,
+          },
+          consequence_proposal: {
+            mutations: [],
           },
           logic_state: {
             requested_transition: 'AIRLOCK_01',
@@ -2036,6 +2161,9 @@ describe('Turn schemas validation', () => {
               authority_alignment: 'NOT_APPLICABLE',
               memory_echo_candidate: null,
             },
+            consequence_proposal: {
+              mutations: [],
+            },
             logic_state: {},
             topologyDelta: mockProposedExpansion,
           });
@@ -2078,6 +2206,9 @@ describe('Turn schemas validation', () => {
               fictional_time_cost: 'MOMENT',
               authority_alignment: 'NOT_APPLICABLE',
               memory_echo_candidate: null,
+            },
+            consequence_proposal: {
+              mutations: [],
             },
             logic_state: {},
             topologyDelta: mockProposedExpansion,
@@ -2122,6 +2253,9 @@ describe('Turn schemas validation', () => {
               authority_alignment: 'NOT_APPLICABLE',
               memory_echo_candidate: null,
             },
+            consequence_proposal: {
+              mutations: [],
+            },
             logic_state: {},
             topologyDelta: mockProposedExpansion,
           });
@@ -2165,6 +2299,9 @@ describe('Turn schemas validation', () => {
               authority_alignment: 'NOT_APPLICABLE',
               memory_echo_candidate: null,
             },
+            consequence_proposal: {
+              mutations: [],
+            },
             logic_state: {},
             topologyDelta: mockProposedExpansion,
           });
@@ -2206,6 +2343,9 @@ describe('Turn schemas validation', () => {
               fictional_time_cost: 'MOMENT',
               authority_alignment: 'NOT_APPLICABLE',
               memory_echo_candidate: null,
+            },
+            consequence_proposal: {
+              mutations: [],
             },
             logic_state: {},
             topologyDelta: mockProposedExpansion,
@@ -2261,6 +2401,9 @@ describe('Turn schemas validation', () => {
               authority_alignment: 'NOT_APPLICABLE',
               memory_echo_candidate: null,
             },
+            consequence_proposal: {
+              mutations: [],
+            },
             logic_state: {},
             topologyDelta: mockProposedExpansion,
           });
@@ -2313,6 +2456,9 @@ describe('Turn schemas validation', () => {
               authority_alignment: 'NOT_APPLICABLE',
               memory_echo_candidate: null,
             },
+            consequence_proposal: {
+              mutations: [],
+            },
             logic_state: {},
             topologyDelta: mockProposedExpansion,
           });
@@ -2340,6 +2486,27 @@ describe('Turn schemas validation', () => {
             }),
             intentReceipt: investigateCausality.intentReceipt,
             narrativeReconciliationReceipt: investigateCausality.narrativeReconciliationReceipt,
+            canonicalConsequenceReceipt: {
+              version: 1,
+              pre_state: {
+                inventory: [],
+                player_injuries: [],
+                psychological_status: 'STABLE',
+              },
+              post_state: {
+                inventory: [],
+                player_injuries: [],
+                psychological_status: 'STABLE',
+              },
+              patch: {
+                inventory_added: [],
+                inventory_removed: [],
+                injuries_added: [],
+                injuries_removed: [],
+                psychological_status_change: null,
+              },
+              decisions: [],
+            },
           };
 
           const parsedInvestigateResponse = TurnResponseSchema.parse(investigateResponse);
@@ -2369,6 +2536,9 @@ describe('Turn schemas validation', () => {
               authority_alignment: 'NOT_APPLICABLE',
               memory_echo_candidate: null,
             },
+            consequence_proposal: {
+              mutations: [],
+            },
             logic_state: {},
             topologyDelta: mockProposedExpansion,
           });
@@ -2395,6 +2565,27 @@ describe('Turn schemas validation', () => {
             }),
             intentReceipt: moveCausality.intentReceipt,
             narrativeReconciliationReceipt: moveCausality.narrativeReconciliationReceipt,
+            canonicalConsequenceReceipt: {
+              version: 1,
+              pre_state: {
+                inventory: [],
+                player_injuries: [],
+                psychological_status: 'STABLE',
+              },
+              post_state: {
+                inventory: [],
+                player_injuries: [],
+                psychological_status: 'STABLE',
+              },
+              patch: {
+                inventory_added: [],
+                inventory_removed: [],
+                injuries_added: [],
+                injuries_removed: [],
+                psychological_status_change: null,
+              },
+              decisions: [],
+            },
           };
 
           const parsedMoveResponse = TurnResponseSchema.parse(moveResponse);
@@ -2402,6 +2593,303 @@ describe('Turn schemas validation', () => {
           expect(parsedMoveResponse.topologyDelta?.isExpansion).toBe(true);
           expect(parsedMoveResponse.topologyDelta?.newNodeDef?.id).toBe('EXPANDED_VAULT_02');
         });
+      });
+    });
+
+    describe('Phase 3H.1B: Canonical Consequences Integration (finalizeCanonicalConsequences)', () => {
+      const baseConsequenceState = {
+        inventory: ['flashlight'],
+        player_injuries: ['bruised_ribs'],
+        psychological_status: 'UNEASY' as const,
+      };
+
+      const baseConsequenceContext = EngineTurnContextSchema.parse({
+        ...baseContext,
+        consequenceState: baseConsequenceState,
+      });
+
+      it('accepts valid inventory ADD mutation when intent is MANIPULATE', () => {
+        const receipt = finalizeCanonicalConsequences({
+          proposal: {
+            mutations: [
+              {
+                domain: 'INVENTORY',
+                operation: 'ADD',
+                value: 'iron_key',
+                rationale: 'Picks up iron key from locker',
+              },
+            ],
+          },
+          intentReceipt: createIntentReceipt({
+            action_kind: 'MANIPULATE',
+            action_subtype: null,
+            pressure_direction: 'MAINTAIN',
+            dramatic_tactic: 'NONE',
+            intent_synergy: 'N/A',
+          }),
+          narrativeReconciliationReceipt: createNarrativeReconciliationReceipt(
+            {
+              mode: 'CANONICAL',
+              feasibility: 'SUPPORTED',
+              reason_code: 'NONE',
+              fictional_time_cost: 'MOMENT',
+              authority_alignment: 'NOT_APPLICABLE',
+              memory_echo_candidate: null,
+            },
+            'protagonist'
+          ),
+          context: baseConsequenceContext,
+        });
+
+        expect(receipt.decisions).toHaveLength(1);
+        expect(receipt.decisions[0].outcome).toBe('APPLIED');
+        expect(receipt.patch.inventory_added).toEqual(['iron_key']);
+        expect(receipt.post_state.inventory).toEqual(['flashlight', 'iron_key']);
+      });
+
+      it('rejects inventory mutation when intent is not MANIPULATE', () => {
+        const receipt = finalizeCanonicalConsequences({
+          proposal: {
+            mutations: [
+              {
+                domain: 'INVENTORY',
+                operation: 'ADD',
+                value: 'iron_key',
+                rationale: 'Picks up iron key from locker',
+              },
+            ],
+          },
+          intentReceipt: createIntentReceipt({
+            action_kind: 'OBSERVE',
+            action_subtype: null,
+            pressure_direction: 'MAINTAIN',
+            dramatic_tactic: 'NONE',
+            intent_synergy: 'N/A',
+          }),
+          narrativeReconciliationReceipt: createNarrativeReconciliationReceipt(
+            {
+              mode: 'CANONICAL',
+              feasibility: 'SUPPORTED',
+              reason_code: 'NONE',
+              fictional_time_cost: 'MOMENT',
+              authority_alignment: 'NOT_APPLICABLE',
+              memory_echo_candidate: null,
+            },
+            'protagonist'
+          ),
+          context: baseConsequenceContext,
+        });
+
+        expect(receipt.decisions).toHaveLength(1);
+        expect(receipt.decisions[0].outcome).toBe('REJECTED');
+        expect(receipt.decisions[0].reason).toBe('ACTION_NOT_AUTHORIZED');
+        expect(receipt.post_state.inventory).toEqual(['flashlight']);
+      });
+
+      it('accepts injury ADD mutation for physical intents (MOVE/MANIPULATE)', () => {
+        const receipt = finalizeCanonicalConsequences({
+          proposal: {
+            mutations: [
+              {
+                domain: 'PLAYER_INJURY',
+                operation: 'ADD',
+                value: 'sprained_ankle',
+                rationale: 'Stumbles over twisted floor grating',
+              },
+            ],
+          },
+          intentReceipt: createIntentReceipt({
+            action_kind: 'MOVE',
+            action_subtype: null,
+            pressure_direction: 'MAINTAIN',
+            dramatic_tactic: 'NONE',
+            intent_synergy: 'N/A',
+          }),
+          narrativeReconciliationReceipt: createNarrativeReconciliationReceipt(
+            {
+              mode: 'CANONICAL',
+              feasibility: 'SUPPORTED',
+              reason_code: 'NONE',
+              fictional_time_cost: 'MOMENT',
+              authority_alignment: 'NOT_APPLICABLE',
+              memory_echo_candidate: null,
+            },
+            'protagonist'
+          ),
+          context: baseConsequenceContext,
+        });
+
+        expect(receipt.decisions).toHaveLength(1);
+        expect(receipt.decisions[0].outcome).toBe('APPLIED');
+        expect(receipt.patch.injuries_added).toEqual(['sprained_ankle']);
+        expect(receipt.post_state.player_injuries).toEqual(['bruised_ribs', 'sprained_ankle']);
+      });
+
+      it('rejects injury mutation for non-physical intent like COMMUNICATE', () => {
+        const receipt = finalizeCanonicalConsequences({
+          proposal: {
+            mutations: [
+              {
+                domain: 'PLAYER_INJURY',
+                operation: 'ADD',
+                value: 'sprained_ankle',
+                rationale: 'Sprains ankle while talking',
+              },
+            ],
+          },
+          intentReceipt: createIntentReceipt({
+            action_kind: 'COMMUNICATE',
+            action_subtype: null,
+            pressure_direction: 'MAINTAIN',
+            dramatic_tactic: 'NONE',
+            intent_synergy: 'N/A',
+          }),
+          narrativeReconciliationReceipt: createNarrativeReconciliationReceipt(
+            {
+              mode: 'CANONICAL',
+              feasibility: 'SUPPORTED',
+              reason_code: 'NONE',
+              fictional_time_cost: 'MOMENT',
+              authority_alignment: 'NOT_APPLICABLE',
+              memory_echo_candidate: null,
+            },
+            'protagonist'
+          ),
+          context: baseConsequenceContext,
+        });
+
+        expect(receipt.decisions).toHaveLength(1);
+        expect(receipt.decisions[0].outcome).toBe('REJECTED');
+        expect(receipt.decisions[0].reason).toBe('ACTION_NOT_AUTHORIZED');
+        expect(receipt.post_state.player_injuries).toEqual(['bruised_ribs']);
+      });
+
+      it('accepts valid psychological_status SET mutation', () => {
+        const receipt = finalizeCanonicalConsequences({
+          proposal: {
+            mutations: [
+              {
+                domain: 'PSYCHOLOGICAL_STATUS',
+                operation: 'SET',
+                value: 'PANICKED',
+                rationale: 'Sees grotesque aberration on security monitor',
+              },
+            ],
+          },
+          intentReceipt: createIntentReceipt({
+            action_kind: 'INVESTIGATE',
+            action_subtype: null,
+            pressure_direction: 'MAINTAIN',
+            dramatic_tactic: 'NONE',
+            intent_synergy: 'N/A',
+          }),
+          narrativeReconciliationReceipt: createNarrativeReconciliationReceipt(
+            {
+              mode: 'CANONICAL',
+              feasibility: 'SUPPORTED',
+              reason_code: 'NONE',
+              fictional_time_cost: 'MOMENT',
+              authority_alignment: 'NOT_APPLICABLE',
+              memory_echo_candidate: null,
+            },
+            'protagonist'
+          ),
+          context: baseConsequenceContext,
+        });
+
+        expect(receipt.decisions).toHaveLength(1);
+        expect(receipt.decisions[0].outcome).toBe('APPLIED');
+        expect(receipt.patch.psychological_status_change).toEqual({
+          before: 'UNEASY',
+          after: 'PANICKED',
+        });
+        expect(receipt.post_state.psychological_status).toBe('PANICKED');
+      });
+
+      it('rejects all consequence mutations when reconciliation mode is EXPERIENTIAL_REANCHORED', () => {
+        const receipt = finalizeCanonicalConsequences({
+          proposal: {
+            mutations: [
+              {
+                domain: 'INVENTORY',
+                operation: 'ADD',
+                value: 'ghost_token',
+                rationale: 'Conjures ghost item in hallucinatory state',
+              },
+            ],
+          },
+          intentReceipt: createIntentReceipt({
+            action_kind: 'MANIPULATE',
+            action_subtype: null,
+            pressure_direction: 'MAINTAIN',
+            dramatic_tactic: 'NONE',
+            intent_synergy: 'N/A',
+          }),
+          narrativeReconciliationReceipt: createNarrativeReconciliationReceipt(
+            {
+              mode: 'EXPERIENTIAL_REANCHORED',
+              feasibility: 'IMPOSSIBLE',
+              reason_code: 'PHYSICAL_LIMIT',
+              fictional_time_cost: 'MOMENT',
+              authority_alignment: 'NOT_APPLICABLE',
+              memory_echo_candidate: null,
+            },
+            'protagonist'
+          ),
+          context: baseConsequenceContext,
+        });
+
+        expect(receipt.decisions).toHaveLength(1);
+        expect(receipt.decisions[0].outcome).toBe('REJECTED');
+        expect(receipt.decisions[0].reason).toBe('RECONCILIATION_SUPPRESSED');
+        expect(receipt.post_state).toEqual(baseConsequenceState);
+      });
+
+      it('rejects player consequence mutations for non-protagonist roles (Director / Witness)', () => {
+        const witnessContext = EngineTurnContextSchema.parse({
+          ...baseConsequenceContext,
+          player: {
+            role: 'witness',
+            name: 'Witness',
+            description: 'Observer in shadows',
+          },
+        });
+
+        const receipt = finalizeCanonicalConsequences({
+          proposal: {
+            mutations: [
+              {
+                domain: 'INVENTORY',
+                operation: 'ADD',
+                value: 'iron_key',
+                rationale: 'Picks up iron key',
+              },
+            ],
+          },
+          intentReceipt: createIntentReceipt({
+            action_kind: 'MANIPULATE',
+            action_subtype: null,
+            pressure_direction: 'MAINTAIN',
+            dramatic_tactic: 'NONE',
+            intent_synergy: 'N/A',
+          }),
+          narrativeReconciliationReceipt: createNarrativeReconciliationReceipt(
+            {
+              mode: 'CANONICAL',
+              feasibility: 'SUPPORTED',
+              reason_code: 'NONE',
+              fictional_time_cost: 'MOMENT',
+              authority_alignment: 'NOT_APPLICABLE',
+              memory_echo_candidate: null,
+            },
+            'witness'
+          ),
+          context: witnessContext,
+        });
+
+        expect(receipt.decisions).toHaveLength(1);
+        expect(receipt.decisions[0].outcome).toBe('REJECTED');
+        expect(receipt.decisions[0].reason).toBe('ROLE_NOT_AUTHORIZED');
       });
     });
   });

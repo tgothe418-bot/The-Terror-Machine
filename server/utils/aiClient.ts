@@ -143,6 +143,25 @@ export const turnResponseSchema = {
         "memory_echo_candidate",
       ]
     },
+    consequence_proposal: {
+      type: Type.OBJECT,
+      properties: {
+        mutations: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              domain: { type: Type.STRING, enum: ["INVENTORY", "PLAYER_INJURY", "PSYCHOLOGICAL_STATUS"] },
+              operation: { type: Type.STRING, enum: ["ADD", "REMOVE", "SET"] },
+              value: { type: Type.STRING },
+              rationale: { type: Type.STRING },
+            },
+            required: ["domain", "operation", "value", "rationale"],
+          },
+        },
+      },
+      required: ["mutations"],
+    },
     logic_state: {
       type: Type.OBJECT,
       properties: {
@@ -194,7 +213,7 @@ export const turnResponseSchema = {
       nullable: true
     }
   },
-  required: ["narrative_blocks", "logic_state", "intent_proposal", "reconciliation_proposal"]
+  required: ["narrative_blocks", "logic_state", "intent_proposal", "reconciliation_proposal", "consequence_proposal"]
 };
 
 export function unwrapStrictJsonResponse(text: string): string {

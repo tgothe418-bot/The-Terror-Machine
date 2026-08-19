@@ -398,8 +398,8 @@ describe('Phase 2E Comprehensive Engine Lifecycle Test Suite', () => {
     expect(receipt?.postSnapshot?.activeTier).toBe('TERMINAL');
   });
 
-  // 8. Presentation-state projection cannot overwrite canonical reducer-owned values
-  it('8. projectPresentationPatch strips canonical fields and preserves presentation-only state', () => {
+  // 8. Presentation-state projection cannot overwrite canonical reducer-owned or consequence values
+  it('8. projectPresentationPatch strips canonical and consequence fields and preserves presentation-only state', () => {
     const rawLogicState: Record<string, unknown> = {
       // Canonical fields that MUST be omitted
       currentNodeId: 'ROGUE_NODE',
@@ -410,12 +410,15 @@ describe('Phase 2E Comprehensive Engine Lifecycle Test Suite', () => {
       suggested_tension: 100,
       spatialGraph: [],
 
-      // Presentation fields that CAN be projected
+      // Consequence fields that MUST be omitted from loose projection
       inventory: ['Rusty Key', 'Geiger Counter'],
       player_injuries: ['Lacerated palm'],
       lore_and_memory: { revelations: ['The machine is alive'] },
-      npc_fixations: ['Entity stalks the perimeter'],
       psychological_status: 'Paranoid',
+
+      // Presentation fields that CAN be projected
+      npc_fixations: ['Entity stalks the perimeter'],
+      cast_ledger: [{ id: 'char-1', skepticism: 0.8 }],
     };
 
     const projection = projectPresentationPatch(rawLogicState);
@@ -426,11 +429,13 @@ describe('Phase 2E Comprehensive Engine Lifecycle Test Suite', () => {
     expect(projectionRecord.activeTier).toBeUndefined();
     expect(projectionRecord.current_phase).toBeUndefined();
     expect(projectionRecord.turnCount).toBeUndefined();
+    expect(projectionRecord.inventory).toBeUndefined();
+    expect(projectionRecord.player_injuries).toBeUndefined();
+    expect(projectionRecord.psychological_status).toBeUndefined();
+    expect(projectionRecord.lore_and_memory).toBeUndefined();
 
-    expect(projection.inventory).toEqual(['Rusty Key', 'Geiger Counter']);
-    expect(projection.player_injuries).toEqual(['Lacerated palm']);
     expect(projection.npc_fixations).toEqual(['Entity stalks the perimeter']);
-    expect(projection.psychological_status).toBe('Paranoid');
+    expect(projection.cast_ledger).toEqual([{ id: 'char-1', skepticism: 0.8 }]);
   });
 
   // 9. Next turn context derives current node and allowed exits from committed runtime graph

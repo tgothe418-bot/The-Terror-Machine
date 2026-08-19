@@ -1140,5 +1140,69 @@ describe('engineReducer atomic turn commits', () => {
       expect(state.turnCount).toBe(1);
       expect(state.lastTurnCheckpoint).toBeNull();
     });
+
+    it('preserves canonicalConsequenceReceipt in turnReceipt on committed history message', () => {
+      const state = { ...initialEngineState };
+      const preSnapshot = captureRuntimeSnapshot(state);
+
+      const consequenceReceipt = {
+        decisions: [
+          {
+            mutation: {
+              domain: 'INVENTORY' as const,
+              operation: 'ACQUIRE' as const,
+              value: 'Rusty Screwdriver',
+              rationale: 'Found in tool rack',
+            },
+            outcome: 'ACCEPTED' as const,
+            reason: 'Contextually appropriate',
+          },
+        ],
+        patch: {
+          inventory_added: ['Rusty Screwdriver'],
+          inventory_removed: [],
+          injuries_added: [],
+          injuries_removed: [],
+          psychological_status_change: null,
+        },
+        post_state: {
+          inventory: ['Rusty Screwdriver'],
+          player_injuries: [],
+          psychological_status: 'CALM',
+        },
+      };
+
+      const nextState = engineReducer(state, {
+        type: 'TURN_COMMITTED',
+        payload: {
+          commandText: 'Take screwdriver',
+          formattedText: 'You grab the rusty screwdriver.',
+          preSnapshot,
+          frame: {
+            narrative_blocks: [{ type: 'prose', content: 'You grab the rusty screwdriver.' }],
+            logic_state: { suggested_tension: 10 },
+          },
+          turnReceipt: {
+            turnNumber: 1,
+            nodeBefore: 'WORKSHOP',
+            requestedTarget: 'WORKSHOP',
+            accepted: true,
+            nodeAfter: 'WORKSHOP',
+            activeVector: 'COGNITIVE',
+            activeTier: 'LATENT',
+            tension: 10,
+            preSnapshot,
+            canonicalConsequenceReceipt: consequenceReceipt,
+          },
+        },
+      });
+
+      expect(nextState.history.length).toBe(2);
+      const assistantMsg = nextState.history[1];
+      expect(assistantMsg.turnReceipt?.canonicalConsequenceReceipt).toBeDefined();
+      expect(assistantMsg.turnReceipt?.canonicalConsequenceReceipt?.post_state.inventory).toEqual([
+        'Rusty Screwdriver',
+      ]);
+    });
   });
 });

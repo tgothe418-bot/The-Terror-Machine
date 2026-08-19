@@ -536,6 +536,7 @@ export default function Runtime() {
         narrativeReconciliationReceipt:
           response.narrativeReconciliationReceipt ||
           createFallbackNarrativeReconciliationReceipt(),
+        canonicalConsequenceReceipt: response.canonicalConsequenceReceipt,
       };
 
       const committedTurnPayload: CommittedTurnPayload = {
@@ -549,6 +550,15 @@ export default function Runtime() {
       };
 
       dispatch({ type: 'TURN_COMMITTED', payload: committedTurnPayload });
+
+      if (response.canonicalConsequenceReceipt) {
+        const consequenceReceipt = response.canonicalConsequenceReceipt;
+        useEngineStore.getState().patchGameState({
+          inventory: [...consequenceReceipt.post_state.inventory],
+          player_injuries: [...consequenceReceipt.post_state.player_injuries],
+          psychological_status: consequenceReceipt.post_state.psychological_status,
+        });
+      }
 
       if (activeBlueprint) {
         const patchPayload: Partial<typeof latestEngineState.gameState> = {};

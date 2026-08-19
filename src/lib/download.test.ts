@@ -801,6 +801,228 @@ describe('Engine telemetry export', () => {
       expect(md).not.toContain('- **From Node:**');
       expect(md).not.toContain('- **To Node:**');
     });
+
+    it('renders Canonical Consequences in correct order and format for HTML and Markdown', () => {
+      const messagesWithConsequences = [
+        {
+          role: 'user',
+          content: 'Pry open the lockbox.',
+          timestamp: 1,
+        },
+        {
+          role: 'assistant',
+          content: 'You pry the box open, cutting your thumb.',
+          timestamp: 2,
+          blocks: [{ type: 'prose', content: 'You pry the box open, cutting your thumb.' }],
+          turnReceipt: {
+            turnNumber: 1,
+            nodeBefore: 'WORKSHOP',
+            requestedTarget: 'WORKSHOP',
+            accepted: true,
+            nodeAfter: 'WORKSHOP',
+            activeVector: 'SOMATIC' as const,
+            activeTier: 'LATENT' as const,
+            tension: 25,
+            preSnapshot: {
+              version: 1 as const,
+              turnCount: 0,
+              currentNodeId: 'WORKSHOP',
+              activeVector: 'SOMATIC' as const,
+              activeTier: 'LATENT' as const,
+              phase: 'LATENT',
+              tension: 20,
+              coherence: 1.0,
+              reconciliationRevision: 0,
+              activeFlags: [],
+            },
+            canonicalConsequenceReceipt: {
+              decisions: [
+                {
+                  mutation: {
+                    domain: 'INVENTORY' as const,
+                    operation: 'ACQUIRE' as const,
+                    value: 'Iron & Brass Key <V1>',
+                    rationale: 'Retrieved from "safe" box',
+                  },
+                  outcome: 'ACCEPTED' as const,
+                  reason: 'Valid item retrieval',
+                },
+                {
+                  mutation: {
+                    domain: 'INVENTORY' as const,
+                    operation: 'LOSE' as const,
+                    value: 'Rusty Lockpick',
+                    rationale: 'Snapped during tension',
+                  },
+                  outcome: 'ACCEPTED' as const,
+                  reason: 'Tool exhausted',
+                },
+                {
+                  mutation: {
+                    domain: 'INJURY' as const,
+                    operation: 'SUSTAIN' as const,
+                    value: 'Lacerated Thumb',
+                    rationale: 'Slipped blade',
+                  },
+                  outcome: 'ACCEPTED' as const,
+                  reason: 'Direct minor trauma',
+                },
+                {
+                  mutation: {
+                    domain: 'PSYCHOLOGY' as const,
+                    operation: 'SHIFT' as const,
+                    value: 'JITTERY',
+                    rationale: 'Sharp sudden pain',
+                  },
+                  outcome: 'ACCEPTED' as const,
+                  reason: 'Physical stress reflex',
+                },
+              ],
+              patch: {
+                inventory_added: ['Iron & Brass Key <V1>'],
+                inventory_removed: ['Rusty Lockpick'],
+                injuries_added: ['Lacerated Thumb'],
+                injuries_removed: [],
+                psychological_status_change: {
+                  before: 'CALM',
+                  after: 'JITTERY',
+                },
+              },
+              post_state: {
+                inventory: ['Iron & Brass Key <V1>'],
+                player_injuries: ['Lacerated Thumb'],
+                psychological_status: 'JITTERY',
+              },
+            },
+          },
+        },
+      ];
+
+      const html = buildEngineLogContent(messagesWithConsequences, 'html')!.content;
+      const md = buildEngineLogContent(messagesWithConsequences, 'md')!.content;
+
+      // HTML assertions
+      expect(html).toContain('<h4>Canonical Consequences</h4>');
+      expect(html).toContain('<strong>Decision [INVENTORY / ACQUIRE]:</strong> Iron &amp; Brass Key &lt;V1&gt; | Outcome: ACCEPTED (Reason: Valid item retrieval) — <em>Retrieved from &quot;safe&quot; box</em>');
+      expect(html).toContain('<strong>Decision [INVENTORY / LOSE]:</strong> Rusty Lockpick | Outcome: ACCEPTED (Reason: Tool exhausted) — <em>Snapped during tension</em>');
+      expect(html).toContain('<strong>Decision [INJURY / SUSTAIN]:</strong> Lacerated Thumb | Outcome: ACCEPTED (Reason: Direct minor trauma) — <em>Slipped blade</em>');
+      expect(html).toContain('<strong>Decision [PSYCHOLOGY / SHIFT]:</strong> JITTERY | Outcome: ACCEPTED (Reason: Physical stress reflex) — <em>Sharp sudden pain</em>');
+      expect(html).toContain('<strong>Inventory Added:</strong> Iron &amp; Brass Key &lt;V1&gt;');
+      expect(html).toContain('<strong>Inventory Removed:</strong> Rusty Lockpick');
+      expect(html).toContain('<strong>Injuries Added:</strong> Lacerated Thumb');
+      expect(html).toContain('<strong>Psychological Status:</strong> CALM → JITTERY');
+
+      // HTML section ordering: Narrative Reconciliation -> Canonical Consequences -> Canonical State Diff
+      const narrIndexHtml = html.indexOf('<h4>Narrative Reconciliation</h4>');
+      const conseqIndexHtml = html.indexOf('<h4>Canonical Consequences</h4>');
+      const diffIndexHtml = html.indexOf('<h4>Canonical State Diff</h4>');
+      expect(narrIndexHtml).toBeGreaterThan(-1);
+      expect(conseqIndexHtml).toBeGreaterThan(narrIndexHtml);
+      expect(diffIndexHtml).toBeGreaterThan(conseqIndexHtml);
+
+      // Markdown assertions
+      expect(md).toContain('#### Canonical Consequences');
+      expect(md).toContain('- **Decision [INVENTORY / ACQUIRE]:** Iron & Brass Key <V1> | Outcome: ACCEPTED (Reason: Valid item retrieval) — *Retrieved from "safe" box*');
+      expect(md).toContain('- **Decision [INVENTORY / LOSE]:** Rusty Lockpick | Outcome: ACCEPTED (Reason: Tool exhausted) — *Snapped during tension*');
+      expect(md).toContain('- **Decision [INJURY / SUSTAIN]:** Lacerated Thumb | Outcome: ACCEPTED (Reason: Direct minor trauma) — *Slipped blade*');
+      expect(md).toContain('- **Decision [PSYCHOLOGY / SHIFT]:** JITTERY | Outcome: ACCEPTED (Reason: Physical stress reflex) — *Sharp sudden pain*');
+      expect(md).toContain('- **Inventory Added:** Iron & Brass Key <V1>');
+      expect(md).toContain('- **Inventory Removed:** Rusty Lockpick');
+      expect(md).toContain('- **Injuries Added:** Lacerated Thumb');
+      expect(md).toContain('- **Psychological Status:** CALM → JITTERY');
+
+      // Markdown section ordering
+      const narrIndexMd = md.indexOf('#### Narrative Reconciliation');
+      const conseqIndexMd = md.indexOf('#### Canonical Consequences');
+      const diffIndexMd = md.indexOf('#### Canonical State Diff');
+      expect(narrIndexMd).toBeGreaterThan(-1);
+      expect(conseqIndexMd).toBeGreaterThan(narrIndexMd);
+      expect(diffIndexMd).toBeGreaterThan(conseqIndexMd);
+    });
+
+    it('renders "No canonical consequence changes" when consequence receipt has no mutations', () => {
+      const messagesEmptyConsequences = [
+        {
+          role: 'user',
+          content: 'Look around quietly.',
+          timestamp: 1,
+        },
+        {
+          role: 'assistant',
+          content: 'Nothing has changed.',
+          timestamp: 2,
+          blocks: [{ type: 'prose', content: 'Nothing has changed.' }],
+          turnReceipt: {
+            turnNumber: 1,
+            nodeBefore: 'ROOM',
+            requestedTarget: 'ROOM',
+            accepted: true,
+            nodeAfter: 'ROOM',
+            activeVector: 'COGNITIVE' as const,
+            activeTier: 'LATENT' as const,
+            tension: 5,
+            preSnapshot: {
+              version: 1 as const,
+              turnCount: 0,
+              currentNodeId: 'ROOM',
+              activeVector: 'COGNITIVE' as const,
+              activeTier: 'LATENT' as const,
+              phase: 'LATENT',
+              tension: 5,
+              coherence: 1.0,
+              reconciliationRevision: 0,
+              activeFlags: [],
+            },
+            canonicalConsequenceReceipt: {
+              decisions: [],
+              patch: {
+                inventory_added: [],
+                inventory_removed: [],
+                injuries_added: [],
+                injuries_removed: [],
+                psychological_status_change: null,
+              },
+              post_state: {
+                inventory: [],
+                player_injuries: [],
+                psychological_status: 'CALM',
+              },
+            },
+          },
+        },
+      ];
+
+      const html = buildEngineLogContent(messagesEmptyConsequences, 'html')!.content;
+      const md = buildEngineLogContent(messagesEmptyConsequences, 'md')!.content;
+
+      expect(html).toContain('<li>No canonical consequence changes</li>');
+      expect(md).toContain('- No canonical consequence changes');
+    });
+
+    it('renders "Consequences: Not recorded" when canonicalConsequenceReceipt is absent', () => {
+      const messagesNoConsequenceReceipt = [
+        {
+          role: 'user',
+          content: 'Hello',
+          timestamp: 1,
+        },
+        {
+          role: 'assistant',
+          content: 'Hello',
+          timestamp: 2,
+          blocks: [{ type: 'prose', content: 'Hello' }],
+          logic_state: {
+            current_phase: 'LATENT',
+          },
+        },
+      ];
+
+      const html = buildEngineLogContent(messagesNoConsequenceReceipt, 'html')!.content;
+      const md = buildEngineLogContent(messagesNoConsequenceReceipt, 'md')!.content;
+
+      expect(html).toContain('<li><strong>Consequences:</strong> Not recorded</li>');
+      expect(md).toContain('- **Consequences:** Not recorded');
+    });
   });
 });
 

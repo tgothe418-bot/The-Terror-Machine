@@ -1,5 +1,10 @@
 import { z } from 'zod';
 import { ParticipationContextSchema } from './adLib';
+import {
+  CanonicalConsequenceProposalSchema,
+  CanonicalConsequenceReceiptSchema,
+  CanonicalConsequenceStateSchema,
+} from './consequence';
 export * from './adLib';
 
 export const EdgeKindSchema = z.enum([
@@ -89,6 +94,11 @@ export const EngineTurnContextSchema = z.object({
     activeFlags: z.array(z.string()).default([]),
   }),
   participationContext: ParticipationContextSchema.optional(),
+  consequenceState: CanonicalConsequenceStateSchema.default({
+    inventory: [],
+    player_injuries: [],
+    psychological_status: 'STABLE',
+  }),
 });
 
 export type EngineTurnContext = z.infer<typeof EngineTurnContextSchema>;
@@ -306,6 +316,7 @@ export const TurnResultSchema = z.object({
   engine_thoughts: z.string().optional(),
   intent_proposal: IntentProposalSchema,
   reconciliation_proposal: NarrativeReconciliationProposalSchema,
+  consequence_proposal: CanonicalConsequenceProposalSchema,
   logic_state: z
     .object({
       current_phase: z.string().optional(),
@@ -321,11 +332,7 @@ export const TurnResultSchema = z.object({
         )
         .default([]),
       cast_ledger: z.array(z.any()).default([]),
-      inventory: z.array(z.string()).optional(),
-      player_injuries: z.array(z.string()).optional(),
-      lore_and_memory: z.any().optional(),
       npc_fixations: z.array(z.string()).optional(),
-      psychological_status: z.string().optional(),
       matrix_mutation: z
         .object({
           next_vector: z.string().optional(),
@@ -343,6 +350,7 @@ export const TurnResultSchema = z.object({
         .nullable()
         .optional(),
     })
+    .strict()
     .transform((val) => {
       if (!val.matrix_mutation && val.matrix_shift) {
         return {
@@ -363,11 +371,13 @@ export type TurnResult = z.infer<typeof TurnResultSchema>;
 export const TurnResponseSchema = TurnResultSchema.omit({
   intent_proposal: true,
   reconciliation_proposal: true,
+  consequence_proposal: true,
 }).extend({
   transitionReceipt: TransitionReceiptSchema.optional(),
   castInteractionReceipt: CastInteractionReceiptSchema.optional(),
   intentReceipt: IntentReceiptSchema.optional(),
   narrativeReconciliationReceipt: NarrativeReconciliationReceiptSchema.optional(),
+  canonicalConsequenceReceipt: CanonicalConsequenceReceiptSchema,
 });
 
 export type TurnResponse = z.infer<typeof TurnResponseSchema>;

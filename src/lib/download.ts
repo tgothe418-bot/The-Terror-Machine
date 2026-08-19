@@ -277,6 +277,23 @@ interface ParsedTelemetrySections {
   intentAndPressure: Array<{ label: string; value: string }>;
   intentSynergy: { value: string; note: string };
   narrativeReconciliation: Array<{ label: string; value: string }>;
+  canonicalConsequences: {
+    hasReceipt: boolean;
+    decisions: Array<{
+      domain: string;
+      operation: string;
+      value: string;
+      outcome: string;
+      reason: string;
+      rationale?: string;
+    }>;
+    inventoryAdded: string[];
+    inventoryRemoved: string[];
+    injuriesAdded: string[];
+    injuriesRemoved: string[];
+    psychologicalStatusChange: { before: string; after: string } | null;
+    hasChanges: boolean;
+  };
   canonicalStateDiff: {
     diffLines: string[];
     transition: Array<{ label: string; value: string }>;
@@ -330,6 +347,18 @@ function parseTelemetrySections(logicData: Record<string, unknown>): ParsedTelem
   turn.castContinuityReceipt !== null
     ? turn.castContinuityReceipt
     : undefined) as Record<string, unknown> | undefined;
+
+  const consequenceReceipt = (
+    (turn &&
+    typeof turn.canonicalConsequenceReceipt === 'object' &&
+    turn.canonicalConsequenceReceipt !== null
+      ? turn.canonicalConsequenceReceipt
+      : undefined) ||
+    (typeof logicData.canonicalConsequenceReceipt === 'object' &&
+    logicData.canonicalConsequenceReceipt !== null
+      ? logicData.canonicalConsequenceReceipt
+      : undefined)
+  ) as Record<string, unknown> | undefined;
 
   const transitionReceipt = (
     typeof logicData.transitionReceipt === 'object' && logicData.transitionReceipt !== null
@@ -421,7 +450,88 @@ function parseTelemetrySections(logicData: Record<string, unknown>): ParsedTelem
     },
   ];
 
-  // 4. Canonical State Diff
+  // 4. Canonical Consequences
+  const decisions: Array<{
+    domain: string;
+    operation: string;
+    value: string;
+    outcome: string;
+    reason: string;
+    rationale?: string;
+  }> = [];
+
+  if (consequenceReceipt && Array.isArray(consequenceReceipt.decisions)) {
+    for (const d of consequenceReceipt.decisions) {
+      if (d && typeof d === 'object') {
+        const mut = (d as any).mutation || {};
+        decisions.push({
+          domain: mut.domain != null ? String(mut.domain) : 'UNKNOWN',
+          operation: mut.operation != null ? String(mut.operation) : 'UNKNOWN',
+          value: mut.value != null ? String(mut.value) : '',
+          outcome: (d as any).outcome != null ? String((d as any).outcome) : 'UNKNOWN',
+          reason: (d as any).reason != null ? String((d as any).reason) : 'UNKNOWN',
+          rationale:
+            mut.rationale != null && String(mut.rationale).trim().length > 0
+              ? String(mut.rationale)
+              : undefined,
+        });
+      }
+    }
+  }
+
+  const patchObj = (consequenceReceipt &&
+  typeof consequenceReceipt.patch === 'object' &&
+  consequenceReceipt.patch !== null
+    ? consequenceReceipt.patch
+    : undefined) as Record<string, unknown> | undefined;
+
+  const inventoryAdded: string[] = Array.isArray(patchObj?.inventory_added)
+    ? (patchObj!.inventory_added as unknown[]).map(String)
+    : [];
+  const inventoryRemoved: string[] = Array.isArray(patchObj?.inventory_removed)
+    ? (patchObj!.inventory_removed as unknown[]).map(String)
+    : [];
+  const injuriesAdded: string[] = Array.isArray(patchObj?.injuries_added)
+    ? (patchObj!.injuries_added as unknown[]).map(String)
+    : [];
+  const injuriesRemoved: string[] = Array.isArray(patchObj?.injuries_removed)
+    ? (patchObj!.injuries_removed as unknown[]).map(String)
+    : [];
+
+  let psychologicalStatusChange: { before: string; after: string } | null = null;
+  if (
+    patchObj &&
+    typeof patchObj.psychological_status_change === 'object' &&
+    patchObj.psychological_status_change !== null
+  ) {
+    const psc = patchObj.psychological_status_change as Record<string, unknown>;
+    if (psc.before != null && psc.after != null) {
+      psychologicalStatusChange = {
+        before: String(psc.before),
+        after: String(psc.after),
+      };
+    }
+  }
+
+  const hasChanges =
+    inventoryAdded.length > 0 ||
+    inventoryRemoved.length > 0 ||
+    injuriesAdded.length > 0 ||
+    injuriesRemoved.length > 0 ||
+    psychologicalStatusChange !== null;
+
+  const canonicalConsequences = {
+    hasReceipt: consequenceReceipt !== undefined,
+    decisions,
+    inventoryAdded,
+    inventoryRemoved,
+    injuriesAdded,
+    injuriesRemoved,
+    psychologicalStatusChange,
+    hasChanges,
+  };
+
+  // 5. Canonical State Diff
   const preSnapshot = turn?.preSnapshot as RuntimeStateSnapshot | undefined;
   const postSnapshot = turn?.postSnapshot as RuntimeStateSnapshot | undefined;
   const diffLines = buildCanonicalStateDiff(preSnapshot, postSnapshot);
@@ -584,6 +694,7 @@ function parseTelemetrySections(logicData: Record<string, unknown>): ParsedTelem
     intentAndPressure,
     intentSynergy,
     narrativeReconciliation,
+    canonicalConsequences,
     canonicalStateDiff: {
       diffLines,
       transition,
@@ -640,7 +751,42 @@ function renderHtmlTelemetrySections(logicData: Record<string, unknown>): string
   html += `</ul>`;
   html += `</div>`;
 
-  // 4. Canonical State Diff
+  // 4. Canonical Consequences
+  html += `<div class="telemetry-section">`;
+  html += `<h4>Canonical Consequences</h4>`;
+  html += `<ul>`;
+  if (!sections.canonicalConsequences.hasReceipt) {
+    html += `<li><strong>Consequences:</strong> Not recorded</li>`;
+  } else {
+    for (const decision of sections.canonicalConsequences.decisions) {
+      const rationaleText = decision.rationale
+        ? ` — <em>${escapeHtml(decision.rationale)}</em>`
+        : '';
+      html += `<li><strong>Decision [${escapeHtml(decision.domain)} / ${escapeHtml(decision.operation)}]:</strong> ${escapeHtml(decision.value)} | Outcome: ${escapeHtml(decision.outcome)} (Reason: ${escapeHtml(decision.reason)})${rationaleText}</li>`;
+    }
+    if (sections.canonicalConsequences.inventoryAdded.length > 0) {
+      html += `<li><strong>Inventory Added:</strong> ${escapeHtml(sections.canonicalConsequences.inventoryAdded.join(', '))}</li>`;
+    }
+    if (sections.canonicalConsequences.inventoryRemoved.length > 0) {
+      html += `<li><strong>Inventory Removed:</strong> ${escapeHtml(sections.canonicalConsequences.inventoryRemoved.join(', '))}</li>`;
+    }
+    if (sections.canonicalConsequences.injuriesAdded.length > 0) {
+      html += `<li><strong>Injuries Added:</strong> ${escapeHtml(sections.canonicalConsequences.injuriesAdded.join(', '))}</li>`;
+    }
+    if (sections.canonicalConsequences.injuriesRemoved.length > 0) {
+      html += `<li><strong>Injuries Removed:</strong> ${escapeHtml(sections.canonicalConsequences.injuriesRemoved.join(', '))}</li>`;
+    }
+    if (sections.canonicalConsequences.psychologicalStatusChange) {
+      html += `<li><strong>Psychological Status:</strong> ${escapeHtml(sections.canonicalConsequences.psychologicalStatusChange.before)} → ${escapeHtml(sections.canonicalConsequences.psychologicalStatusChange.after)}</li>`;
+    }
+    if (!sections.canonicalConsequences.hasChanges) {
+      html += `<li>No canonical consequence changes</li>`;
+    }
+  }
+  html += `</ul>`;
+  html += `</div>`;
+
+  // 5. Canonical State Diff
   html += `<div class="telemetry-section">`;
   html += `<h4>Canonical State Diff</h4>`;
   html += `<ul>`;
@@ -653,7 +799,7 @@ function renderHtmlTelemetrySections(logicData: Record<string, unknown>): string
   html += `</ul>`;
   html += `</div>`;
 
-  // 5. Cast Presence & Interaction
+  // 6. Cast Presence & Interaction
   html += `<div class="telemetry-section">`;
   html += `<h4>Cast Presence &amp; Interaction</h4>`;
   html += `<ul>`;
@@ -664,7 +810,7 @@ function renderHtmlTelemetrySections(logicData: Record<string, unknown>): string
   html += `</ul>`;
   html += `</div>`;
 
-  // 6. Continuity / Memory Candidates
+  // 7. Continuity / Memory Candidates
   html += `<div class="telemetry-section">`;
   html += `<h4>Continuity / Memory Candidates</h4>`;
   html += `<ul>`;
@@ -679,7 +825,7 @@ function renderHtmlTelemetrySections(logicData: Record<string, unknown>): string
   html += `</ul>`;
   html += `</div>`;
 
-  // 7. Schema Repairs and Validation
+  // 8. Schema Repairs and Validation
   html += `<div class="telemetry-section">`;
   html += `<h4>Schema Repairs and Validation</h4>`;
   html += `<ul>`;
@@ -694,7 +840,7 @@ function renderHtmlTelemetrySections(logicData: Record<string, unknown>): string
   html += `</ul>`;
   html += `</div>`;
 
-  // 8. Raw Structured Payload
+  // 9. Raw Structured Payload
   html += `<details class="raw-payload-panel">`;
   html += `<summary class="speaker-label speaker-engine">Raw Structured Payload</summary>`;
   html += `<pre><code>${escapeHtml(JSON.stringify(sections.rawPayload, null, 2))}</code></pre>`;
@@ -728,7 +874,37 @@ function renderMarkdownTelemetrySections(logicData: Record<string, unknown>): st
   }
   md += `\n`;
 
-  // 4. Canonical State Diff
+  // 4. Canonical Consequences
+  md += `#### Canonical Consequences\n`;
+  if (!sections.canonicalConsequences.hasReceipt) {
+    md += `- **Consequences:** Not recorded\n\n`;
+  } else {
+    for (const decision of sections.canonicalConsequences.decisions) {
+      const rationaleText = decision.rationale ? ` — *${decision.rationale}*` : '';
+      md += `- **Decision [${decision.domain} / ${decision.operation}]:** ${decision.value} | Outcome: ${decision.outcome} (Reason: ${decision.reason})${rationaleText}\n`;
+    }
+    if (sections.canonicalConsequences.inventoryAdded.length > 0) {
+      md += `- **Inventory Added:** ${sections.canonicalConsequences.inventoryAdded.join(', ')}\n`;
+    }
+    if (sections.canonicalConsequences.inventoryRemoved.length > 0) {
+      md += `- **Inventory Removed:** ${sections.canonicalConsequences.inventoryRemoved.join(', ')}\n`;
+    }
+    if (sections.canonicalConsequences.injuriesAdded.length > 0) {
+      md += `- **Injuries Added:** ${sections.canonicalConsequences.injuriesAdded.join(', ')}\n`;
+    }
+    if (sections.canonicalConsequences.injuriesRemoved.length > 0) {
+      md += `- **Injuries Removed:** ${sections.canonicalConsequences.injuriesRemoved.join(', ')}\n`;
+    }
+    if (sections.canonicalConsequences.psychologicalStatusChange) {
+      md += `- **Psychological Status:** ${sections.canonicalConsequences.psychologicalStatusChange.before} → ${sections.canonicalConsequences.psychologicalStatusChange.after}\n`;
+    }
+    if (!sections.canonicalConsequences.hasChanges) {
+      md += `- No canonical consequence changes\n`;
+    }
+    md += `\n`;
+  }
+
+  // 5. Canonical State Diff
   md += `#### Canonical State Diff\n`;
   for (const diff of sections.canonicalStateDiff.diffLines) {
     md += `- ${diff}\n`;
@@ -738,7 +914,7 @@ function renderMarkdownTelemetrySections(logicData: Record<string, unknown>): st
   }
   md += `\n`;
 
-  // 5. Cast Presence & Interaction
+  // 6. Cast Presence & Interaction
   md += `#### Cast Presence & Interaction\n`;
   md += `- **Active Presence Count:** ${sections.castPresenceAndInteraction.presenceCount}\n`;
   for (const item of sections.castPresenceAndInteraction.interaction) {
@@ -746,7 +922,7 @@ function renderMarkdownTelemetrySections(logicData: Record<string, unknown>): st
   }
   md += `\n`;
 
-  // 6. Continuity / Memory Candidates
+  // 7. Continuity / Memory Candidates
   md += `#### Continuity / Memory Candidates\n`;
   md += `- **Tracked Characters:** ${sections.continuityAndMemory.continuityCount}\n`;
   md += `- **Accepted Deltas Count:** ${sections.continuityAndMemory.acceptedDeltaCount}\n`;
@@ -757,7 +933,7 @@ function renderMarkdownTelemetrySections(logicData: Record<string, unknown>): st
   }
   md += `- **Memory Echo Candidate:** ${sections.continuityAndMemory.memoryEchoCandidate}\n\n`;
 
-  // 7. Schema Repairs and Validation
+  // 8. Schema Repairs and Validation
   md += `#### Schema Repairs and Validation\n`;
   for (const item of sections.schemaRepairsAndValidation.validation) {
     md += `- **${item.label}:** ${item.value}\n`;

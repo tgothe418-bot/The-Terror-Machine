@@ -443,4 +443,57 @@ describe('buildEngineTurnContext & buildContextReceipt', () => {
     // NPC 2's starting_location 'RUNTIME_NODE_2' is NOT in blueprint topology, so it falls back to BP_NODE_A
     expect(fallbackNpc2?.isPresent).toBe(true);
   });
+
+  describe('consequenceState pre-state integration (Phase 3H.1B)', () => {
+    it('defaults consequenceState to empty inventory, empty player_injuries, and STABLE when omitted or null', () => {
+      const context = buildEngineTurnContext({
+        blueprint: mockBlueprint,
+        selectedRole: 'protagonist',
+      });
+
+      expect(context.consequenceState).toEqual({
+        inventory: [],
+        player_injuries: [],
+        psychological_status: 'STABLE',
+      });
+    });
+
+    it('normalizes, deduplicates, and caps consequenceState pre-state from authoritative input', () => {
+      const context = buildEngineTurnContext({
+        blueprint: mockBlueprint,
+        selectedRole: 'protagonist',
+        consequenceState: {
+          inventory: ['  Rusted Key  ', 'rusted key', 'Flashlight'],
+          player_injuries: [' lacerated arm ', 'LACERATED ARM', 'Broken Rib'],
+          psychological_status: 'distressed' as unknown as PsychologicalStatus,
+        },
+      });
+
+      expect(context.consequenceState).toEqual({
+        inventory: ['Rusted Key', 'Flashlight'],
+        player_injuries: ['lacerated arm', 'Broken Rib'],
+        psychological_status: 'DISTRESSED',
+      });
+    });
+
+    it('performs a deep copy of consequenceState so external mutation has no effect', () => {
+      const rawInventory = ['Brass Key', 'Bandage'];
+      const rawInjuries = ['Sprained Ankle'];
+      const context = buildEngineTurnContext({
+        blueprint: mockBlueprint,
+        selectedRole: 'protagonist',
+        consequenceState: {
+          inventory: rawInventory,
+          player_injuries: rawInjuries,
+          psychological_status: 'PANICKED',
+        },
+      });
+
+      rawInventory.push('Unauthorized Mutation');
+      rawInjuries.push('Unauthorized Fracture');
+
+      expect(context.consequenceState.inventory).toEqual(['Brass Key', 'Bandage']);
+      expect(context.consequenceState.player_injuries).toEqual(['Sprained Ankle']);
+    });
+  });
 });

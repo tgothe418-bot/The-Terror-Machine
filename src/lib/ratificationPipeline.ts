@@ -209,6 +209,11 @@ export const executeRatificationPipeline = async (
     participationContext: state.participationContext || engineState.participationContext || null,
     characterContinuity: engineState.gameState?.character_continuity,
     characterPresence: engineState.gameState?.character_presence,
+    consequenceState: {
+      inventory: engineState.gameState?.inventory,
+      player_injuries: engineState.gameState?.player_injuries,
+      psychological_status: engineState.gameState?.psychological_status,
+    },
     runtimeState: preSnapshot,
   });
 
@@ -300,6 +305,8 @@ export const executeRatificationPipeline = async (
   validatedEvent.intentReceipt = parsedResult.data.intentReceipt;
   validatedEvent.narrativeReconciliationReceipt =
     parsedResult.data.narrativeReconciliationReceipt;
+  validatedEvent.canonicalConsequenceReceipt =
+    parsedResult.data.canonicalConsequenceReceipt;
 
   // Attach context receipt for SYSTEM_INIT
   if (userAction === 'SYSTEM_INIT') {

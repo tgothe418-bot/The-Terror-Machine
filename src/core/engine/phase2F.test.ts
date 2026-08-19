@@ -725,11 +725,12 @@ describe('Phase 2F: Fixture-Driven Behavioral Verification Suite', () => {
     expect(committedReceipt?.postSnapshot?.tension).toBe(60);
 
     // Verify presentation projection boundary:
-    // projectPresentationPatch only extracts presentation fields and cannot overwrite or emit canonical state
+    // projectPresentationPatch only extracts presentation fields (npc_fixations, cast_ledger) and cannot overwrite or emit canonical state or consequences
     const presentationPatch = projectPresentationPatch(frame.logic_state);
-    expect(presentationPatch.inventory).toEqual(['cracked_id_badge', 'dosimeter']);
-    expect(presentationPatch.player_injuries).toEqual(['bruised_ribs']);
     expect(presentationPatch.npc_fixations).toEqual(['char_player_01: high']);
+    expect(presentationPatch.inventory).toBeUndefined();
+    expect(presentationPatch.player_injuries).toBeUndefined();
+    expect(presentationPatch.psychological_status).toBeUndefined();
 
     // Canonical fields are strictly omitted from presentation projection
     const rawPresentation = presentationPatch as Record<string, unknown>;

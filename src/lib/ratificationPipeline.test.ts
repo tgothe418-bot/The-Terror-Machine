@@ -10,6 +10,28 @@ import type { EngineTurnContext } from '../types/engineContract';
 describe('executeRatificationPipeline single pre-turn snapshot lifecycle', () => {
   const originalFetch = globalThis.fetch;
 
+  const defaultConsequenceReceipt = {
+    version: 1 as const,
+    pre_state: {
+      inventory: [],
+      player_injuries: [],
+      psychological_status: 'STABLE' as const,
+    },
+    post_state: {
+      inventory: [],
+      player_injuries: [],
+      psychological_status: 'STABLE' as const,
+    },
+    patch: {
+      inventory_added: [],
+      inventory_removed: [],
+      injuries_added: [],
+      injuries_removed: [],
+      psychological_status_change: null,
+    },
+    decisions: [],
+  };
+
   beforeEach(() => {
     // Set EngineStore active blueprint
     useEngineStore.setState({
@@ -90,6 +112,7 @@ describe('executeRatificationPipeline single pre-turn snapshot lifecycle', () =>
           },
           topologyDelta: { isExpansion: false },
           validation: { accepted: true },
+          canonicalConsequenceReceipt: defaultConsequenceReceipt,
         }),
         {
           status: 200,
@@ -102,20 +125,20 @@ describe('executeRatificationPipeline single pre-turn snapshot lifecycle', () =>
 
     // 1. Verify that network payload received the exact supplied snapshot coordinates and context
     expect(capturedRequestBody).not.toBeNull();
-    expect(capturedRequestBody.stateContext.currentNodeId).toBe('SUPPLIED_SANCTUM_NODE');
-    expect(capturedRequestBody.stateContext.activeVector).toBe('SOMATIC');
-    expect(capturedRequestBody.stateContext.activeTier).toBe('GATEWAY');
-    expect(capturedRequestBody.stateContext.tensionLevel).toBe(75);
-    expect(capturedRequestBody.stateContext.currentPhase).toBe('MANIFEST');
-    expect(capturedRequestBody.stateContext.reconciliationRevision).toBe(4);
+    expect(capturedRequestBody?.stateContext.currentNodeId).toBe('SUPPLIED_SANCTUM_NODE');
+    expect(capturedRequestBody?.stateContext.activeVector).toBe('SOMATIC');
+    expect(capturedRequestBody?.stateContext.activeTier).toBe('GATEWAY');
+    expect(capturedRequestBody?.stateContext.tensionLevel).toBe(75);
+    expect(capturedRequestBody?.stateContext.currentPhase).toBe('MANIFEST');
+    expect(capturedRequestBody?.stateContext.reconciliationRevision).toBe(4);
 
     // Context runtime/topology matches supplied snapshot, not the different store state
-    expect(capturedRequestBody.context.topology.currentNodeId).toBe('SUPPLIED_SANCTUM_NODE');
-    expect(capturedRequestBody.context.runtime.activeVector).toBe('SOMATIC');
-    expect(capturedRequestBody.context.runtime.activeTier).toBe('GATEWAY');
-    expect(capturedRequestBody.context.runtime.tension).toBe(75);
-    expect(capturedRequestBody.context.runtime.phase).toBe('MANIFEST');
-    expect(capturedRequestBody.context.runtime.reconciliationRevision).toBe(4);
+    expect(capturedRequestBody?.context.topology.currentNodeId).toBe('SUPPLIED_SANCTUM_NODE');
+    expect(capturedRequestBody?.context.runtime.activeVector).toBe('SOMATIC');
+    expect(capturedRequestBody?.context.runtime.activeTier).toBe('GATEWAY');
+    expect(capturedRequestBody?.context.runtime.tension).toBe(75);
+    expect(capturedRequestBody?.context.runtime.phase).toBe('MANIFEST');
+    expect(capturedRequestBody?.context.runtime.reconciliationRevision).toBe(4);
 
     // 2. The returned frame preserves reference identity to the exact supplied snapshot
     expect(frame.preSnapshot).toBe(suppliedSnapshot);
@@ -157,6 +180,7 @@ describe('executeRatificationPipeline single pre-turn snapshot lifecycle', () =>
           },
           topologyDelta: { isExpansion: false },
           validation: { accepted: true },
+          canonicalConsequenceReceipt: defaultConsequenceReceipt,
         }),
         {
           status: 200,
@@ -190,6 +214,7 @@ describe('executeRatificationPipeline single pre-turn snapshot lifecycle', () =>
           logic_state: { current_phase: 'LATENT', suggested_tension: 0 },
           topologyDelta: { isExpansion: false },
           validation: { accepted: true },
+          canonicalConsequenceReceipt: defaultConsequenceReceipt,
         }),
         {
           status: 200,
@@ -241,8 +266,8 @@ describe('executeRatificationPipeline single pre-turn snapshot lifecycle', () =>
     }
 
     expect(caughtError).not.toBeNull();
-    expect(caughtError.code).toBe('STRUCTURAL_RESPONSE_MISMATCH');
-    expect(caughtError.status).toBe(200);
+    expect(caughtError?.code).toBe('STRUCTURAL_RESPONSE_MISMATCH');
+    expect(caughtError?.status).toBe(200);
 
     // Verify engineReducer handling when dispatched as TURN_FAILED
     const appState = useAppStore.getState();
@@ -250,10 +275,10 @@ describe('executeRatificationPipeline single pre-turn snapshot lifecycle', () =>
       type: 'TURN_FAILED',
       payload: {
         commandText: 'Examine console',
-        errorCategory: caughtError.code,
-        errorMessage: caughtError.message,
-        statusCode: caughtError.status,
-        contentType: caughtError.contentType,
+        errorCategory: caughtError?.code || 'STRUCTURAL_RESPONSE_MISMATCH',
+        errorMessage: caughtError?.message || '',
+        statusCode: caughtError?.status,
+        contentType: caughtError?.contentType,
         preSnapshot,
       },
     });
@@ -295,6 +320,7 @@ describe('executeRatificationPipeline single pre-turn snapshot lifecycle', () =>
             suggested_tension: 30,
           },
           topologyDelta: { isExpansion: false },
+          canonicalConsequenceReceipt: defaultConsequenceReceipt,
         }),
         {
           status: 200,
@@ -311,7 +337,7 @@ describe('executeRatificationPipeline single pre-turn snapshot lifecycle', () =>
     }
 
     expect(caughtError).not.toBeNull();
-    expect(caughtError.code).toBe('FRAME_VALIDATION_REJECTED');
+    expect(caughtError?.code).toBe('FRAME_VALIDATION_REJECTED');
 
     // Verify engineReducer handling when dispatched as TURN_FAILED
     const appState = useAppStore.getState();
@@ -319,10 +345,10 @@ describe('executeRatificationPipeline single pre-turn snapshot lifecycle', () =>
       type: 'TURN_FAILED',
       payload: {
         commandText: 'Listen closely',
-        errorCategory: caughtError.code,
-        errorMessage: caughtError.message,
-        statusCode: caughtError.status,
-        contentType: caughtError.contentType,
+        errorCategory: caughtError?.code || 'FRAME_VALIDATION_REJECTED',
+        errorMessage: caughtError?.message || '',
+        statusCode: caughtError?.status,
+        contentType: caughtError?.contentType,
         preSnapshot,
       },
     });
@@ -382,7 +408,6 @@ describe('executeRatificationPipeline single pre-turn snapshot lifecycle', () =>
           logic_state: {
             current_phase: 'LATENT',
             suggested_tension: 15,
-            intent_classification: 'QUERY',
           },
           transitionReceipt: {
             requestedNodeId: 'STORE_NODE_ORIGIN',
@@ -392,6 +417,7 @@ describe('executeRatificationPipeline single pre-turn snapshot lifecycle', () =>
             reason: 'TRANSITION_ACCEPTED',
           },
           castInteractionReceipt: serverReceipt,
+          canonicalConsequenceReceipt: defaultConsequenceReceipt,
         }),
         {
           status: 200,
@@ -458,6 +484,7 @@ describe('executeRatificationPipeline single pre-turn snapshot lifecycle', () =>
           },
           intentReceipt: serverIntentReceipt,
           narrativeReconciliationReceipt: serverReconciliationReceipt,
+          canonicalConsequenceReceipt: defaultConsequenceReceipt,
         }),
         {
           status: 200,
@@ -534,6 +561,7 @@ describe('executeRatificationPipeline single pre-turn snapshot lifecycle', () =>
             memory_echo_candidate: null,
             revision_increment: 0,
           },
+          canonicalConsequenceReceipt: defaultConsequenceReceipt,
         }),
         {
           status: 200,

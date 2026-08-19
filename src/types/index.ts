@@ -10,9 +10,13 @@ import {
 } from './engineContract';
 import { HauntedHouseProvenanceSchema, HauntedHouseProvenance } from './participation';
 import { CharacterExpressionProfileSchema, CharacterExpressionProfile } from './forge';
+import { CanonicalConsequenceReceipt } from './consequence';
+import { CharacterStanceById } from './characterStance';
 export * from './engineContract';
 export * from './participation';
 export * from './forge';
+export * from './consequence';
+export * from './characterStance';
 
 export type AppPhase = 'hub' | 'forge' | 'engine' | 'voice';
 
@@ -332,6 +336,7 @@ export interface TurnReceipt {
   castInteractionReceipt?: CastInteractionReceipt;
   intentReceipt?: IntentReceipt;
   narrativeReconciliationReceipt?: NarrativeReconciliationReceipt;
+  canonicalConsequenceReceipt?: CanonicalConsequenceReceipt;
 }
 
 export interface TurnFailureReceipt {
@@ -529,6 +534,7 @@ export interface LogicState {
   }>;
   character_continuity?: CharacterContinuityById;
   character_presence?: CharacterPresenceById;
+  character_stance?: CharacterStanceById;
   current_location?: string;
   player_character_id?: string | null;
   player_role?: PlayerRole | string;
@@ -582,6 +588,7 @@ export interface RatifiedEngineFrame {
   castInteractionReceipt?: CastInteractionReceipt;
   intentReceipt?: IntentReceipt;
   narrativeReconciliationReceipt?: NarrativeReconciliationReceipt;
+  canonicalConsequenceReceipt?: CanonicalConsequenceReceipt;
   preSnapshot?: RuntimeStateSnapshot;
   reconciliation?: {
     isHallucinationCollision: boolean;
