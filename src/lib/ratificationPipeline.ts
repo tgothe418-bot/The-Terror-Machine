@@ -214,6 +214,7 @@ export const executeRatificationPipeline = async (
       player_injuries: engineState.gameState?.player_injuries,
       psychological_status: engineState.gameState?.psychological_status,
     },
+    characterStance: engineState.gameState?.character_stance,
     runtimeState: preSnapshot,
   });
 
@@ -307,6 +308,8 @@ export const executeRatificationPipeline = async (
     parsedResult.data.narrativeReconciliationReceipt;
   validatedEvent.canonicalConsequenceReceipt =
     parsedResult.data.canonicalConsequenceReceipt;
+  validatedEvent.characterStanceReceipt =
+    parsedResult.data.characterStanceReceipt;
 
   // Attach context receipt for SYSTEM_INIT
   if (userAction === 'SYSTEM_INIT') {

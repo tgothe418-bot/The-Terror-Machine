@@ -57,6 +57,13 @@ export function buildCanonicalStateDiff(
   return diffs;
 }
 
+export function formatStanceState(
+  record: { focus?: string; stance?: string } | null | undefined
+): string {
+  if (!record || !record.focus || !record.stance) return 'UNSET';
+  return `${record.focus}/${record.stance}`;
+}
+
 /**
  * Converts a structured message array into a standardized markdown file and downloads it.
  */
@@ -175,6 +182,12 @@ export const getEngineLogicData = (message: any): Record<string, unknown> | null
   }
   if (message.turnReceipt !== undefined) {
     logicData.turnReceipt = message.turnReceipt;
+  }
+  if (message.canonicalConsequenceReceipt !== undefined) {
+    logicData.canonicalConsequenceReceipt = message.canonicalConsequenceReceipt;
+  }
+  if (message.characterStanceReceipt !== undefined) {
+    logicData.characterStanceReceipt = message.characterStanceReceipt;
   }
   if (message.failureReceipt !== undefined) {
     logicData.failureReceipt = message.failureReceipt;
@@ -348,6 +361,12 @@ function parseTelemetrySections(logicData: Record<string, unknown>): ParsedTelem
     ? turn.castContinuityReceipt
     : undefined) as Record<string, unknown> | undefined;
 
+  const logicState = (
+    typeof logicData.logic_state === 'object' && logicData.logic_state !== null
+      ? (logicData.logic_state as Record<string, unknown>)
+      : undefined
+  );
+
   const consequenceReceipt = (
     (turn &&
     typeof turn.canonicalConsequenceReceipt === 'object' &&
@@ -357,6 +376,28 @@ function parseTelemetrySections(logicData: Record<string, unknown>): ParsedTelem
     (typeof logicData.canonicalConsequenceReceipt === 'object' &&
     logicData.canonicalConsequenceReceipt !== null
       ? logicData.canonicalConsequenceReceipt
+      : undefined) ||
+    (logicState &&
+    typeof logicState.canonicalConsequenceReceipt === 'object' &&
+    logicState.canonicalConsequenceReceipt !== null
+      ? (logicState.canonicalConsequenceReceipt as Record<string, unknown>)
+      : undefined)
+  ) as Record<string, unknown> | undefined;
+
+  const stanceReceipt = (
+    (turn &&
+    typeof turn.characterStanceReceipt === 'object' &&
+    turn.characterStanceReceipt !== null
+      ? turn.characterStanceReceipt
+      : undefined) ||
+    (typeof logicData.characterStanceReceipt === 'object' &&
+    logicData.characterStanceReceipt !== null
+      ? logicData.characterStanceReceipt
+      : undefined) ||
+    (logicState &&
+    typeof logicState.characterStanceReceipt === 'object' &&
+    logicState.characterStanceReceipt !== null
+      ? (logicState.characterStanceReceipt as Record<string, unknown>)
       : undefined)
   ) as Record<string, unknown> | undefined;
 
@@ -531,6 +572,46 @@ function parseTelemetrySections(logicData: Record<string, unknown>): ParsedTelem
     hasChanges,
   };
 
+  const stanceDecisions: Array<{
+    characterId: string;
+    focus: string;
+    stance: string;
+    outcome: string;
+    reason: string;
+    rationale?: string;
+    before?: { focus: string; stance: string } | null;
+    after?: { focus: string; stance: string } | null;
+  }> = [];
+
+  if (stanceReceipt && Array.isArray(stanceReceipt.decisions)) {
+    for (const d of stanceReceipt.decisions) {
+      if (typeof d === 'object' && d !== null) {
+        const prop = (d as any).proposal;
+        if (prop && typeof prop === 'object') {
+          stanceDecisions.push({
+            characterId: String(prop.character_id ?? ''),
+            focus: String(prop.focus ?? ''),
+            stance: String(prop.stance ?? ''),
+            outcome: String((d as any).outcome ?? 'UNKNOWN'),
+            reason: String((d as any).reason ?? 'UNKNOWN'),
+            rationale:
+              prop.rationale != null && String(prop.rationale).trim().length > 0
+                ? String(prop.rationale)
+                : undefined,
+            before: (d as any).before ?? null,
+            after: (d as any).after ?? null,
+          });
+        }
+      }
+    }
+  }
+
+  const characterStance = {
+    hasReceipt: stanceReceipt !== undefined,
+    decisions: stanceDecisions,
+    hasChanges: stanceDecisions.some((d) => d.outcome === 'APPLIED'),
+  };
+
   // 5. Canonical State Diff
   const preSnapshot = turn?.preSnapshot as RuntimeStateSnapshot | undefined;
   const postSnapshot = turn?.postSnapshot as RuntimeStateSnapshot | undefined;
@@ -695,6 +776,7 @@ function parseTelemetrySections(logicData: Record<string, unknown>): ParsedTelem
     intentSynergy,
     narrativeReconciliation,
     canonicalConsequences,
+    characterStance,
     canonicalStateDiff: {
       diffLines,
       transition,
@@ -786,7 +868,30 @@ function renderHtmlTelemetrySections(logicData: Record<string, unknown>): string
   html += `</ul>`;
   html += `</div>`;
 
-  // 5. Canonical State Diff
+  // 5. Character Stance
+  html += `<div class="telemetry-section">`;
+  html += `<h4>Character Stance</h4>`;
+  html += `<ul>`;
+  if (!sections.characterStance.hasReceipt) {
+    html += `<li><strong>Character Stance:</strong> Not recorded</li>`;
+  } else {
+    for (const decision of sections.characterStance.decisions) {
+      const beforeStr = formatStanceState(decision.before);
+      const afterStr = formatStanceState(decision.after);
+      const beforeAfterText = ` | Before: ${beforeStr} → After: ${afterStr}`;
+      const rationaleText = decision.rationale
+        ? ` — <em>${escapeHtml(decision.rationale)}</em>`
+        : '';
+      html += `<li><strong>Decision [${escapeHtml(decision.characterId)}]:</strong> ${escapeHtml(decision.focus)} / ${escapeHtml(decision.stance)} | Outcome: ${escapeHtml(decision.outcome)} (Reason: ${escapeHtml(decision.reason)})${escapeHtml(beforeAfterText)}${rationaleText}</li>`;
+    }
+    if (sections.characterStance.decisions.length === 0 || !sections.characterStance.hasChanges) {
+      html += `<li>No character stance changes</li>`;
+    }
+  }
+  html += `</ul>`;
+  html += `</div>`;
+
+  // 6. Canonical State Diff
   html += `<div class="telemetry-section">`;
   html += `<h4>Canonical State Diff</h4>`;
   html += `<ul>`;
@@ -904,7 +1009,25 @@ function renderMarkdownTelemetrySections(logicData: Record<string, unknown>): st
     md += `\n`;
   }
 
-  // 5. Canonical State Diff
+  // 5. Character Stance
+  md += `#### Character Stance\n`;
+  if (!sections.characterStance.hasReceipt) {
+    md += `- **Character Stance:** Not recorded\n\n`;
+  } else {
+    for (const decision of sections.characterStance.decisions) {
+      const beforeStr = formatStanceState(decision.before);
+      const afterStr = formatStanceState(decision.after);
+      const beforeAfterText = ` | Before: ${beforeStr} → After: ${afterStr}`;
+      const rationaleText = decision.rationale ? ` — *${decision.rationale}*` : '';
+      md += `- **Decision [${decision.characterId}]:** ${decision.focus} / ${decision.stance} | Outcome: ${decision.outcome} (Reason: ${decision.reason})${beforeAfterText}${rationaleText}\n`;
+    }
+    if (sections.characterStance.decisions.length === 0 || !sections.characterStance.hasChanges) {
+      md += `- No character stance changes\n`;
+    }
+    md += `\n`;
+  }
+
+  // 6. Canonical State Diff
   md += `#### Canonical State Diff\n`;
   for (const diff of sections.canonicalStateDiff.diffLines) {
     md += `- ${diff}\n`;

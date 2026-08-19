@@ -32,6 +32,13 @@ describe('executeRatificationPipeline single pre-turn snapshot lifecycle', () =>
     decisions: [],
   };
 
+  const defaultCharacterStanceReceipt = {
+    version: 1 as const,
+    pre_state: {},
+    post_state: {},
+    decisions: [],
+  };
+
   beforeEach(() => {
     // Set EngineStore active blueprint
     useEngineStore.setState({
@@ -113,6 +120,7 @@ describe('executeRatificationPipeline single pre-turn snapshot lifecycle', () =>
           topologyDelta: { isExpansion: false },
           validation: { accepted: true },
           canonicalConsequenceReceipt: defaultConsequenceReceipt,
+          characterStanceReceipt: defaultCharacterStanceReceipt,
         }),
         {
           status: 200,
@@ -181,6 +189,7 @@ describe('executeRatificationPipeline single pre-turn snapshot lifecycle', () =>
           topologyDelta: { isExpansion: false },
           validation: { accepted: true },
           canonicalConsequenceReceipt: defaultConsequenceReceipt,
+          characterStanceReceipt: defaultCharacterStanceReceipt,
         }),
         {
           status: 200,
@@ -215,6 +224,7 @@ describe('executeRatificationPipeline single pre-turn snapshot lifecycle', () =>
           topologyDelta: { isExpansion: false },
           validation: { accepted: true },
           canonicalConsequenceReceipt: defaultConsequenceReceipt,
+          characterStanceReceipt: defaultCharacterStanceReceipt,
         }),
         {
           status: 200,
@@ -321,6 +331,7 @@ describe('executeRatificationPipeline single pre-turn snapshot lifecycle', () =>
           },
           topologyDelta: { isExpansion: false },
           canonicalConsequenceReceipt: defaultConsequenceReceipt,
+          characterStanceReceipt: defaultCharacterStanceReceipt,
         }),
         {
           status: 200,
@@ -418,6 +429,7 @@ describe('executeRatificationPipeline single pre-turn snapshot lifecycle', () =>
           },
           castInteractionReceipt: serverReceipt,
           canonicalConsequenceReceipt: defaultConsequenceReceipt,
+          characterStanceReceipt: defaultCharacterStanceReceipt,
         }),
         {
           status: 200,
@@ -485,6 +497,7 @@ describe('executeRatificationPipeline single pre-turn snapshot lifecycle', () =>
           intentReceipt: serverIntentReceipt,
           narrativeReconciliationReceipt: serverReconciliationReceipt,
           canonicalConsequenceReceipt: defaultConsequenceReceipt,
+          characterStanceReceipt: defaultCharacterStanceReceipt,
         }),
         {
           status: 200,
@@ -562,6 +575,7 @@ describe('executeRatificationPipeline single pre-turn snapshot lifecycle', () =>
             revision_increment: 0,
           },
           canonicalConsequenceReceipt: defaultConsequenceReceipt,
+          characterStanceReceipt: defaultCharacterStanceReceipt,
         }),
         {
           status: 200,

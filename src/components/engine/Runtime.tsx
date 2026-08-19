@@ -36,6 +36,7 @@ import { buildCharacterPresence, createCastPresenceReceipt } from '../../lib/cas
 import { createCastInteractionReceipt } from '../../lib/castInteraction';
 import { createFallbackIntentReceipt } from '../../lib/intentReceipt';
 import { createFallbackNarrativeReconciliationReceipt } from '../../lib/narrativeReconciliation';
+import { createCharacterStanceState } from '../../lib/characterStance';
 import type {
   CharacterContinuityById,
   CastContinuityReceipt,
@@ -537,6 +538,7 @@ export default function Runtime() {
           response.narrativeReconciliationReceipt ||
           createFallbackNarrativeReconciliationReceipt(),
         canonicalConsequenceReceipt: response.canonicalConsequenceReceipt,
+        characterStanceReceipt: response.characterStanceReceipt,
       };
 
       const committedTurnPayload: CommittedTurnPayload = {
@@ -557,6 +559,13 @@ export default function Runtime() {
           inventory: [...consequenceReceipt.post_state.inventory],
           player_injuries: [...consequenceReceipt.post_state.player_injuries],
           psychological_status: consequenceReceipt.post_state.psychological_status,
+        });
+      }
+
+      if (response.characterStanceReceipt) {
+        const stanceReceipt = response.characterStanceReceipt;
+        useEngineStore.getState().patchGameState({
+          character_stance: createCharacterStanceState(stanceReceipt.post_state),
         });
       }
 

@@ -5,7 +5,14 @@ import {
   CanonicalConsequenceReceiptSchema,
   CanonicalConsequenceStateSchema,
 } from './consequence';
+import {
+  CharacterStanceRecordSchema,
+  CharacterStanceProposalSchema,
+  CharacterStanceReceiptSchema,
+} from './characterStance';
 export * from './adLib';
+export * from './consequence';
+export * from './characterStance';
 
 export const EdgeKindSchema = z.enum([
   'PHYSICAL',
@@ -66,6 +73,7 @@ export const EngineTurnContextSchema = z.object({
         expressionProfile: EngineCharacterExpressionProfileSchema.optional(),
         skepticism: z.number().finite().min(0).max(1).default(0.5),
         isPresent: z.boolean().default(true),
+        stance: CharacterStanceRecordSchema.nullable().default(null),
       })
     )
     .default([]),
@@ -317,6 +325,7 @@ export const TurnResultSchema = z.object({
   intent_proposal: IntentProposalSchema,
   reconciliation_proposal: NarrativeReconciliationProposalSchema,
   consequence_proposal: CanonicalConsequenceProposalSchema,
+  character_stance_proposal: CharacterStanceProposalSchema,
   logic_state: z
     .object({
       current_phase: z.string().optional(),
@@ -372,12 +381,14 @@ export const TurnResponseSchema = TurnResultSchema.omit({
   intent_proposal: true,
   reconciliation_proposal: true,
   consequence_proposal: true,
+  character_stance_proposal: true,
 }).extend({
   transitionReceipt: TransitionReceiptSchema.optional(),
   castInteractionReceipt: CastInteractionReceiptSchema.optional(),
   intentReceipt: IntentReceiptSchema.optional(),
   narrativeReconciliationReceipt: NarrativeReconciliationReceiptSchema.optional(),
   canonicalConsequenceReceipt: CanonicalConsequenceReceiptSchema,
+  characterStanceReceipt: CharacterStanceReceiptSchema,
 });
 
 export type TurnResponse = z.infer<typeof TurnResponseSchema>;

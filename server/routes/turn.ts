@@ -12,6 +12,12 @@ import type {
   CanonicalConsequenceProposal,
   CanonicalConsequenceReceipt,
 } from '../../src/types/consequence';
+import type {
+  CharacterStanceProposal,
+  CharacterStanceReceipt,
+  CharacterStanceById,
+} from '../../src/types/characterStance';
+import { resolveCharacterStance } from '../../src/lib/characterStance';
 import { generateStructuredResponse } from '../utils/aiClient';
 import { resolveTransition } from '../engine/transitionResolver';
 import { clampSkepticismDelta } from '../../src/lib/castContinuity';
@@ -35,6 +41,7 @@ import type {
   IntentReceipt,
   NarrativeReconciliationReceipt,
   TransitionReceipt,
+  CastInteractionReceipt,
 } from '../../src/types/engineContract';
 
 export function enforceNarrativeReconciliationBoundaries<T extends TurnResult>(
@@ -179,6 +186,30 @@ export function finalizeCanonicalConsequences(input: {
     intentReceipt: input.intentReceipt,
     reconciliationReceipt: input.narrativeReconciliationReceipt,
     effectiveRole,
+  });
+}
+
+export function finalizeCharacterStance(input: {
+  proposal: CharacterStanceProposal;
+  context: EngineTurnContext;
+  intentReceipt: IntentReceipt;
+  narrativeReconciliationReceipt: NarrativeReconciliationReceipt;
+  castInteractionReceipt: CastInteractionReceipt;
+}): CharacterStanceReceipt {
+  const currentState: CharacterStanceById = {};
+  for (const member of input.context.cast) {
+    if (member.stance) {
+      currentState[member.id] = { focus: member.stance.focus, stance: member.stance.stance };
+    }
+  }
+
+  return resolveCharacterStance({
+    proposal: input.proposal,
+    currentState,
+    context: input.context,
+    intentReceipt: input.intentReceipt,
+    reconciliationReceipt: input.narrativeReconciliationReceipt,
+    castInteractionReceipt: input.castInteractionReceipt,
   });
 }
 
@@ -459,6 +490,25 @@ The user acts as an external scene director. A direction is a proposal for focus
 
     const targetExample = context.topology.allowedOutgoingExits[0]?.to || 'TARGET_NODE_ID';
 
+    const eligiblePresentCharacters = context.cast.filter(
+      (member) =>
+        member.id !== context.player.characterId &&
+        !member.isUserCharacter &&
+        member.isPresent
+    );
+
+    const characterStanceFormatted =
+      eligiblePresentCharacters.length > 0
+        ? eligiblePresentCharacters
+            .map((member) => {
+              const stanceStr = member.stance
+                ? `${member.stance.focus}/${member.stance.stance}`
+                : 'UNSET';
+              return `• ${member.name} (ID: ${member.id}): ${stanceStr}`;
+            })
+            .join('\n')
+        : '• No present eligible non-player characters.';
+
     // Construct the dense, authoritative contract prompt
     const prompt = `[SCENARIO CONTRACT]
 Title: ${context.scenario.title}
@@ -502,6 +552,20 @@ ${castLedgerFormatted}
 - logic_state.cast_deltas is optional. Emit a delta only for an eligible non-player cast member whose observable experience during this turn materially changed that signal.
 - Emit at most one delta per eligible cast member. Each delta must be between -0.15 and 0.15. Use an empty array when no material change occurred.
 - A continuity delta controls no facts, authority, location, injury, action, relationship, or outcome. It only informs later characterization.
+
+[CHARACTER STANCE CONTRACT]
+Current Stances:
+${characterStanceFormatted}
+- character_stance_proposal.changes describes proposed observable stance changes; it is not itself state.
+- Stance is an observable immediate orientation (focus: PLAYER or SITUATION; stance: OPEN, GUARDED, RESISTANT, HOSTILE, AFRAID, WITHDRAWN), not personality, emotion narration, relationship, memory, location, or action.
+- Use exact cast IDs and propose at most two changes.
+- Use an empty array when no material observable change occurred.
+- Do not repeat unchanged stance.
+- Absent and player-controlled characters are ineligible.
+- On COMMUNICATE, propose only for the addressed/responding character.
+- WAIT and SYSTEM_INIT require an empty changes array.
+- Write no stance data inside logic_state.
+- A proposal may be rejected while ordinary prose is preserved.
 
 [CANONICAL CONSEQUENCE CONTRACT]
 Current Inventory: ${inventoryFormatted}
@@ -646,6 +710,14 @@ ${recentHistory}
       narrativeReconciliationReceipt,
     });
 
+    const characterStanceReceipt = finalizeCharacterStance({
+      proposal: engineResponse.character_stance_proposal,
+      context,
+      intentReceipt,
+      narrativeReconciliationReceipt,
+      castInteractionReceipt,
+    });
+
     const finalResponse: TurnResponse = {
       narrative_blocks: boundedResult.narrative_blocks,
       logic_state: boundedResult.logic_state,
@@ -655,6 +727,7 @@ ${recentHistory}
       intentReceipt,
       narrativeReconciliationReceipt,
       canonicalConsequenceReceipt,
+      characterStanceReceipt,
     };
 
     return res.json(finalResponse);

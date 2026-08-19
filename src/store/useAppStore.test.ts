@@ -396,4 +396,121 @@ describe('useAppStore retakeLastTurn integration', () => {
     expect(useEngineStore.getState().gameState?.player_injuries).toEqual(['Superficial Scratch']);
     expect(useEngineStore.getState().gameState?.psychological_status).toBe('STEADY');
   });
+
+  it('restores character_stance on retakeLastTurn', () => {
+    const initialGameState = {
+      current_location: 'Security Room',
+      player_injuries: [],
+      inventory: [],
+      psychological_status: 'STABLE',
+      player_role: 'protagonist' as const,
+      player_character_id: 'char-protagonist',
+      perspective_mode: 'protagonist' as const,
+      current_tension_level: 'buildup' as const,
+      lore_and_memory: {
+        established_facts: [],
+        permanent_consequences: [],
+      },
+      npc_fixations: [],
+      character_stance: {
+        'char-warden': {
+          character_id: 'char-warden',
+          focus: 'PLAYER' as const,
+          stance: 'OPEN' as const,
+        },
+      },
+    };
+    useEngineStore.getState().setGameState(initialGameState);
+
+    const preSnapshot = captureRuntimeSnapshot(useAppStore.getState());
+    const committedPayload: CommittedTurnPayload = {
+      commandText: 'Threaten the warden',
+      formattedText: 'The warden glares at you with cold fury.',
+      preSnapshot,
+      engineGameStateBefore: JSON.parse(JSON.stringify(initialGameState)),
+      frame: {
+        narrative_blocks: [{ type: 'prose', content: 'The warden glares at you with cold fury.' }],
+        logic_state: {
+          current_phase: 'MANIFEST',
+          suggested_tension: 40,
+          terminal_flags: [],
+        },
+        characterStanceReceipt: {
+          version: 1,
+          pre_state: {
+            'char-warden': { focus: 'PLAYER', stance: 'OPEN' },
+          },
+          post_state: {
+            'char-warden': { focus: 'PLAYER', stance: 'HOSTILE' },
+          },
+          decisions: [
+            {
+              proposal: {
+                character_id: 'char-warden',
+                focus: 'PLAYER',
+                stance: 'HOSTILE',
+                rationale: 'Warden turns hostile',
+              },
+              outcome: 'APPLIED',
+              reason: 'APPLIED',
+              before: { focus: 'PLAYER', stance: 'OPEN' },
+              after: { focus: 'PLAYER', stance: 'HOSTILE' },
+            },
+          ],
+        },
+      },
+      turnReceipt: {
+        turnNumber: 1,
+        nodeBefore: 'Security Room',
+        requestedTarget: null,
+        accepted: false,
+        reason: 'NO_TRANSITION_REQUESTED',
+        nodeAfter: 'Security Room',
+        activeVector: 'COGNITIVE',
+        activeTier: 'LATENT',
+        tension: 40,
+        characterStanceReceipt: {
+          version: 1,
+          pre_state: {
+            'char-warden': { focus: 'PLAYER', stance: 'OPEN' },
+          },
+          post_state: {
+            'char-warden': { focus: 'PLAYER', stance: 'HOSTILE' },
+          },
+          decisions: [
+            {
+              proposal: {
+                character_id: 'char-warden',
+                focus: 'PLAYER',
+                stance: 'HOSTILE',
+                rationale: 'Warden turns hostile',
+              },
+              outcome: 'APPLIED',
+              reason: 'APPLIED',
+              before: { focus: 'PLAYER', stance: 'OPEN' },
+              after: { focus: 'PLAYER', stance: 'HOSTILE' },
+            },
+          ],
+        },
+      },
+    };
+
+    useAppStore.getState().commitTurnResult(committedPayload);
+    useEngineStore.getState().patchGameState({
+      character_stance: {
+        'char-warden': {
+          character_id: 'char-warden',
+          focus: 'PLAYER',
+          stance: 'HOSTILE',
+        },
+      },
+    });
+
+    expect(useEngineStore.getState().gameState?.character_stance?.['char-warden'].stance).toBe('HOSTILE');
+
+    const retakeSuccess = useAppStore.getState().retakeLastTurn();
+    expect(retakeSuccess).toBe(true);
+
+    expect(useEngineStore.getState().gameState?.character_stance?.['char-warden'].stance).toBe('OPEN');
+  });
 });

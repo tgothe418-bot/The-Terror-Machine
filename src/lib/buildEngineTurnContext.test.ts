@@ -496,4 +496,53 @@ describe('buildEngineTurnContext & buildContextReceipt', () => {
       expect(context.consequenceState.player_injuries).toEqual(['Sprained Ankle']);
     });
   });
+
+  describe('characterStance context integration (Phase 3H.2B)', () => {
+    it('defaults cast member stance to null when characterStance is omitted, null, or empty', () => {
+      const context = buildEngineTurnContext({
+        blueprint: mockBlueprint,
+        selectedRole: 'protagonist',
+      });
+
+      expect(context.version).toBe(1);
+      for (const member of context.cast) {
+        expect(member.stance).toBeNull();
+      }
+    });
+
+    it('binds exact per-character stance and leaves other cast members null', () => {
+      const context = buildEngineTurnContext({
+        blueprint: mockBlueprint,
+        selectedRole: 'protagonist',
+        characterStance: {
+          'char-warden': { focus: 'PLAYER', stance: 'HOSTILE' },
+        },
+      });
+
+      const clara = context.cast.find((c) => c.id === 'char-clara');
+      const warden = context.cast.find((c) => c.id === 'char-warden');
+      const orderly = context.cast.find((c) => c.id === 'char-orderly');
+
+      expect(clara?.stance).toBeNull();
+      expect(orderly?.stance).toBeNull();
+      expect(warden?.stance).toEqual({
+        focus: 'PLAYER',
+        stance: 'HOSTILE',
+      });
+    });
+
+    it('does not expose stance for unknown character IDs or derive from personality/skepticism', () => {
+      const context = buildEngineTurnContext({
+        blueprint: mockBlueprint,
+        selectedRole: 'protagonist',
+        characterStance: {
+          'char-ghost': { focus: 'SITUATION', stance: 'AFRAID' },
+        },
+      });
+
+      for (const member of context.cast) {
+        expect(member.stance).toBeNull();
+      }
+    });
+  });
 });

@@ -1023,6 +1023,92 @@ describe('Engine telemetry export', () => {
       expect(html).toContain('<li><strong>Consequences:</strong> Not recorded</li>');
       expect(md).toContain('- **Consequences:** Not recorded');
     });
+
+    it('renders Character Stance decisions with before/after state in HTML and Markdown', () => {
+      const messagesWithStance = [
+        {
+          role: 'user',
+          content: 'I speak with Nurse Finch.',
+          timestamp: 1,
+        },
+        {
+          role: 'assistant',
+          content: 'Finch glances at you guardedly.',
+          timestamp: 2,
+          blocks: [{ type: 'prose', content: 'Finch glances at you guardedly.' }],
+          logic_state: {
+            current_phase: 'LATENT',
+            characterStanceReceipt: {
+              version: 1,
+              pre_state: {
+                'char-finch': { focus: 'PLAYER', stance: 'OPEN' },
+              },
+              post_state: {
+                'char-finch': { focus: 'PLAYER', stance: 'GUARDED' },
+              },
+              decisions: [
+                {
+                  proposal: {
+                    character_id: 'char-finch',
+                    focus: 'PLAYER',
+                    stance: 'GUARDED',
+                    rationale: 'Finch steps back cautiously',
+                  },
+                  outcome: 'APPLIED',
+                  reason: 'APPLIED',
+                  before: { focus: 'PLAYER', stance: 'OPEN' },
+                  after: { focus: 'PLAYER', stance: 'GUARDED' },
+                },
+              ],
+            },
+          },
+        },
+      ];
+
+      const html = buildEngineLogContent(messagesWithStance, 'html')!.content;
+      const md = buildEngineLogContent(messagesWithStance, 'md')!.content;
+
+      expect(html).toContain('<h4>Character Stance</h4>');
+      expect(html).toContain('Decision [char-finch]:');
+      expect(html).toContain('PLAYER / GUARDED');
+      expect(html).toContain('Outcome: APPLIED (Reason: APPLIED)');
+      expect(html).toContain('Before: PLAYER/OPEN → After: PLAYER/GUARDED');
+      expect(html).toContain('Finch steps back cautiously');
+
+      expect(md).toContain('#### Character Stance');
+      expect(md).toContain('- **Decision [char-finch]:** PLAYER / GUARDED | Outcome: APPLIED (Reason: APPLIED) | Before: PLAYER/OPEN → After: PLAYER/GUARDED — *Finch steps back cautiously*');
+    });
+
+    it('renders "No character stance changes" when stance receipt has no applied changes', () => {
+      const messagesEmptyStance = [
+        {
+          role: 'user',
+          content: 'I wait in silence.',
+          timestamp: 1,
+        },
+        {
+          role: 'assistant',
+          content: 'Silence lingers.',
+          timestamp: 2,
+          blocks: [{ type: 'prose', content: 'Silence lingers.' }],
+          logic_state: {
+            current_phase: 'LATENT',
+            characterStanceReceipt: {
+              version: 1,
+              pre_state: {},
+              post_state: {},
+              decisions: [],
+            },
+          },
+        },
+      ];
+
+      const html = buildEngineLogContent(messagesEmptyStance, 'html')!.content;
+      const md = buildEngineLogContent(messagesEmptyStance, 'md')!.content;
+
+      expect(html).toContain('<li>No character stance changes</li>');
+      expect(md).toContain('- No character stance changes');
+    });
   });
 });
 

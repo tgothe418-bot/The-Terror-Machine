@@ -13,10 +13,12 @@ import {
   CharacterContinuityById,
   CharacterPresenceById,
   CanonicalConsequenceStateInput,
+  CharacterStanceById,
 } from '../types';
 import { buildCharacterContinuity, DEFAULT_SKEPTICISM } from './castContinuity';
 import { buildCharacterPresence } from './castPresence';
 import { createCanonicalConsequenceState } from './canonicalConsequences';
+import { createCharacterStanceState } from './characterStance';
 
 export interface BuildEngineTurnContextOptions {
   blueprint: unknown;
@@ -26,6 +28,7 @@ export interface BuildEngineTurnContextOptions {
   characterContinuity?: CharacterContinuityById | null;
   characterPresence?: CharacterPresenceById | null;
   consequenceState?: CanonicalConsequenceStateInput | null;
+  characterStance?: CharacterStanceById | null;
   runtimeState?: {
     currentNodeId?: string | null;
     phase?: string;
@@ -50,12 +53,14 @@ export function buildEngineTurnContext({
   characterContinuity,
   characterPresence,
   consequenceState: rawConsequenceState,
+  characterStance,
   runtimeState = {},
 }: BuildEngineTurnContextOptions): EngineTurnContext {
   const normBp: Blueprint = normalizeBlueprint(blueprint);
   const effectiveRole = (selectedRole as PlayerRole) || 'protagonist';
 
   const consequenceState = createCanonicalConsequenceState(rawConsequenceState);
+  const normalizedStance = createCharacterStanceState(characterStance);
 
   // 0. Participation Context resolution
   const rawParticipation =
@@ -152,6 +157,12 @@ export function buildEngineTurnContext({
         ? continuity[c.id].skepticism
         : (continuity[canonicalId]?.skepticism ?? DEFAULT_SKEPTICISM),
       isPresent: resolvedPresenceNodeId === currentNodeId,
+      stance: normalizedStance[canonicalId]
+        ? {
+            focus: normalizedStance[canonicalId].focus,
+            stance: normalizedStance[canonicalId].stance,
+          }
+        : null,
     };
   });
 
