@@ -332,18 +332,9 @@ function parseTelemetrySections(logicData: Record<string, unknown>): ParsedTelem
     : undefined) as Record<string, unknown> | undefined;
 
   const transitionReceipt = (
-    (typeof logicData.transitionReceipt === 'object' && logicData.transitionReceipt !== null
+    typeof logicData.transitionReceipt === 'object' && logicData.transitionReceipt !== null
       ? logicData.transitionReceipt
-      : undefined) ||
-    (turn && typeof turn.requestedTarget !== 'undefined'
-      ? {
-          requestedNodeId: turn.requestedTarget,
-          accepted: turn.accepted,
-          fromNodeId: turn.nodeBefore,
-          toNodeId: turn.nodeAfter,
-          reason: turn.reason,
-        }
-      : undefined)
+      : undefined
   ) as Record<string, unknown> | undefined;
 
   const validation = (typeof logicData.validation === 'object' && logicData.validation !== null

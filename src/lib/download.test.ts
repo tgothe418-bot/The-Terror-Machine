@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { buildEngineLogContent, generateTelemetryFilename, buildCanonicalStateDiff } from './download';
-import type { RuntimeStateSnapshot } from '../types';
+import type {
+  RuntimeStateSnapshot,
+  IntentReceipt,
+  NarrativeReconciliationReceipt,
+  CastInteractionReceipt,
+  CastContinuityReceipt,
+  CastPresenceReceipt,
+  TransitionReceipt,
+} from '../types';
 
 const mockReceipt = {
   version: 1,
@@ -137,15 +145,15 @@ describe('Engine telemetry export', () => {
           requestedTarget: 'VAULT_02',
           accepted: true,
           nodeAfter: 'VAULT_02',
-          activeVector: 'COSMIC',
-          activeTier: 'MANIFEST',
+          activeVector: 'COSMIC' as const,
+          activeTier: 'MANIFEST' as const,
           tension: 40,
           preSnapshot: {
-            version: 1,
+            version: 1 as const,
             turnCount: 1,
             currentNodeId: 'VAULT_01',
-            activeVector: 'COGNITIVE',
-            activeTier: 'LATENT',
+            activeVector: 'COGNITIVE' as const,
+            activeTier: 'LATENT' as const,
             phase: 'LATENT',
             tension: 10,
             coherence: 1.0,
@@ -153,11 +161,11 @@ describe('Engine telemetry export', () => {
             activeFlags: ['FLAG_OBSERVED'],
           },
           postSnapshot: {
-            version: 1,
+            version: 1 as const,
             turnCount: 2,
             currentNodeId: 'VAULT_02',
-            activeVector: 'COSMIC',
-            activeTier: 'MANIFEST',
+            activeVector: 'COSMIC' as const,
+            activeTier: 'MANIFEST' as const,
             phase: 'MANIFEST',
             tension: 40,
             coherence: 0.9,
@@ -234,15 +242,15 @@ describe('Engine telemetry export', () => {
           requestedTarget: 'NODE_2',
           accepted: true,
           nodeAfter: 'NODE_2',
-          activeVector: 'COGNITIVE',
-          activeTier: 'LATENT',
+          activeVector: 'COGNITIVE' as const,
+          activeTier: 'LATENT' as const,
           tension: 25,
           preSnapshot: {
-            version: 1,
+            version: 1 as const,
             turnCount: 0,
             currentNodeId: 'NODE_1',
-            activeVector: 'COGNITIVE',
-            activeTier: 'LATENT',
+            activeVector: 'COGNITIVE' as const,
+            activeTier: 'LATENT' as const,
             phase: 'LATENT',
             tension: 10,
             coherence: 1.0,
@@ -250,7 +258,7 @@ describe('Engine telemetry export', () => {
             activeFlags: [],
           },
           castContinuityReceipt: {
-            version: 1,
+            version: 1 as const,
             state: {
               'char-1': { skepticism: 0.7 },
               'char-2': { skepticism: 0.4 },
@@ -260,7 +268,7 @@ describe('Engine telemetry export', () => {
             ],
           },
           castPresenceReceipt: {
-            version: 1,
+            version: 1 as const,
             state: {
               'char-1': { nodeId: 'NODE_2' },
               'char-2': { nodeId: 'NODE_1' },
@@ -383,77 +391,128 @@ describe('Engine telemetry export', () => {
   });
 
   it('renders IntentReceipt and NarrativeReconciliationReceipt in both HTML and Markdown exports (Phase 3G.1D)', () => {
+    const preSnapshot: RuntimeStateSnapshot = {
+      version: 1,
+      turnCount: 2,
+      currentNodeId: 'NODE_CHAMBER',
+      activeVector: 'COGNITIVE',
+      activeTier: 'LATENT',
+      phase: 'LATENT',
+      tension: 20,
+      coherence: 1.0,
+      reconciliationRevision: 0,
+      activeFlags: ['FLAG_OBSERVED', 'FLAG_OLD'],
+    };
+
+    const postSnapshot: RuntimeStateSnapshot = {
+      version: 1,
+      turnCount: 3,
+      currentNodeId: 'NODE_ALTAR',
+      activeVector: 'COGNITIVE',
+      activeTier: 'MANIFEST',
+      phase: 'MANIFEST',
+      tension: 30,
+      coherence: 0.9,
+      reconciliationRevision: 1,
+      activeFlags: ['FLAG_OBSERVED', 'FLAG_ADDED'],
+    };
+
+    const intentReceipt: IntentReceipt = {
+      version: 1,
+      action_kind: 'MOVE',
+      action_subtype: 'FLEE',
+      pressure_direction: 'DE_ESCALATE',
+      dramatic_tactic: 'FLIGHT',
+      intent_synergy: 'SUCCESS',
+    };
+
+    const narrativeReconciliationReceipt: NarrativeReconciliationReceipt = {
+      version: 1,
+      mode: 'EXPERIENTIAL_REANCHORED',
+      feasibility: 'IMPOSSIBLE',
+      reason_code: 'PHYSICAL_LIMIT',
+      fictional_time_cost: 'MOMENT',
+      authority_alignment: 'NOT_APPLICABLE',
+      memory_echo_candidate: 'Echo <marker> & residue',
+      revision_increment: 1,
+    };
+
+    const castInteractionReceipt: CastInteractionReceipt = {
+      version: 1,
+      addressedCharacterId: 'char-target',
+      respondingCharacterId: 'char-target',
+      outcome: 'RESPONDED',
+    };
+
+    const castContinuityReceipt: CastContinuityReceipt = {
+      version: 1,
+      state: {
+        'char-target': { skepticism: 0.8 },
+      },
+      acceptedDeltas: [
+        { character_id: 'char-target', skepticism_delta: 0.1 },
+      ],
+    };
+
+    const castPresenceReceipt: CastPresenceReceipt = {
+      version: 1,
+      state: {
+        'char-target': { nodeId: 'NODE_ALTAR' },
+      },
+    };
+
+    const topLevelTransitionReceipt: TransitionReceipt = {
+      requestedNodeId: 'NODE_ALTAR',
+      accepted: true,
+      fromNodeId: 'NODE_CHAMBER',
+      toNodeId: 'NODE_ALTAR',
+      reason: 'Path opened',
+    };
+
     const messagesWith3G1DReceipts = [
       {
         role: 'user',
-        content: 'I examine the ancient altar.',
+        content: 'I flee toward the altar.',
         timestamp: 100,
         userCharacterName: 'Investigator',
       },
       {
         role: 'assistant',
-        content: 'The runes pulse faintly under your trembling fingertips.',
+        content: 'The stone steps blur as you flee.',
         timestamp: 101,
-        blocks: [{ type: 'prose', content: 'The runes pulse faintly under your trembling fingertips.' }],
+        blocks: [{ type: 'prose', content: 'The stone steps blur as you flee.' }],
         logic_state: {
           current_phase: 'MANIFEST',
           suggested_tension: 30,
         },
+        transitionReceipt: topLevelTransitionReceipt,
         turnReceipt: {
           turnNumber: 3,
           nodeBefore: 'NODE_CHAMBER',
           requestedTarget: 'NODE_ALTAR',
           accepted: true,
           nodeAfter: 'NODE_ALTAR',
-          activeVector: 'COGNITIVE',
-          activeTier: 'MANIFEST',
+          activeVector: 'COGNITIVE' as const,
+          activeTier: 'MANIFEST' as const,
           tension: 30,
-          preSnapshot: {
-            version: 1,
-            turnCount: 2,
-            currentNodeId: 'NODE_CHAMBER',
-            activeVector: 'COGNITIVE',
-            activeTier: 'LATENT',
-            phase: 'LATENT',
-            tension: 20,
-            coherence: 1.0,
-            reconciliationRevision: 0,
-            activeFlags: [],
-          },
-          postSnapshot: {
-            version: 1,
-            turnCount: 3,
-            currentNodeId: 'NODE_ALTAR',
-            activeVector: 'COGNITIVE',
-            activeTier: 'MANIFEST',
-            phase: 'MANIFEST',
-            tension: 30,
-            coherence: 0.9,
-            reconciliationRevision: 1,
-            activeFlags: ['FLAG_ALTAR_TOUCHED'],
-          },
-          intentReceipt: {
-            version: 1,
-            action_kind: 'examine',
-            action_subtype: 'sensory',
-            pressure_direction: 'inward',
-            dramatic_tactic: 'scrutinize',
-            intent_synergy: 'SUCCESS',
-          },
-          narrativeReconciliationReceipt: {
-            version: 1,
-            mode: 'harmonize',
-            feasibility: 'plausible',
-            reason_code: 'DIRECT_ACCESS',
-            fictional_time_cost: 'instantaneous',
-            authority_alignment: 'aligned',
-            memory_echo_candidate: 'The altar was cold and vibrating with low resonance.',
-          },
-          castInteractionReceipt: {
-            outcome: 'dialogue_progressed',
-            addressedCharacterId: 'char-cultist',
-            respondingCharacterId: 'char-cultist',
-          },
+          preSnapshot,
+          postSnapshot,
+          intentReceipt,
+          narrativeReconciliationReceipt,
+          castInteractionReceipt,
+          castContinuityReceipt,
+          castPresenceReceipt,
+        },
+        validation: {
+          accepted: true,
+          rejected_fields: ['bad_field'],
+          repair_notes: ['Repaired bad_field default'],
+        },
+        failureReceipt: {
+          code: 'ERR_ESCAPE_FAILED',
+          status: 500,
+          contentType: 'application/json',
+          message: 'Failure <marker> & reason',
         },
       },
     ];
@@ -462,65 +521,286 @@ describe('Engine telemetry export', () => {
     expect(htmlOutput).not.toBeNull();
     const html = htmlOutput!.content;
 
-    // Header summary tests
-    expect(html).toContain('INTENT: EXAMINE/SENSORY');
-    expect(html).toContain('PRESSURE: INWARD');
+    // 1. Order of 8 labels in HTML
+    const htmlLabels = [
+      'Intent &amp; Pressure',
+      'Intent Synergy',
+      'Narrative Reconciliation',
+      'Canonical State Diff',
+      'Cast Presence &amp; Interaction',
+      'Continuity / Memory Candidates',
+      'Schema Repairs and Validation',
+      'Raw Structured Payload',
+    ];
+    let lastHtmlIndex = -1;
+    for (const label of htmlLabels) {
+      const idx = html.indexOf(label);
+      expect(idx).toBeGreaterThan(-1);
+      expect(idx).toBeGreaterThan(lastHtmlIndex);
+      lastHtmlIndex = idx;
+    }
+
+    // 2. Summary receipt-first tokens
+    expect(html).toContain('INTENT: MOVE/FLEE');
+    expect(html).toContain('PRESSURE: DE_ESCALATE');
     expect(html).toContain('SYNERGY: SUCCESS');
-    expect(html).toContain('RECONCILIATION: HARMONIZE');
+    expect(html).toContain('RECONCILIATION: EXPERIENTIAL_REANCHORED');
 
-    // Section header tests
-    expect(html).toContain('<h4>Intent &amp; Pressure</h4>');
-    expect(html).toContain('<li><strong>Action Kind:</strong> examine</li>');
-    expect(html).toContain('<li><strong>Action Subtype:</strong> sensory</li>');
-    expect(html).toContain('<li><strong>Pressure Direction:</strong> inward</li>');
-    expect(html).toContain('<li><strong>Dramatic Tactic:</strong> scrutinize</li>');
+    // 3. Escaped memory candidate and failure message
+    expect(html).toContain('Echo &lt;marker&gt; &amp; residue');
+    expect(html).toContain('Failure &lt;marker&gt; &amp; reason');
 
-    expect(html).toContain('<h4>Intent Synergy</h4>');
+    // 4. Raw payload nested <details class="raw-payload-panel"> with real <pre><code>
+    expect(html).toContain('<details class="raw-payload-panel">');
+    expect(html).toContain('<summary class="speaker-label speaker-engine">Raw Structured Payload</summary>');
+    expect(html).toMatch(/<pre><code>[\s\S]*<\/code><\/pre>/);
+
+    // 5. Does not contain <pre class="logic-content">
+    expect(html).not.toContain('<pre class="logic-content">');
+
+    // Section field contents in HTML
+    expect(html).toContain('<li><strong>Action Kind:</strong> MOVE</li>');
+    expect(html).toContain('<li><strong>Action Subtype:</strong> FLEE</li>');
+    expect(html).toContain('<li><strong>Pressure Direction:</strong> DE_ESCALATE</li>');
+    expect(html).toContain('<li><strong>Dramatic Tactic:</strong> FLIGHT</li>');
     expect(html).toContain('<li><strong>Synergy:</strong> SUCCESS</li>');
     expect(html).toContain('Intent–state coherence; not action outcome.');
-
-    expect(html).toContain('<h4>Narrative Reconciliation</h4>');
-    expect(html).toContain('<li><strong>Mode:</strong> harmonize</li>');
-    expect(html).toContain('<li><strong>Feasibility:</strong> plausible</li>');
-    expect(html).toContain('<li><strong>Reason Code:</strong> DIRECT_ACCESS</li>');
-    expect(html).toContain('<li><strong>Fictional Time Cost:</strong> instantaneous</li>');
-    expect(html).toContain('<li><strong>Authority Alignment:</strong> aligned</li>');
-
-    expect(html).toContain('<h4>Canonical State Diff</h4>');
+    expect(html).toContain('<li><strong>Mode:</strong> EXPERIENTIAL_REANCHORED</li>');
+    expect(html).toContain('<li><strong>Feasibility:</strong> IMPOSSIBLE</li>');
+    expect(html).toContain('<li><strong>Reason Code:</strong> PHYSICAL_LIMIT</li>');
+    expect(html).toContain('<li><strong>Fictional Time Cost:</strong> MOMENT</li>');
+    expect(html).toContain('<li><strong>Authority Alignment:</strong> NOT_APPLICABLE</li>');
     expect(html).toContain('<li>CURRENT NODE: NODE_CHAMBER → NODE_ALTAR</li>');
-    expect(html).toContain('<li>ACTIVE FLAGS ADDED: FLAG_ALTAR_TOUCHED</li>');
-
-    expect(html).toContain('<h4>Cast Presence &amp; Interaction</h4>');
-    expect(html).toContain('<li><strong>Outcome:</strong> dialogue_progressed</li>');
-    expect(html).toContain('<li><strong>Addressed Character ID:</strong> char-cultist</li>');
-
-    expect(html).toContain('<h4>Continuity / Memory Candidates</h4>');
-    expect(html).toContain('<li><strong>Memory Echo Candidate:</strong> The altar was cold and vibrating with low resonance.</li>');
+    expect(html).toContain('<li>ACTIVE FLAGS ADDED: FLAG_ADDED</li>');
+    expect(html).toContain('<li>ACTIVE FLAGS REMOVED: FLAG_OLD</li>');
+    expect(html).toContain('<li><strong>Outcome:</strong> RESPONDED</li>');
+    expect(html).toContain('<li><strong>Addressed Character ID:</strong> char-target</li>');
+    expect(html).toContain('<li><strong>Responding Character ID:</strong> char-target</li>');
+    expect(html).toContain('<li><strong>Rejected Fields:</strong> bad_field</li>');
+    expect(html).toContain('<li><strong>Repair Notes:</strong> Repaired bad_field default</li>');
 
     // Markdown tests
     const mdOutput = buildEngineLogContent(messagesWith3G1DReceipts, 'md', '3g1d-test');
     expect(mdOutput).not.toBeNull();
     const md = mdOutput!.content;
 
-    expect(md).toContain('#### Intent & Pressure');
-    expect(md).toContain('- **Action Kind:** examine');
-    expect(md).toContain('- **Action Subtype:** sensory');
-    expect(md).toContain('- **Pressure Direction:** inward');
-    expect(md).toContain('- **Dramatic Tactic:** scrutinize');
+    // Order of 8 labels in Markdown
+    const mdLabels = [
+      '#### Intent & Pressure',
+      '#### Intent Synergy',
+      '#### Narrative Reconciliation',
+      '#### Canonical State Diff',
+      '#### Cast Presence & Interaction',
+      '#### Continuity / Memory Candidates',
+      '#### Schema Repairs and Validation',
+      '#### Raw Structured Payload',
+    ];
+    let lastMdIndex = -1;
+    for (const label of mdLabels) {
+      const idx = md.indexOf(label);
+      expect(idx).toBeGreaterThan(-1);
+      expect(idx).toBeGreaterThan(lastMdIndex);
+      lastMdIndex = idx;
+    }
 
-    expect(md).toContain('#### Intent Synergy');
-    expect(md).toContain('- **Synergy:** SUCCESS');
-
-    expect(md).toContain('#### Narrative Reconciliation');
-    expect(md).toContain('- **Mode:** harmonize');
-    expect(md).toContain('- **Feasibility:** plausible');
-    expect(md).toContain('- **Reason Code:** DIRECT_ACCESS');
-
-    expect(md).toContain('#### Canonical State Diff');
+    expect(md).toContain('Intent–state coherence; not action outcome.');
     expect(md).toContain('- CURRENT NODE: NODE_CHAMBER → NODE_ALTAR');
-    expect(md).toContain('- ACTIVE FLAGS ADDED: FLAG_ALTAR_TOUCHED');
+    expect(md).toContain('- ACTIVE FLAGS ADDED: FLAG_ADDED');
+    expect(md).toContain('- ACTIVE FLAGS REMOVED: FLAG_OLD');
+    expect(md).toContain('- **Memory Echo Candidate:** Echo <marker> & residue');
 
-    expect(md).toContain('#### Continuity / Memory Candidates');
-    expect(md).toContain('- **Memory Echo Candidate:** The altar was cold and vibrating with low resonance.');
+    const rawSectionIndex = md.indexOf('#### Raw Structured Payload');
+    const jsonFenceIndex = md.indexOf('```json', rawSectionIndex);
+    expect(rawSectionIndex).toBeGreaterThan(-1);
+    expect(jsonFenceIndex).toBeGreaterThan(rawSectionIndex);
+
+    expect(md).toContain('- **Action Kind:** MOVE');
+    expect(md).toContain('- **Action Subtype:** FLEE');
+    expect(md).toContain('- **Pressure Direction:** DE_ESCALATE');
+    expect(md).toContain('- **Dramatic Tactic:** FLIGHT');
+    expect(md).toContain('- **Synergy:** SUCCESS');
+    expect(md).toContain('- **Mode:** EXPERIENTIAL_REANCHORED');
+    expect(md).toContain('- **Feasibility:** IMPOSSIBLE');
+    expect(md).toContain('- **Reason Code:** PHYSICAL_LIMIT');
+  });
+
+  describe('absence and historical telemetry behavior', () => {
+    it('produces INTENT: OBSERVE and does not produce INTENT: OBSERVE/ when action_subtype is null', () => {
+      const nullSubtypeMsg = [
+        {
+          role: 'user',
+          content: 'Look around',
+          timestamp: 1,
+        },
+        {
+          role: 'assistant',
+          content: 'You see shadows.',
+          timestamp: 2,
+          blocks: [{ type: 'prose', content: 'You see shadows.' }],
+          turnReceipt: {
+            turnNumber: 1,
+            nodeBefore: 'N1',
+            requestedTarget: null,
+            accepted: false,
+            nodeAfter: 'N1',
+            activeVector: 'COGNITIVE' as const,
+            activeTier: 'LATENT' as const,
+            tension: 10,
+            preSnapshot: {
+              version: 1 as const,
+              turnCount: 0,
+              currentNodeId: 'N1',
+              activeVector: 'COGNITIVE' as const,
+              activeTier: 'LATENT' as const,
+              phase: 'LATENT',
+              tension: 10,
+              coherence: 1.0,
+              reconciliationRevision: 0,
+              activeFlags: [],
+            },
+            intentReceipt: {
+              version: 1 as const,
+              action_kind: 'OBSERVE' as const,
+              action_subtype: null,
+              pressure_direction: 'MAINTAIN' as const,
+              dramatic_tactic: 'NONE' as const,
+              intent_synergy: 'SUCCESS' as const,
+            },
+          },
+        },
+      ];
+
+      const html = buildEngineLogContent(nullSubtypeMsg, 'html')!.content;
+      expect(html).toContain('INTENT: OBSERVE');
+      expect(html).not.toContain('INTENT: OBSERVE/');
+    });
+
+    it('produces historical INTENT summary for legacy message with no intentReceipt but with logic_state.intent_classification', () => {
+      const legacyMsg = [
+        {
+          role: 'user',
+          content: 'I search the drawer.',
+          timestamp: 1,
+        },
+        {
+          role: 'assistant',
+          content: 'The drawer is empty.',
+          timestamp: 2,
+          blocks: [{ type: 'prose', content: 'The drawer is empty.' }],
+          logic_state: {
+            current_phase: 'LATENT',
+            intent_classification: 'INSPECT',
+          },
+        },
+      ];
+
+      const html = buildEngineLogContent(legacyMsg, 'html')!.content;
+      expect(html).toContain('INTENT: INSPECT');
+    });
+
+    it('renders receipt-specific fields as Not recorded and does not fabricate default receipt values when receipts are absent', () => {
+      const emptyReceiptsMsg = [
+        {
+          role: 'user',
+          content: 'Wait here.',
+          timestamp: 1,
+        },
+        {
+          role: 'assistant',
+          content: 'Time passes.',
+          timestamp: 2,
+          blocks: [{ type: 'prose', content: 'Time passes.' }],
+          logic_state: {
+            current_phase: 'LATENT',
+          },
+        },
+      ];
+
+      const html = buildEngineLogContent(emptyReceiptsMsg, 'html')!.content;
+      const md = buildEngineLogContent(emptyReceiptsMsg, 'md')!.content;
+
+      // In HTML
+      expect(html).toContain('<li><strong>Action Kind:</strong> Not recorded</li>');
+      expect(html).toContain('<li><strong>Action Subtype:</strong> Not recorded</li>');
+      expect(html).toContain('<li><strong>Pressure Direction:</strong> Not recorded</li>');
+      expect(html).toContain('<li><strong>Dramatic Tactic:</strong> Not recorded</li>');
+      expect(html).toContain('<li><strong>Synergy:</strong> Not recorded</li>');
+      expect(html).toContain('<li><strong>Mode:</strong> Not recorded</li>');
+      expect(html).toContain('<li><strong>Feasibility:</strong> Not recorded</li>');
+      expect(html).toContain('<li><strong>Reason Code:</strong> Not recorded</li>');
+      expect(html).toContain('<li><strong>Fictional Time Cost:</strong> Not recorded</li>');
+      expect(html).toContain('<li><strong>Authority Alignment:</strong> Not recorded</li>');
+      expect(html).toContain('<li><strong>Transition:</strong> Not recorded</li>');
+      expect(html).toContain('<li><strong>Active Presence Count:</strong> Not recorded</li>');
+      expect(html).toContain('<li><strong>Outcome:</strong> Not recorded</li>');
+      expect(html).toContain('<li><strong>Addressed Character ID:</strong> Not recorded</li>');
+      expect(html).toContain('<li><strong>Responding Character ID:</strong> Not recorded</li>');
+      expect(html).toContain('<li><strong>Tracked Characters:</strong> Not recorded</li>');
+      expect(html).toContain('<li><strong>Accepted Deltas Count:</strong> Not recorded</li>');
+      expect(html).toContain('<li><strong>Memory Echo Candidate:</strong> Not recorded</li>');
+      expect(html).toContain('<li><strong>Accepted:</strong> Not recorded</li>');
+
+      // In MD
+      expect(md).toContain('- **Action Kind:** Not recorded');
+      expect(md).toContain('- **Synergy:** Not recorded');
+      expect(md).toContain('- **Mode:** Not recorded');
+      expect(md).toContain('- **Transition:** Not recorded');
+      expect(md).toContain('- **Active Presence Count:** Not recorded');
+      expect(md).toContain('- **Tracked Characters:** Not recorded');
+      expect(md).toContain('- **Memory Echo Candidate:** Not recorded');
+    });
+
+    it('renders Transition: Not recorded and does not synthesize pseudo transition when message has turnReceipt but no actual top-level transitionReceipt', () => {
+      const msgWithTurnReceiptOnly = [
+        {
+          role: 'user',
+          content: 'Open the gate.',
+          timestamp: 1,
+        },
+        {
+          role: 'assistant',
+          content: 'The gate creaks open.',
+          timestamp: 2,
+          blocks: [{ type: 'prose', content: 'The gate creaks open.' }],
+          turnReceipt: {
+            turnNumber: 1,
+            nodeBefore: 'COURTYARD',
+            requestedTarget: 'GARDEN',
+            accepted: true,
+            nodeAfter: 'GARDEN',
+            reason: 'Gate unlocked',
+            activeVector: 'COGNITIVE' as const,
+            activeTier: 'LATENT' as const,
+            tension: 10,
+            preSnapshot: {
+              version: 1 as const,
+              turnCount: 0,
+              currentNodeId: 'COURTYARD',
+              activeVector: 'COGNITIVE' as const,
+              activeTier: 'LATENT' as const,
+              phase: 'LATENT',
+              tension: 10,
+              coherence: 1.0,
+              reconciliationRevision: 0,
+              activeFlags: [],
+            },
+          },
+        },
+      ];
+
+      const html = buildEngineLogContent(msgWithTurnReceiptOnly, 'html')!.content;
+      const md = buildEngineLogContent(msgWithTurnReceiptOnly, 'md')!.content;
+
+      expect(html).toContain('<li><strong>Transition:</strong> Not recorded</li>');
+      expect(html).not.toContain('<strong>Requested Node:</strong>');
+      expect(html).not.toContain('<strong>From Node:</strong>');
+      expect(html).not.toContain('<strong>To Node:</strong>');
+
+      expect(md).toContain('- **Transition:** Not recorded');
+      expect(md).not.toContain('- **Requested Node:**');
+      expect(md).not.toContain('- **From Node:**');
+      expect(md).not.toContain('- **To Node:**');
+    });
   });
 });
+
