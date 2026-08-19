@@ -89,4 +89,96 @@ describe('useAppStore retakeLastTurn integration', () => {
     expect(useEngineStore.getState().gameState?.current_location).toBe('Security Room');
     expect(useEngineStore.getState().gameState?.psychological_status).toBe('Focused');
   });
+
+  it('restores canonical activeMemory.systemFlags and clears terminal flags on retakeLastTurn', () => {
+    // Set initial system flags in useAppStore
+    useAppStore.setState({
+      activeMemory: {
+        systemFlags: ['FLAG_PRE_EXISTING', 'FOUND_KEY'],
+        somaState: [],
+        geomState: [],
+      },
+    });
+
+    const initialGameState = {
+      current_location: 'Ritual Chamber',
+      player_injuries: ['Laceration'],
+      inventory: ['Obsidian Dagger'],
+      psychological_status: 'Terrified',
+      player_role: 'witness' as const,
+      player_character_id: null,
+      perspective_mode: 'witness' as const,
+      current_tension_level: 'visceral_climax' as const,
+      lore_and_memory: {
+        established_facts: ['The door was unsealed'],
+        permanent_consequences: [],
+      },
+      npc_fixations: [],
+    };
+    useEngineStore.getState().setGameState(initialGameState);
+
+    expect(useAppStore.getState().activeMemory.systemFlags).toEqual([
+      'FLAG_PRE_EXISTING',
+      'FOUND_KEY',
+    ]);
+
+    // Commit a turn that introduces terminal flags (e.g. SOMATIC_TERMINAL)
+    const preSnapshot = captureRuntimeSnapshot(useAppStore.getState());
+    const terminalTurnPayload: CommittedTurnPayload = {
+      commandText: 'Touch the cursed relic',
+      formattedText: 'The obsidian darkens your veins. Physical form collapses.',
+      preSnapshot,
+      engineGameStateBefore: JSON.parse(JSON.stringify(initialGameState)),
+      frame: {
+        narrative_blocks: [
+          {
+            type: 'prose',
+            content: 'The obsidian darkens your veins. Physical form collapses.',
+          },
+        ],
+        logic_state: {
+          current_phase: 'TERMINAL',
+          suggested_tension: 100,
+          terminal_flags: ['SOMATIC_TERMINAL', 'VESSEL_DESTROYED'],
+        },
+      },
+      turnReceipt: {
+        turnNumber: 1,
+        nodeBefore: 'ORIGIN',
+        requestedTarget: 'ORIGIN',
+        accepted: true,
+        nodeAfter: 'ORIGIN',
+        activeVector: 'SOMATIC',
+        activeTier: 'TERMINAL',
+        tension: 100,
+        preSnapshot,
+      },
+    };
+
+    useAppStore.getState().commitTurnResult(terminalTurnPayload);
+
+    // Verify terminal flags were added
+    expect(useAppStore.getState().activeMemory.systemFlags).toContain('SOMATIC_TERMINAL');
+    expect(useAppStore.getState().activeMemory.systemFlags).toContain('VESSEL_DESTROYED');
+    expect(useAppStore.getState().activeMemory.systemFlags).toContain('FLAG_PRE_EXISTING');
+    expect(useAppStore.getState().lastTurnCheckpoint).not.toBeNull();
+
+    // Trigger retake
+    const retakeSuccess = useAppStore.getState().retakeLastTurn();
+    expect(retakeSuccess).toBe(true);
+
+    // Verify canonical systemFlags are restored to exact pre-turn state
+    expect(useAppStore.getState().activeMemory.systemFlags).toEqual([
+      'FLAG_PRE_EXISTING',
+      'FOUND_KEY',
+    ]);
+    expect(useAppStore.getState().activeMemory.systemFlags).not.toContain('SOMATIC_TERMINAL');
+    expect(useAppStore.getState().activeMemory.systemFlags).not.toContain('VESSEL_DESTROYED');
+    expect(useAppStore.getState().lastTurnCheckpoint).toBeNull();
+
+    // Verify gameState was also restored
+    expect(useEngineStore.getState().gameState?.current_location).toBe('Ritual Chamber');
+    expect(useEngineStore.getState().gameState?.inventory).toEqual(['Obsidian Dagger']);
+    expect(useEngineStore.getState().gameState?.psychological_status).toBe('Terrified');
+  });
 });

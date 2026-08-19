@@ -3,7 +3,6 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { ArrowLeft, Terminal, Loader2, Eye } from 'lucide-react';
 import { useEngineStore } from '../../core/store';
 import { useAppStore } from '../../store/useAppStore';
-import { useForgeState } from '../../store/useForgeStore';
 import { motion, AnimatePresence } from 'motion/react';
 import { NarrativeBlock } from '../../types';
 
@@ -258,8 +257,7 @@ export default function Runtime() {
   const [isTerminated, setIsTerminated] = useState(false);
   const [terminalResolution, setTerminalResolution] = useState<string | null>(null);
 
-  const activeMemory = useForgeState((state) => state.activeMemory);
-  const systemFlags = activeMemory.systemFlags;
+  const systemFlags = useAppStore((state) => state.activeMemory.systemFlags);
 
   // terminal conditions check
   useEffect(() => {
@@ -354,6 +352,8 @@ export default function Runtime() {
     const success = retakeLastTurn();
     if (success) {
       setInput(previousCommand);
+      setIsTerminated(false);
+      setTerminalResolution(null);
     }
   }, [lastTurnCheckpoint, retakeLastTurn]);
 
@@ -729,7 +729,7 @@ export default function Runtime() {
           </button>
           <button
             onClick={handleRetake}
-            disabled={isLoading || isAutopilotRunning || isTerminated || !lastTurnCheckpoint}
+            disabled={isLoading || isAutopilotRunning || !lastTurnCheckpoint}
             className="px-3 py-1.5 text-xs font-mono text-amber-400 hover:text-amber-100 bg-amber-900/20 hover:bg-amber-900/50 border border-amber-900/50 disabled:opacity-30 disabled:pointer-events-none transition-colors duration-150 rounded mr-4 cursor-pointer"
             title="Retake last turn (restore state and previous input)"
           >

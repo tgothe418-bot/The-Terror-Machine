@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { engineReducer, initialEngineState } from './reducer';
 import type { CommittedTurnPayload, FailedTurnPayload } from './events';
 import { captureRuntimeSnapshot } from './snapshot';
-import { HorrorVector, NarrativeReconciliationReceipt } from '../../types';
+import type { HorrorVector, NarrativeReconciliationReceipt, LogicState } from '../../types';
 
 describe('engineReducer atomic turn commits', () => {
   it('atomically commits a successful turn and updates state in a single step', () => {
