@@ -199,6 +199,9 @@ export const getEngineLogicData = (message: any): Record<string, unknown> | null
   if (message.characterRelationshipReceipt !== undefined) {
     logicData.characterRelationshipReceipt = message.characterRelationshipReceipt;
   }
+  if (message.characterMemoryReceipt !== undefined) {
+    logicData.characterMemoryReceipt = message.characterMemoryReceipt;
+  }
   if (message.failureReceipt !== undefined) {
     logicData.failureReceipt = message.failureReceipt;
   }
@@ -346,6 +349,20 @@ interface ParsedTelemetrySections {
     }>;
     hasChanges: boolean;
   };
+  characterMemory: {
+    hasReceipt: boolean;
+    decisions: Array<{
+      characterId: string;
+      fact: string;
+      source: string;
+      certainty: string;
+      outcome: string;
+      reason: string;
+      rationale?: string;
+      entry?: { id: string; fact: string; source: string; certainty: string; acquired_turn: number } | null;
+    }>;
+    hasChanges: boolean;
+  };
   canonicalStateDiff: {
     diffLines: string[];
     transition: Array<{ label: string; value: string }>;
@@ -454,6 +471,23 @@ function parseTelemetrySections(logicData: Record<string, unknown>): ParsedTelem
     typeof logicState.characterRelationshipReceipt === 'object' &&
     logicState.characterRelationshipReceipt !== null
       ? (logicState.characterRelationshipReceipt as Record<string, unknown>)
+      : undefined)
+  ) as Record<string, unknown> | undefined;
+
+  const memoryReceipt = (
+    (turn &&
+    typeof turn.characterMemoryReceipt === 'object' &&
+    turn.characterMemoryReceipt !== null
+      ? turn.characterMemoryReceipt
+      : undefined) ||
+    (typeof logicData.characterMemoryReceipt === 'object' &&
+    logicData.characterMemoryReceipt !== null
+      ? logicData.characterMemoryReceipt
+      : undefined) ||
+    (logicState &&
+    typeof logicState.characterMemoryReceipt === 'object' &&
+    logicState.characterMemoryReceipt !== null
+      ? (logicState.characterMemoryReceipt as Record<string, unknown>)
       : undefined)
   ) as Record<string, unknown> | undefined;
 
@@ -710,6 +744,46 @@ function parseTelemetrySections(logicData: Record<string, unknown>): ParsedTelem
     hasChanges: relationshipDecisions.some((d) => d.outcome === 'APPLIED'),
   };
 
+  const memoryDecisions: Array<{
+    characterId: string;
+    fact: string;
+    source: string;
+    certainty: string;
+    outcome: string;
+    reason: string;
+    rationale?: string;
+    entry?: { id: string; fact: string; source: string; certainty: string; acquired_turn: number } | null;
+  }> = [];
+
+  if (memoryReceipt && Array.isArray(memoryReceipt.decisions)) {
+    for (const d of memoryReceipt.decisions) {
+      if (typeof d === 'object' && d !== null) {
+        const cand = (d as any).candidate;
+        if (cand && typeof cand === 'object') {
+          memoryDecisions.push({
+            characterId: String(cand.character_id ?? ''),
+            fact: String(cand.fact ?? ''),
+            source: String(cand.source ?? ''),
+            certainty: String(cand.certainty ?? ''),
+            outcome: String((d as any).outcome ?? 'UNKNOWN'),
+            reason: String((d as any).reason ?? 'UNKNOWN'),
+            rationale:
+              cand.rationale != null && String(cand.rationale).trim().length > 0
+                ? String(cand.rationale)
+                : undefined,
+            entry: (d as any).entry ?? null,
+          });
+        }
+      }
+    }
+  }
+
+  const characterMemory = {
+    hasReceipt: memoryReceipt !== undefined,
+    decisions: memoryDecisions,
+    hasChanges: memoryDecisions.some((d) => d.outcome === 'APPLIED'),
+  };
+
   // 5. Canonical State Diff
   const preSnapshot = turn?.preSnapshot as RuntimeStateSnapshot | undefined;
   const postSnapshot = turn?.postSnapshot as RuntimeStateSnapshot | undefined;
@@ -876,6 +950,7 @@ function parseTelemetrySections(logicData: Record<string, unknown>): ParsedTelem
     canonicalConsequences,
     characterStance,
     characterRelationships,
+    characterMemory,
     canonicalStateDiff: {
       diffLines,
       transition,
@@ -1009,6 +1084,26 @@ function renderHtmlTelemetrySections(logicData: Record<string, unknown>): string
     }
     if (sections.characterRelationships.decisions.length === 0 || !sections.characterRelationships.hasChanges) {
       html += `<li>No character relationship changes</li>`;
+    }
+  }
+  html += `</ul>`;
+  html += `</div>`;
+
+  // Character Memory
+  html += `<div class="telemetry-section">`;
+  html += `<h4>Character Memory</h4>`;
+  html += `<ul>`;
+  if (!sections.characterMemory.hasReceipt) {
+    html += `<li><strong>Character Memory:</strong> Not recorded</li>`;
+  } else {
+    for (const decision of sections.characterMemory.decisions) {
+      const rationaleText = decision.rationale
+        ? ` — <em>${escapeHtml(decision.rationale)}</em>`
+        : '';
+      html += `<li><strong>Decision [${escapeHtml(decision.characterId)} / ${escapeHtml(decision.source)} / ${escapeHtml(decision.certainty)}]:</strong> "${escapeHtml(decision.fact)}" | Outcome: ${escapeHtml(decision.outcome)} (Reason: ${escapeHtml(decision.reason)})${rationaleText}</li>`;
+    }
+    if (sections.characterMemory.decisions.length === 0 || !sections.characterMemory.hasChanges) {
+      html += `<li>No character memory changes</li>`;
     }
   }
   html += `</ul>`;
@@ -1165,6 +1260,21 @@ function renderMarkdownTelemetrySections(logicData: Record<string, unknown>): st
     }
     if (sections.characterRelationships.decisions.length === 0 || !sections.characterRelationships.hasChanges) {
       md += `- No character relationship changes\n`;
+    }
+    md += `\n`;
+  }
+
+  // Character Memory
+  md += `#### Character Memory\n`;
+  if (!sections.characterMemory.hasReceipt) {
+    md += `- **Character Memory:** Not recorded\n\n`;
+  } else {
+    for (const decision of sections.characterMemory.decisions) {
+      const rationaleText = decision.rationale ? ` — *${decision.rationale}*` : '';
+      md += `- **Decision [${decision.characterId} / ${decision.source} / ${decision.certainty}]:** "${decision.fact}" | Outcome: ${decision.outcome} (Reason: ${decision.reason})${rationaleText}\n`;
+    }
+    if (sections.characterMemory.decisions.length === 0 || !sections.characterMemory.hasChanges) {
+      md += `- No character memory changes\n`;
     }
     md += `\n`;
   }

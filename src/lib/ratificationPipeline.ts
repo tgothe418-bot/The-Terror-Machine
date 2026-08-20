@@ -216,6 +216,7 @@ export const executeRatificationPipeline = async (
     },
     characterStance: engineState.gameState?.character_stance,
     characterRelationships: engineState.gameState?.character_relationships,
+    characterMemory: engineState.gameState?.character_memory,
     runtimeState: preSnapshot,
   });
 
@@ -313,6 +314,8 @@ export const executeRatificationPipeline = async (
     parsedResult.data.characterStanceReceipt;
   validatedEvent.characterRelationshipReceipt =
     parsedResult.data.characterRelationshipReceipt;
+  validatedEvent.characterMemoryReceipt =
+    parsedResult.data.characterMemoryReceipt;
 
   // Attach context receipt for SYSTEM_INIT
   if (userAction === 'SYSTEM_INIT') {

@@ -15,10 +15,16 @@ import {
   CharacterRelationshipProposalSchema,
   CharacterRelationshipReceiptSchema,
 } from './characterRelationships';
+import {
+  CharacterMemoryByIdSchema,
+  CharacterMemoryProposalSchema,
+  CharacterMemoryReceiptSchema,
+} from './characterMemory';
 export * from './adLib';
 export * from './consequence';
 export * from './characterStance';
 export * from './characterRelationships';
+export * from './characterMemory';
 
 export const EdgeKindSchema = z.enum([
   'PHYSICAL',
@@ -98,15 +104,18 @@ export const EngineTurnContextSchema = z.object({
       )
       .default([]),
   }),
-  runtime: z.object({
-    phase: z.string().default('LATENT'),
-    tension: z.number().default(0),
-    coherence: z.number().default(1.0),
-    reconciliationRevision: z.number().default(0),
-    activeVector: z.string().default('COGNITIVE'),
-    activeTier: z.string().default('LATENT'),
-    activeFlags: z.array(z.string()).default([]),
-  }),
+  runtime: z
+    .object({
+      phase: z.string().default('LATENT'),
+      tension: z.number().default(0),
+      coherence: z.number().default(1.0),
+      reconciliationRevision: z.number().default(0),
+      activeVector: z.string().default('COGNITIVE'),
+      activeTier: z.string().default('LATENT'),
+      activeFlags: z.array(z.string()).default([]),
+      turnNumber: z.number().int().nonnegative().default(0),
+    })
+    .strict(),
   participationContext: ParticipationContextSchema.optional(),
   consequenceState: CanonicalConsequenceStateSchema.default({
     inventory: [],
@@ -114,6 +123,7 @@ export const EngineTurnContextSchema = z.object({
     psychological_status: 'STABLE',
   }),
   relationshipState: CharacterRelationshipStateSchema.default([]),
+  memoryState: CharacterMemoryByIdSchema.default({}),
 });
 
 export type EngineTurnContext = z.infer<typeof EngineTurnContextSchema>;
@@ -334,6 +344,7 @@ export const TurnResultSchema = z.object({
   consequence_proposal: CanonicalConsequenceProposalSchema,
   character_stance_proposal: CharacterStanceProposalSchema,
   character_relationship_proposal: CharacterRelationshipProposalSchema,
+  character_memory_proposal: CharacterMemoryProposalSchema,
   logic_state: z
     .object({
       current_phase: z.string().optional(),
@@ -391,6 +402,7 @@ export const TurnResponseSchema = TurnResultSchema.omit({
   consequence_proposal: true,
   character_stance_proposal: true,
   character_relationship_proposal: true,
+  character_memory_proposal: true,
 }).extend({
   transitionReceipt: TransitionReceiptSchema.optional(),
   castInteractionReceipt: CastInteractionReceiptSchema.optional(),
@@ -399,6 +411,7 @@ export const TurnResponseSchema = TurnResultSchema.omit({
   canonicalConsequenceReceipt: CanonicalConsequenceReceiptSchema,
   characterStanceReceipt: CharacterStanceReceiptSchema,
   characterRelationshipReceipt: CharacterRelationshipReceiptSchema,
+  characterMemoryReceipt: CharacterMemoryReceiptSchema,
 });
 
 export type TurnResponse = z.infer<typeof TurnResponseSchema>;

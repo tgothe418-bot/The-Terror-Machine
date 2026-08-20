@@ -141,6 +141,7 @@ function createMockContext(overrides?: Partial<EngineTurnContext>): EngineTurnCo
       activeVector: 'COGNITIVE',
       activeTier: 'LATENT',
       activeFlags: [],
+      turnNumber: 0,
     },
     consequenceState: {
       inventory: [],
@@ -148,6 +149,7 @@ function createMockContext(overrides?: Partial<EngineTurnContext>): EngineTurnCo
       psychological_status: 'STABLE',
     },
     relationshipState: [],
+    memoryState: {},
     ...overrides,
   };
 }

@@ -38,6 +38,7 @@ import { createFallbackIntentReceipt } from '../../lib/intentReceipt';
 import { createFallbackNarrativeReconciliationReceipt } from '../../lib/narrativeReconciliation';
 import { createCharacterStanceState } from '../../lib/characterStance';
 import { createCharacterRelationshipState } from '../../lib/characterRelationships';
+import { createCharacterMemoryState } from '../../lib/characterMemory';
 import type {
   CharacterContinuityById,
   CastContinuityReceipt,
@@ -448,6 +449,17 @@ export default function Runtime() {
 
     try {
       const response = await executeRatificationPipeline(commandText, preSnapshot);
+
+      if (
+        !response ||
+        !response.characterMemoryReceipt ||
+        typeof response.characterMemoryReceipt !== 'object' ||
+        !response.characterMemoryReceipt.post_state ||
+        typeof response.characterMemoryReceipt.post_state !== 'object'
+      ) {
+        throw new Error('Malformed turn response: missing required characterMemoryReceipt');
+      }
+
       const formattedText = formatBlocks(response.narrative_blocks);
 
       const effectiveCurrentNode = preSnapshot.currentNodeId;
@@ -541,6 +553,7 @@ export default function Runtime() {
         canonicalConsequenceReceipt: response.canonicalConsequenceReceipt,
         characterStanceReceipt: response.characterStanceReceipt,
         characterRelationshipReceipt: response.characterRelationshipReceipt,
+        characterMemoryReceipt: response.characterMemoryReceipt,
       };
 
       const committedTurnPayload: CommittedTurnPayload = {
@@ -579,6 +592,12 @@ export default function Runtime() {
           ),
         });
       }
+
+      useEngineStore.getState().patchGameState({
+        character_memory: createCharacterMemoryState(
+          response.characterMemoryReceipt.post_state
+        ),
+      });
 
       if (activeBlueprint) {
         const patchPayload: Partial<typeof latestEngineState.gameState> = {};

@@ -204,6 +204,11 @@ describe('Turn schemas validation', () => {
         expect(turnResponseSchema.required).toContain('character_relationship_proposal');
       });
 
+      it('includes character_memory_proposal in schema properties and required fields', () => {
+        expect(turnResponseSchema.properties).toHaveProperty('character_memory_proposal');
+        expect(turnResponseSchema.required).toContain('character_memory_proposal');
+      });
+
       it('declares character_relationship_proposal delta as an INTEGER with format enum and exact values ["-1", "1"]', () => {
         const deltaSchema =
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -287,6 +292,10 @@ describe('Turn schemas validation', () => {
       changes: [],
     };
 
+    const validCharacterMemoryProposal = {
+      candidates: [],
+    };
+
     it('validates a well-formed turn result frame with proposals', () => {
       const validResult = {
         narrative_blocks: [
@@ -304,6 +313,7 @@ describe('Turn schemas validation', () => {
         consequence_proposal: validConsequenceProposal,
         character_stance_proposal: validCharacterStanceProposal,
         character_relationship_proposal: validCharacterRelationshipProposal,
+        character_memory_proposal: validCharacterMemoryProposal,
         logic_state: {
           current_phase: 'LATENT',
           suggested_tension: 3,
@@ -339,12 +349,13 @@ describe('Turn schemas validation', () => {
       expect(parsed.consequence_proposal.mutations).toHaveLength(0);
       expect(parsed.character_stance_proposal.changes).toHaveLength(0);
       expect(parsed.character_relationship_proposal.changes).toHaveLength(0);
+      expect(parsed.character_memory_proposal.candidates).toHaveLength(0);
       expect(parsed.logic_state.suggested_tension).toBe(3);
       expect(parsed.topologyDelta?.isExpansion).toBe(true);
       expect(parsed.topologyDelta?.newNodeDef?.id).toBe('ROOM_02');
     });
 
-    it('rejects missing intent_proposal or reconciliation_proposal or consequence_proposal or character_stance_proposal or character_relationship_proposal', () => {
+    it('rejects missing intent_proposal or reconciliation_proposal or consequence_proposal or character_stance_proposal or character_relationship_proposal or character_memory_proposal', () => {
       const baseResult = {
         narrative_blocks: [{ type: 'prose', content: 'Observation.' }],
         logic_state: {},
@@ -357,6 +368,7 @@ describe('Turn schemas validation', () => {
           consequence_proposal: validConsequenceProposal,
           character_stance_proposal: validCharacterStanceProposal,
           character_relationship_proposal: validCharacterRelationshipProposal,
+          character_memory_proposal: validCharacterMemoryProposal,
         })
       ).toThrow();
 
@@ -367,6 +379,7 @@ describe('Turn schemas validation', () => {
           consequence_proposal: validConsequenceProposal,
           character_stance_proposal: validCharacterStanceProposal,
           character_relationship_proposal: validCharacterRelationshipProposal,
+          character_memory_proposal: validCharacterMemoryProposal,
         })
       ).toThrow();
 
@@ -377,6 +390,7 @@ describe('Turn schemas validation', () => {
           reconciliation_proposal: validReconciliationProposal,
           character_stance_proposal: validCharacterStanceProposal,
           character_relationship_proposal: validCharacterRelationshipProposal,
+          character_memory_proposal: validCharacterMemoryProposal,
         })
       ).toThrow();
 
@@ -387,6 +401,7 @@ describe('Turn schemas validation', () => {
           reconciliation_proposal: validReconciliationProposal,
           consequence_proposal: validConsequenceProposal,
           character_relationship_proposal: validCharacterRelationshipProposal,
+          character_memory_proposal: validCharacterMemoryProposal,
         })
       ).toThrow();
 
@@ -397,6 +412,18 @@ describe('Turn schemas validation', () => {
           reconciliation_proposal: validReconciliationProposal,
           consequence_proposal: validConsequenceProposal,
           character_stance_proposal: validCharacterStanceProposal,
+          character_memory_proposal: validCharacterMemoryProposal,
+        })
+      ).toThrow();
+
+      expect(() =>
+        TurnResultSchema.parse({
+          ...baseResult,
+          intent_proposal: validIntentProposal,
+          reconciliation_proposal: validReconciliationProposal,
+          consequence_proposal: validConsequenceProposal,
+          character_stance_proposal: validCharacterStanceProposal,
+          character_relationship_proposal: validCharacterRelationshipProposal,
         })
       ).toThrow();
     });
@@ -408,6 +435,7 @@ describe('Turn schemas validation', () => {
         consequence_proposal: validConsequenceProposal,
         character_stance_proposal: validCharacterStanceProposal,
         character_relationship_proposal: validCharacterRelationshipProposal,
+        character_memory_proposal: validCharacterMemoryProposal,
       };
 
       expect(() =>
@@ -445,6 +473,7 @@ describe('Turn schemas validation', () => {
         consequence_proposal: validConsequenceProposal,
         character_stance_proposal: validCharacterStanceProposal,
         character_relationship_proposal: validCharacterRelationshipProposal,
+        character_memory_proposal: validCharacterMemoryProposal,
         logic_state: {
           current_phase: 'LATENT',
           suggested_tension: 1,
@@ -464,6 +493,7 @@ describe('Turn schemas validation', () => {
           consequence_proposal: validConsequenceProposal,
           character_stance_proposal: validCharacterStanceProposal,
           character_relationship_proposal: validCharacterRelationshipProposal,
+          character_memory_proposal: validCharacterMemoryProposal,
           logic_state: {},
         })
       ).toThrow();
@@ -478,6 +508,7 @@ describe('Turn schemas validation', () => {
           consequence_proposal: validConsequenceProposal,
           character_stance_proposal: validCharacterStanceProposal,
           character_relationship_proposal: validCharacterRelationshipProposal,
+          character_memory_proposal: validCharacterMemoryProposal,
           logic_state: {},
         })
       ).toThrow();
@@ -492,6 +523,7 @@ describe('Turn schemas validation', () => {
           consequence_proposal: validConsequenceProposal,
           character_stance_proposal: validCharacterStanceProposal,
           character_relationship_proposal: validCharacterRelationshipProposal,
+          character_memory_proposal: validCharacterMemoryProposal,
           logic_state: {},
           topologyDelta: { isExpansion: 'false' },
         })
@@ -546,6 +578,12 @@ describe('Turn schemas validation', () => {
           post_state: [],
           decisions: [],
         },
+        characterMemoryReceipt: {
+          version: 1,
+          pre_state: {},
+          post_state: {},
+          decisions: [],
+        },
       };
 
       const parsed = TurnResponseSchema.parse(responseEnvelope);
@@ -554,11 +592,13 @@ describe('Turn schemas validation', () => {
       expect(parsed.canonicalConsequenceReceipt?.version).toBe(1);
       expect(parsed.characterStanceReceipt?.version).toBe(1);
       expect(parsed.characterRelationshipReceipt?.version).toBe(1);
+      expect(parsed.characterMemoryReceipt?.version).toBe(1);
       expect((parsed as Record<string, unknown>).intent_proposal).toBeUndefined();
       expect((parsed as Record<string, unknown>).reconciliation_proposal).toBeUndefined();
       expect((parsed as Record<string, unknown>).consequence_proposal).toBeUndefined();
       expect((parsed as Record<string, unknown>).character_stance_proposal).toBeUndefined();
       expect((parsed as Record<string, unknown>).character_relationship_proposal).toBeUndefined();
+      expect((parsed as Record<string, unknown>).character_memory_proposal).toBeUndefined();
     });
 
     describe('RelationshipDelta canonical boundary validation', () => {
@@ -583,6 +623,7 @@ describe('Turn schemas validation', () => {
               },
             ],
           },
+          character_memory_proposal: validCharacterMemoryProposal,
           logic_state: {
             current_phase: 'LATENT',
             suggested_tension: 1,
@@ -630,6 +671,7 @@ describe('Turn schemas validation', () => {
               },
             ],
           },
+          character_memory_proposal: validCharacterMemoryProposal,
           logic_state: {
             current_phase: 'LATENT',
             suggested_tension: 1,
@@ -660,6 +702,7 @@ describe('Turn schemas validation', () => {
               },
             ],
           },
+          character_memory_proposal: validCharacterMemoryProposal,
           logic_state: {
             current_phase: 'LATENT',
             suggested_tension: 1,
@@ -685,6 +728,7 @@ describe('Turn schemas validation', () => {
               },
             ],
           },
+          character_memory_proposal: validCharacterMemoryProposal,
           logic_state: {
             current_phase: 'LATENT',
             suggested_tension: 1,
@@ -724,6 +768,9 @@ describe('Turn schemas validation', () => {
       },
       character_relationship_proposal: {
         changes: [],
+      },
+      character_memory_proposal: {
+        candidates: [],
       },
       logic_state: {
         current_phase: 'LATENT',
@@ -1488,6 +1535,12 @@ describe('Turn schemas validation', () => {
           post_state: [],
           decisions: [],
         },
+        characterMemoryReceipt: {
+          version: 1,
+          pre_state: {},
+          post_state: {},
+          decisions: [],
+        },
       });
 
       expect(validatedEnvelope.castInteractionReceipt?.outcome).toBe('RESPONDED');
@@ -1698,6 +1751,9 @@ describe('Turn schemas validation', () => {
         character_relationship_proposal: {
           changes: [],
         },
+        character_memory_proposal: {
+          candidates: [],
+        },
         logic_state: {
           current_phase: 'LATENT',
           suggested_tension: 3,
@@ -1776,6 +1832,9 @@ describe('Turn schemas validation', () => {
         character_relationship_proposal: {
           changes: [],
         },
+        character_memory_proposal: {
+          candidates: [],
+        },
         logic_state: {
           current_phase: 'LATENT',
           suggested_tension: 2,
@@ -1836,6 +1895,9 @@ describe('Turn schemas validation', () => {
         },
         character_relationship_proposal: {
           changes: [],
+        },
+        character_memory_proposal: {
+          candidates: [],
         },
         logic_state: {
           current_phase: 'LATENT',
@@ -1900,6 +1962,9 @@ describe('Turn schemas validation', () => {
         character_relationship_proposal: {
           changes: [],
         },
+        character_memory_proposal: {
+          candidates: [],
+        },
         logic_state: {
           current_phase: 'LATENT',
           suggested_tension: 1,
@@ -1950,6 +2015,9 @@ describe('Turn schemas validation', () => {
         },
         character_relationship_proposal: {
           changes: [],
+        },
+        character_memory_proposal: {
+          candidates: [],
         },
         logic_state: {
           current_phase: 'LATENT',
@@ -2006,6 +2074,9 @@ describe('Turn schemas validation', () => {
         },
         character_relationship_proposal: {
           changes: [],
+        },
+        character_memory_proposal: {
+          candidates: [],
         },
         logic_state: {},
       });
@@ -2115,6 +2186,9 @@ describe('Turn schemas validation', () => {
         character_relationship_proposal: {
           changes: [],
         },
+        character_memory_proposal: {
+          candidates: [],
+        },
         logic_state: {
           requested_transition: 'AIRLOCK_01',
           cast_deltas: [{ character_id: 'char-elena', skepticism_delta: 0.1 }],
@@ -2181,6 +2255,9 @@ describe('Turn schemas validation', () => {
         character_relationship_proposal: {
           changes: [],
         },
+        character_memory_proposal: {
+          candidates: [],
+        },
         logic_state: {
           cast_deltas: [{ character_id: 'char-elena', skepticism_delta: 0.1 }],
         },
@@ -2227,6 +2304,9 @@ describe('Turn schemas validation', () => {
         },
         character_relationship_proposal: {
           changes: [],
+        },
+        character_memory_proposal: {
+          candidates: [],
         },
         logic_state: {},
       });
@@ -2282,15 +2362,23 @@ describe('Turn schemas validation', () => {
           post_state: [],
           decisions: [],
         },
+        characterMemoryReceipt: {
+          version: 1,
+          pre_state: {},
+          post_state: {},
+          decisions: [],
+        },
       };
 
       const validated = TurnResponseSchema.parse(responseEnvelope);
       expect(validated.intentReceipt).toBeDefined();
       expect(validated.narrativeReconciliationReceipt).toBeDefined();
       expect(validated.canonicalConsequenceReceipt).toBeDefined();
+      expect(validated.characterMemoryReceipt).toBeDefined();
       expect((validated as Record<string, unknown>).intent_proposal).toBeUndefined();
       expect((validated as Record<string, unknown>).reconciliation_proposal).toBeUndefined();
       expect((validated as Record<string, unknown>).consequence_proposal).toBeUndefined();
+      expect((validated as Record<string, unknown>).character_memory_proposal).toBeUndefined();
     });
 
     it('verifies the route file contains one and only one generateStructuredResponse invocation (Case 8)', () => {
@@ -2332,6 +2420,9 @@ describe('Turn schemas validation', () => {
           },
           character_relationship_proposal: {
             changes: [],
+          },
+          character_memory_proposal: {
+            candidates: [],
           },
           logic_state: {
             requested_transition: 'AIRLOCK_01',
@@ -2383,6 +2474,9 @@ describe('Turn schemas validation', () => {
           },
           character_relationship_proposal: {
             changes: [],
+          },
+          character_memory_proposal: {
+            candidates: [],
           },
           logic_state: {
             requested_transition: 'AIRLOCK_01',
@@ -2539,6 +2633,9 @@ describe('Turn schemas validation', () => {
             character_relationship_proposal: {
               changes: [],
             },
+            character_memory_proposal: {
+              candidates: [],
+            },
             logic_state: {},
             topologyDelta: mockProposedExpansion,
           });
@@ -2590,6 +2687,9 @@ describe('Turn schemas validation', () => {
             },
             character_relationship_proposal: {
               changes: [],
+            },
+            character_memory_proposal: {
+              candidates: [],
             },
             logic_state: {},
             topologyDelta: mockProposedExpansion,
@@ -2643,6 +2743,9 @@ describe('Turn schemas validation', () => {
             character_relationship_proposal: {
               changes: [],
             },
+            character_memory_proposal: {
+              candidates: [],
+            },
             logic_state: {},
             topologyDelta: mockProposedExpansion,
           });
@@ -2695,6 +2798,9 @@ describe('Turn schemas validation', () => {
             character_relationship_proposal: {
               changes: [],
             },
+            character_memory_proposal: {
+              candidates: [],
+            },
             logic_state: {},
             topologyDelta: mockProposedExpansion,
           });
@@ -2745,6 +2851,9 @@ describe('Turn schemas validation', () => {
             },
             character_relationship_proposal: {
               changes: [],
+            },
+            character_memory_proposal: {
+              candidates: [],
             },
             logic_state: {},
             topologyDelta: mockProposedExpansion,
@@ -2809,6 +2918,9 @@ describe('Turn schemas validation', () => {
             character_relationship_proposal: {
               changes: [],
             },
+            character_memory_proposal: {
+              candidates: [],
+            },
             logic_state: {},
             topologyDelta: mockProposedExpansion,
           });
@@ -2870,6 +2982,9 @@ describe('Turn schemas validation', () => {
             character_relationship_proposal: {
               changes: [],
             },
+            character_memory_proposal: {
+              candidates: [],
+            },
             logic_state: {},
             topologyDelta: mockProposedExpansion,
           });
@@ -2930,6 +3045,12 @@ describe('Turn schemas validation', () => {
               post_state: [],
               decisions: [],
             },
+            characterMemoryReceipt: {
+              version: 1,
+              pre_state: {},
+              post_state: {},
+              decisions: [],
+            },
           };
 
           const parsedInvestigateResponse = TurnResponseSchema.parse(investigateResponse);
@@ -2967,6 +3088,9 @@ describe('Turn schemas validation', () => {
             },
             character_relationship_proposal: {
               changes: [],
+            },
+            character_memory_proposal: {
+              candidates: [],
             },
             logic_state: {},
             topologyDelta: mockProposedExpansion,
@@ -3025,6 +3149,12 @@ describe('Turn schemas validation', () => {
               version: 1,
               pre_state: [],
               post_state: [],
+              decisions: [],
+            },
+            characterMemoryReceipt: {
+              version: 1,
+              pre_state: {},
+              post_state: {},
               decisions: [],
             },
           };

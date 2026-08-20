@@ -23,6 +23,11 @@ import type {
   CharacterRelationshipReceipt,
 } from '../../src/types/characterRelationships';
 import { resolveCharacterRelationships } from '../../src/lib/characterRelationships';
+import type {
+  CharacterMemoryProposal,
+  CharacterMemoryReceipt,
+} from '../../src/types/characterMemory';
+import { resolveCharacterMemory } from '../../src/lib/characterMemory';
 import { generateStructuredResponse } from '../utils/aiClient';
 import { resolveTransition } from '../engine/transitionResolver';
 import { clampSkepticismDelta } from '../../src/lib/castContinuity';
@@ -228,6 +233,25 @@ export function finalizeCharacterRelationships(input: {
   return resolveCharacterRelationships({
     proposal: input.proposal,
     currentState: input.context.relationshipState,
+    context: input.context,
+    intentReceipt: input.intentReceipt,
+    reconciliationReceipt: input.narrativeReconciliationReceipt,
+    castInteractionReceipt: input.castInteractionReceipt,
+  });
+}
+
+export function finalizeCharacterMemory(input: {
+  proposal: CharacterMemoryProposal;
+  context: EngineTurnContext;
+  intentReceipt: IntentReceipt;
+  narrativeReconciliationReceipt: NarrativeReconciliationReceipt;
+  castInteractionReceipt: CastInteractionReceipt;
+  currentTurn?: number;
+}): CharacterMemoryReceipt {
+  return resolveCharacterMemory({
+    proposal: input.proposal,
+    currentState: input.context.memoryState || {},
+    currentTurn: input.currentTurn ?? input.context.runtime.turnNumber,
     context: input.context,
     intentReceipt: input.intentReceipt,
     reconciliationReceipt: input.narrativeReconciliationReceipt,
@@ -541,6 +565,26 @@ The user acts as an external scene director. A direction is a proposal for focus
             .join('\n')
         : '• No established relationships.';
 
+    const characterMemoryFormatted = context.cast
+      .filter(
+        (member) =>
+          member.id !== context.player.characterId && !member.isUserCharacter
+      )
+      .map((member) => {
+        const memories = (context.memoryState || {})[member.id] || [];
+        if (memories.length === 0) {
+          return `• ${member.name} (${member.id}): (No memories recorded)`;
+        }
+        const list = memories
+          .map(
+            (m) =>
+              `  - [${m.certainty}/${m.source} @ turn ${m.acquired_turn}]: "${m.fact}"`
+          )
+          .join('\n');
+        return `• ${member.name} (${member.id}):\n${list}`;
+      })
+      .join('\n');
+
     // Construct the dense, authoritative contract prompt
     const prompt = `[SCENARIO CONTRACT]
 Title: ${context.scenario.title}
@@ -615,6 +659,23 @@ ${characterRelationshipsFormatted}
 - Facts belong to later memory, not relationships.
 - OBSERVE, WAIT, OTHER, and SYSTEM_INIT require an empty relationship proposal.
 - Write no relationship data in logic_state.
+- A proposal may be rejected while ordinary prose is preserved.
+
+[CHARACTER MEMORY CONTRACT]
+Player Character ID: ${context.player.characterId || 'N/A'}
+Eligible Present Non-Player Characters:
+${characterStanceFormatted}
+Current Memories by Character:
+${characterMemoryFormatted || '• No memories recorded.'}
+- character_memory_proposal.candidates describes proposed durable factual memories acquired this turn; it is not itself state.
+- Each candidate requires character_id, fact (max 200 chars), source ('OBSERVED' | 'TOLD'), certainty ('KNOWN' | 'BELIEVED'), and rationale (max 240 chars).
+- Candidates can only be proposed for eligible present non-player characters (never for the player character).
+- source: 'TOLD' requires that the player attempted a COMMUNICATE action and the character was addressed or responding.
+- source: 'OBSERVED' requires an action other than COMMUNICATE (e.g. OBSERVE, INVESTIGATE, MOVE, MANIPULATE) witnessed by the character.
+- Do not propose duplicate facts or facts already known/believed by the character.
+- Propose at most two memory candidates per turn. Use an empty array if no durable memory was acquired.
+- OBSERVE, WAIT, OTHER, and SYSTEM_INIT require an empty memory proposal when no new durable fact is revealed.
+- Write no memory data in logic_state.
 - A proposal may be rejected while ordinary prose is preserved.
 
 [CANONICAL CONSEQUENCE CONTRACT]
@@ -776,6 +837,14 @@ ${recentHistory}
       castInteractionReceipt,
     });
 
+    const characterMemoryReceipt = finalizeCharacterMemory({
+      proposal: engineResponse.character_memory_proposal,
+      context,
+      intentReceipt,
+      narrativeReconciliationReceipt,
+      castInteractionReceipt,
+    });
+
     const finalResponse: TurnResponse = {
       narrative_blocks: boundedResult.narrative_blocks,
       logic_state: boundedResult.logic_state,
@@ -787,6 +856,7 @@ ${recentHistory}
       canonicalConsequenceReceipt,
       characterStanceReceipt,
       characterRelationshipReceipt,
+      characterMemoryReceipt,
     };
 
     return res.json(finalResponse);

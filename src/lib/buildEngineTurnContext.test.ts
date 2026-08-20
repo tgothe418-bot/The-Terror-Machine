@@ -545,4 +545,102 @@ describe('buildEngineTurnContext & buildContextReceipt', () => {
       }
     });
   });
+
+  describe('characterRelationships and characterMemory context integration (Phase 3H.3B and 3H.4B)', () => {
+    it('defaults relationshipState and memoryState when omitted', () => {
+      const context = buildEngineTurnContext({
+        blueprint: mockBlueprint,
+        selectedRole: 'protagonist',
+      });
+
+      expect(context.relationshipState).toEqual([]);
+      expect(context.memoryState).toEqual({});
+    });
+
+    it('passes through relationshipState and memoryState when provided', () => {
+      const mockRel = [
+        {
+          source_character_id: 'char-warden',
+          target_character_id: 'char-clara',
+          kind: 'HOSTILITY' as const,
+          intensity: 2 as const,
+        },
+      ];
+      const mockMem = {
+        'char-warden': [
+          {
+            id: 'mem-1',
+            fact: 'Clara attempted to open the basement door',
+            source: 'OBSERVED' as const,
+            certainty: 'KNOWN' as const,
+            acquired_turn: 1,
+          },
+        ],
+      };
+
+      const context = buildEngineTurnContext({
+        blueprint: mockBlueprint,
+        selectedRole: 'protagonist',
+        characterRelationships: mockRel,
+        characterMemory: mockMem,
+      });
+
+      expect(context.relationshipState).toEqual(mockRel);
+      expect(context.memoryState['char-warden']).toHaveLength(1);
+      expect(context.memoryState['char-warden'][0].fact).toBe('Clara attempted to open the basement door');
+      expect(context.memoryState['char-warden'][0].source).toBe('OBSERVED');
+      expect(context.memoryState['char-warden'][0].certainty).toBe('KNOWN');
+      expect(context.memoryState['char-warden'][0].acquired_turn).toBe(1);
+    });
+
+    it('populates runtime.turnNumber from runtimeState.turnCount accurately for 0, 1, and nonzero turns', () => {
+      const ctx0 = buildEngineTurnContext({
+        blueprint: mockBlueprint,
+        runtimeState: { turnCount: 0 },
+      });
+      expect(ctx0.runtime.turnNumber).toBe(0);
+
+      const ctx1 = buildEngineTurnContext({
+        blueprint: mockBlueprint,
+        runtimeState: { turnCount: 1 },
+      });
+      expect(ctx1.runtime.turnNumber).toBe(1);
+
+      const ctx7 = buildEngineTurnContext({
+        blueprint: mockBlueprint,
+        runtimeState: { turnCount: 7 },
+      });
+      expect(ctx7.runtime.turnNumber).toBe(7);
+
+      const ctxDefault = buildEngineTurnContext({
+        blueprint: mockBlueprint,
+        runtimeState: {},
+      });
+      expect(ctxDefault.runtime.turnNumber).toBe(0);
+    });
+
+    it('ignores stray legacy runtimeState.characterMemory and only uses explicit characterMemory option', () => {
+      const strayLegacy = {
+        'char-warden': [
+          {
+            id: 'legacy-mem',
+            fact: 'Stray legacy fact',
+            source: 'OBSERVED' as const,
+            certainty: 'KNOWN' as const,
+            acquired_turn: 1,
+          },
+        ],
+      };
+
+      const context = buildEngineTurnContext({
+        blueprint: mockBlueprint,
+        runtimeState: {
+          ...({ characterMemory: strayLegacy } as unknown as Record<string, unknown>),
+        },
+      });
+
+      expect(context.memoryState).toEqual({});
+      expect(context.memoryState['char-warden']).toBeUndefined();
+    });
+  });
 });

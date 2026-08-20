@@ -220,6 +220,45 @@ export const turnResponseSchema = {
       },
       required: ["changes"],
     },
+    character_memory_proposal: {
+      type: Type.OBJECT,
+      properties: {
+        candidates: {
+          type: Type.ARRAY,
+          maxItems: 2,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              character_id: { type: Type.STRING },
+              fact: {
+                type: Type.STRING,
+                maxLength: 200,
+                description: "Concise, durable factual memory acquired this turn (max 200 chars).",
+              },
+              source: {
+                type: Type.STRING,
+                enum: ["OBSERVED", "TOLD"],
+                description: "OBSERVED for witnessed non-verbal actions; TOLD for statements communicated to character.",
+              },
+              certainty: {
+                type: Type.STRING,
+                enum: ["KNOWN", "BELIEVED"],
+                description: "KNOWN for verifiable objective facts; BELIEVED for subjective impressions or hearsay.",
+              },
+              rationale: { type: Type.STRING, maxLength: 240 },
+            },
+            required: [
+              "character_id",
+              "fact",
+              "source",
+              "certainty",
+              "rationale",
+            ],
+          },
+        },
+      },
+      required: ["candidates"],
+    },
     logic_state: {
       type: Type.OBJECT,
       properties: {
@@ -279,6 +318,7 @@ export const turnResponseSchema = {
     "consequence_proposal",
     "character_stance_proposal",
     "character_relationship_proposal",
+    "character_memory_proposal",
   ]
 };
 

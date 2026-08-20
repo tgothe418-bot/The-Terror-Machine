@@ -16,7 +16,7 @@ import {
   CharacterRelationshipState,
   CharacterRelationshipReceipt,
 } from './characterRelationships';
-import { CharacterMemoryById } from './characterMemory';
+import { CharacterMemoryById, CharacterMemoryReceipt } from './characterMemory';
 export * from './engineContract';
 export * from './participation';
 export * from './forge';
@@ -346,6 +346,7 @@ export interface TurnReceipt {
   canonicalConsequenceReceipt?: CanonicalConsequenceReceipt;
   characterStanceReceipt?: CharacterStanceReceipt;
   characterRelationshipReceipt?: CharacterRelationshipReceipt;
+  characterMemoryReceipt?: CharacterMemoryReceipt;
 }
 
 export interface TurnFailureReceipt {
@@ -602,6 +603,7 @@ export interface RatifiedEngineFrame {
   canonicalConsequenceReceipt?: CanonicalConsequenceReceipt;
   characterStanceReceipt?: CharacterStanceReceipt;
   characterRelationshipReceipt?: CharacterRelationshipReceipt;
+  characterMemoryReceipt?: CharacterMemoryReceipt;
   preSnapshot?: RuntimeStateSnapshot;
   reconciliation?: {
     isHallucinationCollision: boolean;

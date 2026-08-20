@@ -127,6 +127,7 @@ const mockContext: EngineTurnContext = {
     activeVector: 'COGNITIVE',
     activeTier: 'LATENT',
     activeFlags: [],
+    turnNumber: 0,
   },
   consequenceState: {
     inventory: [],
@@ -134,6 +135,7 @@ const mockContext: EngineTurnContext = {
     psychological_status: 'STABLE',
   },
   relationshipState: [],
+  memoryState: {},
 };
 
 const mockIntentReceipt: IntentReceipt = {

@@ -1203,6 +1203,100 @@ describe('Engine telemetry export', () => {
       expect(html).toContain('<li>No character relationship changes</li>');
       expect(md).toContain('- No character relationship changes');
     });
+
+    it('renders Character Memory decisions and rationale in HTML and Markdown telemetry', () => {
+      const messagesWithMemory = [
+        {
+          role: 'user',
+          content: 'I show Finch the keycard.',
+          timestamp: 1,
+        },
+        {
+          role: 'assistant',
+          content: 'Finch notices the security card.',
+          timestamp: 2,
+          blocks: [{ type: 'prose', content: 'Finch notices the security card.' }],
+          characterMemoryReceipt: {
+            version: 1,
+            pre_state: {},
+            post_state: {
+              'char-finch': [
+                {
+                  id: 'mem-1',
+                  fact: 'Player possesses maintenance keycard',
+                  source: 'OBSERVED',
+                  certainty: 'KNOWN',
+                  acquired_turn: 2,
+                },
+              ],
+            },
+            decisions: [
+              {
+                candidate: {
+                  character_id: 'char-finch',
+                  fact: 'Player possesses maintenance keycard',
+                  source: 'OBSERVED',
+                  certainty: 'KNOWN',
+                  rationale: 'Finch directly watched the player brandish the card',
+                },
+                outcome: 'APPLIED',
+                reason: 'APPLIED',
+                entry: {
+                  id: 'mem-1',
+                  fact: 'Player possesses maintenance keycard',
+                  source: 'OBSERVED',
+                  certainty: 'KNOWN',
+                  acquired_turn: 2,
+                },
+              },
+            ],
+          },
+        },
+      ];
+
+      const html = buildEngineLogContent(messagesWithMemory, 'html')!.content;
+      const md = buildEngineLogContent(messagesWithMemory, 'md')!.content;
+
+      expect(html).toContain('<h4>Character Memory</h4>');
+      expect(html).toContain('Decision [char-finch / OBSERVED / KNOWN]:');
+      expect(html).toContain('&quot;Player possesses maintenance keycard&quot;');
+      expect(html).toContain('Outcome: APPLIED (Reason: APPLIED)');
+      expect(html).toContain('Finch directly watched the player brandish the card');
+
+      expect(md).toContain('#### Character Memory');
+      expect(md).toContain('- **Decision [char-finch / OBSERVED / KNOWN]:** "Player possesses maintenance keycard" | Outcome: APPLIED (Reason: APPLIED) — *Finch directly watched the player brandish the card*');
+    });
+
+    it('renders "No character memory changes" when memory receipt has no applied changes', () => {
+      const messagesEmptyMemory = [
+        {
+          role: 'user',
+          content: 'I wait in silence.',
+          timestamp: 1,
+        },
+        {
+          role: 'assistant',
+          content: 'Silence lingers.',
+          timestamp: 2,
+          blocks: [{ type: 'prose', content: 'Silence lingers.' }],
+          logic_state: {
+            current_phase: 'LATENT',
+            characterMemoryReceipt: {
+              version: 1,
+              pre_state: {},
+              post_state: {},
+              decisions: [],
+            },
+          },
+        },
+      ];
+
+      const html = buildEngineLogContent(messagesEmptyMemory, 'html')!.content;
+      const md = buildEngineLogContent(messagesEmptyMemory, 'md')!.content;
+
+      expect(html).toContain('<li>No character memory changes</li>');
+      expect(md).toContain('- No character memory changes');
+    });
   });
 });
 

@@ -15,12 +15,14 @@ import {
   CanonicalConsequenceStateInput,
   CharacterStanceById,
   CharacterRelationshipState,
+  CharacterMemoryById,
 } from '../types';
 import { buildCharacterContinuity, DEFAULT_SKEPTICISM } from './castContinuity';
 import { buildCharacterPresence } from './castPresence';
 import { createCanonicalConsequenceState } from './canonicalConsequences';
 import { createCharacterStanceState } from './characterStance';
 import { createCharacterRelationshipState } from './characterRelationships';
+import { createCharacterMemoryState } from './characterMemory';
 
 export interface BuildEngineTurnContextOptions {
   blueprint: unknown;
@@ -32,6 +34,7 @@ export interface BuildEngineTurnContextOptions {
   consequenceState?: CanonicalConsequenceStateInput | null;
   characterStance?: CharacterStanceById | null;
   characterRelationships?: CharacterRelationshipState | null;
+  characterMemory?: CharacterMemoryById | null;
   runtimeState?: {
     currentNodeId?: string | null;
     phase?: string;
@@ -41,6 +44,7 @@ export interface BuildEngineTurnContextOptions {
     activeVector?: string;
     activeTier?: string;
     activeFlags?: readonly string[] | string[];
+    turnCount?: number;
     participationContext?: ParticipationContext | null;
     characterRelationships?: CharacterRelationshipState | null;
   };
@@ -59,6 +63,7 @@ export function buildEngineTurnContext({
   consequenceState: rawConsequenceState,
   characterStance,
   characterRelationships: rawRelationships,
+  characterMemory: rawMemory,
   runtimeState = {},
 }: BuildEngineTurnContextOptions): EngineTurnContext {
   const normBp: Blueprint = normalizeBlueprint(blueprint);
@@ -69,6 +74,7 @@ export function buildEngineTurnContext({
   const relationshipState = createCharacterRelationshipState(
     rawRelationships ?? runtimeState.characterRelationships
   );
+  const memoryState = createCharacterMemoryState(rawMemory);
 
   // 0. Participation Context resolution
   const rawParticipation =
@@ -226,6 +232,12 @@ export function buildEngineTurnContext({
       ? runtimeState.reconciliationRevision
       : 0;
   const activeFlags = Array.isArray(runtimeState.activeFlags) ? runtimeState.activeFlags : [];
+  const turnNumber =
+    typeof runtimeState.turnCount === 'number' &&
+    Number.isInteger(runtimeState.turnCount) &&
+    runtimeState.turnCount >= 0
+      ? runtimeState.turnCount
+      : 0;
 
   return {
     version: 1,
@@ -269,10 +281,12 @@ export function buildEngineTurnContext({
       activeVector,
       activeTier,
       activeFlags,
+      turnNumber,
     },
     participationContext: resolvedParticipation || undefined,
     consequenceState,
     relationshipState,
+    memoryState,
   };
 }
 
