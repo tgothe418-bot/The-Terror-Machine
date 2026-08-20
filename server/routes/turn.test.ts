@@ -1,7 +1,14 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { describe, expect, it } from 'vitest';
-import { TurnRequestSchema, TurnResultSchema, EngineTurnContextSchema, TurnResponseSchema } from '../schemas/engine';
+import { Type } from '@google/genai';
+import {
+  TurnRequestSchema,
+  TurnResultSchema,
+  EngineTurnContextSchema,
+  TurnResponseSchema,
+  RelationshipDeltaSchema,
+} from '../schemas/engine';
 import {
   validateDialogueBlocks,
   resolveDialogueSpeakerId,
@@ -195,6 +202,59 @@ describe('Turn schemas validation', () => {
       it('includes character_relationship_proposal in schema properties and required fields', () => {
         expect(turnResponseSchema.properties).toHaveProperty('character_relationship_proposal');
         expect(turnResponseSchema.required).toContain('character_relationship_proposal');
+      });
+
+      it('declares character_relationship_proposal delta as an INTEGER with format enum and exact values ["-1", "1"]', () => {
+        const deltaSchema =
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (turnResponseSchema.properties.character_relationship_proposal as any).properties.changes.items.properties.delta;
+
+        expect(deltaSchema.type).toBe(Type.INTEGER);
+        expect(deltaSchema.format).toBe('enum');
+        expect(deltaSchema.enum).toEqual(['-1', '1']);
+      });
+
+      it('ensures every member of every enum array inside turnResponseSchema is a string', () => {
+        function collectEnumArrays(
+          node: unknown,
+          currentPath = '$'
+        ): Array<{ path: string; values: unknown[] }> {
+          const collected: Array<{ path: string; values: unknown[] }> = [];
+          if (!node || typeof node !== 'object') {
+            return collected;
+          }
+
+          if (Array.isArray(node)) {
+            node.forEach((element, index) => {
+              collected.push(...collectEnumArrays(element, `${currentPath}[${index}]`));
+            });
+            return collected;
+          }
+
+          const record = node as Record<string, unknown>;
+          if ('enum' in record && Array.isArray(record.enum)) {
+            collected.push({ path: `${currentPath}.enum`, values: record.enum });
+          }
+
+          for (const [key, value] of Object.entries(record)) {
+            collected.push(...collectEnumArrays(value, `${currentPath}.${key}`));
+          }
+
+          return collected;
+        }
+
+        const enumArrays = collectEnumArrays(turnResponseSchema);
+        expect(enumArrays.length).toBeGreaterThan(0);
+
+        for (const { path: enumPath, values } of enumArrays) {
+          expect(values.length).toBeGreaterThan(0);
+          for (const item of values) {
+            expect(
+              typeof item,
+              `Enum member at ${enumPath} must be a JavaScript string, but was ${typeof item} (${JSON.stringify(item)})`
+            ).toBe('string');
+          }
+        }
       });
     });
 
@@ -499,6 +559,140 @@ describe('Turn schemas validation', () => {
       expect((parsed as Record<string, unknown>).consequence_proposal).toBeUndefined();
       expect((parsed as Record<string, unknown>).character_stance_proposal).toBeUndefined();
       expect((parsed as Record<string, unknown>).character_relationship_proposal).toBeUndefined();
+    });
+
+    describe('RelationshipDelta canonical boundary validation', () => {
+      it('accepts numeric delta -1 and 1', () => {
+        expect(RelationshipDeltaSchema.parse(-1)).toBe(-1);
+        expect(RelationshipDeltaSchema.parse(1)).toBe(1);
+
+        const validResultNeg = {
+          narrative_blocks: [{ type: 'prose', content: 'Observation.' }],
+          intent_proposal: validIntentProposal,
+          reconciliation_proposal: validReconciliationProposal,
+          consequence_proposal: validConsequenceProposal,
+          character_stance_proposal: validCharacterStanceProposal,
+          character_relationship_proposal: {
+            changes: [
+              {
+                source_character_id: 'char_1',
+                target_character_id: 'char_player',
+                kind: 'TRUST',
+                delta: -1,
+                rationale: 'Faltered under pressure.',
+              },
+            ],
+          },
+          logic_state: {
+            current_phase: 'LATENT',
+            suggested_tension: 1,
+            terminal_flags: [],
+          },
+        };
+        const parsedNeg = TurnResultSchema.parse(validResultNeg);
+        expect(parsedNeg.character_relationship_proposal.changes[0].delta).toBe(-1);
+
+        const validResultPos = {
+          ...validResultNeg,
+          character_relationship_proposal: {
+            changes: [
+              {
+                source_character_id: 'char_1',
+                target_character_id: 'char_player',
+                kind: 'TRUST',
+                delta: 1,
+                rationale: 'Stood firm together.',
+              },
+            ],
+          },
+        };
+        const parsedPos = TurnResultSchema.parse(validResultPos);
+        expect(parsedPos.character_relationship_proposal.changes[0].delta).toBe(1);
+      });
+
+      it('rejects delta 0', () => {
+        expect(() => RelationshipDeltaSchema.parse(0)).toThrow();
+
+        const invalidResultZero = {
+          narrative_blocks: [{ type: 'prose', content: 'Observation.' }],
+          intent_proposal: validIntentProposal,
+          reconciliation_proposal: validReconciliationProposal,
+          consequence_proposal: validConsequenceProposal,
+          character_stance_proposal: validCharacterStanceProposal,
+          character_relationship_proposal: {
+            changes: [
+              {
+                source_character_id: 'char_1',
+                target_character_id: 'char_player',
+                kind: 'TRUST',
+                delta: 0,
+                rationale: 'Zero change is disallowed.',
+              },
+            ],
+          },
+          logic_state: {
+            current_phase: 'LATENT',
+            suggested_tension: 1,
+            terminal_flags: [],
+          },
+        };
+        expect(() => TurnResultSchema.parse(invalidResultZero)).toThrow();
+      });
+
+      it('rejects string delta "-1" and "1"', () => {
+        expect(() => RelationshipDeltaSchema.parse('-1')).toThrow();
+        expect(() => RelationshipDeltaSchema.parse('1')).toThrow();
+
+        const invalidResultStringNeg = {
+          narrative_blocks: [{ type: 'prose', content: 'Observation.' }],
+          intent_proposal: validIntentProposal,
+          reconciliation_proposal: validReconciliationProposal,
+          consequence_proposal: validConsequenceProposal,
+          character_stance_proposal: validCharacterStanceProposal,
+          character_relationship_proposal: {
+            changes: [
+              {
+                source_character_id: 'char_1',
+                target_character_id: 'char_player',
+                kind: 'TRUST',
+                delta: '-1',
+                rationale: 'String negative delta.',
+              },
+            ],
+          },
+          logic_state: {
+            current_phase: 'LATENT',
+            suggested_tension: 1,
+            terminal_flags: [],
+          },
+        };
+        expect(() => TurnResultSchema.parse(invalidResultStringNeg)).toThrow();
+
+        const invalidResultStringPos = {
+          narrative_blocks: [{ type: 'prose', content: 'Observation.' }],
+          intent_proposal: validIntentProposal,
+          reconciliation_proposal: validReconciliationProposal,
+          consequence_proposal: validConsequenceProposal,
+          character_stance_proposal: validCharacterStanceProposal,
+          character_relationship_proposal: {
+            changes: [
+              {
+                source_character_id: 'char_1',
+                target_character_id: 'char_player',
+                kind: 'TRUST',
+                delta: '1',
+                rationale: 'String positive delta.',
+              },
+            ],
+          },
+          logic_state: {
+            current_phase: 'LATENT',
+            suggested_tension: 1,
+            terminal_flags: [],
+          },
+        };
+        expect(() => TurnResultSchema.parse(invalidResultStringPos)).toThrow();
+      });
     });
   });
 

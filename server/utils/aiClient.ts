@@ -200,7 +200,12 @@ export const turnResponseSchema = {
                 type: Type.STRING,
                 enum: ["TRUST", "HOSTILITY", "DEPENDENCE", "LEVERAGE"],
               },
-              delta: { type: Type.INTEGER, enum: [-1, 1] },
+              delta: {
+                type: Type.INTEGER,
+                format: "enum",
+                enum: ["-1", "1"],
+                description: "Exact signed relationship intensity change. Use -1 to decrease or 1 to increase; never 0.",
+              },
               rationale: { type: Type.STRING, maxLength: 240 },
             },
             required: [
