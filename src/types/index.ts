@@ -12,13 +12,18 @@ import { HauntedHouseProvenanceSchema, HauntedHouseProvenance } from './particip
 import { CharacterExpressionProfileSchema, CharacterExpressionProfile } from './forge';
 import { CanonicalConsequenceReceipt } from './consequence';
 import { CharacterStanceById, CharacterStanceReceipt } from './characterStance';
-import { CharacterRelationshipState } from './characterRelationships';
+import {
+  CharacterRelationshipState,
+  CharacterRelationshipReceipt,
+} from './characterRelationships';
+import { CharacterMemoryById } from './characterMemory';
 export * from './engineContract';
 export * from './participation';
 export * from './forge';
 export * from './consequence';
 export * from './characterStance';
 export * from './characterRelationships';
+export * from './characterMemory';
 
 export type AppPhase = 'hub' | 'forge' | 'engine' | 'voice';
 
@@ -540,6 +545,7 @@ export interface LogicState {
   character_presence?: CharacterPresenceById;
   character_stance?: CharacterStanceById;
   character_relationships?: CharacterRelationshipState;
+  character_memory?: CharacterMemoryById;
   current_location?: string;
   player_character_id?: string | null;
   player_role?: PlayerRole | string;

@@ -133,6 +133,7 @@ const mockContext: EngineTurnContext = {
     player_injuries: [],
     psychological_status: 'STABLE',
   },
+  relationshipState: [],
 };
 
 const mockIntentReceipt: IntentReceipt = {

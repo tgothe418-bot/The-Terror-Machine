@@ -124,6 +124,7 @@ function createMockContext(overrides?: Partial<EngineTurnContext>): EngineTurnCo
       player_injuries: [],
       psychological_status: 'STABLE',
     },
+    relationshipState: [],
     ...overrides,
   };
 }
