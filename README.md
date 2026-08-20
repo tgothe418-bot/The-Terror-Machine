@@ -1,6 +1,6 @@
 # THE TERROR MACHINE
 
-<p align="center"><strong>A FREE <a href="#the-terror-machine">HOUSE</a></strong></p>
+<p align="center"><strong>FREE HAUNTED <span style="color: #0000ff;">HOUSE</span></strong></p>
 
 The Terror Machine is an experimental, state-driven horror simulator. A language model interprets actions, performs characters, and renders the experience—but the application owns what becomes true.
 
@@ -15,6 +15,12 @@ Rooms remain where they were. Doors connect to specific places. Characters have 
 > The model proposes. The machine decides.
 
 The project values fidelity before verbosity, agency with consequences, situated knowledge, and memory-bearing change. A short response that respects the world is more useful than beautiful prose that silently contradicts it.
+
+## Current Status
+
+TTM is an active development build, not a finished game. The turn contract, role boundaries, topology, retake, telemetry, Blueprint and Haunted House Induction entry paths, and the bounded World Memory path are live. Explicit Player-Character Binding is under review: human telemetry demonstrates exact selection, including a non-first eligible character, while the full acceptance gate is still being closed.
+
+The [public roadmap](./ROADMAP.md) gives the short version. The [development roadmap](./DEVELOPMENT-ROADMAP.md) records implementation order, verification debt, and the acceptance rules we use before calling a phase complete.
 
 ## The Three Nodes
 
@@ -35,13 +41,13 @@ The Engine runs both entry paths through the same schema-bound turn pipeline. A 
 - Accept one action at a time through a schema-bound, server-normalized turn contract.
 - Preserve canonical topology and allow new space to materialize only through an authorized movement attempt at an unmapped boundary.
 - Evaluate intent, causal feasibility, role boundaries, movement, and dialogue targets before committing state.
-- Commit bounded canonical consequences, character stances, and player-centered character relationships through deterministic resolvers and receipts.
+- Commit bounded canonical consequences, character stances, player-centered character relationships, and World Memory decisions through deterministic resolvers and receipts.
 - Track cast presence and continuity, with structured diagnostics retained in telemetry exports.
 - Produce human-readable Markdown and HTML telemetry alongside canonical turn receipts for development review.
 - Retake the most recent completed turn—including a terminal outcome—restoring the prior application state, Engine game state, and command input.
 - Run authored Blueprint scenarios or begin with Haunted House Induction.
 
-This is a working foundation, not a finished simulation. The Engine has strong boundaries around the state it currently owns. A bounded character-memory resolver is now in place; its end-to-end turn integration, durable world memory, and broader campaign continuity are being built deliberately.
+This is a working foundation, not a finished simulation. The Engine has strong boundaries around the state it currently owns. Character and World Memory structures are live; broader continuity, explicit player identity acceptance, conversational Forge gap resolution, and campaign continuity are being built deliberately.
 
 ## How a Turn Works
 
@@ -58,15 +64,9 @@ The simulation may be hostile to a character, but it should never be hostile to 
 
 ## Public Roadmap
 
-The roadmap is intentionally directional rather than a promise of dates or feature volume.
+The roadmap is intentionally directional rather than a promise of dates or feature volume. The near-term order is: close explicit Player-Character Binding; give the Forge a reviewable conversation for source gaps; finish durable continuity; make Autopilot identity-safe; then deepen Voice, campaign, horror-grammar, and provider work.
 
-1. **Finish durable continuity** — integrate bounded character memory into the turn pipeline, then add a tightly controlled world-memory ledger for durable discoveries, rules, and consequences.
-2. **A better Voice** — audit its read-only observation boundary, make its context evidence-labelled, and allow it to recognize whether a question concerns a Forge draft, an Engine turn, outside research, or simply conversation. It will remain separate from canon and never alter a simulation.
-3. **Voice export parity** — preserve the conversation log while adding readable HTML exports and verified, read-only observation snapshots.
-4. **Campaign continuity** — multi-Blueprint stories with explicit, scoped state handoff between acts.
-5. **Generative horror grammar** — research-driven mechanics for pressure, pacing, fear, revelation, and recovery rather than a library of preset plots.
-6. **Authoring and observation** — clearer scenario construction, readable simulation surfaces, and better diagnostic views.
-7. **Provider flexibility** — a future model boundary that preserves the Engine contract while allowing the underlying provider to change.
+See the [public roadmap](./ROADMAP.md) for the visitor-facing view and the [development roadmap](./DEVELOPMENT-ROADMAP.md) for the working sequence and acceptance gates.
 
 ## Content, Difficulty, and Agency
 
@@ -76,7 +76,7 @@ TTM is built for literary, curious visitors who want to examine a strange machin
 
 ## Development Tools
 
-- **Autopilot** is a soak test that drives generated actions through the normal turn path.
+- **Autopilot** is a soak test that drives generated actions through the normal turn path; identity context, failure handling, and human-versus-generated provenance are still being hardened.
 - **Clear System Memory** is a development recovery control for TTM-owned persisted state.
 - **Telemetry and exports** are diagnostic evidence, not a substitute for the canonical commit path.
 
