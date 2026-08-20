@@ -201,10 +201,12 @@ export const executeRatificationPipeline = async (
   const physicsMatrix = calculatePhysicsState(currentTension, currentCoherence);
 
   const selectedRole = (engineState.gameState?.player_role as PlayerRole) || 'protagonist';
+  const playerCharacterId = engineState.gameState?.player_character_id;
 
   const turnContext = buildEngineTurnContext({
     blueprint: engineState.activeBlueprint,
     selectedRole,
+    selectedCharacterId: playerCharacterId,
     spatialGraph: state.spatialGraph,
     participationContext: state.participationContext || engineState.participationContext || null,
     characterContinuity: engineState.gameState?.character_continuity,
@@ -218,7 +220,10 @@ export const executeRatificationPipeline = async (
     characterRelationships: engineState.gameState?.character_relationships,
     characterMemory: engineState.gameState?.character_memory,
     worldMemory: engineState.gameState?.world_memory,
-    runtimeState: preSnapshot,
+    runtimeState: {
+      ...preSnapshot,
+      playerCharacterId,
+    },
   });
 
   // Distill the history to a compressed array instead of full prose

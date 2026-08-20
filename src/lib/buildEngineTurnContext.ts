@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { normalizeBlueprint } from './normalizeBlueprint';
-import { resolvePerspectiveBinding } from '../core/store';
+import { resolvePerspectiveBinding } from './playerCharacterBinding';
 import {
   Blueprint,
   EdgeKind,
@@ -29,6 +29,7 @@ import { createWorldMemoryState, migrateLegacyLoreAndMemory } from './worldMemor
 export interface BuildEngineTurnContextOptions {
   blueprint: unknown;
   selectedRole?: PlayerRole | string;
+  selectedCharacterId?: string | null;
   spatialGraph?: SpatialNode[];
   participationContext?: ParticipationContext | null;
   characterContinuity?: CharacterContinuityById | null;
@@ -40,6 +41,7 @@ export interface BuildEngineTurnContextOptions {
   worldMemory?: WorldMemoryState | null;
   runtimeState?: {
     currentNodeId?: string | null;
+    playerCharacterId?: string | null;
     phase?: string;
     tension?: number;
     coherence?: number;
@@ -66,6 +68,7 @@ export function buildEngineTurnContext(
     typeof optionsOrState === 'object' &&
     ('spatialGraph' in optionsOrState ||
       'selectedRole' in optionsOrState ||
+      'selectedCharacterId' in optionsOrState ||
       'characterContinuity' in optionsOrState ||
       'consequenceState' in optionsOrState ||
       'characterStance' in optionsOrState ||
@@ -88,6 +91,12 @@ export function buildEngineTurnContext(
     opts = {
       blueprint: s.blueprint,
       selectedRole: s.selectedRole || s.playerRole,
+      selectedCharacterId:
+        s.selectedCharacterId !== undefined
+          ? s.selectedCharacterId
+          : s.player_character_id !== undefined
+          ? s.player_character_id
+          : s.playerCharacterId,
       spatialGraph: s.spatialGraph,
       participationContext: s.participationContext,
       characterContinuity: s.character_continuity || s.characterContinuity,
@@ -103,6 +112,7 @@ export function buildEngineTurnContext(
       worldMemory: s.world_memory || s.worldMemory,
       runtimeState: {
         currentNodeId: s.currentNodeId,
+        playerCharacterId: s.player_character_id ?? s.playerCharacterId,
         phase: s.phase,
         tension: s.tension,
         coherence: s.coherence,
@@ -118,6 +128,7 @@ export function buildEngineTurnContext(
   const {
     blueprint,
     selectedRole = 'protagonist',
+    selectedCharacterId: explicitCharId,
     spatialGraph,
     participationContext,
     characterContinuity,
@@ -166,7 +177,18 @@ export function buildEngineTurnContext(
   }
 
   // 2. Player identity
-  const { playerRole, characterId } = resolvePerspectiveBinding(normBp, effectiveRole);
+  const resolvedRequestedCharId =
+    explicitCharId !== undefined
+      ? explicitCharId
+      : runtimeState.playerCharacterId !== undefined
+      ? runtimeState.playerCharacterId
+      : undefined;
+
+  const { playerRole, characterId } = resolvePerspectiveBinding(
+    normBp,
+    effectiveRole,
+    resolvedRequestedCharId
+  );
   let playerName = '';
   let playerDescription = '';
   let playerIsEntity = false;
@@ -182,8 +204,8 @@ export function buildEngineTurnContext(
 
   if (!playerName) {
     if (playerRole === 'antagonist') {
-      playerName = 'Antagonist';
-      playerDescription = 'Hostile presence / adversary.';
+      playerName = resolvedParticipation?.seat?.name || 'Opposition Force';
+      playerDescription = resolvedParticipation?.seat?.description || 'Hostile presence / adversary.';
       playerIsEntity = true;
     } else if (playerRole === 'director') {
       playerName = 'Director';
@@ -238,7 +260,7 @@ export function buildEngineTurnContext(
       goals: c.goals || '',
       traits: c.traits || [],
       isEntity: Boolean(c.isEntity),
-      isUserCharacter: Boolean(c.isUserCharacter),
+      isUserCharacter: characterId !== null ? canonicalId === characterId : false,
       expressionProfile: c.expressionProfile,
       skepticism: (c.id && continuity[c.id]?.skepticism !== undefined)
         ? continuity[c.id].skepticism

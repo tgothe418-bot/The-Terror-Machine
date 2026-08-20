@@ -749,5 +749,26 @@ describe('buildEngineTurnContext & buildContextReceipt', () => {
       expect(context.memoryState).toEqual({});
       expect(context.memoryState['char-warden']).toBeUndefined();
     });
+
+    it('binds explicit selectedCharacterId authoritatively and aligns cast isUserCharacter flags', () => {
+      const context = buildEngineTurnContext({
+        blueprint: mockBlueprint,
+        selectedRole: 'protagonist',
+        selectedCharacterId: 'char-orderly',
+        runtimeState: {
+          currentNodeId: 'WARD_4B',
+        },
+      });
+
+      expect(context.player.role).toBe('protagonist');
+      expect(context.player.characterId).toBe('char-orderly');
+      expect(context.player.name).toBe('Orderly Thomas');
+
+      const clara = context.cast.find((c) => c.id === 'char-clara');
+      const orderly = context.cast.find((c) => c.id === 'char-orderly');
+
+      expect(orderly?.isUserCharacter).toBe(true);
+      expect(clara?.isUserCharacter).toBe(false);
+    });
   });
 });

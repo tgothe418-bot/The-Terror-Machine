@@ -22,7 +22,7 @@ describe('castPresence', () => {
       expect(Object.keys(result)).toEqual(['char-1', 'char-2']);
     });
 
-    it('always places player character at currentNodeId, ignoring persisted and starting_location', () => {
+    it('places explicit playerCharacterId at currentNodeId while non-selected characters use persisted location', () => {
       const cast: CastPresenceSeed[] = [
         {
           id: 'char-player',
@@ -49,8 +49,58 @@ describe('castPresence', () => {
         'char-bound-player',
       );
 
-      expect(result1['char-player'].nodeId).toBe('NODE_CURRENT');
+      // char-bound-player is the authoritative player
       expect(result1['char-bound-player'].nodeId).toBe('NODE_CURRENT');
+      // char-player is now treated as non-player and stays at persisted node
+      expect(result1['char-player'].nodeId).toBe('NODE_PERSISTED');
+    });
+
+    it('places no character as player when playerCharacterId is explicitly null', () => {
+      const cast: CastPresenceSeed[] = [
+        {
+          id: 'char-player',
+          isUserCharacter: true,
+          starting_location: 'NODE_AUTHORED',
+        },
+      ];
+      const persisted: CharacterPresenceById = {
+        'char-player': { nodeId: 'NODE_PERSISTED' },
+      };
+      const validNodes = ['NODE_CURRENT', 'NODE_PERSISTED', 'NODE_AUTHORED'];
+
+      const result = buildCharacterPresence(
+        cast,
+        persisted,
+        validNodes,
+        'NODE_CURRENT',
+        null,
+      );
+
+      expect(result['char-player'].nodeId).toBe('NODE_PERSISTED');
+    });
+
+    it('falls back to isUserCharacter only when playerCharacterId is undefined', () => {
+      const cast: CastPresenceSeed[] = [
+        {
+          id: 'char-player',
+          isUserCharacter: true,
+          starting_location: 'NODE_AUTHORED',
+        },
+      ];
+      const persisted: CharacterPresenceById = {
+        'char-player': { nodeId: 'NODE_PERSISTED' },
+      };
+      const validNodes = ['NODE_CURRENT', 'NODE_PERSISTED', 'NODE_AUTHORED'];
+
+      const result = buildCharacterPresence(
+        cast,
+        persisted,
+        validNodes,
+        'NODE_CURRENT',
+        undefined,
+      );
+
+      expect(result['char-player'].nodeId).toBe('NODE_CURRENT');
     });
 
     it('uses persisted nodeId for non-player when it exactly exists in validNodeIds', () => {

@@ -22,6 +22,10 @@ import {
   resolveSeatAvailabilities,
   buildActiveParticipationContext,
 } from '../../lib/seatAvailability';
+import {
+  isCharacterEligibleForRole,
+  resolvePerspectiveBinding,
+} from '../../lib/playerCharacterBinding';
 import { motion, AnimatePresence } from 'motion/react';
 import AdLibInductionModal from './AdLibInductionModal';
 
@@ -54,6 +58,19 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
     const rec = previewBlueprint.hauntedHouse.recommendedParticipationMode;
     return !seatAvailabilities[rec]?.available;
   }, [previewBlueprint, seatAvailabilities]);
+
+  const handleSelectRole = (newRole: ParticipationMode | null) => {
+    setSelectedRole(newRole);
+    if (!activeCharacterId) return;
+    if (!newRole || newRole === 'director') {
+      forgeActions.setActiveCharacterId(null);
+      return;
+    }
+    const selectedChar = previewBlueprint?.cast?.find((c) => c.id === activeCharacterId);
+    if (!selectedChar || !isCharacterEligibleForRole(selectedChar, newRole)) {
+      forgeActions.setActiveCharacterId(null);
+    }
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -115,6 +132,20 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
     if (!previewBlueprint || !selectedRole) return;
     if (!isRoleAvailable(selectedRole)) return;
 
+    // 1. Resolve binding and validate BEFORE any store mutation
+    let binding;
+    try {
+      binding = resolvePerspectiveBinding(
+        previewBlueprint,
+        selectedRole,
+        activeCharacterId ?? undefined
+      );
+    } catch (bindErr) {
+      const msg = bindErr instanceof Error ? bindErr.message : String(bindErr);
+      setError(`BINDING ERROR: ${msg}`);
+      return;
+    }
+
     if (
       previewBlueprint.topology &&
       previewBlueprint.topology.nodes &&
@@ -124,7 +155,11 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
       compileTopology(previewBlueprint.topology, startNodeId);
     }
 
-    const activeContext = buildActiveParticipationContext(previewBlueprint, selectedRole);
+    const activeContext = buildActiveParticipationContext(
+      previewBlueprint,
+      selectedRole,
+      binding.characterId
+    );
 
     const neuralLink =
       selectedRole === 'director'
@@ -135,7 +170,7 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
 
     forgeActions.setActiveNeuralLink(neuralLink);
     forgeActions.startSimulation(previewBlueprint);
-    setBlueprint(previewBlueprint, selectedRole, activeContext);
+    setBlueprint(previewBlueprint, selectedRole, activeContext, activeCharacterId ?? undefined);
   };
 
   const isRoleAvailable = (role: ParticipationMode) => {
@@ -312,40 +347,60 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
                         Cast Members & Bound Operatives
                       </h3>
                       <div className="grid grid-cols-1 gap-3">
-                        {previewBlueprint.cast?.map((char, i) => (
-                          <div
-                            key={char.id || i}
-                            onClick={() => forgeActions.setActiveCharacterId(char.id)}
-                            className={`p-4 border cursor-pointer transition-all duration-200 rounded ${
-                              activeCharacterId === char.id
-                                ? 'border-red-500 bg-red-950/20 shadow-[0_0_15px_rgba(239,68,68,0.1)]'
-                                : 'border-zinc-800 hover:border-zinc-600 bg-black opacity-80 hover:opacity-100'
-                            }`}
-                          >
-                            <div className="flex justify-between items-center mb-2">
-                              <h4
-                                className={`font-bold text-sm ${activeCharacterId === char.id ? 'text-red-400' : 'text-zinc-100'}`}
-                              >
-                                {char.name}
-                              </h4>
-                              <div className="flex gap-2 items-center">
-                                {char.isEntity && (
-                                  <span className="text-xs text-red-400 border border-red-900 px-1.5 py-0.5 rounded font-mono uppercase bg-red-950/30">
-                                    ENTITY
+                        {previewBlueprint.cast?.map((char, i) => {
+                          const isEligible = selectedRole
+                            ? isCharacterEligibleForRole(char, selectedRole)
+                            : false;
+                          const isSelected = activeCharacterId === char.id;
+                          return (
+                            <button
+                              key={char.id || i}
+                              type="button"
+                              data-character-id={char.id}
+                              disabled={!isEligible}
+                              onClick={() => {
+                                if (!isEligible) return;
+                                if (isSelected) {
+                                  forgeActions.setActiveCharacterId(null);
+                                } else {
+                                  forgeActions.setActiveCharacterId(char.id);
+                                }
+                              }}
+                              className={`p-4 border text-left w-full transition-all duration-200 rounded flex flex-col gap-2 ${
+                                !isEligible
+                                  ? 'border-zinc-900 bg-zinc-950/40 opacity-30 cursor-not-allowed text-zinc-600'
+                                  : isSelected
+                                  ? 'border-red-500 bg-red-950/20 shadow-[0_0_15px_rgba(239,68,68,0.1)] cursor-pointer'
+                                  : 'border-zinc-800 hover:border-zinc-600 bg-black opacity-80 hover:opacity-100 cursor-pointer'
+                              }`}
+                            >
+                              <div className="flex justify-between items-center w-full">
+                                <h4
+                                  className={`font-bold text-sm ${
+                                    isSelected ? 'text-red-400' : isEligible ? 'text-zinc-100' : 'text-zinc-600'
+                                  }`}
+                                >
+                                  {char.name}
+                                </h4>
+                                <div className="flex gap-2 items-center">
+                                  {char.isEntity && (
+                                    <span className="text-xs text-red-400 border border-red-900 px-1.5 py-0.5 rounded font-mono uppercase bg-red-950/30">
+                                      ENTITY
+                                    </span>
+                                  )}
+                                  <span className="text-xs uppercase font-mono text-cyan-400 px-2 py-0.5 border border-cyan-900 rounded bg-cyan-950/30">
+                                    {char.behaviorVector || 'ADAPTIVE'}
                                   </span>
-                                )}
-                                <span className="text-xs uppercase font-mono text-cyan-400 px-2 py-0.5 border border-cyan-900 rounded bg-cyan-950/30">
-                                  {char.behaviorVector || 'ADAPTIVE'}
-                                </span>
+                                </div>
                               </div>
-                            </div>
-                            {char.description && (
-                              <p className="text-xs text-zinc-400 leading-relaxed font-mono">
-                                {char.description}
-                              </p>
-                            )}
-                          </div>
-                        ))}
+                              {char.description && (
+                                <p className="text-xs text-zinc-400 leading-relaxed font-mono">
+                                  {char.description}
+                                </p>
+                              )}
+                            </button>
+                          );
+                        })}
                       </div>
                       {(!previewBlueprint.cast || previewBlueprint.cast.length === 0) && (
                         <div className="text-xs text-zinc-500 italic p-3 bg-zinc-950 border border-zinc-800 rounded">
@@ -439,7 +494,7 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
                         {/* Protagonist */}
                         <button
                           type="button"
-                          onClick={() => isRoleAvailable('protagonist') && setSelectedRole('protagonist')}
+                          onClick={() => isRoleAvailable('protagonist') && handleSelectRole('protagonist')}
                           disabled={!isRoleAvailable('protagonist')}
                           className={`p-4 border flex flex-col items-center text-center gap-2 transition-all duration-300 rounded ${
                             !isRoleAvailable('protagonist')
@@ -465,7 +520,7 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
                         {/* Antagonist */}
                         <button
                           type="button"
-                          onClick={() => isRoleAvailable('antagonist') && setSelectedRole('antagonist')}
+                          onClick={() => isRoleAvailable('antagonist') && handleSelectRole('antagonist')}
                           disabled={!isRoleAvailable('antagonist')}
                           className={`p-4 border flex flex-col items-center text-center gap-2 transition-all duration-300 rounded ${
                             !isRoleAvailable('antagonist')
@@ -491,7 +546,7 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
                         {/* Director */}
                         <button
                           type="button"
-                          onClick={() => isRoleAvailable('director') && setSelectedRole('director')}
+                          onClick={() => isRoleAvailable('director') && handleSelectRole('director')}
                           disabled={!isRoleAvailable('director')}
                           className={`p-4 border flex flex-col items-center text-center gap-2 transition-all duration-300 rounded ${
                             !isRoleAvailable('director')

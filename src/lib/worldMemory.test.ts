@@ -1311,6 +1311,15 @@ describe('3H.5A: Durable World Memory Contracts and Pure Resolver', () => {
           title: 'Deep Research Station',
           premise: 'Sub-aquatic research facility',
           world_rules: ['High pressure environment'],
+          cast: [
+            {
+              id: 'player-01',
+              name: 'Dr. Aris',
+              role: 'Researcher',
+              isUserCharacter: true,
+              isEntity: false,
+            },
+          ],
           nodes: [
             {
               id: 'node-control',

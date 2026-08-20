@@ -151,4 +151,31 @@ describe('Seat Availability Resolver & Participation Context Builder', () => {
     expect(seats.antagonist.available).toBe(true);
     expect(seats.antagonist.boundCharacterName).toBe('The Ship Entity');
   });
+
+  it('buildActiveParticipationContext respects explicit resolvedCharacterId for non-default cast members', () => {
+    const multiMortalBp = normalizeBlueprint({
+      ...baseBlueprint,
+      cast: [
+        {
+          id: 'char-elena',
+          name: 'Elena Ward',
+          role: 'Historian',
+          isEntity: false,
+          description: 'Senior archivist',
+        },
+        {
+          id: 'char-marcus',
+          name: 'Marcus Gray',
+          role: 'Engineer',
+          isEntity: false,
+          description: 'Surveyor engineer',
+        },
+      ],
+    });
+
+    const context = buildActiveParticipationContext(multiMortalBp, 'protagonist', 'char-marcus');
+    expect(context?.mode).toBe('protagonist');
+    expect(context?.seat.name).toBe('Marcus Gray');
+    expect(context?.seat.description).toBe('Surveyor engineer');
+  });
 });

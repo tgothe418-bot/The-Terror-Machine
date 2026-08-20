@@ -1,11 +1,13 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { Blueprint, BlueprintSchema, LogicState, Message, PlayerRole, PerspectiveMode, ParticipationContext } from '../types';
+import { Blueprint, BlueprintSchema, LogicState, Message, PlayerRole, ParticipationContext } from '../types';
 import { idbStorage } from '../lib/idbStorage';
 import { distillContext } from '../services/geminiService';
 import { useAppStore } from '../store/useAppStore';
 import { normalizeBlueprint } from '../lib/normalizeBlueprint';
+import { resolvePerspectiveBinding } from '../lib/playerCharacterBinding';
+
+export { resolvePerspectiveBinding } from '../lib/playerCharacterBinding';
 
 // Add these model definitions to your store fields in src/core/store.ts
 export interface TelemetryMetrics {
@@ -32,7 +34,8 @@ interface EngineState {
   setBlueprint: (
     blueprint: unknown,
     role: PlayerRole,
-    participationContext?: ParticipationContext | null
+    participationContext?: ParticipationContext | null,
+    selectedCharacterId?: string
   ) => void;
 
   clearBlueprint: () => void;
@@ -48,47 +51,6 @@ interface EngineState {
   resetEngine: () => void;
 }
 
-export function resolvePerspectiveBinding(
-  blueprint: Blueprint,
-  role: PlayerRole
-): { playerRole: PlayerRole; characterId: string | null; perspectiveMode: PerspectiveMode } {
-  const normalizedRole = role.toUpperCase();
-  const perspective = blueprint.perspectives?.find(
-    (p: any) => String(p.role).toUpperCase() === normalizedRole
-  );
-
-  if (role === 'director' || role === 'witness') {
-    return { playerRole: role, characterId: null, perspectiveMode: role };
-  }
-
-  if (perspective?.subjectCharacterId) {
-    const isEntity = blueprint.cast?.find(
-      (c: any) => c.id === perspective.subjectCharacterId
-    )?.isEntity;
-    return {
-      playerRole: role,
-      characterId: perspective.subjectCharacterId,
-      perspectiveMode: isEntity ? 'entity_embodied' : 'embodied',
-    };
-  }
-
-  if (role === 'antagonist') {
-    const entity = blueprint.cast?.find((c: any) => c.isEntity === true);
-    return {
-      playerRole: role,
-      characterId: entity?.id ?? null,
-      perspectiveMode: 'entity_embodied',
-    };
-  }
-
-  if (role === 'protagonist') {
-    const mortal = blueprint.cast?.find((c: any) => c.isEntity !== true);
-    return { playerRole: role, characterId: mortal?.id ?? null, perspectiveMode: 'embodied' };
-  }
-
-  return { playerRole: role, characterId: null, perspectiveMode: 'witness' };
-}
-
 export const useEngineStore = create<EngineState>()(
   persist(
     (set, get) => ({
@@ -101,7 +63,7 @@ export const useEngineStore = create<EngineState>()(
       engineWorldStateSummary: 'The subject is contained. Initial parameters active.',
       telemetry: null,
       updateTelemetry: (metrics) => set({ telemetry: metrics }),
-      setBlueprint: (blueprint, role, participationContext = null) => {
+      setBlueprint: (blueprint, role, participationContext = null, selectedCharacterId) => {
         // Preserve identity only for a fully canonical payload. BlueprintSchema has defaults,
         // so safeParse success alone is insufficient: a partial legacy object can parse while
         // still requiring normalization.
@@ -111,9 +73,12 @@ export const useEngineStore = create<EngineState>()(
         const normalizedBlueprint = isAlreadyCanonical
           ? (blueprint as Blueprint)
           : normalizeBlueprint(blueprint);
-        const { playerRole, characterId, perspectiveMode } = resolvePerspectiveBinding(
+
+        // Validate and resolve perspective binding BEFORE initializing session or writing state
+        const binding = resolvePerspectiveBinding(
           normalizedBlueprint,
-          role
+          role,
+          selectedCharacterId
         );
 
         // Invoke the canonical AppStore session initialization action
@@ -133,9 +98,9 @@ export const useEngineStore = create<EngineState>()(
             player_injuries: [],
             inventory: [],
             psychological_status: 'Stable',
-            player_role: playerRole,
-            player_character_id: characterId,
-            perspective_mode: perspectiveMode,
+            player_role: binding.playerRole,
+            player_character_id: binding.characterId,
+            perspective_mode: binding.perspectiveMode,
             current_tension_level: 'buildup',
             lore_and_memory: {
               established_facts: [],

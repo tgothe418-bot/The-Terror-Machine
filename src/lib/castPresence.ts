@@ -47,8 +47,9 @@ export function buildCharacterPresence(
     seenIds.add(charId);
 
     const isPlayer =
-      (cleanPlayerId !== null && charId === cleanPlayerId) ||
-      Boolean(member.isUserCharacter);
+      playerCharacterId !== undefined
+        ? cleanPlayerId !== null && charId === cleanPlayerId
+        : Boolean(member.isUserCharacter);
 
     if (isPlayer) {
       if (cleanCurrentNodeId) {

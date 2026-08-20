@@ -1,4 +1,5 @@
 import { Blueprint, ParticipationContext, ParticipationMode, normalizeParticipationContext } from '../types';
+import { isCharacterEligibleForRole } from './playerCharacterBinding';
 
 export interface SeatAvailability {
   role: ParticipationMode;
@@ -18,11 +19,11 @@ export function resolveSeatAvailabilities(
   const cast = blueprint.cast || [];
 
   // Protagonist: Requires a viable mortal cast member (isEntity !== true)
-  const mortalMember = cast.find((c) => c.isEntity !== true);
+  const mortalMember = cast.find((c) => isCharacterEligibleForRole(c, 'protagonist'));
   const protagonistAvailable = Boolean(mortalMember);
 
   // Antagonist: Requires an entity cast member, explicit antagonist perspective, or antagonist haunted house provenance
-  const entityMember = cast.find((c) => c.isEntity === true || String(c.role).toLowerCase() === 'antagonist');
+  const entityMember = cast.find((c) => isCharacterEligibleForRole(c, 'antagonist'));
   const hasAntagonistPerspective = blueprint.perspectives?.some(
     (p) => String(p.role).toUpperCase() === 'ANTAGONIST'
   );
@@ -70,17 +71,29 @@ export function resolveSeatAvailabilities(
  */
 export function buildActiveParticipationContext(
   blueprint: Blueprint,
-  selectedRole: ParticipationMode
+  selectedRole: ParticipationMode,
+  resolvedCharacterId?: string | null
 ): ParticipationContext | null {
-  // If the user selected the exact recommended seat and provenance exists, reuse that context
-  if (
-    blueprint.hauntedHouse?.recommendedParticipationMode === selectedRole &&
-    blueprint.hauntedHouse.participationContext
-  ) {
-    return normalizeParticipationContext(blueprint.hauntedHouse.participationContext);
-  }
+  const cast = blueprint.cast || [];
 
   if (selectedRole === 'director') {
+    const existing =
+      blueprint.hauntedHouse?.participationContext?.mode === 'director'
+        ? normalizeParticipationContext(blueprint.hauntedHouse.participationContext)
+        : null;
+
+    if (existing) {
+      return {
+        ...existing,
+        mode: 'director',
+        seat: {
+          ...existing.seat,
+          kind: 'director',
+          name: 'Director',
+        },
+      };
+    }
+
     return {
       mode: 'director',
       seat: {
@@ -99,15 +112,44 @@ export function buildActiveParticipationContext(
     };
   }
 
+  // Find exact resolved cast member if resolvedCharacterId is supplied
+  let boundMember =
+    resolvedCharacterId !== undefined
+      ? resolvedCharacterId !== null
+        ? cast.find((c) => c.id === resolvedCharacterId)
+        : null
+      : undefined;
+
   if (selectedRole === 'protagonist') {
-    const mortal = (blueprint.cast || []).find((c) => c.isEntity !== true);
-    const name = mortal?.name || 'Protagonist';
+    if (boundMember === undefined) {
+      boundMember = cast.find((c) => isCharacterEligibleForRole(c, 'protagonist'));
+    }
+
+    const name = boundMember?.name || 'Protagonist';
+    const existing =
+      blueprint.hauntedHouse?.participationContext?.mode === 'protagonist'
+        ? normalizeParticipationContext(blueprint.hauntedHouse.participationContext)
+        : null;
+
+    if (existing) {
+      return {
+        ...existing,
+        mode: 'protagonist',
+        seat: {
+          ...existing.seat,
+          kind: 'protagonist',
+          name: boundMember ? boundMember.name : existing.seat.name,
+          description: boundMember ? boundMember.description : existing.seat.description,
+        },
+      };
+    }
+
     return {
       mode: 'protagonist',
       seat: {
         kind: 'protagonist',
         name,
-        description: mortal?.description,
+        description: boundMember?.description,
       },
       initialGoal:
         blueprint.narrativeRules?.incitingIncident ||
@@ -121,19 +163,45 @@ export function buildActiveParticipationContext(
   }
 
   if (selectedRole === 'antagonist') {
-    if (blueprint.hauntedHouse?.participationContext?.mode === 'antagonist') {
-      return normalizeParticipationContext(blueprint.hauntedHouse.participationContext);
+    if (boundMember === undefined) {
+      boundMember = cast.find((c) => isCharacterEligibleForRole(c, 'antagonist'));
     }
-    const entity = (blueprint.cast || []).find(
-      (c) => c.isEntity === true || String(c.role).toLowerCase() === 'antagonist'
-    );
-    const name = entity?.name || 'Opposition Force';
+
+    const existing =
+      blueprint.hauntedHouse?.participationContext?.mode === 'antagonist'
+        ? normalizeParticipationContext(blueprint.hauntedHouse.participationContext)
+        : null;
+
+    if (existing) {
+      if (boundMember) {
+        return {
+          ...existing,
+          mode: 'antagonist',
+          seat: {
+            ...existing.seat,
+            kind: 'character',
+            name: boundMember.name,
+            description: boundMember.description,
+          },
+        };
+      }
+      return {
+        ...existing,
+        mode: 'antagonist',
+        seat: {
+          ...existing.seat,
+          kind: existing.seat.kind || 'force',
+        },
+      };
+    }
+
+    const name = boundMember?.name || 'Opposition Force';
     return normalizeParticipationContext({
       mode: 'antagonist',
       seat: {
-        kind: entity ? 'character' : 'force',
+        kind: boundMember ? 'character' : 'force',
         name,
-        description: entity?.description,
+        description: boundMember?.description,
         ability: 'Authored scenario entity presence.',
         limitation: 'Bounded strictly to scenario rules.',
       },
