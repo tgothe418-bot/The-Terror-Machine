@@ -79,6 +79,7 @@ function createMockContext(overrides?: Partial<EngineTurnContext>): EngineTurnCo
         isUserCharacter: true,
         skepticism: 0.2,
         isPresent: true,
+        stance: null,
       },
       {
         id: 'char-npc-1',
@@ -92,6 +93,7 @@ function createMockContext(overrides?: Partial<EngineTurnContext>): EngineTurnCo
         isUserCharacter: false,
         skepticism: 0.5,
         isPresent: true,
+        stance: null,
       },
       {
         id: 'char-npc-2',
@@ -105,6 +107,7 @@ function createMockContext(overrides?: Partial<EngineTurnContext>): EngineTurnCo
         isUserCharacter: false,
         skepticism: 0.8,
         isPresent: true,
+        stance: null,
       },
       {
         id: 'char-absent',
@@ -118,6 +121,7 @@ function createMockContext(overrides?: Partial<EngineTurnContext>): EngineTurnCo
         isUserCharacter: false,
         skepticism: 0.4,
         isPresent: false,
+        stance: null,
       },
       {
         id: 'char-player-companion',
@@ -131,6 +135,7 @@ function createMockContext(overrides?: Partial<EngineTurnContext>): EngineTurnCo
         isUserCharacter: true,
         skepticism: 0.1,
         isPresent: true,
+        stance: null,
       },
     ],
     topology: {

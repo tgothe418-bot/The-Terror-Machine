@@ -307,6 +307,20 @@ interface ParsedTelemetrySections {
     psychologicalStatusChange: { before: string; after: string } | null;
     hasChanges: boolean;
   };
+  characterStance: {
+    hasReceipt: boolean;
+    decisions: Array<{
+      characterId: string;
+      focus: string;
+      stance: string;
+      outcome: string;
+      reason: string;
+      rationale?: string;
+      before?: { focus: string; stance: string } | null;
+      after?: { focus: string; stance: string } | null;
+    }>;
+    hasChanges: boolean;
+  };
   canonicalStateDiff: {
     diffLines: string[];
     transition: Array<{ label: string; value: string }>;

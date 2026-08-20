@@ -162,6 +162,29 @@ export const turnResponseSchema = {
       },
       required: ["mutations"],
     },
+    character_stance_proposal: {
+      type: Type.OBJECT,
+      properties: {
+        changes: {
+          type: Type.ARRAY,
+          maxItems: 2,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              character_id: { type: Type.STRING },
+              focus: { type: Type.STRING, enum: ["PLAYER", "SITUATION"] },
+              stance: {
+                type: Type.STRING,
+                enum: ["OPEN", "GUARDED", "RESISTANT", "HOSTILE", "AFRAID", "WITHDRAWN"],
+              },
+              rationale: { type: Type.STRING },
+            },
+            required: ["character_id", "focus", "stance", "rationale"],
+          },
+        },
+      },
+      required: ["changes"],
+    },
     logic_state: {
       type: Type.OBJECT,
       properties: {
@@ -213,7 +236,14 @@ export const turnResponseSchema = {
       nullable: true
     }
   },
-  required: ["narrative_blocks", "logic_state", "intent_proposal", "reconciliation_proposal", "consequence_proposal"]
+  required: [
+    "narrative_blocks",
+    "logic_state",
+    "intent_proposal",
+    "reconciliation_proposal",
+    "consequence_proposal",
+    "character_stance_proposal",
+  ]
 };
 
 export function unwrapStrictJsonResponse(text: string): string {

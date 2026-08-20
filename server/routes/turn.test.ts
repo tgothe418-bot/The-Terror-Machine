@@ -23,6 +23,7 @@ import {
   getIntentBoundTopologyDelta,
 } from '../../src/lib/intentConsequenceBridge';
 import type { TurnResponse } from '../../src/types/engineContract';
+import { turnResponseSchema } from '../utils/aiClient';
 
 describe('Turn schemas validation', () => {
   describe('EngineTurnContextSchema', () => {
@@ -184,6 +185,13 @@ describe('Turn schemas validation', () => {
   });
 
   describe('TurnResultSchema and TurnResponseSchema', () => {
+    describe('turnResponseSchema provider contract', () => {
+      it('includes character_stance_proposal in schema properties and required fields', () => {
+        expect(turnResponseSchema.properties).toHaveProperty('character_stance_proposal');
+        expect(turnResponseSchema.required).toContain('character_stance_proposal');
+      });
+    });
+
     const validIntentProposal = {
       action_kind: 'INVESTIGATE' as const,
       action_subtype: null,
@@ -477,6 +485,9 @@ describe('Turn schemas validation', () => {
       },
       consequence_proposal: {
         mutations: [],
+      },
+      character_stance_proposal: {
+        changes: [],
       },
       logic_state: {
         current_phase: 'LATENT',
@@ -3042,10 +3053,10 @@ describe('Turn schemas validation', () => {
 
       const validStanceIntent = createIntentReceipt({
         action_kind: 'COMMUNICATE',
-        action_subtype: 'SPEAK',
-        pressure_direction: 'DE_ESCALATE',
-        dramatic_tactic: 'REASSURE',
-        intent_synergy: 'ALIGNED',
+        action_subtype: null,
+        pressure_direction: 'MAINTAIN',
+        dramatic_tactic: 'NONE',
+        intent_synergy: 'N/A',
       });
 
       const validStanceReconciliation = createNarrativeReconciliationReceipt(
@@ -3128,8 +3139,8 @@ describe('Turn schemas validation', () => {
           {
             mode: 'EXPERIENTIAL_REANCHORED',
             feasibility: 'IMPOSSIBLE',
-            reason_code: 'LOGICAL_CONTRADICTION',
-            fictional_time_cost: 'NONE',
+            reason_code: 'PHYSICAL_LIMIT',
+            fictional_time_cost: 'MOMENT',
             authority_alignment: 'NOT_APPLICABLE',
             memory_echo_candidate: null,
           },

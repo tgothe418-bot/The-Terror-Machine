@@ -414,7 +414,6 @@ describe('useAppStore retakeLastTurn integration', () => {
       npc_fixations: [],
       character_stance: {
         'char-warden': {
-          character_id: 'char-warden',
           focus: 'PLAYER' as const,
           stance: 'OPEN' as const,
         },
@@ -469,6 +468,7 @@ describe('useAppStore retakeLastTurn integration', () => {
         activeVector: 'COGNITIVE',
         activeTier: 'LATENT',
         tension: 40,
+        preSnapshot,
         characterStanceReceipt: {
           version: 1,
           pre_state: {
@@ -499,7 +499,6 @@ describe('useAppStore retakeLastTurn integration', () => {
     useEngineStore.getState().patchGameState({
       character_stance: {
         'char-warden': {
-          character_id: 'char-warden',
           focus: 'PLAYER',
           stance: 'HOSTILE',
         },
