@@ -1,7 +1,18 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { describe, expect, it } from 'vitest';
+import http from 'http';
+import { describe, expect, it, beforeAll, afterAll, beforeEach, vi } from 'vitest';
 import { Type } from '@google/genai';
+import { createApp } from '../app';
+
+const mockGenerateStructuredResponse = vi.fn();
+vi.mock('../utils/aiClient', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../utils/aiClient')>();
+  return {
+    ...actual,
+    generateStructuredResponse: (...args: unknown[]) => mockGenerateStructuredResponse(...args),
+  };
+});
 import {
   TurnRequestSchema,
   TurnResultSchema,
@@ -3979,6 +3990,300 @@ describe('Turn schemas validation', () => {
         expect(receipt.decisions[0].reason).toBe('RECONCILIATION_SUPPRESSED');
         expect(receipt.post_state).toEqual(receipt.pre_state);
       });
+    });
+  });
+
+  describe('Route-level integration: /api/turn character memory prompt rendering and isolation', () => {
+    let server: http.Server;
+    let baseUrl: string;
+
+    beforeAll(async () => {
+      const app = await createApp({ enableSpaFallback: false });
+      await new Promise<void>((resolve) => {
+        server = app.listen(0, '127.0.0.1', () => {
+          const addr = server.address();
+          if (addr && typeof addr === 'object') {
+            baseUrl = `http://127.0.0.1:${addr.port}`;
+          }
+          resolve();
+        });
+      });
+    });
+
+    afterAll(async () => {
+      await new Promise<void>((resolve, reject) => {
+        if (server) {
+          server.close((err) => (err ? reject(err) : resolve()));
+        } else {
+          resolve();
+        }
+      });
+    });
+
+    beforeEach(() => {
+      vi.clearAllMocks();
+    });
+
+    it('proves /api/turn prompt contains only situated per-character memory with duplicate-name isolation and no extra model calls', async () => {
+      const validMockTurnResult: TurnResult = {
+        narrative_blocks: [
+          {
+            type: 'prose',
+            content: 'You observe both researchers named Dr. Evans remaining focused on their console readings.',
+          },
+        ],
+        intent_proposal: {
+          action_kind: 'INVESTIGATE',
+          action_subtype: null,
+          pressure_direction: 'MAINTAIN',
+          dramatic_tactic: 'NONE',
+          intent_synergy: 'N/A',
+        },
+        reconciliation_proposal: {
+          mode: 'CANONICAL',
+          feasibility: 'SUPPORTED',
+          reason_code: 'NONE',
+          fictional_time_cost: 'MOMENT',
+          authority_alignment: 'NOT_APPLICABLE',
+          memory_echo_candidate: null,
+        },
+        consequence_proposal: {
+          mutations: [],
+        },
+        character_stance_proposal: {
+          changes: [],
+        },
+        character_relationship_proposal: {
+          changes: [],
+        },
+        character_memory_proposal: {
+          candidates: [],
+        },
+        logic_state: {
+          current_phase: 'LATENT',
+          suggested_tension: 1,
+          requested_transition: null,
+          terminal_flags: [],
+          cast_deltas: [],
+        },
+        topologyDelta: {
+          isExpansion: false,
+          newNodeDef: null,
+        },
+      };
+
+      mockGenerateStructuredResponse.mockResolvedValueOnce(validMockTurnResult);
+
+      const turnPayload = {
+        userAction: 'I observe the two researchers in the laboratory.',
+        recentHistory: 'The humming terminal displays diagnostic readouts.',
+        systemDirective: 'Keep prose clinical and objective.',
+        isExpansionExpected: false,
+        stateContext: {
+          currentNodeId: 'LAB_01',
+          currentPhase: 'LATENT',
+          tensionLevel: 1,
+          reconciliationRevision: 0,
+        },
+        context: {
+          version: 1,
+          scenario: {
+            title: 'Sub-level Isolation',
+            premise: 'Two researchers working under identical credentials.',
+            worldRules: ['All communication across chambers is logged.'],
+            setting: {
+              location: 'Laboratory 01',
+              atmosphere: 'Cold and sterile',
+              timePeriod: '1982',
+            },
+            startingVector: 'COGNITIVE',
+            startingTier: 'LATENT',
+            incitingIncident: 'The automated isolation doors sealed.',
+            pacingDirective: 'Slow burn.',
+            keyPlotElements: ['The primary observation terminal'],
+          },
+          player: {
+            role: 'protagonist',
+            characterId: 'char-player',
+            name: 'Arthur',
+            description: 'Lead Investigator',
+            isEntity: false,
+          },
+          cast: [
+            {
+              id: 'char-player',
+              name: 'Arthur',
+              role: 'Protagonist',
+              description: 'Lead Investigator',
+              isUserCharacter: true,
+              isPresent: true,
+              memory: [
+                {
+                  id: 'cm_player',
+                  fact: 'PLAYER_MEMORY_MUST_NOT_RENDER',
+                  certainty: 'KNOWN',
+                  source: 'OBSERVED',
+                  acquired_turn: 1,
+                },
+              ],
+            },
+            {
+              id: 'char-a',
+              name: 'Dr. Evans',
+              role: 'Scientist',
+              description: 'First Researcher',
+              isUserCharacter: false,
+              isPresent: true,
+              memory: [
+                {
+                  id: 'cm_a',
+                  fact: 'PRESENT_A_MEMORY_ONLY',
+                  certainty: 'KNOWN',
+                  source: 'OBSERVED',
+                  acquired_turn: 1,
+                },
+              ],
+            },
+            {
+              id: 'char-b',
+              name: 'Dr. Evans',
+              role: 'Scientist',
+              description: 'Second Researcher',
+              isUserCharacter: false,
+              isPresent: true,
+              memory: [
+                {
+                  id: 'cm_b',
+                  fact: 'PRESENT_B_MEMORY_ONLY',
+                  certainty: 'KNOWN',
+                  source: 'OBSERVED',
+                  acquired_turn: 1,
+                },
+              ],
+            },
+            {
+              id: 'char-absent',
+              name: 'Warden Absent',
+              role: 'Warden',
+              description: 'Absent Facility Warden',
+              isUserCharacter: false,
+              isPresent: false,
+              memory: [
+                {
+                  id: 'cm_absent',
+                  fact: 'ABSENT_MEMORY_MUST_NOT_RENDER',
+                  certainty: 'KNOWN',
+                  source: 'OBSERVED',
+                  acquired_turn: 1,
+                },
+              ],
+            },
+          ],
+          topology: {
+            currentNodeId: 'LAB_01',
+            readableNodeLabel: 'Laboratory 01',
+            allowedOutgoingExits: [],
+          },
+          runtime: {
+            turnNumber: 2,
+            phase: 'LATENT',
+            tension: 1,
+            coherence: 1.0,
+            reconciliationRevision: 0,
+            activeVector: 'COGNITIVE',
+            activeTier: 'LATENT',
+          },
+          memoryState: {
+            'char-unrelated': [
+              {
+                id: 'cm_top_unrelated',
+                fact: 'TOP_LEVEL_MEMORY_MUST_NOT_RENDER',
+                certainty: 'KNOWN',
+                source: 'OBSERVED',
+                acquired_turn: 1,
+              },
+            ],
+          },
+        },
+      };
+
+      const response = await fetch(`${baseUrl}/api/turn`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(turnPayload),
+      });
+
+      expect(response.status).toBe(200);
+      const jsonResponse = (await response.json()) as TurnResponse;
+
+      // 1. Assert normal valid response shape
+      expect(jsonResponse.narrative_blocks).toHaveLength(1);
+      expect(jsonResponse.narrative_blocks[0].content).toContain('Dr. Evans');
+      expect(jsonResponse.intentReceipt.action_kind).toBe('INVESTIGATE');
+      expect(jsonResponse.narrativeReconciliationReceipt.mode).toBe('CANONICAL');
+      expect(jsonResponse.characterMemoryReceipt.version).toBe(1);
+      expect(jsonResponse.characterMemoryReceipt.decisions).toHaveLength(0);
+
+      // 2. Assert generateStructuredResponse was called exactly once
+      expect(mockGenerateStructuredResponse).toHaveBeenCalledTimes(1);
+
+      // 3. Capture the exact first argument passed to generateStructuredResponse
+      const capturedPrompt = mockGenerateStructuredResponse.mock.calls[0][0] as string;
+
+      // 4. Assert contract presence and inclusion of present eligible records
+      expect(capturedPrompt).toContain('[CHARACTER MEMORY CONTRACT]');
+      expect(capturedPrompt).toContain('Dr. Evans (ID: char-a)');
+      expect(capturedPrompt).toContain('PRESENT_A_MEMORY_ONLY');
+      expect(capturedPrompt).toContain('Dr. Evans (ID: char-b)');
+      expect(capturedPrompt).toContain('PRESENT_B_MEMORY_ONLY');
+
+      // 5. Assert exclusion of player, absent, and top-level sentinels
+      expect(capturedPrompt).not.toContain('PLAYER_MEMORY_MUST_NOT_RENDER');
+      expect(capturedPrompt).not.toContain('ABSENT_MEMORY_MUST_NOT_RENDER');
+      expect(capturedPrompt).not.toContain('TOP_LEVEL_MEMORY_MUST_NOT_RENDER');
+
+      // 6. Prove duplicate-name records remain isolated using exact ID-based section boundaries
+      const memoryContractIndex = capturedPrompt.indexOf('[CHARACTER MEMORY CONTRACT]');
+      expect(memoryContractIndex).toBeGreaterThan(-1);
+
+      const consequenceContractIndex = capturedPrompt.indexOf(
+        '[CANONICAL CONSEQUENCE CONTRACT]',
+        memoryContractIndex
+      );
+      expect(consequenceContractIndex).toBeGreaterThan(memoryContractIndex);
+
+      const characterMemorySection = capturedPrompt.slice(
+        memoryContractIndex,
+        consequenceContractIndex
+      );
+
+      const memoriesHeaderIndex = characterMemorySection.indexOf('Current Memories by Character:');
+      expect(memoriesHeaderIndex).toBeGreaterThan(-1);
+
+      const charAHeader = '• Dr. Evans (ID: char-a)';
+      const charBHeader = '• Dr. Evans (ID: char-b)';
+      const charAIndex = characterMemorySection.indexOf(charAHeader, memoriesHeaderIndex);
+      const charBIndex = characterMemorySection.indexOf(charBHeader, memoriesHeaderIndex);
+
+      expect(charAIndex).toBeGreaterThan(-1);
+      expect(charBIndex).toBeGreaterThan(charAIndex);
+
+      // Block A: begins at Dr. Evans (ID: char-a) up to Dr. Evans (ID: char-b)
+      const blockA = characterMemorySection.slice(charAIndex, charBIndex);
+      expect(blockA).toContain('PRESENT_A_MEMORY_ONLY');
+      expect(blockA).not.toContain('PRESENT_B_MEMORY_ONLY');
+
+      // Block B: begins at Dr. Evans (ID: char-b) up to the proposal directives / end of memory list
+      const endOfMemoriesIndex = characterMemorySection.indexOf(
+        '\n- character_memory_proposal.candidates',
+        charBIndex
+      );
+      const blockB = characterMemorySection.slice(
+        charBIndex,
+        endOfMemoriesIndex !== -1 ? endOfMemoriesIndex : undefined
+      );
+      expect(blockB).toContain('PRESENT_B_MEMORY_ONLY');
+      expect(blockB).not.toContain('PRESENT_A_MEMORY_ONLY');
     });
   });
 });
