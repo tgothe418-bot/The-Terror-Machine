@@ -6,6 +6,7 @@ import { useEngineStore } from '../core/store';
 import { engineReducer } from '../core/engine/reducer';
 import { Blueprint, RuntimeStateSnapshot, LogicState } from '../types';
 import type { EngineTurnContext } from '../types/engineContract';
+import { normalizeBlueprint } from './normalizeBlueprint';
 
 describe('executeRatificationPipeline single pre-turn snapshot lifecycle', () => {
   const originalFetch = globalThis.fetch;
@@ -240,6 +241,109 @@ describe('executeRatificationPipeline single pre-turn snapshot lifecycle', () =>
     ]);
     // Frame logic_state does not leak client-side character_continuity
     expect((frame.logic_state as Record<string, unknown>).character_continuity).toBeUndefined();
+  });
+
+  it('forwards the stored non-first player ID and keeps Director unbound through the real turn request payload', async () => {
+    const bindingBlueprint = normalizeBlueprint({
+      id: 'bp-binding-generic',
+      title: 'Generic Binding Enclosure',
+      contentScale: 3,
+      contentLevelDescription: 'Standard',
+      globalPremise: 'A generic test premise.',
+      environmentalRules: ['Rules are strictly enforced.'],
+      cast: [
+        {
+          id: 'char-1',
+          name: 'Mortal One',
+          role: 'Specialist',
+          description: 'First generic mortal subject.',
+          isEntity: false,
+        },
+        {
+          id: 'char-2',
+          name: 'Mortal Two',
+          role: 'Operator',
+          description: 'Second generic mortal subject.',
+          isEntity: false,
+        },
+      ],
+      setting: {
+        location: 'Chamber 01',
+        timePeriod: 'Present',
+        atmosphere: 'Sterile',
+      },
+      topology: { nodes: ['STORE_NODE_ORIGIN'], connections: [] },
+    });
+
+    useEngineStore.setState({
+      activeBlueprint: bindingBlueprint,
+      gameState: {
+        player_role: 'protagonist',
+        player_character_id: 'char-2',
+        perspective_mode: 'embodied',
+      },
+    });
+
+    const sentContexts: EngineTurnContext[] = [];
+    globalThis.fetch = vi.fn().mockImplementation(async (_url: string, init?: RequestInit) => {
+      if (init?.body) {
+        sentContexts.push(
+          (JSON.parse(init.body as string) as { context: EngineTurnContext }).context
+        );
+      }
+      return new Response(
+        JSON.stringify({
+          narrative_blocks: [{ type: 'prose', content: 'The diagnostic light remains steady.' }],
+          logic_state: { current_phase: 'LATENT', suggested_tension: 10 },
+          topologyDelta: { isExpansion: false },
+          validation: { accepted: true },
+          canonicalConsequenceReceipt: defaultConsequenceReceipt,
+          characterStanceReceipt: defaultCharacterStanceReceipt,
+          characterRelationshipReceipt: defaultCharacterRelationshipReceipt,
+          characterMemoryReceipt: defaultCharacterMemoryReceipt,
+          worldMemoryReceipt: defaultWorldMemoryReceipt,
+        }),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
+    });
+
+    await executeRatificationPipeline('Inspect the diagnostic light');
+
+    expect(sentContexts[0].player).toEqual({
+      role: 'protagonist',
+      characterId: 'char-2',
+      name: 'Mortal Two',
+      description: 'Second generic mortal subject.',
+      isEntity: false,
+    });
+    expect(sentContexts[0].cast.find((member) => member.id === 'char-2')?.isUserCharacter).toBe(
+      true
+    );
+    expect(sentContexts[0].cast.find((member) => member.id === 'char-1')?.isUserCharacter).toBe(
+      false
+    );
+
+    useEngineStore.setState({
+      gameState: {
+        player_role: 'director',
+        player_character_id: null,
+        perspective_mode: 'director',
+      },
+    });
+
+    await executeRatificationPipeline('Hold the frame');
+
+    expect(sentContexts[1].player).toEqual({
+      role: 'director',
+      characterId: null,
+      name: 'Director',
+      description: 'External narrative director.',
+      isEntity: false,
+    });
+    expect(sentContexts[1].cast.every((member) => member.isUserCharacter === false)).toBe(true);
   });
 
   it('falls back to local capture only when no snapshot is supplied (e.g. internal/SYSTEM_INIT caller)', async () => {
@@ -642,4 +746,3 @@ describe('executeRatificationPipeline single pre-turn snapshot lifecycle', () =>
     expect(result.reconciliation).toBeUndefined();
   });
 });
-

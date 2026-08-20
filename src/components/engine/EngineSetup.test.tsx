@@ -7,6 +7,7 @@ import { useEngineStore } from '../../core/store';
 import { getForgeState, forgeActions } from '../../store/useForgeStore';
 import { useAppStore } from '../../store/useAppStore';
 import type { Blueprint } from '../../types';
+import { normalizeBlueprint } from '../../lib/normalizeBlueprint';
 
 vi.mock('motion/react', () => ({
   motion: {
@@ -19,57 +20,57 @@ vi.mock('motion/react', () => ({
   AnimatePresence: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
 }));
 
-const testBlueprint: Blueprint = {
-  title: 'Blackwood Manor',
+const testBlueprint = normalizeBlueprint({
+  title: 'Generic Enclosure',
   contentScale: 2,
   contentLevelDescription: 'Standard horror',
-  globalPremise: 'A manor with hidden passages.',
-  environmentalRules: 'The doors lock at midnight.',
+  globalPremise: 'A generic test premise.',
+  environmentalRules: 'Rules are strictly enforced.',
   cast: [
     {
-      id: 'char-alice',
-      name: 'Alice Croft',
-      role: 'Investigator',
-      description: 'Senior archivist.',
+      id: 'char-1',
+      name: 'Mortal One',
+      role: 'Specialist',
+      description: 'First generic mortal subject.',
       personality: 'Cautious',
-      goals: 'Document anomalies',
+      goals: 'Observe the enclosure',
       traits: ['Analytical'],
       isEntity: false,
     },
     {
-      id: 'char-bob',
-      name: 'Bob Sterling',
-      role: 'Journalist',
-      description: 'Field journalist seeking a story.',
+      id: 'char-2',
+      name: 'Mortal Two',
+      role: 'Operator',
+      description: 'Second generic mortal subject.',
       personality: 'Bold',
-      goals: 'Get evidence',
+      goals: 'Inspect the systems',
       traits: ['Audacious'],
       isEntity: false,
     },
     {
-      id: 'entity-wraith',
-      name: 'Shadow Wraith',
-      role: 'Haunt',
-      description: 'Bound spirit of Blackwood.',
+      id: 'entity-1',
+      name: 'Entity One',
+      role: 'Opposition',
+      description: 'Generic entity presence.',
       personality: 'Predatory',
-      goals: 'Trap intruders',
+      goals: 'Oppose the mortals',
       traits: ['Incorporeal'],
       isEntity: true,
     },
   ],
   setting: {
-    location: 'Blackwood Library',
-    timePeriod: '1930s',
-    atmosphere: 'Dense dust and creaking floorboards',
+    location: 'Chamber 01',
+    timePeriod: 'Present',
+    atmosphere: 'Sterile',
   },
   narrativeRules: {
-    incitingIncident: 'The foyer door slammed shut.',
+    incitingIncident: 'The system initialized.',
   },
   topology: {
-    nodes: ['LIBRARY', 'HALLWAY'],
+    nodes: ['CHAMBER_01', 'CHAMBER_02'],
     connections: [],
   },
-};
+});
 
 async function uploadBlueprint(container: HTMLElement, bp: Blueprint) {
   const file = new File([JSON.stringify(bp)], 'blueprint.json', {
@@ -134,27 +135,27 @@ describe('EngineSetup explicit cast binding', () => {
     await uploadBlueprint(container!, testBlueprint);
 
     // Verify title is rendered
-    expect(container!.textContent).toContain('Blackwood Manor');
+    expect(container!.textContent).toContain('Generic Enclosure');
 
     const buttons = Array.from(container!.querySelectorAll('button'));
-    const aliceBtn = buttons.find((b) => b.textContent?.includes('Alice Croft')) as HTMLButtonElement;
-    const bobBtn = buttons.find((b) => b.textContent?.includes('Bob Sterling')) as HTMLButtonElement;
-    const wraithBtn = buttons.find((b) => b.textContent?.includes('Shadow Wraith')) as HTMLButtonElement;
+    const firstMortalBtn = buttons.find((b) => b.textContent?.includes('Mortal One')) as HTMLButtonElement;
+    const secondMortalBtn = buttons.find((b) => b.textContent?.includes('Mortal Two')) as HTMLButtonElement;
+    const entityBtn = buttons.find((b) => b.textContent?.includes('Entity One')) as HTMLButtonElement;
 
-    expect(aliceBtn).toBeTruthy();
-    expect(bobBtn).toBeTruthy();
-    expect(wraithBtn).toBeTruthy();
+    expect(firstMortalBtn).toBeTruthy();
+    expect(secondMortalBtn).toBeTruthy();
+    expect(entityBtn).toBeTruthy();
 
-    expect(aliceBtn.disabled).toBe(false);
-    expect(bobBtn.disabled).toBe(false);
-    expect(wraithBtn.disabled).toBe(true); // Entity disabled for protagonist
+    expect(firstMortalBtn.disabled).toBe(false);
+    expect(secondMortalBtn.disabled).toBe(false);
+    expect(entityBtn.disabled).toBe(true); // Entity disabled for protagonist
 
-    // Select Bob
+    // Select the non-first eligible mortal.
     await act(async () => {
-      bobBtn.click();
+      secondMortalBtn.click();
     });
 
-    expect(getForgeState().activeCharacterId).toBe('char-bob');
+    expect(getForgeState().activeCharacterId).toBe('char-2');
 
     // Click start simulation
     const startBtn = buttons.find((b) => b.textContent?.includes('Initialize Neural Link')) as HTMLButtonElement;
@@ -166,7 +167,7 @@ describe('EngineSetup explicit cast binding', () => {
 
     const gameState = useEngineStore.getState().gameState;
     expect(gameState?.player_role).toBe('protagonist');
-    expect(gameState?.player_character_id).toBe('char-bob');
+    expect(gameState?.player_character_id).toBe('char-2');
     expect(gameState?.perspective_mode).toBe('embodied');
   });
 
@@ -186,17 +187,17 @@ describe('EngineSetup explicit cast binding', () => {
     });
 
     const refreshedButtons = Array.from(container!.querySelectorAll('button'));
-    const aliceBtn = refreshedButtons.find((b) => b.textContent?.includes('Alice Croft')) as HTMLButtonElement;
-    const wraithBtn = refreshedButtons.find((b) => b.textContent?.includes('Shadow Wraith')) as HTMLButtonElement;
+    const firstMortalBtn = refreshedButtons.find((b) => b.textContent?.includes('Mortal One')) as HTMLButtonElement;
+    const entityBtn = refreshedButtons.find((b) => b.textContent?.includes('Entity One')) as HTMLButtonElement;
 
-    expect(aliceBtn.disabled).toBe(true);
-    expect(wraithBtn.disabled).toBe(false);
+    expect(firstMortalBtn.disabled).toBe(true);
+    expect(entityBtn.disabled).toBe(false);
 
-    // Select wraith
+    // Select the entity.
     await act(async () => {
-      wraithBtn.click();
+      entityBtn.click();
     });
-    expect(getForgeState().activeCharacterId).toBe('entity-wraith');
+    expect(getForgeState().activeCharacterId).toBe('entity-1');
 
     // Switch to Director role
     const directorRoleBtn = refreshedButtons.find((b) => b.textContent?.includes('Director')) as HTMLButtonElement;
@@ -205,6 +206,20 @@ describe('EngineSetup explicit cast binding', () => {
     });
 
     expect(getForgeState().activeCharacterId).toBeNull();
+
+    const directorStartBtn = Array.from(container!.querySelectorAll('button')).find((b) =>
+      b.textContent?.includes('Initialize Neural Link')
+    ) as HTMLButtonElement;
+    expect(directorStartBtn).toBeTruthy();
+
+    await act(async () => {
+      directorStartBtn.click();
+    });
+
+    const directorGameState = useEngineStore.getState().gameState;
+    expect(directorGameState?.player_role).toBe('director');
+    expect(directorGameState?.player_character_id).toBeNull();
+    expect(directorGameState?.perspective_mode).toBe('director');
   });
 
   it('allows clicking an already selected cast member to toggle/clear selection', async () => {
@@ -215,16 +230,16 @@ describe('EngineSetup explicit cast binding', () => {
     await uploadBlueprint(container!, testBlueprint);
 
     const buttons = Array.from(container!.querySelectorAll('button'));
-    const bobBtn = buttons.find((b) => b.textContent?.includes('Bob Sterling')) as HTMLButtonElement;
+    const secondMortalBtn = buttons.find((b) => b.textContent?.includes('Mortal Two')) as HTMLButtonElement;
 
     await act(async () => {
-      bobBtn.click();
+      secondMortalBtn.click();
     });
-    expect(getForgeState().activeCharacterId).toBe('char-bob');
+    expect(getForgeState().activeCharacterId).toBe('char-2');
 
     // Click again to toggle off
     await act(async () => {
-      bobBtn.click();
+      secondMortalBtn.click();
     });
     expect(getForgeState().activeCharacterId).toBeNull();
   });

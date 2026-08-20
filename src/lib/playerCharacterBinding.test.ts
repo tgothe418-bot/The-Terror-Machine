@@ -4,10 +4,10 @@ import {
   isCharacterEligibleForRole,
   PlayerCharacterBindingError,
 } from './playerCharacterBinding';
-import type { Blueprint } from '../types';
+import { normalizeBlueprint } from './normalizeBlueprint';
 
 describe('playerCharacterBinding', () => {
-  const genericBlueprint: Blueprint = {
+  const genericBlueprint = normalizeBlueprint({
     title: 'Generic Enclosure',
     contentScale: 3,
     contentLevelDescription: 'Standard',
@@ -57,7 +57,7 @@ describe('playerCharacterBinding', () => {
       nodes: ['CHAMBER_01', 'CHAMBER_02'],
       connections: [],
     },
-  };
+  });
 
   describe('isCharacterEligibleForRole', () => {
     it('identifies mortal characters as eligible for protagonist only', () => {
@@ -119,7 +119,7 @@ describe('playerCharacterBinding', () => {
     });
 
     it('throws AMBIGUOUS_CHARACTER_ID when selecting a duplicated character ID in cast', () => {
-      const duplicateBlueprint: Blueprint = {
+      const duplicateBlueprint = normalizeBlueprint({
         ...genericBlueprint,
         cast: [
           ...genericBlueprint.cast,
@@ -130,7 +130,7 @@ describe('playerCharacterBinding', () => {
             isEntity: false,
           },
         ],
-      };
+      });
 
       expect(() => {
         resolvePerspectiveBinding(duplicateBlueprint, 'protagonist', 'char-1');
@@ -210,7 +210,7 @@ describe('playerCharacterBinding', () => {
     });
 
     it('binds to authored subjectCharacterId from top-level Blueprint.perspectives array', () => {
-      const blueprintWithPerspectives: Blueprint = {
+      const blueprintWithPerspectives = normalizeBlueprint({
         ...genericBlueprint,
         perspectives: [
           {
@@ -224,7 +224,7 @@ describe('playerCharacterBinding', () => {
             mode: 'entity_embodied',
           },
         ],
-      };
+      });
 
       const protagBinding = resolvePerspectiveBinding(blueprintWithPerspectives, 'protagonist');
       expect(protagBinding).toEqual({
@@ -242,7 +242,7 @@ describe('playerCharacterBinding', () => {
     });
 
     it('proves hauntedHouse is not read for perspectives array and top-level takes precedence', () => {
-      const blueprintWithHauntedHouse: Blueprint = {
+      const blueprintWithHauntedHouse = normalizeBlueprint({
         ...genericBlueprint,
         perspectives: [
           {
@@ -260,7 +260,7 @@ describe('playerCharacterBinding', () => {
             boundedFacts: [],
           },
         },
-      };
+      });
 
       const binding = resolvePerspectiveBinding(blueprintWithHauntedHouse, 'protagonist');
       expect(binding).toEqual({
@@ -289,4 +289,3 @@ describe('playerCharacterBinding', () => {
     });
   });
 });
-

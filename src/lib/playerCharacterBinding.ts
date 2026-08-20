@@ -68,14 +68,7 @@ export function resolvePerspectiveBinding(
     return {
       playerRole: role,
       characterId: null,
-      perspectiveMode:
-        role === 'director'
-          ? 'director'
-          : role === 'witness'
-          ? 'witness'
-          : role === 'antagonist'
-          ? 'entity_embodied'
-          : 'embodied',
+      perspectiveMode: role === 'antagonist' ? 'entity_embodied' : 'embodied',
     };
   }
 
