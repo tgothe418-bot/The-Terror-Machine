@@ -17,6 +17,7 @@ import {
 } from './characterRelationships';
 import {
   CharacterMemoryByIdSchema,
+  CharacterMemoryEntrySchema,
   CharacterMemoryProposalSchema,
   CharacterMemoryReceiptSchema,
 } from './characterMemory';
@@ -86,6 +87,7 @@ export const EngineTurnContextSchema = z.object({
         skepticism: z.number().finite().min(0).max(1).default(0.5),
         isPresent: z.boolean().default(true),
         stance: CharacterStanceRecordSchema.nullable().default(null),
+        memory: z.array(CharacterMemoryEntrySchema).max(24).default([]),
       })
     )
     .default([]),

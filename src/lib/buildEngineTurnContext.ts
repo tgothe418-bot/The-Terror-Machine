@@ -177,6 +177,7 @@ export function buildEngineTurnContext({
             stance: normalizedStance[canonicalId].stance,
           }
         : null,
+      memory: (memoryState[canonicalId] ?? []).map((entry) => ({ ...entry })),
     };
   });
 

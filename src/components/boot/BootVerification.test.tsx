@@ -61,7 +61,9 @@ describe('Blocker W1 Boot and Render Verification', () => {
     });
 
     expect(container?.textContent).toContain('[ CRITICAL UI FAILURE ]');
-    expect(container?.textContent).toContain('Simulated boot detonation');
+    expect(container?.textContent).toContain('The interface encountered an unexpected rendering failure');
+    expect(container?.textContent).not.toContain('Simulated boot detonation');
+    expect(spy).toHaveBeenCalledWith('// CRITICAL UI FAILURE //', expect.any(Error), expect.anything());
 
     spy.mockRestore();
   });

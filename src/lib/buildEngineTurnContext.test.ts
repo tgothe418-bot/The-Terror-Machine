@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildEngineTurnContext, buildContextReceipt } from './buildEngineTurnContext';
+import { deriveCharacterMemoryId } from './characterMemory';
 import { SpatialNode } from '../types';
 
 describe('buildEngineTurnContext & buildContextReceipt', () => {
@@ -555,6 +556,112 @@ describe('buildEngineTurnContext & buildContextReceipt', () => {
 
       expect(context.relationshipState).toEqual([]);
       expect(context.memoryState).toEqual({});
+      for (const member of context.cast) {
+        expect(member.memory).toEqual([]);
+      }
+    });
+
+    it('situates character memory projection onto exact cast records and isolates by ID', () => {
+      const blueprintWithDuplicates = {
+        ...mockBlueprint,
+        cast: [
+          {
+            id: 'char-a',
+            name: 'Dr. Evans',
+            role: 'Protagonist',
+            isUserCharacter: true,
+          },
+          {
+            id: 'char-b',
+            name: 'Dr. Evans', // identical display name
+            role: 'Subject',
+            isUserCharacter: false,
+          },
+          {
+            id: 'char-absent',
+            name: 'Warden Absent',
+            role: 'Antagonist',
+            isUserCharacter: false,
+          },
+        ],
+      };
+
+      const mockMemory = Object.freeze({
+        'char-a': Object.freeze([
+          Object.freeze({
+            id: 'mem-a',
+            fact: 'Evans remembers the basement key code.',
+            source: 'OBSERVED' as const,
+            certainty: 'KNOWN' as const,
+            acquired_turn: 0,
+          }),
+        ]),
+        'char-b': Object.freeze([
+          Object.freeze({
+            id: 'mem-b',
+            fact: 'The duplicate doctor heard footsteps.',
+            source: 'TOLD' as const,
+            certainty: 'BELIEVED' as const,
+            acquired_turn: 1,
+          }),
+        ]),
+        'char-absent': Object.freeze([
+          Object.freeze({
+            id: 'mem-absent',
+            fact: 'The absent warden tracks the containment protocol.',
+            source: 'OBSERVED' as const,
+            certainty: 'KNOWN' as const,
+            acquired_turn: 2,
+          }),
+        ]),
+      });
+
+      const context = buildEngineTurnContext({
+        blueprint: blueprintWithDuplicates,
+        characterMemory: mockMemory,
+        characterPresence: {
+          'char-a': { nodeId: 'WARD_4B' },
+          'char-b': { nodeId: 'WARD_4B' },
+          'char-absent': { nodeId: 'STAIRWELL' }, // absent from current node
+        },
+        runtimeState: { currentNodeId: 'WARD_4B' },
+      });
+
+      // 1. memoryState ledger is preserved
+      expect(context.memoryState).toBeDefined();
+      expect(context.memoryState['char-a']).toHaveLength(1);
+      expect(context.memoryState['char-b']).toHaveLength(1);
+      expect(context.memoryState['char-absent']).toHaveLength(1);
+
+      // 2. memory for char-a appears only on char-a
+      const charA = context.cast.find((c) => c.id === 'char-a');
+      expect(charA?.memory).toHaveLength(1);
+      expect(charA?.memory[0].id).toBe(deriveCharacterMemoryId('char-a', 'Evans remembers the basement key code.'));
+      expect(charA?.memory[0].fact).toBe('Evans remembers the basement key code.');
+
+      // 3. Two characters with same display name remain isolated by ID
+      const charB = context.cast.find((c) => c.id === 'char-b');
+      expect(charB?.memory).toHaveLength(1);
+      expect(charB?.memory[0].id).toBe(deriveCharacterMemoryId('char-b', 'The duplicate doctor heard footsteps.'));
+      expect(charB?.memory[0].fact).toBe('The duplicate doctor heard footsteps.');
+
+      // 4. Absent character retains its own context memory projection
+      const charAbsent = context.cast.find((c) => c.id === 'char-absent');
+      expect(charAbsent?.isPresent).toBe(false);
+      expect(charAbsent?.memory).toHaveLength(1);
+      expect(charAbsent?.memory[0].id).toBe(deriveCharacterMemoryId('char-absent', 'The absent warden tracks the containment protocol.'));
+
+      // 5. Returned arrays and entries are fresh copies (deep-freeze remains safe)
+      expect(charA?.memory).not.toBe(mockMemory['char-a']);
+      expect(charA?.memory[0]).not.toBe(mockMemory['char-a'][0]);
+      charA!.memory.push({
+        id: 'mem-mutated',
+        fact: 'Mutated copy',
+        source: 'OBSERVED',
+        certainty: 'KNOWN',
+        acquired_turn: 3,
+      });
+      expect(mockMemory['char-a']).toHaveLength(1);
     });
 
     it('passes through relationshipState and memoryState when provided', () => {

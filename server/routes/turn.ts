@@ -246,12 +246,11 @@ export function finalizeCharacterMemory(input: {
   intentReceipt: IntentReceipt;
   narrativeReconciliationReceipt: NarrativeReconciliationReceipt;
   castInteractionReceipt: CastInteractionReceipt;
-  currentTurn?: number;
 }): CharacterMemoryReceipt {
   return resolveCharacterMemory({
     proposal: input.proposal,
-    currentState: input.context.memoryState || {},
-    currentTurn: input.currentTurn ?? input.context.runtime.turnNumber,
+    currentState: input.context.memoryState,
+    currentTurn: input.context.runtime.turnNumber,
     context: input.context,
     intentReceipt: input.intentReceipt,
     reconciliationReceipt: input.narrativeReconciliationReceipt,
@@ -543,6 +542,13 @@ The user acts as an external scene director. A direction is a proposal for focus
         member.isPresent
     );
 
+    const eligiblePresentCharactersFormatted =
+      eligiblePresentCharacters.length > 0
+        ? eligiblePresentCharacters
+            .map((member) => `• ${member.name} (ID: ${member.id})`)
+            .join('\n')
+        : '• No present eligible non-player characters.';
+
     const characterStanceFormatted =
       eligiblePresentCharacters.length > 0
         ? eligiblePresentCharacters
@@ -565,25 +571,24 @@ The user acts as an external scene director. A direction is a proposal for focus
             .join('\n')
         : '• No established relationships.';
 
-    const characterMemoryFormatted = context.cast
-      .filter(
-        (member) =>
-          member.id !== context.player.characterId && !member.isUserCharacter
-      )
-      .map((member) => {
-        const memories = (context.memoryState || {})[member.id] || [];
-        if (memories.length === 0) {
-          return `• ${member.name} (${member.id}): (No memories recorded)`;
-        }
-        const list = memories
-          .map(
-            (m) =>
-              `  - [${m.certainty}/${m.source} @ turn ${m.acquired_turn}]: "${m.fact}"`
-          )
-          .join('\n');
-        return `• ${member.name} (${member.id}):\n${list}`;
-      })
-      .join('\n');
+    const characterMemoryFormatted =
+      eligiblePresentCharacters.length > 0
+        ? eligiblePresentCharacters
+            .map((member) => {
+              const memories = member.memory || [];
+              if (memories.length === 0) {
+                return `• ${member.name} (ID: ${member.id}): (No memories recorded)`;
+              }
+              const list = memories
+                .map(
+                  (m) =>
+                    `  - [${m.certainty}/${m.source} @ turn ${m.acquired_turn}]: "${m.fact}"`
+                )
+                .join('\n');
+              return `• ${member.name} (ID: ${member.id}):\n${list}`;
+            })
+            .join('\n')
+        : '• No present eligible non-player characters.';
 
     // Construct the dense, authoritative contract prompt
     const prompt = `[SCENARIO CONTRACT]
@@ -646,7 +651,7 @@ ${characterStanceFormatted}
 [CHARACTER RELATIONSHIP CONTRACT]
 Player Character ID: ${context.player.characterId || 'N/A'}
 Eligible Present Non-Player Characters:
-${characterStanceFormatted}
+${eligiblePresentCharactersFormatted}
 Current Relationships:
 ${characterRelationshipsFormatted}
 - character_relationship_proposal.changes describes proposed durable relational shifts; it is not itself state.
@@ -664,19 +669,19 @@ ${characterRelationshipsFormatted}
 [CHARACTER MEMORY CONTRACT]
 Player Character ID: ${context.player.characterId || 'N/A'}
 Eligible Present Non-Player Characters:
-${characterStanceFormatted}
+${eligiblePresentCharactersFormatted}
 Current Memories by Character:
-${characterMemoryFormatted || '• No memories recorded.'}
-- character_memory_proposal.candidates describes proposed durable factual memories acquired this turn; it is not itself state.
-- Each candidate requires character_id, fact (max 200 chars), source ('OBSERVED' | 'TOLD'), certainty ('KNOWN' | 'BELIEVED'), and rationale (max 240 chars).
-- Candidates can only be proposed for eligible present non-player characters (never for the player character).
-- source: 'TOLD' requires that the player attempted a COMMUNICATE action and the character was addressed or responding.
-- source: 'OBSERVED' requires an action other than COMMUNICATE (e.g. OBSERVE, INVESTIGATE, MOVE, MANIPULATE) witnessed by the character.
-- Do not propose duplicate facts or facts already known/believed by the character.
-- Propose at most two memory candidates per turn. Use an empty array if no durable memory was acquired.
-- OBSERVE, WAIT, OTHER, and SYSTEM_INIT require an empty memory proposal when no new durable fact is revealed.
-- Write no memory data in logic_state.
-- A proposal may be rejected while ordinary prose is preserved.
+${characterMemoryFormatted}
+- character_memory_proposal.candidates proposes durable facts for one exact eligible present non-player character; it is not state.
+- Use an exact cast ID and at most two candidates; use an empty array when no new durable fact exists.
+- TOLD requires COMMUNICATE and the addressed or responding character.
+- OBSERVED is allowed only for a present character witnessing OBSERVE, INVESTIGATE, MOVE, or MANIPULATE.
+- Do not record emotion, stance, relationship intensity, personality, speculation presented as fact, hidden information, narration style, instructions, or scene summaries.
+- Use KNOWN only for directly established information and BELIEVED only for a received but unverified claim.
+- Do not repeat a fact already in that exact character ledger.
+- WAIT, OTHER, and SYSTEM_INIT require an empty candidate array.
+- Write no character memory in logic_state, lore_and_memory, or memory-echo metadata.
+- A rejected candidate does not suppress ordinary prose.
 
 [CANONICAL CONSEQUENCE CONTRACT]
 Current Inventory: ${inventoryFormatted}

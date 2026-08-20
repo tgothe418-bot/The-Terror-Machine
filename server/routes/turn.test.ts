@@ -19,6 +19,7 @@ import {
   finalizeCanonicalConsequences,
   finalizeCharacterStance,
   finalizeCharacterRelationships,
+  finalizeCharacterMemory,
 } from './turn';
 import { createCastInteractionReceipt } from '../../src/lib/castInteraction';
 import { createIntentReceipt } from '../../src/lib/intentReceipt';
@@ -3609,6 +3610,193 @@ describe('Turn schemas validation', () => {
           intentReceipt: validStanceIntent,
           narrativeReconciliationReceipt: suppressedReconciliation,
           castInteractionReceipt: validInteractionReceipt,
+        });
+
+        expect(receipt.decisions).toHaveLength(1);
+        expect(receipt.decisions[0].outcome).toBe('REJECTED');
+        expect(receipt.decisions[0].reason).toBe('RECONCILIATION_SUPPRESSED');
+        expect(receipt.post_state).toEqual(receipt.pre_state);
+      });
+    });
+
+    describe('finalizeCharacterMemory', () => {
+      const baseMemContext = EngineTurnContextSchema.parse({
+        ...baseContext,
+        player: {
+          role: 'protagonist',
+          characterId: 'char-player',
+          name: 'Arthur',
+          description: 'Investigator',
+        },
+        cast: [
+          {
+            id: 'char-npc1',
+            name: 'Nurse Finch',
+            role: 'Custodian',
+            description: 'Orderly',
+            isUserCharacter: false,
+            isPresent: true,
+            memory: [
+              {
+                id: 'cm_001',
+                fact: 'Door seals were tested at 0400 hours.',
+                certainty: 'KNOWN',
+                source: 'OBSERVED',
+                acquired_turn: 1,
+              },
+            ],
+          },
+          {
+            id: 'char-npc2',
+            name: 'Doctor Gray',
+            role: 'Antagonist',
+            description: 'Chief Doctor',
+            isUserCharacter: false,
+            isPresent: false,
+            memory: [],
+          },
+          {
+            id: 'char-player',
+            name: 'Arthur',
+            role: 'Protagonist',
+            description: 'Investigator',
+            isUserCharacter: true,
+            isPresent: true,
+            memory: [],
+          },
+        ],
+        runtime: {
+          turnNumber: 3,
+        },
+        memoryState: {
+          'char-npc1': [
+            {
+              id: 'cm_001',
+              fact: 'Door seals were tested at 0400 hours.',
+              certainty: 'KNOWN',
+              source: 'OBSERVED',
+              acquired_turn: 1,
+            },
+          ],
+        },
+      });
+
+      const validMemIntent = createIntentReceipt({
+        action_kind: 'COMMUNICATE',
+        action_subtype: null,
+        pressure_direction: 'MAINTAIN',
+        dramatic_tactic: 'NONE',
+        intent_synergy: 'N/A',
+      });
+
+      const validMemReconciliation = createNarrativeReconciliationReceipt(
+        {
+          mode: 'CANONICAL',
+          feasibility: 'SUPPORTED',
+          reason_code: 'NONE',
+          fictional_time_cost: 'MOMENT',
+          authority_alignment: 'NOT_APPLICABLE',
+          memory_echo_candidate: null,
+        },
+        'protagonist'
+      );
+
+      const validMemInteractionReceipt = createCastInteractionReceipt({
+        addressedCharacterId: 'char-npc1',
+        respondingCharacterId: 'char-npc1',
+      });
+
+      it('commits valid new fact candidate to target character ledger', () => {
+        const receipt = finalizeCharacterMemory({
+          proposal: {
+            candidates: [
+              {
+                character_id: 'char-npc1',
+                fact: 'Sub-level 3 power grid was rerouted.',
+                certainty: 'KNOWN',
+                source: 'TOLD',
+                rationale: 'Arthur explained the power rerouting directly to Finch',
+              },
+            ],
+          },
+          context: baseMemContext,
+          intentReceipt: validMemIntent,
+          narrativeReconciliationReceipt: validMemReconciliation,
+          castInteractionReceipt: validMemInteractionReceipt,
+        });
+
+        expect(receipt.version).toBe(1);
+        expect(receipt.decisions).toHaveLength(1);
+        expect(receipt.decisions[0].outcome).toBe('APPLIED');
+        expect(receipt.decisions[0].reason).toBe('APPLIED');
+        expect(receipt.post_state['char-npc1']).toHaveLength(2);
+        expect(receipt.post_state['char-npc1'][1].fact).toBe('Sub-level 3 power grid was rerouted.');
+        expect(receipt.post_state['char-npc1'][1].acquired_turn).toBe(3);
+      });
+
+      it('rejects candidate with INVALID_TARGET for absent or player character', () => {
+        const receipt = finalizeCharacterMemory({
+          proposal: {
+            candidates: [
+              {
+                character_id: 'char-npc2', // absent
+                fact: 'Heard a whisper in the dark.',
+                certainty: 'BELIEVED',
+                source: 'OBSERVED',
+                rationale: 'Whisper observed',
+              },
+              {
+                character_id: 'char-player', // player character
+                fact: 'I remember the code.',
+                certainty: 'KNOWN',
+                source: 'OBSERVED',
+                rationale: 'Player remembering code',
+              },
+            ],
+          },
+          context: baseMemContext,
+          intentReceipt: validMemIntent,
+          narrativeReconciliationReceipt: validMemReconciliation,
+          castInteractionReceipt: validMemInteractionReceipt,
+        });
+
+        expect(receipt.decisions).toHaveLength(2);
+        expect(receipt.decisions[0].outcome).toBe('REJECTED');
+        expect(receipt.decisions[0].reason).toBe('CHARACTER_ABSENT');
+        expect(receipt.decisions[1].outcome).toBe('REJECTED');
+        expect(receipt.decisions[1].reason).toBe('PLAYER_CHARACTER');
+        expect(receipt.post_state).toEqual(receipt.pre_state);
+      });
+
+      it('rejects candidate when narrative reconciliation is suppressed', () => {
+        const suppressedReconciliation = createNarrativeReconciliationReceipt(
+          {
+            mode: 'EXPERIENTIAL_REANCHORED',
+            feasibility: 'IMPOSSIBLE',
+            reason_code: 'PHYSICAL_LIMIT',
+            fictional_time_cost: 'MOMENT',
+            authority_alignment: 'NOT_APPLICABLE',
+            memory_echo_candidate: null,
+          },
+          'protagonist'
+        );
+
+        const receipt = finalizeCharacterMemory({
+          proposal: {
+            candidates: [
+              {
+                character_id: 'char-npc1',
+                fact: 'Saw shadows morphing into winged beasts.',
+                certainty: 'KNOWN',
+                source: 'OBSERVED',
+                rationale: 'Hallucinatory observation',
+              },
+            ],
+          },
+          context: baseMemContext,
+          intentReceipt: validMemIntent,
+          narrativeReconciliationReceipt: suppressedReconciliation,
+          castInteractionReceipt: validMemInteractionReceipt,
         });
 
         expect(receipt.decisions).toHaveLength(1);

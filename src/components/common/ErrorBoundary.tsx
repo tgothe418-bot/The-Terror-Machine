@@ -48,7 +48,7 @@ export class ErrorBoundary extends Component<Props, State> {
               [ CRITICAL UI FAILURE ]
             </h1>
             <p className="text-xs text-zinc-400">
-              {this.state.error?.message || 'An unexpected rendering exception occurred.'}
+              The interface encountered an unexpected rendering failure. Check the console for a diagnostic trace.
             </p>
             <div className="text-[10px] text-zinc-600 uppercase tracking-widest">
               Check console logs for detailed diagnostic trace
