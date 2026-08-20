@@ -16,6 +16,7 @@ import {
   CharacterStanceById,
   CharacterRelationshipState,
   CharacterMemoryById,
+  WorldMemoryState,
 } from '../types';
 import { buildCharacterContinuity, DEFAULT_SKEPTICISM } from './castContinuity';
 import { buildCharacterPresence } from './castPresence';
@@ -23,6 +24,7 @@ import { createCanonicalConsequenceState } from './canonicalConsequences';
 import { createCharacterStanceState } from './characterStance';
 import { createCharacterRelationshipState } from './characterRelationships';
 import { createCharacterMemoryState } from './characterMemory';
+import { createWorldMemoryState, migrateLegacyLoreAndMemory } from './worldMemory';
 
 export interface BuildEngineTurnContextOptions {
   blueprint: unknown;
@@ -35,6 +37,7 @@ export interface BuildEngineTurnContextOptions {
   characterStance?: CharacterStanceById | null;
   characterRelationships?: CharacterRelationshipState | null;
   characterMemory?: CharacterMemoryById | null;
+  worldMemory?: WorldMemoryState | null;
   runtimeState?: {
     currentNodeId?: string | null;
     phase?: string;
@@ -47,25 +50,86 @@ export interface BuildEngineTurnContextOptions {
     turnCount?: number;
     participationContext?: ParticipationContext | null;
     characterRelationships?: CharacterRelationshipState | null;
+    worldMemory?: WorldMemoryState | null;
   };
 }
 
 /**
  * Pure, deterministic builder that resolves the canonical EngineTurnContext.
  */
-export function buildEngineTurnContext({
-  blueprint,
-  selectedRole = 'protagonist',
-  spatialGraph,
-  participationContext,
-  characterContinuity,
-  characterPresence,
-  consequenceState: rawConsequenceState,
-  characterStance,
-  characterRelationships: rawRelationships,
-  characterMemory: rawMemory,
-  runtimeState = {},
-}: BuildEngineTurnContextOptions): EngineTurnContext {
+export function buildEngineTurnContext(
+  optionsOrState: BuildEngineTurnContextOptions | any
+): EngineTurnContext {
+  let opts: BuildEngineTurnContextOptions;
+  if (
+    optionsOrState &&
+    typeof optionsOrState === 'object' &&
+    ('spatialGraph' in optionsOrState ||
+      'selectedRole' in optionsOrState ||
+      'characterContinuity' in optionsOrState ||
+      'consequenceState' in optionsOrState ||
+      'characterStance' in optionsOrState ||
+      'characterRelationships' in optionsOrState ||
+      'characterMemory' in optionsOrState ||
+      'runtimeState' in optionsOrState)
+  ) {
+    opts = optionsOrState;
+  } else if (
+    optionsOrState &&
+    typeof optionsOrState === 'object' &&
+    'blueprint' in optionsOrState &&
+    !('turnNumber' in optionsOrState) &&
+    !('currentNodeId' in optionsOrState) &&
+    !('world_memory' in optionsOrState)
+  ) {
+    opts = optionsOrState;
+  } else {
+    const s = optionsOrState || {};
+    opts = {
+      blueprint: s.blueprint,
+      selectedRole: s.selectedRole || s.playerRole,
+      spatialGraph: s.spatialGraph,
+      participationContext: s.participationContext,
+      characterContinuity: s.character_continuity || s.characterContinuity,
+      characterPresence: s.character_presence || s.characterPresence,
+      consequenceState: {
+        inventory: s.inventory,
+        player_injuries: s.player_injuries,
+        psychological_status: s.psychological_status,
+      },
+      characterStance: s.character_stance || s.characterStance,
+      characterRelationships: s.character_relationships || s.characterRelationships,
+      characterMemory: s.character_memory || s.characterMemory,
+      worldMemory: s.world_memory || s.worldMemory,
+      runtimeState: {
+        currentNodeId: s.currentNodeId,
+        phase: s.phase,
+        tension: s.tension,
+        coherence: s.coherence,
+        reconciliationRevision: s.reconciliationRevision,
+        activeVector: s.activeVector,
+        activeTier: s.activeTier,
+        activeFlags: s.activeFlags,
+        turnCount: s.turnNumber ?? s.turnCount,
+      },
+    };
+  }
+
+  const {
+    blueprint,
+    selectedRole = 'protagonist',
+    spatialGraph,
+    participationContext,
+    characterContinuity,
+    characterPresence,
+    consequenceState: rawConsequenceState,
+    characterStance,
+    characterRelationships: rawRelationships,
+    characterMemory: rawMemory,
+    worldMemory: rawWorldMemoryProp,
+    runtimeState = {},
+  } = opts;
+
   const normBp: Blueprint = normalizeBlueprint(blueprint);
   const effectiveRole = (selectedRole as PlayerRole) || 'protagonist';
 
@@ -75,6 +139,15 @@ export function buildEngineTurnContext({
     rawRelationships ?? runtimeState.characterRelationships
   );
   const memoryState = createCharacterMemoryState(rawMemory);
+
+  const rawWorldMemory =
+    rawWorldMemoryProp ??
+    runtimeState.worldMemory ??
+    (normBp as any).world_memory ??
+    ((normBp as any).lore_and_memory
+      ? migrateLegacyLoreAndMemory((normBp as any).lore_and_memory)
+      : []);
+  const worldMemory = createWorldMemoryState(rawWorldMemory);
 
   // 0. Participation Context resolution
   const rawParticipation =
@@ -288,6 +361,7 @@ export function buildEngineTurnContext({
     consequenceState,
     relationshipState,
     memoryState,
+    worldMemory,
   };
 }
 

@@ -384,10 +384,15 @@ interface ParsedTelemetrySections {
   rawPayload: Record<string, unknown>;
 }
 
-function parseTelemetrySections(logicData: Record<string, unknown>): ParsedTelemetrySections {
-  const turn = (typeof logicData.turnReceipt === 'object' && logicData.turnReceipt !== null
-    ? logicData.turnReceipt
-    : undefined) as Record<string, unknown> | undefined;
+export function parseTelemetrySections(logicData: Record<string, unknown>): ParsedTelemetrySections {
+  const turn = (
+    (typeof logicData.turnReceipt === 'object' && logicData.turnReceipt !== null
+      ? logicData.turnReceipt
+      : undefined) ||
+    (typeof logicData.turn === 'object' && logicData.turn !== null
+      ? logicData.turn
+      : undefined)
+  ) as Record<string, unknown> | undefined;
 
   const intentReceipt = (turn && typeof turn.intentReceipt === 'object' && turn.intentReceipt !== null
     ? turn.intentReceipt
@@ -488,6 +493,23 @@ function parseTelemetrySections(logicData: Record<string, unknown>): ParsedTelem
     typeof logicState.characterMemoryReceipt === 'object' &&
     logicState.characterMemoryReceipt !== null
       ? (logicState.characterMemoryReceipt as Record<string, unknown>)
+      : undefined)
+  ) as Record<string, unknown> | undefined;
+
+  const worldMemoryReceipt = (
+    (turn &&
+    typeof turn.worldMemoryReceipt === 'object' &&
+    turn.worldMemoryReceipt !== null
+      ? turn.worldMemoryReceipt
+      : undefined) ||
+    (typeof logicData.worldMemoryReceipt === 'object' &&
+    logicData.worldMemoryReceipt !== null
+      ? logicData.worldMemoryReceipt
+      : undefined) ||
+    (logicState &&
+    typeof logicState.worldMemoryReceipt === 'object' &&
+    logicState.worldMemoryReceipt !== null
+      ? (logicState.worldMemoryReceipt as Record<string, unknown>)
       : undefined)
   ) as Record<string, unknown> | undefined;
 
@@ -784,6 +806,53 @@ function parseTelemetrySections(logicData: Record<string, unknown>): ParsedTelem
     hasChanges: memoryDecisions.some((d) => d.outcome === 'APPLIED'),
   };
 
+  const worldMemoryDecisions: Array<{
+    kind: string;
+    scope: string;
+    nodeId?: string | null;
+    statement: string;
+    outcome: string;
+    reason: string;
+    rationale?: string;
+    entry?: {
+      id: string;
+      kind: string;
+      scope: string;
+      node_id: string | null;
+      statement: string;
+      established_turn: number;
+    } | null;
+  }> = [];
+
+  if (worldMemoryReceipt && Array.isArray(worldMemoryReceipt.decisions)) {
+    for (const d of worldMemoryReceipt.decisions) {
+      if (typeof d === 'object' && d !== null) {
+        const cand = (d as any).candidate;
+        if (cand && typeof cand === 'object') {
+          worldMemoryDecisions.push({
+            kind: String(cand.kind ?? ''),
+            scope: String(cand.scope ?? ''),
+            nodeId: cand.node_id != null ? String(cand.node_id) : null,
+            statement: String(cand.statement ?? ''),
+            outcome: String((d as any).outcome ?? 'UNKNOWN'),
+            reason: String((d as any).reason ?? 'UNKNOWN'),
+            rationale:
+              cand.rationale != null && String(cand.rationale).trim().length > 0
+                ? String(cand.rationale)
+                : undefined,
+            entry: (d as any).entry ?? null,
+          });
+        }
+      }
+    }
+  }
+
+  const worldMemory = {
+    hasReceipt: worldMemoryReceipt !== undefined,
+    decisions: worldMemoryDecisions,
+    hasChanges: worldMemoryDecisions.some((d) => d.outcome === 'APPLIED'),
+  };
+
   // 5. Canonical State Diff
   const preSnapshot = turn?.preSnapshot as RuntimeStateSnapshot | undefined;
   const postSnapshot = turn?.postSnapshot as RuntimeStateSnapshot | undefined;
@@ -951,6 +1020,7 @@ function parseTelemetrySections(logicData: Record<string, unknown>): ParsedTelem
     characterStance,
     characterRelationships,
     characterMemory,
+    worldMemory,
     canonicalStateDiff: {
       diffLines,
       transition,
@@ -1104,6 +1174,30 @@ function renderHtmlTelemetrySections(logicData: Record<string, unknown>): string
     }
     if (sections.characterMemory.decisions.length === 0 || !sections.characterMemory.hasChanges) {
       html += `<li>No character memory changes</li>`;
+    }
+  }
+  html += `</ul>`;
+  html += `</div>`;
+
+  // World Memory
+  html += `<div class="telemetry-section">`;
+  html += `<h4>World Memory</h4>`;
+  html += `<ul>`;
+  if (!sections.worldMemory.hasReceipt) {
+    html += `<li><strong>World Memory:</strong> Not recorded</li>`;
+  } else {
+    for (const decision of sections.worldMemory.decisions) {
+      const scopeLabel = decision.scope === 'GLOBAL' ? 'GLOBAL' : `NODE: ${decision.nodeId ?? 'UNSPECIFIED'}`;
+      const entryText = decision.entry
+        ? ` [ID: ${escapeHtml(decision.entry.id)} @ turn ${escapeHtml(String(decision.entry.established_turn))}]`
+        : '';
+      const rationaleText = decision.rationale
+        ? ` — <em>${escapeHtml(decision.rationale)}</em>`
+        : '';
+      html += `<li><strong>Decision [${escapeHtml(decision.kind)} / ${escapeHtml(scopeLabel)}]:</strong> "${escapeHtml(decision.statement)}" | Outcome: ${escapeHtml(decision.outcome)} (Reason: ${escapeHtml(decision.reason)})${entryText}${rationaleText}</li>`;
+    }
+    if (sections.worldMemory.decisions.length === 0 || !sections.worldMemory.hasChanges) {
+      html += `<li>No durable world memories added</li>`;
     }
   }
   html += `</ul>`;
@@ -1275,6 +1369,25 @@ function renderMarkdownTelemetrySections(logicData: Record<string, unknown>): st
     }
     if (sections.characterMemory.decisions.length === 0 || !sections.characterMemory.hasChanges) {
       md += `- No character memory changes\n`;
+    }
+    md += `\n`;
+  }
+
+  // World Memory
+  md += `#### World Memory\n`;
+  if (!sections.worldMemory.hasReceipt) {
+    md += `- **World Memory:** Not recorded\n\n`;
+  } else {
+    for (const decision of sections.worldMemory.decisions) {
+      const scopeLabel = decision.scope === 'GLOBAL' ? 'GLOBAL' : `NODE: ${decision.nodeId ?? 'UNSPECIFIED'}`;
+      const entryText = decision.entry
+        ? ` [ID: ${decision.entry.id} @ turn ${decision.entry.established_turn}]`
+        : '';
+      const rationaleText = decision.rationale ? ` — *${decision.rationale}*` : '';
+      md += `- **Decision [${decision.kind} / ${scopeLabel}]:** "${decision.statement}" | Outcome: ${decision.outcome} (Reason: ${decision.reason})${entryText}${rationaleText}\n`;
+    }
+    if (sections.worldMemory.decisions.length === 0 || !sections.worldMemory.hasChanges) {
+      md += `- No durable world memories added\n`;
     }
     md += `\n`;
   }

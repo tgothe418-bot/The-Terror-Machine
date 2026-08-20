@@ -346,6 +346,7 @@ export interface TurnReceipt {
   characterStanceReceipt?: CharacterStanceReceipt;
   characterRelationshipReceipt?: CharacterRelationshipReceipt;
   characterMemoryReceipt?: CharacterMemoryReceipt;
+  worldMemoryReceipt?: WorldMemoryReceipt;
 }
 
 export interface TurnFailureReceipt {
@@ -604,6 +605,7 @@ export interface RatifiedEngineFrame {
   characterStanceReceipt?: CharacterStanceReceipt;
   characterRelationshipReceipt?: CharacterRelationshipReceipt;
   characterMemoryReceipt?: CharacterMemoryReceipt;
+  worldMemoryReceipt?: WorldMemoryReceipt;
   preSnapshot?: RuntimeStateSnapshot;
   reconciliation?: {
     isHallucinationCollision: boolean;

@@ -39,6 +39,7 @@ import { createFallbackNarrativeReconciliationReceipt } from '../../lib/narrativ
 import { createCharacterStanceState } from '../../lib/characterStance';
 import { createCharacterRelationshipState } from '../../lib/characterRelationships';
 import { createCharacterMemoryState } from '../../lib/characterMemory';
+import { createWorldMemoryState } from '../../lib/worldMemory';
 import type {
   CharacterContinuityById,
   CastContinuityReceipt,
@@ -554,6 +555,7 @@ export default function Runtime() {
         characterStanceReceipt: response.characterStanceReceipt,
         characterRelationshipReceipt: response.characterRelationshipReceipt,
         characterMemoryReceipt: response.characterMemoryReceipt,
+        worldMemoryReceipt: response.worldMemoryReceipt,
       };
 
       const committedTurnPayload: CommittedTurnPayload = {
@@ -593,11 +595,21 @@ export default function Runtime() {
         });
       }
 
-      useEngineStore.getState().patchGameState({
-        character_memory: createCharacterMemoryState(
-          response.characterMemoryReceipt.post_state
-        ),
-      });
+      if (response.characterMemoryReceipt) {
+        useEngineStore.getState().patchGameState({
+          character_memory: createCharacterMemoryState(
+            response.characterMemoryReceipt.post_state
+          ),
+        });
+      }
+
+      if (response.worldMemoryReceipt) {
+        useEngineStore.getState().patchGameState({
+          world_memory: createWorldMemoryState(
+            response.worldMemoryReceipt.post_state
+          ),
+        });
+      }
 
       if (activeBlueprint) {
         const patchPayload: Partial<typeof latestEngineState.gameState> = {};

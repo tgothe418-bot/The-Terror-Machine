@@ -21,11 +21,17 @@ import {
   CharacterMemoryProposalSchema,
   CharacterMemoryReceiptSchema,
 } from './characterMemory';
+import {
+  WorldMemoryStateSchema,
+  WorldMemoryProposalSchema,
+  WorldMemoryReceiptSchema,
+} from './worldMemory';
 export * from './adLib';
 export * from './consequence';
 export * from './characterStance';
 export * from './characterRelationships';
 export * from './characterMemory';
+export * from './worldMemory';
 
 export const EdgeKindSchema = z.enum([
   'PHYSICAL',
@@ -126,6 +132,7 @@ export const EngineTurnContextSchema = z.object({
   }),
   relationshipState: CharacterRelationshipStateSchema.default([]),
   memoryState: CharacterMemoryByIdSchema.default({}),
+  worldMemory: WorldMemoryStateSchema.default([]),
 });
 
 export type EngineTurnContext = z.infer<typeof EngineTurnContextSchema>;
@@ -347,6 +354,7 @@ export const TurnResultSchema = z.object({
   character_stance_proposal: CharacterStanceProposalSchema,
   character_relationship_proposal: CharacterRelationshipProposalSchema,
   character_memory_proposal: CharacterMemoryProposalSchema,
+  world_memory_proposal: WorldMemoryProposalSchema,
   logic_state: z
     .object({
       current_phase: z.string().optional(),
@@ -405,6 +413,7 @@ export const TurnResponseSchema = TurnResultSchema.omit({
   character_stance_proposal: true,
   character_relationship_proposal: true,
   character_memory_proposal: true,
+  world_memory_proposal: true,
 }).extend({
   transitionReceipt: TransitionReceiptSchema.optional(),
   castInteractionReceipt: CastInteractionReceiptSchema.optional(),
@@ -414,6 +423,7 @@ export const TurnResponseSchema = TurnResultSchema.omit({
   characterStanceReceipt: CharacterStanceReceiptSchema,
   characterRelationshipReceipt: CharacterRelationshipReceiptSchema,
   characterMemoryReceipt: CharacterMemoryReceiptSchema,
+  worldMemoryReceipt: WorldMemoryReceiptSchema,
 });
 
 export type TurnResponse = z.infer<typeof TurnResponseSchema>;

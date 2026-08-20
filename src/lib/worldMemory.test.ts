@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, expect, it } from 'vitest';
 import {
   WORLD_MEMORY_KINDS,
@@ -28,6 +29,8 @@ import {
   migrateLegacyLoreAndMemory,
   resolveWorldMemory,
 } from './worldMemory';
+import { buildEngineTurnContext } from './buildEngineTurnContext';
+import { parseTelemetrySections } from './download';
 
 function deepFreeze<T>(obj: T): T {
   if (obj === null || typeof obj !== 'object') {
@@ -1295,6 +1298,177 @@ describe('3H.5A: Durable World Memory Contracts and Pure Resolver', () => {
       const parsed = WorldMemoryReceiptSchema.parse(receipt);
       expect(parsed).toEqual(receipt);
       expect(parsed.post_state).toHaveLength(1);
+    });
+  });
+
+  describe('9. Context Integration & EngineTurnContext', () => {
+    it('populates worldMemory in buildEngineTurnContext with sorted canonical ledger', () => {
+      const mockState: any = {
+        blueprint: {
+          title: 'Deep Research Station',
+          premise: 'Sub-aquatic research facility',
+          world_rules: ['High pressure environment'],
+          nodes: [
+            {
+              id: 'node-control',
+              title: 'Central Control',
+              description: 'Command hub.',
+              connections: [],
+            },
+          ],
+        },
+        characterLedger: {
+          entities: {},
+        },
+        playerCharacterId: 'player-01',
+        currentNodeId: 'node-control',
+        turnNumber: 5,
+        tension: 0.4,
+        coherence: 0.8,
+        phase: 'LATENT',
+        reconciliationRevision: 1,
+        activeVector: 'COGNITIVE',
+        activeTier: 'LATENT',
+        inventory: ['keycard'],
+        player_injuries: [],
+        psychological_status: 'STABLE',
+        character_presence: {},
+        character_continuity: {},
+        character_stance: {},
+        character_relationships: {},
+        character_memory: {},
+        world_memory: [
+          {
+            id: 'wm_078dcf15',
+            kind: 'ESTABLISHED_FACT',
+            scope: 'NODE',
+            node_id: 'node-control',
+            statement: 'the signal is active',
+            established_turn: 2,
+          },
+          {
+            id: 'wm_global_1',
+            kind: 'ESTABLISHED_FACT',
+            scope: 'GLOBAL',
+            node_id: null,
+            statement: 'storm outside',
+            established_turn: 1,
+          },
+        ],
+      };
+
+      const ctx = buildEngineTurnContext(mockState, 'INVESTIGATE the console');
+      expect(ctx.worldMemory).toBeDefined();
+      expect(ctx.worldMemory).toHaveLength(2);
+      expect(ctx.worldMemory![0].scope).toBe('GLOBAL');
+      expect(ctx.worldMemory![1].scope).toBe('NODE');
+    });
+  });
+
+  describe('10. Telemetry & Download Export', () => {
+    it('correctly parses world memory receipt decisions and handles empty state', () => {
+      const turnWithWorldMemory = {
+        turnNumber: 3,
+        commandText: 'INVESTIGATE the terminal',
+        worldMemoryReceipt: {
+          version: 1,
+          pre_state: [],
+          post_state: [
+            {
+              id: 'wm_078dcf15',
+              kind: 'ESTABLISHED_FACT',
+              scope: 'NODE',
+              node_id: 'node-control',
+              statement: 'the signal is active',
+              established_turn: 3,
+            },
+          ],
+          decisions: [
+            {
+              candidate: {
+                kind: 'ESTABLISHED_FACT',
+                scope: 'NODE',
+                node_id: 'node-control',
+                statement: 'the signal is active',
+                rationale: 'Observed active terminal readout.',
+              },
+              outcome: 'APPLIED',
+              reason: 'APPLIED',
+              entry: {
+                id: 'wm_078dcf15',
+                kind: 'ESTABLISHED_FACT',
+                scope: 'NODE',
+                node_id: 'node-control',
+                statement: 'the signal is active',
+                established_turn: 3,
+              },
+            },
+          ],
+        },
+      };
+
+      const sections = parseTelemetrySections({
+        turn: turnWithWorldMemory,
+      });
+
+      expect(sections.worldMemory.hasReceipt).toBe(true);
+      expect(sections.worldMemory.hasChanges).toBe(true);
+      expect(sections.worldMemory.decisions).toHaveLength(1);
+      expect(sections.worldMemory.decisions[0].outcome).toBe('APPLIED');
+      expect(sections.worldMemory.decisions[0].statement).toBe('the signal is active');
+      expect(sections.worldMemory.decisions[0].entry?.id).toBe('wm_078dcf15');
+    });
+  });
+
+  describe('11. Retake Preservation & Checkpointing', () => {
+    it('restores pre-turn world_memory state cleanly on retake without mutating or leaking newly applied entries', () => {
+      const initialWorldMemory: WorldMemoryState = [
+        {
+          id: 'wm_078dcf15',
+          kind: 'ESTABLISHED_FACT',
+          scope: 'NODE',
+          node_id: 'node-control',
+          statement: 'the signal is active',
+          established_turn: 1,
+        },
+      ];
+
+      // Deep copy to represent pre-turn checkpoint
+      const preTurnCheckpoint = createWorldMemoryState(initialWorldMemory);
+
+      // Simulate a turn that adds a second entry
+      const receipt = resolveWorldMemory({
+        proposal: {
+          candidates: [
+            {
+              kind: 'ENVIRONMENTAL_CONDITION',
+              scope: 'NODE',
+              node_id: 'node-control',
+              statement: 'Sub-level vents are smoking.',
+              rationale: 'Observed exhaust leak.',
+            },
+          ],
+        },
+        currentState: initialWorldMemory,
+        currentTurn: 2,
+        context: createMockContext({
+          topology: {
+            currentNodeId: 'node-control',
+            readableNodeLabel: 'Control',
+            allowedOutgoingExits: [],
+          },
+        }),
+        intentReceipt: createMockIntentReceipt({ action_kind: 'MANIPULATE' }),
+        reconciliationReceipt: createMockReconciliationReceipt(),
+        castInteractionReceipt: createMockCastInteractionReceipt(),
+      });
+
+      expect(receipt.post_state).toHaveLength(2);
+
+      // On retake, gameState is restored from preTurnCheckpoint
+      const restoredState = createWorldMemoryState(preTurnCheckpoint);
+      expect(restoredState).toHaveLength(1);
+      expect(restoredState[0].id).toBe(deriveWorldMemoryId(initialWorldMemory[0]));
     });
   });
 });

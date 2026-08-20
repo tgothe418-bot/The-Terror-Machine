@@ -28,6 +28,11 @@ import type {
   CharacterMemoryReceipt,
 } from '../../src/types/characterMemory';
 import { resolveCharacterMemory } from '../../src/lib/characterMemory';
+import type {
+  WorldMemoryProposal,
+  WorldMemoryReceipt,
+} from '../../src/types/worldMemory';
+import { resolveWorldMemory } from '../../src/lib/worldMemory';
 import { generateStructuredResponse } from '../utils/aiClient';
 import { resolveTransition } from '../engine/transitionResolver';
 import { clampSkepticismDelta } from '../../src/lib/castContinuity';
@@ -250,6 +255,24 @@ export function finalizeCharacterMemory(input: {
   return resolveCharacterMemory({
     proposal: input.proposal,
     currentState: input.context.memoryState,
+    currentTurn: input.context.runtime.turnNumber,
+    context: input.context,
+    intentReceipt: input.intentReceipt,
+    reconciliationReceipt: input.narrativeReconciliationReceipt,
+    castInteractionReceipt: input.castInteractionReceipt,
+  });
+}
+
+export function finalizeWorldMemory(input: {
+  proposal: WorldMemoryProposal;
+  context: EngineTurnContext;
+  intentReceipt: IntentReceipt;
+  narrativeReconciliationReceipt: NarrativeReconciliationReceipt;
+  castInteractionReceipt: CastInteractionReceipt;
+}): WorldMemoryReceipt {
+  return resolveWorldMemory({
+    proposal: input.proposal,
+    currentState: input.context.worldMemory || [],
     currentTurn: input.context.runtime.turnNumber,
     context: input.context,
     intentReceipt: input.intentReceipt,
@@ -590,6 +613,16 @@ The user acts as an external scene director. A direction is a proposal for focus
             .join('\n')
         : '• No present eligible non-player characters.';
 
+    const worldMemoryFormatted =
+      context.worldMemory && context.worldMemory.length > 0
+        ? context.worldMemory
+            .map((m) => {
+              const scopeStr = m.scope === 'GLOBAL' ? 'GLOBAL' : `NODE: ${m.node_id}`;
+              return `• [${m.id}] ${m.kind} (${scopeStr}) @ turn ${m.established_turn}: "${m.statement}"`;
+            })
+            .join('\n')
+        : '• No durable world memories recorded.';
+
     // Construct the dense, authoritative contract prompt
     const prompt = `[SCENARIO CONTRACT]
 Title: ${context.scenario.title}
@@ -681,6 +714,25 @@ ${characterMemoryFormatted}
 - Do not repeat a fact already in that exact character ledger.
 - WAIT, OTHER, and SYSTEM_INIT require an empty candidate array.
 - Write no character memory in logic_state, lore_and_memory, or memory-echo metadata.
+- A rejected candidate does not suppress ordinary prose.
+
+[WORLD MEMORY CONTRACT]
+Current World Memories:
+${worldMemoryFormatted}
+- world_memory_proposal.candidates proposes durable world facts or conditions established by this turn; it is not state.
+- Candidates are durable world facts or conditions established by this turn, not summaries, style notes, instructions, character beliefs, hidden information, speculation, or repetitions.
+- Use at most two candidates and an empty array when nothing durable was established.
+- Use the exact kind/action matrix:
+  • ESTABLISHED_FACT: OBSERVE, INVESTIGATE, COMMUNICATE
+  • DISCOVERED_EVIDENCE: OBSERVE, INVESTIGATE, MANIPULATE
+  • ENVIRONMENTAL_CONDITION: MOVE, MANIPULATE
+  • PERSISTENT_CONSEQUENCE: MOVE, MANIPULATE
+- GLOBAL is permitted only for an ESTABLISHED_FACT; all other new entries are NODE-scoped to the exact current node ID (${context.topology.currentNodeId}).
+- A fact from COMMUNICATE requires a material response from the addressed character.
+- Character-specific knowledge belongs only in character_memory_proposal.
+- Do not repeat an existing ledger statement at the same identity.
+- WAIT, OTHER, and SYSTEM_INIT require an empty candidate array.
+- Write no world memory into logic_state, lore_and_memory, memory echo, narrative reconciliation, or another proposal.
 - A rejected candidate does not suppress ordinary prose.
 
 [CANONICAL CONSEQUENCE CONTRACT]
@@ -850,6 +902,14 @@ ${recentHistory}
       castInteractionReceipt,
     });
 
+    const worldMemoryReceipt = finalizeWorldMemory({
+      proposal: engineResponse.world_memory_proposal,
+      context,
+      intentReceipt,
+      narrativeReconciliationReceipt,
+      castInteractionReceipt,
+    });
+
     const finalResponse: TurnResponse = {
       narrative_blocks: boundedResult.narrative_blocks,
       logic_state: boundedResult.logic_state,
@@ -862,6 +922,7 @@ ${recentHistory}
       characterStanceReceipt,
       characterRelationshipReceipt,
       characterMemoryReceipt,
+      worldMemoryReceipt,
     };
 
     return res.json(finalResponse);

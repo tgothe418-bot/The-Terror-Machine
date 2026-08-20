@@ -259,6 +259,46 @@ export const turnResponseSchema = {
       },
       required: ["candidates"],
     },
+    world_memory_proposal: {
+      type: Type.OBJECT,
+      properties: {
+        candidates: {
+          type: Type.ARRAY,
+          maxItems: 2,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              kind: {
+                type: Type.STRING,
+                enum: [
+                  "ESTABLISHED_FACT",
+                  "DISCOVERED_EVIDENCE",
+                  "ENVIRONMENTAL_CONDITION",
+                  "PERSISTENT_CONSEQUENCE",
+                ],
+              },
+              scope: {
+                type: Type.STRING,
+                enum: ["GLOBAL", "NODE"],
+              },
+              node_id: {
+                type: Type.STRING,
+                nullable: true,
+                description: "Exact node ID where the memory applies when scope is NODE; null when GLOBAL.",
+              },
+              statement: {
+                type: Type.STRING,
+                maxLength: 200,
+                description: "Concise, durable world fact or condition established this turn (max 200 chars).",
+              },
+              rationale: { type: Type.STRING, maxLength: 240 },
+            },
+            required: ["kind", "scope", "node_id", "statement", "rationale"],
+          },
+        },
+      },
+      required: ["candidates"],
+    },
     logic_state: {
       type: Type.OBJECT,
       properties: {
@@ -319,6 +359,7 @@ export const turnResponseSchema = {
     "character_stance_proposal",
     "character_relationship_proposal",
     "character_memory_proposal",
+    "world_memory_proposal",
   ]
 };
 
