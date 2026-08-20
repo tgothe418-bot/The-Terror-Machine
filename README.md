@@ -10,7 +10,7 @@ The Terror Machine is an experimental, state-driven horror simulator. A language
 
 TTM is not a chatbot that merely tells a horror story. It is an attempt to build a persistent simulation in which language-model improvisation is constrained by mechanical state.
 
-Rooms remain where they were. Doors connect to specific places. Characters have bounded knowledge, presence, and continuity. Actions can change the world, but only after the Engine accepts the change under an explicit contract.
+Rooms remain where they were. Doors connect to specific places. Characters have bounded knowledge, presence, stance, and relationships. Actions can change the world, but only after the Engine accepts the change under an explicit contract.
 
 > The model proposes. The machine decides.
 
@@ -35,12 +35,13 @@ The Engine runs both entry paths through the same schema-bound turn pipeline. A 
 - Accept one action at a time through a schema-bound, server-normalized turn contract.
 - Preserve canonical topology and allow new space to materialize only through an authorized movement attempt at an unmapped boundary.
 - Evaluate intent, causal feasibility, role boundaries, movement, and dialogue targets before committing state.
-- Track bounded cast presence and continuity, with receipts retained in diagnostic exports.
-- Produce human-readable telemetry alongside canonical turn receipts for development review.
+- Commit bounded canonical consequences, character stances, and player-centered character relationships through deterministic resolvers and receipts.
+- Track cast presence and continuity, with structured diagnostics retained in telemetry exports.
+- Produce human-readable Markdown and HTML telemetry alongside canonical turn receipts for development review.
 - Retake the most recent completed turn—including a terminal outcome—restoring the prior application state, Engine game state, and command input.
 - Run authored Blueprint scenarios or begin with Haunted House Induction.
 
-This is a working foundation, not a finished simulation. The Engine has strong boundaries around the state it currently owns; deeper character relationships, durable memories, and broader world consequences are still being built deliberately.
+This is a working foundation, not a finished simulation. The Engine has strong boundaries around the state it currently owns. A bounded character-memory resolver is now in place; its end-to-end turn integration, durable world memory, and broader campaign continuity are being built deliberately.
 
 ## How a Turn Works
 
@@ -48,7 +49,7 @@ This is a working foundation, not a finished simulation. The Engine has strong b
 |---|---|
 | Snapshot | Capture the authoritative state before the action. |
 | Generation | Ask the model for bounded narrative and proposal data. |
-| Ratification | Compare proposals with topology, cast, role, and contract rules. |
+| Ratification | Compare proposals with topology, cast, role, relationship, and contract rules. |
 | Commit or fail | Commit accepted state once, or preserve canonical state with a failure receipt. |
 | Retake | Restore the immediately preceding checkpoint when the player wants another approach. |
 | Telemetry | Retain diagnostic evidence of the turn and its accepted result. |
@@ -59,12 +60,13 @@ The simulation may be hostile to a character, but it should never be hostile to 
 
 The roadmap is intentionally directional rather than a promise of dates or feature volume.
 
-1. **Deeper consequences** — durable character state, relationships, memory, and a tightly controlled world-state ledger.
-2. **A better Voice** — a seamless conversational observer that recognizes when a question is about a Forge draft, an Engine turn, outside research, or simply conversation. It will use only bounded, evidence-labelled snapshots when relevant, never alter a simulation, and remain separate from its canon.
-3. **Campaign continuity** — multi-Blueprint stories with explicit, scoped state handoff between acts.
-4. **Generative horror grammar** — research-driven mechanics for pressure, pacing, fear, revelation, and recovery rather than a library of preset plots.
-5. **Authoring and observation** — clearer scenario construction, readable simulation surfaces, and better diagnostic views.
-6. **Provider flexibility** — a future model boundary that preserves the Engine contract while allowing the underlying provider to change.
+1. **Finish durable continuity** — integrate bounded character memory into the turn pipeline, then add a tightly controlled world-memory ledger for durable discoveries, rules, and consequences.
+2. **A better Voice** — audit its read-only observation boundary, make its context evidence-labelled, and allow it to recognize whether a question concerns a Forge draft, an Engine turn, outside research, or simply conversation. It will remain separate from canon and never alter a simulation.
+3. **Voice export parity** — preserve the conversation log while adding readable HTML exports and verified, read-only observation snapshots.
+4. **Campaign continuity** — multi-Blueprint stories with explicit, scoped state handoff between acts.
+5. **Generative horror grammar** — research-driven mechanics for pressure, pacing, fear, revelation, and recovery rather than a library of preset plots.
+6. **Authoring and observation** — clearer scenario construction, readable simulation surfaces, and better diagnostic views.
+7. **Provider flexibility** — a future model boundary that preserves the Engine contract while allowing the underlying provider to change.
 
 ## Content, Difficulty, and Agency
 
@@ -96,6 +98,6 @@ Add a personal Gemini API key to `.env`. Never commit that file or paste a key i
 
 ## Project Note
 
-TTM is a private-first solo hobby project: an experiment in building a very particular horror machine, learning in public through code, and making something worth returning to.
+TTM is a private-first solo hobby project: an active experiment in building a very particular horror machine, learning in public through code, and making something worth returning to.
 
 The code is available under the [MIT License](./LICENSE).
