@@ -28,7 +28,28 @@ describe('Runtime component terminal retake behavior', () => {
       atmosphere: 'Oppressive cold',
       timePeriod: '1984',
     },
-    cast: [],
+    cast: [
+      {
+        id: 'char-1',
+        name: 'Mortal One',
+        role: 'Technician',
+        description: 'First generic mortal.',
+        personality: 'Nervous',
+        goals: 'Survive',
+        traits: ['Cautious'],
+        isEntity: false,
+      },
+      {
+        id: 'char-2',
+        name: 'Mortal Two',
+        role: 'Specialist',
+        description: 'Second generic mortal.',
+        personality: 'Methodical',
+        goals: 'Restore power',
+        traits: ['Analytical'],
+        isEntity: false,
+      },
+    ],
     narrativeRules: {
       incitingIncident: 'Power failure',
       currentTensionLevel: 'buildup',
@@ -415,5 +436,122 @@ describe('Runtime component terminal retake behavior', () => {
       m.content.includes('Malformed turn response: missing required characterMemoryReceipt or worldMemoryReceipt')
     );
     expect(criticalErrorMsg).toBeDefined();
+  });
+
+  it('preserves non-first selected player_character_id, role, and perspective mode identically across turn completion and retake', async () => {
+    // Set up session with non-first selected character 'char-2'
+    useEngineStore.setState({
+      gameState: {
+        ...useEngineStore.getState().gameState,
+        player_role: 'protagonist',
+        player_character_id: 'char-2',
+        perspective_mode: 'embodied',
+      },
+    });
+
+    await act(async () => {
+      root?.render(<Runtime />);
+    });
+
+    // 1. Assert initial state before turn
+    const beforeEngineState = useEngineStore.getState().gameState;
+    expect(beforeEngineState.player_role).toBe('protagonist');
+    expect(beforeEngineState.player_character_id).toBe('char-2');
+    expect(beforeEngineState.perspective_mode).toBe('embodied');
+
+    // 2. Commit a completed turn with checkpoint
+    const preSnapshot = captureRuntimeSnapshot(useAppStore.getState());
+    const payload: CommittedTurnPayload = {
+      commandText: 'Inspect the fuse panel',
+      formattedText: 'The fuses are intact.',
+      preSnapshot,
+      engineGameStateBefore: JSON.parse(JSON.stringify(beforeEngineState)),
+      frame: {
+        narrative_blocks: [{ type: 'prose', content: 'The fuses are intact.' }],
+        logic_state: {
+          current_phase: 'ENGAGED',
+          suggested_tension: 10,
+        },
+      },
+      turnReceipt: {
+        turnNumber: 1,
+        nodeBefore: 'ORIGIN',
+        requestedTarget: 'ORIGIN',
+        accepted: true,
+        nodeAfter: 'ORIGIN',
+        activeVector: 'COGNITIVE',
+        activeTier: 'LATENT',
+        tension: 10,
+        preSnapshot,
+      },
+    };
+
+    await act(async () => {
+      useAppStore.getState().commitTurnResult(payload);
+    });
+
+    // 3. Assert identity is identical after turn
+    const afterTurnEngineState = useEngineStore.getState().gameState;
+    expect(afterTurnEngineState.player_role).toBe('protagonist');
+    expect(afterTurnEngineState.player_character_id).toBe('char-2');
+    expect(afterTurnEngineState.perspective_mode).toBe('embodied');
+
+    // 4. Click RETAKE
+    const retakeButton = Array.from(container?.querySelectorAll('button') || []).find((b) =>
+      b.textContent?.includes('[ RETAKE ]')
+    );
+    expect(retakeButton).toBeDefined();
+
+    await act(async () => {
+      retakeButton?.click();
+    });
+
+    // 5. Assert identity remains identical after retake
+    const afterRetakeEngineState = useEngineStore.getState().gameState;
+    expect(afterRetakeEngineState.player_role).toBe('protagonist');
+    expect(afterRetakeEngineState.player_character_id).toBe('char-2');
+    expect(afterRetakeEngineState.perspective_mode).toBe('embodied');
+  });
+
+  it('does not drift stored player identity when a turn fails or is rejected', async () => {
+    // Set up session with non-first selected character 'char-2'
+    useEngineStore.setState({
+      gameState: {
+        ...useEngineStore.getState().gameState,
+        player_role: 'protagonist',
+        player_character_id: 'char-2',
+        perspective_mode: 'embodied',
+      },
+    });
+
+    // Mock failure in ratification pipeline
+    vi.mocked(executeRatificationPipeline).mockRejectedValueOnce(
+      new Error('Network connection timeout')
+    );
+
+    await act(async () => {
+      root?.render(<Runtime />);
+    });
+
+    const initialEngineState = useEngineStore.getState().gameState;
+    expect(initialEngineState.player_role).toBe('protagonist');
+    expect(initialEngineState.player_character_id).toBe('char-2');
+    expect(initialEngineState.perspective_mode).toBe('embodied');
+
+    const observeButton = Array.from(container?.querySelectorAll('button') || []).find((b) =>
+      b.textContent?.includes('Observe')
+    );
+    expect(observeButton).toBeDefined();
+
+    // Trigger action that fails
+    await act(async () => {
+      observeButton?.click();
+    });
+
+    // Assert identity did not drift despite the failure
+    const postFailureEngineState = useEngineStore.getState().gameState;
+    expect(postFailureEngineState.player_role).toBe('protagonist');
+    expect(postFailureEngineState.player_character_id).toBe('char-2');
+    expect(postFailureEngineState.perspective_mode).toBe('embodied');
   });
 });

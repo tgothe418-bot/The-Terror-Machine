@@ -4454,5 +4454,182 @@ describe('Turn schemas validation', () => {
       expect(blockB).toContain('PRESENT_B_MEMORY_ONLY');
       expect(blockB).not.toContain('PRESENT_A_MEMORY_ONLY');
     });
+
+    it('proves /api/turn with an explicit non-first player character formats playable perspective, isolates cast memory, and invokes model with bound identity', async () => {
+      const validMockTurnResult: TurnResult = {
+        narrative_blocks: [
+          {
+            type: 'prose',
+            content: 'You examine the diagnostic array as Operator Marcus.',
+          },
+        ],
+        intent_proposal: {
+          action_kind: 'INVESTIGATE',
+          action_subtype: null,
+          pressure_direction: 'MAINTAIN',
+          dramatic_tactic: 'NONE',
+          intent_synergy: 'N/A',
+        },
+        reconciliation_proposal: {
+          mode: 'CANONICAL',
+          feasibility: 'SUPPORTED',
+          reason_code: 'NONE',
+          fictional_time_cost: 'MOMENT',
+          authority_alignment: 'NOT_APPLICABLE',
+          memory_echo_candidate: null,
+        },
+        consequence_proposal: {
+          mutations: [],
+        },
+        character_stance_proposal: {
+          changes: [],
+        },
+        character_relationship_proposal: {
+          changes: [],
+        },
+        character_memory_proposal: {
+          candidates: [],
+        },
+        world_memory_proposal: {
+          candidates: [],
+        },
+        logic_state: {
+          current_phase: 'LATENT',
+          suggested_tension: 1,
+          requested_transition: null,
+          terminal_flags: [],
+          cast_deltas: [],
+          cast_ledger: [],
+        },
+        topologyDelta: {
+          isExpansion: false,
+          newNodeDef: null,
+        },
+      };
+
+      mockGenerateStructuredResponse.mockResolvedValueOnce(validMockTurnResult);
+
+      const turnPayload = {
+        userAction: 'I check the primary terminal interface.',
+        recentHistory: 'The facility hums with quiet power.',
+        systemDirective: 'Keep prose clinical.',
+        isExpansionExpected: false,
+        stateContext: {
+          currentNodeId: 'CHAMBER_01',
+          currentPhase: 'LATENT',
+          tensionLevel: 1,
+          reconciliationRevision: 0,
+        },
+        context: {
+          version: 1,
+          scenario: {
+            title: 'Generic Enclosure',
+            premise: 'A generic test facility.',
+            worldRules: ['Rules are strictly enforced.'],
+            setting: {
+              location: 'Chamber 01',
+              atmosphere: 'Sterile',
+              timePeriod: 'Present',
+            },
+            startingVector: 'COGNITIVE',
+            startingTier: 'LATENT',
+            incitingIncident: 'System boot.',
+            pacingDirective: 'Controlled.',
+            keyPlotElements: ['The primary console'],
+          },
+          player: {
+            role: 'protagonist',
+            characterId: 'char-2',
+            name: 'Mortal Two',
+            description: 'Second generic mortal subject.',
+            isEntity: false,
+          },
+          cast: [
+            {
+              id: 'char-1',
+              name: 'Mortal One',
+              role: 'Specialist',
+              description: 'First generic mortal subject.',
+              personality: 'Cautious',
+              goals: 'Survive',
+              traits: ['Observant'],
+              isEntity: false,
+              isUserCharacter: false,
+              isPresent: true,
+              memory: [
+                {
+                  id: 'cm_mortal_1',
+                  fact: 'NON_PLAYER_PRESENT_MEMORY',
+                  certainty: 'KNOWN',
+                  source: 'OBSERVED',
+                  acquired_turn: 1,
+                },
+              ],
+            },
+            {
+              id: 'char-2',
+              name: 'Mortal Two',
+              role: 'Operator',
+              description: 'Second generic mortal subject.',
+              personality: 'Pragmatic',
+              goals: 'Repair systems',
+              traits: ['Analytical'],
+              isEntity: false,
+              isUserCharacter: true,
+              isPresent: true,
+              memory: [
+                {
+                  id: 'cm_mortal_2',
+                  fact: 'PLAYER_CHARACTER_MEMORY_DO_NOT_RENDER',
+                  certainty: 'KNOWN',
+                  source: 'OBSERVED',
+                  acquired_turn: 1,
+                },
+              ],
+            },
+          ],
+          topology: {
+            currentNodeId: 'CHAMBER_01',
+            readableNodeLabel: 'Chamber 01',
+            allowedOutgoingExits: [],
+          },
+          runtime: {
+            turnNumber: 1,
+            phase: 'LATENT',
+            tension: 1,
+            coherence: 1.0,
+            reconciliationRevision: 0,
+            activeVector: 'COGNITIVE',
+            activeTier: 'LATENT',
+          },
+        },
+      };
+
+      const response = await fetch(`${baseUrl}/api/turn`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(turnPayload),
+      });
+
+      expect(response.status).toBe(200);
+      const jsonResponse = (await response.json()) as TurnResponse;
+
+      // 1. Assert normal valid response shape
+      expect(jsonResponse.narrative_blocks).toHaveLength(1);
+      expect(jsonResponse.narrative_blocks[0].content).toContain('Operator Marcus');
+      expect(jsonResponse.intentReceipt.action_kind).toBe('INVESTIGATE');
+
+      // 2. Assert model was invoked once with formatted prompt
+      expect(mockGenerateStructuredResponse).toHaveBeenCalledTimes(1);
+      const capturedPrompt = mockGenerateStructuredResponse.mock.calls[0][0] as string;
+
+      // 3. Assert prompt names the non-first character as playable perspective
+      expect(capturedPrompt).toContain('[PLAYABLE PERSPECTIVE]');
+      expect(capturedPrompt).toContain('Character: Mortal Two (ID: char-2) - Second generic mortal subject.');
+
+      // 4. Assert non-player character memory is rendered while player-character memory is excluded
+      expect(capturedPrompt).toContain('NON_PLAYER_PRESENT_MEMORY');
+      expect(capturedPrompt).not.toContain('PLAYER_CHARACTER_MEMORY_DO_NOT_RENDER');
+    });
   });
 });

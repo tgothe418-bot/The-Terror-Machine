@@ -7,136 +7,183 @@ import {
 import type { Blueprint } from '../types';
 
 describe('playerCharacterBinding', () => {
-  const sampleBlueprint: Blueprint = {
-    title: 'The Whispering Mill',
-    contentScale: 'chamber',
+  const genericBlueprint: Blueprint = {
+    title: 'Generic Enclosure',
+    contentScale: 3,
     contentLevelDescription: 'Standard',
-    globalPremise: 'A mill that grinds bones.',
-    environmentalRules: 'Do not sleep near the gears.',
+    globalPremise: 'A generic test premise.',
+    environmentalRules: ['Rule 1'],
     cast: [
       {
-        id: 'char-elena',
-        name: 'Elena Ward',
-        role: 'Historian',
-        description: 'An archivist investigating the mill.',
-        personality: 'Curious, cautious',
-        goals: 'Find the mill ledger',
-        traits: ['Meticulous', 'Observant'],
+        id: 'char-1',
+        name: 'Mortal One',
+        role: 'Specialist',
+        description: 'First generic mortal subject.',
+        personality: 'Cautious',
+        goals: 'Survive',
+        traits: ['Observant'],
         isEntity: false,
       },
       {
-        id: 'char-marcus',
-        name: 'Marcus Gray',
-        role: 'Engineer',
-        description: 'A surveyor inspecting the water wheel.',
-        personality: 'Pragmatic, cynical',
-        goals: 'Fix the machinery and leave',
+        id: 'char-2',
+        name: 'Mortal Two',
+        role: 'Operator',
+        description: 'Second generic mortal subject.',
+        personality: 'Pragmatic',
+        goals: 'Repair systems',
         traits: ['Analytical'],
         isEntity: false,
       },
       {
-        id: 'entity-miller',
-        name: 'The Dust Miller',
-        role: 'Specter',
-        description: 'A pale entity woven from grain dust.',
-        personality: 'Relentless, quiet',
-        goals: 'Feed the grinding stones',
-        traits: ['Incorporeal', 'Vengeful'],
+        id: 'entity-1',
+        name: 'Entity One',
+        role: 'Apparition',
+        description: 'First generic entity presence.',
+        personality: 'Hostile',
+        goals: 'Isolate subjects',
+        traits: ['Incorporeal'],
         isEntity: true,
       },
     ],
     setting: {
-      location: 'Derelict Mill',
-      timePeriod: '1920s',
-      atmosphere: 'Suffocating flour dust',
+      location: 'Chamber 01',
+      timePeriod: 'Present',
+      atmosphere: 'Sterile',
     },
     narrativeRules: {
-      incitingIncident: 'The water wheel started spinning on its own.',
+      incitingIncident: 'System alert triggered.',
     },
     topology: {
-      nodes: ['MILL_ENTRY', 'MILL_GEAR_ROOM'],
+      nodes: ['CHAMBER_01', 'CHAMBER_02'],
       connections: [],
     },
   };
 
   describe('isCharacterEligibleForRole', () => {
     it('identifies mortal characters as eligible for protagonist only', () => {
-      const elena = sampleBlueprint.cast[0];
-      expect(isCharacterEligibleForRole(elena, 'protagonist')).toBe(true);
-      expect(isCharacterEligibleForRole(elena, 'antagonist')).toBe(false);
-      expect(isCharacterEligibleForRole(elena, 'possessed')).toBe(true);
+      const mortal = genericBlueprint.cast[0];
+      expect(isCharacterEligibleForRole(mortal, 'protagonist')).toBe(true);
+      expect(isCharacterEligibleForRole(mortal, 'antagonist')).toBe(false);
+      expect(isCharacterEligibleForRole(mortal, 'possessed')).toBe(true);
     });
 
     it('identifies entity characters as eligible for antagonist only', () => {
-      const miller = sampleBlueprint.cast[2];
-      expect(isCharacterEligibleForRole(miller, 'protagonist')).toBe(false);
-      expect(isCharacterEligibleForRole(miller, 'antagonist')).toBe(true);
-      expect(isCharacterEligibleForRole(miller, 'possessed')).toBe(true);
+      const entity = genericBlueprint.cast[2];
+      expect(isCharacterEligibleForRole(entity, 'protagonist')).toBe(false);
+      expect(isCharacterEligibleForRole(entity, 'antagonist')).toBe(true);
+      expect(isCharacterEligibleForRole(entity, 'possessed')).toBe(true);
     });
   });
 
   describe('resolvePerspectiveBinding with explicit selection', () => {
-    it('binds explicitly to non-default mortal for protagonist', () => {
-      const binding = resolvePerspectiveBinding(sampleBlueprint, 'protagonist', 'char-marcus');
+    it('binds explicitly to non-default mortal for protagonist (second eligible)', () => {
+      const binding = resolvePerspectiveBinding(genericBlueprint, 'protagonist', 'char-2');
       expect(binding).toEqual({
         playerRole: 'protagonist',
-        characterId: 'char-marcus',
+        characterId: 'char-2',
         perspectiveMode: 'embodied',
       });
     });
 
     it('binds explicitly to entity for antagonist', () => {
-      const binding = resolvePerspectiveBinding(sampleBlueprint, 'antagonist', 'entity-miller');
+      const binding = resolvePerspectiveBinding(genericBlueprint, 'antagonist', 'entity-1');
       expect(binding).toEqual({
         playerRole: 'antagonist',
-        characterId: 'entity-miller',
+        characterId: 'entity-1',
         perspectiveMode: 'entity_embodied',
       });
     });
 
-    it('throws when selecting an unknown character ID', () => {
+    it('throws INVALID_CHARACTER_ID when selecting an empty string', () => {
       expect(() => {
-        resolvePerspectiveBinding(sampleBlueprint, 'protagonist', 'unknown-id');
+        resolvePerspectiveBinding(genericBlueprint, 'protagonist', '   ');
       }).toThrow(PlayerCharacterBindingError);
 
       try {
-        resolvePerspectiveBinding(sampleBlueprint, 'protagonist', 'unknown-id');
+        resolvePerspectiveBinding(genericBlueprint, 'protagonist', '   ');
+      } catch (err) {
+        expect((err as PlayerCharacterBindingError).code).toBe('INVALID_CHARACTER_ID');
+      }
+    });
+
+    it('throws UNKNOWN_CHARACTER_ID when selecting an unknown character ID', () => {
+      expect(() => {
+        resolvePerspectiveBinding(genericBlueprint, 'protagonist', 'char-unknown');
+      }).toThrow(PlayerCharacterBindingError);
+
+      try {
+        resolvePerspectiveBinding(genericBlueprint, 'protagonist', 'char-unknown');
       } catch (err) {
         expect((err as PlayerCharacterBindingError).code).toBe('UNKNOWN_CHARACTER_ID');
       }
     });
 
-    it('throws when selecting an entity for protagonist role', () => {
+    it('throws AMBIGUOUS_CHARACTER_ID when selecting a duplicated character ID in cast', () => {
+      const duplicateBlueprint: Blueprint = {
+        ...genericBlueprint,
+        cast: [
+          ...genericBlueprint.cast,
+          {
+            id: 'char-1',
+            name: 'Duplicate Mortal',
+            description: 'Duplicate',
+            isEntity: false,
+          },
+        ],
+      };
+
       expect(() => {
-        resolvePerspectiveBinding(sampleBlueprint, 'protagonist', 'entity-miller');
+        resolvePerspectiveBinding(duplicateBlueprint, 'protagonist', 'char-1');
       }).toThrow(PlayerCharacterBindingError);
 
       try {
-        resolvePerspectiveBinding(sampleBlueprint, 'protagonist', 'entity-miller');
+        resolvePerspectiveBinding(duplicateBlueprint, 'protagonist', 'char-1');
+      } catch (err) {
+        expect((err as PlayerCharacterBindingError).code).toBe('AMBIGUOUS_CHARACTER_ID');
+      }
+    });
+
+    it('throws ROLE_CHARACTER_MISMATCH when selecting an entity for protagonist role', () => {
+      expect(() => {
+        resolvePerspectiveBinding(genericBlueprint, 'protagonist', 'entity-1');
+      }).toThrow(PlayerCharacterBindingError);
+
+      try {
+        resolvePerspectiveBinding(genericBlueprint, 'protagonist', 'entity-1');
       } catch (err) {
         expect((err as PlayerCharacterBindingError).code).toBe('ROLE_CHARACTER_MISMATCH');
       }
     });
 
-    it('throws when selecting a mortal for antagonist role', () => {
+    it('throws ROLE_CHARACTER_MISMATCH when selecting a mortal for antagonist role', () => {
       expect(() => {
-        resolvePerspectiveBinding(sampleBlueprint, 'antagonist', 'char-elena');
+        resolvePerspectiveBinding(genericBlueprint, 'antagonist', 'char-1');
       }).toThrow(PlayerCharacterBindingError);
 
       try {
-        resolvePerspectiveBinding(sampleBlueprint, 'antagonist', 'char-elena');
+        resolvePerspectiveBinding(genericBlueprint, 'antagonist', 'char-1');
       } catch (err) {
         expect((err as PlayerCharacterBindingError).code).toBe('ROLE_CHARACTER_MISMATCH');
       }
     });
 
-    it('throws when attempting explicit character binding for director or witness', () => {
+    it('throws NON_EMBODIED_ROLE when attempting explicit character binding for director or witness', () => {
       expect(() => {
-        resolvePerspectiveBinding(sampleBlueprint, 'director', 'char-elena');
+        resolvePerspectiveBinding(genericBlueprint, 'director', 'char-1');
       }).toThrow(PlayerCharacterBindingError);
 
       try {
-        resolvePerspectiveBinding(sampleBlueprint, 'director', 'char-elena');
+        resolvePerspectiveBinding(genericBlueprint, 'director', 'char-1');
+      } catch (err) {
+        expect((err as PlayerCharacterBindingError).code).toBe('NON_EMBODIED_ROLE');
+      }
+
+      expect(() => {
+        resolvePerspectiveBinding(genericBlueprint, 'witness', 'char-1');
+      }).toThrow(PlayerCharacterBindingError);
+
+      try {
+        resolvePerspectiveBinding(genericBlueprint, 'witness', 'char-1');
       } catch (err) {
         expect((err as PlayerCharacterBindingError).code).toBe('NON_EMBODIED_ROLE');
       }
@@ -144,33 +191,96 @@ describe('playerCharacterBinding', () => {
   });
 
   describe('resolvePerspectiveBinding with default binding (undefined)', () => {
-    it('defaults protagonist to first mortal member', () => {
-      const binding = resolvePerspectiveBinding(sampleBlueprint, 'protagonist');
+    it('defaults protagonist to first mortal member when no authored perspectives exist', () => {
+      const binding = resolvePerspectiveBinding(genericBlueprint, 'protagonist');
       expect(binding).toEqual({
         playerRole: 'protagonist',
-        characterId: 'char-elena',
+        characterId: 'char-1',
         perspectiveMode: 'embodied',
       });
     });
 
-    it('defaults antagonist to first entity member', () => {
-      const binding = resolvePerspectiveBinding(sampleBlueprint, 'antagonist');
+    it('defaults antagonist to first entity member when no authored perspectives exist', () => {
+      const binding = resolvePerspectiveBinding(genericBlueprint, 'antagonist');
       expect(binding).toEqual({
         playerRole: 'antagonist',
-        characterId: 'entity-miller',
+        characterId: 'entity-1',
         perspectiveMode: 'entity_embodied',
       });
     });
 
-    it('defaults director and witness to unbound mode', () => {
-      const directorBinding = resolvePerspectiveBinding(sampleBlueprint, 'director');
+    it('binds to authored subjectCharacterId from top-level Blueprint.perspectives array', () => {
+      const blueprintWithPerspectives: Blueprint = {
+        ...genericBlueprint,
+        perspectives: [
+          {
+            role: 'PROTAGONIST',
+            subjectCharacterId: 'char-2',
+            mode: 'embodied',
+          },
+          {
+            role: 'ANTAGONIST',
+            subjectCharacterId: 'entity-1',
+            mode: 'entity_embodied',
+          },
+        ],
+      };
+
+      const protagBinding = resolvePerspectiveBinding(blueprintWithPerspectives, 'protagonist');
+      expect(protagBinding).toEqual({
+        playerRole: 'protagonist',
+        characterId: 'char-2',
+        perspectiveMode: 'embodied',
+      });
+
+      const antagBinding = resolvePerspectiveBinding(blueprintWithPerspectives, 'antagonist');
+      expect(antagBinding).toEqual({
+        playerRole: 'antagonist',
+        characterId: 'entity-1',
+        perspectiveMode: 'entity_embodied',
+      });
+    });
+
+    it('proves hauntedHouse is not read for perspectives array and top-level takes precedence', () => {
+      const blueprintWithHauntedHouse: Blueprint = {
+        ...genericBlueprint,
+        perspectives: [
+          {
+            role: 'PROTAGONIST',
+            subjectCharacterId: 'char-2',
+          },
+        ],
+        hauntedHouse: {
+          source: 'haunted-house',
+          version: 1,
+          recommendedParticipationMode: 'protagonist',
+          participationContext: {
+            mode: 'protagonist',
+            initialGoal: 'Escape',
+            boundedFacts: [],
+          },
+        },
+      };
+
+      const binding = resolvePerspectiveBinding(blueprintWithHauntedHouse, 'protagonist');
+      expect(binding).toEqual({
+        playerRole: 'protagonist',
+        characterId: 'char-2',
+        perspectiveMode: 'embodied',
+      });
+    });
+
+    it('defaults director to perspectiveMode director with characterId null', () => {
+      const directorBinding = resolvePerspectiveBinding(genericBlueprint, 'director');
       expect(directorBinding).toEqual({
         playerRole: 'director',
         characterId: null,
-        perspectiveMode: 'witness',
+        perspectiveMode: 'director',
       });
+    });
 
-      const witnessBinding = resolvePerspectiveBinding(sampleBlueprint, 'witness');
+    it('defaults witness to perspectiveMode witness with characterId null', () => {
+      const witnessBinding = resolvePerspectiveBinding(genericBlueprint, 'witness');
       expect(witnessBinding).toEqual({
         playerRole: 'witness',
         characterId: null,
@@ -179,3 +289,4 @@ describe('playerCharacterBinding', () => {
     });
   });
 });
+

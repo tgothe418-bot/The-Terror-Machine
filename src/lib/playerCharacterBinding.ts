@@ -59,7 +59,7 @@ export function resolvePerspectiveBinding(
     return {
       playerRole: role,
       characterId: null,
-      perspectiveMode: 'witness',
+      perspectiveMode: role === 'director' ? 'director' : 'witness',
     };
   }
 
@@ -68,7 +68,14 @@ export function resolvePerspectiveBinding(
     return {
       playerRole: role,
       characterId: null,
-      perspectiveMode: role === 'antagonist' ? 'entity_embodied' : 'embodied',
+      perspectiveMode:
+        role === 'director'
+          ? 'director'
+          : role === 'witness'
+          ? 'witness'
+          : role === 'antagonist'
+          ? 'entity_embodied'
+          : 'embodied',
     };
   }
 
@@ -118,18 +125,45 @@ export function resolvePerspectiveBinding(
     };
   }
 
-  // selectedCharacterId === undefined (legacy default binding precedence)
-  const perspectives = blueprint.hauntedHouse?.perspectives;
+  // selectedCharacterId === undefined (canonical top-level perspectives lookup)
+  const perspectives = blueprint.perspectives;
+
+  const findPerspective = (roleToken: string) => {
+    if (!Array.isArray(perspectives)) return undefined;
+    return perspectives.find(
+      (p): p is { role?: string; subjectCharacterId?: string; mode?: unknown } =>
+        typeof p === 'object' &&
+        p !== null &&
+        !Array.isArray(p) &&
+        typeof (p as { role?: unknown }).role === 'string' &&
+        (p as { role: string }).role.toUpperCase() === roleToken
+    );
+  };
+
+  const isSupportedMode = (mode: unknown): mode is PerspectiveMode => {
+    return (
+      mode === 'embodied' ||
+      mode === 'entity_embodied' ||
+      mode === 'director' ||
+      mode === 'witness'
+    );
+  };
 
   if (role === 'possessed') {
-    const possessedPersp = perspectives?.possessed;
-    if (possessedPersp?.subjectCharacterId) {
+    const possessedPersp = findPerspective('POSSESSED');
+    if (
+      possessedPersp &&
+      typeof possessedPersp.subjectCharacterId === 'string' &&
+      possessedPersp.subjectCharacterId.trim() !== ''
+    ) {
       const charMatches = cast.filter((c) => c.id === possessedPersp.subjectCharacterId);
       if (charMatches.length === 1 && isCharacterEligibleForRole(charMatches[0], 'possessed')) {
         return {
           playerRole: 'possessed',
           characterId: charMatches[0].id,
-          perspectiveMode: possessedPersp.mode ?? 'embodied',
+          perspectiveMode: isSupportedMode(possessedPersp.mode)
+            ? possessedPersp.mode
+            : 'embodied',
         };
       }
     }
@@ -141,14 +175,20 @@ export function resolvePerspectiveBinding(
   }
 
   if (role === 'antagonist') {
-    const antagonistPersp = perspectives?.antagonist;
-    if (antagonistPersp?.subjectCharacterId) {
+    const antagonistPersp = findPerspective('ANTAGONIST');
+    if (
+      antagonistPersp &&
+      typeof antagonistPersp.subjectCharacterId === 'string' &&
+      antagonistPersp.subjectCharacterId.trim() !== ''
+    ) {
       const charMatches = cast.filter((c) => c.id === antagonistPersp.subjectCharacterId);
       if (charMatches.length === 1 && isCharacterEligibleForRole(charMatches[0], 'antagonist')) {
         return {
           playerRole: 'antagonist',
           characterId: charMatches[0].id,
-          perspectiveMode: antagonistPersp.mode ?? 'entity_embodied',
+          perspectiveMode: isSupportedMode(antagonistPersp.mode)
+            ? antagonistPersp.mode
+            : 'entity_embodied',
         };
       }
     }
@@ -162,14 +202,20 @@ export function resolvePerspectiveBinding(
   }
 
   if (role === 'protagonist') {
-    const protagonistPersp = perspectives?.protagonist;
-    if (protagonistPersp?.subjectCharacterId) {
+    const protagonistPersp = findPerspective('PROTAGONIST');
+    if (
+      protagonistPersp &&
+      typeof protagonistPersp.subjectCharacterId === 'string' &&
+      protagonistPersp.subjectCharacterId.trim() !== ''
+    ) {
       const charMatches = cast.filter((c) => c.id === protagonistPersp.subjectCharacterId);
       if (charMatches.length === 1 && isCharacterEligibleForRole(charMatches[0], 'protagonist')) {
         return {
           playerRole: 'protagonist',
           characterId: charMatches[0].id,
-          perspectiveMode: protagonistPersp.mode ?? 'embodied',
+          perspectiveMode: isSupportedMode(protagonistPersp.mode)
+            ? protagonistPersp.mode
+            : 'embodied',
         };
       }
     }
