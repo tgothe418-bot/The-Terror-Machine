@@ -7,7 +7,7 @@ import { useAppStore } from '../../store/useAppStore';
 import { useEngineStore } from '../../core/store';
 import { captureRuntimeSnapshot } from '../../core/engine/snapshot';
 import type { CommittedTurnPayload } from '../../core/engine/events';
-import type { ScenarioBlueprint, WorldMemoryState } from '../../types';
+import type { ScenarioBlueprint, WorldMemoryState, RatifiedEngineFrame } from '../../types';
 import { normalizeBlueprint } from '../../lib/normalizeBlueprint';
 import { executeRatificationPipeline } from '../../lib/ratificationPipeline';
 
@@ -389,7 +389,7 @@ describe('Runtime component terminal retake behavior', () => {
         decisions: [],
       },
       // worldMemoryReceipt is missing
-    } as unknown as TurnResponse);
+    } as unknown as RatifiedEngineFrame);
 
     await act(async () => {
       root?.render(<Runtime />);

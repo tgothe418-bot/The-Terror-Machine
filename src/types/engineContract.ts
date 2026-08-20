@@ -354,7 +354,7 @@ export const TurnResultSchema = z.object({
   character_stance_proposal: CharacterStanceProposalSchema,
   character_relationship_proposal: CharacterRelationshipProposalSchema,
   character_memory_proposal: CharacterMemoryProposalSchema,
-  world_memory_proposal: WorldMemoryProposalSchema.default({ candidates: [] }),
+  world_memory_proposal: WorldMemoryProposalSchema,
   logic_state: z
     .object({
       current_phase: z.string().optional(),

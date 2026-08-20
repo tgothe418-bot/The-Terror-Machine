@@ -50,6 +50,7 @@ function createMockContext(overrides?: Partial<EngineTurnContext>): EngineTurnCo
         skepticism: 0.5,
         isPresent: true,
         stance: null,
+        memory: [],
       },
       {
         id: 'char-002',
@@ -64,6 +65,7 @@ function createMockContext(overrides?: Partial<EngineTurnContext>): EngineTurnCo
         skepticism: 0.5,
         isPresent: false,
         stance: null,
+        memory: [],
       },
       {
         id: 'char-003',
@@ -82,6 +84,7 @@ function createMockContext(overrides?: Partial<EngineTurnContext>): EngineTurnCo
         skepticism: 0.5,
         isPresent: true,
         stance: null,
+        memory: [],
       },
       {
         id: 'char-player',
@@ -96,6 +99,7 @@ function createMockContext(overrides?: Partial<EngineTurnContext>): EngineTurnCo
         skepticism: 0.5,
         isPresent: true,
         stance: null,
+        memory: [],
       },
     ],
     topology: {
@@ -127,6 +131,7 @@ function createMockContext(overrides?: Partial<EngineTurnContext>): EngineTurnCo
     },
     relationshipState: [],
     memoryState: {},
+    worldMemory: [],
     ...overrides,
   };
 }
@@ -215,6 +220,7 @@ describe('Phase 3G.2A: Causal Feasibility Contracts', () => {
             skepticism: 0.5,
             isPresent: true,
             stance: null,
+            memory: [],
           },
           {
             id: 'char-011',
@@ -229,6 +235,7 @@ describe('Phase 3G.2A: Causal Feasibility Contracts', () => {
             skepticism: 0.5,
             isPresent: true,
             stance: null,
+            memory: [],
           },
         ],
       });

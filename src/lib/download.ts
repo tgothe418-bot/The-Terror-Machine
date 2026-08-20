@@ -363,6 +363,27 @@ interface ParsedTelemetrySections {
     }>;
     hasChanges: boolean;
   };
+  worldMemory: {
+    hasReceipt: boolean;
+    decisions: Array<{
+      kind: string;
+      scope: string;
+      nodeId?: string | null;
+      statement: string;
+      outcome: string;
+      reason: string;
+      rationale?: string;
+      entry?: {
+        id: string;
+        kind: string;
+        scope: string;
+        node_id: string | null;
+        statement: string;
+        established_turn: number;
+      } | null;
+    }>;
+    hasChanges: boolean;
+  };
   canonicalStateDiff: {
     diffLines: string[];
     transition: Array<{ label: string; value: string }>;

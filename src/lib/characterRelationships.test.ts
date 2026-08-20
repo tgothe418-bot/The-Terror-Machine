@@ -70,6 +70,7 @@ const mockContext: EngineTurnContext = {
       skepticism: 0.5,
       isPresent: true,
       stance: null,
+      memory: [],
     },
     {
       id: 'char-npc-2',
@@ -84,6 +85,7 @@ const mockContext: EngineTurnContext = {
       skepticism: 0.8,
       isPresent: true,
       stance: null,
+      memory: [],
     },
     {
       id: 'char-absent',
@@ -98,6 +100,7 @@ const mockContext: EngineTurnContext = {
       skepticism: 0.3,
       isPresent: false,
       stance: null,
+      memory: [],
     },
     {
       id: 'char-user-clone',
@@ -112,6 +115,7 @@ const mockContext: EngineTurnContext = {
       skepticism: 0.2,
       isPresent: true,
       stance: null,
+      memory: [],
     },
   ],
   topology: {
@@ -136,6 +140,7 @@ const mockContext: EngineTurnContext = {
   },
   relationshipState: [],
   memoryState: {},
+  worldMemory: [],
 };
 
 const mockIntentReceipt: IntentReceipt = {

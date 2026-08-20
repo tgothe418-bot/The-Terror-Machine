@@ -15,6 +15,7 @@ import {
   WorldMemoryReceiptSchema,
   WorldMemoryStateSchema,
   WorldMemoryState,
+  WorldMemoryEntry,
   WorldMemoryProposal,
   EngineTurnContext,
   IntentReceipt,
@@ -142,6 +143,7 @@ function createMockContext(overrides?: Partial<EngineTurnContext>): EngineTurnCo
     },
     relationshipState: [],
     memoryState: {},
+    worldMemory: [],
     ...overrides,
   };
 }
@@ -1358,7 +1360,7 @@ describe('3H.5A: Durable World Memory Contracts and Pure Resolver', () => {
         ],
       };
 
-      const ctx = buildEngineTurnContext(mockState, 'INVESTIGATE the console');
+      const ctx = buildEngineTurnContext(mockState);
       expect(ctx.worldMemory).toBeDefined();
       expect(ctx.worldMemory).toHaveLength(2);
       expect(ctx.worldMemory![0].scope).toBe('GLOBAL');

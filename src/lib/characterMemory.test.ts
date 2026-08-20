@@ -84,6 +84,7 @@ function createMockContext(overrides?: Partial<EngineTurnContext>): EngineTurnCo
         skepticism: 0.2,
         isPresent: true,
         stance: null,
+        memory: [],
       },
       {
         id: 'char-npc-1',
@@ -98,6 +99,7 @@ function createMockContext(overrides?: Partial<EngineTurnContext>): EngineTurnCo
         skepticism: 0.5,
         isPresent: true,
         stance: null,
+        memory: [],
       },
       {
         id: 'char-npc-2',
@@ -112,6 +114,7 @@ function createMockContext(overrides?: Partial<EngineTurnContext>): EngineTurnCo
         skepticism: 0.8,
         isPresent: true,
         stance: null,
+        memory: [],
       },
       {
         id: 'char-npc-absent',
@@ -126,6 +129,7 @@ function createMockContext(overrides?: Partial<EngineTurnContext>): EngineTurnCo
         skepticism: 0.5,
         isPresent: false,
         stance: null,
+        memory: [],
       },
     ],
     topology: {
@@ -150,6 +154,7 @@ function createMockContext(overrides?: Partial<EngineTurnContext>): EngineTurnCo
     },
     relationshipState: [],
     memoryState: {},
+    worldMemory: [],
     ...overrides,
   };
 }
@@ -897,6 +902,7 @@ describe('Phase 3H.4A: Character Memory Contracts and Pure Resolver', () => {
             skepticism: 0.5,
             isPresent: true,
             stance: null,
+            memory: [],
           },
         ],
       });

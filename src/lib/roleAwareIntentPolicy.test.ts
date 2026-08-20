@@ -54,6 +54,7 @@ function createMockContext(overrides: Partial<EngineTurnContext> = {}): EngineTu
     },
     relationshipState: [],
     memoryState: {},
+    worldMemory: [],
     ...overrides,
   };
 }

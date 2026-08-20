@@ -80,6 +80,7 @@ function createMockContext(overrides?: Partial<EngineTurnContext>): EngineTurnCo
         skepticism: 0.2,
         isPresent: true,
         stance: null,
+        memory: [],
       },
       {
         id: 'char-npc-1',
@@ -94,6 +95,7 @@ function createMockContext(overrides?: Partial<EngineTurnContext>): EngineTurnCo
         skepticism: 0.5,
         isPresent: true,
         stance: null,
+        memory: [],
       },
       {
         id: 'char-npc-2',
@@ -108,6 +110,7 @@ function createMockContext(overrides?: Partial<EngineTurnContext>): EngineTurnCo
         skepticism: 0.8,
         isPresent: true,
         stance: null,
+        memory: [],
       },
       {
         id: 'char-absent',
@@ -122,6 +125,7 @@ function createMockContext(overrides?: Partial<EngineTurnContext>): EngineTurnCo
         skepticism: 0.4,
         isPresent: false,
         stance: null,
+        memory: [],
       },
       {
         id: 'char-player-companion',
@@ -136,6 +140,7 @@ function createMockContext(overrides?: Partial<EngineTurnContext>): EngineTurnCo
         skepticism: 0.1,
         isPresent: true,
         stance: null,
+        memory: [],
       },
     ],
     topology: {
@@ -160,6 +165,7 @@ function createMockContext(overrides?: Partial<EngineTurnContext>): EngineTurnCo
     },
     relationshipState: [],
     memoryState: {},
+    worldMemory: [],
     ...overrides,
   };
 }

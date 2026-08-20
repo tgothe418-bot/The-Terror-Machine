@@ -42,7 +42,7 @@ import {
   getIntentBoundRequestedTransition,
   getIntentBoundTopologyDelta,
 } from '../../src/lib/intentConsequenceBridge';
-import type { TurnResponse } from '../../src/types/engineContract';
+import type { TurnResponse, TurnResult } from '../../src/types/engineContract';
 import { turnResponseSchema } from '../utils/aiClient';
 
 describe('Turn schemas validation', () => {
@@ -221,6 +221,43 @@ describe('Turn schemas validation', () => {
         expect(turnResponseSchema.required).toContain('character_memory_proposal');
       });
 
+      it('declares world_memory_proposal provider contract correctly with bounded candidates and fields', () => {
+        expect(turnResponseSchema.properties).toHaveProperty('world_memory_proposal');
+        expect(turnResponseSchema.required).toContain('world_memory_proposal');
+
+        const worldMemoryProp = turnResponseSchema.properties?.world_memory_proposal;
+        expect(worldMemoryProp).toBeDefined();
+        expect(worldMemoryProp?.properties).toBeDefined();
+
+        const candidatesProp = worldMemoryProp?.properties?.candidates;
+        expect(candidatesProp).toBeDefined();
+        expect(candidatesProp?.maxItems).toBe(2);
+
+        const candidateItems = candidatesProp?.items;
+        expect(candidateItems).toBeDefined();
+        expect(candidateItems?.properties).toBeDefined();
+
+        const statementProp = candidateItems?.properties?.statement;
+        expect(statementProp).toBeDefined();
+        expect(statementProp?.maxLength).toBe(240);
+
+        expect(candidateItems?.required).toEqual(['kind', 'scope', 'node_id', 'statement', 'rationale']);
+
+        const kindProp = candidateItems?.properties?.kind;
+        expect(kindProp?.enum).toEqual([
+          'ESTABLISHED_FACT',
+          'DISCOVERED_EVIDENCE',
+          'ENVIRONMENTAL_CONDITION',
+          'PERSISTENT_CONSEQUENCE',
+        ]);
+
+        const scopeProp = candidateItems?.properties?.scope;
+        expect(scopeProp?.enum).toEqual(['GLOBAL', 'NODE']);
+
+        const nodeIdProp = candidateItems?.properties?.node_id;
+        expect(nodeIdProp?.nullable).toBe(true);
+      });
+
       it('declares character_relationship_proposal delta as an INTEGER with format enum and exact values ["-1", "1"]', () => {
         const deltaSchema =
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -308,6 +345,10 @@ describe('Turn schemas validation', () => {
       candidates: [],
     };
 
+    const validWorldMemoryProposal = {
+      candidates: [],
+    };
+
     it('validates a well-formed turn result frame with proposals', () => {
       const validResult = {
         narrative_blocks: [
@@ -326,6 +367,7 @@ describe('Turn schemas validation', () => {
         character_stance_proposal: validCharacterStanceProposal,
         character_relationship_proposal: validCharacterRelationshipProposal,
         character_memory_proposal: validCharacterMemoryProposal,
+        world_memory_proposal: validWorldMemoryProposal,
         logic_state: {
           current_phase: 'LATENT',
           suggested_tension: 3,
@@ -362,12 +404,13 @@ describe('Turn schemas validation', () => {
       expect(parsed.character_stance_proposal.changes).toHaveLength(0);
       expect(parsed.character_relationship_proposal.changes).toHaveLength(0);
       expect(parsed.character_memory_proposal.candidates).toHaveLength(0);
+      expect(parsed.world_memory_proposal.candidates).toHaveLength(0);
       expect(parsed.logic_state.suggested_tension).toBe(3);
       expect(parsed.topologyDelta?.isExpansion).toBe(true);
       expect(parsed.topologyDelta?.newNodeDef?.id).toBe('ROOM_02');
     });
 
-    it('rejects missing intent_proposal or reconciliation_proposal or consequence_proposal or character_stance_proposal or character_relationship_proposal or character_memory_proposal', () => {
+    it('rejects missing intent_proposal or reconciliation_proposal or consequence_proposal or character_stance_proposal or character_relationship_proposal or character_memory_proposal or world_memory_proposal', () => {
       const baseResult = {
         narrative_blocks: [{ type: 'prose', content: 'Observation.' }],
         logic_state: {},
@@ -381,6 +424,7 @@ describe('Turn schemas validation', () => {
           character_stance_proposal: validCharacterStanceProposal,
           character_relationship_proposal: validCharacterRelationshipProposal,
           character_memory_proposal: validCharacterMemoryProposal,
+          world_memory_proposal: validWorldMemoryProposal,
         })
       ).toThrow();
 
@@ -392,6 +436,7 @@ describe('Turn schemas validation', () => {
           character_stance_proposal: validCharacterStanceProposal,
           character_relationship_proposal: validCharacterRelationshipProposal,
           character_memory_proposal: validCharacterMemoryProposal,
+          world_memory_proposal: validWorldMemoryProposal,
         })
       ).toThrow();
 
@@ -403,6 +448,7 @@ describe('Turn schemas validation', () => {
           character_stance_proposal: validCharacterStanceProposal,
           character_relationship_proposal: validCharacterRelationshipProposal,
           character_memory_proposal: validCharacterMemoryProposal,
+          world_memory_proposal: validWorldMemoryProposal,
         })
       ).toThrow();
 
@@ -414,6 +460,7 @@ describe('Turn schemas validation', () => {
           consequence_proposal: validConsequenceProposal,
           character_relationship_proposal: validCharacterRelationshipProposal,
           character_memory_proposal: validCharacterMemoryProposal,
+          world_memory_proposal: validWorldMemoryProposal,
         })
       ).toThrow();
 
@@ -425,6 +472,7 @@ describe('Turn schemas validation', () => {
           consequence_proposal: validConsequenceProposal,
           character_stance_proposal: validCharacterStanceProposal,
           character_memory_proposal: validCharacterMemoryProposal,
+          world_memory_proposal: validWorldMemoryProposal,
         })
       ).toThrow();
 
@@ -436,6 +484,19 @@ describe('Turn schemas validation', () => {
           consequence_proposal: validConsequenceProposal,
           character_stance_proposal: validCharacterStanceProposal,
           character_relationship_proposal: validCharacterRelationshipProposal,
+          world_memory_proposal: validWorldMemoryProposal,
+        })
+      ).toThrow();
+
+      expect(() =>
+        TurnResultSchema.parse({
+          ...baseResult,
+          intent_proposal: validIntentProposal,
+          reconciliation_proposal: validReconciliationProposal,
+          consequence_proposal: validConsequenceProposal,
+          character_stance_proposal: validCharacterStanceProposal,
+          character_relationship_proposal: validCharacterRelationshipProposal,
+          character_memory_proposal: validCharacterMemoryProposal,
         })
       ).toThrow();
     });
@@ -448,6 +509,7 @@ describe('Turn schemas validation', () => {
         character_stance_proposal: validCharacterStanceProposal,
         character_relationship_proposal: validCharacterRelationshipProposal,
         character_memory_proposal: validCharacterMemoryProposal,
+        world_memory_proposal: validWorldMemoryProposal,
       };
 
       expect(() =>
@@ -486,6 +548,7 @@ describe('Turn schemas validation', () => {
         character_stance_proposal: validCharacterStanceProposal,
         character_relationship_proposal: validCharacterRelationshipProposal,
         character_memory_proposal: validCharacterMemoryProposal,
+        world_memory_proposal: validWorldMemoryProposal,
         logic_state: {
           current_phase: 'LATENT',
           suggested_tension: 1,
@@ -506,6 +569,7 @@ describe('Turn schemas validation', () => {
           character_stance_proposal: validCharacterStanceProposal,
           character_relationship_proposal: validCharacterRelationshipProposal,
           character_memory_proposal: validCharacterMemoryProposal,
+          world_memory_proposal: validWorldMemoryProposal,
           logic_state: {},
         })
       ).toThrow();
@@ -521,6 +585,7 @@ describe('Turn schemas validation', () => {
           character_stance_proposal: validCharacterStanceProposal,
           character_relationship_proposal: validCharacterRelationshipProposal,
           character_memory_proposal: validCharacterMemoryProposal,
+          world_memory_proposal: validWorldMemoryProposal,
           logic_state: {},
         })
       ).toThrow();
@@ -536,6 +601,7 @@ describe('Turn schemas validation', () => {
           character_stance_proposal: validCharacterStanceProposal,
           character_relationship_proposal: validCharacterRelationshipProposal,
           character_memory_proposal: validCharacterMemoryProposal,
+          world_memory_proposal: validWorldMemoryProposal,
           logic_state: {},
           topologyDelta: { isExpansion: 'false' },
         })
@@ -611,12 +677,14 @@ describe('Turn schemas validation', () => {
       expect(parsed.characterStanceReceipt?.version).toBe(1);
       expect(parsed.characterRelationshipReceipt?.version).toBe(1);
       expect(parsed.characterMemoryReceipt?.version).toBe(1);
+      expect(parsed.worldMemoryReceipt?.version).toBe(1);
       expect((parsed as Record<string, unknown>).intent_proposal).toBeUndefined();
       expect((parsed as Record<string, unknown>).reconciliation_proposal).toBeUndefined();
       expect((parsed as Record<string, unknown>).consequence_proposal).toBeUndefined();
       expect((parsed as Record<string, unknown>).character_stance_proposal).toBeUndefined();
       expect((parsed as Record<string, unknown>).character_relationship_proposal).toBeUndefined();
       expect((parsed as Record<string, unknown>).character_memory_proposal).toBeUndefined();
+      expect((parsed as Record<string, unknown>).world_memory_proposal).toBeUndefined();
     });
 
     describe('RelationshipDelta canonical boundary validation', () => {
@@ -642,6 +710,7 @@ describe('Turn schemas validation', () => {
             ],
           },
           character_memory_proposal: validCharacterMemoryProposal,
+          world_memory_proposal: validWorldMemoryProposal,
           logic_state: {
             current_phase: 'LATENT',
             suggested_tension: 1,
@@ -690,6 +759,7 @@ describe('Turn schemas validation', () => {
             ],
           },
           character_memory_proposal: validCharacterMemoryProposal,
+          world_memory_proposal: validWorldMemoryProposal,
           logic_state: {
             current_phase: 'LATENT',
             suggested_tension: 1,
@@ -721,6 +791,7 @@ describe('Turn schemas validation', () => {
             ],
           },
           character_memory_proposal: validCharacterMemoryProposal,
+          world_memory_proposal: validWorldMemoryProposal,
           logic_state: {
             current_phase: 'LATENT',
             suggested_tension: 1,
@@ -747,6 +818,7 @@ describe('Turn schemas validation', () => {
             ],
           },
           character_memory_proposal: validCharacterMemoryProposal,
+          world_memory_proposal: validWorldMemoryProposal,
           logic_state: {
             current_phase: 'LATENT',
             suggested_tension: 1,
@@ -788,6 +860,9 @@ describe('Turn schemas validation', () => {
         changes: [],
       },
       character_memory_proposal: {
+        candidates: [],
+      },
+      world_memory_proposal: {
         candidates: [],
       },
       logic_state: {
@@ -1778,6 +1853,9 @@ describe('Turn schemas validation', () => {
         character_memory_proposal: {
           candidates: [],
         },
+        world_memory_proposal: {
+          candidates: [],
+        },
         logic_state: {
           current_phase: 'LATENT',
           suggested_tension: 3,
@@ -1859,6 +1937,9 @@ describe('Turn schemas validation', () => {
         character_memory_proposal: {
           candidates: [],
         },
+        world_memory_proposal: {
+          candidates: [],
+        },
         logic_state: {
           current_phase: 'LATENT',
           suggested_tension: 2,
@@ -1921,6 +2002,9 @@ describe('Turn schemas validation', () => {
           changes: [],
         },
         character_memory_proposal: {
+          candidates: [],
+        },
+        world_memory_proposal: {
           candidates: [],
         },
         logic_state: {
@@ -1989,6 +2073,9 @@ describe('Turn schemas validation', () => {
         character_memory_proposal: {
           candidates: [],
         },
+        world_memory_proposal: {
+          candidates: [],
+        },
         logic_state: {
           current_phase: 'LATENT',
           suggested_tension: 1,
@@ -2041,6 +2128,9 @@ describe('Turn schemas validation', () => {
           changes: [],
         },
         character_memory_proposal: {
+          candidates: [],
+        },
+        world_memory_proposal: {
           candidates: [],
         },
         logic_state: {
@@ -2100,6 +2190,9 @@ describe('Turn schemas validation', () => {
           changes: [],
         },
         character_memory_proposal: {
+          candidates: [],
+        },
+        world_memory_proposal: {
           candidates: [],
         },
         logic_state: {},
@@ -2213,6 +2306,9 @@ describe('Turn schemas validation', () => {
         character_memory_proposal: {
           candidates: [],
         },
+        world_memory_proposal: {
+          candidates: [],
+        },
         logic_state: {
           requested_transition: 'AIRLOCK_01',
           cast_deltas: [{ character_id: 'char-elena', skepticism_delta: 0.1 }],
@@ -2282,6 +2378,9 @@ describe('Turn schemas validation', () => {
         character_memory_proposal: {
           candidates: [],
         },
+        world_memory_proposal: {
+          candidates: [],
+        },
         logic_state: {
           cast_deltas: [{ character_id: 'char-elena', skepticism_delta: 0.1 }],
         },
@@ -2330,6 +2429,9 @@ describe('Turn schemas validation', () => {
           changes: [],
         },
         character_memory_proposal: {
+          candidates: [],
+        },
+        world_memory_proposal: {
           candidates: [],
         },
         logic_state: {},
@@ -2409,6 +2511,7 @@ describe('Turn schemas validation', () => {
       expect((validated as Record<string, unknown>).reconciliation_proposal).toBeUndefined();
       expect((validated as Record<string, unknown>).consequence_proposal).toBeUndefined();
       expect((validated as Record<string, unknown>).character_memory_proposal).toBeUndefined();
+      expect((validated as Record<string, unknown>).world_memory_proposal).toBeUndefined();
     });
 
     it('verifies the route file contains one and only one generateStructuredResponse invocation (Case 8)', () => {
@@ -2452,6 +2555,9 @@ describe('Turn schemas validation', () => {
             changes: [],
           },
           character_memory_proposal: {
+            candidates: [],
+          },
+          world_memory_proposal: {
             candidates: [],
           },
           logic_state: {
@@ -2506,6 +2612,9 @@ describe('Turn schemas validation', () => {
             changes: [],
           },
           character_memory_proposal: {
+            candidates: [],
+          },
+          world_memory_proposal: {
             candidates: [],
           },
           logic_state: {
@@ -2666,6 +2775,9 @@ describe('Turn schemas validation', () => {
             character_memory_proposal: {
               candidates: [],
             },
+            world_memory_proposal: {
+              candidates: [],
+            },
             logic_state: {},
             topologyDelta: mockProposedExpansion,
           });
@@ -2719,6 +2831,9 @@ describe('Turn schemas validation', () => {
               changes: [],
             },
             character_memory_proposal: {
+              candidates: [],
+            },
+            world_memory_proposal: {
               candidates: [],
             },
             logic_state: {},
@@ -2776,6 +2891,9 @@ describe('Turn schemas validation', () => {
             character_memory_proposal: {
               candidates: [],
             },
+            world_memory_proposal: {
+              candidates: [],
+            },
             logic_state: {},
             topologyDelta: mockProposedExpansion,
           });
@@ -2831,6 +2949,9 @@ describe('Turn schemas validation', () => {
             character_memory_proposal: {
               candidates: [],
             },
+            world_memory_proposal: {
+              candidates: [],
+            },
             logic_state: {},
             topologyDelta: mockProposedExpansion,
           });
@@ -2883,6 +3004,9 @@ describe('Turn schemas validation', () => {
               changes: [],
             },
             character_memory_proposal: {
+              candidates: [],
+            },
+            world_memory_proposal: {
               candidates: [],
             },
             logic_state: {},
@@ -2951,6 +3075,9 @@ describe('Turn schemas validation', () => {
             character_memory_proposal: {
               candidates: [],
             },
+            world_memory_proposal: {
+              candidates: [],
+            },
             logic_state: {},
             topologyDelta: mockProposedExpansion,
           });
@@ -3013,6 +3140,9 @@ describe('Turn schemas validation', () => {
               changes: [],
             },
             character_memory_proposal: {
+              candidates: [],
+            },
+            world_memory_proposal: {
               candidates: [],
             },
             logic_state: {},
@@ -3126,6 +3256,9 @@ describe('Turn schemas validation', () => {
               changes: [],
             },
             character_memory_proposal: {
+              candidates: [],
+            },
+            world_memory_proposal: {
               candidates: [],
             },
             logic_state: {},
@@ -4089,12 +4222,16 @@ describe('Turn schemas validation', () => {
         character_memory_proposal: {
           candidates: [],
         },
+        world_memory_proposal: {
+          candidates: [],
+        },
         logic_state: {
           current_phase: 'LATENT',
           suggested_tension: 1,
           requested_transition: null,
           terminal_flags: [],
           cast_deltas: [],
+          cast_ledger: [],
         },
         topologyDelta: {
           isExpansion: false,
@@ -4253,6 +4390,8 @@ describe('Turn schemas validation', () => {
       expect(jsonResponse.narrativeReconciliationReceipt.mode).toBe('CANONICAL');
       expect(jsonResponse.characterMemoryReceipt.version).toBe(1);
       expect(jsonResponse.characterMemoryReceipt.decisions).toHaveLength(0);
+      expect(jsonResponse.worldMemoryReceipt.version).toBe(1);
+      expect(jsonResponse.worldMemoryReceipt.decisions).toHaveLength(0);
 
       // 2. Assert generateStructuredResponse was called exactly once
       expect(mockGenerateStructuredResponse).toHaveBeenCalledTimes(1);
