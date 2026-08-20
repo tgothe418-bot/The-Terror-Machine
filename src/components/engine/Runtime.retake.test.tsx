@@ -1,15 +1,19 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { act } from 'react';
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import Runtime from './Runtime';
 import { useAppStore } from '../../store/useAppStore';
 import { useEngineStore } from '../../core/store';
 import { captureRuntimeSnapshot } from '../../core/engine/snapshot';
 import type { CommittedTurnPayload } from '../../core/engine/events';
-import type { ScenarioBlueprint } from '../../types';
-
+import type { ScenarioBlueprint, WorldMemoryState } from '../../types';
 import { normalizeBlueprint } from '../../lib/normalizeBlueprint';
+import { executeRatificationPipeline } from '../../lib/ratificationPipeline';
+
+vi.mock('../../lib/ratificationPipeline', () => ({
+  executeRatificationPipeline: vi.fn(),
+}));
 
 describe('Runtime component terminal retake behavior', () => {
   let container: HTMLDivElement | null = null;
@@ -259,5 +263,157 @@ describe('Runtime component terminal retake behavior', () => {
     expect(useEngineStore.getState().gameState.character_memory).toEqual(initialMemory);
     expect(useEngineStore.getState().gameState.character_memory?.['char-warden']).toHaveLength(1);
     expect(useEngineStore.getState().gameState.character_memory?.['char-warden'][0].id).toBe('mem-initial');
+  });
+
+  it('restores exact prior world_memory state during retake', async () => {
+    // 1. Seed initial world_memory in engine store
+    const initialWorldMemory: WorldMemoryState = [
+      {
+        id: 'wm_078dcf15',
+        kind: 'ESTABLISHED_FACT',
+        scope: 'NODE',
+        node_id: 'ORIGIN',
+        statement: 'Initial fact in Origin',
+        established_turn: 0,
+      },
+    ];
+
+    useEngineStore.setState({
+      gameState: {
+        ...useEngineStore.getState().gameState,
+        world_memory: initialWorldMemory,
+      },
+    });
+
+    await act(async () => {
+      root?.render(<Runtime />);
+    });
+
+    expect(useEngineStore.getState().gameState.world_memory).toEqual(initialWorldMemory);
+
+    // 2. Commit a turn that mutates world_memory
+    const preSnapshot = captureRuntimeSnapshot(useAppStore.getState());
+    const prevGameState = useEngineStore.getState().gameState;
+
+    const payload: CommittedTurnPayload = {
+      commandText: 'Examine the control console',
+      formattedText: 'You find scorched wires.',
+      preSnapshot,
+      engineGameStateBefore: JSON.parse(JSON.stringify(prevGameState)),
+      frame: {
+        narrative_blocks: [{ type: 'prose', content: 'You find scorched wires.' }],
+        logic_state: {
+          current_phase: 'ENGAGED',
+          suggested_tension: 15,
+        },
+      },
+      turnReceipt: {
+        turnNumber: 1,
+        nodeBefore: 'ORIGIN',
+        requestedTarget: 'ORIGIN',
+        accepted: true,
+        nodeAfter: 'ORIGIN',
+        activeVector: 'SOMATIC',
+        activeTier: 'LATENT',
+        tension: 15,
+        preSnapshot,
+      },
+    };
+
+    await act(async () => {
+      useAppStore.getState().commitTurnResult(payload);
+      // Simulate post-turn patch of world_memory
+      useEngineStore.getState().patchGameState({
+        world_memory: [
+          ...initialWorldMemory,
+          {
+            id: 'wm_12345678',
+            kind: 'DISCOVERED_EVIDENCE',
+            scope: 'NODE',
+            node_id: 'ORIGIN',
+            statement: 'Scorched wires on the main console',
+            established_turn: 1,
+          },
+        ],
+      });
+    });
+
+    expect(useEngineStore.getState().gameState.world_memory).toHaveLength(2);
+
+    // 3. Click RETAKE
+    const retakeButton = Array.from(container?.querySelectorAll('button') || []).find((b) =>
+      b.textContent?.includes('[ RETAKE ]')
+    );
+    expect(retakeButton).toBeDefined();
+
+    await act(async () => {
+      retakeButton?.click();
+    });
+
+    // 4. Verify world_memory is restored to exact initial snapshot
+    expect(useEngineStore.getState().gameState.world_memory).toEqual(initialWorldMemory);
+    expect(useEngineStore.getState().gameState.world_memory).toHaveLength(1);
+    expect(useEngineStore.getState().gameState.world_memory[0].id).toBe('wm_078dcf15');
+  });
+
+  it('fails closed when turn response is missing worldMemoryReceipt, leaving world_memory unpatched', async () => {
+    const initialWorldMemory: WorldMemoryState = [
+      {
+        id: 'wm_078dcf15',
+        kind: 'ESTABLISHED_FACT',
+        scope: 'NODE',
+        node_id: 'ORIGIN',
+        statement: 'Initial fact in Origin',
+        established_turn: 0,
+      },
+    ];
+
+    useEngineStore.setState({
+      gameState: {
+        ...useEngineStore.getState().gameState,
+        world_memory: initialWorldMemory,
+      },
+    });
+
+    // Mock ratification pipeline returning response WITHOUT worldMemoryReceipt
+    vi.mocked(executeRatificationPipeline).mockResolvedValueOnce({
+      narrative_blocks: [{ type: 'prose', content: 'Something happened.' }],
+      logic_state: {
+        current_phase: 'ENGAGED',
+        suggested_tension: 20,
+      },
+      characterMemoryReceipt: {
+        version: 1,
+        pre_state: {},
+        post_state: {},
+        decisions: [],
+      },
+      // worldMemoryReceipt is missing
+    } as unknown as TurnResponse);
+
+    await act(async () => {
+      root?.render(<Runtime />);
+    });
+
+    const observeButton = Array.from(container?.querySelectorAll('button') || []).find((b) =>
+      b.textContent?.includes('Observe')
+    );
+    expect(observeButton).toBeDefined();
+
+    // Trigger command submission with invalid response
+    await act(async () => {
+      observeButton?.click();
+    });
+
+    // Verify world_memory was not mutated and remains identical to initial
+    expect(useEngineStore.getState().gameState.world_memory).toEqual(initialWorldMemory);
+    expect(useEngineStore.getState().gameState.world_memory).toHaveLength(1);
+
+    // Verify error message in engine transcript
+    const history = useAppStore.getState().history;
+    const criticalErrorMsg = history.find((m) =>
+      m.content.includes('Malformed turn response: missing required characterMemoryReceipt or worldMemoryReceipt')
+    );
+    expect(criticalErrorMsg).toBeDefined();
   });
 });

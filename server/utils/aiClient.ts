@@ -288,8 +288,8 @@ export const turnResponseSchema = {
               },
               statement: {
                 type: Type.STRING,
-                maxLength: 200,
-                description: "Concise, durable world fact or condition established this turn (max 200 chars).",
+                maxLength: 240,
+                description: "Concise, durable world fact or condition established this turn (max 240 chars).",
               },
               rationale: { type: Type.STRING, maxLength: 240 },
             },

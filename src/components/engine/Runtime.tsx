@@ -456,9 +456,12 @@ export default function Runtime() {
         !response.characterMemoryReceipt ||
         typeof response.characterMemoryReceipt !== 'object' ||
         !response.characterMemoryReceipt.post_state ||
-        typeof response.characterMemoryReceipt.post_state !== 'object'
+        typeof response.characterMemoryReceipt.post_state !== 'object' ||
+        !response.worldMemoryReceipt ||
+        typeof response.worldMemoryReceipt !== 'object' ||
+        !Array.isArray(response.worldMemoryReceipt.post_state)
       ) {
-        throw new Error('Malformed turn response: missing required characterMemoryReceipt');
+        throw new Error('Malformed turn response: missing required characterMemoryReceipt or worldMemoryReceipt');
       }
 
       const formattedText = formatBlocks(response.narrative_blocks);
@@ -603,13 +606,11 @@ export default function Runtime() {
         });
       }
 
-      if (response.worldMemoryReceipt) {
-        useEngineStore.getState().patchGameState({
-          world_memory: createWorldMemoryState(
-            response.worldMemoryReceipt.post_state
-          ),
-        });
-      }
+      useEngineStore.getState().patchGameState({
+        world_memory: createWorldMemoryState(
+          response.worldMemoryReceipt.post_state
+        ),
+      });
 
       if (activeBlueprint) {
         const patchPayload: Partial<typeof latestEngineState.gameState> = {};

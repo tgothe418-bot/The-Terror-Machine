@@ -596,6 +596,12 @@ describe('Turn schemas validation', () => {
           post_state: {},
           decisions: [],
         },
+        worldMemoryReceipt: {
+          version: 1,
+          pre_state: [],
+          post_state: [],
+          decisions: [],
+        },
       };
 
       const parsed = TurnResponseSchema.parse(responseEnvelope);
@@ -1553,6 +1559,12 @@ describe('Turn schemas validation', () => {
           post_state: {},
           decisions: [],
         },
+        worldMemoryReceipt: {
+          version: 1,
+          pre_state: [],
+          post_state: [],
+          decisions: [],
+        },
       });
 
       expect(validatedEnvelope.castInteractionReceipt?.outcome).toBe('RESPONDED');
@@ -2380,6 +2392,12 @@ describe('Turn schemas validation', () => {
           post_state: {},
           decisions: [],
         },
+        worldMemoryReceipt: {
+          version: 1,
+          pre_state: [],
+          post_state: [],
+          decisions: [],
+        },
       };
 
       const validated = TurnResponseSchema.parse(responseEnvelope);
@@ -3063,6 +3081,12 @@ describe('Turn schemas validation', () => {
               post_state: {},
               decisions: [],
             },
+            worldMemoryReceipt: {
+              version: 1,
+              pre_state: [],
+              post_state: [],
+              decisions: [],
+            },
           };
 
           const parsedInvestigateResponse = TurnResponseSchema.parse(investigateResponse);
@@ -3167,6 +3191,12 @@ describe('Turn schemas validation', () => {
               version: 1,
               pre_state: {},
               post_state: {},
+              decisions: [],
+            },
+            worldMemoryReceipt: {
+              version: 1,
+              pre_state: [],
+              post_state: [],
               decisions: [],
             },
           };

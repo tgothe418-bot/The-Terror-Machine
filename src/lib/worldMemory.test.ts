@@ -28,6 +28,7 @@ import {
   createWorldMemoryState,
   migrateLegacyLoreAndMemory,
   resolveWorldMemory,
+  selectSituatedWorldMemory,
 } from './worldMemory';
 import { buildEngineTurnContext } from './buildEngineTurnContext';
 import { parseTelemetrySections } from './download';
@@ -1469,6 +1470,195 @@ describe('3H.5A: Durable World Memory Contracts and Pure Resolver', () => {
       const restoredState = createWorldMemoryState(preTurnCheckpoint);
       expect(restoredState).toHaveLength(1);
       expect(restoredState[0].id).toBe(deriveWorldMemoryId(initialWorldMemory[0]));
+    });
+  });
+
+  describe('12. Situated World Memory Selection', () => {
+    const globalEntry1: WorldMemoryEntry = {
+      id: deriveWorldMemoryId({
+        kind: 'ESTABLISHED_FACT',
+        scope: 'GLOBAL',
+        node_id: null,
+        statement: 'The compound is sealed.',
+      }),
+      kind: 'ESTABLISHED_FACT',
+      scope: 'GLOBAL',
+      node_id: null,
+      statement: 'The compound is sealed.',
+      established_turn: 0,
+    };
+
+    const globalEntry2: WorldMemoryEntry = {
+      id: deriveWorldMemoryId({
+        kind: 'PERSISTENT_CONSEQUENCE',
+        scope: 'GLOBAL',
+        node_id: null,
+        statement: 'Power grid is permanently severed.',
+      }),
+      kind: 'PERSISTENT_CONSEQUENCE',
+      scope: 'GLOBAL',
+      node_id: null,
+      statement: 'Power grid is permanently severed.',
+      established_turn: 1,
+    };
+
+    const nodeAEntry: WorldMemoryEntry = {
+      id: deriveWorldMemoryId({
+        kind: 'DISCOVERED_EVIDENCE',
+        scope: 'NODE',
+        node_id: 'node-a',
+        statement: 'Blood smeared on console A.',
+      }),
+      kind: 'DISCOVERED_EVIDENCE',
+      scope: 'NODE',
+      node_id: 'node-a',
+      statement: 'Blood smeared on console A.',
+      established_turn: 1,
+    };
+
+    const nodeA1Entry: WorldMemoryEntry = {
+      id: deriveWorldMemoryId({
+        kind: 'DISCOVERED_EVIDENCE',
+        scope: 'NODE',
+        node_id: 'node-a-1',
+        statement: 'Terminal screen shattered.',
+      }),
+      kind: 'DISCOVERED_EVIDENCE',
+      scope: 'NODE',
+      node_id: 'node-a-1',
+      statement: 'Terminal screen shattered.',
+      established_turn: 2,
+    };
+
+    const nodeBEntry: WorldMemoryEntry = {
+      id: deriveWorldMemoryId({
+        kind: 'ENVIRONMENTAL_CONDITION',
+        scope: 'NODE',
+        node_id: 'node-b',
+        statement: 'Steam venting continuously.',
+      }),
+      kind: 'ENVIRONMENTAL_CONDITION',
+      scope: 'NODE',
+      node_id: 'node-b',
+      statement: 'Steam venting continuously.',
+      established_turn: 2,
+    };
+
+    const sharedStatementGlobal: WorldMemoryEntry = {
+      id: deriveWorldMemoryId({
+        kind: 'ESTABLISHED_FACT',
+        scope: 'GLOBAL',
+        node_id: null,
+        statement: 'Radiation levels critical.',
+      }),
+      kind: 'ESTABLISHED_FACT',
+      scope: 'GLOBAL',
+      node_id: null,
+      statement: 'Radiation levels critical.',
+      established_turn: 1,
+    };
+
+    const sharedStatementNodeA: WorldMemoryEntry = {
+      id: deriveWorldMemoryId({
+        kind: 'DISCOVERED_EVIDENCE',
+        scope: 'NODE',
+        node_id: 'node-a',
+        statement: 'Radiation levels critical.',
+      }),
+      kind: 'DISCOVERED_EVIDENCE',
+      scope: 'NODE',
+      node_id: 'node-a',
+      statement: 'Radiation levels critical.',
+      established_turn: 2,
+    };
+
+    it('includes GLOBAL entries from any node or when node is absent/blank', () => {
+      const state = [globalEntry1, globalEntry2, nodeAEntry];
+      // With currentNodeId = null
+      const situatedNull = selectSituatedWorldMemory(state, null);
+      expect(situatedNull.map((e) => e.statement)).toEqual([
+        'The compound is sealed.',
+        'Power grid is permanently severed.',
+      ]);
+
+      // With currentNodeId = ''
+      const situatedEmpty = selectSituatedWorldMemory(state, '');
+      expect(situatedEmpty.map((e) => e.statement)).toEqual([
+        'The compound is sealed.',
+        'Power grid is permanently severed.',
+      ]);
+
+      // With currentNodeId = 'node-b' (different from node-a)
+      const situatedOtherNode = selectSituatedWorldMemory(state, 'node-b');
+      expect(situatedOtherNode.map((e) => e.statement)).toEqual([
+        'The compound is sealed.',
+        'Power grid is permanently severed.',
+      ]);
+    });
+
+    it('includes exact current-node entries', () => {
+      const state = [globalEntry1, nodeAEntry, nodeBEntry];
+      const situated = selectSituatedWorldMemory(state, 'node-a');
+      const statements = situated.map((e) => e.statement);
+      expect(statements).toContain('The compound is sealed.');
+      expect(statements).toContain('Blood smeared on console A.');
+      expect(statements).not.toContain('Steam venting continuously.');
+    });
+
+    it('excludes different-node entries', () => {
+      const state = [nodeAEntry, nodeBEntry];
+      const situated = selectSituatedWorldMemory(state, 'node-a');
+      expect(situated.some((e) => e.node_id === 'node-b')).toBe(false);
+      expect(situated).toHaveLength(1);
+      expect(situated[0].id).toBe(nodeAEntry.id);
+    });
+
+    it('ensures node-a does not match node-a-1', () => {
+      const state = [nodeAEntry, nodeA1Entry];
+      const situated = selectSituatedWorldMemory(state, 'node-a');
+      expect(situated.map((e) => e.node_id)).toEqual(['node-a']);
+      expect(situated.some((e) => e.node_id === 'node-a-1')).toBe(false);
+    });
+
+    it('keeps same statement at GLOBAL and current NODE as two distinct eligible entries', () => {
+      const state = [sharedStatementGlobal, sharedStatementNodeA];
+      const situated = selectSituatedWorldMemory(state, 'node-a');
+      expect(situated).toHaveLength(2);
+      expect(situated[0].id).toBe(sharedStatementGlobal.id);
+      expect(situated[0].scope).toBe('GLOBAL');
+      expect(situated[1].id).toBe(sharedStatementNodeA.id);
+      expect(situated[1].scope).toBe('NODE');
+      expect(situated[0].id).not.toBe(situated[1].id);
+    });
+
+    it('preserves canonical ordering', () => {
+      const state = [nodeBEntry, nodeAEntry, globalEntry2, globalEntry1];
+      const situated = selectSituatedWorldMemory(state, 'node-a');
+      // createWorldMemoryState sorts: turn 0 global -> turn 1 node-a DISCOVERED_EVIDENCE -> turn 1 global PERSISTENT_CONSEQUENCE
+      expect(situated.map((e) => e.id)).toEqual([
+        globalEntry1.id,
+        nodeAEntry.id,
+        globalEntry2.id,
+      ]);
+    });
+
+    it('preserves deep-frozen input and returns fresh objects', () => {
+      const state = deepFreeze([globalEntry1, nodeAEntry]);
+      const situated = selectSituatedWorldMemory(state, 'node-a');
+      expect(situated).toHaveLength(2);
+      expect(situated[0]).not.toBe(state[0]);
+      expect(situated[1]).not.toBe(state[1]);
+      expect(situated[0]).toEqual(state[0]);
+      expect(situated[1]).toEqual(state[1]);
+      // Mutating result does not affect state
+      situated[0].statement = 'Mutated statement';
+      expect(state[0].statement).toBe('The compound is sealed.');
+    });
+
+    it('handles empty or null input returning empty array', () => {
+      expect(selectSituatedWorldMemory([], 'node-a')).toEqual([]);
+      expect(selectSituatedWorldMemory(null, 'node-a')).toEqual([]);
+      expect(selectSituatedWorldMemory(undefined, 'node-a')).toEqual([]);
     });
   });
 });

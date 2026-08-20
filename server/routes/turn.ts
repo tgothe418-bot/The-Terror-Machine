@@ -32,7 +32,7 @@ import type {
   WorldMemoryProposal,
   WorldMemoryReceipt,
 } from '../../src/types/worldMemory';
-import { resolveWorldMemory } from '../../src/lib/worldMemory';
+import { resolveWorldMemory, selectSituatedWorldMemory } from '../../src/lib/worldMemory';
 import { generateStructuredResponse } from '../utils/aiClient';
 import { resolveTransition } from '../engine/transitionResolver';
 import { clampSkepticismDelta } from '../../src/lib/castContinuity';
@@ -613,9 +613,14 @@ The user acts as an external scene director. A direction is a proposal for focus
             .join('\n')
         : '• No present eligible non-player characters.';
 
+    const situatedWorldMemory = selectSituatedWorldMemory(
+      context.worldMemory,
+      context.topology.currentNodeId
+    );
+
     const worldMemoryFormatted =
-      context.worldMemory && context.worldMemory.length > 0
-        ? context.worldMemory
+      situatedWorldMemory.length > 0
+        ? situatedWorldMemory
             .map((m) => {
               const scopeStr = m.scope === 'GLOBAL' ? 'GLOBAL' : `NODE: ${m.node_id}`;
               return `• [${m.id}] ${m.kind} (${scopeStr}) @ turn ${m.established_turn}: "${m.statement}"`;

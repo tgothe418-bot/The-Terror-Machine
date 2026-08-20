@@ -155,6 +155,32 @@ export function createWorldMemoryState(
   return validEntries;
 }
 
+export function selectSituatedWorldMemory(
+  state: WorldMemoryState | null | undefined,
+  currentNodeId: string | null | undefined
+): WorldMemoryState {
+  const normalizedState = createWorldMemoryState(state);
+  const normalizedCurrentNodeId =
+    typeof currentNodeId === 'string' && currentNodeId.trim().length > 0
+      ? currentNodeId.trim()
+      : null;
+
+  const situatedEntries: WorldMemoryEntry[] = [];
+  for (const entry of normalizedState) {
+    if (entry.scope === 'GLOBAL') {
+      situatedEntries.push({ ...entry });
+    } else if (
+      entry.scope === 'NODE' &&
+      normalizedCurrentNodeId !== null &&
+      entry.node_id === normalizedCurrentNodeId
+    ) {
+      situatedEntries.push({ ...entry });
+    }
+  }
+
+  return situatedEntries;
+}
+
 export function migrateLegacyLoreAndMemory(
   legacy?: LoreAndMemory | null,
   establishedTurn?: number
