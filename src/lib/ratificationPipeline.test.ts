@@ -39,6 +39,13 @@ describe('executeRatificationPipeline single pre-turn snapshot lifecycle', () =>
     decisions: [],
   };
 
+  const defaultCharacterRelationshipReceipt = {
+    version: 1 as const,
+    pre_state: [],
+    post_state: [],
+    decisions: [],
+  };
+
   beforeEach(() => {
     // Set EngineStore active blueprint
     useEngineStore.setState({
@@ -121,6 +128,7 @@ describe('executeRatificationPipeline single pre-turn snapshot lifecycle', () =>
           validation: { accepted: true },
           canonicalConsequenceReceipt: defaultConsequenceReceipt,
           characterStanceReceipt: defaultCharacterStanceReceipt,
+          characterRelationshipReceipt: defaultCharacterRelationshipReceipt,
         }),
         {
           status: 200,
@@ -190,6 +198,7 @@ describe('executeRatificationPipeline single pre-turn snapshot lifecycle', () =>
           validation: { accepted: true },
           canonicalConsequenceReceipt: defaultConsequenceReceipt,
           characterStanceReceipt: defaultCharacterStanceReceipt,
+          characterRelationshipReceipt: defaultCharacterRelationshipReceipt,
         }),
         {
           status: 200,
@@ -225,6 +234,7 @@ describe('executeRatificationPipeline single pre-turn snapshot lifecycle', () =>
           validation: { accepted: true },
           canonicalConsequenceReceipt: defaultConsequenceReceipt,
           characterStanceReceipt: defaultCharacterStanceReceipt,
+          characterRelationshipReceipt: defaultCharacterRelationshipReceipt,
         }),
         {
           status: 200,
@@ -332,6 +342,7 @@ describe('executeRatificationPipeline single pre-turn snapshot lifecycle', () =>
           topologyDelta: { isExpansion: false },
           canonicalConsequenceReceipt: defaultConsequenceReceipt,
           characterStanceReceipt: defaultCharacterStanceReceipt,
+          characterRelationshipReceipt: defaultCharacterRelationshipReceipt,
         }),
         {
           status: 200,
@@ -430,6 +441,7 @@ describe('executeRatificationPipeline single pre-turn snapshot lifecycle', () =>
           castInteractionReceipt: serverReceipt,
           canonicalConsequenceReceipt: defaultConsequenceReceipt,
           characterStanceReceipt: defaultCharacterStanceReceipt,
+          characterRelationshipReceipt: defaultCharacterRelationshipReceipt,
         }),
         {
           status: 200,
@@ -498,6 +510,7 @@ describe('executeRatificationPipeline single pre-turn snapshot lifecycle', () =>
           narrativeReconciliationReceipt: serverReconciliationReceipt,
           canonicalConsequenceReceipt: defaultConsequenceReceipt,
           characterStanceReceipt: defaultCharacterStanceReceipt,
+          characterRelationshipReceipt: defaultCharacterRelationshipReceipt,
         }),
         {
           status: 200,
@@ -576,6 +589,7 @@ describe('executeRatificationPipeline single pre-turn snapshot lifecycle', () =>
           },
           canonicalConsequenceReceipt: defaultConsequenceReceipt,
           characterStanceReceipt: defaultCharacterStanceReceipt,
+          characterRelationshipReceipt: defaultCharacterRelationshipReceipt,
         }),
         {
           status: 200,

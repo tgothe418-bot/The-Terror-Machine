@@ -340,6 +340,7 @@ export interface TurnReceipt {
   narrativeReconciliationReceipt?: NarrativeReconciliationReceipt;
   canonicalConsequenceReceipt?: CanonicalConsequenceReceipt;
   characterStanceReceipt?: CharacterStanceReceipt;
+  characterRelationshipReceipt?: CharacterRelationshipReceipt;
 }
 
 export interface TurnFailureReceipt {
@@ -594,6 +595,7 @@ export interface RatifiedEngineFrame {
   narrativeReconciliationReceipt?: NarrativeReconciliationReceipt;
   canonicalConsequenceReceipt?: CanonicalConsequenceReceipt;
   characterStanceReceipt?: CharacterStanceReceipt;
+  characterRelationshipReceipt?: CharacterRelationshipReceipt;
   preSnapshot?: RuntimeStateSnapshot;
   reconciliation?: {
     isHallucinationCollision: boolean;

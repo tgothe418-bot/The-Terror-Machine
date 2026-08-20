@@ -18,6 +18,11 @@ import type {
   CharacterStanceById,
 } from '../../src/types/characterStance';
 import { resolveCharacterStance } from '../../src/lib/characterStance';
+import type {
+  CharacterRelationshipProposal,
+  CharacterRelationshipReceipt,
+} from '../../src/types/characterRelationships';
+import { resolveCharacterRelationships } from '../../src/lib/characterRelationships';
 import { generateStructuredResponse } from '../utils/aiClient';
 import { resolveTransition } from '../engine/transitionResolver';
 import { clampSkepticismDelta } from '../../src/lib/castContinuity';
@@ -206,6 +211,23 @@ export function finalizeCharacterStance(input: {
   return resolveCharacterStance({
     proposal: input.proposal,
     currentState,
+    context: input.context,
+    intentReceipt: input.intentReceipt,
+    reconciliationReceipt: input.narrativeReconciliationReceipt,
+    castInteractionReceipt: input.castInteractionReceipt,
+  });
+}
+
+export function finalizeCharacterRelationships(input: {
+  proposal: CharacterRelationshipProposal;
+  context: EngineTurnContext;
+  intentReceipt: IntentReceipt;
+  narrativeReconciliationReceipt: NarrativeReconciliationReceipt;
+  castInteractionReceipt: CastInteractionReceipt;
+}): CharacterRelationshipReceipt {
+  return resolveCharacterRelationships({
+    proposal: input.proposal,
+    currentState: input.context.relationshipState,
     context: input.context,
     intentReceipt: input.intentReceipt,
     reconciliationReceipt: input.narrativeReconciliationReceipt,
@@ -509,6 +531,16 @@ The user acts as an external scene director. A direction is a proposal for focus
             .join('\n')
         : '• No present eligible non-player characters.';
 
+    const characterRelationshipsFormatted =
+      context.relationshipState.length > 0
+        ? context.relationshipState
+            .map(
+              (r) =>
+                `• ${r.source_character_id} -> ${r.target_character_id} (${r.kind}: ${r.intensity})`
+            )
+            .join('\n')
+        : '• No established relationships.';
+
     // Construct the dense, authoritative contract prompt
     const prompt = `[SCENARIO CONTRACT]
 Title: ${context.scenario.title}
@@ -565,6 +597,24 @@ ${characterStanceFormatted}
 - On COMMUNICATE, propose only for the addressed/responding character.
 - WAIT and SYSTEM_INIT require an empty changes array.
 - Write no stance data inside logic_state.
+- A proposal may be rejected while ordinary prose is preserved.
+
+[CHARACTER RELATIONSHIP CONTRACT]
+Player Character ID: ${context.player.characterId || 'N/A'}
+Eligible Present Non-Player Characters:
+${characterStanceFormatted}
+Current Relationships:
+${characterRelationshipsFormatted}
+- character_relationship_proposal.changes describes proposed durable relational shifts; it is not itself state.
+- Relationships are directed TRUST, HOSTILITY, DEPENDENCE, or LEVERAGE signals with intensity 1..3.
+- Propose only delta: 1 or delta: -1; the server owns resulting intensity.
+- Exactly one endpoint must be the player character and the other a present eligible non-player.
+- On COMMUNICATE, the non-player endpoint must be addressed/responding.
+- Use at most two changes and an empty array when no durable relational change occurred.
+- A momentary mood belongs to stance, not relationships.
+- Facts belong to later memory, not relationships.
+- OBSERVE, WAIT, OTHER, and SYSTEM_INIT require an empty relationship proposal.
+- Write no relationship data in logic_state.
 - A proposal may be rejected while ordinary prose is preserved.
 
 [CANONICAL CONSEQUENCE CONTRACT]
@@ -718,6 +768,14 @@ ${recentHistory}
       castInteractionReceipt,
     });
 
+    const characterRelationshipReceipt = finalizeCharacterRelationships({
+      proposal: engineResponse.character_relationship_proposal,
+      context,
+      intentReceipt,
+      narrativeReconciliationReceipt,
+      castInteractionReceipt,
+    });
+
     const finalResponse: TurnResponse = {
       narrative_blocks: boundedResult.narrative_blocks,
       logic_state: boundedResult.logic_state,
@@ -728,6 +786,7 @@ ${recentHistory}
       narrativeReconciliationReceipt,
       canonicalConsequenceReceipt,
       characterStanceReceipt,
+      characterRelationshipReceipt,
     };
 
     return res.json(finalResponse);

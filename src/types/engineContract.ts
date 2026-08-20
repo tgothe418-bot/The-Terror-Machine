@@ -10,9 +10,15 @@ import {
   CharacterStanceProposalSchema,
   CharacterStanceReceiptSchema,
 } from './characterStance';
+import {
+  CharacterRelationshipStateSchema,
+  CharacterRelationshipProposalSchema,
+  CharacterRelationshipReceiptSchema,
+} from './characterRelationships';
 export * from './adLib';
 export * from './consequence';
 export * from './characterStance';
+export * from './characterRelationships';
 
 export const EdgeKindSchema = z.enum([
   'PHYSICAL',
@@ -107,6 +113,7 @@ export const EngineTurnContextSchema = z.object({
     player_injuries: [],
     psychological_status: 'STABLE',
   }),
+  relationshipState: CharacterRelationshipStateSchema.default([]),
 });
 
 export type EngineTurnContext = z.infer<typeof EngineTurnContextSchema>;
@@ -326,6 +333,7 @@ export const TurnResultSchema = z.object({
   reconciliation_proposal: NarrativeReconciliationProposalSchema,
   consequence_proposal: CanonicalConsequenceProposalSchema,
   character_stance_proposal: CharacterStanceProposalSchema,
+  character_relationship_proposal: CharacterRelationshipProposalSchema,
   logic_state: z
     .object({
       current_phase: z.string().optional(),
@@ -382,6 +390,7 @@ export const TurnResponseSchema = TurnResultSchema.omit({
   reconciliation_proposal: true,
   consequence_proposal: true,
   character_stance_proposal: true,
+  character_relationship_proposal: true,
 }).extend({
   transitionReceipt: TransitionReceiptSchema.optional(),
   castInteractionReceipt: CastInteractionReceiptSchema.optional(),
@@ -389,6 +398,7 @@ export const TurnResponseSchema = TurnResultSchema.omit({
   narrativeReconciliationReceipt: NarrativeReconciliationReceiptSchema.optional(),
   canonicalConsequenceReceipt: CanonicalConsequenceReceiptSchema,
   characterStanceReceipt: CharacterStanceReceiptSchema,
+  characterRelationshipReceipt: CharacterRelationshipReceiptSchema,
 });
 
 export type TurnResponse = z.infer<typeof TurnResponseSchema>;

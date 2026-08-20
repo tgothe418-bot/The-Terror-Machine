@@ -64,6 +64,13 @@ export function formatStanceState(
   return `${record.focus}/${record.stance}`;
 }
 
+export function formatRelationshipRecordState(
+  record: { source_character_id?: string; target_character_id?: string; kind?: string; intensity?: number } | null | undefined
+): string {
+  if (!record || typeof record.intensity !== 'number') return 'UNSET';
+  return `${record.intensity}`;
+}
+
 /**
  * Converts a structured message array into a standardized markdown file and downloads it.
  */
@@ -188,6 +195,9 @@ export const getEngineLogicData = (message: any): Record<string, unknown> | null
   }
   if (message.characterStanceReceipt !== undefined) {
     logicData.characterStanceReceipt = message.characterStanceReceipt;
+  }
+  if (message.characterRelationshipReceipt !== undefined) {
+    logicData.characterRelationshipReceipt = message.characterRelationshipReceipt;
   }
   if (message.failureReceipt !== undefined) {
     logicData.failureReceipt = message.failureReceipt;
@@ -321,6 +331,21 @@ interface ParsedTelemetrySections {
     }>;
     hasChanges: boolean;
   };
+  characterRelationships: {
+    hasReceipt: boolean;
+    decisions: Array<{
+      sourceCharacterId: string;
+      targetCharacterId: string;
+      kind: string;
+      delta: number;
+      outcome: string;
+      reason: string;
+      rationale?: string;
+      before?: { source_character_id: string; target_character_id: string; kind: string; intensity: number } | null;
+      after?: { source_character_id: string; target_character_id: string; kind: string; intensity: number } | null;
+    }>;
+    hasChanges: boolean;
+  };
   canonicalStateDiff: {
     diffLines: string[];
     transition: Array<{ label: string; value: string }>;
@@ -412,6 +437,23 @@ function parseTelemetrySections(logicData: Record<string, unknown>): ParsedTelem
     typeof logicState.characterStanceReceipt === 'object' &&
     logicState.characterStanceReceipt !== null
       ? (logicState.characterStanceReceipt as Record<string, unknown>)
+      : undefined)
+  ) as Record<string, unknown> | undefined;
+
+  const relationshipReceipt = (
+    (turn &&
+    typeof turn.characterRelationshipReceipt === 'object' &&
+    turn.characterRelationshipReceipt !== null
+      ? turn.characterRelationshipReceipt
+      : undefined) ||
+    (typeof logicData.characterRelationshipReceipt === 'object' &&
+    logicData.characterRelationshipReceipt !== null
+      ? logicData.characterRelationshipReceipt
+      : undefined) ||
+    (logicState &&
+    typeof logicState.characterRelationshipReceipt === 'object' &&
+    logicState.characterRelationshipReceipt !== null
+      ? (logicState.characterRelationshipReceipt as Record<string, unknown>)
       : undefined)
   ) as Record<string, unknown> | undefined;
 
@@ -626,6 +668,48 @@ function parseTelemetrySections(logicData: Record<string, unknown>): ParsedTelem
     hasChanges: stanceDecisions.some((d) => d.outcome === 'APPLIED'),
   };
 
+  const relationshipDecisions: Array<{
+    sourceCharacterId: string;
+    targetCharacterId: string;
+    kind: string;
+    delta: number;
+    outcome: string;
+    reason: string;
+    rationale?: string;
+    before?: { source_character_id: string; target_character_id: string; kind: string; intensity: number } | null;
+    after?: { source_character_id: string; target_character_id: string; kind: string; intensity: number } | null;
+  }> = [];
+
+  if (relationshipReceipt && Array.isArray(relationshipReceipt.decisions)) {
+    for (const d of relationshipReceipt.decisions) {
+      if (typeof d === 'object' && d !== null) {
+        const prop = (d as any).proposal;
+        if (prop && typeof prop === 'object') {
+          relationshipDecisions.push({
+            sourceCharacterId: String(prop.source_character_id ?? ''),
+            targetCharacterId: String(prop.target_character_id ?? ''),
+            kind: String(prop.kind ?? ''),
+            delta: typeof prop.delta === 'number' ? prop.delta : 0,
+            outcome: String((d as any).outcome ?? 'UNKNOWN'),
+            reason: String((d as any).reason ?? 'UNKNOWN'),
+            rationale:
+              prop.rationale != null && String(prop.rationale).trim().length > 0
+                ? String(prop.rationale)
+                : undefined,
+            before: (d as any).before ?? null,
+            after: (d as any).after ?? null,
+          });
+        }
+      }
+    }
+  }
+
+  const characterRelationships = {
+    hasReceipt: relationshipReceipt !== undefined,
+    decisions: relationshipDecisions,
+    hasChanges: relationshipDecisions.some((d) => d.outcome === 'APPLIED'),
+  };
+
   // 5. Canonical State Diff
   const preSnapshot = turn?.preSnapshot as RuntimeStateSnapshot | undefined;
   const postSnapshot = turn?.postSnapshot as RuntimeStateSnapshot | undefined;
@@ -791,6 +875,7 @@ function parseTelemetrySections(logicData: Record<string, unknown>): ParsedTelem
     narrativeReconciliation,
     canonicalConsequences,
     characterStance,
+    characterRelationships,
     canonicalStateDiff: {
       diffLines,
       transition,
@@ -900,6 +985,30 @@ function renderHtmlTelemetrySections(logicData: Record<string, unknown>): string
     }
     if (sections.characterStance.decisions.length === 0 || !sections.characterStance.hasChanges) {
       html += `<li>No character stance changes</li>`;
+    }
+  }
+  html += `</ul>`;
+  html += `</div>`;
+
+  // Character Relationships
+  html += `<div class="telemetry-section">`;
+  html += `<h4>Character Relationships</h4>`;
+  html += `<ul>`;
+  if (!sections.characterRelationships.hasReceipt) {
+    html += `<li><strong>Character Relationships:</strong> Not recorded</li>`;
+  } else {
+    for (const decision of sections.characterRelationships.decisions) {
+      const beforeStr = formatRelationshipRecordState(decision.before);
+      const afterStr = formatRelationshipRecordState(decision.after);
+      const beforeAfterText = ` | Before: ${beforeStr} → After: ${afterStr}`;
+      const deltaStr = decision.delta > 0 ? `+${decision.delta}` : `${decision.delta}`;
+      const rationaleText = decision.rationale
+        ? ` — <em>${escapeHtml(decision.rationale)}</em>`
+        : '';
+      html += `<li><strong>Decision [${escapeHtml(decision.sourceCharacterId)} -&gt; ${escapeHtml(decision.targetCharacterId)} / ${escapeHtml(decision.kind)} (${escapeHtml(deltaStr)})]:</strong> Outcome: ${escapeHtml(decision.outcome)} (Reason: ${escapeHtml(decision.reason)})${escapeHtml(beforeAfterText)}${rationaleText}</li>`;
+    }
+    if (sections.characterRelationships.decisions.length === 0 || !sections.characterRelationships.hasChanges) {
+      html += `<li>No character relationship changes</li>`;
     }
   }
   html += `</ul>`;
@@ -1037,6 +1146,25 @@ function renderMarkdownTelemetrySections(logicData: Record<string, unknown>): st
     }
     if (sections.characterStance.decisions.length === 0 || !sections.characterStance.hasChanges) {
       md += `- No character stance changes\n`;
+    }
+    md += `\n`;
+  }
+
+  // Character Relationships
+  md += `#### Character Relationships\n`;
+  if (!sections.characterRelationships.hasReceipt) {
+    md += `- **Character Relationships:** Not recorded\n\n`;
+  } else {
+    for (const decision of sections.characterRelationships.decisions) {
+      const beforeStr = formatRelationshipRecordState(decision.before);
+      const afterStr = formatRelationshipRecordState(decision.after);
+      const beforeAfterText = ` | Before: ${beforeStr} → After: ${afterStr}`;
+      const deltaStr = decision.delta > 0 ? `+${decision.delta}` : `${decision.delta}`;
+      const rationaleText = decision.rationale ? ` — *${decision.rationale}*` : '';
+      md += `- **Decision [${decision.sourceCharacterId} -> ${decision.targetCharacterId} / ${decision.kind} (${deltaStr})]:** Outcome: ${decision.outcome} (Reason: ${decision.reason})${beforeAfterText}${rationaleText}\n`;
+    }
+    if (sections.characterRelationships.decisions.length === 0 || !sections.characterRelationships.hasChanges) {
+      md += `- No character relationship changes\n`;
     }
     md += `\n`;
   }

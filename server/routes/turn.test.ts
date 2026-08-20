@@ -11,6 +11,7 @@ import {
   finalizeTurnCausality,
   finalizeCanonicalConsequences,
   finalizeCharacterStance,
+  finalizeCharacterRelationships,
 } from './turn';
 import { createCastInteractionReceipt } from '../../src/lib/castInteraction';
 import { createIntentReceipt } from '../../src/lib/intentReceipt';
@@ -190,6 +191,11 @@ describe('Turn schemas validation', () => {
         expect(turnResponseSchema.properties).toHaveProperty('character_stance_proposal');
         expect(turnResponseSchema.required).toContain('character_stance_proposal');
       });
+
+      it('includes character_relationship_proposal in schema properties and required fields', () => {
+        expect(turnResponseSchema.properties).toHaveProperty('character_relationship_proposal');
+        expect(turnResponseSchema.required).toContain('character_relationship_proposal');
+      });
     });
 
     const validIntentProposal = {
@@ -217,6 +223,10 @@ describe('Turn schemas validation', () => {
       changes: [],
     };
 
+    const validCharacterRelationshipProposal = {
+      changes: [],
+    };
+
     it('validates a well-formed turn result frame with proposals', () => {
       const validResult = {
         narrative_blocks: [
@@ -233,6 +243,7 @@ describe('Turn schemas validation', () => {
         reconciliation_proposal: validReconciliationProposal,
         consequence_proposal: validConsequenceProposal,
         character_stance_proposal: validCharacterStanceProposal,
+        character_relationship_proposal: validCharacterRelationshipProposal,
         logic_state: {
           current_phase: 'LATENT',
           suggested_tension: 3,
@@ -267,12 +278,13 @@ describe('Turn schemas validation', () => {
       expect(parsed.reconciliation_proposal.mode).toBe('CANONICAL');
       expect(parsed.consequence_proposal.mutations).toHaveLength(0);
       expect(parsed.character_stance_proposal.changes).toHaveLength(0);
+      expect(parsed.character_relationship_proposal.changes).toHaveLength(0);
       expect(parsed.logic_state.suggested_tension).toBe(3);
       expect(parsed.topologyDelta?.isExpansion).toBe(true);
       expect(parsed.topologyDelta?.newNodeDef?.id).toBe('ROOM_02');
     });
 
-    it('rejects missing intent_proposal or reconciliation_proposal or consequence_proposal or character_stance_proposal', () => {
+    it('rejects missing intent_proposal or reconciliation_proposal or consequence_proposal or character_stance_proposal or character_relationship_proposal', () => {
       const baseResult = {
         narrative_blocks: [{ type: 'prose', content: 'Observation.' }],
         logic_state: {},
@@ -284,6 +296,7 @@ describe('Turn schemas validation', () => {
           reconciliation_proposal: validReconciliationProposal,
           consequence_proposal: validConsequenceProposal,
           character_stance_proposal: validCharacterStanceProposal,
+          character_relationship_proposal: validCharacterRelationshipProposal,
         })
       ).toThrow();
 
@@ -293,6 +306,7 @@ describe('Turn schemas validation', () => {
           intent_proposal: validIntentProposal,
           consequence_proposal: validConsequenceProposal,
           character_stance_proposal: validCharacterStanceProposal,
+          character_relationship_proposal: validCharacterRelationshipProposal,
         })
       ).toThrow();
 
@@ -302,6 +316,7 @@ describe('Turn schemas validation', () => {
           intent_proposal: validIntentProposal,
           reconciliation_proposal: validReconciliationProposal,
           character_stance_proposal: validCharacterStanceProposal,
+          character_relationship_proposal: validCharacterRelationshipProposal,
         })
       ).toThrow();
 
@@ -311,6 +326,17 @@ describe('Turn schemas validation', () => {
           intent_proposal: validIntentProposal,
           reconciliation_proposal: validReconciliationProposal,
           consequence_proposal: validConsequenceProposal,
+          character_relationship_proposal: validCharacterRelationshipProposal,
+        })
+      ).toThrow();
+
+      expect(() =>
+        TurnResultSchema.parse({
+          ...baseResult,
+          intent_proposal: validIntentProposal,
+          reconciliation_proposal: validReconciliationProposal,
+          consequence_proposal: validConsequenceProposal,
+          character_stance_proposal: validCharacterStanceProposal,
         })
       ).toThrow();
     });
@@ -321,6 +347,7 @@ describe('Turn schemas validation', () => {
         logic_state: {},
         consequence_proposal: validConsequenceProposal,
         character_stance_proposal: validCharacterStanceProposal,
+        character_relationship_proposal: validCharacterRelationshipProposal,
       };
 
       expect(() =>
@@ -357,6 +384,7 @@ describe('Turn schemas validation', () => {
         reconciliation_proposal: validReconciliationProposal,
         consequence_proposal: validConsequenceProposal,
         character_stance_proposal: validCharacterStanceProposal,
+        character_relationship_proposal: validCharacterRelationshipProposal,
         logic_state: {
           current_phase: 'LATENT',
           suggested_tension: 1,
@@ -375,6 +403,7 @@ describe('Turn schemas validation', () => {
           reconciliation_proposal: validReconciliationProposal,
           consequence_proposal: validConsequenceProposal,
           character_stance_proposal: validCharacterStanceProposal,
+          character_relationship_proposal: validCharacterRelationshipProposal,
           logic_state: {},
         })
       ).toThrow();
@@ -388,6 +417,7 @@ describe('Turn schemas validation', () => {
           reconciliation_proposal: validReconciliationProposal,
           consequence_proposal: validConsequenceProposal,
           character_stance_proposal: validCharacterStanceProposal,
+          character_relationship_proposal: validCharacterRelationshipProposal,
           logic_state: {},
         })
       ).toThrow();
@@ -401,6 +431,7 @@ describe('Turn schemas validation', () => {
           reconciliation_proposal: validReconciliationProposal,
           consequence_proposal: validConsequenceProposal,
           character_stance_proposal: validCharacterStanceProposal,
+          character_relationship_proposal: validCharacterRelationshipProposal,
           logic_state: {},
           topologyDelta: { isExpansion: 'false' },
         })
@@ -449,6 +480,12 @@ describe('Turn schemas validation', () => {
           post_state: {},
           decisions: [],
         },
+        characterRelationshipReceipt: {
+          version: 1,
+          pre_state: [],
+          post_state: [],
+          decisions: [],
+        },
       };
 
       const parsed = TurnResponseSchema.parse(responseEnvelope);
@@ -456,10 +493,12 @@ describe('Turn schemas validation', () => {
       expect(parsed.narrativeReconciliationReceipt?.mode).toBe('CANONICAL');
       expect(parsed.canonicalConsequenceReceipt?.version).toBe(1);
       expect(parsed.characterStanceReceipt?.version).toBe(1);
+      expect(parsed.characterRelationshipReceipt?.version).toBe(1);
       expect((parsed as Record<string, unknown>).intent_proposal).toBeUndefined();
       expect((parsed as Record<string, unknown>).reconciliation_proposal).toBeUndefined();
       expect((parsed as Record<string, unknown>).consequence_proposal).toBeUndefined();
       expect((parsed as Record<string, unknown>).character_stance_proposal).toBeUndefined();
+      expect((parsed as Record<string, unknown>).character_relationship_proposal).toBeUndefined();
     });
   });
 
@@ -487,6 +526,9 @@ describe('Turn schemas validation', () => {
         mutations: [],
       },
       character_stance_proposal: {
+        changes: [],
+      },
+      character_relationship_proposal: {
         changes: [],
       },
       logic_state: {
@@ -1246,6 +1288,12 @@ describe('Turn schemas validation', () => {
           post_state: {},
           decisions: [],
         },
+        characterRelationshipReceipt: {
+          version: 1,
+          pre_state: [],
+          post_state: [],
+          decisions: [],
+        },
       });
 
       expect(validatedEnvelope.castInteractionReceipt?.outcome).toBe('RESPONDED');
@@ -1453,6 +1501,9 @@ describe('Turn schemas validation', () => {
         character_stance_proposal: {
           changes: [],
         },
+        character_relationship_proposal: {
+          changes: [],
+        },
         logic_state: {
           current_phase: 'LATENT',
           suggested_tension: 3,
@@ -1528,6 +1579,9 @@ describe('Turn schemas validation', () => {
         character_stance_proposal: {
           changes: [],
         },
+        character_relationship_proposal: {
+          changes: [],
+        },
         logic_state: {
           current_phase: 'LATENT',
           suggested_tension: 2,
@@ -1584,6 +1638,9 @@ describe('Turn schemas validation', () => {
           mutations: [],
         },
         character_stance_proposal: {
+          changes: [],
+        },
+        character_relationship_proposal: {
           changes: [],
         },
         logic_state: {
@@ -1646,6 +1703,9 @@ describe('Turn schemas validation', () => {
         character_stance_proposal: {
           changes: [],
         },
+        character_relationship_proposal: {
+          changes: [],
+        },
         logic_state: {
           current_phase: 'LATENT',
           suggested_tension: 1,
@@ -1692,6 +1752,9 @@ describe('Turn schemas validation', () => {
           mutations: [],
         },
         character_stance_proposal: {
+          changes: [],
+        },
+        character_relationship_proposal: {
           changes: [],
         },
         logic_state: {
@@ -1745,6 +1808,9 @@ describe('Turn schemas validation', () => {
           mutations: [],
         },
         character_stance_proposal: {
+          changes: [],
+        },
+        character_relationship_proposal: {
           changes: [],
         },
         logic_state: {},
@@ -1852,6 +1918,9 @@ describe('Turn schemas validation', () => {
         character_stance_proposal: {
           changes: [],
         },
+        character_relationship_proposal: {
+          changes: [],
+        },
         logic_state: {
           requested_transition: 'AIRLOCK_01',
           cast_deltas: [{ character_id: 'char-elena', skepticism_delta: 0.1 }],
@@ -1915,6 +1984,9 @@ describe('Turn schemas validation', () => {
         character_stance_proposal: {
           changes: [],
         },
+        character_relationship_proposal: {
+          changes: [],
+        },
         logic_state: {
           cast_deltas: [{ character_id: 'char-elena', skepticism_delta: 0.1 }],
         },
@@ -1957,6 +2029,9 @@ describe('Turn schemas validation', () => {
           mutations: [],
         },
         character_stance_proposal: {
+          changes: [],
+        },
+        character_relationship_proposal: {
           changes: [],
         },
         logic_state: {},
@@ -2007,6 +2082,12 @@ describe('Turn schemas validation', () => {
           post_state: {},
           decisions: [],
         },
+        characterRelationshipReceipt: {
+          version: 1,
+          pre_state: [],
+          post_state: [],
+          decisions: [],
+        },
       };
 
       const validated = TurnResponseSchema.parse(responseEnvelope);
@@ -2055,6 +2136,9 @@ describe('Turn schemas validation', () => {
           character_stance_proposal: {
             changes: [],
           },
+          character_relationship_proposal: {
+            changes: [],
+          },
           logic_state: {
             requested_transition: 'AIRLOCK_01',
           },
@@ -2101,6 +2185,9 @@ describe('Turn schemas validation', () => {
             mutations: [],
           },
           character_stance_proposal: {
+            changes: [],
+          },
+          character_relationship_proposal: {
             changes: [],
           },
           logic_state: {
@@ -2255,6 +2342,9 @@ describe('Turn schemas validation', () => {
             character_stance_proposal: {
               changes: [],
             },
+            character_relationship_proposal: {
+              changes: [],
+            },
             logic_state: {},
             topologyDelta: mockProposedExpansion,
           });
@@ -2302,6 +2392,9 @@ describe('Turn schemas validation', () => {
               mutations: [],
             },
             character_stance_proposal: {
+              changes: [],
+            },
+            character_relationship_proposal: {
               changes: [],
             },
             logic_state: {},
@@ -2353,6 +2446,9 @@ describe('Turn schemas validation', () => {
             character_stance_proposal: {
               changes: [],
             },
+            character_relationship_proposal: {
+              changes: [],
+            },
             logic_state: {},
             topologyDelta: mockProposedExpansion,
           });
@@ -2402,6 +2498,9 @@ describe('Turn schemas validation', () => {
             character_stance_proposal: {
               changes: [],
             },
+            character_relationship_proposal: {
+              changes: [],
+            },
             logic_state: {},
             topologyDelta: mockProposedExpansion,
           });
@@ -2448,6 +2547,9 @@ describe('Turn schemas validation', () => {
               mutations: [],
             },
             character_stance_proposal: {
+              changes: [],
+            },
+            character_relationship_proposal: {
               changes: [],
             },
             logic_state: {},
@@ -2510,6 +2612,9 @@ describe('Turn schemas validation', () => {
             character_stance_proposal: {
               changes: [],
             },
+            character_relationship_proposal: {
+              changes: [],
+            },
             logic_state: {},
             topologyDelta: mockProposedExpansion,
           });
@@ -2568,6 +2673,9 @@ describe('Turn schemas validation', () => {
             character_stance_proposal: {
               changes: [],
             },
+            character_relationship_proposal: {
+              changes: [],
+            },
             logic_state: {},
             topologyDelta: mockProposedExpansion,
           });
@@ -2622,6 +2730,12 @@ describe('Turn schemas validation', () => {
               post_state: {},
               decisions: [],
             },
+            characterRelationshipReceipt: {
+              version: 1,
+              pre_state: [],
+              post_state: [],
+              decisions: [],
+            },
           };
 
           const parsedInvestigateResponse = TurnResponseSchema.parse(investigateResponse);
@@ -2655,6 +2769,9 @@ describe('Turn schemas validation', () => {
               mutations: [],
             },
             character_stance_proposal: {
+              changes: [],
+            },
+            character_relationship_proposal: {
               changes: [],
             },
             logic_state: {},
@@ -2708,6 +2825,12 @@ describe('Turn schemas validation', () => {
               version: 1,
               pre_state: {},
               post_state: {},
+              decisions: [],
+            },
+            characterRelationshipReceipt: {
+              version: 1,
+              pre_state: [],
+              post_state: [],
               decisions: [],
             },
           };
@@ -3162,6 +3285,181 @@ describe('Turn schemas validation', () => {
           intentReceipt: validStanceIntent,
           narrativeReconciliationReceipt: suppressedReconciliation,
           castInteractionReceipt: validInteractionReceipt,
+        });
+
+        expect(receipt.decisions).toHaveLength(1);
+        expect(receipt.decisions[0].outcome).toBe('REJECTED');
+        expect(receipt.decisions[0].reason).toBe('RECONCILIATION_SUPPRESSED');
+        expect(receipt.post_state).toEqual(receipt.pre_state);
+      });
+    });
+
+    describe('finalizeCharacterRelationships', () => {
+      const baseRelContext = EngineTurnContextSchema.parse({
+        ...baseContext,
+        player: {
+          role: 'protagonist',
+          characterId: 'char-player',
+          name: 'Arthur',
+          description: 'Investigator',
+        },
+        cast: [
+          {
+            id: 'char-npc1',
+            name: 'Nurse Finch',
+            role: 'Custodian',
+            description: 'Orderly',
+            isUserCharacter: false,
+            isPresent: true,
+            stance: { focus: 'PLAYER', stance: 'OPEN' },
+          },
+          {
+            id: 'char-npc2',
+            name: 'Doctor Gray',
+            role: 'Antagonist',
+            description: 'Chief Doctor',
+            isUserCharacter: false,
+            isPresent: false,
+            stance: null,
+          },
+          {
+            id: 'char-player',
+            name: 'Arthur',
+            role: 'Protagonist',
+            description: 'Investigator',
+            isUserCharacter: true,
+            isPresent: true,
+            stance: null,
+          },
+        ],
+        relationshipState: [
+          {
+            source_character_id: 'char-npc1',
+            target_character_id: 'char-player',
+            kind: 'TRUST',
+            intensity: 1,
+          },
+        ],
+      });
+
+      const validRelIntent = createIntentReceipt({
+        action_kind: 'COMMUNICATE',
+        action_subtype: null,
+        pressure_direction: 'MAINTAIN',
+        dramatic_tactic: 'NONE',
+        intent_synergy: 'N/A',
+      });
+
+      const validRelReconciliation = createNarrativeReconciliationReceipt(
+        {
+          mode: 'CANONICAL',
+          feasibility: 'SUPPORTED',
+          reason_code: 'NONE',
+          fictional_time_cost: 'MOMENT',
+          authority_alignment: 'NOT_APPLICABLE',
+          memory_echo_candidate: null,
+        },
+        'protagonist'
+      );
+
+      const validRelInteractionReceipt = createCastInteractionReceipt({
+        addressedCharacterId: 'char-npc1',
+        respondingCharacterId: 'char-npc1',
+      });
+
+      it('applies well-formed valid relationship change', () => {
+        const receipt = finalizeCharacterRelationships({
+          proposal: {
+            changes: [
+              {
+                source_character_id: 'char-npc1',
+                target_character_id: 'char-player',
+                kind: 'TRUST',
+                delta: 1,
+                rationale: 'Deepened trust through assistance',
+              },
+            ],
+          },
+          context: baseRelContext,
+          intentReceipt: validRelIntent,
+          narrativeReconciliationReceipt: validRelReconciliation,
+          castInteractionReceipt: validRelInteractionReceipt,
+        });
+
+        expect(receipt.version).toBe(1);
+        expect(receipt.decisions).toHaveLength(1);
+        expect(receipt.decisions[0].outcome).toBe('APPLIED');
+        expect(receipt.decisions[0].reason).toBe('APPLIED');
+
+        const postRel = receipt.post_state.find(
+          (r) => r.source_character_id === 'char-npc1' && r.target_character_id === 'char-player' && r.kind === 'TRUST'
+        );
+        expect(postRel).toBeDefined();
+        expect(postRel?.intensity).toBe(2);
+      });
+
+      it('rejects self-referential relationship or unknown character targets', () => {
+        const receipt = finalizeCharacterRelationships({
+          proposal: {
+            changes: [
+              {
+                source_character_id: 'char-npc1',
+                target_character_id: 'char-npc1',
+                kind: 'TRUST',
+                delta: 1,
+                rationale: 'Self-referential',
+              },
+              {
+                source_character_id: 'char-npc1',
+                target_character_id: 'unknown-ghost',
+                kind: 'TRUST',
+                delta: 1,
+                rationale: 'Unknown character',
+              },
+            ],
+          },
+          context: baseRelContext,
+          intentReceipt: validRelIntent,
+          narrativeReconciliationReceipt: validRelReconciliation,
+          castInteractionReceipt: validRelInteractionReceipt,
+        });
+
+        expect(receipt.decisions).toHaveLength(2);
+        expect(receipt.decisions[0].outcome).toBe('REJECTED');
+        expect(receipt.decisions[0].reason).toBe('SELF_RELATIONSHIP');
+        expect(receipt.decisions[1].outcome).toBe('REJECTED');
+        expect(receipt.decisions[1].reason).toBe('PLAYER_NOT_INVOLVED');
+      });
+
+      it('rejects relationship changes when narrative reconciliation is suppressed', () => {
+        const suppressedReconciliation = createNarrativeReconciliationReceipt(
+          {
+            mode: 'EXPERIENTIAL_REANCHORED',
+            feasibility: 'IMPOSSIBLE',
+            reason_code: 'PHYSICAL_LIMIT',
+            fictional_time_cost: 'MOMENT',
+            authority_alignment: 'NOT_APPLICABLE',
+            memory_echo_candidate: null,
+          },
+          'protagonist'
+        );
+
+        const receipt = finalizeCharacterRelationships({
+          proposal: {
+            changes: [
+              {
+                source_character_id: 'char-npc1',
+                target_character_id: 'char-player',
+                kind: 'TRUST',
+                delta: -1,
+                rationale: 'Hallucinatory betrayal',
+              },
+            ],
+          },
+          context: baseRelContext,
+          intentReceipt: validRelIntent,
+          narrativeReconciliationReceipt: suppressedReconciliation,
+          castInteractionReceipt: validRelInteractionReceipt,
         });
 
         expect(receipt.decisions).toHaveLength(1);

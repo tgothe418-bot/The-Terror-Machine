@@ -1109,6 +1109,100 @@ describe('Engine telemetry export', () => {
       expect(html).toContain('<li>No character stance changes</li>');
       expect(md).toContain('- No character stance changes');
     });
+
+    it('renders Character Relationships decisions with before/after state in HTML and Markdown', () => {
+      const messagesWithRelationships = [
+        {
+          role: 'user',
+          content: 'I offer my rations to Finch.',
+          timestamp: 1,
+        },
+        {
+          role: 'assistant',
+          content: 'Finch takes the biscuit with a nod.',
+          timestamp: 2,
+          blocks: [{ type: 'prose', content: 'Finch takes the biscuit with a nod.' }],
+          logic_state: {
+            current_phase: 'LATENT',
+            characterRelationshipReceipt: {
+              version: 1,
+              pre_state: [],
+              post_state: [
+                {
+                  source_character_id: 'char-finch',
+                  target_character_id: 'char-player',
+                  kind: 'TRUST',
+                  intensity: 1,
+                },
+              ],
+              decisions: [
+                {
+                  proposal: {
+                    source_character_id: 'char-finch',
+                    target_character_id: 'char-player',
+                    kind: 'TRUST',
+                    delta: 1,
+                    rationale: 'Shared sustenance builds initial confidence',
+                  },
+                  outcome: 'APPLIED',
+                  reason: 'APPLIED',
+                  before: null,
+                  after: {
+                    source_character_id: 'char-finch',
+                    target_character_id: 'char-player',
+                    kind: 'TRUST',
+                    intensity: 1,
+                  },
+                },
+              ],
+            },
+          },
+        },
+      ];
+
+      const html = buildEngineLogContent(messagesWithRelationships, 'html')!.content;
+      const md = buildEngineLogContent(messagesWithRelationships, 'md')!.content;
+
+      expect(html).toContain('<h4>Character Relationships</h4>');
+      expect(html).toContain('Decision [char-finch -&gt; char-player / TRUST (+1)]:');
+      expect(html).toContain('Outcome: APPLIED (Reason: APPLIED)');
+      expect(html).toContain('Before: UNSET → After: 1');
+      expect(html).toContain('Shared sustenance builds initial confidence');
+
+      expect(md).toContain('#### Character Relationships');
+      expect(md).toContain('- **Decision [char-finch -> char-player / TRUST (+1)]:** Outcome: APPLIED (Reason: APPLIED) | Before: UNSET → After: 1 — *Shared sustenance builds initial confidence*');
+    });
+
+    it('renders "No character relationship changes" when relationship receipt has no applied changes', () => {
+      const messagesEmptyRelationships = [
+        {
+          role: 'user',
+          content: 'I wait in silence.',
+          timestamp: 1,
+        },
+        {
+          role: 'assistant',
+          content: 'Silence lingers.',
+          timestamp: 2,
+          blocks: [{ type: 'prose', content: 'Silence lingers.' }],
+          logic_state: {
+            current_phase: 'LATENT',
+            characterRelationshipReceipt: {
+              version: 1,
+              pre_state: [],
+              post_state: [],
+              decisions: [],
+            },
+          },
+        },
+      ];
+
+      const html = buildEngineLogContent(messagesEmptyRelationships, 'html')!.content;
+      const md = buildEngineLogContent(messagesEmptyRelationships, 'md')!.content;
+
+      expect(html).toContain('<li>No character relationship changes</li>');
+      expect(md).toContain('- No character relationship changes');
+    });
   });
 });
 

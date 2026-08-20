@@ -185,6 +185,36 @@ export const turnResponseSchema = {
       },
       required: ["changes"],
     },
+    character_relationship_proposal: {
+      type: Type.OBJECT,
+      properties: {
+        changes: {
+          type: Type.ARRAY,
+          maxItems: 2,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              source_character_id: { type: Type.STRING },
+              target_character_id: { type: Type.STRING },
+              kind: {
+                type: Type.STRING,
+                enum: ["TRUST", "HOSTILITY", "DEPENDENCE", "LEVERAGE"],
+              },
+              delta: { type: Type.INTEGER, enum: [-1, 1] },
+              rationale: { type: Type.STRING, maxLength: 240 },
+            },
+            required: [
+              "source_character_id",
+              "target_character_id",
+              "kind",
+              "delta",
+              "rationale",
+            ],
+          },
+        },
+      },
+      required: ["changes"],
+    },
     logic_state: {
       type: Type.OBJECT,
       properties: {
@@ -243,6 +273,7 @@ export const turnResponseSchema = {
     "reconciliation_proposal",
     "consequence_proposal",
     "character_stance_proposal",
+    "character_relationship_proposal",
   ]
 };
 

@@ -14,11 +14,13 @@ import {
   CharacterPresenceById,
   CanonicalConsequenceStateInput,
   CharacterStanceById,
+  CharacterRelationshipState,
 } from '../types';
 import { buildCharacterContinuity, DEFAULT_SKEPTICISM } from './castContinuity';
 import { buildCharacterPresence } from './castPresence';
 import { createCanonicalConsequenceState } from './canonicalConsequences';
 import { createCharacterStanceState } from './characterStance';
+import { createCharacterRelationshipState } from './characterRelationships';
 
 export interface BuildEngineTurnContextOptions {
   blueprint: unknown;
@@ -29,6 +31,7 @@ export interface BuildEngineTurnContextOptions {
   characterPresence?: CharacterPresenceById | null;
   consequenceState?: CanonicalConsequenceStateInput | null;
   characterStance?: CharacterStanceById | null;
+  characterRelationships?: CharacterRelationshipState | null;
   runtimeState?: {
     currentNodeId?: string | null;
     phase?: string;
@@ -39,6 +42,7 @@ export interface BuildEngineTurnContextOptions {
     activeTier?: string;
     activeFlags?: readonly string[] | string[];
     participationContext?: ParticipationContext | null;
+    characterRelationships?: CharacterRelationshipState | null;
   };
 }
 
@@ -54,6 +58,7 @@ export function buildEngineTurnContext({
   characterPresence,
   consequenceState: rawConsequenceState,
   characterStance,
+  characterRelationships: rawRelationships,
   runtimeState = {},
 }: BuildEngineTurnContextOptions): EngineTurnContext {
   const normBp: Blueprint = normalizeBlueprint(blueprint);
@@ -61,6 +66,9 @@ export function buildEngineTurnContext({
 
   const consequenceState = createCanonicalConsequenceState(rawConsequenceState);
   const normalizedStance = createCharacterStanceState(characterStance);
+  const relationshipState = createCharacterRelationshipState(
+    rawRelationships ?? runtimeState.characterRelationships
+  );
 
   // 0. Participation Context resolution
   const rawParticipation =
@@ -264,6 +272,7 @@ export function buildEngineTurnContext({
     },
     participationContext: resolvedParticipation || undefined,
     consequenceState,
+    relationshipState,
   };
 }
 
