@@ -10,7 +10,8 @@ The current development line is deliberately between milestones:
 
 - **Live:** turn contracts, role boundaries, topology, retake, telemetry, Blueprint and Induction entry paths, and the bounded World Memory path.
 - **Under review:** explicit Player-Character Binding. Human telemetry demonstrates exact selection, including a non-first eligible character; the full acceptance gate is still being closed.
-- **Next:** a conversational way to resolve Forge source gaps before a Blueprint is exported, followed by stronger Autopilot identity and provenance.
+- **Also under review:** scenario-bound authority and treatment enforcement. Recent adversarial telemetry shows that prompt-level boundaries need deterministic Engine enforcement before a turn becomes canon.
+- **Next:** a conversational way to resolve Forge source gaps and establish a Blueprint-specific treatment contract before export, followed by Engine enforcement of those authored assumptions.
 
 ## Near-term roadmap
 
@@ -18,33 +19,39 @@ The current development line is deliberately between milestones:
 
    Make the selected character remain coherent from setup through context, prompts, receipts, retakes, and telemetry. The runtime contract must stay Blueprint-agnostic: a Blueprint supplies data; it must not leak scenario assumptions into Engine code.
 
-2. **Give the Forge a gap-resolution conversation**
+2. **Give the Forge a gap-resolution conversation and treatment contract**
 
    Let the existing Architect console present a compact queue of unresolved source questions. The user answers in that same input surface; the Architect may ask a follow-up; each proposed change goes through the existing review and accept/reject path before it can alter the draft.
 
-   The Forge should distinguish source evidence, interpretation, authoring additions, and deliberately preserved ambiguity. A user should be able to leave a question unresolved when uncertainty is part of the intended Blueprint.
+   The Forge should distinguish source evidence, interpretation, authoring additions, and deliberately preserved ambiguity. It should also propose a Blueprint-specific treatment contract: the scenario’s dramatic register, where direct depiction belongs, where implication or aftermath is more faithful, and any special boundaries that emerge from the reference and authoring decisions.
 
-3. **Finish durable continuity**
+   This is not a generic intensity menu. The user should be able to accept or refine the Forge’s evidence-based proposal, and leave a genuine uncertainty unresolved when that is part of the intended Blueprint.
 
-   Extend bounded character and world memory into a dependable, inspectable continuity layer for discoveries, rules, relationships, and consequences without turning the model into the owner of canon.
+3. **Enforce authored boundaries at the Engine**
+
+   The Engine must distinguish what an actor is allowed to cause from how an accepted Blueprint says the event may be shown. Authority is resolved before canon; treatment shapes the narrative camera. If a provider cannot render a turn, that result must be contained honestly without misattributing it to the player or corrupting continuity.
 
 4. **Make Autopilot a trustworthy test participant**
 
    Give automated runs enough selected-character context to exercise identity-sensitive behavior, stop cleanly after failed turns, and label human versus Autopilot input in telemetry and exports.
 
-5. **Build a better Voice**
+5. **Finish durable continuity**
+
+   Extend bounded character and world memory into a dependable, inspectable continuity layer for discoveries, rules, relationships, and consequences without turning the model into the owner of canon.
+
+6. **Build a better Voice**
 
    Keep the Voice read-only while making its observations evidence-labelled and context-aware: it should know whether a question concerns a Forge draft, an Engine session, outside research, or the project conversation itself.
 
-6. **Support campaign continuity**
+7. **Support campaign continuity**
 
    Allow multiple Blueprints to form an authored campaign with explicit, scoped state handoff between acts.
 
-7. **Develop a generative horror grammar**
+8. **Develop a generative horror grammar**
 
    Research mechanics for pressure, pacing, fear, revelation, and recovery rather than a shelf of preset plots.
 
-8. **Keep the provider boundary replaceable**
+9. **Keep the provider boundary replaceable**
 
    Preserve the Engine contract while making the underlying model provider replaceable when the project is ready. Gemini in Google AI Studio remains the current development runtime, not a claim of provider neutrality today.
 
@@ -53,6 +60,7 @@ The current development line is deliberately between milestones:
 - The application, not the language model, owns canonical state.
 - A proposal is not a commit. Accepted state changes must pass the Engine's contracts.
 - Runtime instructions remain scenario-agnostic and Blueprint-agnostic.
+- Blueprint-specific treatment contracts shape framing; they do not grant causal authority or override non-negotiable provider constraints.
 - Retake, exit, and other out-of-fiction controls remain available to the person using the machine.
 - Literary strangeness is welcome; silent contradictions are not.
 
