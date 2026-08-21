@@ -3,7 +3,11 @@ import {
   resolveSeatAvailabilities,
   buildActiveParticipationContext,
 } from './seatAvailability';
-import { Blueprint } from '../types';
+import {
+  Blueprint,
+  MAX_PARTICIPATION_SEAT_DESCRIPTION_LENGTH,
+  ParticipationContextSchema,
+} from '../types';
 import { normalizeBlueprint } from './normalizeBlueprint';
 
 describe('Seat Availability Resolver & Participation Context Builder', () => {
@@ -177,5 +181,46 @@ describe('Seat Availability Resolver & Participation Context Builder', () => {
     expect(context?.mode).toBe('protagonist');
     expect(context?.seat.name).toBe('Marcus Gray');
     expect(context?.seat.description).toBe('Surveyor engineer');
+  });
+
+  it('accepts a generated participation-seat summary up to 1,000 characters', () => {
+    const summary = 'x'.repeat(MAX_PARTICIPATION_SEAT_DESCRIPTION_LENGTH);
+    const blueprint = normalizeBlueprint({
+      ...baseBlueprint,
+      cast: [
+        {
+          id: 'char-selected',
+          name: 'Selected Mortal',
+          role: 'Subject',
+          isEntity: false,
+          description: summary,
+        },
+      ],
+    });
+
+    const context = buildActiveParticipationContext(
+      blueprint,
+      'protagonist',
+      'char-selected'
+    );
+    const parsed = ParticipationContextSchema.safeParse(context);
+
+    expect(context?.seat.description).toHaveLength(1000);
+    expect(parsed.success).toBe(true);
+  });
+
+  it('continues to reject participation-seat summaries over 1,000 characters', () => {
+    const parsed = ParticipationContextSchema.safeParse({
+      mode: 'protagonist',
+      seat: {
+        kind: 'protagonist',
+        name: 'Selected Mortal',
+        description: 'x'.repeat(MAX_PARTICIPATION_SEAT_DESCRIPTION_LENGTH + 1),
+      },
+      initialGoal: 'Proceed through the enclosure.',
+      boundedFacts: [],
+    });
+
+    expect(parsed.success).toBe(false);
   });
 });

@@ -79,10 +79,16 @@ export const VictimFieldSchema = z.discriminatedUnion('kind', [
 ]);
 export type VictimField = z.infer<typeof VictimFieldSchema>;
 
+export const MAX_PARTICIPATION_SEAT_DESCRIPTION_LENGTH = 1000;
+
 export const ParticipationSeatSchema = z.object({
   kind: z.enum(['protagonist', 'character', 'force', 'director']),
   name: z.string().trim().min(1).max(100),
-  description: z.string().trim().max(300).optional(),
+  description: z
+    .string()
+    .trim()
+    .max(MAX_PARTICIPATION_SEAT_DESCRIPTION_LENGTH)
+    .optional(),
   ability: z.string().trim().max(500).optional(),
   limitation: z.string().trim().max(500).optional(),
 });
