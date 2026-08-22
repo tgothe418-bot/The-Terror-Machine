@@ -3,6 +3,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { ArrowLeft, Terminal, Loader2, Eye } from 'lucide-react';
 import { useEngineStore } from '../../core/store';
 import { useAppStore } from '../../store/useAppStore';
+import { useHydratedStores } from '../../lib/sessionReconciliation';
 import { motion, AnimatePresence } from 'motion/react';
 import { NarrativeBlock } from '../../types';
 
@@ -255,7 +256,7 @@ export default function Runtime() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [lastActivity, setLastActivity] = useState<number>(() => Date.now());
-  const [hydrated, setHydrated] = useState(() => useEngineStore.persist.hasHydrated());
+  const { isHydrated, isCoherent } = useHydratedStores();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [isTelemetryOpen, setIsTelemetryOpen] = useState(false);
   const [isTerminated, setIsTerminated] = useState(false);
@@ -334,16 +335,6 @@ export default function Runtime() {
     : gameState?.perspective_mode
       ? gameState.perspective_mode.toUpperCase()
       : 'UNKNOWN';
-
-  useEffect(() => {
-    const unsub = useEngineStore.persist.onHydrate(() => setHydrated(false));
-    const unsubFinish = useEngineStore.persist.onFinishHydration(() => setHydrated(true));
-
-    return () => {
-      unsub();
-      unsubFinish();
-    };
-  }, []);
 
   const handleExit = useCallback(() => {
     // DO NOT clearBlueprint() - maintain session until explicit wipe
@@ -427,15 +418,17 @@ export default function Runtime() {
 
   // Initial simulation start
   useEffect(() => {
-    // Only fire if the log is empty AND the ref hasn't been flipped
-    if (engineMessages.length === 0 && !hasStarted.current) {
+    if (!isHydrated || !isCoherent) return;
+    // Only fire if the log is empty AND the ref hasn't been flipped AND an active blueprint exists
+    if (engineMessages.length === 0 && !hasStarted.current && activeBlueprint) {
       hasStarted.current = true;
       startSimulation();
     }
-  }, [engineMessages.length, startSimulation]);
+  }, [isHydrated, isCoherent, engineMessages.length, startSimulation, activeBlueprint]);
 
   const handleCommand = async (e?: React.FormEvent, overrideInput?: string) => {
     e?.preventDefault();
+    if (!isHydrated || !isCoherent) return;
     const commandText = overrideInput || input;
     if (!commandText.trim() || isLoading) return;
 
@@ -698,19 +691,7 @@ export default function Runtime() {
 
   const resetEngine = useEngineStore((state) => state.resetEngine);
 
-  if (!hydrated) return null;
-
-  const spatialGraph = useAppStore.getState().spatialGraph;
-  const currentNodeId = useAppStore.getState().currentNodeId;
-  const currentNode = spatialGraph?.find((n) => n.id === currentNodeId) || spatialGraph?.[0];
-
-  if (!currentNode && engineMessages.length === 0 && !activeBlueprint) {
-    return (
-      <div className="flex items-center justify-center h-full min-h-screen bg-black text-red-600 font-mono text-center p-8">
-        [ENGINE STALL]: UNABLE TO RESOLVE ROOT NODE TOPOLOGY. CHECK AD-LIB GENERATOR.
-      </div>
-    );
-  }
+  if (!isHydrated || !isCoherent) return null;
 
   return (
     <div
