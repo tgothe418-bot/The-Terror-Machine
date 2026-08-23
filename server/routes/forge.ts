@@ -2,10 +2,16 @@
 import express from "express";
 import { getAiClient } from "../utils/aiClient";
 import { getGeminiPolicy } from "../ai/modelPolicy";
-import { LORE_EXTRACTION_PROMPT, ARCHITECT_SYSTEM_PROMPT } from "../../src/core/prompts/architect";
+import { 
+  LORE_EXTRACTION_PROMPT, 
+  ARCHITECT_AMBIGUITY_SYSTEM_PROMPT,
+  ARCHITECT_DEPICTION_CONTRACT_PROMPT,
+  ARCHITECT_GENERAL_SYSTEM_PROMPT,
+} from "../../src/core/prompts/architect";
 import { getMatrixRules } from "../../src/core/matrix";
 import { 
-  ArchitectRequestSchema, 
+  ArchitectRequestSchema,
+  ArchitectResponseSchema,
   TestBlueprintRequestSchema,
   AnalyzeReferenceRequestSchema,
   SummarizeInterviewRequestSchema,
@@ -19,7 +25,7 @@ import {
   getDecodedBase64ByteLength,
   createPayloadTooLargeError
 } from "../../src/lib/referenceImportPolicy";
-import { ForgeSourceRecord, DepictionContractPatchSchema } from "../../src/types/forge";
+import { ForgeSourceRecord } from "../../src/types/forge";
 import { validateAndNormalizeDocumentAnalysis } from "../../src/lib/sourceBaseline";
 
 const router = express.Router();
@@ -99,74 +105,245 @@ router.post("/test-blueprint", async (req, res) => {
 
 router.post("/architect", async (req, res) => {
   const parsedBody = ArchitectRequestSchema.safeParse(req.body);
-  if (!parsedBody.success) return res.status(400).json({ error: "Invalid request payload" });
+  if (!parsedBody.success) {
+    return res.status(400).json({ error: "Invalid request payload", details: parsedBody.error.format() });
+  }
 
   try {
-    const { history, draftBlueprint } = parsedBody.data;
-    
-    // Format history for Gemini
-    const formattedHistory = history.map((msg: any) => 
-      `${msg.role === 'user' ? 'USER:' : 'ARCHITECT:'}\n${msg.content}`
-    ).join('\n\n');
+    const policy = getGeminiPolicy("FORGE_ARCHITECTURE");
+    const aiClient = getAiClient();
 
-    let finalPrompt = ARCHITECT_SYSTEM_PROMPT;
+    if (parsedBody.data.kind === 'AMBIGUITY_RESOLUTION') {
+      const { userMessage, activeUnknown, draftContext, history } = parsedBody.data;
 
-    if (draftBlueprint?.references && draftBlueprint.references.length > 0) {
-      finalPrompt += `\n\nACTIVE KNOWLEDGEBASE REFERENCES: The User has attached the following source materials: [${draftBlueprint.references.join(', ')}]. Use your knowledge of these sources to inform your design suggestions.`;
+      const formattedHistory = history
+        .map((msg) => `${msg.role === 'user' ? 'USER:' : 'ARCHITECT:'}\n${msg.content}`)
+        .join('\n\n');
+
+      const maxFollowUpsReached = activeUnknown.followUps.length >= 2;
+
+      const fullPrompt = `${ARCHITECT_AMBIGUITY_SYSTEM_PROMPT}
+
+=== ACTIVE UNKNOWN TO RESOLVE ===
+Source ID: ${activeUnknown.sourceId}
+Unknown ID: ${activeUnknown.unknownId}
+Category: ${activeUnknown.category}
+Core Question: ${activeUnknown.question}
+Target Effect / Stake: ${activeUnknown.targetEffect}
+Creator's Submitted Clarification: "${activeUnknown.submittedAnswer || userMessage}"
+Previous Follow-Ups (${activeUnknown.followUps.length}/2):
+${activeUnknown.followUps.map((f, i) => `  [${i + 1}] Q: "${f.question}" -> A: "${f.answer || ''}"`).join('\n') || '  (None)'}
+${maxFollowUpsReached ? 'CRITICAL LIMIT NOTICE: 2 follow-ups have already been conducted. You MUST NOT ask another follow-up question. You MUST return a RESOLUTION_PROPOSAL.' : ''}
+
+=== ACTIVE SCENARIO DRAFT CONTEXT ===
+Title: ${draftContext.title || 'Untitled'}
+Premise: ${draftContext.premise || 'None'}
+Setting: ${JSON.stringify(draftContext.setting || {})}
+Cast: ${JSON.stringify(draftContext.cast || [])}
+Environmental Rules: ${JSON.stringify(draftContext.environmentalRules || [])}
+
+=== CONVERSATION HISTORY ===
+${formattedHistory}
+
+CREATOR'S LATEST MESSAGE:
+"${userMessage}"
+
+Generate your response in raw JSON adhering to the required schema:`;
+
+      const response = await aiClient.models.generateContent({
+        model: policy.model,
+        contents: fullPrompt,
+        config: {
+          responseMimeType: "application/json",
+          thinkingConfig: {
+            thinkingLevel: policy.thinkingLevel,
+          },
+        },
+      });
+
+      const outputText = response.text || "{}";
+      let parsedJson: any;
+      try {
+        parsedJson = JSON.parse(outputText);
+      } catch {
+        // Fallback resolution proposal if JSON parsing fails
+        parsedJson = {
+          type: 'RESOLUTION_PROPOSAL',
+          sourceId: activeUnknown.sourceId,
+          unknownId: activeUnknown.unknownId,
+          message: userMessage,
+          proposal: {
+            resolution: userMessage,
+            targetEffect: activeUnknown.targetEffect || 'Resolved by creator clarification.',
+          },
+        };
+      }
+
+      // Ensure sourceId and unknownId match the active unknown
+      if (parsedJson.type === 'FOLLOW_UP' || parsedJson.type === 'RESOLUTION_PROPOSAL') {
+        parsedJson.sourceId = activeUnknown.sourceId;
+        parsedJson.unknownId = activeUnknown.unknownId;
+      }
+
+      // If max follow-ups reached but model still asked follow up, convert to proposal
+      if (maxFollowUpsReached && parsedJson.type === 'FOLLOW_UP') {
+        parsedJson = {
+          type: 'RESOLUTION_PROPOSAL',
+          sourceId: activeUnknown.sourceId,
+          unknownId: activeUnknown.unknownId,
+          message: parsedJson.message || parsedJson.followUpQuestion || userMessage,
+          proposal: {
+            resolution: userMessage || parsedJson.followUpQuestion || 'Creator clarification accepted.',
+            targetEffect: activeUnknown.targetEffect || 'Resolved parameter.',
+          },
+        };
+      }
+
+      const validated = ArchitectResponseSchema.safeParse(parsedJson);
+      if (validated.success) {
+        return res.json(validated.data);
+      }
+
+      // Fallback valid resolution proposal
+      const fallback = {
+        type: 'RESOLUTION_PROPOSAL',
+        sourceId: activeUnknown.sourceId,
+        unknownId: activeUnknown.unknownId,
+        message: typeof parsedJson.message === 'string' ? parsedJson.message : 'Proposed resolution based on clarification.',
+        proposal: {
+          resolution: typeof parsedJson.proposal?.resolution === 'string' ? parsedJson.proposal.resolution : userMessage,
+          targetEffect: typeof parsedJson.proposal?.targetEffect === 'string' ? parsedJson.proposal.targetEffect : (activeUnknown.targetEffect || 'Applied resolution.'),
+        },
+      };
+      return res.json(fallback);
     }
 
-    const fullPrompt = `${finalPrompt}\n\n=== CONVERSATION LOG ===\n${formattedHistory}\n\nARCHITECT:`;
+    if (parsedBody.data.kind === 'DEPICTION_CONTRACT_PROPOSAL') {
+      const { draftContext, baselineContext, history } = parsedBody.data;
 
-    const policy = getGeminiPolicy("FORGE_ARCHITECTURE");
-    const response = await getAiClient().models.generateContent({
+      const formattedHistory = history
+        .map((msg) => `${msg.role === 'user' ? 'USER:' : 'ARCHITECT:'}\n${msg.content}`)
+        .join('\n\n');
+
+      const fullPrompt = `${ARCHITECT_DEPICTION_CONTRACT_PROMPT}
+
+=== SCENARIO DRAFT CONTEXT ===
+Title: ${draftContext.title || 'Untitled'}
+Premise: ${draftContext.premise || 'None'}
+Setting: ${JSON.stringify(draftContext.setting || {})}
+Cast: ${JSON.stringify(draftContext.cast || [])}
+Environmental Rules: ${JSON.stringify(draftContext.environmentalRules || [])}
+References: ${JSON.stringify(draftContext.references || [])}
+
+=== SCENARIO BASELINE FACTS & EVIDENCE ===
+Source Count: ${baselineContext.sourceCount}
+Source Summary: ${baselineContext.sourceSummary || 'None'}
+Applied Facts: ${JSON.stringify(baselineContext.appliedCandidateFacts)}
+Evidence Claims: ${JSON.stringify(baselineContext.evidenceClaims)}
+
+=== CONVERSATION LOG ===
+${formattedHistory}
+
+Synthesize a complete, non-placeholder Depiction Contract tailored for this scenario in raw JSON:`;
+
+      const response = await aiClient.models.generateContent({
+        model: policy.model,
+        contents: fullPrompt,
+        config: {
+          responseMimeType: "application/json",
+          thinkingConfig: {
+            thinkingLevel: policy.thinkingLevel,
+          },
+        },
+      });
+
+      const outputText = response.text || "{}";
+      let parsedJson: any = {};
+      try {
+        parsedJson = JSON.parse(outputText);
+      } catch (e) {
+        console.error("Failed to parse depiction contract proposal JSON:", e);
+      }
+
+      const rawProposal = parsedJson.proposal || parsedJson;
+      const contract = rawProposal.contract || rawProposal;
+
+      const structuredProposal = {
+        type: 'DEPICTION_CONTRACT_PROPOSAL' as const,
+        message: typeof parsedJson.message === 'string' ? parsedJson.message : 'Architect synthesized Depiction Contract proposal based on draft and baseline facts.',
+        proposal: {
+          contract: {
+            dramaticRegister: typeof contract.dramaticRegister === 'string' && contract.dramaticRegister.trim() ? contract.dramaticRegister.trim() : 'Visceral psychological horror with clinical observational intimacy',
+            directness: typeof contract.directness === 'string' && contract.directness.trim() ? contract.directness.trim() : 'Peripheral distortion and delayed manifest threat escalation',
+            aftermath: typeof contract.aftermath === 'string' && contract.aftermath.trim() ? contract.aftermath.trim() : 'Persistent somatic deterioration and psychological dissociation',
+            ambiguityHandling: typeof contract.ambiguityHandling === 'string' && contract.ambiguityHandling.trim() ? contract.ambiguityHandling.trim() : 'Fragmented subjective perception with unverified reality boundaries',
+            specialBoundaries: typeof contract.specialBoundaries === 'string' ? contract.specialBoundaries.trim() : '',
+          },
+          rationale: typeof rawProposal.rationale === 'string' ? rawProposal.rationale : 'Depiction parameters aligned with scenario baseline facts and narrative stakes.',
+          sourceDraftRevision: draftContext.draftRevision,
+          sourceBaselineRevision: baselineContext.sourceBaselineRevision,
+          createdAt: Date.now(),
+        },
+      };
+
+      const validated = ArchitectResponseSchema.safeParse(structuredProposal);
+      if (validated.success) {
+        return res.json(validated.data);
+      }
+
+      return res.json(structuredProposal);
+    }
+
+    // GENERAL_MESSAGE mode
+    const { userMessage, draftContext, history } = parsedBody.data;
+    const formattedHistory = history
+      .map((msg) => `${msg.role === 'user' ? 'USER:' : 'ARCHITECT:'}\n${msg.content}`)
+      .join('\n\n');
+
+    const fullPrompt = `${ARCHITECT_GENERAL_SYSTEM_PROMPT}
+
+=== SCENARIO DRAFT CONTEXT ===
+Title: ${draftContext?.title || 'Untitled'}
+Premise: ${draftContext?.premise || 'None'}
+Setting: ${JSON.stringify(draftContext?.setting || {})}
+Cast: ${JSON.stringify(draftContext?.cast || [])}
+
+=== CONVERSATION LOG ===
+${formattedHistory}
+
+USER:
+${userMessage}
+
+ARCHITECT:`;
+
+    const response = await aiClient.models.generateContent({
       model: policy.model,
       contents: fullPrompt,
       config: {
+        responseMimeType: "application/json",
         thinkingConfig: {
           thinkingLevel: policy.thinkingLevel,
         },
       },
     });
 
-    const outputText = response.text || "";
-    
-    let compiledBlueprint = null;
-    let depictionContractProposal = null;
-    let standardMessage = outputText;
-    
-    const jsonMatch = outputText.match(/```json\n([\s\S]*?)\n```/);
-    if (jsonMatch) {
-      try {
-        const parsed = JSON.parse(jsonMatch[1]);
-        if (parsed.is_compiling && parsed.blueprint) {
-          compiledBlueprint = parsed.blueprint;
-          standardMessage = parsed.message || "Blueprint compiled successfully.";
-        }
-        const rawProposal = parsed.depictionContractProposal || parsed.depiction_contract_proposal;
-        if (rawProposal && typeof rawProposal === 'object') {
-          const patchCandidate = rawProposal.patch && typeof rawProposal.patch === 'object' ? rawProposal.patch : rawProposal;
-          const validPatch = DepictionContractPatchSchema.safeParse(patchCandidate);
-          if (validPatch.success && Object.keys(validPatch.data).length > 0) {
-            depictionContractProposal = {
-              patch: validPatch.data,
-              rationale: typeof rawProposal.rationale === 'string'
-                ? rawProposal.rationale
-                : (typeof parsed.rationale === 'string' ? parsed.rationale : 'Architect recommended depiction contract parameters.'),
-              createdAt: Date.now(),
-            };
-          }
-        }
-      } catch (e) {
-        console.error("Failed to parse Architect JSON:", e);
+    const outputText = response.text || "{}";
+    let messageText = outputText;
+    try {
+      const parsed = JSON.parse(outputText);
+      if (parsed.message) {
+        messageText = parsed.message;
       }
+    } catch {
+      // Use raw text if not JSON
     }
 
-    res.json({ 
-      text: standardMessage,
-      compiledBlueprint,
-      depictionContractProposal,
-    });
+    const resObj = {
+      type: 'MESSAGE' as const,
+      message: messageText,
+    };
 
+    return res.json(resObj);
   } catch (error) {
     console.error("Architect route error:", error);
     res.status(500).json({ error: "Architect failed to respond." });

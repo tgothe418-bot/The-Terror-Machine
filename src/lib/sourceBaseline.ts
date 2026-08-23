@@ -12,6 +12,7 @@ import {
   ForgeSourceCandidateSchema,
   ForgeSourceEvidenceSchema,
   ForgeSourceUnknownSchema,
+  ForgeResolutionDraftPatch,
 } from '../types/forge';
 import { normalizeBlueprint } from './normalizeBlueprint';
 
@@ -833,4 +834,99 @@ export function setCandidateReviewDecisionPure(
     reviewDecision: decision,
   };
 }
+
+/**
+ * Purely applies structured ambiguity resolution patch operations to a ForgeDraft.
+ */
+export function applyResolutionDraftPatch(
+  draft: ForgeDraft,
+  patch?: ForgeResolutionDraftPatch
+): ForgeDraft {
+  if (!patch || !Array.isArray(patch.operations) || patch.operations.length === 0) {
+    return draft;
+  }
+
+  const nextDraft: ForgeDraft = JSON.parse(JSON.stringify(draft));
+
+  for (const op of patch.operations) {
+    const text = (op.text || '').trim();
+    if (!text) continue;
+
+    switch (op.target) {
+      case 'cast_description': {
+        if (nextDraft.cast && Array.isArray(nextDraft.cast)) {
+          nextDraft.cast = nextDraft.cast.map((c) => {
+            if (c.id === op.castMemberId) {
+              const currentNotes = (c as ForgeDraftCastMember & { notes?: string }).notes || '';
+              return {
+                ...c,
+                notes: currentNotes ? `${currentNotes}\n${text}` : text,
+              };
+            }
+            return c;
+          });
+        }
+        break;
+      }
+      case 'cast_personality': {
+        if (nextDraft.cast && Array.isArray(nextDraft.cast)) {
+          nextDraft.cast = nextDraft.cast.map((c) => {
+            if (c.id === op.castMemberId) {
+              const currentPsych = c.psychological_status || '';
+              return {
+                ...c,
+                psychological_status: currentPsych ? `${currentPsych}\n${text}` : text,
+              };
+            }
+            return c;
+          });
+        }
+        break;
+      }
+      case 'premise_detail': {
+        const currentPremise = nextDraft.premise || nextDraft.globalPremise || '';
+        const updated = currentPremise ? `${currentPremise}\n\n${text}` : text;
+        nextDraft.premise = updated;
+        nextDraft.globalPremise = updated;
+        break;
+      }
+      case 'setting_atmosphere': {
+        if (!nextDraft.setting) nextDraft.setting = { location: '', atmosphere: '', timePeriod: '' };
+        const currentAtmosphere = nextDraft.setting.atmosphere || '';
+        nextDraft.setting.atmosphere = currentAtmosphere ? `${currentAtmosphere} ${text}` : text;
+        break;
+      }
+      case 'environmental_rule': {
+        if (Array.isArray(nextDraft.environmentalRules)) {
+          nextDraft.environmentalRules = [...nextDraft.environmentalRules, text];
+        } else if (typeof nextDraft.environmentalRules === 'string') {
+          const current = nextDraft.environmentalRules.trim();
+          nextDraft.environmentalRules = current ? `${current}\n- ${text}` : `- ${text}`;
+        } else {
+          nextDraft.environmentalRules = [text];
+        }
+        break;
+      }
+      case 'narrative_rule': {
+        if (!nextDraft.narrativeRules) {
+          nextDraft.narrativeRules = {
+            incitingIncident: '',
+            phaseDirectives: {},
+            currentTensionLevel: 'buildup',
+            keyPlotElements: [],
+          };
+        }
+        const currentPlot = Array.isArray(nextDraft.narrativeRules.keyPlotElements)
+          ? [...nextDraft.narrativeRules.keyPlotElements]
+          : [];
+        currentPlot.push(text);
+        nextDraft.narrativeRules.keyPlotElements = currentPlot;
+        break;
+      }
+    }
+  }
+
+  return nextDraft;
+}
+
 

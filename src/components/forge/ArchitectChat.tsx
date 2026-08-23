@@ -7,6 +7,8 @@ export const ArchitectChat = () => {
   const { addArchitectMessage } = forgeActions;
 
   const messages = useForgeState((state) => state.architectMessages);
+  const draft = useForgeState((state) => state.draftBlueprint);
+  const draftRevision = useForgeState((state) => state.draftRevision);
 
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return;
@@ -22,27 +24,39 @@ export const ArchitectChat = () => {
       const response = await fetch('/api/architect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ history: newHistory }),
+        body: JSON.stringify({
+          kind: 'GENERAL_MESSAGE',
+          userMessage: userMsg.content,
+          draftContext: {
+            title: draft?.identity?.title || draft?.title || '',
+            premise: draft?.globalPremise || draft?.premise || '',
+            setting: draft?.setting || {},
+            cast: draft?.cast || [],
+            environmentalRules: draft?.environmentalRules || [],
+            draftRevision: draftRevision || 1,
+          },
+          history: newHistory.map((m) => ({ role: m.role, content: m.content })),
+        }),
       });
 
       const data = await response.json();
 
-      addArchitectMessage({ role: 'architect', content: data.text });
+      const replyText = data.message || data.text || 'Architect acknowledged.';
+      addArchitectMessage({ role: 'architect', content: replyText });
 
       // Packet 1B: Architect proposal isolation for Depiction Contract
-      if (data.depictionContractProposal) {
+      if (data.type === 'DEPICTION_CONTRACT_PROPOSAL' && data.proposal) {
+        forgeActions.setPendingDepictionContractProposal({
+          patch: data.proposal.contract,
+          rationale: data.proposal.rationale || data.message || '',
+          createdAt: data.proposal.createdAt || Date.now(),
+        });
+      } else if (data.depictionContractProposal) {
         forgeActions.setPendingDepictionContractProposal(data.depictionContractProposal);
-      }
-
-      // Phase 3D-1: Architect response is a proposal, not a direct state authority.
-      // Server-returned compiledBlueprint must NOT automatically replace the canonical Forge draft.
-      if (data.compiledBlueprint) {
-        console.info(
-          '[Forge Architect] Proposal received from Architect (auto-replacement disabled in Phase 3D-1)'
-        );
       }
     } catch (error) {
       console.error(error);
+      addArchitectMessage({ role: 'architect', content: 'Neural link interrupted. Please retry.' });
     } finally {
       setIsLoading(false);
     }

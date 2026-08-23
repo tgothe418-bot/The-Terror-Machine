@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useForgeState } from '../../store/useForgeStore';
-import { validateForgeDraft } from '../../lib/forgeCompiler';
+import { validateForgeExportReadiness } from '../../lib/forgeReadiness';
 import { prepareBlueprintExport } from '../../lib/compileBlueprintDraft';
 import {
   FileCheck2,
@@ -22,13 +22,18 @@ interface ExportReviewModalProps {
 }
 
 export const ExportReviewModal: React.FC<ExportReviewModalProps> = ({ isOpen, onClose }) => {
-  const { draftBlueprint, draftRevision } = useForgeState();
+  const { draftBlueprint, draftRevision, sourceAnalyses } = useForgeState();
   const [copied, setCopied] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
 
-  const validation = useMemo(() => {
-    return validateForgeDraft(draftBlueprint);
-  }, [draftBlueprint]);
+  const readiness = useMemo(() => {
+    return validateForgeExportReadiness({
+      draft: draftBlueprint,
+      sourceAnalyses,
+    });
+  }, [draftBlueprint, sourceAnalyses]);
+
+  const validation = readiness;
 
   if (!isOpen) return null;
 

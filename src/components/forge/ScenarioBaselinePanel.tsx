@@ -25,6 +25,10 @@ import {
 
 export const ScenarioBaselinePanel: React.FC = () => {
   const sourceAnalyses = useForgeState((state) => state.sourceAnalyses || {});
+  const draft = useForgeState((state) => state.draftBlueprint);
+  const draftRevision = useForgeState((state) => state.draftRevision);
+  const architectMessages = useForgeState((state) => state.architectMessages || []);
+
   const {
     setCandidateReviewDecision,
     editStagedCandidate,
@@ -32,9 +36,12 @@ export const ScenarioBaselinePanel: React.FC = () => {
     acceptCandidate,
     removeSourceAnalysis,
     submitUnknownAnswer,
+    receiveUnknownFollowUp,
+    receiveUnknownProposal,
     acceptUnknownResolution,
     editUnknownProposal,
     leaveUnknownUncertain,
+    setUnknownError,
     retryUnknown,
   } = forgeActions;
 
@@ -44,6 +51,7 @@ export const ScenarioBaselinePanel: React.FC = () => {
   
   // Ambiguity resolution state
   const [unknownAnswers, setUnknownAnswers] = useState<Record<string, string>>({});
+  const [isSubmittingUnknown, setIsSubmittingUnknown] = useState<Record<string, boolean>>({});
   const [editingProposalId, setEditingProposalId] = useState<string | null>(null);
   const [editedProposalResolution, setEditedProposalResolution] = useState<string>('');
   const [editedProposalEffect, setEditedProposalEffect] = useState<string>('');
@@ -117,15 +125,72 @@ export const ScenarioBaselinePanel: React.FC = () => {
     setUnknownAnswers((prev) => ({ ...prev, [unknownId]: value }));
   };
 
-  const handleSubmitAnswer = (sourceId: string, unknownId: string) => {
+  const handleSubmitAnswer = async (sourceId: string, unknownId: string) => {
     const answer = unknownAnswers[unknownId]?.trim();
     if (!answer) return;
+
+    const analysis = sourceAnalyses[sourceId];
+    const unk = analysis?.unknowns?.find((u) => u.id === unknownId);
+    if (!unk) return;
+
     submitUnknownAnswer(sourceId, unknownId, answer);
     setUnknownAnswers((prev) => {
       const next = { ...prev };
       delete next[unknownId];
       return next;
     });
+
+    setIsSubmittingUnknown((prev) => ({ ...prev, [unknownId]: true }));
+
+    try {
+      const response = await fetch('/api/architect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          kind: 'AMBIGUITY_RESOLUTION',
+          userMessage: answer,
+          activeUnknown: {
+            sourceId,
+            unknownId: unk.id,
+            category: unk.category,
+            question: unk.question,
+            targetEffect: unk.targetEffect,
+            submittedAnswer: answer,
+            followUps: unk.followUps || [],
+          },
+          draftContext: {
+            title: draft?.identity?.title || draft?.title || '',
+            premise: draft?.globalPremise || draft?.premise || '',
+            setting: draft?.setting || {},
+            cast: draft?.cast || [],
+            environmentalRules: draft?.environmentalRules || [],
+            draftRevision: draftRevision || 1,
+          },
+          history: (architectMessages || []).map((m) => ({ role: m.role, content: m.content })),
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Architect request failed with status ${response.status}`);
+      }
+
+      const resData = await response.json();
+      if (resData.type === 'FOLLOW_UP') {
+        receiveUnknownFollowUp(sourceId, unknownId, resData.followUpQuestion || resData.message);
+      } else if (resData.type === 'RESOLUTION_PROPOSAL' && resData.proposal) {
+        receiveUnknownProposal(sourceId, unknownId, resData.proposal);
+      } else {
+        receiveUnknownProposal(sourceId, unknownId, {
+          resolution: answer,
+          targetEffect: unk.targetEffect,
+        });
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Architect resolution failed.';
+      setUnknownError(sourceId, unknownId, msg);
+    } finally {
+      setIsSubmittingUnknown((prev) => ({ ...prev, [unknownId]: false }));
+    }
   };
 
   const startEditProposal = (unk: ForgeSourceUnknown) => {
@@ -652,24 +717,25 @@ export const ScenarioBaselinePanel: React.FC = () => {
                                       <input
                                         type="text"
                                         value={answerInput}
+                                        disabled={!!isSubmittingUnknown[unk.id]}
                                         onChange={(e) =>
                                           handleUnknownAnswerChange(unk.id, e.target.value)
                                         }
                                         onKeyDown={(e) => {
-                                          if (e.key === 'Enter' && answerInput.trim()) {
+                                          if (e.key === 'Enter' && answerInput.trim() && !isSubmittingUnknown[unk.id]) {
                                             handleSubmitAnswer(analysis.id, unk.id);
                                           }
                                         }}
                                         placeholder="e.g. The entity's origin is extraterrestrial, strictly reacting to sound..."
-                                        className="flex-1 bg-zinc-950 border border-zinc-800 focus:border-amber-500/70 p-2 text-xs text-zinc-200 rounded focus:outline-none font-mono"
+                                        className="flex-1 bg-zinc-950 border border-zinc-800 focus:border-amber-500/70 p-2 text-xs text-zinc-200 rounded focus:outline-none font-mono disabled:opacity-50"
                                       />
                                       <button
                                         onClick={() => handleSubmitAnswer(analysis.id, unk.id)}
-                                        disabled={!answerInput.trim()}
+                                        disabled={!answerInput.trim() || !!isSubmittingUnknown[unk.id]}
                                         className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 disabled:opacity-40 disabled:hover:bg-amber-500 text-black text-[10px] uppercase font-bold rounded flex items-center gap-1 cursor-pointer transition-colors shrink-0"
                                       >
                                         <Send className="w-3 h-3" />
-                                        Clarify
+                                        {isSubmittingUnknown[unk.id] ? 'Consulting...' : 'Clarify'}
                                       </button>
                                     </div>
 

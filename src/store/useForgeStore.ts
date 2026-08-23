@@ -25,6 +25,7 @@ import {
   DepictionContract,
   DepictionContractPatch,
   DepictionContractPatchSchema,
+  ForgeResolutionProposal,
 } from '../types/forge';
 import { idbStorage } from '../lib/idbStorage';
 import {
@@ -33,6 +34,7 @@ import {
   rejectCandidate as rejectCandidatePure,
   setCandidateReviewDecisionPure,
   sortCandidatesForApplication,
+  applyResolutionDraftPatch,
 } from '../lib/sourceBaseline';
 
 export const defaultStyleVector: ProseStyleVector = {
@@ -305,9 +307,14 @@ export interface ForgeActions {
   receiveUnknownProposal: (
     sourceId: string,
     unknownId: string,
-    proposal: { resolution: string; targetEffect: string }
+    proposal: ForgeResolutionProposal
   ) => void;
-  acceptUnknownResolution: (sourceId: string, unknownId: string, resolutionOverride?: string) => void;
+  acceptUnknownResolution: (
+    sourceId: string,
+    unknownId: string,
+    resolutionOverride?: string,
+    applyDraftPatch?: boolean
+  ) => void;
   leaveUnknownUncertain: (sourceId: string, unknownId: string, guidance?: string) => void;
   setUnknownError: (sourceId: string, unknownId: string, error: string) => void;
   retryUnknown: (sourceId: string, unknownId: string) => void;
@@ -1027,7 +1034,7 @@ export const useForgeStoreInternal = create<ForgeStore>()(
         receiveUnknownProposal: (
           sourceId: string,
           unknownId: string,
-          proposal: { resolution: string; targetEffect: string }
+          proposal: ForgeResolutionProposal
         ) =>
           set((state: ForgeState) => {
             const analysis = state.sourceAnalyses[sourceId];
@@ -1040,6 +1047,7 @@ export const useForgeStoreInternal = create<ForgeStore>()(
               resolutionProposal: {
                 resolution: proposal.resolution.trim(),
                 targetEffect: proposal.targetEffect.trim() || unk.targetEffect,
+                draftPatch: proposal.draftPatch,
               },
               status: 'awaiting_confirmation',
               lastError: undefined,
@@ -1063,7 +1071,8 @@ export const useForgeStoreInternal = create<ForgeStore>()(
         acceptUnknownResolution: (
           sourceId: string,
           unknownId: string,
-          resolutionOverride?: string
+          resolutionOverride?: string,
+          applyDraftPatch: boolean = true
         ) =>
           set((state: ForgeState) => {
             const analysis = state.sourceAnalyses[sourceId];
@@ -1099,18 +1108,24 @@ export const useForgeStoreInternal = create<ForgeStore>()(
               existingAmbiguities.push(decision);
             }
 
-            const updatedDraft: ForgeDraft = {
+            let updatedDraft: ForgeDraft = {
               ...currentDraft,
               ambiguities: existingAmbiguities,
             };
 
-            // 3. Mark unknown as resolved
+            // 3. If proposal included a draft patch and applyDraftPatch is true, apply it
+            if (applyDraftPatch && unk.resolutionProposal?.draftPatch) {
+              updatedDraft = applyResolutionDraftPatch(updatedDraft, unk.resolutionProposal.draftPatch);
+            }
+
+            // 4. Mark unknown as resolved
             const updatedUnknown: ForgeSourceUnknown = {
               ...unk,
               status: 'resolved',
               resolutionProposal: {
                 resolution: finalResolution,
                 targetEffect: unk.resolutionProposal?.targetEffect || unk.targetEffect,
+                draftPatch: unk.resolutionProposal?.draftPatch,
               },
               lastError: undefined,
             };
@@ -1128,6 +1143,8 @@ export const useForgeStoreInternal = create<ForgeStore>()(
               forgeDraft: updatedDraft,
               draftBlueprint: updatedDraft,
               draftRevision: (state.draftRevision || 0) + 1,
+              castLedger: deriveCastLedger(updatedDraft),
+              topology: deriveTopology(updatedDraft),
               sourceAnalyses: {
                 ...state.sourceAnalyses,
                 [analysis.id]: updatedAnalysis,

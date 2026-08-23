@@ -177,6 +177,7 @@ export interface ForgeReviewArtifact {
   compiledAt: number;
   sourceDraftId: string;
   sourceDraftRevision: number;
+  sourceBaselineRevision?: number;
 }
 
 export type ForgeCompileResult =
@@ -395,13 +396,82 @@ export const ForgeUnknownFollowUpSchema = z
   .strict();
 export type ForgeUnknownFollowUp = z.infer<typeof ForgeUnknownFollowUpSchema>;
 
+export const ForgeResolutionPatchOperationSchema = z.discriminatedUnion('target', [
+  z
+    .object({
+      target: z.literal('cast_description'),
+      castMemberId: z.string().min(1),
+      text: z.string().trim().min(1).max(1000),
+    })
+    .strict(),
+  z
+    .object({
+      target: z.literal('cast_personality'),
+      castMemberId: z.string().min(1),
+      text: z.string().trim().min(1).max(1000),
+    })
+    .strict(),
+  z
+    .object({
+      target: z.literal('premise_detail'),
+      text: z.string().trim().min(1).max(1000),
+    })
+    .strict(),
+  z
+    .object({
+      target: z.literal('setting_atmosphere'),
+      text: z.string().trim().min(1).max(1000),
+    })
+    .strict(),
+  z
+    .object({
+      target: z.literal('environmental_rule'),
+      text: z.string().trim().min(1).max(1000),
+    })
+    .strict(),
+  z
+    .object({
+      target: z.literal('narrative_rule'),
+      text: z.string().trim().min(1).max(1000),
+    })
+    .strict(),
+]);
+export type ForgeResolutionPatchOperation = z.infer<typeof ForgeResolutionPatchOperationSchema>;
+
+export const ForgeResolutionDraftPatchSchema = z
+  .object({
+    operations: z.array(ForgeResolutionPatchOperationSchema).max(10).default([]),
+  })
+  .strict();
+export type ForgeResolutionDraftPatch = z.infer<typeof ForgeResolutionDraftPatchSchema>;
+
 export const ForgeUnknownResolutionProposalSchema = z
   .object({
     resolution: z.string().trim().min(1).max(1000),
     targetEffect: z.string().trim().min(1).max(1000),
+    draftPatch: ForgeResolutionDraftPatchSchema.optional(),
   })
   .strict();
 export type ForgeUnknownResolutionProposal = z.infer<typeof ForgeUnknownResolutionProposalSchema>;
+
+export const DepictionContractProposalSchema = z
+  .object({
+    contract: z
+      .object({
+        dramaticRegister: z.string().trim().min(1).max(1000),
+        directness: z.string().trim().min(1).max(1000),
+        aftermath: z.string().trim().min(1).max(1000),
+        ambiguityHandling: z.string().trim().min(1).max(1000),
+        specialBoundaries: z.string().trim().max(1000).default(''),
+      })
+      .strict(),
+    rationale: z.string().trim().max(1000).default(''),
+    sourceDraftRevision: z.number(),
+    sourceBaselineRevision: z.number(),
+    createdAt: z.number(),
+  })
+  .strict();
+export type DepictionContractProposal = z.infer<typeof DepictionContractProposalSchema>;
 
 export const ForgeSourceUnknownSchema = z
   .object({
