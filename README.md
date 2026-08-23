@@ -1,92 +1,274 @@
-# THE TERROR MACHINE
 
 <p align="center"><strong>FREE HAUNTED <span style="color: #0000ff;">HOUSE</span></strong></p>
 
-The Terror Machine is an experimental, state-driven horror simulator. A language model interprets actions, performs characters, and renders the experience—but the application owns what becomes true.
+> **The room exists even when the prose looks away.**
 
-> The room exists even when the prose looks away.
+Welcome, operator.
 
-## What It Is
+You have found **The Terror Machine**: a persistent horror simulator for building, entering, and surviving impossible places.
 
-TTM is not a chatbot that merely tells a horror story. It is an attempt to build a persistent simulation in which language-model improvisation is constrained by mechanical state.
+It is part haunted house, part authoring system, part unreliable oracle, and part very literal machine. You may bring it a screenplay, a novel, a fragment of lore, a floor plan, a nightmare, or nothing but a bad idea and a door. The machine will help turn that material into a world.
 
-Rooms remain where they were. Doors connect to specific places. Characters have bounded knowledge, presence, stance, and relationships. Actions can change the world, but only after the Engine accepts the change under an explicit contract.
+Then it will remember what happened there.
 
-> The model proposes. The machine decides.
+The Terror Machine is not a chatbot with a spooky filter. It is not a choose-your-own-adventure book that has learned to type faster. It is an attempt to make language perform inside a world with rules—one where a character can be frightened by something the player does not know, where a discovered room can remain on the map, and where a beautiful sentence is not permitted to quietly change the past.
 
-The project values fidelity before verbosity, agency with consequences, situated knowledge, and memory-bearing change. A short response that respects the world is more useful than beautiful prose that silently contradicts it.
+The central rule is simple:
 
-## Current Status
+> **The model proposes. The machine decides.**
 
-TTM is an active development build, not a finished game. The turn contract, role boundaries, topology, retake, telemetry, Blueprint and Haunted House Induction entry paths, and the bounded World Memory path are live. Explicit Player-Character Binding is under review: human telemetry demonstrates exact selection, including a non-first eligible character, while the full acceptance gate is still being closed.
+Everything else follows from that.
 
-The [public roadmap](./ROADMAP.md) gives the short version. The [development roadmap](./DEVELOPMENT-ROADMAP.md) records implementation order, verification debt, and the acceptance rules we use before calling a phase complete.
+## THE HOUSE IS FREE
 
-## The Three Nodes
+“Free Haunted House” does not mean an empty demo hallway waiting for a prewritten monster.
 
-### `[ THE VOICE ]` — Conversation and Observation
+It means the house is yours to furnish.
 
-The Voice is a one-way mirror onto the project: it can discuss ideas, research, and running state without altering a simulation or contaminating its context.
+You can begin with:
 
-### `[ THE FORGE ]` — Scenario Architecture
+- an authored **Blueprint** with a known premise, cast, setting, and map;
+- **Haunted House Induction**, where source material is examined and transformed into proposed structure;
+- **Ad-Lib Induction**, where you supply the sparks and let the machine help build the situation;
+- a familiar story you want to approach from the side;
+- a setting you have never seen before, but would like to be trapped inside.
 
-The Forge turns authored intention into machine-readable structure: premise, cast, environment, topology, constraints, and narrative pressure. It supports designed Blueprints alongside looser Haunted House Induction.
+The source may be a screenplay, a book, a transcript, world lore, notes, a PDF, a text file, or the strange paragraph you wrote at two in the morning and never explained to anyone.
 
-### `[ THE ENGINE ]` — Simulation
+The machine does not treat every extracted detail as fact. It presents evidence, candidates, questions, and ambiguities for inspection. You decide what belongs in the house. The Architect may suggest a door, a memory, a motive, or a rule; the Forge keeps that suggestion on the table until you accept it.
 
-The Engine runs both entry paths through the same schema-bound turn pipeline. A player can participate as a Protagonist, Antagonist, or Director. Antagonist play uses explicit Authority and Limits; other characters remain independent actors rather than puppets.
+Once the house is built, the Engine takes over the night shift.
 
-## What the Current Build Can Do
+## WHAT KIND OF HORROR MACHINE IS THIS?
 
-- Accept one action at a time through a schema-bound, server-normalized turn contract.
-- Preserve canonical topology and allow new space to materialize only through an authorized movement attempt at an unmapped boundary.
-- Evaluate intent, causal feasibility, role boundaries, movement, and dialogue targets before committing state.
-- Commit bounded canonical consequences, character stances, player-centered character relationships, and World Memory decisions through deterministic resolvers and receipts.
-- Track cast presence and continuity, with structured diagnostics retained in telemetry exports.
-- Produce human-readable Markdown and HTML telemetry alongside canonical turn receipts for development review.
-- Retake the most recent completed turn—including a terminal outcome—restoring the prior application state, Engine game state, and command input.
-- Run authored Blueprint scenarios or begin with Haunted House Induction.
+TTM is a literary horror simulator with a mechanical spine.
 
-This is a working foundation, not a finished simulation. The Engine has strong boundaries around the state it currently owns. Character and World Memory structures are live; broader continuity, explicit player identity acceptance, conversational Forge gap resolution, and campaign continuity are being built deliberately.
+The language model supplies improvisation: voices, images, dialogue, discoveries, threats, hesitations, and the terrible sentence that arrives one line too late.
 
-## How a Turn Works
+The application supplies continuity.
 
-| Stage | Responsibility |
+It owns the things that make an event matter:
+
+- where everyone is;
+- what places connect to what other places;
+- who exists in the scenario;
+- who the player is actually inhabiting;
+- what each character has learned;
+- what they remember, believe, fear, or misunderstand;
+- which relationships have changed;
+- which consequences have become part of the world;
+- what the active scenario permits;
+- what the machine has already agreed to make true.
+
+The model may describe a staircase. The Engine asks whether the staircase has somewhere to go.
+
+The model may declare that a character knows the truth. The Engine asks when that character learned it.
+
+The model may propose that the door is open. The Engine asks whether there is a door, whether it was reachable, and whether the action that opened it was possible.
+
+The answer may still be yes.
+
+But now the answer has to earn its place in the house.
+
+## THE THREE NODES
+
+The machine has three principal chambers. They are not merely screens in an interface. They are three different relationships with the same impossible building.
+
+### `[ THE VOICE ]`
+
+The Voice is the window in the wall.
+
+It can discuss an idea, examine a session, explain a receipt, compare evidence, help with research, or point toward a contradiction. It can talk about the machine without pretending to be the machine.
+
+The Voice is deliberately read-only. It cannot reach through the glass and move the furniture. It does not become a secret second Engine just because it can describe what the Engine did.
+
+Use it when you want an observer, a witness, or someone in the next room who has been taking notes.
+
+### `[ THE FORGE ]`
+
+The Forge is where a story becomes inhabitable.
+
+Here you author a Blueprint: premise, cast, setting, topology, roles, relationships, pressures, boundaries, and the details that make a world more specific than a mood board.
+
+Here you can also feed the machine source material and let it perform **Haunted House Induction**. The Architect extracts candidates and evidence, identifies gaps, asks questions, and stages proposals. Ambiguity is not automatically a defect. Sometimes the unknown is the most faithful thing in the room.
+
+The Forge is a review chamber. A confident paragraph is not canon. An inference is not evidence. A proposal is not a commit.
+
+### `[ THE ENGINE ]`
+
+The Engine is the room after the lights go out.
+
+It receives an action, consults the current state, asks the model for a bounded proposal, and decides what—if anything—actually changes.
+
+The Engine is not a narrator wearing a lab coat. It is the part of the project responsible for refusing impossible continuity.
+
+When a turn succeeds, the world moves.
+
+When a turn fails, the world stays intact and the failure leaves a receipt.
+
+## CHOOSE YOUR SEAT
+
+The machine supports three ways to stand inside the nightmare.
+
+### PROTAGONIST
+
+You inhabit a character.
+
+That character has a position, a body, a history, a point of view, relationships, memories, and limits. The character does not automatically know what you know. The world does not automatically know what you intended.
+
+Your character may misunderstand the room. That misunderstanding is part of the room.
+
+### ANTAGONIST
+
+You act through an opposing character or force.
+
+An antagonist is not a license to puppeteer every other person in the scenario. Antagonist play uses an explicit **Authority Contract**: what the force can control, what it can influence, and what remains outside its reach.
+
+The victims are not cardboard scenery waiting for the villain to move them. They remain situated participants in the world, with their own presence, knowledge, fear, and ability to resist.
+
+The machine can support an intimate human antagonist, a predatory intelligence, or something operating at Barker, King, or Lovecraft scale. Power still has boundaries. Even a godlike thing has to declare what kind of god it is allowed to be.
+
+### DIRECTOR
+
+You remain outside the fiction.
+
+The Director can shape pressure, attention, framing, and circumstance without becoming another person waiting in the hallway. This is the seat for arranging the nightmare rather than pretending to be one of its residents.
+
+These roles are not cosmetic labels. They are part of the simulation contract.
+
+## THE HOUSE REMEMBERS
+
+Most interactive stories remember only the last page.
+
+TTM is interested in the things that survive the page turn.
+
+A character can remember a warning but not its source. A room can retain the consequence of an earlier action. A relationship can be altered by something that was never spoken aloud. Evidence can remain discoverable after the scene that revealed it is gone. A boundary can stay mapped even when the prose stops looking at it.
+
+The machine's memory is bounded on purpose. It is not a bucket into which every adjective is poured forever. It preserves what has earned persistence:
+
+- established facts;
+- discovered evidence;
+- environmental conditions;
+- persistent consequences;
+- character knowledge and memory;
+- relationships and stance;
+- the topology that makes movement meaningful.
+
+Memory has scope. Memory has provenance. Memory has an acceptance boundary.
+
+The goal is not infinite recall.
+
+The goal is a world that can be inspected, challenged, and trusted.
+
+## A TURN IN THE MACHINE
+
+Every turn passes through the same basic ritual.
+
+| Chamber | What happens |
 |---|---|
-| Snapshot | Capture the authoritative state before the action. |
-| Generation | Ask the model for bounded narrative and proposal data. |
-| Ratification | Compare proposals with topology, cast, role, relationship, and contract rules. |
-| Commit or fail | Commit accepted state once, or preserve canonical state with a failure receipt. |
-| Retake | Restore the immediately preceding checkpoint when the player wants another approach. |
-| Telemetry | Retain diagnostic evidence of the turn and its accepted result. |
+| **Snapshot** | The Engine captures the authoritative state before anything new is proposed. |
+| **Generation** | The model interprets the action and proposes narrative and structured changes inside the active contract. |
+| **Ratification** | Deterministic rules check intent, feasibility, topology, roles, presence, cast, relationships, and other boundaries. |
+| **Commit or fail** | Accepted changes are committed once. Invalid proposals preserve canonical state and produce a failure receipt. |
+| **Telemetry** | The machine records what was proposed, what was accepted, what changed, and what was refused. |
+| **Retake** | The person at the controls may restore the immediately preceding completed checkpoint and try again. |
 
-The simulation may be hostile to a character, but it should never be hostile to the person using it. Retake, exit, and other out-of-fiction controls belong outside the narrative and remain part of the design.
+The prose is the visible surface of a turn.
 
-## Public Roadmap
+The receipt is the machine's confession.
 
-The roadmap is intentionally directional rather than a promise of dates or feature volume. The near-term order is: close explicit Player-Character Binding; give the Forge a reviewable conversation for source gaps; finish durable continuity; make Autopilot identity-safe; then deepen Voice, campaign, horror-grammar, and provider work.
+## THE LAWS OF THE HOUSE
 
-See the [public roadmap](./ROADMAP.md) for the visitor-facing view and the [development roadmap](./DEVELOPMENT-ROADMAP.md) for the working sequence and acceptance gates.
+These rules matter more than any individual model, prompt, or attractive paragraph.
 
-## Content, Difficulty, and Agency
+### Canon belongs to the application
 
-Planned content settings are simulation contracts, not merely filters for blood or language. Lower settings can provide stronger outcome protection; higher settings can allow harsher, causally earned failure. Sexual violence and pornographic sexual content are outside the project’s intended scope.
+The language model may propose a new state. It does not own the state.
 
-TTM is built for literary, curious visitors who want to examine a strange machine as much as they want to enter its haunted house.
+### A proposal is not a commit
 
-## Development Tools
+Source candidates, Architect suggestions, generated consequences, memory entries, and authoring changes remain provisional until they cross the appropriate acceptance boundary.
 
-- **Autopilot** is a soak test that drives generated actions through the normal turn path; identity context, failure handling, and human-versus-generated provenance are still being hardened.
-- **Clear System Memory** is a development recovery control for TTM-owned persisted state.
-- **Telemetry and exports** are diagnostic evidence, not a substitute for the canonical commit path.
+### Failed validation preserves the world
 
-## Technology
+If a proposal is impossible, malformed, or outside the active contract, the canonical state remains intact. A failure produces evidence, not a convenient fiction.
 
-React, TypeScript, Vite, Express, Zustand, Zod, Tailwind CSS, Vitest, IndexedDB utilities, and Google Gemini through `@google/genai`.
+### Topology is not decoration
 
-Gemini in Google AI Studio is the current reference development runtime. A provider-neutral boundary is a longer-term goal, not a current claim.
+A room is not a mood. A doorway is not a metaphor. Spatial change requires an authorized path through the topology contract.
 
-## Running Locally
+### Knowledge is situated
+
+Characters do not act on information merely because the model, player, or author possesses it. Knowledge belongs to someone, somewhere, at a particular point in the story.
+
+### Consequences are allowed to stay
+
+The machine is not obligated to reset a relationship, erase a discovery, or restore a room because the next paragraph would be easier that way.
+
+### The machine may be hostile to the character
+
+It should never be hostile to the person using it. Retake, exit, recovery, and diagnostic controls exist outside the fiction for a reason.
+
+## WHAT YOU CAN BRING INSIDE
+
+The house is designed to accept authored material rather than forcing every nightmare through the same prefab hallway.
+
+You can bring:
+
+- an existing Blueprint;
+- a screenplay or novel fragment;
+- research, transcripts, and lore;
+- a floor plan or a list of locations;
+- a cast with histories and private knowledge;
+- a monster with a specific authority and specific limits;
+- a premise that is only one sentence long;
+- an uncertainty you do not want the machine to resolve.
+
+The Forge separates source evidence from interpretation and authoring. It can ask what a document does not settle. It can preserve a question as **contextual discretion** when the open space is part of the intended experience.
+
+This is important for literary horror. The machine should be able to understand that an uncertainty is not always an invitation to make something up.
+
+## WHAT THE MACHINE IS TRYING TO MAKE
+
+Not infinite content.
+
+Not a parade of interchangeable rooms.
+
+Not a model improvising until everyone forgets what happened three turns ago.
+
+TTM is trying to make a horror world with enough structure for choices to matter and enough uncertainty for fear to remain alive.
+
+It is interested in:
+
+- dread that accumulates instead of resetting;
+- characters who know different versions of the same room;
+- places that become more dangerous because they have been understood;
+- consequences that are mechanical, emotional, and spatial at the same time;
+- agency that can fail without becoming meaningless;
+- ambiguity that remains deliberate rather than accidental;
+- the strange authority of a machine that can say, “No. That did not happen.”
+
+The target is not a perfect story.
+
+The target is a story that has become a place—and a place that remembers being entered.
+
+## CURRENT EDITION
+
+The Terror Machine is a private-first solo project in active development. The current line includes the core atomic turn path, canonical topology, role-aware participation, Blueprint and Induction entry paths, retake, telemetry, bounded character and World Memory, and the early work of turning the Forge into a proper source-review instrument.
+
+Some doors are still being hung. Some rooms contain development diagnostics. Some boundaries are stricter than the interface around them. This is not a promise that the haunted house is finished; it is a warning that the house is already interesting enough to get lost in.
+
+For the honest implementation record—what is landed, what is under review, what is planned, and how acceptance is decided—read the [Technical (Public) Roadmap](./ROADMAP.md). The [Development Roadmap](./DEVELOPMENT-ROADMAP.md) contains the more detailed engineering ledger.
+
+The front door is for visitors.
+
+The roadmap is where the sausage gets made.
+
+## RUNNING THE MACHINE
+
+The current development runtime uses React, TypeScript, Vite, Express, Zustand, Zod, Tailwind CSS, Vitest, IndexedDB utilities, and Google Gemini through `@google/genai`.
+
+Gemini in Google AI Studio is the current reference development runtime. The Engine is kept behind explicit contracts so the model provider can remain replaceable when the project is ready.
 
 ```bash
 npm install
@@ -94,10 +276,43 @@ cp .env.example .env
 npm run dev
 ```
 
-Add a personal Gemini API key to `.env`. Never commit that file or paste a key into source code.
+Add a personal Gemini API key to `.env`.
 
-## Project Note
+For a production-style compilation:
 
-TTM is a private-first solo hobby project: an active experiment in building a very particular horror machine, learning in public through code, and making something worth returning to.
+```bash
+npm run build
+npm start
+```
 
-The code is available under the [MIT License](./LICENSE).
+For the automated test suite:
+
+```bash
+npm test
+```
+
+Never commit `.env`, expose an API key in source code, or paste a key into a public issue.
+
+## FINAL NOTICE TO OPERATORS
+
+Do not confuse a beautiful paragraph with a successful turn.
+
+Do not confuse a green test with a complete feature.
+
+Do not confuse a room described by the model with a room the machine has agreed to build.
+
+Do not assume that the person who knows the truth is the character who knows the truth.
+
+Do not open a door merely because the prose has begun to describe what is behind it.
+
+The Terror Machine is an attempt to make language walk through a world that remembers where it has been.
+
+Please leave the door open.
+
+The house may not be finished.
+
+That is not the same thing as saying it is empty.
+
+## LICENSE
+
+The Terror Machine is released under the [MIT License](./LICENSE).
