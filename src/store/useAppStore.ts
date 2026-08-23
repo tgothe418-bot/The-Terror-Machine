@@ -301,14 +301,22 @@ export const useAppStore = create<AppStore>()(
         if (!checkpoint) return false;
 
         // Validate checkpoint matches current session and blueprint before restoring
+        const sessionMatches =
+          !checkpoint.engineStateBefore.sessionId ||
+          !currentEngineState.sessionId ||
+          checkpoint.engineStateBefore.sessionId === currentEngineState.sessionId;
+
+        const blueprintMatches =
+          !checkpoint.engineStateBefore.blueprintId ||
+          !currentEngineState.blueprintId ||
+          checkpoint.engineStateBefore.blueprintId === currentEngineState.blueprintId;
+
         const isCompatible =
           checkpoint.version === 1 &&
           checkpoint.engineStateBefore &&
           typeof checkpoint.engineStateBefore === 'object' &&
-          Boolean(checkpoint.engineStateBefore.sessionId) &&
-          checkpoint.engineStateBefore.sessionId === currentEngineState.sessionId &&
-          Boolean(checkpoint.engineStateBefore.blueprintId) &&
-          checkpoint.engineStateBefore.blueprintId === currentEngineState.blueprintId;
+          sessionMatches &&
+          blueprintMatches;
 
         if (!isCompatible) {
           // Clear invalid cross-session checkpoint deterministically
