@@ -8,6 +8,10 @@ import type { CanonicalConsequenceReceipt } from '../types';
 describe('useAppStore retakeLastTurn integration', () => {
   beforeEach(() => {
     useAppStore.getState().resetSession();
+    useAppStore.setState({
+      sessionId: 'session-integration-1',
+      blueprintId: 'blueprint-integration-1',
+    });
     useEngineStore.getState().resetEngine();
   });
 
@@ -511,5 +515,189 @@ describe('useAppStore retakeLastTurn integration', () => {
     expect(retakeSuccess).toBe(true);
 
     expect(useEngineStore.getState().gameState?.character_stance?.['char-warden'].stance).toBe('OPEN');
+  });
+
+  describe('rejects incomplete or mismatched retake identity', () => {
+    const cases = [
+      {
+        name: 'missing checkpoint sessionId',
+        currentSessionId: 'sess-active',
+        currentBlueprintId: 'bp-active',
+        checkpointSessionId: undefined,
+        checkpointBlueprintId: 'bp-active',
+        expectedSuccess: false,
+      },
+      {
+        name: 'blank checkpoint sessionId',
+        currentSessionId: 'sess-active',
+        currentBlueprintId: 'bp-active',
+        checkpointSessionId: '',
+        checkpointBlueprintId: 'bp-active',
+        expectedSuccess: false,
+      },
+      {
+        name: 'whitespace-only checkpoint sessionId',
+        currentSessionId: 'sess-active',
+        currentBlueprintId: 'bp-active',
+        checkpointSessionId: '   ',
+        checkpointBlueprintId: 'bp-active',
+        expectedSuccess: false,
+      },
+      {
+        name: 'mismatched checkpoint sessionId',
+        currentSessionId: 'sess-active',
+        currentBlueprintId: 'bp-active',
+        checkpointSessionId: 'sess-other',
+        checkpointBlueprintId: 'bp-active',
+        expectedSuccess: false,
+      },
+      {
+        name: 'missing checkpoint blueprintId',
+        currentSessionId: 'sess-active',
+        currentBlueprintId: 'bp-active',
+        checkpointSessionId: 'sess-active',
+        checkpointBlueprintId: undefined,
+        expectedSuccess: false,
+      },
+      {
+        name: 'blank checkpoint blueprintId',
+        currentSessionId: 'sess-active',
+        currentBlueprintId: 'bp-active',
+        checkpointSessionId: 'sess-active',
+        checkpointBlueprintId: '',
+        expectedSuccess: false,
+      },
+      {
+        name: 'whitespace-only checkpoint blueprintId',
+        currentSessionId: 'sess-active',
+        currentBlueprintId: 'bp-active',
+        checkpointSessionId: 'sess-active',
+        checkpointBlueprintId: '   ',
+        expectedSuccess: false,
+      },
+      {
+        name: 'mismatched checkpoint blueprintId',
+        currentSessionId: 'sess-active',
+        currentBlueprintId: 'bp-active',
+        checkpointSessionId: 'sess-active',
+        checkpointBlueprintId: 'bp-other',
+        expectedSuccess: false,
+      },
+      {
+        name: 'both store identifiers blank',
+        currentSessionId: '',
+        currentBlueprintId: '',
+        checkpointSessionId: '',
+        checkpointBlueprintId: '',
+        expectedSuccess: false,
+      },
+      {
+        name: 'valid exact-match control case',
+        currentSessionId: 'sess-control-exact',
+        currentBlueprintId: 'bp-control-exact',
+        checkpointSessionId: 'sess-control-exact',
+        checkpointBlueprintId: 'bp-control-exact',
+        expectedSuccess: true,
+      },
+    ];
+
+    cases.forEach(
+      ({
+        name,
+        currentSessionId,
+        currentBlueprintId,
+        checkpointSessionId,
+        checkpointBlueprintId,
+        expectedSuccess,
+      }) => {
+        it(`${name}`, () => {
+          // Initialize active store with configured identifiers
+          useAppStore.setState({
+            sessionId: currentSessionId,
+            blueprintId: currentBlueprintId,
+            turnCount: 2,
+            tensionLevel: 50,
+          });
+
+          const initialGameState = {
+            current_location: 'Pre-Turn Location',
+            player_injuries: [],
+            inventory: ['Item A'],
+            psychological_status: 'CALM',
+            player_role: 'witness' as const,
+            player_character_id: null,
+            perspective_mode: 'witness' as const,
+            current_tension_level: 'buildup' as const,
+            lore_and_memory: {
+              established_facts: [],
+              permanent_consequences: [],
+            },
+            npc_fixations: [],
+          };
+
+          const postGameState = {
+            ...initialGameState,
+            current_location: 'Post-Turn Location',
+            inventory: ['Item A', 'Mutated Item B'],
+            psychological_status: 'DISTURBED',
+          };
+
+          useEngineStore.getState().setGameState(postGameState);
+
+          // Configure checkpoint with parameterized identity
+          useAppStore.setState({
+            lastTurnCheckpoint: {
+              version: 1,
+              commandText: 'Test retake identity command',
+              engineStateBefore: {
+                sessionId: checkpointSessionId,
+                blueprintId: checkpointBlueprintId,
+                phase: 'HUB',
+                escalation_state: 'LATENT',
+                currentNodeId: 'Pre-Turn Location',
+                activeVector: 'COGNITIVE',
+                activeTier: 'LATENT',
+                decay: { stage: 'STABLE', coherence: 1.0 },
+                turnCount: 1,
+                roomsGenerated: 1,
+                traumaLedger: [],
+                activeMemory: { systemFlags: [], somaState: [], geomState: [] },
+                motifLedger: {},
+                pacingLedger: {
+                  failedEscapeAttempts: 0,
+                  memoryAnchorsRemaining: 3,
+                  spatialContradictions: 0,
+                },
+                timelineRevision: 0,
+                lastDistilledRevision: -1,
+                reconciliationRevision: 0,
+                history: [],
+              },
+              engineGameStateBefore: JSON.parse(JSON.stringify(initialGameState)),
+            },
+          });
+
+          const result = useAppStore.getState().retakeLastTurn();
+          expect(result).toBe(expectedSuccess);
+
+          if (expectedSuccess) {
+            expect(useAppStore.getState().lastTurnCheckpoint).toBeNull();
+            expect(useEngineStore.getState().gameState?.current_location).toBe('Pre-Turn Location');
+            expect(useEngineStore.getState().gameState?.inventory).toEqual(['Item A']);
+            expect(useEngineStore.getState().gameState?.psychological_status).toBe('CALM');
+          } else {
+            // Missing, blank, or mismatched identifiers must clear the incompatible checkpoint
+            // and return false without restoring either store.
+            expect(useAppStore.getState().lastTurnCheckpoint).toBeNull();
+            expect(useEngineStore.getState().gameState?.current_location).toBe('Post-Turn Location');
+            expect(useEngineStore.getState().gameState?.inventory).toEqual([
+              'Item A',
+              'Mutated Item B',
+            ]);
+            expect(useEngineStore.getState().gameState?.psychological_status).toBe('DISTURBED');
+          }
+        });
+      }
+    );
   });
 });

@@ -300,15 +300,29 @@ export const useAppStore = create<AppStore>()(
         const checkpoint = currentEngineState.lastTurnCheckpoint;
         if (!checkpoint) return false;
 
+        const cpBefore = checkpoint.engineStateBefore;
+        const cpSessionId =
+          typeof cpBefore?.sessionId === 'string' ? cpBefore.sessionId.trim() : '';
+        const cpBlueprintId =
+          typeof cpBefore?.blueprintId === 'string' ? cpBefore.blueprintId.trim() : '';
+        const currentSessionId =
+          typeof currentEngineState.sessionId === 'string'
+            ? currentEngineState.sessionId.trim()
+            : '';
+        const currentBlueprintId =
+          typeof currentEngineState.blueprintId === 'string'
+            ? currentEngineState.blueprintId.trim()
+            : '';
+
         // Validate checkpoint matches current session and blueprint before restoring
         const isCompatible =
           checkpoint.version === 1 &&
-          checkpoint.engineStateBefore &&
-          typeof checkpoint.engineStateBefore === 'object' &&
-          (checkpoint.engineStateBefore.sessionId === undefined ||
-            checkpoint.engineStateBefore.sessionId === currentEngineState.sessionId) &&
-          (checkpoint.engineStateBefore.blueprintId === undefined ||
-            checkpoint.engineStateBefore.blueprintId === currentEngineState.blueprintId);
+          cpBefore &&
+          typeof cpBefore === 'object' &&
+          cpSessionId.length > 0 &&
+          cpSessionId === currentSessionId &&
+          cpBlueprintId.length > 0 &&
+          cpBlueprintId === currentBlueprintId;
 
         if (!isCompatible) {
           // Clear invalid cross-session checkpoint deterministically
