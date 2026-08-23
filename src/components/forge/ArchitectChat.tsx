@@ -19,12 +19,119 @@ import {
   ArrowRight,
 } from 'lucide-react';
 
+interface ValidatedFollowUpResponse {
+  kind: 'VALID_FOLLOW_UP';
+  sourceId: string;
+  unknownId: string;
+  followUpQuestion: string;
+}
+
+interface ValidatedProposalResponse {
+  kind: 'VALID_PROPOSAL';
+  sourceId: string;
+  unknownId: string;
+  proposal: {
+    resolution: string;
+    targetEffect: string;
+  };
+  message?: string;
+}
+
+type AmbiguityValidationResult =
+  | ValidatedFollowUpResponse
+  | ValidatedProposalResponse
+  | { kind: 'INVALID'; reason: string };
+
+function validateAmbiguityResponse(
+  data: unknown,
+  expectedSourceId: string,
+  expectedUnknownId: string
+): AmbiguityValidationResult {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) {
+    return { kind: 'INVALID', reason: 'Response is not a valid JSON object.' };
+  }
+
+  const obj = data as Record<string, unknown>;
+  const { type, sourceId, unknownId } = obj;
+
+  if (typeof sourceId !== 'string' || !sourceId.trim() || sourceId !== expectedSourceId) {
+    return {
+      kind: 'INVALID',
+      reason: `Identity mismatch: sourceId "${String(sourceId)}" does not match expected "${expectedSourceId}"`,
+    };
+  }
+
+  if (typeof unknownId !== 'string' || !unknownId.trim() || unknownId !== expectedUnknownId) {
+    return {
+      kind: 'INVALID',
+      reason: `Identity mismatch: unknownId "${String(unknownId)}" does not match expected "${expectedUnknownId}"`,
+    };
+  }
+
+  if (type === 'FOLLOW_UP') {
+    const rawQuestion =
+      typeof obj.followUpQuestion === 'string' && obj.followUpQuestion.trim()
+        ? obj.followUpQuestion.trim()
+        : typeof obj.message === 'string' && obj.message.trim()
+        ? obj.message.trim()
+        : '';
+
+    if (!rawQuestion) {
+      return { kind: 'INVALID', reason: 'FOLLOW_UP response missing non-empty followUpQuestion.' };
+    }
+
+    return {
+      kind: 'VALID_FOLLOW_UP',
+      sourceId,
+      unknownId,
+      followUpQuestion: rawQuestion,
+    };
+  }
+
+  if (type === 'RESOLUTION_PROPOSAL') {
+    const proposal = obj.proposal;
+    if (!proposal || typeof proposal !== 'object' || Array.isArray(proposal)) {
+      return { kind: 'INVALID', reason: 'RESOLUTION_PROPOSAL response missing proposal object.' };
+    }
+
+    const propObj = proposal as Record<string, unknown>;
+    const resolution = typeof propObj.resolution === 'string' ? propObj.resolution.trim() : '';
+    const targetEffect = typeof propObj.targetEffect === 'string' ? propObj.targetEffect.trim() : '';
+
+    if (!resolution || !targetEffect) {
+      return {
+        kind: 'INVALID',
+        reason: 'RESOLUTION_PROPOSAL proposal missing non-empty resolution or targetEffect.',
+      };
+    }
+
+    return {
+      kind: 'VALID_PROPOSAL',
+      sourceId,
+      unknownId,
+      proposal: {
+        resolution,
+        targetEffect,
+      },
+      message: typeof obj.message === 'string' ? obj.message : undefined,
+    };
+  }
+
+  return { kind: 'INVALID', reason: `Unrecognized response type: "${String(type)}"` };
+}
+
 export const ArchitectChat: React.FC = () => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [editingProposal, setEditingProposal] = useState(false);
   const [editedResolution, setEditedResolution] = useState('');
   const [editedTargetEffect, setEditedTargetEffect] = useState('');
+  const [localResolutionError, setLocalResolutionError] = useState<string | null>(null);
+  const [failedResolutionAttempt, setFailedResolutionAttempt] = useState<{
+    userText: string;
+    sourceId: string;
+    unknownId: string;
+  } | null>(null);
 
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -36,7 +143,6 @@ export const ArchitectChat: React.FC = () => {
     acceptUnknownResolution,
     editUnknownProposal,
     leaveUnknownUncertain,
-    setUnknownError,
     retryUnknown,
   } = forgeActions;
 
@@ -89,13 +195,22 @@ export const ArchitectChat: React.FC = () => {
     retryUnknown(sourceId, activeUnk.id);
   };
 
-  const sendMessage = async () => {
-    if (!input.trim() || isLoading) return;
+  const handleRetryResolution = () => {
+    if (failedResolutionAttempt) {
+      sendResolutionRequest(
+        failedResolutionAttempt.userText,
+        failedResolutionAttempt.sourceId,
+        failedResolutionAttempt.unknownId
+      );
+    }
+  };
 
-    const userText = input.trim();
-    const userMsg: ArchitectMessage = { role: 'user', content: userText };
-    addArchitectMessage(userMsg);
-    setInput('');
+  const sendResolutionRequest = async (
+    userText: string,
+    targetSourceId: string,
+    targetUnknownId: string
+  ) => {
+    setLocalResolutionError(null);
     setIsLoading(true);
 
     const historyPayload = messages.slice(-12).map((m) => ({ role: m.role, content: m.content }));
@@ -109,80 +224,117 @@ export const ArchitectChat: React.FC = () => {
       draftRevision: draftRevision || 1,
     };
 
-    if (activeUnknownContext && activeUnk && sourceId) {
-      // Ambiguity resolution routing
-      submitUnknownAnswer(sourceId, activeUnk.id, userText);
+    try {
+      const response = await fetch('/api/architect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          kind: 'AMBIGUITY_RESOLUTION',
+          userMessage: userText,
+          activeUnknown: {
+            sourceId: targetSourceId,
+            unknownId: targetUnknownId,
+            category: activeUnk?.category,
+            question: activeUnk?.question,
+            targetEffect: activeUnk?.targetEffect,
+            submittedAnswer: userText,
+            followUps: activeUnk?.followUps || [],
+          },
+          draftContext,
+          history: historyPayload,
+        }),
+      });
 
+      if (!response.ok) {
+        throw new Error(`Architect resolution failed with status ${response.status}`);
+      }
+
+      let data: unknown;
       try {
-        const response = await fetch('/api/architect', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            kind: 'AMBIGUITY_RESOLUTION',
-            userMessage: userText,
-            activeUnknown: {
-              sourceId,
-              unknownId: activeUnk.id,
-              category: activeUnk.category,
-              question: activeUnk.question,
-              targetEffect: activeUnk.targetEffect,
-              submittedAnswer: userText,
-              followUps: activeUnk.followUps || [],
-            },
-            draftContext,
-            history: historyPayload,
-          }),
+        data = await response.json();
+      } catch {
+        throw new Error('Failed to parse Architect response as JSON');
+      }
+
+      const validation = validateAmbiguityResponse(data, targetSourceId, targetUnknownId);
+
+      if (validation.kind === 'INVALID') {
+        const errorMsg = `Architect resolution protocol failure: ${validation.reason}`;
+        setLocalResolutionError(errorMsg);
+        setFailedResolutionAttempt({
+          userText,
+          sourceId: targetSourceId,
+          unknownId: targetUnknownId,
         });
-
-        if (!response.ok) {
-          throw new Error(`Architect resolution failed with status ${response.status}`);
-        }
-
-        const data = await response.json();
-
-        // Validate response identity
-        if (data.sourceId !== sourceId || data.unknownId !== activeUnk.id) {
-          const mismatchMsg = `Mismatched ambiguity response: received source=${data.sourceId} unknown=${data.unknownId}, expected source=${sourceId} unknown=${activeUnk.id}`;
-          setUnknownError(sourceId, activeUnk.id, mismatchMsg);
-          addArchitectMessage({
-            role: 'architect',
-            content: `Architect response validation failed: ID mismatch.`,
-          });
-          return;
-        }
-
-        if (data.type === 'FOLLOW_UP') {
-          const followUpQ = data.followUpQuestion || data.message;
-          receiveUnknownFollowUp(sourceId, activeUnk.id, followUpQ);
-          addArchitectMessage({
-            role: 'architect',
-            content: followUpQ,
-          });
-        } else if (data.type === 'RESOLUTION_PROPOSAL' && data.proposal) {
-          receiveUnknownProposal(sourceId, activeUnk.id, data.proposal);
-          addArchitectMessage({
-            role: 'architect',
-            content: data.message || `Resolution Proposal: ${data.proposal.resolution}`,
-          });
-        } else {
-          setUnknownError(sourceId, activeUnk.id, 'Unrecognized architect response format.');
-          addArchitectMessage({
-            role: 'architect',
-            content: 'Received an unrecognized response structure from the Architect.',
-          });
-        }
-      } catch (error) {
-        const errStr = error instanceof Error ? error.message : 'Architect communication error.';
-        setUnknownError(sourceId, activeUnk.id, errStr);
         addArchitectMessage({
           role: 'architect',
-          content: `Neural link interrupted during ambiguity resolution: ${errStr}`,
+          content: `Architect response validation failed: ${validation.reason}`,
         });
-      } finally {
-        setIsLoading(false);
+        return;
       }
+
+      // Validated successfully: clear failed attempts and apply changes
+      setFailedResolutionAttempt(null);
+      setLocalResolutionError(null);
+
+      // Submit creator input answer to store
+      submitUnknownAnswer(targetSourceId, targetUnknownId, userText);
+
+      if (validation.kind === 'VALID_FOLLOW_UP') {
+        receiveUnknownFollowUp(targetSourceId, targetUnknownId, validation.followUpQuestion);
+        addArchitectMessage({
+          role: 'architect',
+          content: validation.followUpQuestion,
+        });
+      } else if (validation.kind === 'VALID_PROPOSAL') {
+        receiveUnknownProposal(targetSourceId, targetUnknownId, validation.proposal);
+        addArchitectMessage({
+          role: 'architect',
+          content: validation.message || `Resolution Proposal: ${validation.proposal.resolution}`,
+        });
+      }
+    } catch (error) {
+      const errStr = error instanceof Error ? error.message : 'Architect communication error.';
+      setLocalResolutionError(errStr);
+      setFailedResolutionAttempt({
+        userText,
+        sourceId: targetSourceId,
+        unknownId: targetUnknownId,
+      });
+      addArchitectMessage({
+        role: 'architect',
+        content: `Neural link interrupted during ambiguity resolution: ${errStr}`,
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const sendMessage = async () => {
+    if (!input.trim() || isLoading) return;
+
+    const userText = input.trim();
+    const userMsg: ArchitectMessage = { role: 'user', content: userText };
+    addArchitectMessage(userMsg);
+    setInput('');
+
+    if (activeUnknownContext && activeUnk && sourceId) {
+      // Ambiguity resolution routing with response isolation
+      await sendResolutionRequest(userText, sourceId, activeUnk.id);
     } else {
       // General message routing
+      setIsLoading(true);
+      const historyPayload = messages.slice(-12).map((m) => ({ role: m.role, content: m.content }));
+
+      const draftContext = {
+        title: draft?.identity?.title || draft?.title || '',
+        premise: draft?.globalPremise || draft?.premise || '',
+        setting: draft?.setting || {},
+        cast: draft?.cast || [],
+        environmentalRules: draft?.environmentalRules || [],
+        draftRevision: draftRevision || 1,
+      };
+
       try {
         const response = await fetch('/api/architect', {
           method: 'POST',
@@ -291,14 +443,33 @@ export const ArchitectChat: React.FC = () => {
             </p>
           </div>
 
-          {/* Visible Error State */}
-          {activeUnk.lastError && (
+          {/* Local Protocol Error / Retry State */}
+          {localResolutionError && (
+            <div className="p-2 bg-red-950/40 border border-red-900/60 rounded text-red-200 text-[11px] font-mono flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <AlertTriangle className="w-3.5 h-3.5 text-red-400 shrink-0" />
+                <span className="truncate">{localResolutionError}</span>
+              </div>
+              <button
+                type="button"
+                onClick={handleRetryResolution}
+                className="px-2 py-0.5 bg-red-900/60 hover:bg-red-800 border border-red-700 text-red-100 rounded text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 shrink-0 cursor-pointer"
+              >
+                <RotateCcw className="w-2.5 h-2.5" />
+                Retry
+              </button>
+            </div>
+          )}
+
+          {/* Store-recorded Error State */}
+          {!localResolutionError && activeUnk.lastError && (
             <div className="p-2 bg-red-950/40 border border-red-900/60 rounded text-red-200 text-[11px] font-mono flex items-center justify-between gap-2">
               <div className="flex items-center gap-1.5 min-w-0">
                 <AlertTriangle className="w-3.5 h-3.5 text-red-400 shrink-0" />
                 <span className="truncate">{activeUnk.lastError}</span>
               </div>
               <button
+                type="button"
                 onClick={handleRetry}
                 className="px-2 py-0.5 bg-red-900/60 hover:bg-red-800 border border-red-700 text-red-100 rounded text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 shrink-0 cursor-pointer"
               >
@@ -314,20 +485,25 @@ export const ArchitectChat: React.FC = () => {
               <span className="text-[10px] uppercase font-bold text-amber-400/90 block">
                 Clarification Dialogue:
               </span>
-              {activeUnk.followUps.map((fu, idx) => (
-                <div key={fu.id || idx} className="space-y-0.5">
-                  <div className="text-zinc-400">
-                    <span className="font-bold text-zinc-500">Q: </span>
-                    {fu.question}
-                  </div>
-                  {fu.answer && (
-                    <div className="text-cyan-300">
-                      <span className="font-bold text-cyan-500">A: </span>
-                      {fu.answer}
+              {activeUnk.followUps.map((fu, idx) => {
+                const formattedQuestion = fu.question
+                  ? fu.question.replace(/^Q:\s*/i, '').trim()
+                  : '';
+                return (
+                  <div key={fu.id || idx} className="space-y-0.5">
+                    <div className="text-zinc-400">
+                      <span className="font-bold text-zinc-500">Q: </span>
+                      {formattedQuestion}
                     </div>
-                  )}
-                </div>
-              ))}
+                    {fu.answer && (
+                      <div className="text-cyan-300">
+                        <span className="font-bold text-cyan-500">A: </span>
+                        {fu.answer.replace(/^A:\s*/i, '').trim()}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
 

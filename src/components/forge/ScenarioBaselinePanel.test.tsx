@@ -274,4 +274,105 @@ describe('ScenarioBaselinePanel Candidate Atomicity Proof', () => {
 
     architectInput.remove();
   });
+
+  it('candidate decisions stay binary and staged', async () => {
+    forgeActions.initializeDraft({ title: 'Baseline Title' });
+
+    const initialDraft = JSON.parse(JSON.stringify(getForgeState().forgeDraft));
+    const initialRevision = getForgeState().draftRevision;
+
+    const mockAnalysis: ForgeSourceAnalysis = {
+      id: 'analysis-binary-test',
+      sourceRecord: {
+        id: 'src-binary-1',
+        fileName: 'baseline_data.json',
+        mimeType: 'application/json',
+        kind: 'native_blueprint',
+        receivedAt: Date.now(),
+      },
+      evidence: [],
+      candidates: [
+        {
+          id: 'cand-binary-1',
+          sourceId: 'src-binary-1',
+          classification: 'evidence',
+          target: 'setting_location',
+          label: 'Setting Location',
+          explanation: 'Extracted deep trench sector',
+          evidenceIds: [],
+          proposedValue: 'Deep Trench Sector 7',
+          reviewDecision: 'accepted',
+          applicationState: 'staged',
+        },
+      ],
+      unknowns: [],
+      status: 'completed',
+    };
+
+    forgeActions.registerSourceAnalysis(mockAnalysis);
+
+    await act(async () => {
+      root?.render(React.createElement(ScenarioBaselinePanel));
+    });
+
+    const getCandidate = () =>
+      getForgeState().sourceAnalyses['analysis-binary-test'].candidates[0];
+
+    expect(getCandidate().reviewDecision).toBe('accepted');
+    expect(getCandidate().applicationState).toBe('staged');
+
+    const acceptBtn = container?.querySelector('#accept-cand-cand-binary-1') as HTMLButtonElement;
+    const rejectBtn = container?.querySelector('#reject-cand-cand-binary-1') as HTMLButtonElement;
+
+    expect(acceptBtn).toBeDefined();
+    expect(rejectBtn).toBeDefined();
+    expect(acceptBtn.disabled).toBe(true);
+    expect(rejectBtn.disabled).toBe(false);
+
+    // 1. Verify clicking already-selected Accept is a no-op
+    await act(async () => {
+      acceptBtn.click();
+    });
+
+    expect(getCandidate().reviewDecision).toBe('accepted');
+    expect(getCandidate().applicationState).toBe('staged');
+    expect(getForgeState().forgeDraft).toEqual(initialDraft);
+    expect(getForgeState().draftRevision).toBe(initialRevision);
+
+    // 2. Transition Accept → Reject
+    await act(async () => {
+      rejectBtn.click();
+    });
+
+    expect(getCandidate().reviewDecision).toBe('rejected');
+    expect(getCandidate().applicationState).toBe('staged');
+    expect(getForgeState().forgeDraft).toEqual(initialDraft);
+    expect(getForgeState().draftRevision).toBe(initialRevision);
+
+    // Re-query buttons or check properties after state re-render
+    const updatedAcceptBtn = container?.querySelector('#accept-cand-cand-binary-1') as HTMLButtonElement;
+    const updatedRejectBtn = container?.querySelector('#reject-cand-cand-binary-1') as HTMLButtonElement;
+    expect(updatedAcceptBtn.disabled).toBe(false);
+    expect(updatedRejectBtn.disabled).toBe(true);
+
+    // 3. Verify clicking already-selected Reject is a no-op
+    await act(async () => {
+      updatedRejectBtn.click();
+    });
+
+    expect(getCandidate().reviewDecision).toBe('rejected');
+    expect(getCandidate().applicationState).toBe('staged');
+    expect(getForgeState().forgeDraft).toEqual(initialDraft);
+    expect(getForgeState().draftRevision).toBe(initialRevision);
+
+    // 4. Transition Reject → Accept
+    await act(async () => {
+      updatedAcceptBtn.click();
+    });
+
+    expect(getCandidate().reviewDecision).toBe('accepted');
+    expect(getCandidate().applicationState).toBe('staged');
+    expect(getForgeState().forgeDraft).toEqual(initialDraft);
+    expect(getForgeState().draftRevision).toBe(initialRevision);
+  });
 });

@@ -436,4 +436,156 @@ describe('ArchitectChat Queue Ownership & Ambiguity Lifecycle', () => {
     expect(requestBody.kind).toBe('GENERAL_MESSAGE');
     expect(requestBody.userMessage).toBe('Make it darker and more claustrophobic');
   });
+
+  describe('fails closed before recording creator input', () => {
+    const testCases = [
+      {
+        name: 'identity mismatch on sourceId',
+        response: {
+          ok: true,
+          status: 200,
+          data: {
+            type: 'RESOLUTION_PROPOSAL',
+            sourceId: 'wrong-source-id',
+            unknownId: 'unk-1',
+            proposal: {
+              resolution: 'Mismatched source resolution',
+              targetEffect: 'Mismatched target effect',
+            },
+          },
+        },
+      },
+      {
+        name: 'identity mismatch on unknownId',
+        response: {
+          ok: true,
+          status: 200,
+          data: {
+            type: 'FOLLOW_UP',
+            sourceId: 'src-1',
+            unknownId: 'wrong-unknown-id',
+            followUpQuestion: 'Wrong question?',
+          },
+        },
+      },
+      {
+        name: 'malformed response missing proposal fields',
+        response: {
+          ok: true,
+          status: 200,
+          data: {
+            type: 'RESOLUTION_PROPOSAL',
+            sourceId: 'src-1',
+            unknownId: 'unk-1',
+            proposal: {
+              resolution: '',
+              targetEffect: '',
+            },
+          },
+        },
+      },
+      {
+        name: 'unrecognized response type',
+        response: {
+          ok: true,
+          status: 200,
+          data: {
+            type: 'UNKNOWN_MAGIC_TYPE',
+            sourceId: 'src-1',
+            unknownId: 'unk-1',
+          },
+        },
+      },
+      {
+        name: 'HTTP 500 error',
+        response: {
+          ok: false,
+          status: 500,
+          data: { error: 'Server exploded' },
+        },
+      },
+    ];
+
+    testCases.forEach(({ name, response }) => {
+      it(`fails closed for: ${name}`, async () => {
+        forgeActions.initializeDraft({ title: 'Baseline Scenario' });
+
+        const mockAnalysis: ForgeSourceAnalysis = {
+          id: 'src-1',
+          sourceRecord: {
+            id: 'src-1',
+            fileName: 'source.json',
+            mimeType: 'application/json',
+            kind: 'native_blueprint',
+            receivedAt: Date.now(),
+          },
+          evidence: [],
+          candidates: [],
+          unknowns: [
+            {
+              id: 'unk-1',
+              sourceId: 'src-1',
+              category: 'rule',
+              question: 'How is containment breach prevented?',
+              targetEffect: 'Defines secondary containment failure mode',
+              status: 'queued',
+              followUps: [],
+            },
+          ],
+          status: 'completed',
+        };
+
+        forgeActions.registerSourceAnalysis(mockAnalysis);
+
+        const initialDraft = JSON.parse(JSON.stringify(getForgeState().forgeDraft));
+        const initialRevision = getForgeState().draftRevision;
+        const initialUnknown = JSON.parse(
+          JSON.stringify(getForgeState().sourceAnalyses['src-1'].unknowns[0])
+        );
+
+        const fetchMock = vi.fn().mockResolvedValue({
+          ok: response.ok,
+          status: response.status,
+          json: async () => response.data,
+        });
+        globalThis.fetch = fetchMock;
+
+        await act(async () => {
+          root?.render(React.createElement(ArchitectChat));
+        });
+
+        const input = container?.querySelector('input') as HTMLInputElement;
+        await act(async () => {
+          setInputValue(input, 'Attempted creator input for resolution');
+        });
+
+        await act(async () => {
+          input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+        });
+
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+
+        const currentState = getForgeState();
+        const currentUnknown =
+          currentState.sourceAnalyses['src-1'].unknowns[0];
+
+        // 1. Creator input is not recorded into unknown state
+        expect(currentUnknown.submittedAnswer).toBeUndefined();
+        // 2. Lifecycle status unchanged
+        expect(currentUnknown.status).toBe('queued');
+        // 3. Complete unknown matches initial unknown exactly
+        expect(currentUnknown).toEqual(initialUnknown);
+        // 4. Draft contents and draft revision unchanged
+        expect(currentState.forgeDraft).toEqual(initialDraft);
+        expect(currentState.draftRevision).toBe(initialRevision);
+
+        // 5. Shows a local retryable error in Architect Chat
+        expect(container?.textContent).toMatch(/validation failed|protocol failure|failed with status|interrupted/i);
+        const retryBtn = Array.from(container?.querySelectorAll('button') || []).find((b) =>
+          /retry/i.test(b.textContent || '')
+        );
+        expect(retryBtn).toBeDefined();
+      });
+    });
+  });
 });

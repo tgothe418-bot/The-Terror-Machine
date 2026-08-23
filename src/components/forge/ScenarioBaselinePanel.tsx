@@ -91,7 +91,7 @@ export const ScenarioBaselinePanel: React.FC = () => {
     setApplicationError(null);
     try {
       const result = applyAcceptedCandidates(sourceId);
-      if (!result.success) {
+      if (result.success === false) {
         const errorMessages = Object.values(result.errors).join('; ');
         setApplicationError({
           sourceId,
@@ -377,11 +377,6 @@ export const ScenarioBaselinePanel: React.FC = () => {
                                       Rejected
                                     </span>
                                   )}
-                                  {cand.reviewDecision === 'pending' && (
-                                    <span className="text-[10px] px-1.5 py-0.5 rounded uppercase font-bold bg-amber-950/50 border border-amber-800/60 text-amber-300">
-                                      Pending Review
-                                    </span>
-                                  )}
                                 </div>
                                 <div className="font-bold text-zinc-100">{cand.label}</div>
                                 {cand.explanation && (
@@ -395,34 +390,44 @@ export const ScenarioBaselinePanel: React.FC = () => {
                               {!isApplied && (
                                 <div className="flex items-center gap-1.5 shrink-0">
                                   <button
-                                    onClick={() =>
-                                      setCandidateReviewDecision(
-                                        analysis.id,
-                                        cand.id,
-                                        cand.reviewDecision === 'accepted' ? 'pending' : 'accepted'
-                                      )
-                                    }
-                                    className={`px-2 py-1 text-[10px] font-bold uppercase rounded border transition-colors cursor-pointer ${
+                                    type="button"
+                                    id={`accept-cand-${cand.id}`}
+                                    disabled={cand.reviewDecision === 'accepted'}
+                                    onClick={() => {
+                                      if (cand.reviewDecision !== 'accepted') {
+                                        setCandidateReviewDecision(
+                                          analysis.id,
+                                          cand.id,
+                                          'accepted'
+                                        );
+                                      }
+                                    }}
+                                    className={`px-2 py-1 text-[10px] font-bold uppercase rounded border transition-colors ${
                                       cand.reviewDecision === 'accepted'
-                                        ? 'bg-emerald-900/60 border-emerald-700 text-emerald-200'
-                                        : 'bg-zinc-900 border-zinc-700 text-zinc-400 hover:text-emerald-300 hover:border-emerald-800'
+                                        ? 'bg-emerald-900/60 border-emerald-700 text-emerald-200 cursor-default opacity-90'
+                                        : 'bg-zinc-900 border-zinc-700 text-zinc-400 hover:text-emerald-300 hover:border-emerald-800 cursor-pointer'
                                     }`}
                                   >
                                     {cand.reviewDecision === 'accepted' ? '✓ Accepted' : 'Accept'}
                                   </button>
 
                                   <button
-                                    onClick={() =>
-                                      setCandidateReviewDecision(
-                                        analysis.id,
-                                        cand.id,
-                                        cand.reviewDecision === 'rejected' ? 'pending' : 'rejected'
-                                      )
-                                    }
-                                    className={`px-2 py-1 text-[10px] font-bold uppercase rounded border transition-colors cursor-pointer ${
+                                    type="button"
+                                    id={`reject-cand-${cand.id}`}
+                                    disabled={cand.reviewDecision === 'rejected'}
+                                    onClick={() => {
+                                      if (cand.reviewDecision !== 'rejected') {
+                                        setCandidateReviewDecision(
+                                          analysis.id,
+                                          cand.id,
+                                          'rejected'
+                                        );
+                                      }
+                                    }}
+                                    className={`px-2 py-1 text-[10px] font-bold uppercase rounded border transition-colors ${
                                       cand.reviewDecision === 'rejected'
-                                        ? 'bg-red-900/60 border-red-700 text-red-200'
-                                        : 'bg-zinc-900 border-zinc-700 text-zinc-400 hover:text-red-300 hover:border-red-800'
+                                        ? 'bg-red-900/60 border-red-700 text-red-200 cursor-default opacity-90'
+                                        : 'bg-zinc-900 border-zinc-700 text-zinc-400 hover:text-red-300 hover:border-red-800 cursor-pointer'
                                     }`}
                                   >
                                     {cand.reviewDecision === 'rejected' ? '✗ Rejected' : 'Reject'}
