@@ -20,6 +20,7 @@ describe('Runtime component terminal retake behavior', () => {
   let root: ReturnType<typeof createRoot> | null = null;
 
   const mockBlueprint: ScenarioBlueprint = {
+    id: 'bp-runtime-retake-test',
     title: 'Echoes in the Dark',
     contentScale: 4,
     contentLevelDescription: 'Psychological Horror',
