@@ -1,67 +1,112 @@
-# The Terror Machine — Public Roadmap
+# The Terror Machine — Technical (Public) Roadmap
 
-The Terror Machine is being built as a stateful horror machine: language can improvise the surface, but the Engine decides what becomes true. This roadmap is directional. It has no promised dates, release cadence, or feature-volume target.
+This is the public technical record for **The Terror Machine**: what the machine can do, what is being verified, and what it is being built to do next.
 
-## Where the project is now
+It is directional rather than a release calendar. There are no promised dates, feature quotas, or claims that a green focused test is the same thing as an accepted milestone.
 
-TTM has a working foundation for bounded simulation. It can run authored Blueprints or begin through Haunted House Induction, carry a turn through snapshot → generation → ratification → commit/fail, preserve canonical topology, and export the evidence of what happened.
+For the experiential front door, read the [README](./README.md). For the detailed operating ledger, read the [Development Roadmap](./DEVELOPMENT-ROADMAP.md).
 
-The current development line is deliberately between milestones:
+## The machine at present
 
-- **Live:** turn contracts, role boundaries, topology, retake, telemetry, Blueprint and Induction entry paths, and the bounded World Memory path.
-- **Under review:** explicit Player-Character Binding. Human telemetry demonstrates exact selection, including a non-first eligible character; the full acceptance gate is still being closed.
-- **Also under review:** scenario-bound authority and treatment enforcement. Recent adversarial telemetry shows that prompt-level boundaries need deterministic Engine enforcement before a turn becomes canon.
-- **Next:** a conversational way to resolve Forge source gaps and establish a Blueprint-specific treatment contract before export, followed by Engine enforcement of those authored assumptions.
+TTM already has a working foundation for bounded horror simulation.
 
-## Near-term roadmap
+A Blueprint or a Haunted House Induction enters the same Engine path. A turn is snapshotted, interpreted, generated, ratified, committed once or refused without corrupting canonical state. The application, rather than the language model, owns the places, cast, roles, consequences, receipts, and the state that survives a paragraph.
 
-1. **Close explicit Player-Character Binding**
+### Live foundation
 
-   Make the selected character remain coherent from setup through context, prompts, receipts, retakes, and telemetry. The runtime contract must stay Blueprint-agnostic: a Blueprint supplies data; it must not leak scenario assumptions into Engine code.
+- A schema-bound atomic turn path: snapshot → generation → ratification → commit or fail.
+- Canonical spatial topology, including deliberate expansion at an unmapped boundary.
+- Protagonist, Antagonist, and Director participation, with explicit antagonist authority and limits.
+- Blueprint authoring and Haunted House / Ad-Lib Induction entry paths.
+- Cast presence, character stance, relationships, bounded character memory, and bounded World Memory.
+- Deterministic consequences, receipts, telemetry, Markdown/HTML diagnostics, and retake of the most recent completed turn.
+- Development recovery through Clear System Memory and Autopilot as a soak-testing instrument.
 
-2. **Give the Forge a gap-resolution conversation and treatment contract**
+### Current verification line
 
-   Let the existing Architect console present a compact queue of unresolved source questions. The user answers in that same input surface; the Architect may ask a follow-up; each proposed change goes through the existing review and accept/reject path before it can alter the draft.
+Two lines of work are active and intentionally not being conflated.
 
-   The Forge should distinguish source evidence, interpretation, authoring additions, and deliberately preserved ambiguity. It should also propose a Blueprint-specific treatment contract: the scenario’s dramatic register, where direct depiction belongs, where implication or aftermath is more faithful, and any special boundaries that emerge from the reference and authoring decisions.
+**Engine identity and containment**
 
-   This is not a generic intensity menu. The user should be able to accept or refine the Forge’s evidence-based proposal, and leave a genuine uncertainty unresolved when that is part of the intended Blueprint.
+- Explicit Player-Character Binding is under review. An exact selected cast ID has been demonstrated through human telemetry, including a non-first eligible character; the full end-to-end acceptance gate remains open.
+- Scenario-bound authority enforcement and provider-refusal containment remain under review. A prompt carrying a boundary is not sufficient evidence that the Engine has enforced it.
 
-3. **Enforce authored boundaries at the Engine**
+**Forge source review**
 
-   The Engine must distinguish what an actor is allowed to cause from how an accepted Blueprint says the event may be shown. Authority is resolved before canon; treatment shapes the narrative camera. If a provider cannot render a turn, that result must be contained honestly without misattributing it to the player or corrupting continuity.
+The Forge is being corrected from a useful extraction surface into a dependable authoring boundary.
 
-4. **Make Autopilot a trustworthy test participant**
+The first three repair slices are live and awaiting combined review:
 
-   Give automated runs enough selected-character context to exercise identity-sensitive behavior, stop cleanly after failed turns, and label human versus Autopilot input in telemetry and exports.
+- **02A — Candidate Decisions:** binary source-candidate decisions and staged review semantics.
+- **02B — Architect Response Isolation:** structured Architect-response validation and identity matching before a response can enter the authoring flow.
+- **02C — Retake Identity:** strict checkpoint session and Blueprint identity matching for retake safety.
 
-5. **Finish durable continuity**
+These are foundations, not a declaration that the full source-baseline, resolution, Depiction Contract, or export lifecycle is complete.
 
-   Extend bounded character and world memory into a dependable, inspectable continuity layer for discoveries, rules, relationships, and consequences without turning the model into the owner of canon.
+## What comes next
 
-6. **Build a better Voice**
+### 1. Complete the Forge’s source-to-Blueprint handoff
 
-   Keep the Voice read-only while making its observations evidence-labelled and context-aware: it should know whether a question concerns a Forge draft, an Engine session, outside research, or the project conversation itself.
+A source document should be evidence, not an uncontrolled author.
 
-7. **Support campaign continuity**
+The next Forge work makes the Architect’s conversation, the accepted source baseline, and the resulting Blueprint operate as one reviewable chain:
 
-   Allow multiple Blueprints to form an authored campaign with explicit, scoped state handoff between acts.
+1. **Strict Architect server protocol** — typed, bounded requests and responses rather than loose history payloads, Markdown JSON heuristics, or fabricated fallback results.
+2. **Resolution transaction** — an accepted ambiguity decision must update the ledger and its schema-backed Blueprint fields together, or fail without partial state.
+3. **Baseline revision and proposal state** — durable source-baseline revisioning, persisted staged proposals, and clear stale-state handling.
+4. **Depiction generation protocol** — the Architect receives the accepted source evidence, authoring decisions, current draft, and preserved uncertainties required to propose a faithful Depiction Contract.
+5. **Depiction Contract lifecycle** — generate, inspect, edit, accept, dismiss, persist, and invalidate an authoring proposal without a hidden mutation.
+6. **Evidence drawer** — keep source provenance close at hand without making the review screen an endless vertical document.
+7. **Export artifact and review snapshot** — review one revision-bound Blueprint artifact, block incomplete source work, and export exactly what was reviewed.
 
-8. **Develop a generative horror grammar**
+The desired result is simple to state: a creator can bring in a source, inspect what the Forge believes it found, answer or deliberately preserve uncertainties in the Architect conversation, accept a treatment contract that actually arose from that material, and export a Blueprint whose provenance remains inspectable.
 
-   Research mechanics for pressure, pacing, fear, revelation, and recovery rather than a shelf of preset plots.
+### 2. Enforce authored boundaries in the Engine
 
-9. **Keep the provider boundary replaceable**
+The Engine must distinguish two questions:
 
-   Preserve the Engine contract while making the underlying model provider replaceable when the project is ready. Gemini in Google AI Studio remains the current development runtime, not a claim of provider neutrality today.
+- **Can this actor cause this change?**
+- **If the change is accepted, how may this particular Blueprint show it?**
+
+Authority is causal and must be adjudicated before canon. A Blueprint-specific treatment contract shapes the narrative camera—directness, implication, aftermath, dramatic register, and special boundaries—but cannot grant an actor powers the Authority Contract does not give them.
+
+Provider refusals are external events. They must be represented honestly, never serialized as player input or allowed to alter canonical state by accident.
+
+### 3. Make continuity durable
+
+Character and World Memory should become a dependable, inspectable continuity layer for discoveries, rules, relationships, environmental conditions, and consequences.
+
+The goal is not infinite memory. It is memory with scope, provenance, acceptance, and a bounded prompt projection.
+
+### 4. Make Autopilot a trustworthy test participant
+
+Autopilot must run through the same identity-bearing turn path as a human player, receive the selected character’s usable context, stop or retry deliberately after failed turns, and identify generated actions in telemetry.
+
+### 5. Deepen the Voice without giving it authority
+
+The Voice remains read-only. Its future work is better evidence-labelled context: clear distinctions among a Forge draft, an Engine session, outside research, and ordinary project discussion.
+
+### 6. Grow outward carefully
+
+Once the current seams are stable:
+
+- campaign continuity can move scoped state between authored Blueprints;
+- a researched generative horror grammar can guide pressure, pacing, revelation, recovery, and fear without reducing them to genre presets;
+- the Engine’s provider boundary can become more replaceable.
+
+Gemini in Google AI Studio is the current reference development runtime. Provider neutrality is a design direction, not a present-tense claim.
 
 ## What will not change
 
-- The application, not the language model, owns canonical state.
-- A proposal is not a commit. Accepted state changes must pass the Engine's contracts.
-- Runtime instructions remain scenario-agnostic and Blueprint-agnostic.
-- Blueprint-specific treatment contracts shape framing; they do not grant causal authority or override non-negotiable provider constraints.
-- Retake, exit, and other out-of-fiction controls remain available to the person using the machine.
-- Literary strangeness is welcome; silent contradictions are not.
+- The application owns canon. The model may propose; it does not commit.
+- A proposal is not a commit, whether it came from source extraction, an Architect response, a turn generator, or a memory suggestion.
+- Blueprint data supplies authored context; it does not become a hidden runtime instruction or a scenario-specific exception in Engine code.
+- Failed validation preserves canonical state and leaves useful evidence.
+- Characters have situated knowledge. The player, author, model, and character do not automatically know the same things.
+- Retake, exit, recovery, and diagnostics remain available to the person using the machine.
+- Literary strangeness is welcome. Silent contradiction is not.
 
-For implementation order, acceptance gates, and the current verification debt, see the [development roadmap](./DEVELOPMENT-ROADMAP.md).
+## Reading the maps
+
+- [README](./README.md) — what the machine is for, and why someone might enter it.
+- [Development Roadmap](./DEVELOPMENT-ROADMAP.md) — implementation order, acceptance rules, active defects, and verification discipline.
