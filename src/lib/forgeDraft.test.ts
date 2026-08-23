@@ -110,6 +110,13 @@ describe('Phase 3D-1: Forge Draft Contract, Review Validation, and Compiler Boun
         atmosphere: 'High-pressure mist, echoing coolant pumps',
         timePeriod: '1984',
       },
+      depictionContract: {
+        dramaticRegister: 'Clinical dread',
+        directness: 'Visceral mechanics',
+        aftermath: 'Irreversible consequences',
+        ambiguityHandling: 'Preserve epistemic gaps',
+        specialBoundaries: 'Strict containment adherence',
+      },
       cast: [
         {
           id: 'c-aris',
@@ -210,6 +217,12 @@ describe('Phase 3D-1: Forge Draft Contract, Review Validation, and Compiler Boun
       },
       setting: {
         location: 'Orbital Station',
+      },
+      depictionContract: {
+        dramaticRegister: 'Hard sci-fi dread',
+        directness: 'Unflinching mechanical failures',
+        aftermath: 'Hypoxia and vacuum exposure irreversible',
+        ambiguityHandling: 'Computer telemetry remains fragmented',
       },
       cast: [
         {

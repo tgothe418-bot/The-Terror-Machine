@@ -10,17 +10,18 @@ import { AutopilotVector } from '../../types';
 
 import { CampaignTopologyPanel } from './CampaignTopologyPanel';
 import { ScenarioBaselinePanel } from './ScenarioBaselinePanel';
-import { prepareBlueprintExport } from '../../lib/compileBlueprintDraft';
+import { DepictionContractPanel } from './DepictionContractPanel';
+import { ExportReviewModal } from './ExportReviewModal';
 
 export default function Forge() {
   const setPhase = useAppStore((state) => state.setPhase);
-  const { draftBlueprint } = useForgeState();
+  const { draftBlueprint, draftRevision } = useForgeState();
   const { updateDraft, clearHistory } = forgeActions;
   const [hydrated, setHydrated] = useState(() => useForgeStoreInternal.persist.hasHydrated());
   const [timedOut, setTimedOut] = useState(false);
   const [isConfirmingClear, setIsConfirmingClear] = useState(false);
   const [activeTab, setActiveTab] = useState<'blueprint' | 'campaign'>('blueprint');
-  const [exportError, setExportError] = useState<string | null>(null);
+  const [isExportReviewOpen, setIsExportReviewOpen] = useState(false);
 
   // Handle hydration with fallback recovery timeout
   useEffect(() => {
@@ -151,55 +152,14 @@ export default function Forge() {
             )}
           </div>
           <button
-            onClick={() => {
-              if (draftBlueprint) {
-                try {
-                  setExportError(null);
-                  const artifact = prepareBlueprintExport(draftBlueprint);
-
-                  const dataStr =
-                    'data:text/json;charset=utf-8,' + encodeURIComponent(artifact.json);
-                  const downloadAnchorNode = document.createElement('a');
-                  downloadAnchorNode.setAttribute('href', dataStr);
-                  downloadAnchorNode.setAttribute('download', artifact.fileName);
-                  document.body.appendChild(downloadAnchorNode); // required for firefox
-                  downloadAnchorNode.click();
-                  downloadAnchorNode.remove();
-                } catch (e: unknown) {
-                  const error = e as { errors?: unknown; message?: string };
-                  if (error.errors) {
-                    setExportError(JSON.stringify(error.errors, null, 2));
-                  } else {
-                    setExportError(error.message || String(error));
-                  }
-                }
-              }
-            }}
-            className="px-4 py-2 bg-zinc-900 border border-zinc-700 text-zinc-300 font-mono text-xs hover:bg-zinc-800 hover:text-cyan-400 transition-colors relative rounded cursor-pointer font-bold"
+            id="forge-open-export-review-btn"
+            onClick={() => setIsExportReviewOpen(true)}
+            className="px-4 py-2 bg-zinc-900 border border-zinc-700 hover:border-cyan-500 text-zinc-300 font-mono text-xs hover:bg-zinc-800 hover:text-cyan-400 transition-all relative rounded cursor-pointer font-bold flex items-center gap-2 shadow-sm"
           >
-            [ EXPORT BLUEPRINT TO ENGINE ]
-            {exportError && (
-              <div className="absolute top-full mt-2 right-0 bg-red-950/90 border border-red-900 text-red-400 text-xs font-mono p-4 rounded z-50 max-w-lg max-h-96 overflow-y-auto w-max text-left shadow-2xl backdrop-blur-md">
-                <div className="flex justify-between items-center mb-4 font-bold shrink-0 border-b border-red-900/50 pb-2">
-                  <span className="text-red-500 uppercase tracking-widest">
-                    [ EXPORT VALIDATION FAILED ]
-                  </span>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setExportError(null);
-                    }}
-                    className="text-red-500 hover:text-white px-2 py-1 bg-red-900/30 rounded cursor-pointer"
-                  >
-                    ✕
-                  </button>
-                </div>
-                <pre className="whitespace-pre-wrap leading-relaxed text-xs">{exportError}</pre>
-                <div className="mt-4 pt-2 border-t border-red-900/50 text-red-400 italic">
-                  Fix the highlighted discrepancies in the Forge UI before exporting.
-                </div>
-              </div>
-            )}
+            <span>[ REVIEW & EXPORT BLUEPRINT ]</span>
+            <span className="text-[10px] bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded">
+              Rev #{draftRevision || 1}
+            </span>
           </button>
         </div>
       </div>
@@ -323,6 +283,9 @@ export default function Forge() {
                   placeholder="Calibrate primary narrative trajectories, logic overrides, or operational vector conditions..."
                 />
               </div>
+
+              {/* Depiction Contract Authoring Panel (Packet 1B) */}
+              <DepictionContractPanel />
             </div>
 
             {/* RIGHT COLUMN: Unified Utility Tower (Spans 5 columns - Houses Architect & Cast) */}
@@ -471,6 +434,12 @@ export default function Forge() {
           </>
         )}
       </div>
+
+      {/* Export Review & Compilation Modal (Packet 1B) */}
+      <ExportReviewModal
+        isOpen={isExportReviewOpen}
+        onClose={() => setIsExportReviewOpen(false)}
+      />
     </div>
   );
 }

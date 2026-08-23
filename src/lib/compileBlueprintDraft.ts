@@ -28,6 +28,6 @@ export function compileBlueprintDraft(rawDraft: unknown): Blueprint {
  * Prepares an immutable Blueprint export review artifact.
  * Validates the draft against the canonical Forge compilation rules first.
  */
-export function prepareBlueprintExport(rawDraft: unknown): BlueprintExportArtifact {
-  return compileForgeDraftOrThrow(rawDraft);
+export function prepareBlueprintExport(rawDraft: unknown, draftRevision?: number): BlueprintExportArtifact {
+  return compileForgeDraftOrThrow(rawDraft, draftRevision);
 }

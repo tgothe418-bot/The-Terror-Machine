@@ -3,6 +3,7 @@ import { EdgeKindSchema } from './engineContract';
 import { HauntedHouseProvenanceSchema } from './participation';
 import {
   BlueprintAmbiguityDecisionsSchema,
+  DepictionContractSchema,
 } from './blueprintAuthoring';
 export * from './blueprintAuthoring';
 
@@ -151,6 +152,7 @@ export const ForgeDraftSchema = z.object({
   characters: z.array(z.unknown()).optional().default([]),
   hauntedHouse: HauntedHouseProvenanceSchema.optional(),
   ambiguities: BlueprintAmbiguityDecisionsSchema.optional().default([]),
+  depictionContract: DepictionContractSchema.optional(),
 });
 
 export type ForgeDraft = z.input<typeof ForgeDraftSchema>;
@@ -174,6 +176,7 @@ export interface ForgeReviewArtifact {
   fileName: string;
   compiledAt: number;
   sourceDraftId: string;
+  sourceDraftRevision: number;
 }
 
 export type ForgeCompileResult =

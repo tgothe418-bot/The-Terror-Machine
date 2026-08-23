@@ -29,6 +29,11 @@ export const ArchitectChat = () => {
 
       addArchitectMessage({ role: 'architect', content: data.text });
 
+      // Packet 1B: Architect proposal isolation for Depiction Contract
+      if (data.depictionContractProposal) {
+        forgeActions.setPendingDepictionContractProposal(data.depictionContractProposal);
+      }
+
       // Phase 3D-1: Architect response is a proposal, not a direct state authority.
       // Server-returned compiledBlueprint must NOT automatically replace the canonical Forge draft.
       if (data.compiledBlueprint) {

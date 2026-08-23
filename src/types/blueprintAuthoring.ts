@@ -31,3 +31,37 @@ export const BlueprintAmbiguityDecisionsSchema = z
 
 export type BlueprintAmbiguityDecision = z.infer<typeof BlueprintAmbiguityDecisionSchema>;
 export type BlueprintAmbiguityDecisions = z.infer<typeof BlueprintAmbiguityDecisionsSchema>;
+
+// ============================================================================
+// Shared Depiction Contract Schema
+// ============================================================================
+
+const ContractTextSchema = z.string().max(1000);
+
+export const DepictionContractSchema = z
+  .object({
+    dramaticRegister: ContractTextSchema,
+    directness: ContractTextSchema,
+    aftermath: ContractTextSchema,
+    ambiguityHandling: ContractTextSchema,
+    specialBoundaries: ContractTextSchema.optional().default(''),
+  })
+  .strict();
+
+export type DepictionContract = z.infer<typeof DepictionContractSchema>;
+
+export const DepictionContractPatchSchema = z
+  .object({
+    dramaticRegister: ContractTextSchema.optional(),
+    directness: ContractTextSchema.optional(),
+    aftermath: ContractTextSchema.optional(),
+    ambiguityHandling: ContractTextSchema.optional(),
+    specialBoundaries: ContractTextSchema.optional(),
+  })
+  .strict()
+  .refine((patch) => Object.keys(patch).length > 0, {
+    message: 'At least one depiction-contract field is required',
+  });
+
+export type DepictionContractPatch = z.infer<typeof DepictionContractPatchSchema>;
+

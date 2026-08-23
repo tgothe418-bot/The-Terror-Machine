@@ -22,6 +22,9 @@ import {
   ForgeSourceAnalysisSchema,
   ForgeSourceUnknown,
   BlueprintAmbiguityDecision,
+  DepictionContract,
+  DepictionContractPatch,
+  DepictionContractPatchSchema,
 } from '../types/forge';
 import { idbStorage } from '../lib/idbStorage';
 import {
@@ -315,6 +318,14 @@ export interface ForgeActions {
     targetEffect?: string
   ) => void;
 
+  // --- DEPICTION CONTRACT ACTIONS (Packet 1B Proposal-Isolation) ---
+  setPendingDepictionContractProposal: (
+    proposal: { patch: DepictionContractPatch; rationale: string; createdAt?: number } | null
+  ) => void;
+  applyPendingDepictionContractProposal: () => void;
+  dismissPendingDepictionContractProposal: () => void;
+  updateDepictionContractField: (field: keyof DepictionContract, value: string) => void;
+
   // --- ARCHITECT CHAT (PROPOSAL-ONLY IN PHASE 3D-1) ---
   addArchitectMessage: (message: ArchitectMessage) => void;
   clearArchitectChat: () => void;
@@ -361,6 +372,14 @@ export interface ForgeState {
    * @deprecated Read/write forgeDraft instead. Synchronized alias to forgeDraft for legacy callers.
    */
   draftBlueprint: ForgeDraft | null;
+  draftRevision: number;
+
+  // --- DEPICTION CONTRACT PROPOSAL STATE (Packet 1B Isolated Proposal) ---
+  pendingDepictionContractProposal: {
+    patch: DepictionContractPatch;
+    rationale: string;
+    createdAt: number;
+  } | null;
 
   // --- SOURCE INTAKE STATE (Phase 3D-2) ---
   sourceAnalyses: Record<string, ForgeSourceAnalysis>;
@@ -428,6 +447,21 @@ const createInitialDraft = (initial?: ForgeDraftPatch): ForgeDraft => ({
   },
   references: initial?.references ? [...initial.references] : [],
   ambiguities: initial?.ambiguities ? [...initial.ambiguities] : [],
+  depictionContract: initial?.depictionContract
+    ? {
+        dramaticRegister: initial.depictionContract.dramaticRegister || '',
+        directness: initial.depictionContract.directness || '',
+        aftermath: initial.depictionContract.aftermath || '',
+        ambiguityHandling: initial.depictionContract.ambiguityHandling || '',
+        specialBoundaries: initial.depictionContract.specialBoundaries || '',
+      }
+    : {
+        dramaticRegister: '',
+        directness: '',
+        aftermath: '',
+        ambiguityHandling: '',
+        specialBoundaries: '',
+      },
   terminalConditions: initial?.terminalConditions,
   characters: initial?.characters ? [...initial.characters] : [],
   hauntedHouse: initial?.hauntedHouse,
@@ -436,6 +470,8 @@ const createInitialDraft = (initial?: ForgeDraftPatch): ForgeDraft => ({
 const initialState: ForgeState = {
   forgeDraft: null,
   draftBlueprint: null,
+  draftRevision: 1,
+  pendingDepictionContractProposal: null,
   sourceAnalyses: {},
   architectMessages: [
     {
@@ -490,6 +526,8 @@ export const useForgeStoreInternal = create<ForgeStore>()(
           set({
             forgeDraft: draft,
             draftBlueprint: draft,
+            draftRevision: 1,
+            pendingDepictionContractProposal: null,
             castLedger: deriveCastLedger(draft),
             topology: deriveTopology(draft),
           });
@@ -497,12 +535,13 @@ export const useForgeStoreInternal = create<ForgeStore>()(
 
         replaceDraft: (draft: ForgeDraft) => {
           const clonedDraft = JSON.parse(JSON.stringify(draft));
-          set({
+          set((state: ForgeState) => ({
             forgeDraft: clonedDraft,
             draftBlueprint: clonedDraft,
+            draftRevision: (state.draftRevision || 0) + 1,
             castLedger: deriveCastLedger(clonedDraft),
             topology: deriveTopology(clonedDraft),
-          });
+          }));
         },
 
         updateDraft: (updates: ForgeDraftPatch) => {
@@ -529,11 +568,17 @@ export const useForgeStoreInternal = create<ForgeStore>()(
               narrativeRules: updates.narrativeRules !== undefined ? updates.narrativeRules : current.narrativeRules,
               references: updates.references !== undefined ? updates.references : current.references,
               ambiguities: updates.ambiguities !== undefined ? updates.ambiguities : current.ambiguities,
+              depictionContract: updates.depictionContract !== undefined
+                ? (typeof updates.depictionContract === 'object' && updates.depictionContract !== null
+                    ? { ...current.depictionContract, ...updates.depictionContract }
+                    : updates.depictionContract)
+                : current.depictionContract,
             };
 
             return {
               forgeDraft: merged,
               draftBlueprint: merged,
+              draftRevision: (state.draftRevision || 0) + 1,
               castLedger: deriveCastLedger(merged),
               topology: deriveTopology(merged),
             };
@@ -551,6 +596,7 @@ export const useForgeStoreInternal = create<ForgeStore>()(
             return {
               forgeDraft: updatedDraft,
               draftBlueprint: updatedDraft,
+              draftRevision: (state.draftRevision || 0) + 1,
               castLedger: deriveCastLedger(updatedDraft),
               topology: deriveTopology(updatedDraft),
             };
@@ -559,6 +605,106 @@ export const useForgeStoreInternal = create<ForgeStore>()(
 
         resetStore: () => set(initialState),
         clearHistory: () => set(initialState),
+
+        // --- DEPICTION CONTRACT ACTIONS (Packet 1B Isolated Proposal) ---
+        setPendingDepictionContractProposal: (
+          proposal: { patch: DepictionContractPatch; rationale: string; createdAt?: number } | null
+        ) => {
+          if (!proposal) {
+            set({ pendingDepictionContractProposal: null });
+            return;
+          }
+          const parseResult = DepictionContractPatchSchema.safeParse(proposal.patch);
+          if (!parseResult.success) {
+            console.warn('[FORGE DEPICTION CONTRACT] Rejected malformed proposal patch:', parseResult.error);
+            return;
+          }
+          set({
+            pendingDepictionContractProposal: {
+              patch: parseResult.data,
+              rationale: proposal.rationale || '',
+              createdAt: proposal.createdAt ?? Date.now(),
+            },
+          });
+        },
+
+        applyPendingDepictionContractProposal: () => {
+          set((state: ForgeState) => {
+            if (!state.pendingDepictionContractProposal) return state;
+            const currentDraft = state.forgeDraft || createInitialDraft();
+            const currentContract = currentDraft.depictionContract || {
+              dramaticRegister: '',
+              directness: '',
+              aftermath: '',
+              ambiguityHandling: '',
+              specialBoundaries: '',
+            };
+            const patch = state.pendingDepictionContractProposal.patch;
+            const updatedContract: DepictionContract = {
+              dramaticRegister:
+                patch.dramaticRegister !== undefined
+                  ? patch.dramaticRegister
+                  : currentContract.dramaticRegister,
+              directness:
+                patch.directness !== undefined ? patch.directness : currentContract.directness,
+              aftermath:
+                patch.aftermath !== undefined ? patch.aftermath : currentContract.aftermath,
+              ambiguityHandling:
+                patch.ambiguityHandling !== undefined
+                  ? patch.ambiguityHandling
+                  : currentContract.ambiguityHandling,
+              specialBoundaries:
+                patch.specialBoundaries !== undefined
+                  ? patch.specialBoundaries
+                  : (currentContract.specialBoundaries || ''),
+            };
+
+            const updatedDraft: ForgeDraft = {
+              ...currentDraft,
+              depictionContract: updatedContract,
+            };
+
+            return {
+              forgeDraft: updatedDraft,
+              draftBlueprint: updatedDraft,
+              pendingDepictionContractProposal: null,
+              draftRevision: (state.draftRevision || 0) + 1,
+            };
+          });
+        },
+
+        dismissPendingDepictionContractProposal: () => {
+          set({ pendingDepictionContractProposal: null });
+        },
+
+        updateDepictionContractField: (field: keyof DepictionContract, value: string) => {
+          set((state: ForgeState) => {
+            const currentDraft = state.forgeDraft || createInitialDraft();
+            const currentContract = currentDraft.depictionContract || {
+              dramaticRegister: '',
+              directness: '',
+              aftermath: '',
+              ambiguityHandling: '',
+              specialBoundaries: '',
+            };
+
+            const updatedContract: DepictionContract = {
+              ...currentContract,
+              [field]: value,
+            };
+
+            const updatedDraft: ForgeDraft = {
+              ...currentDraft,
+              depictionContract: updatedContract,
+            };
+
+            return {
+              forgeDraft: updatedDraft,
+              draftBlueprint: updatedDraft,
+              draftRevision: (state.draftRevision || 0) + 1,
+            };
+          });
+        },
 
         // --- SOURCE INTAKE & SCENARIO BASELINE ACTIONS ---
         registerSourceAnalysis: (analysis: ForgeSourceAnalysis) =>
@@ -705,6 +851,7 @@ export const useForgeStoreInternal = create<ForgeStore>()(
             return {
               forgeDraft: workingDraft,
               draftBlueprint: workingDraft,
+              draftRevision: (state.draftRevision || 0) + 1,
               castLedger: deriveCastLedger(workingDraft),
               topology: deriveTopology(workingDraft),
               sourceAnalyses: {
@@ -756,6 +903,7 @@ export const useForgeStoreInternal = create<ForgeStore>()(
             return {
               forgeDraft: updatedDraft,
               draftBlueprint: updatedDraft,
+              draftRevision: (state.draftRevision || 0) + 1,
               castLedger: deriveCastLedger(updatedDraft),
               topology: deriveTopology(updatedDraft),
               sourceAnalyses: {
@@ -979,6 +1127,7 @@ export const useForgeStoreInternal = create<ForgeStore>()(
             return {
               forgeDraft: updatedDraft,
               draftBlueprint: updatedDraft,
+              draftRevision: (state.draftRevision || 0) + 1,
               sourceAnalyses: {
                 ...state.sourceAnalyses,
                 [analysis.id]: updatedAnalysis,
@@ -1028,6 +1177,7 @@ export const useForgeStoreInternal = create<ForgeStore>()(
             return {
               forgeDraft: updatedDraft,
               draftBlueprint: updatedDraft,
+              draftRevision: (state.draftRevision || 0) + 1,
               sourceAnalyses: {
                 ...state.sourceAnalyses,
                 [analysis.id]: {
@@ -1492,6 +1642,10 @@ export const useForgeStoreInternal = create<ForgeStore>()(
               state.forgeDraft.ambiguities = [];
             }
           }
+          if (!state.draftRevision || typeof state.draftRevision !== 'number') {
+            state.draftRevision = 1;
+          }
+          state.pendingDepictionContractProposal = null;
           state.sourceAnalyses = sanitizeSourceAnalyses(state.sourceAnalyses);
           // Ensure draftBlueprint is aligned with forgeDraft
           state.draftBlueprint = state.forgeDraft;
@@ -1503,6 +1657,7 @@ export const useForgeStoreInternal = create<ForgeStore>()(
         // Persist only canonical Forge draft, source baseline metadata, and intentionally retained UI state
         return {
           forgeDraft: state.forgeDraft,
+          draftRevision: state.draftRevision || 1,
           sourceAnalyses: state.sourceAnalyses,
           architectMessages: state.architectMessages,
           who: state.who,

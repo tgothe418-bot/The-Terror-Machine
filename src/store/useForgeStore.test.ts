@@ -365,7 +365,8 @@ describe('useForgeStore - draft state and actions', () => {
           explanation: 'Extracted title',
           evidenceIds: ['ev-1'],
           proposedValue: 'Overwrite Attempt',
-          reviewState: 'pending' as const,
+          reviewDecision: 'accepted' as const,
+          applicationState: 'staged' as const,
         },
       ],
       unknowns: [],
@@ -405,7 +406,8 @@ describe('useForgeStore - draft state and actions', () => {
           explanation: 'Extracted setting',
           evidenceIds: [],
           proposedValue: 'The Sunken Crypt',
-          reviewState: 'pending' as const,
+          reviewDecision: 'accepted' as const,
+          applicationState: 'staged' as const,
         },
       ],
       unknowns: [],
@@ -421,7 +423,8 @@ describe('useForgeStore - draft state and actions', () => {
     const stateAfterAccept = getForgeState();
     expect(stateAfterAccept.forgeDraft?.setting?.location).toBe('The Sunken Crypt');
     expect(stateAfterAccept.forgeDraft?.references).toContain('story_notes.pdf');
-    expect(stateAfterAccept.sourceAnalyses['analysis-2'].candidates[0].reviewState).toBe('accepted');
+    expect(stateAfterAccept.sourceAnalyses['analysis-2'].candidates[0].reviewDecision).toBe('accepted');
+    expect(stateAfterAccept.sourceAnalyses['analysis-2'].candidates[0].applicationState).toBe('applied');
 
     // Removing analysis does NOT roll back accepted draft content
     forgeActions.removeSourceAnalysis('analysis-2');
@@ -454,7 +457,8 @@ describe('useForgeStore - draft state and actions', () => {
           explanation: 'Inferred premise',
           evidenceIds: [],
           proposedValue: 'Inferred Premise text',
-          reviewState: 'pending' as const,
+          reviewDecision: 'accepted' as const,
+          applicationState: 'staged' as const,
         },
       ],
       unknowns: [],
@@ -474,7 +478,7 @@ describe('useForgeStore - draft state and actions', () => {
     // Reject candidate
     forgeActions.rejectCandidate('analysis-3', 'cand-premise');
     const stateAfterReject = getForgeState();
-    expect(stateAfterReject.sourceAnalyses['analysis-3'].candidates[0].reviewState).toBe('rejected');
+    expect(stateAfterReject.sourceAnalyses['analysis-3'].candidates[0].reviewDecision).toBe('rejected');
     expect(stateAfterReject.forgeDraft?.premise).toBe('');
     expect(stateAfterReject.forgeDraft?.title).toBe('Authored Title');
   });

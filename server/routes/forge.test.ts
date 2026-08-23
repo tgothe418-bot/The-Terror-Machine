@@ -135,7 +135,8 @@ describe('Forge Routes: /api/extract-blueprint', () => {
     expect(body.analysis.candidates).toHaveLength(1);
     expect(body.analysis.candidates[0].target).toBe('setting_location');
     expect(body.analysis.candidates[0].proposedValue).toBe('Deep Benthic Trench');
-    expect(body.analysis.candidates[0].reviewState).toBe('pending');
+    expect(body.analysis.candidates[0].reviewDecision).toBe('accepted');
+    expect(body.analysis.candidates[0].applicationState).toBe('staged');
 
     // Only valid unknowns were retained
     expect(body.analysis.unknowns).toHaveLength(1);

@@ -74,6 +74,12 @@ describe('compileBlueprintDraft and prepareBlueprintExport', () => {
       setting: {
         location: 'Research Facility',
       },
+      depictionContract: {
+        dramaticRegister: 'Clinical dread',
+        directness: 'Visceral mechanics',
+        aftermath: 'Irreversible consequences',
+        ambiguityHandling: 'Preserve epistemic gaps',
+      },
       cast: [
         {
           id: 'c1',
@@ -119,6 +125,12 @@ describe('compileBlueprintDraft and prepareBlueprintExport', () => {
       startingTier: 'MANIFEST',
       setting: {
         location: 'The Old Church',
+      },
+      depictionContract: {
+        dramaticRegister: 'Gothic isolation',
+        directness: 'Measured dread',
+        aftermath: 'Irreversible decay',
+        ambiguityHandling: 'Preserve cosmic mystery',
       },
       cast: [
         {
@@ -185,6 +197,12 @@ describe('compileBlueprintDraft and prepareBlueprintExport', () => {
       setting: {
         location: 'Storage Bay',
       },
+      depictionContract: {
+        dramaticRegister: 'Clinical dread',
+        directness: 'Visceral mechanics',
+        aftermath: 'Irreversible consequences',
+        ambiguityHandling: 'Preserve epistemic gaps',
+      },
       cast: [
         {
           id: 'c1',
@@ -230,6 +248,12 @@ describe('compileBlueprintDraft and prepareBlueprintExport', () => {
       startingTier: 'LATENT',
       setting: {
         location: 'Secure Sub-level 9',
+      },
+      depictionContract: {
+        dramaticRegister: 'Clinical dread',
+        directness: 'Visceral mechanics',
+        aftermath: 'Irreversible consequences',
+        ambiguityHandling: 'Preserve epistemic gaps',
       },
       cast: [
         {

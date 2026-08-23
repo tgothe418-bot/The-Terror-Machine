@@ -19,7 +19,7 @@ import {
   getDecodedBase64ByteLength,
   createPayloadTooLargeError
 } from "../../src/lib/referenceImportPolicy";
-import { ForgeSourceRecord } from "../../src/types/forge";
+import { ForgeSourceRecord, DepictionContractPatchSchema } from "../../src/types/forge";
 import { validateAndNormalizeDocumentAnalysis } from "../../src/lib/sourceBaseline";
 
 const router = express.Router();
@@ -131,6 +131,7 @@ router.post("/architect", async (req, res) => {
     const outputText = response.text || "";
     
     let compiledBlueprint = null;
+    let depictionContractProposal = null;
     let standardMessage = outputText;
     
     const jsonMatch = outputText.match(/```json\n([\s\S]*?)\n```/);
@@ -141,6 +142,20 @@ router.post("/architect", async (req, res) => {
           compiledBlueprint = parsed.blueprint;
           standardMessage = parsed.message || "Blueprint compiled successfully.";
         }
+        const rawProposal = parsed.depictionContractProposal || parsed.depiction_contract_proposal;
+        if (rawProposal && typeof rawProposal === 'object') {
+          const patchCandidate = rawProposal.patch && typeof rawProposal.patch === 'object' ? rawProposal.patch : rawProposal;
+          const validPatch = DepictionContractPatchSchema.safeParse(patchCandidate);
+          if (validPatch.success && Object.keys(validPatch.data).length > 0) {
+            depictionContractProposal = {
+              patch: validPatch.data,
+              rationale: typeof rawProposal.rationale === 'string'
+                ? rawProposal.rationale
+                : (typeof parsed.rationale === 'string' ? parsed.rationale : 'Architect recommended depiction contract parameters.'),
+              createdAt: Date.now(),
+            };
+          }
+        }
       } catch (e) {
         console.error("Failed to parse Architect JSON:", e);
       }
@@ -148,7 +163,8 @@ router.post("/architect", async (req, res) => {
 
     res.json({ 
       text: standardMessage,
-      compiledBlueprint 
+      compiledBlueprint,
+      depictionContractProposal,
     });
 
   } catch (error) {

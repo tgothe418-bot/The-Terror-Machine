@@ -17,6 +17,7 @@ import { CharacterMemoryById, CharacterMemoryReceipt } from './characterMemory';
 import { WorldMemoryState, WorldMemoryReceipt } from './worldMemory';
 import {
   BlueprintAmbiguityDecisionsSchema,
+  DepictionContractSchema,
 } from './blueprintAuthoring';
 export * from './engineContract';
 export * from './participation';
@@ -172,6 +173,7 @@ export const BlueprintSchema = z.object({
   terminalConditions: z.any().optional(),
   hauntedHouse: HauntedHouseProvenanceSchema.optional(),
   ambiguities: BlueprintAmbiguityDecisionsSchema.optional().default([]),
+  depictionContract: DepictionContractSchema.optional(),
 });
 
 // For compatibility with previous types, though we augment them

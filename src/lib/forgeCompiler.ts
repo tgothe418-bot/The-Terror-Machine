@@ -111,6 +111,39 @@ export function validateForgeDraft(rawDraft: unknown): ForgeValidationResult {
     errors['startingTier'] = [`Starting tier must be one of: ${validTiers.join(', ')}`];
   }
 
+  // 6. Depiction Contract Validation
+  const contract = draft.depictionContract;
+  if (!contract) {
+    errors['depictionContract'] = ['Depiction contract is required to compile a scenario'];
+  } else {
+    const isInvalidContractField = (txt?: string) => {
+      if (!txt) return true;
+      const t = txt.trim().toLowerCase();
+      return !t || t === 'unknown' || t === 'none' || t === 'n/a';
+    };
+
+    if (isInvalidContractField(contract.dramaticRegister)) {
+      errors['depictionContract.dramaticRegister'] = [
+        'Dramatic register is required in the Depiction Contract and cannot be empty or a placeholder',
+      ];
+    }
+    if (isInvalidContractField(contract.directness)) {
+      errors['depictionContract.directness'] = [
+        'Directness is required in the Depiction Contract and cannot be empty or a placeholder',
+      ];
+    }
+    if (isInvalidContractField(contract.aftermath)) {
+      errors['depictionContract.aftermath'] = [
+        'Aftermath is required in the Depiction Contract and cannot be empty or a placeholder',
+      ];
+    }
+    if (isInvalidContractField(contract.ambiguityHandling)) {
+      errors['depictionContract.ambiguityHandling'] = [
+        'Ambiguity handling is required in the Depiction Contract and cannot be empty or a placeholder',
+      ];
+    }
+  }
+
   return {
     valid: Object.keys(errors).length === 0,
     errors,
@@ -122,7 +155,7 @@ export function validateForgeDraft(rawDraft: unknown): ForgeValidationResult {
  * Performs dedicated review validation first and normalizes/validates the final Blueprint.
  * Never mutates runtime state, selects a seat, or starts an engine session.
  */
-export function compileForgeDraft(rawDraft: unknown): ForgeCompileResult {
+export function compileForgeDraft(rawDraft: unknown, draftRevision?: number): ForgeCompileResult {
   const validation = validateForgeDraft(rawDraft);
   if (!validation.valid) {
     return {
@@ -173,6 +206,7 @@ export function compileForgeDraft(rawDraft: unknown): ForgeCompileResult {
     fileName,
     compiledAt: Date.now(),
     sourceDraftId: draft.id,
+    sourceDraftRevision: draftRevision ?? 1,
   });
 
   return {
@@ -185,8 +219,8 @@ export function compileForgeDraft(rawDraft: unknown): ForgeCompileResult {
 /**
  * Compiles a Forge draft or throws a structured ForgeCompilationError.
  */
-export function compileForgeDraftOrThrow(rawDraft: unknown): ForgeReviewArtifact {
-  const result = compileForgeDraft(rawDraft);
+export function compileForgeDraftOrThrow(rawDraft: unknown, draftRevision?: number): ForgeReviewArtifact {
+  const result = compileForgeDraft(rawDraft, draftRevision);
   if (!result.success) {
     throw new ForgeCompilationError(result.errors);
   }
