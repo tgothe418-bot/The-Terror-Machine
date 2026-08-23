@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import { z } from 'zod';
 import {
   AppPhase,
   SpatialNode,
@@ -27,6 +28,95 @@ import { normalizeBlueprint } from '../lib/normalizeBlueprint';
 import { isHorrorVector, isExposureTier } from '../core/engine/snapshot';
 import { idbStorage } from '../lib/idbStorage';
 import { useEngineStore } from '../core/store';
+
+export const AppPersistedSchema = z.object({
+  sessionId: z.string().optional().default(''),
+  blueprintId: z.string().optional().default(''),
+  participationContext: z.any().nullable().optional().default(null),
+  phase: z.string().optional().default('HUB'),
+  currentPhase: z.string().optional().default('INIT'),
+  escalation_state: z.string().optional().default('LATENT'),
+  currentNodeId: z.string().nullable().optional().default(null),
+  spatialGraph: z.array(z.any()).optional().default([]),
+  activeVector: z
+    .enum(['SOMATIC', 'COGNITIVE', 'COSMIC', 'SOCIO_MORAL'])
+    .optional()
+    .default('COGNITIVE'),
+  activeTier: z
+    .enum(['GATEWAY', 'LATENT', 'MANIFEST', 'TERMINAL'])
+    .optional()
+    .default('LATENT'),
+  decay: z
+    .object({
+      stage: z.string().optional().default('STABLE'),
+      coherence: z.number().optional().default(1.0),
+    })
+    .passthrough()
+    .optional()
+    .default({ stage: 'STABLE', coherence: 1.0 }),
+  decayMetrics: z
+    .object({
+      currentStage: z.string().optional().default('STABLE'),
+      coherenceRating: z.number().optional().default(1.0),
+      divergenceMode: z.string().optional().default('NONE'),
+    })
+    .passthrough()
+    .optional()
+    .default({ currentStage: 'STABLE', coherenceRating: 1.0, divergenceMode: 'NONE' }),
+  isShattered: z.boolean().optional().default(false),
+  tensionLevel: z.number().optional().default(0),
+  turnCount: z.number().optional().default(0),
+  roomsGenerated: z.number().optional().default(0),
+  maxRooms: z.number().optional(),
+  aesthetic: z.string().optional(),
+  activeEntities: z.array(z.any()).optional(),
+  traumaLedger: z.array(z.string()).optional().default([]),
+  activeMemory: z
+    .object({
+      systemFlags: z.array(z.string()).optional().default([]),
+      somaState: z.array(z.string()).optional().default([]),
+      geomState: z.array(z.string()).optional().default([]),
+    })
+    .passthrough()
+    .optional()
+    .default({ systemFlags: [], somaState: [], geomState: [] }),
+  motifLedger: z.record(z.string(), z.number()).optional().default({}),
+  pacingLedger: z
+    .object({
+      failedEscapeAttempts: z.number().optional().default(0),
+      memoryAnchorsRemaining: z.number().optional().default(3),
+      spatialContradictions: z.number().optional().default(0),
+    })
+    .passthrough()
+    .optional()
+    .default({ failedEscapeAttempts: 0, memoryAnchorsRemaining: 3, spatialContradictions: 0 }),
+  timelineRevision: z.number().optional().default(0),
+  lastDistilledRevision: z.number().optional().default(-1),
+  reconciliationRevision: z.number().optional().default(0),
+  history: z.array(z.any()).optional().default([]),
+  storyLog: z.array(z.any()).optional().default([]),
+  uiTranscript: z.array(z.any()).optional().default([]),
+  enginePayload: z.array(z.any()).optional().default([]),
+  turnSnapshot: z.any().nullable().optional().default(null),
+  lastTurnCheckpoint: z
+    .object({
+      version: z.literal(1),
+      commandText: z.string(),
+      engineStateBefore: z.any(),
+      engineGameStateBefore: z.any().nullable().optional(),
+    })
+    .nullable()
+    .optional()
+    .default(null),
+  telemetry: z.any().nullable().optional().default(null),
+  activeCampaign: z.any().nullable().optional().default(null),
+  currentActId: z.string().nullable().optional().default(null),
+  suspendedActs: z.record(z.string(), z.any()).optional().default({}),
+  narrativeVelocity: z.string().optional().default('slow_burn'),
+  nodeState: z.record(z.string(), z.any()).optional(),
+});
+
+export type AppPersistedState = z.infer<typeof AppPersistedSchema>;
 
 export interface InitializeSessionParams {
   blueprint: unknown;
@@ -215,10 +305,10 @@ export const useAppStore = create<AppStore>()(
           checkpoint.version === 1 &&
           checkpoint.engineStateBefore &&
           typeof checkpoint.engineStateBefore === 'object' &&
-          (!checkpoint.engineStateBefore.sessionId ||
-            checkpoint.engineStateBefore.sessionId === currentEngineState.sessionId) &&
-          (!checkpoint.engineStateBefore.blueprintId ||
-            checkpoint.engineStateBefore.blueprintId === currentEngineState.blueprintId);
+          Boolean(checkpoint.engineStateBefore.sessionId) &&
+          checkpoint.engineStateBefore.sessionId === currentEngineState.sessionId &&
+          Boolean(checkpoint.engineStateBefore.blueprintId) &&
+          checkpoint.engineStateBefore.blueprintId === currentEngineState.blueprintId;
 
         if (!isCompatible) {
           // Clear invalid cross-session checkpoint deterministically
@@ -278,6 +368,41 @@ export const useAppStore = create<AppStore>()(
         }
         return persistedState as AppStore;
       },
+      merge: (persistedState: unknown, currentState: AppStore): AppStore => {
+        if (!persistedState || typeof persistedState !== 'object') {
+          return currentState;
+        }
+        const result = AppPersistedSchema.safeParse(persistedState);
+        if (!result.success) {
+          console.warn(
+            '[AppStore] Persisted state validation failed, resetting to initial state:',
+            result.error
+          );
+          return currentState;
+        }
+        const data = result.data;
+        let validCheckpoint = data.lastTurnCheckpoint ?? null;
+        if (validCheckpoint) {
+          const cpBefore = validCheckpoint.engineStateBefore;
+          const isCpValid =
+            validCheckpoint.version === 1 &&
+            typeof validCheckpoint.commandText === 'string' &&
+            cpBefore &&
+            typeof cpBefore === 'object' &&
+            Boolean(cpBefore.sessionId) &&
+            cpBefore.sessionId === data.sessionId &&
+            Boolean(cpBefore.blueprintId) &&
+            cpBefore.blueprintId === data.blueprintId;
+          if (!isCpValid) {
+            validCheckpoint = null;
+          }
+        }
+        return {
+          ...currentState,
+          ...data,
+          lastTurnCheckpoint: validCheckpoint,
+        } as AppStore;
+      },
       partialize: (state) => ({
         sessionId: state.sessionId,
         blueprintId: state.blueprintId,
@@ -330,8 +455,10 @@ export const useAppStore = create<AppStore>()(
             typeof cp.commandText === 'string' &&
             cp.engineStateBefore &&
             typeof cp.engineStateBefore === 'object' &&
-            (!cp.engineStateBefore.sessionId || cp.engineStateBefore.sessionId === state.sessionId) &&
-            (!cp.engineStateBefore.blueprintId || cp.engineStateBefore.blueprintId === state.blueprintId);
+            Boolean(cp.engineStateBefore.sessionId) &&
+            cp.engineStateBefore.sessionId === state.sessionId &&
+            Boolean(cp.engineStateBefore.blueprintId) &&
+            cp.engineStateBefore.blueprintId === state.blueprintId;
 
           if (!isValidCheckpoint) {
             state.lastTurnCheckpoint = null;

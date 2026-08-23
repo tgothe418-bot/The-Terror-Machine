@@ -394,4 +394,91 @@ describe('Phase 3H.5D: Dual-Store Session Persistence and Restoration', () => {
     expect(useAppStore.getState().sessionId).toBe(activeSessionId);
     expect(useAppStore.getState().lastTurnCheckpoint).toBeNull();
   });
+
+  it('6. Generates synchronized activeSessionId across both stores upon setBlueprint', () => {
+    useEngineStore.getState().setBlueprint(mockBlueprint, 'protagonist', null, 'char-1');
+
+    const engineSessionId = useEngineStore.getState().activeSessionId;
+    const appSessionId = useAppStore.getState().sessionId;
+
+    expect(typeof engineSessionId).toBe('string');
+    expect(engineSessionId).toBeTruthy();
+    expect(appSessionId).toBe(engineSessionId);
+
+    const coherence = evaluateSessionCoherence(useEngineStore.getState(), useAppStore.getState());
+    expect(coherence.isCoherent).toBe(true);
+    expect(coherence.status).toBe('COHERENT');
+  });
+
+  it('7. Fails closed when Engine store has active Blueprint but missing or mismatched activeSessionId', () => {
+    // Engine has activeBlueprint but activeSessionId is null
+    useEngineStore.setState({
+      activeBlueprint: normalizeBlueprint(mockBlueprint),
+      activeSessionId: null,
+      gameState: {
+        current_location: 'Alpha',
+        player_injuries: [],
+        inventory: [],
+        psychological_status: 'Stable',
+        player_role: 'protagonist',
+        player_character_id: 'char-1',
+        perspective_mode: 'embodied',
+        current_tension_level: 'buildup',
+        lore_and_memory: { established_facts: [], permanent_consequences: [] },
+        npc_fixations: [],
+      },
+    });
+
+    useAppStore.setState({
+      sessionId: 'session_app_123',
+      blueprintId: mockBlueprint.id,
+      turnCount: 0,
+      history: [],
+    });
+
+    const evalResult = evaluateSessionCoherence(useEngineStore.getState(), useAppStore.getState());
+    expect(evalResult.isCoherent).toBe(false);
+    expect(evalResult.status).toBe('MISMATCH');
+    expect(evalResult.reason).toContain('Engine store has active Blueprint but lacks a valid activeSessionId');
+
+    const recon = reconcileSessionStores(useEngineStore, useAppStore);
+    expect(recon.isCoherent).toBe(false);
+    expect(useEngineStore.getState().activeBlueprint).toBeNull();
+    expect(useAppStore.getState().sessionId).toBe('');
+  });
+
+  it('8. Fails closed with CORRUPT status when bound player_character_id does not exist in blueprint cast', () => {
+    useEngineStore.setState({
+      activeBlueprint: normalizeBlueprint(mockBlueprint),
+      activeSessionId: 'shared_session_xyz',
+      gameState: {
+        current_location: 'Alpha',
+        player_injuries: [],
+        inventory: [],
+        psychological_status: 'Stable',
+        player_role: 'protagonist',
+        player_character_id: 'ghost-nonexistent-character',
+        perspective_mode: 'embodied',
+        current_tension_level: 'buildup',
+        lore_and_memory: { established_facts: [], permanent_consequences: [] },
+        npc_fixations: [],
+      },
+    });
+
+    useAppStore.setState({
+      sessionId: 'shared_session_xyz',
+      blueprintId: mockBlueprint.id,
+      turnCount: 0,
+      history: [],
+    });
+
+    const evalResult = evaluateSessionCoherence(useEngineStore.getState(), useAppStore.getState());
+    expect(evalResult.isCoherent).toBe(false);
+    expect(evalResult.status).toBe('CORRUPT');
+    expect(evalResult.reason).toContain('ghost-nonexistent-character');
+
+    const recon = reconcileSessionStores(useEngineStore, useAppStore);
+    expect(recon.isCoherent).toBe(false);
+    expect(useEngineStore.getState().activeBlueprint).toBeNull();
+  });
 });

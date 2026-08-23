@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import { z } from 'zod';
 import { Blueprint, BlueprintSchema, LogicState, Message, PlayerRole, ParticipationContext } from '../types';
 import { idbStorage } from '../lib/idbStorage';
 import { distillContext } from '../services/geminiService';
@@ -8,6 +9,56 @@ import { normalizeBlueprint } from '../lib/normalizeBlueprint';
 import { resolvePerspectiveBinding } from '../lib/playerCharacterBinding';
 
 export { resolvePerspectiveBinding } from '../lib/playerCharacterBinding';
+
+export const EnginePersistedSchema = z.object({
+  activeSessionId: z.string().nullable().optional().default(null),
+  activeBlueprint: BlueprintSchema.nullable().optional().default(null),
+  participationContext: z
+    .object({
+      role: z.string().optional(),
+      perspectiveMode: z.string().optional(),
+      characterId: z.string().nullable().optional(),
+      selectedCharacterName: z.string().optional(),
+      provenance: z.any().optional(),
+    })
+    .passthrough()
+    .nullable()
+    .optional()
+    .default(null),
+  gameState: z
+    .object({
+      current_location: z.string().optional(),
+      player_character_id: z.string().nullable().optional(),
+      player_role: z.string().optional(),
+      perspective_mode: z.string().optional(),
+      current_tension_level: z.string().optional(),
+      psychological_status: z.string().optional(),
+      player_injuries: z.array(z.string()).optional(),
+      inventory: z.array(z.string()).optional(),
+      lore_and_memory: z
+        .object({
+          established_facts: z.array(z.string()).optional().default([]),
+          permanent_consequences: z.array(z.string()).optional().default([]),
+        })
+        .optional(),
+      npc_fixations: z.array(z.string()).optional(),
+      cast_ledger: z.array(z.any()).optional(),
+    })
+    .passthrough()
+    .nullable()
+    .optional()
+    .default(null),
+  engineMessages: z.array(z.any()).optional().default([]),
+  engineTextBuffer: z.array(z.any()).optional().default([]),
+  maxBufferTurns: z.number().optional().default(12),
+  engineWorldStateSummary: z
+    .string()
+    .optional()
+    .default('The subject is contained. Initial parameters active.'),
+  telemetry: z.any().nullable().optional().default(null),
+});
+
+export type EnginePersistedState = z.infer<typeof EnginePersistedSchema>;
 
 // Add these model definitions to your store fields in src/core/store.ts
 export interface TelemetryMetrics {
@@ -22,6 +73,7 @@ export interface TelemetryMetrics {
 }
 
 interface EngineState {
+  activeSessionId: string | null;
   activeBlueprint: Blueprint | null;
   participationContext: ParticipationContext | null;
   gameState: LogicState | null;
@@ -54,6 +106,7 @@ interface EngineState {
 export const useEngineStore = create<EngineState>()(
   persist(
     (set, get) => ({
+      activeSessionId: null,
       activeBlueprint: null,
       participationContext: null,
       gameState: null,
@@ -81,13 +134,18 @@ export const useEngineStore = create<EngineState>()(
           selectedCharacterId
         );
 
-        // Invoke the canonical AppStore session initialization action
+        // Generate shared session ID once before either store is written
+        const sessionId = crypto.randomUUID();
+
+        // Invoke the canonical AppStore session initialization action with the shared sessionId
         useAppStore.getState().initializeSession({
           blueprint: normalizedBlueprint,
           participationContext,
+          sessionId,
         });
 
         set({
+          activeSessionId: sessionId,
           activeBlueprint: normalizedBlueprint,
           participationContext: participationContext || null,
           engineMessages: [],
@@ -112,6 +170,7 @@ export const useEngineStore = create<EngineState>()(
       },
       clearBlueprint: () =>
         set({
+          activeSessionId: null,
           activeBlueprint: null,
           participationContext: null,
           gameState: null,
@@ -202,6 +261,7 @@ export const useEngineStore = create<EngineState>()(
       resetEngine: () =>
         set((state) => ({
           ...state,
+          activeSessionId: null,
           activeBlueprint: null,
           participationContext: null,
           gameState: null,
@@ -214,6 +274,41 @@ export const useEngineStore = create<EngineState>()(
     {
       name: 'the-engine-memory',
       storage: createJSONStorage(() => idbStorage),
+      version: 1,
+      migrate: (persistedState: unknown, version: number) => {
+        if (version !== 1 || !persistedState || typeof persistedState !== 'object') {
+          return {};
+        }
+        return persistedState;
+      },
+      merge: (persistedState: unknown, currentState: EngineState): EngineState => {
+        if (!persistedState || typeof persistedState !== 'object') {
+          return currentState;
+        }
+        const result = EnginePersistedSchema.safeParse(persistedState);
+        if (!result.success) {
+          console.warn(
+            '[EngineStore] Persisted state validation failed, resetting to initial state:',
+            result.error
+          );
+          return currentState;
+        }
+        return {
+          ...currentState,
+          ...result.data,
+        };
+      },
+      partialize: (state) => ({
+        activeSessionId: state.activeSessionId,
+        activeBlueprint: state.activeBlueprint,
+        participationContext: state.participationContext,
+        gameState: state.gameState,
+        engineMessages: state.engineMessages,
+        engineTextBuffer: state.engineTextBuffer,
+        maxBufferTurns: state.maxBufferTurns,
+        engineWorldStateSummary: state.engineWorldStateSummary,
+        telemetry: state.telemetry,
+      }),
     }
   )
 );

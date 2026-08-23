@@ -14,10 +14,14 @@ export interface StoreReconciliationResult {
  * Validates cross-store identity and coherence between the Engine store and the App runtime-session store.
  */
 export function evaluateSessionCoherence(
-  engineState: { activeBlueprint: Blueprint | null; gameState: LogicState | null },
+  engineState: {
+    activeSessionId?: string | null;
+    activeBlueprint: Blueprint | null;
+    gameState: LogicState | null;
+  },
   appState: Partial<AppStore>
 ): StoreReconciliationResult {
-  const { activeBlueprint, gameState } = engineState;
+  const { activeSessionId, activeBlueprint, gameState } = engineState;
   const { blueprintId, sessionId, turnCount, history } = appState;
 
   // Case 1: No active Blueprint loaded in Engine store
@@ -25,7 +29,8 @@ export function evaluateSessionCoherence(
     const hasOrphanAppTurns =
       (typeof turnCount === 'number' && turnCount > 0) ||
       (Array.isArray(history) && history.length > 0) ||
-      (typeof blueprintId === 'string' && blueprintId.trim().length > 0 && blueprintId !== 'unknown');
+      (typeof blueprintId === 'string' && blueprintId.trim().length > 0 && blueprintId !== 'unknown') ||
+      (typeof sessionId === 'string' && sessionId.trim().length > 0);
 
     if (hasOrphanAppTurns) {
       return {
@@ -35,11 +40,46 @@ export function evaluateSessionCoherence(
       };
     }
 
+    if (activeSessionId && typeof activeSessionId === 'string' && activeSessionId.trim().length > 0) {
+      return {
+        isCoherent: false,
+        status: 'MISMATCH',
+        reason: 'Engine store has activeSessionId but no active blueprint.',
+      };
+    }
+
     return { isCoherent: true, status: 'CLEAN_SETUP' };
   }
 
   // Case 2: Active Blueprint is loaded in Engine store
   const activeBlueprintId = activeBlueprint.id || 'unknown';
+
+  // Invariant: Engine activeSessionId must be present and non-empty
+  if (!activeSessionId || typeof activeSessionId !== 'string' || activeSessionId.trim().length === 0) {
+    return {
+      isCoherent: false,
+      status: 'MISMATCH',
+      reason: 'Engine store has active Blueprint but lacks a valid activeSessionId.',
+    };
+  }
+
+  // Invariant: App store sessionId must be present and non-empty
+  if (!sessionId || typeof sessionId !== 'string' || sessionId.trim().length === 0) {
+    return {
+      isCoherent: false,
+      status: 'MISMATCH',
+      reason: 'App store is missing a valid sessionId for the active Blueprint session.',
+    };
+  }
+
+  // Invariant: sessionId across both stores must match identically
+  if (sessionId !== activeSessionId) {
+    return {
+      isCoherent: false,
+      status: 'MISMATCH',
+      reason: `Session ID mismatch: Engine has '${activeSessionId}' but App session has '${sessionId}'.`,
+    };
+  }
 
   // If App store has a blueprintId, it must match the active blueprint id
   if (blueprintId && blueprintId !== 'unknown' && blueprintId !== activeBlueprintId) {
