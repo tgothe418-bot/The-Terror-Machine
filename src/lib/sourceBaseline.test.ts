@@ -4,6 +4,8 @@ import {
   applyCandidateToDraft,
   validateCandidateEdit,
   rejectCandidate,
+  setCandidateReviewDecisionPure,
+  sortCandidatesForApplication,
   validateAndNormalizeDocumentAnalysis,
 } from './sourceBaseline';
 import { ForgeDraft, ForgeSourceCandidate, ForgeSourceRecord } from '../types/forge';
@@ -67,9 +69,10 @@ describe('sourceBaseline pure functions', () => {
     expect(analysis.evidence.length).toBeGreaterThan(0);
     expect(analysis.candidates.length).toBeGreaterThan(0);
 
-    // Candidates should all be pending
+    // Candidates should all default to accepted and staged
     analysis.candidates.forEach((cand) => {
-      expect(cand.reviewState).toBe('pending');
+      expect(cand.reviewDecision).toBe('accepted');
+      expect(cand.applicationState).toBe('staged');
       expect(cand.classification).toBe('evidence');
       expect(cand.evidenceIds.length).toBeGreaterThan(0);
     });
@@ -121,11 +124,13 @@ describe('sourceBaseline pure functions', () => {
       explanation: 'Extracted title',
       evidenceIds: ['ev-1'],
       proposedValue: 'The Drowned Bell',
-      reviewState: 'pending',
+      reviewDecision: 'accepted',
+      applicationState: 'staged',
     };
 
     const result = applyCandidateToDraft(initialDraft, candidate, 'source.json');
     expect(result.success).toBe(true);
+    if (!result.success) return;
     const updated = result.draft;
 
     // Title should update
@@ -160,7 +165,8 @@ describe('sourceBaseline pure functions', () => {
       explanation: 'rule',
       evidenceIds: [],
       proposedValue: 'Pressure rule',
-      reviewState: 'pending',
+      reviewDecision: 'accepted',
+      applicationState: 'staged',
     };
 
     const nodeCand: ForgeSourceCandidate = {
@@ -172,16 +178,19 @@ describe('sourceBaseline pure functions', () => {
       explanation: 'node',
       evidenceIds: [],
       proposedValue: 'BATHYSPHERE_DOCK',
-      reviewState: 'pending',
+      reviewDecision: 'accepted',
+      applicationState: 'staged',
     };
 
     const res1 = applyCandidateToDraft(initialDraft, ruleCand, 'drowned_bell.json');
     expect(res1.success).toBe(true);
+    if (!res1.success) return;
     expect(res1.draft.environmentalRules).toEqual(['Pressure rule']);
     expect(res1.draft.references).toEqual(['drowned_bell.json']);
 
     const res2 = applyCandidateToDraft(res1.draft, nodeCand, 'drowned_bell.json');
     expect(res2.success).toBe(true);
+    if (!res2.success) return;
     expect(res2.draft.topology?.nodes).toEqual(['BATHYSPHERE_DOCK']);
   });
 
@@ -212,11 +221,13 @@ describe('sourceBaseline pure functions', () => {
         expressionGuidance: 'Static-heavy radio comms.',
       },
       targetCastMemberId: 'char-diver',
-      reviewState: 'pending',
+      reviewDecision: 'accepted',
+      applicationState: 'staged',
     };
 
     const result = applyCandidateToDraft(initialDraft, exprCand);
     expect(result.success).toBe(true);
+    if (!result.success) return;
     expect(result.draft.cast?.[0].expressionProfile).toEqual({
       communicationModes: ['spoken', 'mediated'],
       expressionGuidance: 'Static-heavy radio comms.',
@@ -254,7 +265,8 @@ describe('sourceBaseline pure functions', () => {
     expect(normalized.id).toBe('src-doc-1-analysis');
     expect(normalized.sourceRecord.id).toBe('src-doc-1');
     expect(normalized.candidates.length).toBe(1);
-    expect(normalized.candidates[0].reviewState).toBe('pending');
+    expect(normalized.candidates[0].reviewDecision).toBe('accepted');
+    expect(normalized.candidates[0].applicationState).toBe('staged');
     expect(normalized.candidates[0].sourceId).toBe('src-doc-1');
   });
 
@@ -270,6 +282,13 @@ describe('sourceBaseline pure functions', () => {
       },
       startingVector: 'COGNITIVE',
       startingTier: 'LATENT',
+      depictionContract: {
+        dramaticRegister: 'Psychological Dread',
+        directness: 'Implied and atmospheric',
+        aftermath: 'Lingering somatic unease',
+        ambiguityHandling: 'Unresolved existential threat',
+        specialBoundaries: 'No torture',
+      },
       cast: [
         {
           id: 'char-mercer',
@@ -308,7 +327,7 @@ describe('sourceBaseline pure functions', () => {
     });
   });
 
-  it('validates candidate edits and rejection without draft mutation', () => {
+  it('validates candidate edits, decisions, and rejection without draft mutation', () => {
     const cand: ForgeSourceCandidate = {
       id: 'c1',
       sourceId: 's1',
@@ -318,19 +337,75 @@ describe('sourceBaseline pure functions', () => {
       explanation: 'loc',
       evidenceIds: [],
       proposedValue: 'Original Place',
-      reviewState: 'pending',
+      reviewDecision: 'accepted',
+      applicationState: 'staged',
     };
 
     const validEdit = validateCandidateEdit(cand, 'Edited Sub-Sea Trench');
     expect(validEdit.valid).toBe(true);
     expect(validEdit.updatedCandidate?.proposedValue).toBe('Edited Sub-Sea Trench');
-    expect(validEdit.updatedCandidate?.reviewState).toBe('pending');
+    expect(validEdit.updatedCandidate?.reviewDecision).toBe('accepted');
+    expect(validEdit.updatedCandidate?.applicationState).toBe('staged');
 
     const emptyEdit = validateCandidateEdit(cand, '   ');
     expect(emptyEdit.valid).toBe(false);
 
     const rejected = rejectCandidate(cand);
-    expect(rejected.reviewState).toBe('rejected');
+    expect(rejected.reviewDecision).toBe('rejected');
+    expect(rejected.applicationState).toBe('staged');
+
+    const restored = setCandidateReviewDecisionPure(rejected, 'accepted');
+    expect(restored.reviewDecision).toBe('accepted');
+    expect(restored.applicationState).toBe('staged');
+  });
+
+  it('sorts candidates deterministically by priority: cast_seed before expression guidance', () => {
+    const candidates: ForgeSourceCandidate[] = [
+      {
+        id: 'c-expr',
+        sourceId: 's1',
+        classification: 'evidence',
+        target: 'cast_expression_guidance',
+        label: 'Expr',
+        explanation: '',
+        evidenceIds: [],
+        proposedValue: { communicationModes: ['spoken'], expressionGuidance: 'test' },
+        targetCastMemberId: 'char-1',
+        reviewDecision: 'accepted',
+        applicationState: 'staged',
+      },
+      {
+        id: 'c-loc',
+        sourceId: 's1',
+        classification: 'evidence',
+        target: 'setting_location',
+        label: 'Loc',
+        explanation: '',
+        evidenceIds: [],
+        proposedValue: 'Trench',
+        reviewDecision: 'accepted',
+        applicationState: 'staged',
+      },
+      {
+        id: 'c-cast',
+        sourceId: 's1',
+        classification: 'evidence',
+        target: 'cast_seed',
+        label: 'Cast',
+        explanation: '',
+        evidenceIds: [],
+        proposedValue: { id: 'char-1', name: 'Dr. Mercer', role: 'PROTAGONIST' },
+        reviewDecision: 'accepted',
+        applicationState: 'staged',
+      },
+    ];
+
+    const sorted = sortCandidatesForApplication(candidates);
+    expect(sorted.map((c) => c.target)).toEqual([
+      'cast_seed',
+      'setting_location',
+      'cast_expression_guidance',
+    ]);
   });
 
   describe('cast_seed candidate application', () => {
@@ -346,6 +421,13 @@ describe('sourceBaseline pure functions', () => {
         },
         startingVector: 'COGNITIVE',
         startingTier: 'LATENT',
+        depictionContract: {
+          dramaticRegister: 'Claustrophobic Survival',
+          directness: 'Visceral environmental cues',
+          aftermath: 'Psychological trauma',
+          ambiguityHandling: 'Unexplained signals',
+          specialBoundaries: 'None',
+        },
         cast: [],
       };
 
@@ -369,11 +451,13 @@ describe('sourceBaseline pure functions', () => {
           behaviorVector: 'ADAPTIVE',
           isEntity: false,
         },
-        reviewState: 'pending',
+        reviewDecision: 'accepted',
+        applicationState: 'staged',
       };
 
       const applyRes = applyCandidateToDraft(initialDraft, castCandidate, 'manifest.json');
       expect(applyRes.success).toBe(true);
+      if (!applyRes.success) return;
       expect(applyRes.draft.cast?.length).toBe(1);
       expect(applyRes.draft.cast?.[0].id).toBe('char-corvus');
       expect(applyRes.draft.cast?.[0].name).toBe('Chief Engineer Corvus');
@@ -420,11 +504,13 @@ describe('sourceBaseline pure functions', () => {
           behaviorVector: 'ADAPTIVE',
           isEntity: false,
         },
-        reviewState: 'pending',
+        reviewDecision: 'accepted',
+        applicationState: 'staged',
       };
 
       const applyRes = applyCandidateToDraft(initialDraft, updateCandidate);
       expect(applyRes.success).toBe(true);
+      if (!applyRes.success) return;
       expect(applyRes.draft.cast?.length).toBe(1);
       expect(applyRes.draft.cast?.[0].id).toBe('char-corvus');
       expect(applyRes.draft.cast?.[0].name).toBe('Chief Engineer Corvus');
@@ -467,11 +553,13 @@ describe('sourceBaseline pure functions', () => {
           behaviorVector: 'INSURGENT',
           isEntity: true,
         },
-        reviewState: 'pending',
+        reviewDecision: 'accepted',
+        applicationState: 'staged',
       };
 
       const applyRes = applyCandidateToDraft(initialDraft, duplicateNameCandidate);
       expect(applyRes.success).toBe(true);
+      if (!applyRes.success) return;
       expect(applyRes.draft.cast?.length).toBe(2);
       expect(applyRes.draft.cast?.[0].id).toBe('char-corvus-1');
       expect(applyRes.draft.cast?.[1].id).toBe('char-corvus-clone-2');
@@ -502,7 +590,8 @@ describe('sourceBaseline pure functions', () => {
         explanation: 'Malformed',
         evidenceIds: [],
         proposedValue: null,
-        reviewState: 'pending' as const,
+        reviewDecision: 'accepted' as const,
+        applicationState: 'staged' as const,
       } as unknown as ForgeSourceCandidate;
 
       const applyRes = applyCandidateToDraft(initialDraft, invalidCandidate);
@@ -599,14 +688,15 @@ describe('sourceBaseline pure functions', () => {
       expect(analysis.candidates).toHaveLength(1);
       expect(analysis.candidates[0].target).toBe('setting_location');
       expect(analysis.candidates[0].proposedValue).toBe('Marianas Trench Station Sector 9');
-      expect(analysis.candidates[0].reviewState).toBe('pending');
+      expect(analysis.candidates[0].reviewDecision).toBe('accepted');
+      expect(analysis.candidates[0].applicationState).toBe('staged');
 
       // Only valid unknowns kept
       expect(analysis.unknowns).toHaveLength(1);
       expect(analysis.unknowns[0].id).toBe('unk-valid-1');
     });
 
-    it('supplies stable fallback id for cast_seed without id and forces reviewState to pending', () => {
+    it('supplies stable fallback id for cast_seed without id and sets default reviewDecision and applicationState', () => {
       const sourceRecord: ForgeSourceRecord = {
         id: 'src-test-cast-fallback',
         fileName: 'cast_log.txt',
@@ -636,7 +726,8 @@ describe('sourceBaseline pure functions', () => {
       expect(analysis.status).toBe('completed');
       expect(analysis.candidates).toHaveLength(1);
       expect(analysis.candidates[0].target).toBe('cast_seed');
-      expect(analysis.candidates[0].reviewState).toBe('pending');
+      expect(analysis.candidates[0].reviewDecision).toBe('accepted');
+      expect(analysis.candidates[0].applicationState).toBe('staged');
       const castMember = analysis.candidates[0].proposedValue as { id: string; name: string };
       expect(castMember.id).toBe('src-test-cast-fallback-cast-0');
       expect(castMember.name).toBe('Engineer Mercer');

@@ -4,7 +4,6 @@ import {
   ForgeSourceAnalysis,
   ForgeSourceAnalysisSchema,
   ForgeSourceCandidate,
-  ForgeSourceUnknown,
 } from '../../types/forge';
 import {
   FileText,
@@ -17,44 +16,24 @@ import {
   FileCode,
   Layers,
   AlertTriangle,
-  Send,
   Sparkles,
-  RotateCcw,
   ShieldCheck,
+  ArrowUpRight,
 } from 'lucide-react';
 
 export const ScenarioBaselinePanel: React.FC = () => {
   const sourceAnalyses = useForgeState((state) => state.sourceAnalyses || {});
-  const draft = useForgeState((state) => state.draftBlueprint);
-  const draftRevision = useForgeState((state) => state.draftRevision);
-  const architectMessages = useForgeState((state) => state.architectMessages || []);
 
   const {
     setCandidateReviewDecision,
     editStagedCandidate,
     applyAcceptedCandidates,
-    acceptCandidate,
     removeSourceAnalysis,
-    submitUnknownAnswer,
-    receiveUnknownFollowUp,
-    receiveUnknownProposal,
-    acceptUnknownResolution,
-    editUnknownProposal,
-    leaveUnknownUncertain,
-    setUnknownError,
-    retryUnknown,
   } = forgeActions;
 
   const [expandedSources, setExpandedSources] = useState<Record<string, boolean>>({});
   const [editingCandidateId, setEditingCandidateId] = useState<string | null>(null);
   const [editingValueText, setEditingValueText] = useState<string>('');
-  
-  // Ambiguity resolution state
-  const [unknownAnswers, setUnknownAnswers] = useState<Record<string, string>>({});
-  const [isSubmittingUnknown, setIsSubmittingUnknown] = useState<Record<string, boolean>>({});
-  const [editingProposalId, setEditingProposalId] = useState<string | null>(null);
-  const [editedProposalResolution, setEditedProposalResolution] = useState<string>('');
-  const [editedProposalEffect, setEditedProposalEffect] = useState<string>('');
   const [applicationError, setApplicationError] = useState<{ sourceId: string; message: string } | null>(null);
 
   const rawEntries = Object.entries(sourceAnalyses);
@@ -111,7 +90,14 @@ export const ScenarioBaselinePanel: React.FC = () => {
   const handleApplyAllAccepted = (sourceId: string) => {
     setApplicationError(null);
     try {
-      applyAcceptedCandidates(sourceId);
+      const result = applyAcceptedCandidates(sourceId);
+      if (!result.success) {
+        const errorMessages = Object.values(result.errors).join('; ');
+        setApplicationError({
+          sourceId,
+          message: errorMessages || 'Failed to apply accepted candidates.',
+        });
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to apply accepted candidates.';
       setApplicationError({
@@ -121,91 +107,12 @@ export const ScenarioBaselinePanel: React.FC = () => {
     }
   };
 
-  const handleUnknownAnswerChange = (unknownId: string, value: string) => {
-    setUnknownAnswers((prev) => ({ ...prev, [unknownId]: value }));
-  };
-
-  const handleSubmitAnswer = async (sourceId: string, unknownId: string) => {
-    const answer = unknownAnswers[unknownId]?.trim();
-    if (!answer) return;
-
-    const analysis = sourceAnalyses[sourceId];
-    const unk = analysis?.unknowns?.find((u) => u.id === unknownId);
-    if (!unk) return;
-
-    submitUnknownAnswer(sourceId, unknownId, answer);
-    setUnknownAnswers((prev) => {
-      const next = { ...prev };
-      delete next[unknownId];
-      return next;
-    });
-
-    setIsSubmittingUnknown((prev) => ({ ...prev, [unknownId]: true }));
-
-    try {
-      const response = await fetch('/api/architect', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          kind: 'AMBIGUITY_RESOLUTION',
-          userMessage: answer,
-          activeUnknown: {
-            sourceId,
-            unknownId: unk.id,
-            category: unk.category,
-            question: unk.question,
-            targetEffect: unk.targetEffect,
-            submittedAnswer: answer,
-            followUps: unk.followUps || [],
-          },
-          draftContext: {
-            title: draft?.identity?.title || draft?.title || '',
-            premise: draft?.globalPremise || draft?.premise || '',
-            setting: draft?.setting || {},
-            cast: draft?.cast || [],
-            environmentalRules: draft?.environmentalRules || [],
-            draftRevision: draftRevision || 1,
-          },
-          history: (architectMessages || []).map((m) => ({ role: m.role, content: m.content })),
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Architect request failed with status ${response.status}`);
-      }
-
-      const resData = await response.json();
-      if (resData.type === 'FOLLOW_UP') {
-        receiveUnknownFollowUp(sourceId, unknownId, resData.followUpQuestion || resData.message);
-      } else if (resData.type === 'RESOLUTION_PROPOSAL' && resData.proposal) {
-        receiveUnknownProposal(sourceId, unknownId, resData.proposal);
-      } else {
-        receiveUnknownProposal(sourceId, unknownId, {
-          resolution: answer,
-          targetEffect: unk.targetEffect,
-        });
-      }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Architect resolution failed.';
-      setUnknownError(sourceId, unknownId, msg);
-    } finally {
-      setIsSubmittingUnknown((prev) => ({ ...prev, [unknownId]: false }));
+  const handleResolveInArchitect = () => {
+    const architectInput = document.getElementById('architect-input');
+    if (architectInput) {
+      architectInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      architectInput.focus();
     }
-  };
-
-  const startEditProposal = (unk: ForgeSourceUnknown) => {
-    setEditingProposalId(unk.id);
-    setEditedProposalResolution(unk.resolutionProposal?.resolution || '');
-    setEditedProposalEffect(unk.resolutionProposal?.targetEffect || unk.targetEffect || '');
-  };
-
-  const saveProposalEdit = (sourceId: string, unknownId: string) => {
-    if (!editedProposalResolution.trim()) return;
-    editUnknownProposal(sourceId, unknownId, {
-      resolution: editedProposalResolution.trim(),
-      targetEffect: editedProposalEffect.trim() || 'Customized creator resolution',
-    });
-    setEditingProposalId(null);
   };
 
   return (
@@ -385,7 +292,7 @@ export const ScenarioBaselinePanel: React.FC = () => {
                     </div>
                     <button
                       onClick={() => setApplicationError(null)}
-                      className="text-red-400 hover:text-red-200 text-[10px] uppercase font-bold"
+                      className="text-red-400 hover:text-red-200 text-[10px] uppercase font-bold cursor-pointer"
                     >
                       Dismiss
                     </button>
@@ -423,7 +330,6 @@ export const ScenarioBaselinePanel: React.FC = () => {
                       {analysis.candidates.map((cand) => {
                         const isEditing = editingCandidateId === cand.id;
                         const isApplied = cand.applicationState === 'applied';
-                        const isAccepted = cand.reviewDecision === 'accepted';
                         const isRejected = cand.reviewDecision === 'rejected';
 
                         // Find associated evidence claim
@@ -443,116 +349,132 @@ export const ScenarioBaselinePanel: React.FC = () => {
                                 : 'bg-zinc-900/30 border-zinc-800/90 text-zinc-200'
                             }`}
                           >
+                            {/* Candidate Header */}
                             <div className="flex items-start justify-between gap-3">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span
-                                  className={`text-[10px] px-1.5 py-0.5 rounded uppercase tracking-wider border font-bold ${
-                                    cand.classification === 'evidence'
-                                      ? 'bg-cyan-950/40 border-cyan-800/60 text-cyan-300'
-                                      : 'bg-indigo-950/40 border-indigo-800/60 text-indigo-300'
-                                  }`}
-                                >
-                                  {cand.classification}
-                                </span>
-                                <span className="font-bold text-zinc-100">{cand.label}</span>
-                                <span className="text-[10px] text-zinc-500 uppercase">
-                                  [{cand.target.replace(/_/g, ' ')}]
-                                </span>
-                              </div>
-
-                              {/* Candidate Decision & Application Controls */}
-                              <div className="flex items-center gap-1.5 shrink-0">
-                                {isApplied ? (
-                                  <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-950/40 border border-emerald-900/60 px-2 py-0.5 rounded uppercase tracking-wider">
-                                    <CheckCircle2 className="w-3 h-3" />
-                                    Applied to Draft
+                              <div className="space-y-1 flex-1 min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded uppercase font-bold bg-zinc-800 text-zinc-300 border border-zinc-700">
+                                    {cand.target}
                                   </span>
-                                ) : (
-                                  <>
-                                    {!isEditing && (
-                                      <button
-                                        onClick={() => startEditCandidate(cand)}
-                                        className="p-1 text-zinc-400 hover:text-zinc-200 border border-zinc-800 hover:border-zinc-700 bg-zinc-900 rounded cursor-pointer"
-                                        title="Edit candidate proposed value before applying"
-                                      >
-                                        <Edit2 className="w-3 h-3" />
-                                      </button>
-                                    )}
+                                  <span
+                                    className={`text-[10px] px-1.5 py-0.5 rounded uppercase font-bold border ${
+                                      cand.classification === 'evidence'
+                                        ? 'bg-blue-950/50 border-blue-800/60 text-blue-300'
+                                        : 'bg-purple-950/50 border-purple-800/60 text-purple-300'
+                                    }`}
+                                  >
+                                    {cand.classification}
+                                  </span>
 
-                                    {/* Reject / Accept Decision Toggles */}
-                                    <button
-                                      onClick={() =>
-                                        setCandidateReviewDecision(
-                                          analysis.id,
-                                          cand.id,
-                                          isRejected ? 'accepted' : 'rejected'
-                                        )
-                                      }
-                                      className={`px-2 py-1 text-[10px] rounded uppercase font-bold cursor-pointer transition-colors border ${
-                                        isRejected
-                                          ? 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:text-zinc-200'
-                                          : 'bg-zinc-900 border-zinc-800 text-zinc-500 hover:text-red-400 hover:border-red-900/60'
-                                      }`}
-                                    >
-                                      {isRejected ? 'Un-Reject' : 'Reject'}
-                                    </button>
-
-                                    {isAccepted && !isEditing && (
-                                      <button
-                                        onClick={() => acceptCandidate(analysis.id, cand.id)}
-                                        className="px-2.5 py-1 text-[10px] text-black bg-cyan-400 hover:bg-cyan-300 rounded uppercase font-bold cursor-pointer transition-colors flex items-center gap-1 shadow-sm"
-                                        title="Apply this single proposal to the Forge draft blueprint"
-                                      >
-                                        <Check className="w-3 h-3" />
-                                        Apply
-                                      </button>
-                                    )}
-                                  </>
+                                  {/* Review Status Badge */}
+                                  {cand.reviewDecision === 'accepted' && (
+                                    <span className="text-[10px] px-1.5 py-0.5 rounded uppercase font-bold bg-emerald-950/50 border border-emerald-800/60 text-emerald-300">
+                                      Accepted
+                                    </span>
+                                  )}
+                                  {cand.reviewDecision === 'rejected' && (
+                                    <span className="text-[10px] px-1.5 py-0.5 rounded uppercase font-bold bg-red-950/50 border border-red-800/60 text-red-300">
+                                      Rejected
+                                    </span>
+                                  )}
+                                  {cand.reviewDecision === 'pending' && (
+                                    <span className="text-[10px] px-1.5 py-0.5 rounded uppercase font-bold bg-amber-950/50 border border-amber-800/60 text-amber-300">
+                                      Pending Review
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="font-bold text-zinc-100">{cand.label}</div>
+                                {cand.explanation && (
+                                  <div className="text-[11px] text-zinc-400">
+                                    {cand.explanation}
+                                  </div>
                                 )}
                               </div>
+
+                              {/* Review Action Controls */}
+                              {!isApplied && (
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                  <button
+                                    onClick={() =>
+                                      setCandidateReviewDecision(
+                                        analysis.id,
+                                        cand.id,
+                                        cand.reviewDecision === 'accepted' ? 'pending' : 'accepted'
+                                      )
+                                    }
+                                    className={`px-2 py-1 text-[10px] font-bold uppercase rounded border transition-colors cursor-pointer ${
+                                      cand.reviewDecision === 'accepted'
+                                        ? 'bg-emerald-900/60 border-emerald-700 text-emerald-200'
+                                        : 'bg-zinc-900 border-zinc-700 text-zinc-400 hover:text-emerald-300 hover:border-emerald-800'
+                                    }`}
+                                  >
+                                    {cand.reviewDecision === 'accepted' ? '✓ Accepted' : 'Accept'}
+                                  </button>
+
+                                  <button
+                                    onClick={() =>
+                                      setCandidateReviewDecision(
+                                        analysis.id,
+                                        cand.id,
+                                        cand.reviewDecision === 'rejected' ? 'pending' : 'rejected'
+                                      )
+                                    }
+                                    className={`px-2 py-1 text-[10px] font-bold uppercase rounded border transition-colors cursor-pointer ${
+                                      cand.reviewDecision === 'rejected'
+                                        ? 'bg-red-900/60 border-red-700 text-red-200'
+                                        : 'bg-zinc-900 border-zinc-700 text-zinc-400 hover:text-red-300 hover:border-red-800'
+                                    }`}
+                                  >
+                                    {cand.reviewDecision === 'rejected' ? '✗ Rejected' : 'Reject'}
+                                  </button>
+
+                                  {!isEditing && (
+                                    <button
+                                      onClick={() => startEditCandidate(cand)}
+                                      className="p-1 text-zinc-400 hover:text-cyan-300 rounded hover:bg-zinc-800 transition-colors"
+                                      title="Edit proposed value"
+                                    >
+                                      <Edit2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
+                                </div>
+                              )}
                             </div>
 
-                            {/* Candidate Explanation */}
-                            {cand.explanation && (
-                              <p className="text-[11px] text-zinc-400 leading-relaxed">
-                                {cand.explanation}
-                              </p>
-                            )}
-
-                            {/* Inline Edit Form OR Value Preview */}
+                            {/* Proposed Value Display / Editor */}
                             {isEditing ? (
-                              <div className="space-y-2 pt-2 border-t border-zinc-800">
-                                <label className="text-[10px] uppercase font-bold text-cyan-400 block">
-                                  Edit Proposed Candidate Value:
-                                </label>
+                              <div className="space-y-2 pt-1">
                                 <textarea
                                   value={editingValueText}
                                   onChange={(e) => setEditingValueText(e.target.value)}
-                                  className="w-full bg-zinc-950 border border-cyan-500/60 p-2 text-xs font-mono text-zinc-200 rounded focus:outline-none min-h-[80px]"
+                                  className="w-full bg-zinc-950 border border-cyan-500/70 p-2 text-xs text-zinc-200 rounded font-mono focus:outline-none min-h-[60px]"
                                 />
                                 <div className="flex justify-end gap-2">
                                   <button
                                     onClick={() => setEditingCandidateId(null)}
-                                    className="px-2 py-1 text-[10px] uppercase text-zinc-400 hover:text-white rounded border border-zinc-800"
+                                    className="px-2.5 py-1 text-[10px] uppercase text-zinc-400 hover:text-white rounded border border-zinc-800"
                                   >
                                     Cancel
                                   </button>
                                   <button
                                     onClick={() => saveCandidateEdit(analysis.id, cand)}
-                                    className="px-2.5 py-1 text-[10px] uppercase font-bold bg-cyan-500 text-black rounded hover:bg-cyan-400"
+                                    className="px-3 py-1 text-[10px] uppercase font-bold bg-cyan-400 text-black rounded hover:bg-cyan-300"
                                   >
-                                    Save Value
+                                    Save
                                   </button>
                                 </div>
                               </div>
                             ) : (
-                              <div className="bg-black/80 rounded p-2.5 border border-zinc-900 text-zinc-300 text-[11px] overflow-x-auto max-h-36">
+                              <div className="bg-zinc-950/70 p-2.5 rounded border border-zinc-900 text-[11px] font-mono text-zinc-300 overflow-x-auto">
+                                <span className="text-zinc-500 block text-[9px] uppercase font-bold mb-1">
+                                  Proposed Payload:
+                                </span>
                                 {typeof cand.proposedValue === 'object' ? (
-                                  <pre className="whitespace-pre-wrap font-mono">
+                                  <pre className="text-[11px] text-cyan-200/90 whitespace-pre-wrap">
                                     {JSON.stringify(cand.proposedValue, null, 2)}
                                   </pre>
                                 ) : (
-                                  <span>{String(cand.proposedValue)}</span>
+                                  <div className="text-zinc-200">{String(cand.proposedValue)}</div>
                                 )}
                               </div>
                             )}
@@ -578,7 +500,7 @@ export const ScenarioBaselinePanel: React.FC = () => {
                       })}
                     </div>
 
-                    {/* UNKNOWNS / AMBIGUITY RESOLUTION WORKFLOW */}
+                    {/* UNKNOWNS / AMBIGUITY REVIEW LEDGER */}
                     {analysis.unknowns && analysis.unknowns.length > 0 && (
                       <div className="bg-zinc-950/80 border border-amber-900/40 rounded p-4 space-y-4 shadow-sm">
                         <div className="flex items-center justify-between border-b border-amber-900/30 pb-2.5">
@@ -587,26 +509,24 @@ export const ScenarioBaselinePanel: React.FC = () => {
                             <span>Identified Gaps & Ambiguities ({analysis.unknowns.length})</span>
                           </div>
                           <span className="text-[10px] font-mono text-zinc-500">
-                            Creator Clarification & Target Effect Calibration
+                            Compact Review Ledger · Conversational Ownership in Architect
                           </span>
                         </div>
 
-                        <div className="space-y-3.5">
+                        <div className="space-y-3">
                           {analysis.unknowns.map((unk) => {
                             const isQueued = unk.status === 'queued';
                             const isAwaitingResponse = unk.status === 'awaiting_response';
                             const isAwaitingConfirmation = unk.status === 'awaiting_confirmation';
                             const isResolved = unk.status === 'resolved';
                             const isDiscretion = unk.status === 'contextual_discretion';
-                            const isEditingProp = editingProposalId === unk.id;
-
-                            const answerInput = unknownAnswers[unk.id] ?? '';
+                            const isNonterminal = !isResolved && !isDiscretion;
 
                             return (
                               <div
                                 key={unk.id}
                                 id={`unknown-card-${unk.id}`}
-                                className={`p-3.5 rounded border font-mono text-xs space-y-3 transition-colors ${
+                                className={`p-3.5 rounded border font-mono text-xs space-y-2.5 transition-colors ${
                                   isResolved
                                     ? 'bg-emerald-950/15 border-emerald-900/40 text-zinc-300'
                                     : isDiscretion
@@ -616,14 +536,14 @@ export const ScenarioBaselinePanel: React.FC = () => {
                                     : 'bg-black/60 border-zinc-800 text-zinc-200'
                                 }`}
                               >
-                                {/* UNKNOWN HEADER */}
+                                {/* UNKNOWN HEADER & BADGES */}
                                 <div className="flex items-start justify-between gap-3">
                                   <div className="space-y-1 flex-1 min-w-0">
                                     <div className="flex items-center gap-2 flex-wrap">
                                       <span className="text-[10px] px-1.5 py-0.5 rounded uppercase font-bold bg-amber-950/50 border border-amber-800/60 text-amber-300">
                                         [{unk.category}]
                                       </span>
-                                      
+
                                       {/* Status Badge */}
                                       {isQueued && (
                                         <span className="text-[10px] px-1.5 py-0.5 rounded uppercase font-bold bg-amber-900/30 border border-amber-700/50 text-amber-200">
@@ -644,7 +564,7 @@ export const ScenarioBaselinePanel: React.FC = () => {
                                       {isResolved && (
                                         <span className="text-[10px] px-1.5 py-0.5 rounded uppercase font-bold bg-emerald-950/50 border border-emerald-800/60 text-emerald-300 flex items-center gap-1">
                                           <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                                          Resolved (Committed to Blueprint)
+                                          Resolved (Committed)
                                         </span>
                                       )}
                                       {isDiscretion && (
@@ -660,208 +580,64 @@ export const ScenarioBaselinePanel: React.FC = () => {
                                       {unk.question}
                                     </p>
                                   </div>
+
+                                  {/* Resolve in Architect button for nonterminal items */}
+                                  {isNonterminal && (
+                                    <button
+                                      onClick={handleResolveInArchitect}
+                                      className="px-2.5 py-1 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 rounded text-[10px] uppercase font-bold flex items-center gap-1 shrink-0 cursor-pointer transition-colors"
+                                      title="Open Architect conversation to clarify or resolve this ambiguity"
+                                    >
+                                      <span>Resolve in Architect</span>
+                                      <ArrowUpRight className="w-3 h-3" />
+                                    </button>
+                                  )}
                                 </div>
 
-                                {/* TARGET EFFECT EXPLANATION */}
+                                {/* TARGET EFFECT */}
                                 <div className="text-[11px] text-zinc-400 bg-zinc-950/70 p-2 rounded border border-zinc-900 flex items-start gap-1.5">
                                   <span className="text-amber-500/90 font-bold uppercase text-[10px] shrink-0">
-                                    Impact on Simulation:
+                                    Target Effect:
                                   </span>
                                   <span>{unk.targetEffect}</span>
                                 </div>
 
-                                {/* ERROR DISPLAY IF ANY */}
-                                {unk.lastError && (
-                                  <div className="p-2 bg-red-950/30 border border-red-900/50 rounded text-red-300 text-[11px] flex items-center justify-between gap-2">
-                                    <span>{unk.lastError}</span>
-                                    <button
-                                      onClick={() => retryUnknown(analysis.id, unk.id)}
-                                      className="px-2 py-0.5 bg-red-900/50 hover:bg-red-800 border border-red-700 text-red-100 rounded text-[10px] uppercase font-bold flex items-center gap-1 cursor-pointer"
-                                    >
-                                      <RotateCcw className="w-2.5 h-2.5" />
-                                      Retry
-                                    </button>
-                                  </div>
-                                )}
-
-                                {/* FOLLOW-UPS HISTORY */}
-                                {unk.followUps && unk.followUps.length > 0 && (
-                                  <div className="space-y-2 border-l-2 border-amber-800/40 pl-3 pt-1">
-                                    <span className="text-[10px] uppercase font-bold text-amber-400/80 block">
-                                      Clarification Dialogue:
-                                    </span>
-                                    {unk.followUps.map((fu, idx) => (
-                                      <div key={fu.id || idx} className="space-y-1 text-[11px]">
-                                        <div className="text-zinc-400">
-                                          <span className="font-bold text-zinc-500">Q: </span>
-                                          {fu.question}
-                                        </div>
-                                        {fu.answer && (
-                                          <div className="text-cyan-300">
-                                            <span className="font-bold text-cyan-500">A: </span>
-                                            {fu.answer}
-                                          </div>
-                                        )}
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
-
-                                {/* ACTIVE STATE: QUEUED / AWAITING RESPONSE */}
-                                {(isQueued || isAwaitingResponse) && (
-                                  <div className="space-y-2 pt-1">
-                                    <label className="text-[10px] uppercase font-bold text-zinc-400 block">
-                                      Creator Clarification / Directive:
-                                    </label>
-                                    <div className="flex gap-2">
-                                      <input
-                                        type="text"
-                                        value={answerInput}
-                                        disabled={!!isSubmittingUnknown[unk.id]}
-                                        onChange={(e) =>
-                                          handleUnknownAnswerChange(unk.id, e.target.value)
-                                        }
-                                        onKeyDown={(e) => {
-                                          if (e.key === 'Enter' && answerInput.trim() && !isSubmittingUnknown[unk.id]) {
-                                            handleSubmitAnswer(analysis.id, unk.id);
-                                          }
-                                        }}
-                                        placeholder="e.g. The entity's origin is extraterrestrial, strictly reacting to sound..."
-                                        className="flex-1 bg-zinc-950 border border-zinc-800 focus:border-amber-500/70 p-2 text-xs text-zinc-200 rounded focus:outline-none font-mono disabled:opacity-50"
-                                      />
-                                      <button
-                                        onClick={() => handleSubmitAnswer(analysis.id, unk.id)}
-                                        disabled={!answerInput.trim() || !!isSubmittingUnknown[unk.id]}
-                                        className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 disabled:opacity-40 disabled:hover:bg-amber-500 text-black text-[10px] uppercase font-bold rounded flex items-center gap-1 cursor-pointer transition-colors shrink-0"
-                                      >
-                                        <Send className="w-3 h-3" />
-                                        {isSubmittingUnknown[unk.id] ? 'Consulting...' : 'Clarify'}
-                                      </button>
-                                    </div>
-
-                                    <div className="flex justify-between items-center pt-1">
-                                      <span className="text-[10px] text-zinc-500">
-                                        Prefer to let the engine decide organically during runtime?
-                                      </span>
-                                      <button
-                                        onClick={() =>
-                                          leaveUnknownUncertain(
-                                            analysis.id,
-                                            unk.id,
-                                            'Creator delegated to engine contextual discretion'
-                                          )
-                                        }
-                                        className="text-[10px] text-zinc-400 hover:text-indigo-300 hover:underline uppercase font-bold cursor-pointer"
-                                      >
-                                        Leave Uncertain (Contextual Discretion) →
-                                      </button>
-                                    </div>
-                                  </div>
-                                )}
-
-                                {/* RESOLUTION PROPOSAL STAGE */}
-                                {isAwaitingConfirmation && unk.resolutionProposal && (
-                                  <div className="space-y-2.5 pt-1">
-                                    <div className="p-3 bg-purple-950/30 border border-purple-800/40 rounded space-y-2">
-                                      <div className="flex items-center justify-between">
-                                        <span className="text-[10px] uppercase font-bold text-purple-300">
-                                          Synthesized Resolution Proposal:
-                                        </span>
-                                        {!isEditingProp && (
-                                          <button
-                                            onClick={() => startEditProposal(unk)}
-                                            className="text-[10px] text-purple-300 hover:text-purple-100 flex items-center gap-1"
-                                          >
-                                            <Edit2 className="w-2.5 h-2.5" />
-                                            Edit Proposal
-                                          </button>
-                                        )}
-                                      </div>
-
-                                      {isEditingProp ? (
-                                        <div className="space-y-2 pt-1">
-                                          <div>
-                                            <label className="text-[9px] uppercase font-bold text-zinc-400 block mb-1">
-                                              Resolution Text:
-                                            </label>
-                                            <textarea
-                                              value={editedProposalResolution}
-                                              onChange={(e) =>
-                                                setEditedProposalResolution(e.target.value)
-                                              }
-                                              className="w-full bg-zinc-950 border border-purple-500/70 p-2 text-xs text-zinc-200 rounded focus:outline-none min-h-[60px]"
-                                            />
-                                          </div>
-                                          <div className="flex justify-end gap-2">
-                                            <button
-                                              onClick={() => setEditingProposalId(null)}
-                                              className="px-2 py-1 text-[10px] uppercase text-zinc-400 hover:text-white rounded border border-zinc-800"
-                                            >
-                                              Cancel
-                                            </button>
-                                            <button
-                                              onClick={() => saveProposalEdit(analysis.id, unk.id)}
-                                              className="px-2.5 py-1 text-[10px] uppercase font-bold bg-purple-500 text-black rounded hover:bg-purple-400"
-                                            >
-                                              Save Proposal
-                                            </button>
-                                          </div>
-                                        </div>
-                                      ) : (
-                                        <div className="text-zinc-200 text-xs leading-relaxed">
-                                          {unk.resolutionProposal.resolution}
-                                        </div>
-                                      )}
-                                    </div>
-
-                                    {/* Action Buttons for Resolution */}
-                                    <div className="flex items-center justify-between gap-2 pt-1">
-                                      <button
-                                        onClick={() =>
-                                          leaveUnknownUncertain(
-                                            analysis.id,
-                                            unk.id,
-                                            'Creator chose runtime contextual discretion'
-                                          )
-                                        }
-                                        className="text-[10px] text-zinc-500 hover:text-zinc-300 uppercase font-bold"
-                                      >
-                                        Leave Uncertain
-                                      </button>
-
-                                      <button
-                                        onClick={() =>
-                                          acceptUnknownResolution(analysis.id, unk.id)
-                                        }
-                                        className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-black text-[10px] uppercase font-bold rounded flex items-center gap-1 cursor-pointer transition-colors shadow-sm"
-                                      >
-                                        <Check className="w-3 h-3" />
-                                        Commit Resolution to Blueprint
-                                      </button>
-                                    </div>
-                                  </div>
-                                )}
-
-                                {/* RESOLVED STATE SUMMARY */}
+                                {/* COMPACT SUMMARY OF SUBMITTED ANSWER OR ACCEPTED RESOLUTION */}
                                 {isResolved && (
-                                  <div className="text-[11px] text-emerald-300/90 bg-emerald-950/30 border border-emerald-900/50 p-2.5 rounded leading-relaxed">
+                                  <div className="text-[11px] text-emerald-300/90 bg-emerald-950/30 border border-emerald-900/50 p-2 rounded leading-relaxed">
                                     <span className="font-bold text-emerald-400 block text-[10px] uppercase mb-0.5">
                                       Committed Resolution:
                                     </span>
                                     {unk.resolutionProposal?.resolution ||
                                       unk.submittedAnswer ||
-                                      'Integrated into Blueprint ambiguity ledger.'}
+                                      'Committed to Blueprint draft.'}
                                   </div>
                                 )}
 
-                                {/* DISCRETION STATE SUMMARY */}
                                 {isDiscretion && (
-                                  <div className="text-[11px] text-indigo-300/90 bg-indigo-950/30 border border-indigo-900/50 p-2.5 rounded leading-relaxed">
+                                  <div className="text-[11px] text-indigo-300/90 bg-indigo-950/30 border border-indigo-900/50 p-2 rounded leading-relaxed">
                                     <span className="font-bold text-indigo-400 block text-[10px] uppercase mb-0.5">
-                                      Engine Runtime Rule:
+                                      Discretion Policy:
                                     </span>
-                                    This gap will be resolved dynamically at simulation runtime
-                                    under narrative and environmental contextual discretion.
+                                    Delegated to engine narrative and environmental discretion during simulation runtime.
+                                  </div>
+                                )}
+
+                                {isAwaitingConfirmation && unk.resolutionProposal && (
+                                  <div className="text-[11px] text-purple-300/90 bg-purple-950/20 border border-purple-900/40 p-2 rounded leading-relaxed">
+                                    <span className="font-bold text-purple-400 block text-[10px] uppercase mb-0.5">
+                                      Proposed Resolution:
+                                    </span>
+                                    {unk.resolutionProposal.resolution}
+                                  </div>
+                                )}
+
+                                {!isResolved && !isDiscretion && !isAwaitingConfirmation && unk.submittedAnswer && (
+                                  <div className="text-[11px] text-cyan-300/90 bg-cyan-950/20 border border-cyan-900/40 p-2 rounded leading-relaxed">
+                                    <span className="font-bold text-cyan-400 block text-[10px] uppercase mb-0.5">
+                                      Submitted Clarification:
+                                    </span>
+                                    {unk.submittedAnswer}
                                   </div>
                                 )}
                               </div>

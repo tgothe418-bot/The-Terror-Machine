@@ -298,7 +298,6 @@ export interface ForgeActions {
 
   // Deprecated compatibility aliases for candidates
   editPendingCandidate: (sourceId: string, candidateId: string, editedValue: unknown) => void;
-  acceptCandidate: (sourceId: string, candidateId: string) => void;
   rejectCandidate: (sourceId: string, candidateId: string) => void;
 
   // --- AMBIGUITY RESOLUTION ACTIONS ---
@@ -875,50 +874,6 @@ export const useForgeStoreInternal = create<ForgeStore>()(
           const { editStagedCandidate } = useForgeStoreInternal.getState().actions;
           editStagedCandidate(sourceId, candidateId, editedValue);
         },
-
-        acceptCandidate: (sourceId: string, candidateId: string) =>
-          set((state: ForgeState) => {
-            const analysis = state.sourceAnalyses[sourceId];
-            if (!analysis) return state;
-            const cand = analysis.candidates.find((c) => c.id === candidateId);
-            if (!cand || cand.applicationState === 'applied') return state;
-
-            const currentDraft = state.forgeDraft || createInitialDraft();
-            const applyResult = applyCandidateToDraft(
-              currentDraft,
-              cand,
-              analysis.sourceRecord.fileName
-            );
-
-            if (applyResult.success === false) {
-              console.warn(`[FORGE BASELINE] Candidate application failed: ${applyResult.error}`);
-              return state;
-            }
-
-            const updatedDraft = applyResult.draft;
-            const updatedCandidates = analysis.candidates.map((c) =>
-              c.id === candidateId
-                ? { ...c, reviewDecision: 'accepted' as const, applicationState: 'applied' as const }
-                : c
-            );
-
-            const updatedAnalysis = {
-              ...analysis,
-              candidates: updatedCandidates,
-            };
-
-            return {
-              forgeDraft: updatedDraft,
-              draftBlueprint: updatedDraft,
-              draftRevision: (state.draftRevision || 0) + 1,
-              castLedger: deriveCastLedger(updatedDraft),
-              topology: deriveTopology(updatedDraft),
-              sourceAnalyses: {
-                ...state.sourceAnalyses,
-                [analysis.id]: updatedAnalysis,
-              },
-            };
-          }),
 
         rejectCandidate: (sourceId: string, candidateId: string) =>
           set((state: ForgeState) => {

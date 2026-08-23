@@ -383,8 +383,9 @@ describe('useForgeStore - draft state and actions', () => {
     expect(state.forgeDraft).toEqual(draftBefore);
   });
 
-  test('12. acceptCandidate is the only path updating forgeDraft, recording provenance once', () => {
+  test('12. applyAcceptedCandidates is the canonical path updating forgeDraft atomically with provenance', () => {
     forgeActions.initializeDraft({ title: 'Initial Title' });
+    const initialRevision = getForgeState().draftRevision || 0;
 
     const mockAnalysis = {
       id: 'analysis-2',
@@ -417,14 +418,16 @@ describe('useForgeStore - draft state and actions', () => {
     forgeActions.registerSourceAnalysis(mockAnalysis);
     expect(getForgeState().forgeDraft?.setting?.location).toBe('');
 
-    // Explicit accept
-    forgeActions.acceptCandidate('analysis-2', 'cand-setting');
+    // Atomic apply of accepted candidates
+    const result = forgeActions.applyAcceptedCandidates('analysis-2');
+    expect(result.success).toBe(true);
 
-    const stateAfterAccept = getForgeState();
-    expect(stateAfterAccept.forgeDraft?.setting?.location).toBe('The Sunken Crypt');
-    expect(stateAfterAccept.forgeDraft?.references).toContain('story_notes.pdf');
-    expect(stateAfterAccept.sourceAnalyses['analysis-2'].candidates[0].reviewDecision).toBe('accepted');
-    expect(stateAfterAccept.sourceAnalyses['analysis-2'].candidates[0].applicationState).toBe('applied');
+    const stateAfterApply = getForgeState();
+    expect(stateAfterApply.forgeDraft?.setting?.location).toBe('The Sunken Crypt');
+    expect(stateAfterApply.forgeDraft?.references).toContain('story_notes.pdf');
+    expect(stateAfterApply.draftRevision).toBe(initialRevision + 1);
+    expect(stateAfterApply.sourceAnalyses['analysis-2'].candidates[0].reviewDecision).toBe('accepted');
+    expect(stateAfterApply.sourceAnalyses['analysis-2'].candidates[0].applicationState).toBe('applied');
 
     // Removing analysis does NOT roll back accepted draft content
     forgeActions.removeSourceAnalysis('analysis-2');
@@ -432,6 +435,225 @@ describe('useForgeStore - draft state and actions', () => {
     expect(stateAfterRemove.sourceAnalyses['analysis-2']).toBeUndefined();
     expect(stateAfterRemove.forgeDraft?.setting?.location).toBe('The Sunken Crypt');
     expect(stateAfterRemove.forgeDraft?.references).toContain('story_notes.pdf');
+  });
+
+  test('12b. A batch containing valid candidates plus one invalid candidate performs no mutations (atomic rollback)', () => {
+    forgeActions.initializeDraft({ title: 'Initial Title' });
+    const baselineDraft = JSON.parse(JSON.stringify(getForgeState().forgeDraft));
+    const initialRevision = getForgeState().draftRevision || 0;
+
+    const mockAnalysis = {
+      id: 'analysis-batch-fail',
+      sourceRecord: {
+        id: 'src-fail',
+        fileName: 'batch_test.pdf',
+        mimeType: 'application/pdf',
+        kind: 'document' as const,
+        receivedAt: Date.now(),
+      },
+      evidence: [],
+      candidates: [
+        {
+          id: 'cand-valid-loc',
+          sourceId: 'src-fail',
+          classification: 'evidence' as const,
+          target: 'setting_location' as const,
+          label: 'Location',
+          explanation: 'Extracted setting',
+          evidenceIds: [],
+          proposedValue: 'Valid Trench Location',
+          reviewDecision: 'accepted' as const,
+          applicationState: 'staged' as const,
+        },
+        {
+          id: 'cand-invalid-expr',
+          sourceId: 'src-fail',
+          classification: 'evidence' as const,
+          target: 'cast_expression_guidance' as const,
+          targetCastMemberId: 'non-existent-cast-member-id',
+          label: 'Cast Expression Guidance',
+          explanation: 'Guidance for missing cast member',
+          evidenceIds: [],
+          proposedValue: {
+            communicationModes: ['spoken' as const],
+            expressionGuidance: 'Radio chatter',
+          },
+          reviewDecision: 'accepted' as const,
+          applicationState: 'staged' as const,
+        },
+      ],
+      unknowns: [],
+      status: 'completed' as const,
+    };
+
+    forgeActions.registerSourceAnalysis(mockAnalysis);
+
+    // Apply batch with invalid candidate
+    const result = forgeActions.applyAcceptedCandidates('analysis-batch-fail');
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.errors['cand-invalid-expr']).toBeDefined();
+      expect(result.errors['cand-invalid-expr']).toContain('not found in active draft');
+    }
+
+    const stateAfterFail = getForgeState();
+    // 1. draftBlueprint / forgeDraft unchanged
+    expect(stateAfterFail.forgeDraft).toEqual(baselineDraft);
+    expect(stateAfterFail.draftBlueprint).toEqual(baselineDraft);
+    expect(stateAfterFail.forgeDraft?.setting?.location).toBe('');
+    // 2. draftRevision unchanged
+    expect(stateAfterFail.draftRevision).toBe(initialRevision);
+    // 3. candidate applicationState values unchanged (still staged)
+    const analysisAfter = stateAfterFail.sourceAnalyses['analysis-batch-fail'];
+    expect(analysisAfter.candidates[0].applicationState).toBe('staged');
+    expect(analysisAfter.candidates[1].applicationState).toBe('staged');
+    // 4. candidate provenance or applied-source ledgers unchanged
+    expect(stateAfterFail.forgeDraft?.references).not.toContain('batch_test.pdf');
+  });
+
+  test('12c. A successful batch applies every accepted staged candidate exactly once and advances draftRevision once', () => {
+    forgeActions.initializeDraft({ title: 'Initial Title' });
+    const initialRevision = getForgeState().draftRevision || 0;
+
+    const mockAnalysis = {
+      id: 'analysis-batch-success',
+      sourceRecord: {
+        id: 'src-success',
+        fileName: 'batch_success.json',
+        mimeType: 'application/json',
+        kind: 'native_blueprint' as const,
+        receivedAt: Date.now(),
+      },
+      evidence: [],
+      candidates: [
+        {
+          id: 'cand-1-loc',
+          sourceId: 'src-success',
+          classification: 'evidence' as const,
+          target: 'setting_location' as const,
+          label: 'Location',
+          explanation: 'Extracted setting',
+          evidenceIds: [],
+          proposedValue: 'Deep Ocean Rig',
+          reviewDecision: 'accepted' as const,
+          applicationState: 'staged' as const,
+        },
+        {
+          id: 'cand-2-atmos',
+          sourceId: 'src-success',
+          classification: 'evidence' as const,
+          target: 'setting_atmosphere' as const,
+          label: 'Atmosphere',
+          explanation: 'Extracted atmosphere',
+          evidenceIds: [],
+          proposedValue: 'Humid, metallic scent',
+          reviewDecision: 'accepted' as const,
+          applicationState: 'staged' as const,
+        },
+        {
+          id: 'cand-3-cast',
+          sourceId: 'src-success',
+          classification: 'evidence' as const,
+          target: 'cast_seed' as const,
+          label: 'Cast Member',
+          explanation: 'Extracted cast',
+          evidenceIds: [],
+          proposedValue: {
+            id: 'char-batch-1',
+            name: 'Engineer Hayes',
+            role: 'PROTAGONIST',
+            description: 'Lead Technician',
+            isEntity: false,
+          },
+          reviewDecision: 'accepted' as const,
+          applicationState: 'staged' as const,
+        },
+      ],
+      unknowns: [],
+      status: 'completed' as const,
+    };
+
+    forgeActions.registerSourceAnalysis(mockAnalysis);
+
+    const result = forgeActions.applyAcceptedCandidates('analysis-batch-success');
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.appliedCandidateIds).toEqual(['cand-3-cast', 'cand-1-loc', 'cand-2-atmos']);
+    }
+
+    const state = getForgeState();
+    expect(state.draftRevision).toBe(initialRevision + 1);
+    expect(state.forgeDraft?.setting?.location).toBe('Deep Ocean Rig');
+    expect(state.forgeDraft?.setting?.atmosphere).toBe('Humid, metallic scent');
+    expect(state.forgeDraft?.cast?.find((c) => c.id === 'char-batch-1')).toBeDefined();
+    expect(state.sourceAnalyses['analysis-batch-success'].candidates.every((c) => c.applicationState === 'applied')).toBe(true);
+  });
+
+  test('12d. Rejected candidates remain staged ledger entries and are not applied during applyAcceptedCandidates', () => {
+    forgeActions.initializeDraft({ title: 'Initial Title' });
+    const initialRevision = getForgeState().draftRevision || 0;
+
+    const mockAnalysis = {
+      id: 'analysis-reject-test',
+      sourceRecord: {
+        id: 'src-rej',
+        fileName: 'reject_notes.txt',
+        mimeType: 'text/plain',
+        kind: 'document' as const,
+        receivedAt: Date.now(),
+      },
+      evidence: [],
+      candidates: [
+        {
+          id: 'cand-keep',
+          sourceId: 'src-rej',
+          classification: 'evidence' as const,
+          target: 'setting_location' as const,
+          label: 'Location',
+          explanation: 'Extracted location',
+          evidenceIds: [],
+          proposedValue: 'Kept Location',
+          reviewDecision: 'accepted' as const,
+          applicationState: 'staged' as const,
+        },
+        {
+          id: 'cand-rejected',
+          sourceId: 'src-rej',
+          classification: 'evidence' as const,
+          target: 'setting_atmosphere' as const,
+          label: 'Atmosphere',
+          explanation: 'Extracted atmosphere',
+          evidenceIds: [],
+          proposedValue: 'Unwanted Atmosphere',
+          reviewDecision: 'rejected' as const,
+          applicationState: 'staged' as const,
+        },
+      ],
+      unknowns: [],
+      status: 'completed' as const,
+    };
+
+    forgeActions.registerSourceAnalysis(mockAnalysis);
+
+    const result = forgeActions.applyAcceptedCandidates('analysis-reject-test');
+    expect(result.success).toBe(true);
+
+    const state = getForgeState();
+    expect(state.draftRevision).toBe(initialRevision + 1);
+    expect(state.forgeDraft?.setting?.location).toBe('Kept Location');
+    // Rejected candidate was NOT applied
+    expect(state.forgeDraft?.setting?.atmosphere).toBe('');
+
+    const analysis = state.sourceAnalyses['analysis-reject-test'];
+    const keptCand = analysis.candidates.find((c) => c.id === 'cand-keep')!;
+    const rejectedCand = analysis.candidates.find((c) => c.id === 'cand-rejected')!;
+
+    expect(keptCand.reviewDecision).toBe('accepted');
+    expect(keptCand.applicationState).toBe('applied');
+
+    // Rejected candidate remains staged ledger entry
+    expect(rejectedCand.reviewDecision).toBe('rejected');
+    expect(rejectedCand.applicationState).toBe('staged');
   });
 
   test('13. rejectCandidate and editPendingCandidate do not mutate forgeDraft', () => {

@@ -75,7 +75,11 @@ describe('Runtime component terminal retake behavior', () => {
     useAppStore.getState().resetSession();
     useEngineStore.getState().resetEngine();
 
+    const normalized = normalizeBlueprint(mockBlueprint);
+
     useAppStore.setState({
+      sessionId: 'sess-retake-test',
+      blueprintId: normalized.id,
       phase: 'ENGINE',
       spatialGraph: [{ id: 'ORIGIN', name: 'Origin Chamber', description: '', exits: [] }],
       currentNodeId: 'ORIGIN',
@@ -90,7 +94,8 @@ describe('Runtime component terminal retake behavior', () => {
     });
 
     useEngineStore.setState({
-      activeBlueprint: normalizeBlueprint(mockBlueprint),
+      activeSessionId: 'sess-retake-test',
+      activeBlueprint: normalized,
       gameState: {
         current_location: 'Origin Chamber',
         player_injuries: [],

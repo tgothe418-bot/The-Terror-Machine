@@ -305,10 +305,10 @@ export const useAppStore = create<AppStore>()(
           checkpoint.version === 1 &&
           checkpoint.engineStateBefore &&
           typeof checkpoint.engineStateBefore === 'object' &&
-          Boolean(checkpoint.engineStateBefore.sessionId) &&
-          checkpoint.engineStateBefore.sessionId === currentEngineState.sessionId &&
-          Boolean(checkpoint.engineStateBefore.blueprintId) &&
-          checkpoint.engineStateBefore.blueprintId === currentEngineState.blueprintId;
+          (checkpoint.engineStateBefore.sessionId === undefined ||
+            checkpoint.engineStateBefore.sessionId === currentEngineState.sessionId) &&
+          (checkpoint.engineStateBefore.blueprintId === undefined ||
+            checkpoint.engineStateBefore.blueprintId === currentEngineState.blueprintId);
 
         if (!isCompatible) {
           // Clear invalid cross-session checkpoint deterministically
