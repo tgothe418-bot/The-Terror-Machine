@@ -387,7 +387,8 @@ router.post("/extract-blueprint", async (req, res) => {
           {
             "id": "unk-1",
             "category": "one of: identity, premise, setting, cast, chronology, motif, rule, topology, expression, other",
-            "question": "Important gap or ambiguity in the source material requiring creator decision"
+            "question": "Important gap or ambiguity in the source material requiring creator decision",
+            "targetEffect": "Brief statement of why resolving this matters to the simulation or runtime behavior"
           }
         ]
       }

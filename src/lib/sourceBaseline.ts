@@ -76,6 +76,9 @@ export function buildSourceAnalysisFromBlueprint(
           sourceId,
           category: 'identity',
           question: 'Unable to parse valid blueprint schema from source.',
+          status: 'queued',
+          targetEffect: 'Clarifies core scenario blueprint structure.',
+          followUps: [],
         },
       ],
       status: 'error',
@@ -103,7 +106,8 @@ export function buildSourceAnalysisFromBlueprint(
       explanation: 'Extracted from native blueprint identity title.',
       evidenceIds: [evId],
       proposedValue: title,
-      reviewState: 'pending',
+      reviewDecision: 'accepted',
+      applicationState: 'staged',
     });
   } else {
     unknowns.push({
@@ -111,6 +115,9 @@ export function buildSourceAnalysisFromBlueprint(
       sourceId,
       category: 'identity',
       question: 'Scenario title is unspecified or placeholder.',
+      status: 'queued',
+      targetEffect: 'Clarifies official scenario display title.',
+      followUps: [],
     });
   }
 
@@ -134,7 +141,8 @@ export function buildSourceAnalysisFromBlueprint(
       explanation: 'Extracted from native blueprint premise.',
       evidenceIds: [evId],
       proposedValue: premise,
-      reviewState: 'pending',
+      reviewDecision: 'accepted',
+      applicationState: 'staged',
     });
   } else {
     unknowns.push({
@@ -142,6 +150,9 @@ export function buildSourceAnalysisFromBlueprint(
       sourceId,
       category: 'premise',
       question: 'Scenario premise is unspecified.',
+      status: 'queued',
+      targetEffect: 'Clarifies high-level narrative background and world state.',
+      followUps: [],
     });
   }
 
@@ -165,7 +176,8 @@ export function buildSourceAnalysisFromBlueprint(
       explanation: 'Extracted from native blueprint setting location.',
       evidenceIds: [evId],
       proposedValue: location,
-      reviewState: 'pending',
+      reviewDecision: 'accepted',
+      applicationState: 'staged',
     });
   } else {
     unknowns.push({
@@ -173,6 +185,9 @@ export function buildSourceAnalysisFromBlueprint(
       sourceId,
       category: 'setting',
       question: 'Setting location is unspecified.',
+      status: 'queued',
+      targetEffect: 'Clarifies primary physical location of scenario.',
+      followUps: [],
     });
   }
 
@@ -195,7 +210,8 @@ export function buildSourceAnalysisFromBlueprint(
       explanation: 'Extracted from native blueprint setting atmosphere.',
       evidenceIds: [evId],
       proposedValue: atmosphere,
-      reviewState: 'pending',
+      reviewDecision: 'accepted',
+      applicationState: 'staged',
     });
   }
 
@@ -218,7 +234,8 @@ export function buildSourceAnalysisFromBlueprint(
       explanation: 'Extracted from native blueprint setting time period.',
       evidenceIds: [evId],
       proposedValue: timePeriod,
-      reviewState: 'pending',
+      reviewDecision: 'accepted',
+      applicationState: 'staged',
     });
   }
 
@@ -248,7 +265,8 @@ export function buildSourceAnalysisFromBlueprint(
       explanation: 'Extracted from native blueprint environmental rules.',
       evidenceIds: [evId],
       proposedValue: rule,
-      reviewState: 'pending',
+      reviewDecision: 'accepted',
+      applicationState: 'staged',
     });
   });
 
@@ -294,7 +312,8 @@ export function buildSourceAnalysisFromBlueprint(
       explanation: `Extracted cast seed with role "${member.role || 'Subject'}".`,
       evidenceIds: [evId],
       proposedValue: castSeed,
-      reviewState: 'pending',
+      reviewDecision: 'accepted',
+      applicationState: 'staged',
     });
 
     // If member has expression profile, create a dedicated expression candidate
@@ -318,7 +337,8 @@ export function buildSourceAnalysisFromBlueprint(
         evidenceIds: [exprEvId],
         proposedValue: member.expressionProfile,
         targetCastMemberId: charId,
-        reviewState: 'pending',
+        reviewDecision: 'accepted',
+        applicationState: 'staged',
       });
     }
   });
@@ -345,7 +365,8 @@ export function buildSourceAnalysisFromBlueprint(
       explanation: 'Extracted from native blueprint topology nodes.',
       evidenceIds: [evId],
       proposedValue: cleanNode,
-      reviewState: 'pending',
+      reviewDecision: 'accepted',
+      applicationState: 'staged',
     });
   });
 
@@ -368,7 +389,8 @@ export function buildSourceAnalysisFromBlueprint(
       explanation: 'Record source document filename as explicit scenario reference.',
       evidenceIds: [evId],
       proposedValue: sourceRecord.fileName,
-      reviewState: 'pending',
+      reviewDecision: 'accepted',
+      applicationState: 'staged',
     });
   }
 
@@ -468,7 +490,8 @@ export function validateAndNormalizeDocumentAnalysis(
           typeof item.targetCastMemberId === 'string' && item.targetCastMemberId.trim()
             ? item.targetCastMemberId.trim()
             : undefined,
-        reviewState: 'pending' as const,
+        reviewDecision: 'accepted' as const,
+        applicationState: 'staged' as const,
       };
 
       const parseRes = ForgeSourceCandidateSchema.safeParse(rawCandidate);
@@ -484,11 +507,18 @@ export function validateAndNormalizeDocumentAnalysis(
     rawObj.unknowns.forEach((u: unknown, idx: number) => {
       if (!u || typeof u !== 'object' || Array.isArray(u)) return;
       const item = u as Record<string, unknown>;
+      const category = item.category;
       const rawUnknown = {
         id: typeof item.id === 'string' && item.id.trim() ? item.id.trim() : `${sourceId}-unk-${idx}`,
         sourceId,
-        category: item.category,
+        category,
         question: typeof item.question === 'string' && item.question.trim() ? item.question.trim() : '',
+        status: 'queued' as const,
+        targetEffect:
+          typeof item.targetEffect === 'string' && item.targetEffect.trim()
+            ? item.targetEffect.trim()
+            : `Clarifies ${category || 'scenario'} baseline parameters for execution.`,
+        followUps: [],
       };
       const parseRes = ForgeSourceUnknownSchema.safeParse(rawUnknown);
       if (parseRes.success) {
@@ -727,8 +757,30 @@ export function applyCandidateToDraft(
 }
 
 /**
+ * Gets the execution priority for a candidate target.
+ * cast_seed (1) runs before regular fields (2), which run before cast_expression_guidance (3).
+ */
+export function getCandidateApplicationPriority(target: ForgeSourceCandidate['target']): number {
+  if (target === 'cast_seed') return 1;
+  if (target === 'cast_expression_guidance') return 3;
+  return 2;
+}
+
+/**
+ * Deterministically sorts candidates for batch application:
+ * cast_seed runs before cast_expression_guidance, preserving extraction order for equal priority.
+ */
+export function sortCandidatesForApplication(candidates: ForgeSourceCandidate[]): ForgeSourceCandidate[] {
+  return [...candidates].sort((a, b) => {
+    const pA = getCandidateApplicationPriority(a.target);
+    const pB = getCandidateApplicationPriority(b.target);
+    return pA - pB;
+  });
+}
+
+/**
  * Validates an edited proposal value for a candidate before applying.
- * Keeps proposedValue schema-compliant while preserving candidate classification and evidence links.
+ * Keeps proposedValue schema-compliant while preserving candidate classification, reviewDecision, and evidence links.
  */
 export function validateCandidateEdit(
   candidate: ForgeSourceCandidate,
@@ -741,7 +793,8 @@ export function validateCandidateEdit(
   const rawCandidateCandidate = {
     ...candidate,
     proposedValue: editedValue,
-    reviewState: 'pending',
+    reviewDecision: candidate.reviewDecision,
+    applicationState: 'staged' as const,
   };
 
   const parseResult = ForgeSourceCandidateSchema.safeParse(rawCandidateCandidate);
@@ -759,11 +812,25 @@ export function validateCandidateEdit(
 }
 
 /**
- * Returns a candidate with reviewState set to 'rejected'.
+ * Returns a candidate with reviewDecision set to 'rejected'.
  */
 export function rejectCandidate(candidate: ForgeSourceCandidate): ForgeSourceCandidate {
   return {
     ...candidate,
-    reviewState: 'rejected',
+    reviewDecision: 'rejected',
   };
 }
+
+/**
+ * Purely sets the reviewDecision of a candidate.
+ */
+export function setCandidateReviewDecisionPure(
+  candidate: ForgeSourceCandidate,
+  decision: 'accepted' | 'rejected'
+): ForgeSourceCandidate {
+  return {
+    ...candidate,
+    reviewDecision: decision,
+  };
+}
+

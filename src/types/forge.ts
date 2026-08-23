@@ -1,6 +1,10 @@
 import { z } from 'zod';
 import { EdgeKindSchema } from './engineContract';
 import { HauntedHouseProvenanceSchema } from './participation';
+import {
+  BlueprintAmbiguityDecisionsSchema,
+} from './blueprintAuthoring';
+export * from './blueprintAuthoring';
 
 // ============================================================================
 // Phase 3E Character Expression Profile (Passive Data Seam)
@@ -146,6 +150,7 @@ export const ForgeDraftSchema = z.object({
   terminalConditions: z.unknown().optional(),
   characters: z.array(z.unknown()).optional().default([]),
   hauntedHouse: HauntedHouseProvenanceSchema.optional(),
+  ambiguities: BlueprintAmbiguityDecisionsSchema.optional().default([]),
 });
 
 export type ForgeDraft = z.input<typeof ForgeDraftSchema>;
@@ -241,6 +246,15 @@ export const ForgeSourceCandidateTargetSchema = z.enum([
 ]);
 export type ForgeSourceCandidateTarget = z.infer<typeof ForgeSourceCandidateTargetSchema>;
 
+export const ForgeCandidateReviewDecisionSchema = z.enum(['accepted', 'rejected']);
+export type ForgeCandidateReviewDecision = z.infer<typeof ForgeCandidateReviewDecisionSchema>;
+
+export const ForgeCandidateApplicationStateSchema = z.enum(['staged', 'applied']);
+export type ForgeCandidateApplicationState = z.infer<typeof ForgeCandidateApplicationStateSchema>;
+
+/**
+ * @deprecated Legacy review state schema for migration compatibility.
+ */
 export const ForgeSourceCandidateReviewStateSchema = z.enum(['pending', 'accepted', 'rejected']);
 export type ForgeSourceCandidateReviewState = z.infer<typeof ForgeSourceCandidateReviewStateSchema>;
 
@@ -252,7 +266,8 @@ const BaseCandidateProps = {
   explanation: z.string().min(1),
   evidenceIds: z.array(z.string()).default([]),
   targetCastMemberId: z.string().optional(),
-  reviewState: ForgeSourceCandidateReviewStateSchema.default('pending'),
+  reviewDecision: ForgeCandidateReviewDecisionSchema.default('accepted'),
+  applicationState: ForgeCandidateApplicationStateSchema.default('staged'),
 };
 
 export const ScenarioTitleCandidateSchema = z
@@ -359,12 +374,44 @@ export const ForgeSourceCandidateSchema = z.discriminatedUnion('target', [
 ]);
 export type ForgeSourceCandidate = z.infer<typeof ForgeSourceCandidateSchema>;
 
+export const ForgeSourceUnknownStatusSchema = z.enum([
+  'queued',
+  'awaiting_response',
+  'awaiting_confirmation',
+  'resolved',
+  'contextual_discretion',
+]);
+export type ForgeSourceUnknownStatus = z.infer<typeof ForgeSourceUnknownStatusSchema>;
+
+export const ForgeUnknownFollowUpSchema = z
+  .object({
+    id: z.string().min(1),
+    question: z.string().trim().min(1).max(1000),
+    answer: z.string().trim().max(1000).optional(),
+  })
+  .strict();
+export type ForgeUnknownFollowUp = z.infer<typeof ForgeUnknownFollowUpSchema>;
+
+export const ForgeUnknownResolutionProposalSchema = z
+  .object({
+    resolution: z.string().trim().min(1).max(1000),
+    targetEffect: z.string().trim().min(1).max(1000),
+  })
+  .strict();
+export type ForgeUnknownResolutionProposal = z.infer<typeof ForgeUnknownResolutionProposalSchema>;
+
 export const ForgeSourceUnknownSchema = z
   .object({
     id: z.string().min(1),
     sourceId: z.string().min(1),
     category: ForgeSourceEvidenceCategorySchema,
     question: z.string().min(1),
+    status: ForgeSourceUnknownStatusSchema.default('queued'),
+    targetEffect: z.string().trim().min(1).max(1000),
+    submittedAnswer: z.string().trim().max(1000).optional(),
+    resolutionProposal: ForgeUnknownResolutionProposalSchema.optional(),
+    followUps: z.array(ForgeUnknownFollowUpSchema).max(2).default([]),
+    lastError: z.string().optional(),
   })
   .strict();
 export type ForgeSourceUnknown = z.infer<typeof ForgeSourceUnknownSchema>;

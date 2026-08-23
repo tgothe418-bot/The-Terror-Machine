@@ -15,6 +15,9 @@ import { CharacterStanceById, CharacterStanceReceipt } from './characterStance';
 import { CharacterRelationshipState, CharacterRelationshipReceipt } from './characterRelationships';
 import { CharacterMemoryById, CharacterMemoryReceipt } from './characterMemory';
 import { WorldMemoryState, WorldMemoryReceipt } from './worldMemory';
+import {
+  BlueprintAmbiguityDecisionsSchema,
+} from './blueprintAuthoring';
 export * from './engineContract';
 export * from './participation';
 export * from './forge';
@@ -23,6 +26,7 @@ export * from './characterStance';
 export * from './characterRelationships';
 export * from './characterMemory';
 export * from './worldMemory';
+export * from './blueprintAuthoring';
 
 export type AppPhase = 'hub' | 'forge' | 'engine' | 'voice';
 
@@ -167,6 +171,7 @@ export const BlueprintSchema = z.object({
   perspectives: z.array(z.any()).optional().default([]),
   terminalConditions: z.any().optional(),
   hauntedHouse: HauntedHouseProvenanceSchema.optional(),
+  ambiguities: BlueprintAmbiguityDecisionsSchema.optional().default([]),
 });
 
 // For compatibility with previous types, though we augment them

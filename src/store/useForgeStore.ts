@@ -20,12 +20,16 @@ import {
   ForgeDraftNarrativeRules,
   ForgeSourceAnalysis,
   ForgeSourceAnalysisSchema,
+  ForgeSourceUnknown,
+  BlueprintAmbiguityDecision,
 } from '../types/forge';
 import { idbStorage } from '../lib/idbStorage';
 import {
   applyCandidateToDraft,
   validateCandidateEdit,
   rejectCandidate as rejectCandidatePure,
+  setCandidateReviewDecisionPure,
+  sortCandidatesForApplication,
 } from '../lib/sourceBaseline';
 
 export const defaultStyleVector: ProseStyleVector = {
@@ -54,6 +58,8 @@ export type DraftBlueprintPatch = ForgeDraftPatch;
 
 /**
  * Sanitizes and normalizes persisted or incoming sourceAnalyses state.
+ * Migrates legacy candidate reviewState to reviewDecision & applicationState.
+ * Ensures unknowns conform to strict authoring lifecycle schema.
  * Deduplicates entries saved under alias keys by indexing strictly by analysis.id,
  * and discards any malformed records that fail schema validation.
  */
@@ -63,7 +69,50 @@ export function sanitizeSourceAnalyses(value: unknown): Record<string, ForgeSour
   }
   const result: Record<string, ForgeSourceAnalysis> = {};
   const entries = Object.values(value as Record<string, unknown>);
-  for (const item of entries) {
+  for (const rawItem of entries) {
+    if (!rawItem || typeof rawItem !== 'object') continue;
+    const item = { ...(rawItem as Record<string, unknown>) };
+
+    // Migrate candidates
+    if (Array.isArray(item.candidates)) {
+      item.candidates = item.candidates.map((c: unknown) => {
+        if (!c || typeof c !== 'object') return c;
+        const cand = { ...(c as Record<string, unknown>) };
+        if (cand.reviewState && !cand.reviewDecision) {
+          if (cand.reviewState === 'accepted') {
+            cand.reviewDecision = 'accepted';
+            cand.applicationState = cand.applicationState || 'applied';
+          } else if (cand.reviewState === 'rejected') {
+            cand.reviewDecision = 'rejected';
+            cand.applicationState = cand.applicationState || 'staged';
+          } else {
+            cand.reviewDecision = 'accepted';
+            cand.applicationState = 'staged';
+          }
+          delete cand.reviewState;
+        }
+        if (!cand.reviewDecision) cand.reviewDecision = 'accepted';
+        if (!cand.applicationState) cand.applicationState = 'staged';
+        return cand;
+      });
+    }
+
+    // Migrate unknowns
+    if (Array.isArray(item.unknowns)) {
+      item.unknowns = item.unknowns.map((u: unknown) => {
+        if (!u || typeof u !== 'object') return u;
+        const unk = { ...(u as Record<string, unknown>) };
+        if (!unk.status) unk.status = 'queued';
+        if (!unk.targetEffect || typeof unk.targetEffect !== 'string' || !unk.targetEffect.trim()) {
+          unk.targetEffect = `Clarifies ${unk.category || 'scenario'} baseline parameters for execution.`;
+        }
+        if (!Array.isArray(unk.followUps)) {
+          unk.followUps = [];
+        }
+        return unk;
+      });
+    }
+
     const parse = ForgeSourceAnalysisSchema.safeParse(item);
     if (parse.success) {
       const analysis = parse.data;
@@ -71,6 +120,70 @@ export function sanitizeSourceAnalyses(value: unknown): Record<string, ForgeSour
     }
   }
   return result;
+}
+
+export interface ActiveUnknownContext {
+  sourceId: string;
+  sourceFileName?: string;
+  unknown: ForgeSourceUnknown;
+  queueIndex: number;
+  totalCount: number;
+  resolvedCount: number;
+}
+
+/**
+ * Deterministically selects the current active unknown in the Forge authoring queue.
+ * Orders source analyses by receivedAt ascending, then sourceId.
+ * Selects the first unresolved item (not 'resolved' and not 'contextual_discretion').
+ */
+export function selectActiveUnknown(state: ForgeState): ActiveUnknownContext | null {
+  if (!state.sourceAnalyses || typeof state.sourceAnalyses !== 'object') {
+    return null;
+  }
+
+  const sortedAnalyses = Object.values(state.sourceAnalyses).sort((a, b) => {
+    const diff = (a.sourceRecord.receivedAt || 0) - (b.sourceRecord.receivedAt || 0);
+    if (diff !== 0) return diff;
+    return a.id.localeCompare(b.id);
+  });
+
+  const allUnknowns: Array<{ sourceId: string; sourceFileName?: string; unknown: ForgeSourceUnknown }> = [];
+  for (const analysis of sortedAnalyses) {
+    if (analysis.unknowns && Array.isArray(analysis.unknowns)) {
+      for (const unk of analysis.unknowns) {
+        allUnknowns.push({
+          sourceId: analysis.id,
+          sourceFileName: analysis.sourceRecord.fileName,
+          unknown: unk,
+        });
+      }
+    }
+  }
+
+  const totalCount = allUnknowns.length;
+  if (totalCount === 0) return null;
+
+  const resolvedCount = allUnknowns.filter(
+    (item) => item.unknown.status === 'resolved' || item.unknown.status === 'contextual_discretion'
+  ).length;
+
+  const activeIdx = allUnknowns.findIndex(
+    (item) => item.unknown.status !== 'resolved' && item.unknown.status !== 'contextual_discretion'
+  );
+
+  if (activeIdx === -1) {
+    return null;
+  }
+
+  const activeItem = allUnknowns[activeIdx];
+  return {
+    sourceId: activeItem.sourceId,
+    sourceFileName: activeItem.sourceFileName,
+    unknown: activeItem.unknown,
+    queueIndex: activeIdx + 1,
+    totalCount,
+    resolvedCount,
+  };
 }
 
 // ============================================================================
@@ -165,12 +278,42 @@ export interface ForgeActions {
   resetStore: () => void;
   clearHistory: () => void;
 
-  // --- SOURCE INTAKE & SCENARIO BASELINE ACTIONS (Phase 3D-2) ---
+  // --- SOURCE INTAKE & CANDIDATE STAGING ACTIONS ---
   registerSourceAnalysis: (analysis: ForgeSourceAnalysis) => void;
+  setCandidateReviewDecision: (
+    sourceId: string,
+    candidateId: string,
+    decision: 'accepted' | 'rejected'
+  ) => void;
+  editStagedCandidate: (sourceId: string, candidateId: string, editedValue: unknown) => void;
+  applyAcceptedCandidates: (
+    sourceId: string
+  ) => { success: true; appliedCandidateIds: string[] } | { success: false; errors: Record<string, string> };
+  removeSourceAnalysis: (sourceId: string) => void;
+
+  // Deprecated compatibility aliases for candidates
   editPendingCandidate: (sourceId: string, candidateId: string, editedValue: unknown) => void;
   acceptCandidate: (sourceId: string, candidateId: string) => void;
   rejectCandidate: (sourceId: string, candidateId: string) => void;
-  removeSourceAnalysis: (sourceId: string) => void;
+
+  // --- AMBIGUITY RESOLUTION ACTIONS ---
+  submitUnknownAnswer: (sourceId: string, unknownId: string, answer: string) => void;
+  receiveUnknownFollowUp: (sourceId: string, unknownId: string, followUpQuestion: string) => void;
+  receiveUnknownProposal: (
+    sourceId: string,
+    unknownId: string,
+    proposal: { resolution: string; targetEffect: string }
+  ) => void;
+  acceptUnknownResolution: (sourceId: string, unknownId: string, resolutionOverride?: string) => void;
+  leaveUnknownUncertain: (sourceId: string, unknownId: string, guidance?: string) => void;
+  setUnknownError: (sourceId: string, unknownId: string, error: string) => void;
+  retryUnknown: (sourceId: string, unknownId: string) => void;
+  editUnknownProposal: (
+    sourceId: string,
+    unknownId: string,
+    resolution: string,
+    targetEffect?: string
+  ) => void;
 
   // --- ARCHITECT CHAT (PROPOSAL-ONLY IN PHASE 3D-1) ---
   addArchitectMessage: (message: ArchitectMessage) => void;
@@ -284,6 +427,7 @@ const createInitialDraft = (initial?: ForgeDraftPatch): ForgeDraft => ({
     pacingDirectives: initial?.narrativeRules?.pacingDirectives,
   },
   references: initial?.references ? [...initial.references] : [],
+  ambiguities: initial?.ambiguities ? [...initial.ambiguities] : [],
   terminalConditions: initial?.terminalConditions,
   characters: initial?.characters ? [...initial.characters] : [],
   hauntedHouse: initial?.hauntedHouse,
@@ -384,6 +528,7 @@ export const useForgeStoreInternal = create<ForgeStore>()(
               topology: updates.topology !== undefined ? updates.topology : current.topology,
               narrativeRules: updates.narrativeRules !== undefined ? updates.narrativeRules : current.narrativeRules,
               references: updates.references !== undefined ? updates.references : current.references,
+              ambiguities: updates.ambiguities !== undefined ? updates.ambiguities : current.ambiguities,
             };
 
             return {
@@ -415,7 +560,7 @@ export const useForgeStoreInternal = create<ForgeStore>()(
         resetStore: () => set(initialState),
         clearHistory: () => set(initialState),
 
-        // --- SOURCE INTAKE & SCENARIO BASELINE ACTIONS (Phase 3D-2) ---
+        // --- SOURCE INTAKE & SCENARIO BASELINE ACTIONS ---
         registerSourceAnalysis: (analysis: ForgeSourceAnalysis) =>
           set((state: ForgeState) => {
             const parse = ForgeSourceAnalysisSchema.safeParse(analysis);
@@ -432,7 +577,34 @@ export const useForgeStoreInternal = create<ForgeStore>()(
             };
           }),
 
-        editPendingCandidate: (sourceId: string, candidateId: string, editedValue: unknown) =>
+        setCandidateReviewDecision: (
+          sourceId: string,
+          candidateId: string,
+          decision: 'accepted' | 'rejected'
+        ) =>
+          set((state: ForgeState) => {
+            const analysis = state.sourceAnalyses[sourceId];
+            if (!analysis) return state;
+            const cand = analysis.candidates.find((c) => c.id === candidateId);
+            if (!cand) return state;
+
+            const updatedCand = setCandidateReviewDecisionPure(cand, decision);
+            const updatedCandidates = analysis.candidates.map((c) =>
+              c.id === candidateId ? updatedCand : c
+            );
+
+            return {
+              sourceAnalyses: {
+                ...state.sourceAnalyses,
+                [analysis.id]: {
+                  ...analysis,
+                  candidates: updatedCandidates,
+                },
+              },
+            };
+          }),
+
+        editStagedCandidate: (sourceId: string, candidateId: string, editedValue: unknown) =>
           set((state: ForgeState) => {
             const analysis = state.sourceAnalyses[sourceId];
             if (!analysis) return state;
@@ -446,25 +618,116 @@ export const useForgeStoreInternal = create<ForgeStore>()(
               c.id === candidateId ? editResult.updatedCandidate! : c
             );
 
-            const updatedAnalysis = {
+            return {
+              sourceAnalyses: {
+                ...state.sourceAnalyses,
+                [analysis.id]: {
+                  ...analysis,
+                  candidates: updatedCandidates,
+                },
+              },
+            };
+          }),
+
+        applyAcceptedCandidates: (sourceId: string) => {
+          let outcome:
+            | { success: true; appliedCandidateIds: string[] }
+            | { success: false; errors: Record<string, string> } = {
+            success: true,
+            appliedCandidateIds: [],
+          };
+
+          set((state: ForgeState) => {
+            const analysis = state.sourceAnalyses[sourceId];
+            if (!analysis) {
+              outcome = { success: false, errors: { [sourceId]: 'Source analysis not found' } };
+              return state;
+            }
+
+            const stagedAccepted = analysis.candidates.filter(
+              (c) => c.reviewDecision === 'accepted' && c.applicationState === 'staged'
+            );
+
+            if (stagedAccepted.length === 0) {
+              outcome = { success: true, appliedCandidateIds: [] };
+              return state;
+            }
+
+            // Sort deterministically: cast_seed before cast_expression_guidance, preserving extraction order
+            const ordered = sortCandidatesForApplication(stagedAccepted);
+
+            let workingDraft: ForgeDraft = state.forgeDraft
+              ? JSON.parse(JSON.stringify(state.forgeDraft))
+              : createInitialDraft();
+
+            const errors: Record<string, string> = {};
+            const appliedIds: string[] = [];
+
+            for (const cand of ordered) {
+              const applyRes = applyCandidateToDraft(
+                workingDraft,
+                cand,
+                analysis.sourceRecord.fileName
+              );
+              if (!applyRes.success) {
+                errors[cand.id] = applyRes.error;
+              } else {
+                workingDraft = applyRes.draft;
+                appliedIds.push(cand.id);
+              }
+            }
+
+            // If ANY candidate application failed, perform NO partial mutations
+            if (Object.keys(errors).length > 0) {
+              outcome = { success: false, errors };
+              return state;
+            }
+
+            // Commit atomic draft state and mark applied candidates
+            const updatedCandidates = analysis.candidates.map((c) => {
+              if (appliedIds.includes(c.id)) {
+                return {
+                  ...c,
+                  reviewDecision: 'accepted' as const,
+                  applicationState: 'applied' as const,
+                };
+              }
+              return c;
+            });
+
+            const updatedAnalysis: ForgeSourceAnalysis = {
               ...analysis,
               candidates: updatedCandidates,
             };
 
+            outcome = { success: true, appliedCandidateIds: appliedIds };
+
             return {
+              forgeDraft: workingDraft,
+              draftBlueprint: workingDraft,
+              castLedger: deriveCastLedger(workingDraft),
+              topology: deriveTopology(workingDraft),
               sourceAnalyses: {
                 ...state.sourceAnalyses,
                 [analysis.id]: updatedAnalysis,
               },
             };
-          }),
+          });
+
+          return outcome;
+        },
+
+        editPendingCandidate: (sourceId: string, candidateId: string, editedValue: unknown) => {
+          const { editStagedCandidate } = useForgeStoreInternal.getState().actions;
+          editStagedCandidate(sourceId, candidateId, editedValue);
+        },
 
         acceptCandidate: (sourceId: string, candidateId: string) =>
           set((state: ForgeState) => {
             const analysis = state.sourceAnalyses[sourceId];
             if (!analysis) return state;
             const cand = analysis.candidates.find((c) => c.id === candidateId);
-            if (!cand || cand.reviewState !== 'pending') return state;
+            if (!cand || cand.applicationState === 'applied') return state;
 
             const currentDraft = state.forgeDraft || createInitialDraft();
             const applyResult = applyCandidateToDraft(
@@ -480,7 +743,9 @@ export const useForgeStoreInternal = create<ForgeStore>()(
 
             const updatedDraft = applyResult.draft;
             const updatedCandidates = analysis.candidates.map((c) =>
-              c.id === candidateId ? { ...c, reviewState: 'accepted' as const } : c
+              c.id === candidateId
+                ? { ...c, reviewDecision: 'accepted' as const, applicationState: 'applied' as const }
+                : c
             );
 
             const updatedAnalysis = {
@@ -512,15 +777,13 @@ export const useForgeStoreInternal = create<ForgeStore>()(
               c.id === candidateId ? updatedCand : c
             );
 
-            const updatedAnalysis = {
-              ...analysis,
-              candidates: updatedCandidates,
-            };
-
             return {
               sourceAnalyses: {
                 ...state.sourceAnalyses,
-                [analysis.id]: updatedAnalysis,
+                [analysis.id]: {
+                  ...analysis,
+                  candidates: updatedCandidates,
+                },
               },
             };
           }),
@@ -531,6 +794,342 @@ export const useForgeStoreInternal = create<ForgeStore>()(
             delete remaining[sourceId];
             return {
               sourceAnalyses: remaining,
+            };
+          }),
+
+        // --- AMBIGUITY RESOLUTION ACTIONS ---
+        submitUnknownAnswer: (sourceId: string, unknownId: string, answer: string) =>
+          set((state: ForgeState) => {
+            const analysis = state.sourceAnalyses[sourceId];
+            if (!analysis) return state;
+            const unk = analysis.unknowns.find((u) => u.id === unknownId);
+            if (!unk || !answer.trim()) return state;
+
+            const safeAnswer = answer.trim();
+            const updatedFollowUps = [...unk.followUps];
+            const unansweredIdx = updatedFollowUps.findIndex((f) => !f.answer);
+
+            if (unansweredIdx !== -1) {
+              updatedFollowUps[unansweredIdx] = {
+                ...updatedFollowUps[unansweredIdx],
+                answer: safeAnswer,
+              };
+            }
+
+            const updatedUnknown: ForgeSourceUnknown = {
+              ...unk,
+              submittedAnswer: safeAnswer,
+              followUps: updatedFollowUps,
+              status: 'awaiting_response',
+              lastError: undefined,
+            };
+
+            const updatedUnknowns = analysis.unknowns.map((u) =>
+              u.id === unknownId ? updatedUnknown : u
+            );
+
+            return {
+              sourceAnalyses: {
+                ...state.sourceAnalyses,
+                [analysis.id]: {
+                  ...analysis,
+                  unknowns: updatedUnknowns,
+                },
+              },
+            };
+          }),
+
+        receiveUnknownFollowUp: (sourceId: string, unknownId: string, followUpQuestion: string) =>
+          set((state: ForgeState) => {
+            const analysis = state.sourceAnalyses[sourceId];
+            if (!analysis) return state;
+            const unk = analysis.unknowns.find((u) => u.id === unknownId);
+            if (!unk || !followUpQuestion.trim()) return state;
+
+            // Maximum 2 follow-ups allowed
+            if (unk.followUps.length >= 2) return state;
+
+            const newFollowUp = {
+              id: `fu-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+              question: followUpQuestion.trim(),
+            };
+
+            const updatedUnknown: ForgeSourceUnknown = {
+              ...unk,
+              followUps: [...unk.followUps, newFollowUp],
+              status: 'queued',
+              lastError: undefined,
+            };
+
+            const updatedUnknowns = analysis.unknowns.map((u) =>
+              u.id === unknownId ? updatedUnknown : u
+            );
+
+            return {
+              sourceAnalyses: {
+                ...state.sourceAnalyses,
+                [analysis.id]: {
+                  ...analysis,
+                  unknowns: updatedUnknowns,
+                },
+              },
+            };
+          }),
+
+        receiveUnknownProposal: (
+          sourceId: string,
+          unknownId: string,
+          proposal: { resolution: string; targetEffect: string }
+        ) =>
+          set((state: ForgeState) => {
+            const analysis = state.sourceAnalyses[sourceId];
+            if (!analysis) return state;
+            const unk = analysis.unknowns.find((u) => u.id === unknownId);
+            if (!unk || !proposal.resolution.trim()) return state;
+
+            const updatedUnknown: ForgeSourceUnknown = {
+              ...unk,
+              resolutionProposal: {
+                resolution: proposal.resolution.trim(),
+                targetEffect: proposal.targetEffect.trim() || unk.targetEffect,
+              },
+              status: 'awaiting_confirmation',
+              lastError: undefined,
+            };
+
+            const updatedUnknowns = analysis.unknowns.map((u) =>
+              u.id === unknownId ? updatedUnknown : u
+            );
+
+            return {
+              sourceAnalyses: {
+                ...state.sourceAnalyses,
+                [analysis.id]: {
+                  ...analysis,
+                  unknowns: updatedUnknowns,
+                },
+              },
+            };
+          }),
+
+        acceptUnknownResolution: (
+          sourceId: string,
+          unknownId: string,
+          resolutionOverride?: string
+        ) =>
+          set((state: ForgeState) => {
+            const analysis = state.sourceAnalyses[sourceId];
+            if (!analysis) return state;
+            const unk = analysis.unknowns.find((u) => u.id === unknownId);
+            if (!unk) return state;
+
+            const finalResolution = (
+              resolutionOverride ||
+              unk.resolutionProposal?.resolution ||
+              unk.submittedAnswer ||
+              ''
+            ).trim();
+
+            if (!finalResolution) return state;
+
+            // 1. Create canonical ambiguity decision
+            const decision: BlueprintAmbiguityDecision = {
+              id: unk.id,
+              category: unk.category,
+              question: unk.question,
+              resolutionMode: 'USER_DEFINED',
+              resolution: finalResolution,
+            };
+
+            // 2. Upsert into forgeDraft.ambiguities
+            const currentDraft = state.forgeDraft || createInitialDraft();
+            const existingAmbiguities = currentDraft.ambiguities ? [...currentDraft.ambiguities] : [];
+            const existingIdx = existingAmbiguities.findIndex((a) => a.id === unk.id);
+            if (existingIdx !== -1) {
+              existingAmbiguities[existingIdx] = decision;
+            } else {
+              existingAmbiguities.push(decision);
+            }
+
+            const updatedDraft: ForgeDraft = {
+              ...currentDraft,
+              ambiguities: existingAmbiguities,
+            };
+
+            // 3. Mark unknown as resolved
+            const updatedUnknown: ForgeSourceUnknown = {
+              ...unk,
+              status: 'resolved',
+              resolutionProposal: {
+                resolution: finalResolution,
+                targetEffect: unk.resolutionProposal?.targetEffect || unk.targetEffect,
+              },
+              lastError: undefined,
+            };
+
+            const updatedUnknowns = analysis.unknowns.map((u) =>
+              u.id === unknownId ? updatedUnknown : u
+            );
+
+            const updatedAnalysis = {
+              ...analysis,
+              unknowns: updatedUnknowns,
+            };
+
+            return {
+              forgeDraft: updatedDraft,
+              draftBlueprint: updatedDraft,
+              sourceAnalyses: {
+                ...state.sourceAnalyses,
+                [analysis.id]: updatedAnalysis,
+              },
+            };
+          }),
+
+        leaveUnknownUncertain: (sourceId: string, unknownId: string, guidance?: string) =>
+          set((state: ForgeState) => {
+            const analysis = state.sourceAnalyses[sourceId];
+            if (!analysis) return state;
+            const unk = analysis.unknowns.find((u) => u.id === unknownId);
+            if (!unk) return state;
+
+            const decision: BlueprintAmbiguityDecision = {
+              id: unk.id,
+              category: unk.category,
+              question: unk.question,
+              resolutionMode: 'CONTEXTUAL_DISCRETION',
+              ...(guidance && guidance.trim() ? { guidance: guidance.trim() } : {}),
+            };
+
+            const currentDraft = state.forgeDraft || createInitialDraft();
+            const existingAmbiguities = currentDraft.ambiguities ? [...currentDraft.ambiguities] : [];
+            const existingIdx = existingAmbiguities.findIndex((a) => a.id === unk.id);
+            if (existingIdx !== -1) {
+              existingAmbiguities[existingIdx] = decision;
+            } else {
+              existingAmbiguities.push(decision);
+            }
+
+            const updatedDraft: ForgeDraft = {
+              ...currentDraft,
+              ambiguities: existingAmbiguities,
+            };
+
+            const updatedUnknown: ForgeSourceUnknown = {
+              ...unk,
+              status: 'contextual_discretion',
+              lastError: undefined,
+            };
+
+            const updatedUnknowns = analysis.unknowns.map((u) =>
+              u.id === unknownId ? updatedUnknown : u
+            );
+
+            return {
+              forgeDraft: updatedDraft,
+              draftBlueprint: updatedDraft,
+              sourceAnalyses: {
+                ...state.sourceAnalyses,
+                [analysis.id]: {
+                  ...analysis,
+                  unknowns: updatedUnknowns,
+                },
+              },
+            };
+          }),
+
+        setUnknownError: (sourceId: string, unknownId: string, error: string) =>
+          set((state: ForgeState) => {
+            const analysis = state.sourceAnalyses[sourceId];
+            if (!analysis) return state;
+            const unk = analysis.unknowns.find((u) => u.id === unknownId);
+            if (!unk) return state;
+
+            const updatedUnknown: ForgeSourceUnknown = {
+              ...unk,
+              status: 'queued',
+              lastError: error,
+            };
+
+            const updatedUnknowns = analysis.unknowns.map((u) =>
+              u.id === unknownId ? updatedUnknown : u
+            );
+
+            return {
+              sourceAnalyses: {
+                ...state.sourceAnalyses,
+                [analysis.id]: {
+                  ...analysis,
+                  unknowns: updatedUnknowns,
+                },
+              },
+            };
+          }),
+
+        retryUnknown: (sourceId: string, unknownId: string) =>
+          set((state: ForgeState) => {
+            const analysis = state.sourceAnalyses[sourceId];
+            if (!analysis) return state;
+            const unk = analysis.unknowns.find((u) => u.id === unknownId);
+            if (!unk) return state;
+
+            const updatedUnknown: ForgeSourceUnknown = {
+              ...unk,
+              status: 'queued',
+              lastError: undefined,
+            };
+
+            const updatedUnknowns = analysis.unknowns.map((u) =>
+              u.id === unknownId ? updatedUnknown : u
+            );
+
+            return {
+              sourceAnalyses: {
+                ...state.sourceAnalyses,
+                [analysis.id]: {
+                  ...analysis,
+                  unknowns: updatedUnknowns,
+                },
+              },
+            };
+          }),
+
+        editUnknownProposal: (
+          sourceId: string,
+          unknownId: string,
+          resolution: string,
+          targetEffect?: string
+        ) =>
+          set((state: ForgeState) => {
+            const analysis = state.sourceAnalyses[sourceId];
+            if (!analysis) return state;
+            const unk = analysis.unknowns.find((u) => u.id === unknownId);
+            if (!unk || !resolution.trim()) return state;
+
+            const updatedUnknown: ForgeSourceUnknown = {
+              ...unk,
+              resolutionProposal: {
+                resolution: resolution.trim(),
+                targetEffect:
+                  targetEffect?.trim() ||
+                  unk.resolutionProposal?.targetEffect ||
+                  unk.targetEffect,
+              },
+              lastError: undefined,
+            };
+
+            const updatedUnknowns = analysis.unknowns.map((u) =>
+              u.id === unknownId ? updatedUnknown : u
+            );
+
+            return {
+              sourceAnalyses: {
+                ...state.sourceAnalyses,
+                [analysis.id]: {
+                  ...analysis,
+                  unknowns: updatedUnknowns,
+                },
+              },
             };
           }),
 
@@ -862,13 +1461,19 @@ export const useForgeStoreInternal = create<ForgeStore>()(
     {
       name: 'the-forge-memory',
       storage: createJSONStorage(() => idbStorage),
-      version: 3,
+      version: 4,
       migrate: (persistedState: unknown) => {
         if (!persistedState || typeof persistedState !== 'object') return persistedState;
         const stateRecord = persistedState as Record<string, unknown>;
         // Promote legacy draftBlueprint if forgeDraft is absent in persisted storage
         if (!stateRecord.forgeDraft && stateRecord.draftBlueprint) {
           stateRecord.forgeDraft = stateRecord.draftBlueprint;
+        }
+        if (stateRecord.forgeDraft && typeof stateRecord.forgeDraft === 'object') {
+          const draft = stateRecord.forgeDraft as Record<string, unknown>;
+          if (!draft.ambiguities || !Array.isArray(draft.ambiguities)) {
+            draft.ambiguities = [];
+          }
         }
         if (stateRecord.sourceAnalyses !== undefined) {
           stateRecord.sourceAnalyses = sanitizeSourceAnalyses(stateRecord.sourceAnalyses);
@@ -881,6 +1486,11 @@ export const useForgeStoreInternal = create<ForgeStore>()(
           // Reconcile and promote legacy draftBlueprint if forgeDraft is missing
           if (!state.forgeDraft && stateRecord.draftBlueprint) {
             state.forgeDraft = stateRecord.draftBlueprint as ForgeDraft;
+          }
+          if (state.forgeDraft) {
+            if (!state.forgeDraft.ambiguities || !Array.isArray(state.forgeDraft.ambiguities)) {
+              state.forgeDraft.ambiguities = [];
+            }
           }
           state.sourceAnalyses = sanitizeSourceAnalyses(state.sourceAnalyses);
           // Ensure draftBlueprint is aligned with forgeDraft
