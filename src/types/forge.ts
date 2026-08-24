@@ -456,11 +456,19 @@ export type ForgeUnknownResolutionProposal = z.infer<typeof ForgeUnknownResoluti
 
 export const DepictionContractProposalSchema = z
   .object({
-    contract: DepictionContractSchema,
+    contract: z
+      .object({
+        dramaticRegister: z.string().trim().min(1).max(1000),
+        directness: z.string().trim().min(1).max(1000),
+        aftermath: z.string().trim().min(1).max(1000),
+        ambiguityHandling: z.string().trim().min(1).max(1000),
+        specialBoundaries: z.string().trim().max(1000).default(''),
+      })
+      .strict(),
     rationale: z.string().trim().max(1000).default(''),
-    sourceDraftRevision: z.number().int().nonnegative().default(1),
-    sourceBaselineRevision: z.number().int().nonnegative().default(1),
-    createdAt: z.number().default(() => Date.now()),
+    sourceDraftRevision: z.number(),
+    sourceBaselineRevision: z.number(),
+    createdAt: z.number(),
   })
   .strict();
 export type DepictionContractProposal = z.infer<typeof DepictionContractProposalSchema>;
