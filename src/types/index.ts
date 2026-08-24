@@ -356,11 +356,22 @@ export interface TurnReceipt {
   worldMemoryReceipt?: WorldMemoryReceipt;
 }
 
+export interface TurnFailureDiagnosticIssue {
+  path: string;
+  code: string;
+}
+
+export interface TurnFailureDiagnostics {
+  kind: 'SCHEMA_VALIDATION' | 'JSON_PARSE' | 'DIALOGUE_CONTRACT';
+  issues: TurnFailureDiagnosticIssue[];
+}
+
 export interface TurnFailureReceipt {
   code: string;
   status: number | null;
   contentType: string | null;
   message: string;
+  diagnostics?: TurnFailureDiagnostics;
 }
 
 

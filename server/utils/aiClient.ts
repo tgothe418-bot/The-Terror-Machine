@@ -1,4 +1,5 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI, Type, type Schema } from "@google/genai";
+import type { z } from "zod";
 import { getGeminiPolicy } from "../ai/modelPolicy";
 import {
   ACTION_KINDS,
@@ -35,7 +36,7 @@ export function getAiClient(): GoogleGenAI {
   return aiClient;
 }
 
-const engineResponseSchema = {
+const engineResponseSchema: Schema = {
   type: Type.OBJECT,
   properties: {
     engine_thoughts: { 
@@ -97,24 +98,29 @@ export const turnResponseSchema = {
   properties: {
     narrative_blocks: {
       type: Type.ARRAY,
+      maxItems: "2",
       items: {
         type: Type.OBJECT,
         properties: {
-          type: { type: Type.STRING, description: "prose, dialogue, system_voice, or environmental_description" },
+          type: {
+            type: Type.STRING,
+            format: "enum",
+            enum: ["prose", "dialogue", "system_voice", "environmental_description"],
+          },
           speaker: { type: Type.STRING, nullable: true },
-          content: { type: Type.STRING }
+          content: { type: Type.STRING },
         },
-        required: ["type", "content"]
-      }
+        required: ["type", "content"],
+      },
     },
     intent_proposal: {
       type: Type.OBJECT,
       properties: {
-        action_kind: { type: Type.STRING, enum: [...ACTION_KINDS] },
-        action_subtype: { type: Type.STRING, enum: [...ACTION_SUBTYPES], nullable: true },
-        pressure_direction: { type: Type.STRING, enum: [...PRESSURE_DIRECTIONS] },
-        dramatic_tactic: { type: Type.STRING, enum: [...DRAMATIC_TACTICS] },
-        intent_synergy: { type: Type.STRING, enum: [...INTENT_SYNERGIES] },
+        action_kind: { type: Type.STRING, format: "enum", enum: [...ACTION_KINDS] },
+        action_subtype: { type: Type.STRING, format: "enum", enum: [...ACTION_SUBTYPES], nullable: true },
+        pressure_direction: { type: Type.STRING, format: "enum", enum: [...PRESSURE_DIRECTIONS] },
+        dramatic_tactic: { type: Type.STRING, format: "enum", enum: [...DRAMATIC_TACTICS] },
+        intent_synergy: { type: Type.STRING, format: "enum", enum: [...INTENT_SYNERGIES] },
       },
       required: [
         "action_kind",
@@ -122,17 +128,22 @@ export const turnResponseSchema = {
         "pressure_direction",
         "dramatic_tactic",
         "intent_synergy",
-      ]
+      ],
     },
     reconciliation_proposal: {
       type: Type.OBJECT,
       properties: {
-        mode: { type: Type.STRING, enum: [...RECONCILIATION_MODES] },
-        feasibility: { type: Type.STRING, enum: [...RECONCILIATION_FEASIBILITIES] },
-        reason_code: { type: Type.STRING, enum: [...RECONCILIATION_REASON_CODES] },
-        fictional_time_cost: { type: Type.STRING, enum: [...FICTIONAL_TIME_COSTS] },
-        authority_alignment: { type: Type.STRING, enum: [...AUTHORITY_ALIGNMENTS] },
-        memory_echo_candidate: { type: Type.STRING, nullable: true },
+        mode: { type: Type.STRING, format: "enum", enum: [...RECONCILIATION_MODES] },
+        feasibility: { type: Type.STRING, format: "enum", enum: [...RECONCILIATION_FEASIBILITIES] },
+        reason_code: { type: Type.STRING, format: "enum", enum: [...RECONCILIATION_REASON_CODES] },
+        fictional_time_cost: { type: Type.STRING, format: "enum", enum: [...FICTIONAL_TIME_COSTS] },
+        authority_alignment: { type: Type.STRING, format: "enum", enum: [...AUTHORITY_ALIGNMENTS] },
+        memory_echo_candidate: {
+          type: Type.STRING,
+          maxLength: "240",
+          nullable: true,
+          description: "Optional memorable phrase or echo from this beat; null when none.",
+        },
       },
       required: [
         "mode",
@@ -141,22 +152,51 @@ export const turnResponseSchema = {
         "fictional_time_cost",
         "authority_alignment",
         "memory_echo_candidate",
-      ]
+      ],
     },
     consequence_proposal: {
       type: Type.OBJECT,
       properties: {
         mutations: {
           type: Type.ARRAY,
+          maxItems: "4",
           items: {
-            type: Type.OBJECT,
-            properties: {
-              domain: { type: Type.STRING, enum: ["INVENTORY", "PLAYER_INJURY", "PSYCHOLOGICAL_STATUS"] },
-              operation: { type: Type.STRING, enum: ["ADD", "REMOVE", "SET"] },
-              value: { type: Type.STRING },
-              rationale: { type: Type.STRING },
-            },
-            required: ["domain", "operation", "value", "rationale"],
+            anyOf: [
+              {
+                type: Type.OBJECT,
+                properties: {
+                  domain: { type: Type.STRING, format: "enum", enum: ["INVENTORY"] },
+                  operation: { type: Type.STRING, format: "enum", enum: ["ADD", "REMOVE"] },
+                  value: { type: Type.STRING, maxLength: "120" },
+                  rationale: { type: Type.STRING, maxLength: "240" },
+                },
+                required: ["domain", "operation", "value", "rationale"],
+              },
+              {
+                type: Type.OBJECT,
+                properties: {
+                  domain: { type: Type.STRING, format: "enum", enum: ["PLAYER_INJURY"] },
+                  operation: { type: Type.STRING, format: "enum", enum: ["ADD", "REMOVE"] },
+                  value: { type: Type.STRING, maxLength: "120" },
+                  rationale: { type: Type.STRING, maxLength: "240" },
+                },
+                required: ["domain", "operation", "value", "rationale"],
+              },
+              {
+                type: Type.OBJECT,
+                properties: {
+                  domain: { type: Type.STRING, format: "enum", enum: ["PSYCHOLOGICAL_STATUS"] },
+                  operation: { type: Type.STRING, format: "enum", enum: ["SET"] },
+                  value: {
+                    type: Type.STRING,
+                    format: "enum",
+                    enum: ["STABLE", "UNEASY", "DISTRESSED", "PANICKED", "DISSOCIATED"],
+                  },
+                  rationale: { type: Type.STRING, maxLength: "240" },
+                },
+                required: ["domain", "operation", "value", "rationale"],
+              },
+            ],
           },
         },
       },
@@ -167,17 +207,18 @@ export const turnResponseSchema = {
       properties: {
         changes: {
           type: Type.ARRAY,
-          maxItems: 2,
+          maxItems: "2",
           items: {
             type: Type.OBJECT,
             properties: {
-              character_id: { type: Type.STRING },
-              focus: { type: Type.STRING, enum: ["PLAYER", "SITUATION"] },
+              character_id: { type: Type.STRING, maxLength: "120" },
+              focus: { type: Type.STRING, format: "enum", enum: ["PLAYER", "SITUATION"] },
               stance: {
                 type: Type.STRING,
+                format: "enum",
                 enum: ["OPEN", "GUARDED", "RESISTANT", "HOSTILE", "AFRAID", "WITHDRAWN"],
               },
-              rationale: { type: Type.STRING },
+              rationale: { type: Type.STRING, maxLength: "240" },
             },
             required: ["character_id", "focus", "stance", "rationale"],
           },
@@ -190,14 +231,15 @@ export const turnResponseSchema = {
       properties: {
         changes: {
           type: Type.ARRAY,
-          maxItems: 2,
+          maxItems: "2",
           items: {
             type: Type.OBJECT,
             properties: {
-              source_character_id: { type: Type.STRING },
-              target_character_id: { type: Type.STRING },
+              source_character_id: { type: Type.STRING, maxLength: "120" },
+              target_character_id: { type: Type.STRING, maxLength: "120" },
               kind: {
                 type: Type.STRING,
+                format: "enum",
                 enum: ["TRUST", "HOSTILITY", "DEPENDENCE", "LEVERAGE"],
               },
               delta: {
@@ -206,7 +248,7 @@ export const turnResponseSchema = {
                 enum: ["-1", "1"],
                 description: "Exact signed relationship intensity change. Use -1 to decrease or 1 to increase; never 0.",
               },
-              rationale: { type: Type.STRING, maxLength: 240 },
+              rationale: { type: Type.STRING, maxLength: "240" },
             },
             required: [
               "source_character_id",
@@ -225,27 +267,29 @@ export const turnResponseSchema = {
       properties: {
         candidates: {
           type: Type.ARRAY,
-          maxItems: 2,
+          maxItems: "2",
           items: {
             type: Type.OBJECT,
             properties: {
-              character_id: { type: Type.STRING },
+              character_id: { type: Type.STRING, maxLength: "120" },
               fact: {
                 type: Type.STRING,
-                maxLength: 200,
+                maxLength: "200",
                 description: "Concise, durable factual memory acquired this turn (max 200 chars).",
               },
               source: {
                 type: Type.STRING,
+                format: "enum",
                 enum: ["OBSERVED", "TOLD"],
                 description: "OBSERVED for witnessed non-verbal actions; TOLD for statements communicated to character.",
               },
               certainty: {
                 type: Type.STRING,
+                format: "enum",
                 enum: ["KNOWN", "BELIEVED"],
                 description: "KNOWN for verifiable objective facts; BELIEVED for subjective impressions or hearsay.",
               },
-              rationale: { type: Type.STRING, maxLength: 240 },
+              rationale: { type: Type.STRING, maxLength: "240" },
             },
             required: [
               "character_id",
@@ -264,36 +308,58 @@ export const turnResponseSchema = {
       properties: {
         candidates: {
           type: Type.ARRAY,
-          maxItems: 2,
+          maxItems: "2",
           items: {
-            type: Type.OBJECT,
-            properties: {
-              kind: {
-                type: Type.STRING,
-                enum: [
-                  "ESTABLISHED_FACT",
-                  "DISCOVERED_EVIDENCE",
-                  "ENVIRONMENTAL_CONDITION",
-                  "PERSISTENT_CONSEQUENCE",
-                ],
+            anyOf: [
+              {
+                type: Type.OBJECT,
+                properties: {
+                  kind: {
+                    type: Type.STRING,
+                    format: "enum",
+                    enum: [
+                      "ESTABLISHED_FACT",
+                      "DISCOVERED_EVIDENCE",
+                      "ENVIRONMENTAL_CONDITION",
+                      "PERSISTENT_CONSEQUENCE",
+                    ],
+                  },
+                  scope: { type: Type.STRING, format: "enum", enum: ["GLOBAL"] },
+                  node_id: {
+                    type: Type.STRING,
+                    nullable: true,
+                    description: "null for GLOBAL scope",
+                  },
+                  statement: { type: Type.STRING, maxLength: "240" },
+                  rationale: { type: Type.STRING, maxLength: "240" },
+                },
+                required: ["kind", "scope", "node_id", "statement", "rationale"],
               },
-              scope: {
-                type: Type.STRING,
-                enum: ["GLOBAL", "NODE"],
+              {
+                type: Type.OBJECT,
+                properties: {
+                  kind: {
+                    type: Type.STRING,
+                    format: "enum",
+                    enum: [
+                      "ESTABLISHED_FACT",
+                      "DISCOVERED_EVIDENCE",
+                      "ENVIRONMENTAL_CONDITION",
+                      "PERSISTENT_CONSEQUENCE",
+                    ],
+                  },
+                  scope: { type: Type.STRING, format: "enum", enum: ["NODE"] },
+                  node_id: {
+                    type: Type.STRING,
+                    maxLength: "120",
+                    description: "Exact non-empty node ID for NODE scope",
+                  },
+                  statement: { type: Type.STRING, maxLength: "240" },
+                  rationale: { type: Type.STRING, maxLength: "240" },
+                },
+                required: ["kind", "scope", "node_id", "statement", "rationale"],
               },
-              node_id: {
-                type: Type.STRING,
-                nullable: true,
-                description: "Exact node ID where the memory applies when scope is NODE; null when GLOBAL.",
-              },
-              statement: {
-                type: Type.STRING,
-                maxLength: 240,
-                description: "Concise, durable world fact or condition established this turn (max 240 chars).",
-              },
-              rationale: { type: Type.STRING, maxLength: 240 },
-            },
-            required: ["kind", "scope", "node_id", "statement", "rationale"],
+            ],
           },
         },
       },
@@ -303,8 +369,17 @@ export const turnResponseSchema = {
       type: Type.OBJECT,
       properties: {
         current_phase: { type: Type.STRING },
-        requested_transition: { type: Type.STRING, nullable: true, description: "Exact target node ID if movement along an allowed exit completed, or null if no movement occurred." },
-        suggested_tension: { type: Type.INTEGER },
+        requested_transition: {
+          type: Type.STRING,
+          nullable: true,
+          description: "Exact target node ID if movement along an allowed exit completed, or null if no movement occurred.",
+        },
+        suggested_tension: {
+          type: Type.INTEGER,
+          minimum: 0,
+          maximum: 100,
+          description: "Suggested tension integer bounded between 0 and 100.",
+        },
         terminal_flags: { type: Type.ARRAY, items: { type: Type.STRING } },
         cast_deltas: {
           type: Type.ARRAY,
@@ -312,13 +387,13 @@ export const turnResponseSchema = {
             type: Type.OBJECT,
             properties: {
               character_id: { type: Type.STRING },
-              skepticism_delta: { type: Type.NUMBER }
+              skepticism_delta: { type: Type.NUMBER },
             },
-            required: ["character_id", "skepticism_delta"]
-          }
-        }
+            required: ["character_id", "skepticism_delta"],
+          },
+        },
       },
-      required: ["current_phase", "suggested_tension", "terminal_flags", "cast_deltas"]
+      required: ["current_phase", "suggested_tension", "terminal_flags", "cast_deltas"],
     },
     topologyDelta: {
       type: Type.OBJECT,
@@ -336,19 +411,19 @@ export const turnResponseSchema = {
                 type: Type.OBJECT,
                 properties: {
                   direction: { type: Type.STRING },
-                  targetNodeId: { type: Type.STRING }
+                  targetNodeId: { type: Type.STRING },
                 },
-                required: ["direction", "targetNodeId"]
-              }
-            }
+                required: ["direction", "targetNodeId"],
+              },
+            },
           },
           required: ["id", "geometry", "hazards", "exitVectors"],
-          nullable: true
-        }
+          nullable: true,
+        },
       },
       required: ["isExpansion"],
-      nullable: true
-    }
+      nullable: true,
+    },
   },
   required: [
     "narrative_blocks",
@@ -360,8 +435,8 @@ export const turnResponseSchema = {
     "character_relationship_proposal",
     "character_memory_proposal",
     "world_memory_proposal",
-  ]
-};
+  ],
+} satisfies Schema;
 
 export function unwrapStrictJsonResponse(text: string): string {
   const trimmed = text.trim();
@@ -369,8 +444,19 @@ export function unwrapStrictJsonResponse(text: string): string {
   return fenced ? fenced[1].trim() : trimmed;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const generateStructuredResponse = async (prompt: string, zodSchema: any) => {
+/**
+ * Pure parsing and Zod validation boundary extracted for testability and deterministic validation.
+ */
+export function parseStructuredTurnResponse<T>(rawText: string, zodSchema: z.ZodType<T>): T {
+  const unwrapped = unwrapStrictJsonResponse(rawText);
+  const parsed = JSON.parse(unwrapped);
+  return zodSchema.parse(parsed);
+}
+
+export const generateStructuredResponse = async <T = unknown>(
+  prompt: string,
+  zodSchema: z.ZodType<T>
+): Promise<T> => {
   const contents = [{ role: "user", parts: [{ text: prompt }] }];
 
   const policy = getGeminiPolicy('ENGINE_TURN');
@@ -383,12 +469,11 @@ export const generateStructuredResponse = async (prompt: string, zodSchema: any)
       },
       responseMimeType: "application/json",
       responseSchema: turnResponseSchema,
-    }
+    },
   });
 
   try {
-    const raw = JSON.parse(unwrapStrictJsonResponse(response.text ?? ''));
-    return zodSchema.parse(raw);
+    return parseStructuredTurnResponse(response.text ?? '', zodSchema);
   } catch (err) {
     console.error("Failed to parse or validate schema:", err);
     throw err;

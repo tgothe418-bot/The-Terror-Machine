@@ -1031,6 +1031,31 @@ export function parseTelemetrySections(logicData: Record<string, unknown>): Pars
         value: failureReceipt.message != null ? String(failureReceipt.message) : 'Not recorded',
       },
     ];
+
+    if (failureReceipt.diagnostics && typeof failureReceipt.diagnostics === 'object') {
+      const diag = failureReceipt.diagnostics as {
+        kind?: string;
+        issues?: Array<{ path?: string; code?: string }>;
+      };
+      if (diag.kind) {
+        failureItems.push({
+          label: 'Diagnostic Kind',
+          value: String(diag.kind),
+        });
+      }
+      if (Array.isArray(diag.issues) && diag.issues.length > 0) {
+        const rejectedPaths = diag.issues
+          .map((i) => (i && typeof i.path === 'string' ? i.path : ''))
+          .filter((p) => p.length > 0)
+          .join(', ');
+        if (rejectedPaths.length > 0) {
+          failureItems.push({
+            label: 'Rejected Paths',
+            value: rejectedPaths,
+          });
+        }
+      }
+    }
   }
 
   return {

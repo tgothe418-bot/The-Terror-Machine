@@ -1,14 +1,87 @@
-export interface TurnFailureReceipt {
-  code: string;
-  status: number | null;
-  contentType: string | null;
-  message: string;
+import type {
+  TurnFailureReceipt,
+  TurnFailureDiagnostics,
+  TurnFailureDiagnosticIssue,
+} from '../types';
+
+export type { TurnFailureReceipt, TurnFailureDiagnostics, TurnFailureDiagnosticIssue };
+
+/**
+ * Defensively validates and sanitizes a raw diagnostics object from the server.
+ * Bounded to 12 deduplicated issues, strict kinds, and safe string lengths.
+ */
+export function sanitizeTurnFailureDiagnostics(
+  raw: unknown
+): TurnFailureDiagnostics | undefined {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+    return undefined;
+  }
+  const obj = raw as Record<string, unknown>;
+  const validKinds: TurnFailureDiagnostics['kind'][] = [
+    'SCHEMA_VALIDATION',
+    'JSON_PARSE',
+    'DIALOGUE_CONTRACT',
+  ];
+  if (!validKinds.includes(obj.kind as TurnFailureDiagnostics['kind'])) {
+    return undefined;
+  }
+  const kind = obj.kind as TurnFailureDiagnostics['kind'];
+
+  if (!Array.isArray(obj.issues)) {
+    return undefined;
+  }
+
+  const issues: TurnFailureDiagnosticIssue[] = [];
+  const seen = new Set<string>();
+
+  for (const item of obj.issues) {
+    if (issues.length >= 12) break;
+    if (typeof item !== 'object' || item === null || Array.isArray(item)) continue;
+    const issueObj = item as Record<string, unknown>;
+
+    if (
+      typeof issueObj.path !== 'string' ||
+      issueObj.path.trim().length === 0 ||
+      issueObj.path.length > 240
+    ) {
+      continue;
+    }
+    if (
+      typeof issueObj.code !== 'string' ||
+      issueObj.code.trim().length === 0 ||
+      issueObj.code.length > 60
+    ) {
+      continue;
+    }
+
+    if (issueObj.path.includes('<') || issueObj.path.includes('>')) continue;
+    if (issueObj.code.includes('<') || issueObj.code.includes('>')) continue;
+
+    const path = issueObj.path.trim();
+    const code = issueObj.code.trim();
+    const key = `${path}::${code}`;
+
+    if (!seen.has(key)) {
+      seen.add(key);
+      issues.push({ path, code });
+    }
+  }
+
+  if (issues.length === 0) {
+    return undefined;
+  }
+
+  return {
+    kind,
+    issues,
+  };
 }
 
 export class TurnResponseError extends Error {
   readonly code: string;
   readonly status: number | null;
   readonly contentType: string | null;
+  readonly diagnostics?: TurnFailureDiagnostics;
 
   constructor(receipt: TurnFailureReceipt) {
     super(receipt.message);
@@ -16,6 +89,7 @@ export class TurnResponseError extends Error {
     this.code = receipt.code;
     this.status = receipt.status;
     this.contentType = receipt.contentType;
+    this.diagnostics = receipt.diagnostics;
   }
 
   toReceipt(): TurnFailureReceipt {
@@ -24,6 +98,7 @@ export class TurnResponseError extends Error {
       status: this.status,
       contentType: this.contentType,
       message: this.message,
+      ...(this.diagnostics ? { diagnostics: this.diagnostics } : {}),
     };
   }
 }
@@ -123,11 +198,14 @@ export async function readTurnResponse<T = unknown>(response: Response): Promise
       safeMessage = `The turn service returned an HTTP ${response.status} error. The session state was not changed.`;
     }
 
+    const diagnostics = sanitizeTurnFailureDiagnostics(errorObj?.diagnostics);
+
     throw new TurnResponseError({
       code,
       status: response.status,
       contentType,
       message: safeMessage,
+      ...(diagnostics ? { diagnostics } : {}),
     });
   }
 
@@ -165,6 +243,7 @@ export function toTurnFailureReceipt(err: unknown): TurnFailureReceipt {
           ? errorObj.statusCode
           : null;
     const contentType = typeof errorObj.contentType === 'string' ? errorObj.contentType : null;
+    const diagnostics = sanitizeTurnFailureDiagnostics(errorObj.diagnostics);
 
     let message = SAFE_UNEXPECTED_TURN_MESSAGE;
     if (
@@ -182,6 +261,7 @@ export function toTurnFailureReceipt(err: unknown): TurnFailureReceipt {
       status,
       contentType,
       message,
+      ...(diagnostics ? { diagnostics } : {}),
     };
   }
 

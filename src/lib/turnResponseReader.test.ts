@@ -197,4 +197,188 @@ describe('turnResponseReader', () => {
       `[ENGINE FAILURE // TURN_NETWORK_FAILURE]\n${SAFE_NETWORK_ERROR_MESSAGE}`
     );
   });
+
+  it('preserves only safe bounded model-contract diagnostics', async () => {
+    // 1. Valid diagnostics survive readTurnResponse, TurnResponseError, and toTurnFailureReceipt
+    const validDiagnostics = {
+      kind: 'SCHEMA_VALIDATION' as const,
+      issues: [
+        { path: 'character_relationship_proposal.changes.0.delta', code: 'invalid_type' },
+        { path: 'consequence_proposal.mutations.0.operation', code: 'invalid_enum_value' },
+      ],
+    };
+
+    const responseWithDiagnostics = new Response(
+      JSON.stringify({
+        error: 'Model output violated schema contract',
+        code: 'MODEL_CONTRACT_MISMATCH',
+        diagnostics: validDiagnostics,
+      }),
+      {
+        status: 502,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
+
+    let caughtError: TurnResponseError | null = null;
+    try {
+      await readTurnResponse(responseWithDiagnostics);
+    } catch (err) {
+      if (err instanceof TurnResponseError) {
+        caughtError = err;
+      }
+    }
+
+    expect(caughtError).not.toBeNull();
+    expect(caughtError?.diagnostics).toEqual(validDiagnostics);
+
+    const receiptFromError = caughtError!.toReceipt();
+    expect(receiptFromError.diagnostics).toEqual(validDiagnostics);
+
+    const receiptFromHelper = toTurnFailureReceipt({
+      code: 'MODEL_CONTRACT_MISMATCH',
+      status: 502,
+      message: 'Model output violated schema contract',
+      diagnostics: validDiagnostics,
+    });
+    expect(receiptFromHelper.diagnostics).toEqual(validDiagnostics);
+
+    // 2. Failures without diagnostics retain existing behavior
+    const simpleResponse = new Response(
+      JSON.stringify({
+        error: 'Generic server failure',
+        code: 'SERVER_ERROR',
+      }),
+      {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
+    let simpleError: TurnResponseError | null = null;
+    try {
+      await readTurnResponse(simpleResponse);
+    } catch (err) {
+      if (err instanceof TurnResponseError) {
+        simpleError = err;
+      }
+    }
+    expect(simpleError).not.toBeNull();
+    expect(simpleError?.diagnostics).toBeUndefined();
+    expect(simpleError?.toReceipt().diagnostics).toBeUndefined();
+
+    // 3. Malformed kinds, blank paths, oversized arrays, arbitrary nested objects, and non-string codes are discarded
+    const malformedDiagnostics = {
+      kind: 'INVALID_UNKNOWN_KIND',
+      issues: [{ path: 'valid.path', code: 'valid_code' }],
+    };
+    const responseWithMalformedKind = new Response(
+      JSON.stringify({
+        error: 'Contract error',
+        code: 'MODEL_CONTRACT_MISMATCH',
+        diagnostics: malformedDiagnostics,
+      }),
+      {
+        status: 502,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
+    let malformedKindError: TurnResponseError | null = null;
+    try {
+      await readTurnResponse(responseWithMalformedKind);
+    } catch (err) {
+      if (err instanceof TurnResponseError) {
+        malformedKindError = err;
+      }
+    }
+    expect(malformedKindError?.diagnostics).toBeUndefined();
+
+    const junkIssuesDiagnostics = {
+      kind: 'SCHEMA_VALIDATION',
+      issues: [
+        { path: '', code: 'code1' }, // blank path -> discarded
+        { path: 'path2', code: '' }, // blank code -> discarded
+        { path: 123, code: 'code3' }, // non-string path -> discarded
+        { path: 'path4', code: null }, // non-string code -> discarded
+        { nested: { raw: 'body' } }, // invalid shape -> discarded
+      ],
+    };
+    const responseWithJunk = new Response(
+      JSON.stringify({
+        error: 'Contract error',
+        code: 'MODEL_CONTRACT_MISMATCH',
+        diagnostics: junkIssuesDiagnostics,
+      }),
+      {
+        status: 502,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
+    let junkError: TurnResponseError | null = null;
+    try {
+      await readTurnResponse(responseWithJunk);
+    } catch (err) {
+      if (err instanceof TurnResponseError) {
+        junkError = err;
+      }
+    }
+    expect(junkError?.diagnostics).toBeUndefined();
+
+    // Oversized issues array is capped to 12
+    const manyIssues = Array.from({ length: 20 }, (_, i) => ({
+      path: `field.path.${i}`,
+      code: `code_${i}`,
+    }));
+    const responseWithMany = new Response(
+      JSON.stringify({
+        error: 'Contract error',
+        code: 'MODEL_CONTRACT_MISMATCH',
+        diagnostics: { kind: 'SCHEMA_VALIDATION', issues: manyIssues },
+      }),
+      {
+        status: 502,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
+    let manyError: TurnResponseError | null = null;
+    try {
+      await readTurnResponse(responseWithMany);
+    } catch (err) {
+      if (err instanceof TurnResponseError) {
+        manyError = err;
+      }
+    }
+    expect(manyError?.diagnostics?.issues).toHaveLength(12);
+
+    // 4. The generic user-facing message is unchanged
+    expect(caughtError?.message).toBe('Model output violated schema contract');
+
+    // 5. HTML and raw model bodies cannot enter diagnostics
+    const htmlInDiagnostics = {
+      kind: 'SCHEMA_VALIDATION',
+      issues: [
+        { path: '<script>alert(1)</script>', code: 'safe_code' },
+        { path: 'safe.path', code: '<div>raw html</div>' },
+      ],
+    };
+    const responseWithHtml = new Response(
+      JSON.stringify({
+        error: 'Contract error',
+        code: 'MODEL_CONTRACT_MISMATCH',
+        diagnostics: htmlInDiagnostics,
+      }),
+      {
+        status: 502,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
+    let htmlError: TurnResponseError | null = null;
+    try {
+      await readTurnResponse(responseWithHtml);
+    } catch (err) {
+      if (err instanceof TurnResponseError) {
+        htmlError = err;
+      }
+    }
+    expect(htmlError?.diagnostics).toBeUndefined();
+  });
 });

@@ -1297,6 +1297,142 @@ describe('Engine telemetry export', () => {
       expect(html).toContain('<li>No character memory changes</li>');
       expect(md).toContain('- No character memory changes');
     });
+
+    it('renders rejected model-contract paths without exposing model output', () => {
+      const messagesWithContractFailure = [
+        {
+          role: 'user',
+          content: 'I ask the technician about the seals.',
+          timestamp: 1,
+          userCharacterName: 'Field Operative',
+        },
+        {
+          role: 'assistant',
+          content: 'The turn service returned an unexpected response. The session state was not changed.',
+          timestamp: 2,
+          failureReceipt: {
+            code: 'MODEL_CONTRACT_MISMATCH',
+            status: 502,
+            contentType: 'application/json',
+            message: 'Model output violated schema contract',
+            diagnostics: {
+              kind: 'SCHEMA_VALIDATION',
+              issues: [
+                { path: 'character_relationship_proposal.changes.0.delta', code: 'invalid_type' },
+                { path: 'consequence_proposal.mutations.0.operation', code: 'invalid_enum_value' },
+              ],
+            },
+          },
+          turnReceipt: {
+            turnNumber: 1,
+            nodeBefore: 'NODE_01',
+            requestedTarget: null,
+            accepted: false,
+            nodeAfter: 'NODE_01',
+            activeVector: 'COGNITIVE' as const,
+            activeTier: 'LATENT' as const,
+            tension: 10,
+            preSnapshot: {
+              version: 1 as const,
+              turnCount: 1,
+              currentNodeId: 'NODE_01',
+              activeVector: 'COGNITIVE' as const,
+              activeTier: 'LATENT' as const,
+              phase: 'LATENT',
+              tension: 10,
+              coherence: 1.0,
+              reconciliationRevision: 0,
+              activeFlags: [],
+            },
+            postSnapshot: {
+              version: 1 as const,
+              turnCount: 1,
+              currentNodeId: 'NODE_01',
+              activeVector: 'COGNITIVE' as const,
+              activeTier: 'LATENT' as const,
+              phase: 'LATENT',
+              tension: 10,
+              coherence: 1.0,
+              reconciliationRevision: 0,
+              activeFlags: [],
+            },
+          },
+        },
+      ];
+
+      const htmlOutput = buildEngineLogContent(messagesWithContractFailure, 'html', 'failure-telemetry');
+      expect(htmlOutput).not.toBeNull();
+      const html = htmlOutput!.content;
+
+      // 1. Diagnostic Kind and Rejected Paths appear in HTML and MD
+      expect(html).toContain('<strong>Diagnostic Kind:</strong> SCHEMA_VALIDATION');
+      expect(html).toContain(
+        '<strong>Rejected Paths:</strong> character_relationship_proposal.changes.0.delta, consequence_proposal.mutations.0.operation'
+      );
+
+      const mdOutput = buildEngineLogContent(messagesWithContractFailure, 'md', 'failure-telemetry');
+      expect(mdOutput).not.toBeNull();
+      const md = mdOutput!.content;
+
+      expect(md).toContain('- **Diagnostic Kind:** SCHEMA_VALIDATION');
+      expect(md).toContain(
+        '- **Rejected Paths:** character_relationship_proposal.changes.0.delta, consequence_proposal.mutations.0.operation'
+      );
+
+      // 2. Diagnostic text is HTML-escaped
+      const messageWithSpecialCharsInDiag = [
+        {
+          role: 'assistant',
+          content: 'Failure',
+          timestamp: 2,
+          failureReceipt: {
+            code: 'MODEL_CONTRACT_MISMATCH',
+            status: 502,
+            contentType: 'application/json',
+            message: 'Model output violated schema contract',
+            diagnostics: {
+              kind: 'SCHEMA_VALIDATION',
+              issues: [{ path: 'proposal.field[0] & other', code: 'invalid_type' }],
+            },
+          },
+        },
+      ];
+      const htmlEscaped = buildEngineLogContent(messageWithSpecialCharsInDiag, 'html')!.content;
+      expect(htmlEscaped).toContain('proposal.field[0] &amp; other');
+
+      // 3. Rejected response text, prompts, and arbitrary server details do not appear
+      expect(html).not.toContain('stack trace');
+      expect(html).not.toContain('aiStudioSecret');
+      expect(md).not.toContain('stack trace');
+      expect(md).not.toContain('aiStudioSecret');
+
+      // 4. Pre/post state diff remains unchanged on failure
+      expect(html).toContain('No canonical snapshot changes');
+      expect(md).toContain('No canonical snapshot changes');
+
+      // 5. Successful-turn export output is unaffected
+      const successMessages = [
+        {
+          role: 'assistant',
+          content: 'You walk forward.',
+          timestamp: 2,
+          blocks: [{ type: 'prose', content: 'You walk forward.' }],
+          logic_state: {
+            current_phase: 'MANIFEST',
+            suggested_tension: 25,
+          },
+          validation: {
+            accepted: true,
+            rejected_fields: [],
+            repair_notes: [],
+          },
+        },
+      ];
+      const successHtml = buildEngineLogContent(successMessages, 'html')!.content;
+      expect(successHtml).toContain('<strong>Accepted:</strong> true');
+      expect(successHtml).not.toContain('Diagnostic Kind');
+      expect(successHtml).not.toContain('Rejected Paths');
+    });
   });
 });
 

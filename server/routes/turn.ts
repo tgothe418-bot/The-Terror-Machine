@@ -58,6 +58,45 @@ import type {
   TransitionReceipt,
   CastInteractionReceipt,
 } from '../../src/types/engineContract';
+import type {
+  TurnFailureDiagnostics,
+  TurnFailureDiagnosticIssue,
+} from '../../src/types';
+
+export function buildZodDiagnostics(zodError: z.ZodError): TurnFailureDiagnostics {
+  const issues: TurnFailureDiagnosticIssue[] = [];
+  const seen = new Set<string>();
+
+  for (const issue of zodError.issues) {
+    if (issues.length >= 12) break;
+    const path = (issue.path && issue.path.length > 0 ? issue.path.join('.') : '$').slice(0, 240);
+    const code = (issue.code || 'invalid_schema').slice(0, 60);
+    const key = `${path}::${code}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      issues.push({ path, code });
+    }
+  }
+
+  return {
+    kind: 'SCHEMA_VALIDATION',
+    issues: issues.length > 0 ? issues : [{ path: '$', code: 'invalid_schema' }],
+  };
+}
+
+export function buildJsonParseDiagnostics(): TurnFailureDiagnostics {
+  return {
+    kind: 'JSON_PARSE',
+    issues: [{ path: '$', code: 'invalid_json' }],
+  };
+}
+
+export function buildDialogueDiagnostics(): TurnFailureDiagnostics {
+  return {
+    kind: 'DIALOGUE_CONTRACT',
+    issues: [{ path: 'narrative_blocks', code: 'dialogue_contract_violation' }],
+  };
+}
 
 export function enforceNarrativeReconciliationBoundaries<T extends TurnResult>(
   result: T,
@@ -804,12 +843,26 @@ ${recentHistory}
     try {
       engineResponse = await generateStructuredResponse(prompt, TurnResultSchema);
     } catch (modelErr: unknown) {
-      if (modelErr instanceof z.ZodError || (modelErr as { name?: string })?.name === 'ZodError' || modelErr instanceof SyntaxError) {
+      if (modelErr instanceof z.ZodError || (modelErr as { name?: string })?.name === 'ZodError') {
         console.error('[API /turn] Model contract mismatch:', modelErr);
+        const zodError =
+          modelErr instanceof z.ZodError
+            ? modelErr
+            : new z.ZodError((modelErr as { issues?: z.ZodIssue[] }).issues || []);
+        const diagnostics = buildZodDiagnostics(zodError);
         return res.status(502).json({
           error: 'Model output violated schema contract',
           code: 'MODEL_CONTRACT_MISMATCH',
-          details: modelErr instanceof z.ZodError ? modelErr.flatten() : String(modelErr),
+          diagnostics,
+        });
+      }
+      if (modelErr instanceof SyntaxError) {
+        console.error('[API /turn] Model JSON parse failure:', modelErr);
+        const diagnostics = buildJsonParseDiagnostics();
+        return res.status(502).json({
+          error: 'Model output violated schema contract',
+          code: 'MODEL_CONTRACT_MISMATCH',
+          diagnostics,
         });
       }
       console.error('[API /turn] AI Provider failure:', modelErr);
@@ -846,10 +899,11 @@ ${recentHistory}
 
     if (dialogueContractError) {
       console.error('[API /turn] Model dialogue contract mismatch:', dialogueContractError);
+      const diagnostics = buildDialogueDiagnostics();
       return res.status(502).json({
         error: 'Model output violated dialogue contract',
         code: 'MODEL_CONTRACT_MISMATCH',
-        details: dialogueContractError,
+        diagnostics,
       });
     }
 

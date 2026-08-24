@@ -231,31 +231,22 @@ describe('Turn schemas validation', () => {
 
         const candidatesProp = worldMemoryProp?.properties?.candidates;
         expect(candidatesProp).toBeDefined();
-        expect(candidatesProp?.maxItems).toBe(2);
+        expect(String(candidatesProp?.maxItems)).toBe('2');
 
         const candidateItems = candidatesProp?.items;
         expect(candidateItems).toBeDefined();
-        expect(candidateItems?.properties).toBeDefined();
+        expect(candidateItems?.anyOf).toBeDefined();
+        expect(candidateItems?.anyOf).toHaveLength(2);
 
-        const statementProp = candidateItems?.properties?.statement;
-        expect(statementProp).toBeDefined();
-        expect(statementProp?.maxLength).toBe(240);
+        const globalVariant = candidateItems?.anyOf?.[0];
+        expect(globalVariant?.properties?.scope?.enum).toEqual(['GLOBAL']);
+        expect(globalVariant?.properties?.node_id?.nullable).toBe(true);
+        expect(String(globalVariant?.properties?.statement?.maxLength)).toBe('240');
 
-        expect(candidateItems?.required).toEqual(['kind', 'scope', 'node_id', 'statement', 'rationale']);
-
-        const kindProp = candidateItems?.properties?.kind;
-        expect(kindProp?.enum).toEqual([
-          'ESTABLISHED_FACT',
-          'DISCOVERED_EVIDENCE',
-          'ENVIRONMENTAL_CONDITION',
-          'PERSISTENT_CONSEQUENCE',
-        ]);
-
-        const scopeProp = candidateItems?.properties?.scope;
-        expect(scopeProp?.enum).toEqual(['GLOBAL', 'NODE']);
-
-        const nodeIdProp = candidateItems?.properties?.node_id;
-        expect(nodeIdProp?.nullable).toBe(true);
+        const nodeVariant = candidateItems?.anyOf?.[1];
+        expect(nodeVariant?.properties?.scope?.enum).toEqual(['NODE']);
+        expect(String(nodeVariant?.properties?.node_id?.maxLength)).toBe('120');
+        expect(String(nodeVariant?.properties?.statement?.maxLength)).toBe('240');
       });
 
       it('declares character_relationship_proposal delta as an INTEGER with format enum and exact values ["-1", "1"]', () => {
@@ -4630,6 +4621,227 @@ describe('Turn schemas validation', () => {
       // 4. Assert non-player character memory is rendered while player-character memory is excluded
       expect(capturedPrompt).toContain('NON_PLAYER_PRESENT_MEMORY');
       expect(capturedPrompt).not.toContain('PLAYER_CHARACTER_MEMORY_DO_NOT_RENDER');
+    });
+
+    it('returns bounded diagnostics when a concise human turn violates the model contract', async () => {
+      const baseTurnPayload = {
+        userAction: 'Where is the emergency conduit?',
+        recentHistory: 'You stand before the bulkhead.',
+        systemDirective: 'Keep prose clinical.',
+        isExpansionExpected: false,
+        stateContext: {
+          currentNodeId: 'CHAMBER_01',
+          currentPhase: 'LATENT',
+          tensionLevel: 1,
+          reconciliationRevision: 0,
+        },
+        context: {
+          version: 1,
+          scenario: {
+            title: 'Diagnostic Test Enclosure',
+            premise: 'Testing failure contract boundaries.',
+            worldRules: [],
+            setting: { location: 'Chamber 01', atmosphere: 'Cold', timePeriod: 'Present' },
+            startingVector: 'COGNITIVE',
+            startingTier: 'LATENT',
+            incitingIncident: 'Init.',
+            pacingDirective: 'Direct.',
+            keyPlotElements: [],
+          },
+          player: {
+            role: 'protagonist',
+            characterId: 'char-1',
+            name: 'Subject One',
+            description: 'Test subject',
+            isEntity: false,
+          },
+          cast: [
+            {
+              id: 'char-1',
+              name: 'Subject One',
+              role: 'Protagonist',
+              description: '',
+              isUserCharacter: true,
+              isPresent: true,
+            },
+            {
+              id: 'char-2',
+              name: 'Technician Mercer',
+              role: 'Custodian',
+              description: 'Station tech',
+              isUserCharacter: false,
+              isPresent: true,
+            },
+          ],
+          topology: {
+            currentNodeId: 'CHAMBER_01',
+            readableNodeLabel: 'Chamber 01',
+            allowedOutgoingExits: [],
+          },
+          runtime: {
+            turnNumber: 1,
+            phase: 'LATENT',
+            tension: 1,
+            coherence: 1.0,
+            reconciliationRevision: 0,
+            activeVector: 'COGNITIVE',
+            activeTier: 'LATENT',
+          },
+        },
+      };
+
+      // 1. Valid Turn Path: Concise human dialogue is placed in prompt unchanged and follows normal route
+      const validResult: TurnResult = {
+        narrative_blocks: [
+          { type: 'dialogue', speaker: 'Technician Mercer', content: 'Behind the secondary panel.' },
+          { type: 'prose', content: 'He points toward the rusted wall access.' },
+        ],
+        intent_proposal: {
+          action_kind: 'COMMUNICATE',
+          action_subtype: null,
+          pressure_direction: 'MAINTAIN',
+          dramatic_tactic: 'EXPOSURE',
+          intent_synergy: 'SUCCESS',
+        },
+        reconciliation_proposal: {
+          mode: 'CANONICAL',
+          feasibility: 'SUPPORTED',
+          reason_code: 'NONE',
+          fictional_time_cost: 'MOMENT',
+          authority_alignment: 'WITHIN_CONTRACT',
+          memory_echo_candidate: null,
+        },
+        consequence_proposal: { mutations: [] },
+        character_stance_proposal: { changes: [] },
+        character_relationship_proposal: { changes: [] },
+        character_memory_proposal: { candidates: [] },
+        world_memory_proposal: { candidates: [] },
+        logic_state: {
+          current_phase: 'MANIFEST',
+          suggested_tension: 20,
+          requested_transition: null,
+          terminal_flags: [],
+          cast_deltas: [],
+          cast_ledger: [],
+        },
+        topologyDelta: { isExpansion: false, newNodeDef: null },
+      };
+
+      mockGenerateStructuredResponse.mockReset();
+      mockGenerateStructuredResponse.mockResolvedValueOnce(validResult);
+
+      const validResponse = await fetch(`${baseUrl}/api/turn`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(baseTurnPayload),
+      });
+
+      expect(validResponse.status).toBe(200);
+      expect(mockGenerateStructuredResponse).toHaveBeenCalledTimes(1);
+      const promptCall = mockGenerateStructuredResponse.mock.calls[0][0] as string;
+      expect(promptCall).toContain('[USER ACTION]: Where is the emergency conduit?');
+
+      // 2. Zod Schema Failure Path: returns 502 with MODEL_CONTRACT_MISMATCH and bounded path/code diagnostics
+      const dummySchema = (await import('zod')).z.object({
+        consequence_proposal: (await import('zod')).z.object({
+          mutations: (await import('zod')).z.array(
+            (await import('zod')).z.object({ value: (await import('zod')).z.string() })
+          ),
+        }),
+        narrative_blocks: (await import('zod')).z.array((await import('zod')).z.any()).max(2),
+      });
+
+      const parseAttempt = dummySchema.safeParse({
+        consequence_proposal: {
+          mutations: [{ value: 123 as unknown as string }],
+        },
+        narrative_blocks: [1, 2, 3],
+      });
+      const zodError = parseAttempt.error!;
+
+      mockGenerateStructuredResponse.mockReset();
+      mockGenerateStructuredResponse.mockRejectedValueOnce(zodError);
+
+      const zodFailResponse = await fetch(`${baseUrl}/api/turn`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(baseTurnPayload),
+      });
+
+      expect(zodFailResponse.status).toBe(502);
+      const zodFailJson = (await zodFailResponse.json()) as Record<string, unknown>;
+      expect(zodFailJson.code).toBe('MODEL_CONTRACT_MISMATCH');
+      expect(zodFailJson.error).toBe('Model output violated schema contract');
+      expect(zodFailJson.details).toBeUndefined(); // Raw details omitted to avoid leaking model output
+
+      const zodDiag = zodFailJson.diagnostics as {
+        kind: string;
+        issues: Array<{ path: string; code: string }>;
+      };
+      expect(zodDiag).toBeDefined();
+      expect(zodDiag.kind).toBe('SCHEMA_VALIDATION');
+      expect(zodDiag.issues).toHaveLength(2);
+      expect(zodDiag.issues[0]).toEqual({
+        path: 'consequence_proposal.mutations.0.value',
+        code: 'invalid_type',
+      });
+      expect(zodDiag.issues[1]).toEqual({
+        path: 'narrative_blocks',
+        code: 'too_big',
+      });
+
+      // 3. JSON Parse Failure Path: returns 502 with JSON_PARSE diagnostic
+      mockGenerateStructuredResponse.mockReset();
+      mockGenerateStructuredResponse.mockRejectedValueOnce(new SyntaxError('Unexpected token < in JSON'));
+
+      const parseFailResponse = await fetch(`${baseUrl}/api/turn`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(baseTurnPayload),
+      });
+
+      expect(parseFailResponse.status).toBe(502);
+      const parseFailJson = (await parseFailResponse.json()) as Record<string, unknown>;
+      expect(parseFailJson.code).toBe('MODEL_CONTRACT_MISMATCH');
+      const parseDiag = parseFailJson.diagnostics as {
+        kind: string;
+        issues: Array<{ path: string; code: string }>;
+      };
+      expect(parseDiag.kind).toBe('JSON_PARSE');
+      expect(parseDiag.issues).toEqual([{ path: '$', code: 'invalid_json' }]);
+
+      // 4. Dialogue Contract Failure Path: returns 502 with DIALOGUE_CONTRACT diagnostic
+      const dialogueViolationResult: TurnResult = {
+        ...validResult,
+        narrative_blocks: [
+          { type: 'dialogue', speaker: 'Ghost Persona', content: 'I am not in the cast.' },
+        ],
+      };
+
+      mockGenerateStructuredResponse.mockReset();
+      mockGenerateStructuredResponse.mockResolvedValueOnce(dialogueViolationResult);
+
+      const dialogueFailResponse = await fetch(`${baseUrl}/api/turn`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(baseTurnPayload),
+      });
+
+      expect(dialogueFailResponse.status).toBe(502);
+      const dialogueFailJson = (await dialogueFailResponse.json()) as Record<string, unknown>;
+      expect(dialogueFailJson.code).toBe('MODEL_CONTRACT_MISMATCH');
+      expect(dialogueFailJson.error).toBe('Model output violated dialogue contract');
+      const dialogueDiag = dialogueFailJson.diagnostics as {
+        kind: string;
+        issues: Array<{ path: string; code: string }>;
+      };
+      expect(dialogueDiag.kind).toBe('DIALOGUE_CONTRACT');
+      expect(dialogueDiag.issues).toEqual([
+        { path: 'narrative_blocks', code: 'dialogue_contract_violation' },
+      ]);
+      // Ensure no dialogue content is present in diagnostics
+      expect(JSON.stringify(dialogueDiag)).not.toContain('Ghost Persona');
+      expect(JSON.stringify(dialogueDiag)).not.toContain('I am not in the cast');
     });
   });
 });
