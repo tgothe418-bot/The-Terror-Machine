@@ -6,6 +6,8 @@ import { ForgeDraft } from '../types/forge';
 import { ForgeCompilationError } from './forgeCompiler';
 
 describe('compileBlueprintDraft and prepareBlueprintExport', () => {
+  const defaultContext = { draftRevision: 1, sourceBaselineRevision: 1 };
+
   it('compiles a partial legacy Forge draft into a Blueprint accepted by BlueprintSchema', () => {
     const rawDraft = {
       title: 'Obsidian Keep',
@@ -108,7 +110,7 @@ describe('compileBlueprintDraft and prepareBlueprintExport', () => {
       environmentalRules: '',
     };
 
-    const artifact = prepareBlueprintExport(validDraft);
+    const artifact = prepareBlueprintExport(validDraft, defaultContext);
     const parsedFromJson = JSON.parse(artifact.json);
 
     expect(parsedFromJson).toEqual(artifact.blueprint);
@@ -157,7 +159,7 @@ describe('compileBlueprintDraft and prepareBlueprintExport', () => {
       environmentalRules: '',
     };
 
-    const artifact = prepareBlueprintExport(validDraftWithRefs);
+    const artifact = prepareBlueprintExport(validDraftWithRefs, defaultContext);
     expect(artifact.fileName).toBe('silent_hill_2_the_thing_1982__the_old_church_bell_tower_.json');
 
     const validDraftWithoutRefs: ForgeDraft = {
@@ -166,7 +168,7 @@ describe('compileBlueprintDraft and prepareBlueprintExport', () => {
       title: 'Cold Chamber',
       references: [],
     };
-    const artifactNoRefs = prepareBlueprintExport(validDraftWithoutRefs);
+    const artifactNoRefs = prepareBlueprintExport(validDraftWithoutRefs, defaultContext);
     expect(artifactNoRefs.fileName).toBe('cold_chamber.json');
   });
 
@@ -175,7 +177,7 @@ describe('compileBlueprintDraft and prepareBlueprintExport', () => {
       identity: 42,
     };
     expect(() => compileBlueprintDraft(malformedDraft1)).toThrow(ZodError);
-    expect(() => prepareBlueprintExport(malformedDraft1)).toThrow(ForgeCompilationError);
+    expect(() => prepareBlueprintExport(malformedDraft1, defaultContext)).toThrow(ForgeCompilationError);
 
     const malformedDraft2 = {
       identity: { title: 'Valid' },
@@ -184,7 +186,7 @@ describe('compileBlueprintDraft and prepareBlueprintExport', () => {
       },
     };
     expect(() => compileBlueprintDraft(malformedDraft2)).toThrow(ZodError);
-    expect(() => prepareBlueprintExport(malformedDraft2)).toThrow(ForgeCompilationError);
+    expect(() => prepareBlueprintExport(malformedDraft2, defaultContext)).toThrow(ForgeCompilationError);
   });
 
   it('does not mutate the source draft', () => {
@@ -233,7 +235,7 @@ describe('compileBlueprintDraft and prepareBlueprintExport', () => {
 
     const snapshot = JSON.parse(JSON.stringify(validDraft));
     compileBlueprintDraft(validDraft);
-    prepareBlueprintExport(validDraft);
+    prepareBlueprintExport(validDraft, defaultContext);
 
     expect(validDraft).toEqual(snapshot);
     expect(typeof validDraft.topology?.connections?.[0]).toBe('string');
@@ -283,7 +285,7 @@ describe('compileBlueprintDraft and prepareBlueprintExport', () => {
       environmentalRules: '',
     };
 
-    const artifact = prepareBlueprintExport(validDraft);
+    const artifact = prepareBlueprintExport(validDraft, defaultContext);
 
     // 1. Verify artifact and nested compiled objects are frozen
     expect(Object.isFrozen(artifact)).toBe(true);
@@ -314,6 +316,89 @@ describe('compileBlueprintDraft and prepareBlueprintExport', () => {
     expect(Object.isFrozen(validDraft.cast![0])).toBe(false);
     validDraft.cast![0].name = 'Archivist Calder Updated';
     expect(validDraft.cast![0].name).toBe('Archivist Calder Updated');
+  });
+
+  it('creates a deeply frozen artifact with both source revisions', () => {
+    const validDraft: ForgeDraft = {
+      id: 'draft-revision-test',
+      title: 'Revision Bound Station',
+      premise: 'Testing revision capture and deep freeze.',
+      startingVector: 'SOMATIC',
+      startingTier: 'MANIFEST',
+      setting: {
+        location: 'Chamber 4',
+      },
+      depictionContract: {
+        dramaticRegister: 'Clinical dread',
+        directness: 'Visceral mechanics',
+        aftermath: 'Irreversible consequences',
+        ambiguityHandling: 'Preserve epistemic gaps',
+      },
+      cast: [
+        {
+          id: 'c1',
+          name: 'Dr. Vane',
+          role: 'Specialist',
+          behaviorVector: 'ADAPTIVE',
+          isEntity: false,
+        },
+      ],
+      topology: {
+        nodes: ['A', 'B'],
+        connections: ['A -> B'],
+      },
+      perspectives: [],
+      references: ['Reference Log'],
+      narrativeRules: {
+        incitingIncident: '',
+        phaseDirectives: {},
+        currentTensionLevel: 'buildup',
+        keyPlotElements: [],
+      },
+      characters: [],
+      constraints: [],
+      contentScale: 3,
+      contentLevelDescription: 'Standard',
+      environmentalRules: '',
+    };
+
+    const context = {
+      draftRevision: 5,
+      sourceBaselineRevision: 3,
+    };
+
+    const artifact = prepareBlueprintExport(validDraft, context);
+
+    // Exact revision copying
+    expect(artifact.sourceDraftRevision).toBe(5);
+    expect(artifact.sourceBaselineRevision).toBe(3);
+    expect(artifact.sourceDraftId).toBe('draft-revision-test');
+    expect(typeof artifact.compiledAt).toBe('number');
+    expect(artifact.fileName).toBe('reference_log_revision_bound_station.json');
+
+    // Deep immutability of artifact, Blueprint, and nested objects/arrays
+    expect(Object.isFrozen(artifact)).toBe(true);
+    expect(Object.isFrozen(artifact.blueprint)).toBe(true);
+    expect(Object.isFrozen(artifact.blueprint.cast)).toBe(true);
+    expect(Object.isFrozen(artifact.blueprint.cast[0])).toBe(true);
+    expect(Object.isFrozen(artifact.blueprint.setting)).toBe(true);
+    expect(Object.isFrozen(artifact.blueprint.topology)).toBe(true);
+    expect(Object.isFrozen(artifact.blueprint.topology.connections)).toBe(true);
+    expect(Object.isFrozen(artifact.blueprint.references)).toBe(true);
+
+    // Attempting mutations must throw in strict mode
+    expect(() => {
+      (artifact as unknown as Record<string, unknown>).sourceDraftRevision = 999;
+    }).toThrow();
+    expect(() => {
+      (artifact.blueprint as unknown as Record<string, unknown>).title = 'Mutated Title';
+    }).toThrow();
+    expect(() => {
+      (artifact.blueprint.cast[0] as unknown as Record<string, unknown>).name = 'Mutated Cast';
+    }).toThrow();
+    expect(() => {
+      (artifact.blueprint.references as unknown as Array<string>).push('Extra');
+    }).toThrow();
   });
 
   it('is value-idempotent when compiling an already compiled Blueprint', () => {

@@ -22,7 +22,7 @@ interface ExportReviewModalProps {
 }
 
 export const ExportReviewModal: React.FC<ExportReviewModalProps> = ({ isOpen, onClose }) => {
-  const { draftBlueprint, draftRevision, sourceAnalyses } = useForgeState();
+  const { draftBlueprint, draftRevision, sourceBaselineRevision, sourceAnalyses } = useForgeState();
   const [copied, setCopied] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
 
@@ -41,7 +41,10 @@ export const ExportReviewModal: React.FC<ExportReviewModalProps> = ({ isOpen, on
     if (!draftBlueprint) return;
     try {
       setExportError(null);
-      const artifact = prepareBlueprintExport(draftBlueprint, draftRevision);
+      const artifact = prepareBlueprintExport(draftBlueprint, {
+        draftRevision: draftRevision || 1,
+        sourceBaselineRevision: sourceBaselineRevision || 1,
+      });
       const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(artifact.json);
       const downloadAnchorNode = document.createElement('a');
       downloadAnchorNode.setAttribute('href', dataStr);
@@ -62,7 +65,10 @@ export const ExportReviewModal: React.FC<ExportReviewModalProps> = ({ isOpen, on
   const handleCopyJson = async () => {
     if (!draftBlueprint) return;
     try {
-      const artifact = prepareBlueprintExport(draftBlueprint, draftRevision);
+      const artifact = prepareBlueprintExport(draftBlueprint, {
+        draftRevision: draftRevision || 1,
+        sourceBaselineRevision: sourceBaselineRevision || 1,
+      });
       await navigator.clipboard.writeText(artifact.json);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);

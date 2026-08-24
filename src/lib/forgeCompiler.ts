@@ -155,7 +155,10 @@ export function validateForgeDraft(rawDraft: unknown): ForgeValidationResult {
  * Performs dedicated review validation first and normalizes/validates the final Blueprint.
  * Never mutates runtime state, selects a seat, or starts an engine session.
  */
-export function compileForgeDraft(rawDraft: unknown, draftRevision?: number): ForgeCompileResult {
+export function compileForgeDraft(
+  rawDraft: unknown,
+  context?: import('../types/forge').ForgeCompilationContext | number
+): ForgeCompileResult {
   const validation = validateForgeDraft(rawDraft);
   if (!validation.valid) {
     return {
@@ -200,13 +203,26 @@ export function compileForgeDraft(rawDraft: unknown, draftRevision?: number): Fo
   const deepClonedBlueprint = JSON.parse(JSON.stringify(parsedBlueprint));
   const frozenBlueprint = deepFreeze(deepClonedBlueprint);
 
+  const sourceDraftRevision =
+    typeof context === 'object' && context !== null
+      ? context.draftRevision
+      : typeof context === 'number'
+        ? context
+        : 1;
+
+  const sourceBaselineRevision =
+    typeof context === 'object' && context !== null
+      ? context.sourceBaselineRevision
+      : 1;
+
   const artifact: ForgeReviewArtifact = deepFreeze({
     blueprint: frozenBlueprint,
     json,
     fileName,
     compiledAt: Date.now(),
     sourceDraftId: draft.id,
-    sourceDraftRevision: draftRevision ?? 1,
+    sourceDraftRevision,
+    sourceBaselineRevision,
   });
 
   return {
@@ -219,8 +235,11 @@ export function compileForgeDraft(rawDraft: unknown, draftRevision?: number): Fo
 /**
  * Compiles a Forge draft or throws a structured ForgeCompilationError.
  */
-export function compileForgeDraftOrThrow(rawDraft: unknown, draftRevision?: number): ForgeReviewArtifact {
-  const result = compileForgeDraft(rawDraft, draftRevision);
+export function compileForgeDraftOrThrow(
+  rawDraft: unknown,
+  context?: import('../types/forge').ForgeCompilationContext | number
+): ForgeReviewArtifact {
+  const result = compileForgeDraft(rawDraft, context);
   if (!result.success) {
     throw new ForgeCompilationError(result.errors);
   }

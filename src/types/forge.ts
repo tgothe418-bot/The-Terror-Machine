@@ -170,6 +170,11 @@ export interface ForgeValidationResult {
   errors: Record<string, string[]>;
 }
 
+export interface ForgeCompilationContext {
+  draftRevision: number;
+  sourceBaselineRevision: number;
+}
+
 export interface ForgeReviewArtifact {
   blueprint: import('./index').Blueprint;
   json: string;
@@ -177,7 +182,7 @@ export interface ForgeReviewArtifact {
   compiledAt: number;
   sourceDraftId: string;
   sourceDraftRevision: number;
-  sourceBaselineRevision?: number;
+  sourceBaselineRevision: number;
 }
 
 export type ForgeCompileResult =
