@@ -3,6 +3,7 @@ import {
   ForgeDraftCastMember,
   ForgeDraftCastMemberOutput,
   ForgeDraftCastMemberSchema,
+  ForgeDraftSchema,
   ForgeSourceAnalysis,
   ForgeSourceCandidate,
   ForgeSourceEvidence,
@@ -13,6 +14,7 @@ import {
   ForgeSourceEvidenceSchema,
   ForgeSourceUnknownSchema,
   ForgeResolutionDraftPatch,
+  ForgeResolutionDraftPatchSchema,
 } from '../types/forge';
 import { normalizeBlueprint } from './normalizeBlueprint';
 
@@ -836,72 +838,163 @@ export function setCandidateReviewDecisionPure(
 }
 
 /**
+ * Result type for applying ambiguity resolution draft patches.
+ */
+export type ApplyResolutionDraftPatchResult =
+  | { success: true; draft: ForgeDraft }
+  | { success: false; error: string };
+
+/**
+ * Deterministic append helper that trims both values, adds one readable separator,
+ * and does not append identical text twice.
+ */
+function appendDeterministicText(
+  current: string | undefined | null,
+  addition: string,
+  separator: string = '\n\n'
+): string {
+  const trimmedAddition = addition.trim();
+  if (!trimmedAddition) return (current || '').trim();
+  const trimmedCurrent = (current || '').trim();
+  if (!trimmedCurrent) return trimmedAddition;
+
+  // Do not append identical text twice
+  if (trimmedCurrent === trimmedAddition) return trimmedCurrent;
+  if (
+    trimmedCurrent.endsWith(trimmedAddition) ||
+    trimmedCurrent.includes(`${separator}${trimmedAddition}`) ||
+    trimmedCurrent.includes(`\n${trimmedAddition}`)
+  ) {
+    return trimmedCurrent;
+  }
+
+  return `${trimmedCurrent}${separator}${trimmedAddition}`;
+}
+
+/**
  * Purely applies structured ambiguity resolution patch operations to a ForgeDraft.
+ * Process order:
+ * 1. Parse the complete patch with ForgeResolutionDraftPatchSchema.
+ * 2. Validate every operation and referenced cast member against the untouched draft.
+ * 3. Apply all operations to one clone.
+ * 4. Parse the complete clone with ForgeDraftSchema.
+ * 5. Return success only after final validation.
  */
 export function applyResolutionDraftPatch(
   draft: ForgeDraft,
   patch?: ForgeResolutionDraftPatch
-): ForgeDraft {
+): ApplyResolutionDraftPatchResult {
   if (!patch || !Array.isArray(patch.operations) || patch.operations.length === 0) {
-    return draft;
+    const parseDraft = ForgeDraftSchema.safeParse(draft);
+    if (!parseDraft.success) {
+      return {
+        success: false,
+        error: `Draft validation failed: ${parseDraft.error.issues.map((i) => i.message).join(', ')}`,
+      };
+    }
+    return { success: true, draft: parseDraft.data };
   }
 
+  // 1. Parse the complete patch
+  const parsedPatch = ForgeResolutionDraftPatchSchema.safeParse(patch);
+  if (!parsedPatch.success) {
+    return {
+      success: false,
+      error: `Invalid draft patch schema: ${parsedPatch.error.issues.map((i) => i.message).join(', ')}`,
+    };
+  }
+
+  // 2. Validate every operation and referenced cast member against the untouched draft
+  const castList = draft.cast || [];
+  for (let idx = 0; idx < parsedPatch.data.operations.length; idx++) {
+    const op = parsedPatch.data.operations[idx];
+    const text = (op.text || '').trim();
+    if (!text) {
+      return {
+        success: false,
+        error: `Operation [${idx + 1}] (${op.target}) text cannot be empty.`,
+      };
+    }
+
+    if (op.target === 'cast_description' || op.target === 'cast_personality') {
+      const targetCast = castList.find((c) => c.id === op.castMemberId);
+      if (!targetCast) {
+        return {
+          success: false,
+          error: `Referenced cast member "${op.castMemberId}" not found in active draft for operation [${idx + 1}] (${op.target}).`,
+        };
+      }
+    }
+  }
+
+  // 3. Apply all operations to one clone
   const nextDraft: ForgeDraft = JSON.parse(JSON.stringify(draft));
 
-  for (const op of patch.operations) {
-    const text = (op.text || '').trim();
-    if (!text) continue;
+  for (const op of parsedPatch.data.operations) {
+    const text = op.text.trim();
 
     switch (op.target) {
       case 'cast_description': {
-        if (nextDraft.cast && Array.isArray(nextDraft.cast)) {
-          nextDraft.cast = nextDraft.cast.map((c) => {
-            if (c.id === op.castMemberId) {
-              const currentNotes = (c as ForgeDraftCastMember & { notes?: string }).notes || '';
-              return {
-                ...c,
-                notes: currentNotes ? `${currentNotes}\n${text}` : text,
-              };
-            }
-            return c;
-          });
-        }
+        if (!nextDraft.cast) nextDraft.cast = [];
+        nextDraft.cast = nextDraft.cast.map((c) => {
+          if (c.id === op.castMemberId) {
+            return {
+              ...c,
+              description: appendDeterministicText(c.description, text, '\n\n'),
+            };
+          }
+          return c;
+        });
         break;
       }
       case 'cast_personality': {
-        if (nextDraft.cast && Array.isArray(nextDraft.cast)) {
-          nextDraft.cast = nextDraft.cast.map((c) => {
-            if (c.id === op.castMemberId) {
-              const currentPsych = c.psychological_status || '';
-              return {
-                ...c,
-                psychological_status: currentPsych ? `${currentPsych}\n${text}` : text,
-              };
-            }
-            return c;
-          });
-        }
+        if (!nextDraft.cast) nextDraft.cast = [];
+        nextDraft.cast = nextDraft.cast.map((c) => {
+          if (c.id === op.castMemberId) {
+            return {
+              ...c,
+              personality: appendDeterministicText(c.personality, text, '\n\n'),
+            };
+          }
+          return c;
+        });
         break;
       }
       case 'premise_detail': {
-        const currentPremise = nextDraft.premise || nextDraft.globalPremise || '';
-        const updated = currentPremise ? `${currentPremise}\n\n${text}` : text;
+        const updated = appendDeterministicText(
+          nextDraft.premise || nextDraft.globalPremise || '',
+          text,
+          '\n\n'
+        );
         nextDraft.premise = updated;
         nextDraft.globalPremise = updated;
         break;
       }
       case 'setting_atmosphere': {
-        if (!nextDraft.setting) nextDraft.setting = { location: '', atmosphere: '', timePeriod: '' };
-        const currentAtmosphere = nextDraft.setting.atmosphere || '';
-        nextDraft.setting.atmosphere = currentAtmosphere ? `${currentAtmosphere} ${text}` : text;
+        if (!nextDraft.setting) {
+          nextDraft.setting = { location: '', atmosphere: '', timePeriod: '' };
+        }
+        nextDraft.setting.atmosphere = appendDeterministicText(
+          nextDraft.setting.atmosphere,
+          text,
+          ' '
+        );
         break;
       }
       case 'environmental_rule': {
         if (Array.isArray(nextDraft.environmentalRules)) {
-          nextDraft.environmentalRules = [...nextDraft.environmentalRules, text];
+          const rules = [...nextDraft.environmentalRules];
+          if (!rules.includes(text)) {
+            rules.push(text);
+          }
+          nextDraft.environmentalRules = rules;
         } else if (typeof nextDraft.environmentalRules === 'string') {
           const current = nextDraft.environmentalRules.trim();
-          nextDraft.environmentalRules = current ? `${current}\n- ${text}` : `- ${text}`;
+          if (!current) {
+            nextDraft.environmentalRules = text;
+          } else if (!current.includes(text)) {
+            nextDraft.environmentalRules = `${current}\n${text}`;
+          }
         } else {
           nextDraft.environmentalRules = [text];
         }
@@ -919,14 +1012,29 @@ export function applyResolutionDraftPatch(
         const currentPlot = Array.isArray(nextDraft.narrativeRules.keyPlotElements)
           ? [...nextDraft.narrativeRules.keyPlotElements]
           : [];
-        currentPlot.push(text);
+        if (!currentPlot.includes(text)) {
+          currentPlot.push(text);
+        }
         nextDraft.narrativeRules.keyPlotElements = currentPlot;
         break;
       }
     }
   }
 
-  return nextDraft;
+  // 4. Parse the complete clone with ForgeDraftSchema
+  const finalValidation = ForgeDraftSchema.safeParse(nextDraft);
+  if (!finalValidation.success) {
+    return {
+      success: false,
+      error: `Patched draft failed final validation: ${finalValidation.error.issues.map((i) => i.message).join(', ')}`,
+    };
+  }
+
+  // 5. Return success only after final validation
+  return {
+    success: true,
+    draft: finalValidation.data,
+  };
 }
 
 

@@ -763,5 +763,199 @@ describe('useForgeStore - draft state and actions', () => {
     expect(sanitizeSourceAnalyses([])).toEqual({});
     expect(sanitizeSourceAnalyses('string')).toEqual({});
   });
+
+  test('15. Ambiguity Resolution Flow: follow-up, proposal receiving, editing, and transactional draft commit', () => {
+    forgeActions.initializeDraft();
+    forgeActions.updateDraft({
+      identity: { title: 'Atmospheric Research Station' },
+      premise: 'Initial premise on orbital facility.',
+      setting: { location: 'Orbital Ring', atmosphere: 'Sterile', timePeriod: '2150' },
+      cast: [
+        {
+          id: 'cast-1',
+          name: 'Dr. Sterling',
+          role: 'Lead Researcher',
+          description: 'Senior planetary scientist.',
+          personality: 'Stoic and meticulous.',
+        },
+      ],
+    });
+
+    const mockAnalysis = {
+      id: 'analysis-ambiguity-test',
+      sourceRecord: {
+        id: 'src-rec-ambiguity',
+        fileName: 'station_log.txt',
+        mimeType: 'text/plain',
+        kind: 'native_blueprint' as const,
+        receivedAt: Date.now(),
+      },
+      evidence: [],
+      candidates: [],
+      unknowns: [
+        {
+          id: 'unk-atmospheric-pressure',
+          sourceId: 'analysis-ambiguity-test',
+          category: 'setting' as const,
+          question: 'What is the exact ambient atmospheric pressure in Sector 4?',
+          targetEffect: 'Clarifies whether helmets are required in Sector 4.',
+          status: 'queued' as const,
+          followUps: [],
+        },
+      ],
+      status: 'completed' as const,
+    };
+
+    forgeActions.registerSourceAnalysis(mockAnalysis);
+
+    // 1. Submit initial answer
+    forgeActions.submitUnknownAnswer(
+      'analysis-ambiguity-test',
+      'unk-atmospheric-pressure',
+      'The pressure is reduced to 0.4 atm following a coolant rupture.'
+    );
+
+    let state = getForgeState();
+    let unk = state.sourceAnalyses['analysis-ambiguity-test'].unknowns[0];
+    expect(unk.submittedAnswer).toBe('The pressure is reduced to 0.4 atm following a coolant rupture.');
+    expect(unk.status).toBe('awaiting_response');
+
+    // 2. Receive follow-up question
+    forgeActions.receiveUnknownFollowUp(
+      'analysis-ambiguity-test',
+      'unk-atmospheric-pressure',
+      'Does this require emergency re-breathers?'
+    );
+
+    state = getForgeState();
+    unk = state.sourceAnalyses['analysis-ambiguity-test'].unknowns[0];
+    expect(unk.followUps).toHaveLength(1);
+    expect(unk.followUps[0].question).toBe('Does this require emergency re-breathers?');
+
+    // 3. Receive proposal with structured draftPatch
+    forgeActions.receiveUnknownProposal('analysis-ambiguity-test', 'unk-atmospheric-pressure', {
+      resolution: 'Sector 4 pressure is at 0.4 atm; emergency re-breathers are mandatory.',
+      targetEffect: 'Clarifies atmospheric setting and adds environmental rule.',
+      draftPatch: {
+        operations: [
+          {
+            target: 'setting_atmosphere',
+            text: 'Low-pressure hazard in Sector 4 (0.4 atm).',
+          },
+          {
+            target: 'environmental_rule',
+            text: 'Re-breathers mandatory in Sector 4.',
+          },
+          {
+            target: 'cast_description',
+            castMemberId: 'cast-1',
+            text: 'Carries a modified re-breather kit.',
+          },
+        ],
+      },
+    });
+
+    state = getForgeState();
+    unk = state.sourceAnalyses['analysis-ambiguity-test'].unknowns[0];
+    expect(unk.status).toBe('awaiting_confirmation');
+    expect(unk.resolutionProposal?.draftPatch?.operations).toHaveLength(3);
+
+    // 4. Accept resolution and verify draft commit
+    const commitResult = forgeActions.acceptUnknownResolution(
+      'analysis-ambiguity-test',
+      'unk-atmospheric-pressure'
+    );
+    expect(commitResult.success).toBe(true);
+
+    state = getForgeState();
+    unk = state.sourceAnalyses['analysis-ambiguity-test'].unknowns[0];
+    expect(unk.status).toBe('resolved');
+
+    // Verify draft was patched deterministically
+    expect(state.forgeDraft?.setting?.atmosphere).toContain('Sterile Low-pressure hazard in Sector 4 (0.4 atm).');
+    expect(state.forgeDraft?.environmentalRules).toContain('Re-breathers mandatory in Sector 4.');
+    expect(state.forgeDraft?.cast?.[0].description).toContain('Senior planetary scientist.\n\nCarries a modified re-breather kit.');
+
+    // Verify canonical ambiguity was recorded
+    expect(state.forgeDraft?.ambiguities).toHaveLength(1);
+    expect(state.forgeDraft?.ambiguities?.[0].id).toBe('unk-atmospheric-pressure');
+    expect(state.forgeDraft?.ambiguities?.[0].resolution).toBe(
+      'Sector 4 pressure is at 0.4 atm; emergency re-breathers are mandatory.'
+    );
+  });
+
+  test('16. Transactional rollback when patch references non-existent cast member', () => {
+    forgeActions.initializeDraft();
+    forgeActions.updateDraft({
+      premise: 'Unchanged premise',
+      cast: [],
+    });
+
+    const mockAnalysis = {
+      id: 'analysis-rollback-test',
+      sourceRecord: {
+        id: 'src-rec-rollback',
+        fileName: 'station_log.txt',
+        mimeType: 'text/plain',
+        kind: 'native_blueprint' as const,
+        receivedAt: Date.now(),
+      },
+      evidence: [],
+      candidates: [],
+      unknowns: [
+        {
+          id: 'unk-cast-invalid',
+          sourceId: 'analysis-rollback-test',
+          category: 'cast' as const,
+          question: 'What is the motive of nonexistent agent?',
+          targetEffect: 'Modifies nonexistent character.',
+          status: 'awaiting_confirmation' as const,
+          followUps: [],
+          resolutionProposal: {
+            resolution: 'Agent goes rogue.',
+            targetEffect: 'Modifies nonexistent character.',
+            draftPatch: {
+              operations: [
+                {
+                  target: 'cast_personality' as const,
+                  castMemberId: 'nonexistent-cast-id',
+                  text: 'Rogue personality.',
+                },
+              ],
+            },
+          },
+        },
+      ],
+      status: 'completed' as const,
+    };
+
+    forgeActions.registerSourceAnalysis(mockAnalysis);
+
+    const initialRevision = getForgeState().draftRevision;
+    const initialPremise = getForgeState().forgeDraft?.premise;
+
+    const commitResult = forgeActions.acceptUnknownResolution(
+      'analysis-rollback-test',
+      'unk-cast-invalid'
+    );
+
+    expect(commitResult.success).toBe(false);
+    if (!commitResult.success) {
+      expect(commitResult.error).toContain('nonexistent-cast-id');
+    }
+
+    const state = getForgeState();
+    expect(state.sourceAnalyses['analysis-rollback-test']).toBeDefined();
+    const unk = state.sourceAnalyses['analysis-rollback-test'].unknowns[0];
+
+    // Status remains awaiting_confirmation
+    expect(unk.status).toBe('awaiting_confirmation');
+    expect(unk.lastError).toContain('nonexistent-cast-id');
+
+    // Draft unchanged
+    expect(state.draftRevision).toBe(initialRevision);
+    expect(state.forgeDraft?.premise).toBe(initialPremise);
+    expect(state.forgeDraft?.ambiguities || []).toHaveLength(0);
+  });
 });
 

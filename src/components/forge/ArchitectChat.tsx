@@ -7,6 +7,10 @@ import {
   ForgeState,
 } from '../../store/useForgeStore';
 import {
+  ForgeResolutionDraftPatch,
+  ForgeResolutionDraftPatchSchema,
+} from '../../types/forge';
+import {
   HelpCircle,
   Sparkles,
   CheckCircle2,
@@ -17,6 +21,7 @@ import {
   Check,
   Send,
   ArrowRight,
+  Layers,
 } from 'lucide-react';
 
 interface ValidatedFollowUpResponse {
@@ -33,6 +38,7 @@ interface ValidatedProposalResponse {
   proposal: {
     resolution: string;
     targetEffect: string;
+    draftPatch?: ForgeResolutionDraftPatch;
   };
   message?: string;
 }
@@ -105,6 +111,18 @@ function validateAmbiguityResponse(
       };
     }
 
+    let parsedDraftPatch: ForgeResolutionDraftPatch | undefined = undefined;
+    if (propObj.draftPatch !== undefined && propObj.draftPatch !== null) {
+      const patchValidation = ForgeResolutionDraftPatchSchema.safeParse(propObj.draftPatch);
+      if (!patchValidation.success) {
+        return {
+          kind: 'INVALID',
+          reason: `Invalid draftPatch in proposal: ${patchValidation.error.issues.map((i) => i.message).join(', ')}`,
+        };
+      }
+      parsedDraftPatch = patchValidation.data;
+    }
+
     return {
       kind: 'VALID_PROPOSAL',
       sourceId,
@@ -112,6 +130,7 @@ function validateAmbiguityResponse(
       proposal: {
         resolution,
         targetEffect,
+        draftPatch: parsedDraftPatch,
       },
       message: typeof obj.message === 'string' ? obj.message : undefined,
     };
@@ -178,11 +197,16 @@ export const ArchitectChat: React.FC = () => {
 
   const handleApplyResolution = () => {
     if (!sourceId || !activeUnk) return;
-    acceptUnknownResolution(sourceId, activeUnk.id);
+    setLocalResolutionError(null);
+    const outcome = acceptUnknownResolution(sourceId, activeUnk.id);
+    if (!outcome.success) {
+      setLocalResolutionError(`Failed to apply draft patch: ${outcome.error}`);
+    }
   };
 
   const handleLeaveUncertain = () => {
     if (!sourceId || !activeUnk) return;
+    setLocalResolutionError(null);
     leaveUnknownUncertain(
       sourceId,
       activeUnk.id,
@@ -192,11 +216,13 @@ export const ArchitectChat: React.FC = () => {
 
   const handleRetry = () => {
     if (!sourceId || !activeUnk) return;
+    setLocalResolutionError(null);
     retryUnknown(sourceId, activeUnk.id);
   };
 
   const handleRetryResolution = () => {
     if (failedResolutionAttempt) {
+      setLocalResolutionError(null);
       sendResolutionRequest(
         failedResolutionAttempt.userText,
         failedResolutionAttempt.sourceId,
@@ -221,7 +247,32 @@ export const ArchitectChat: React.FC = () => {
       setting: draft?.setting || {},
       cast: draft?.cast || [],
       environmentalRules: draft?.environmentalRules || [],
+      ambiguities: draft?.ambiguities || [],
       draftRevision: draftRevision || 1,
+    };
+
+    const matchingAnalysis = sourceAnalyses
+      ? Object.values(sourceAnalyses).find(
+          (a) => a.id === targetSourceId || a.sourceRecord?.id === targetSourceId
+        )
+      : undefined;
+    const sourceFileName =
+      matchingAnalysis?.sourceRecord?.fileName || activeUnknownContext?.sourceFileName || '';
+    const sourceSummary = matchingAnalysis?.summary || '';
+    const relevantEvidence = (matchingAnalysis?.evidence || [])
+      .slice(0, 12)
+      .map((e) => ({
+        id: e.id,
+        category: e.category,
+        claim: e.claim,
+        excerpt: e.excerpt,
+      }));
+
+    const sourceContext = {
+      sourceFileName,
+      sourceSummary,
+      evidence: relevantEvidence,
+      canonicalAmbiguities: draft?.ambiguities || [],
     };
 
     try {
@@ -241,12 +292,22 @@ export const ArchitectChat: React.FC = () => {
             followUps: activeUnk?.followUps || [],
           },
           draftContext,
+          sourceContext,
           history: historyPayload,
         }),
       });
 
       if (!response.ok) {
-        throw new Error(`Architect resolution failed with status ${response.status}`);
+        let serverError = `Architect resolution failed with status ${response.status}`;
+        try {
+          const errBody = await response.json();
+          if (errBody && typeof errBody === 'object' && 'error' in errBody && typeof errBody.error === 'string') {
+            serverError = errBody.error;
+          }
+        } catch {
+          // ignore non-json error
+        }
+        throw new Error(serverError);
       }
 
       let data: unknown;
@@ -554,8 +615,32 @@ export const ArchitectChat: React.FC = () => {
                   </div>
                 </div>
               ) : (
-                <div className="text-zinc-200 text-xs leading-relaxed bg-zinc-950/60 p-2 rounded border border-purple-900/30">
-                  {activeUnk.resolutionProposal.resolution}
+                <div className="space-y-2">
+                  <div className="text-zinc-200 text-xs leading-relaxed bg-zinc-950/60 p-2 rounded border border-purple-900/30">
+                    {activeUnk.resolutionProposal.resolution}
+                  </div>
+                  {activeUnk.resolutionProposal.draftPatch &&
+                    activeUnk.resolutionProposal.draftPatch.operations &&
+                    activeUnk.resolutionProposal.draftPatch.operations.length > 0 && (
+                      <div className="bg-purple-950/40 border border-purple-800/40 rounded p-2 text-[11px] font-mono space-y-1">
+                        <div className="text-[10px] font-bold text-purple-300 uppercase tracking-wider flex items-center gap-1">
+                          <Layers className="w-3 h-3 text-purple-400" />
+                          Draft Patch Operations ({activeUnk.resolutionProposal.draftPatch.operations.length}):
+                        </div>
+                        <ul className="space-y-1 text-zinc-300">
+                          {activeUnk.resolutionProposal.draftPatch.operations.map((op, opIdx) => (
+                            <li key={opIdx} className="flex items-start gap-1.5 bg-black/40 p-1.5 rounded border border-purple-900/30">
+                              <span className="px-1.5 py-0.2 bg-purple-900/60 text-purple-200 rounded text-[9px] uppercase font-bold shrink-0">
+                                {op.target}
+                              </span>
+                              <span className="text-zinc-200 truncate flex-1" title={op.text}>
+                                {op.text}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                 </div>
               )}
 

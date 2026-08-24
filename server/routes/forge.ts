@@ -12,6 +12,8 @@ import { getMatrixRules } from "../../src/core/matrix";
 import { 
   ArchitectRequestSchema,
   ArchitectResponseSchema,
+  ArchitectFollowUpResponseSchema,
+  ArchitectResolutionProposalResponseSchema,
   TestBlueprintRequestSchema,
   AnalyzeReferenceRequestSchema,
   SummarizeInterviewRequestSchema,
@@ -114,13 +116,15 @@ router.post("/architect", async (req, res) => {
     const aiClient = getAiClient();
 
     if (parsedBody.data.kind === 'AMBIGUITY_RESOLUTION') {
-      const { userMessage, activeUnknown, draftContext, history } = parsedBody.data;
+      const { userMessage, activeUnknown, draftContext, sourceContext, history } = parsedBody.data;
 
       const formattedHistory = history
         .map((msg) => `${msg.role === 'user' ? 'USER:' : 'ARCHITECT:'}\n${msg.content}`)
         .join('\n\n');
 
       const maxFollowUpsReached = activeUnknown.followUps.length >= 2;
+      const canonicalAmbiguities = sourceContext?.canonicalAmbiguities || draftContext.ambiguities || [];
+      const evidenceList = (sourceContext?.evidence || []).slice(0, 12);
 
       const fullPrompt = `${ARCHITECT_AMBIGUITY_SYSTEM_PROMPT}
 
@@ -135,6 +139,15 @@ Previous Follow-Ups (${activeUnknown.followUps.length}/2):
 ${activeUnknown.followUps.map((f, i) => `  [${i + 1}] Q: "${f.question}" -> A: "${f.answer || ''}"`).join('\n') || '  (None)'}
 ${maxFollowUpsReached ? 'CRITICAL LIMIT NOTICE: 2 follow-ups have already been conducted. You MUST NOT ask another follow-up question. You MUST return a RESOLUTION_PROPOSAL.' : ''}
 
+=== BOUNDED SOURCE CONTEXT ===
+Source File: ${sourceContext?.sourceFileName || 'Unknown / Not specified'}
+Source Summary: ${sourceContext?.sourceSummary || 'None'}
+Relevant Evidence Records (${evidenceList.length}/12 max):
+${evidenceList.map((e, idx) => `  [${idx + 1}] (${e.category}) Claim: "${e.claim}"${e.excerpt ? ` | Excerpt: "${e.excerpt}"` : ''}`).join('\n') || '  (None)'}
+
+=== EXISTING CANONICAL AMBIGUITY DECISIONS ===
+${canonicalAmbiguities.length > 0 ? JSON.stringify(canonicalAmbiguities, null, 2) : '  (None)'}
+
 === ACTIVE SCENARIO DRAFT CONTEXT ===
 Title: ${draftContext.title || 'Untitled'}
 Premise: ${draftContext.premise || 'None'}
@@ -143,79 +156,84 @@ Cast: ${JSON.stringify(draftContext.cast || [])}
 Environmental Rules: ${JSON.stringify(draftContext.environmentalRules || [])}
 
 === CONVERSATION HISTORY ===
-${formattedHistory}
+${formattedHistory || '(No previous messages)'}
 
 CREATOR'S LATEST MESSAGE:
 "${userMessage}"
 
 Generate your response in raw JSON adhering to the required schema:`;
 
-      const response = await aiClient.models.generateContent({
-        model: policy.model,
-        contents: fullPrompt,
-        config: {
-          responseMimeType: "application/json",
-          thinkingConfig: {
-            thinkingLevel: policy.thinkingLevel,
+      let response;
+      try {
+        response = await aiClient.models.generateContent({
+          model: policy.model,
+          contents: fullPrompt,
+          config: {
+            responseMimeType: "application/json",
+            thinkingConfig: {
+              thinkingLevel: policy.thinkingLevel,
+            },
           },
-        },
-      });
+        });
+      } catch (err: any) {
+        console.error("Architect ambiguity AI invocation error:", err);
+        return res.status(502).json({ error: "Architect model invocation failed." });
+      }
 
-      const outputText = response.text || "{}";
+      const outputText = response.text || "";
       let parsedJson: any;
       try {
-        parsedJson = JSON.parse(outputText);
+        const cleanJson = outputText.replace(/```json\n?|```/g, '').trim();
+        parsedJson = JSON.parse(cleanJson);
       } catch {
-        // Fallback resolution proposal if JSON parsing fails
-        parsedJson = {
-          type: 'RESOLUTION_PROPOSAL',
-          sourceId: activeUnknown.sourceId,
-          unknownId: activeUnknown.unknownId,
-          message: userMessage,
-          proposal: {
-            resolution: userMessage,
-            targetEffect: activeUnknown.targetEffect || 'Resolved by creator clarification.',
-          },
-        };
+        return res.status(502).json({
+          error: "Architect returned malformed non-JSON output.",
+        });
       }
 
-      // Ensure sourceId and unknownId match the active unknown
-      if (parsedJson.type === 'FOLLOW_UP' || parsedJson.type === 'RESOLUTION_PROPOSAL') {
-        parsedJson.sourceId = activeUnknown.sourceId;
-        parsedJson.unknownId = activeUnknown.unknownId;
+      if (!parsedJson || typeof parsedJson !== 'object' || Array.isArray(parsedJson)) {
+        return res.status(502).json({
+          error: "Architect returned non-object JSON payload.",
+        });
       }
 
-      // If max follow-ups reached but model still asked follow up, convert to proposal
+      if (parsedJson.type !== 'FOLLOW_UP' && parsedJson.type !== 'RESOLUTION_PROPOSAL') {
+        return res.status(502).json({
+          error: `Architect returned invalid response type: "${String(parsedJson.type)}"`,
+        });
+      }
+
+      if (
+        typeof parsedJson.sourceId !== 'string' ||
+        parsedJson.sourceId !== activeUnknown.sourceId ||
+        typeof parsedJson.unknownId !== 'string' ||
+        parsedJson.unknownId !== activeUnknown.unknownId
+      ) {
+        return res.status(502).json({
+          error: `Architect returned identity mismatch: expected sourceId="${activeUnknown.sourceId}", unknownId="${activeUnknown.unknownId}"`,
+        });
+      }
+
       if (maxFollowUpsReached && parsedJson.type === 'FOLLOW_UP') {
-        parsedJson = {
-          type: 'RESOLUTION_PROPOSAL',
-          sourceId: activeUnknown.sourceId,
-          unknownId: activeUnknown.unknownId,
-          message: parsedJson.message || parsedJson.followUpQuestion || userMessage,
-          proposal: {
-            resolution: userMessage || parsedJson.followUpQuestion || 'Creator clarification accepted.',
-            targetEffect: activeUnknown.targetEffect || 'Resolved parameter.',
-          },
-        };
+        return res.status(502).json({
+          error: "Architect attempted impermissible third follow-up question.",
+        });
       }
 
-      const validated = ArchitectResponseSchema.safeParse(parsedJson);
-      if (validated.success) {
-        return res.json(validated.data);
+      const validator =
+        parsedJson.type === 'FOLLOW_UP'
+          ? ArchitectFollowUpResponseSchema
+          : ArchitectResolutionProposalResponseSchema;
+
+      const validated = validator.safeParse(parsedJson);
+      if (!validated.success) {
+        return res.status(502).json({
+          error: "Architect response schema validation failed.",
+          details: validated.error.format(),
+        });
       }
 
-      // Fallback valid resolution proposal
-      const fallback = {
-        type: 'RESOLUTION_PROPOSAL',
-        sourceId: activeUnknown.sourceId,
-        unknownId: activeUnknown.unknownId,
-        message: typeof parsedJson.message === 'string' ? parsedJson.message : 'Proposed resolution based on clarification.',
-        proposal: {
-          resolution: typeof parsedJson.proposal?.resolution === 'string' ? parsedJson.proposal.resolution : userMessage,
-          targetEffect: typeof parsedJson.proposal?.targetEffect === 'string' ? parsedJson.proposal.targetEffect : (activeUnknown.targetEffect || 'Applied resolution.'),
-        },
-      };
-      return res.json(fallback);
+      return res.json(validated.data);
     }
 
     if (parsedBody.data.kind === 'DEPICTION_CONTRACT_PROPOSAL') {

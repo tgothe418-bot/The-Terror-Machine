@@ -44,6 +44,7 @@ export const ForgeRequestSchema = z.object({
 });
 
 import {
+  BlueprintAmbiguityDecisionSchema,
   ForgeUnknownResolutionProposalSchema,
   DepictionContractProposalSchema,
 } from '../../src/types/forge';
@@ -82,7 +83,7 @@ export const ArchitectDraftContextSchema = z
         timePeriod: z.string().max(500).optional(),
       })
       .optional(),
-    environmentalRules: z.union([z.string(), z.array(z.string())]).optional(),
+    environmentalRules: z.union([z.string().max(1000), z.array(z.string().max(1000))]).optional(),
     cast: z
       .array(
         z
@@ -96,9 +97,27 @@ export const ArchitectDraftContextSchema = z
           .strict()
       )
       .optional(),
-    ambiguities: z.array(z.unknown()).optional(),
+    ambiguities: z.array(BlueprintAmbiguityDecisionSchema).optional().default([]),
     references: z.array(z.string().max(500)).optional(),
     draftRevision: z.number().default(1),
+  })
+  .strict();
+
+export const ArchitectEvidenceItemSchema = z
+  .object({
+    id: z.string().max(200),
+    category: z.string().max(100),
+    claim: z.string().max(2000),
+    excerpt: z.string().max(4000).optional(),
+  })
+  .strict();
+
+export const ArchitectSourceContextSchema = z
+  .object({
+    sourceFileName: z.string().max(500).optional(),
+    sourceSummary: z.string().max(4000).optional(),
+    evidence: z.array(ArchitectEvidenceItemSchema).max(12).default([]),
+    canonicalAmbiguities: z.array(BlueprintAmbiguityDecisionSchema).default([]),
   })
   .strict();
 
@@ -128,7 +147,7 @@ export const ArchitectBaselineContextSchema = z
           .strict()
       )
       .default([]),
-    canonicalAmbiguities: z.array(z.unknown()).default([]),
+    canonicalAmbiguities: z.array(BlueprintAmbiguityDecisionSchema).default([]),
     sourceBaselineRevision: z.number().default(1),
     draftRevision: z.number().default(1),
   })
@@ -147,6 +166,7 @@ export const ArchitectAmbiguityResolutionRequestSchema = z
     userMessage: z.string().max(2000),
     activeUnknown: ArchitectActiveUnknownSchema,
     draftContext: ArchitectDraftContextSchema,
+    sourceContext: ArchitectSourceContextSchema.optional(),
     history: z.array(ArchitectChatMessageSchema).max(50).default([]),
   })
   .strict();

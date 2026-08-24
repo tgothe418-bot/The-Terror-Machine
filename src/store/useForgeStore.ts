@@ -26,6 +26,7 @@ import {
   DepictionContractPatch,
   DepictionContractPatchSchema,
   ForgeResolutionProposal,
+  ForgeResolutionDraftPatch,
 } from '../types/forge';
 import { idbStorage } from '../lib/idbStorage';
 import {
@@ -313,7 +314,7 @@ export interface ForgeActions {
     unknownId: string,
     resolutionOverride?: string,
     applyDraftPatch?: boolean
-  ) => void;
+  ) => { success: true } | { success: false; error: string };
   leaveUnknownUncertain: (sourceId: string, unknownId: string, guidance?: string) => void;
   setUnknownError: (sourceId: string, unknownId: string, error: string) => void;
   retryUnknown: (sourceId: string, unknownId: string) => void;
@@ -321,7 +322,8 @@ export interface ForgeActions {
     sourceId: string,
     unknownId: string,
     resolution: string,
-    targetEffect?: string
+    targetEffect?: string,
+    replacementPatch?: ForgeResolutionDraftPatch
   ) => void;
 
   // --- DEPICTION CONTRACT ACTIONS (Packet 1B Proposal-Isolation) ---
@@ -1028,12 +1030,22 @@ export const useForgeStoreInternal = create<ForgeStore>()(
           unknownId: string,
           resolutionOverride?: string,
           applyDraftPatch: boolean = true
-        ) =>
+        ) => {
+          let outcome: { success: true } | { success: false; error: string } = {
+            success: true,
+          };
+
           set((state: ForgeState) => {
             const analysis = state.sourceAnalyses[sourceId];
-            if (!analysis) return state;
+            if (!analysis) {
+              outcome = { success: false, error: 'Source analysis not found.' };
+              return state;
+            }
             const unk = analysis.unknowns.find((u) => u.id === unknownId);
-            if (!unk) return state;
+            if (!unk) {
+              outcome = { success: false, error: 'Unknown not found in source analysis.' };
+              return state;
+            }
 
             const finalResolution = (
               resolutionOverride ||
@@ -1042,9 +1054,49 @@ export const useForgeStoreInternal = create<ForgeStore>()(
               ''
             ).trim();
 
-            if (!finalResolution) return state;
+            if (!finalResolution) {
+              outcome = { success: false, error: 'Resolution text cannot be empty.' };
+              return state;
+            }
 
-            // 1. Create canonical ambiguity decision
+            const currentDraft = state.forgeDraft || createInitialDraft();
+            let workingDraft: ForgeDraft = JSON.parse(JSON.stringify(currentDraft));
+
+            // If proposal included a draft patch and applyDraftPatch is true, validate & apply it first
+            if (applyDraftPatch && unk.resolutionProposal?.draftPatch) {
+              const patchResult = applyResolutionDraftPatch(
+                workingDraft,
+                unk.resolutionProposal.draftPatch
+              );
+              if (!patchResult.success) {
+                // On failure:
+                // - retain awaiting_confirmation
+                // - retain resolution text and draftPatch
+                // - record lastError
+                // - leave draft aliases, ambiguities, and draftRevision unchanged
+                const failedUnknown: ForgeSourceUnknown = {
+                  ...unk,
+                  status: 'awaiting_confirmation',
+                  lastError: patchResult.error,
+                };
+                const updatedUnknowns = analysis.unknowns.map((u) =>
+                  u.id === unknownId ? failedUnknown : u
+                );
+                outcome = { success: false, error: patchResult.error };
+                return {
+                  sourceAnalyses: {
+                    ...state.sourceAnalyses,
+                    [analysis.id]: {
+                      ...analysis,
+                      unknowns: updatedUnknowns,
+                    },
+                  },
+                };
+              }
+              workingDraft = patchResult.draft;
+            }
+
+            // Create canonical ambiguity decision
             const decision: BlueprintAmbiguityDecision = {
               id: unk.id,
               category: unk.category,
@@ -1053,27 +1105,19 @@ export const useForgeStoreInternal = create<ForgeStore>()(
               resolution: finalResolution,
             };
 
-            // 2. Upsert into forgeDraft.ambiguities
-            const currentDraft = state.forgeDraft || createInitialDraft();
-            const existingAmbiguities = currentDraft.ambiguities ? [...currentDraft.ambiguities] : [];
+            // Upsert into workingDraft.ambiguities
+            const existingAmbiguities = workingDraft.ambiguities
+              ? [...workingDraft.ambiguities]
+              : [];
             const existingIdx = existingAmbiguities.findIndex((a) => a.id === unk.id);
             if (existingIdx !== -1) {
               existingAmbiguities[existingIdx] = decision;
             } else {
               existingAmbiguities.push(decision);
             }
+            workingDraft.ambiguities = existingAmbiguities;
 
-            let updatedDraft: ForgeDraft = {
-              ...currentDraft,
-              ambiguities: existingAmbiguities,
-            };
-
-            // 3. If proposal included a draft patch and applyDraftPatch is true, apply it
-            if (applyDraftPatch && unk.resolutionProposal?.draftPatch) {
-              updatedDraft = applyResolutionDraftPatch(updatedDraft, unk.resolutionProposal.draftPatch);
-            }
-
-            // 4. Mark unknown as resolved
+            // Mark unknown as resolved and clear lastError
             const updatedUnknown: ForgeSourceUnknown = {
               ...unk,
               status: 'resolved',
@@ -1094,18 +1138,23 @@ export const useForgeStoreInternal = create<ForgeStore>()(
               unknowns: updatedUnknowns,
             };
 
+            outcome = { success: true };
+
             return {
-              forgeDraft: updatedDraft,
-              draftBlueprint: updatedDraft,
+              forgeDraft: workingDraft,
+              draftBlueprint: workingDraft,
               draftRevision: (state.draftRevision || 0) + 1,
-              castLedger: deriveCastLedger(updatedDraft),
-              topology: deriveTopology(updatedDraft),
+              castLedger: deriveCastLedger(workingDraft),
+              topology: deriveTopology(workingDraft),
               sourceAnalyses: {
                 ...state.sourceAnalyses,
                 [analysis.id]: updatedAnalysis,
               },
             };
-          }),
+          });
+
+          return outcome;
+        },
 
         leaveUnknownUncertain: (sourceId: string, unknownId: string, guidance?: string) =>
           set((state: ForgeState) => {
@@ -1220,13 +1269,26 @@ export const useForgeStoreInternal = create<ForgeStore>()(
           sourceId: string,
           unknownId: string,
           resolution: string,
-          targetEffect?: string
+          targetEffect?: string,
+          replacementPatch?: ForgeResolutionDraftPatch
         ) =>
           set((state: ForgeState) => {
             const analysis = state.sourceAnalyses[sourceId];
             if (!analysis) return state;
             const unk = analysis.unknowns.find((u) => u.id === unknownId);
             if (!unk || !resolution.trim()) return state;
+
+            let finalDraftPatch = unk.resolutionProposal?.draftPatch;
+
+            // If an explicit replacement patch is supplied, validate it before adopting
+            if (replacementPatch !== undefined) {
+              const currentDraft = state.forgeDraft || createInitialDraft();
+              const validationRes = applyResolutionDraftPatch(currentDraft, replacementPatch);
+              if (validationRes.success) {
+                finalDraftPatch = replacementPatch;
+              }
+              // If invalid, keep existing draftPatch
+            }
 
             const updatedUnknown: ForgeSourceUnknown = {
               ...unk,
@@ -1236,6 +1298,7 @@ export const useForgeStoreInternal = create<ForgeStore>()(
                   targetEffect?.trim() ||
                   unk.resolutionProposal?.targetEffect ||
                   unk.targetEffect,
+                draftPatch: finalDraftPatch,
               },
               lastError: undefined,
             };

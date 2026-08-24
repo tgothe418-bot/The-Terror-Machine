@@ -164,4 +164,150 @@ describe('Forge Routes: /api/extract-blueprint', () => {
     const body = await response.json();
     expect(body.error).toBe('Model did not return valid JSON.');
   });
+
+  describe('Forge Routes: /api/architect ambiguity resolution', () => {
+    const testCases = [
+      {
+        scenario: 'malformed non-JSON output',
+        modelOutput: 'Not valid JSON at all: { broken',
+        followUps: [],
+        expectedError: 'Architect returned malformed non-JSON output.',
+      },
+      {
+        scenario: 'invalid shape missing proposal in RESOLUTION_PROPOSAL',
+        modelOutput: JSON.stringify({
+          type: 'RESOLUTION_PROPOSAL',
+          sourceId: 'src-1',
+          unknownId: 'unk-1',
+          message: 'Here is a proposal',
+        }),
+        followUps: [],
+        expectedError: 'Architect response schema validation failed.',
+      },
+      {
+        scenario: 'invalid shape with unsupported response type',
+        modelOutput: JSON.stringify({
+          type: 'MESSAGE',
+          message: 'Standard general message',
+        }),
+        followUps: [],
+        expectedError: 'Architect returned invalid response type: "MESSAGE"',
+      },
+      {
+        scenario: 'missing identifiers in FOLLOW_UP',
+        modelOutput: JSON.stringify({
+          type: 'FOLLOW_UP',
+          message: 'Need more detail',
+          followUpQuestion: 'Can you clarify the motive?',
+        }),
+        followUps: [],
+        expectedError: 'Architect returned identity mismatch',
+      },
+      {
+        scenario: 'identity mismatch on sourceId',
+        modelOutput: JSON.stringify({
+          type: 'FOLLOW_UP',
+          sourceId: 'src-WRONG',
+          unknownId: 'unk-1',
+          message: 'Need more detail',
+          followUpQuestion: 'Can you clarify the motive?',
+        }),
+        followUps: [],
+        expectedError: 'Architect returned identity mismatch: expected sourceId="src-1", unknownId="unk-1"',
+      },
+      {
+        scenario: 'identity mismatch on unknownId',
+        modelOutput: JSON.stringify({
+          type: 'RESOLUTION_PROPOSAL',
+          sourceId: 'src-1',
+          unknownId: 'unk-WRONG',
+          message: 'Resolution proposal text',
+          proposal: {
+            resolution: 'Valid resolution text',
+            targetEffect: 'Valid target effect',
+          },
+        }),
+        followUps: [],
+        expectedError: 'Architect returned identity mismatch: expected sourceId="src-1", unknownId="unk-1"',
+      },
+      {
+        scenario: 'impermissible third follow-up question',
+        modelOutput: JSON.stringify({
+          type: 'FOLLOW_UP',
+          sourceId: 'src-1',
+          unknownId: 'unk-1',
+          message: 'Attempted third follow-up question',
+          followUpQuestion: 'Third question?',
+        }),
+        followUps: [
+          { id: 'fu-1', question: 'Q1', answer: 'A1' },
+          { id: 'fu-2', question: 'Q2', answer: 'A2' },
+        ],
+        expectedError: 'Architect attempted impermissible third follow-up question.',
+      },
+    ];
+
+    it('rejects invalid or unbound ambiguity responses without fallback', async () => {
+      for (const tc of testCases) {
+        mockGenerateContent.mockResolvedValueOnce({
+          text: tc.modelOutput,
+        });
+
+        const response = await fetch(`${baseUrl}/api/architect`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            kind: 'AMBIGUITY_RESOLUTION',
+            userMessage: 'The entity was created during the war.',
+            activeUnknown: {
+              sourceId: 'src-1',
+              unknownId: 'unk-1',
+              category: 'premise',
+              question: 'When was the entity created?',
+              targetEffect: 'Determines timeline constraints.',
+              submittedAnswer: 'During the war.',
+              followUps: tc.followUps,
+            },
+            draftContext: {
+              title: 'Test Scenario',
+              premise: 'A dark testing ground.',
+              draftRevision: 1,
+            },
+            sourceContext: {
+              sourceFileName: 'war_log.txt',
+              sourceSummary: 'Log detailing wartime experiment.',
+              evidence: [
+                {
+                  id: 'ev-1',
+                  category: 'premise',
+                  claim: 'Entity discovered in bunker.',
+                  excerpt: '1944 bunker report.',
+                },
+              ],
+              canonicalAmbiguities: [],
+            },
+            history: [],
+          }),
+        });
+
+        expect(
+          response.status,
+          `Expected 502 for scenario "${tc.scenario}" but got ${response.status}`
+        ).toBe(502);
+
+        const body = (await response.json()) as Record<string, unknown>;
+        expect(body.error).toBeDefined();
+        if (tc.expectedError) {
+          expect(body.error).toContain(tc.expectedError);
+        }
+
+        // Strict assertion: absence of any synthesized proposal or fallback
+        expect(body.proposal).toBeUndefined();
+        expect(body.type).toBeUndefined();
+        expect(body.resolution).toBeUndefined();
+      }
+    });
+  });
 });
