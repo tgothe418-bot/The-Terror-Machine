@@ -25,7 +25,7 @@ import {
   DepictionContract,
   DepictionContractProposal,
   DepictionContractProposalSchema,
-  ForgeResolutionProposal,
+  ForgeUnknownResolutionProposal,
   ForgeResolutionDraftPatch,
 } from '../types/forge';
 import { idbStorage } from '../lib/idbStorage';
@@ -307,7 +307,7 @@ export interface ForgeActions {
   receiveUnknownProposal: (
     sourceId: string,
     unknownId: string,
-    proposal: ForgeResolutionProposal
+    proposal: ForgeUnknownResolutionProposal
   ) => void;
   acceptUnknownResolution: (
     sourceId: string,
@@ -698,12 +698,12 @@ export const useForgeStoreInternal = create<ForgeStore>()(
         updateDepictionContractField: (field: keyof DepictionContract, value: string) => {
           set((state: ForgeState) => {
             const currentDraft = state.forgeDraft || createInitialDraft();
-            const currentContract = currentDraft.depictionContract || {
-              dramaticRegister: '',
-              directness: '',
-              aftermath: '',
-              ambiguityHandling: '',
-              specialBoundaries: '',
+            const currentContract: DepictionContract = {
+              dramaticRegister: currentDraft.depictionContract?.dramaticRegister || '',
+              directness: currentDraft.depictionContract?.directness || '',
+              aftermath: currentDraft.depictionContract?.aftermath || '',
+              ambiguityHandling: currentDraft.depictionContract?.ambiguityHandling || '',
+              specialBoundaries: currentDraft.depictionContract?.specialBoundaries || '',
             };
 
             const updatedContract: DepictionContract = {
@@ -1051,7 +1051,7 @@ export const useForgeStoreInternal = create<ForgeStore>()(
         receiveUnknownProposal: (
           sourceId: string,
           unknownId: string,
-          proposal: ForgeResolutionProposal
+          proposal: ForgeUnknownResolutionProposal
         ) =>
           set((state: ForgeState) => {
             const analysis = state.sourceAnalyses[sourceId];

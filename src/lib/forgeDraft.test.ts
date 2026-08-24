@@ -249,7 +249,7 @@ describe('Phase 3D-1: Forge Draft Contract, Review Validation, and Compiler Boun
       environmentalRules: '',
     };
 
-    const artifact = prepareBlueprintExport(validDraft);
+    const artifact = prepareBlueprintExport(validDraft, { draftRevision: 1, sourceBaselineRevision: 1 });
     expect(artifact.blueprint.identity.title).toBe('Cryo Station Epsilon');
 
     const appAfter = useAppStore.getState();
@@ -274,6 +274,8 @@ describe('Phase 3D-1: Forge Draft Contract, Review Validation, and Compiler Boun
     expect(looseCompiled.premise).toBe('Old premise structure');
 
     // prepareBlueprintExport enforces strict authoring validation (missing location & cast)
-    expect(() => prepareBlueprintExport(partialRaw)).toThrow(ForgeCompilationError);
+    expect(() =>
+      prepareBlueprintExport(partialRaw, { draftRevision: 1, sourceBaselineRevision: 1 })
+    ).toThrow(ForgeCompilationError);
   });
 });

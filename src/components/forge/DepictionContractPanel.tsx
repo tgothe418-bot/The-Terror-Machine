@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { useForgeState, forgeActions } from '../../store/useForgeStore';
 import { DepictionContract, DepictionContractProposalSchema } from '../../types/forge';
 import {
@@ -46,12 +46,12 @@ export const DepictionContractPanel: React.FC = () => {
   const currentDraftRev = draftRevision || 1;
   const currentBaseRev = sourceBaselineRevision || 1;
 
-  const contract: DepictionContract = currentDraft?.depictionContract || {
-    dramaticRegister: '',
-    directness: '',
-    aftermath: '',
-    ambiguityHandling: '',
-    specialBoundaries: '',
+  const contract: DepictionContract = {
+    dramaticRegister: currentDraft?.depictionContract?.dramaticRegister || '',
+    directness: currentDraft?.depictionContract?.directness || '',
+    aftermath: currentDraft?.depictionContract?.aftermath || '',
+    ambiguityHandling: currentDraft?.depictionContract?.ambiguityHandling || '',
+    specialBoundaries: currentDraft?.depictionContract?.specialBoundaries || '',
   };
 
   const isDramaticValid = !isInvalidContractValue(contract.dramaticRegister);
@@ -119,7 +119,7 @@ export const DepictionContractPanel: React.FC = () => {
   const handleApply = () => {
     const outcome = applyPendingDepictionContractProposal();
     if (!outcome.success) {
-      setErrorMessage(outcome.error);
+      setErrorMessage((outcome as { success: false; error: string; stale?: boolean }).error);
     }
   };
 

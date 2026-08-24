@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { useForgeState } from '../../store/useForgeStore';
 import { validateForgeExportReadiness, ForgeExportReadinessResult } from '../../lib/forgeReadiness';
 import { prepareBlueprintExport, BlueprintExportArtifact } from '../../lib/compileBlueprintDraft';
@@ -516,7 +516,9 @@ export const ExportReviewModal: React.FC<ExportReviewModalProps> = ({ isOpen, on
                     </div>
                     <p className="text-zinc-300 text-[11px] font-medium mb-1">{amb.question}</p>
                     <p className="text-zinc-400 text-[11px] italic">
-                      {amb.resolution || amb.guidance || 'Contextual discretion enabled.'}
+                      {amb.resolutionMode === 'USER_DEFINED'
+                        ? amb.resolution
+                        : amb.guidance || 'Contextual discretion enabled.'}
                     </p>
                   </div>
                 ))}

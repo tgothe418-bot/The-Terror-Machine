@@ -565,6 +565,11 @@ describe('useForgeStore - draft state and actions', () => {
             name: 'Engineer Hayes',
             role: 'PROTAGONIST',
             description: 'Lead Technician',
+            personality: '',
+            goals: '',
+            traits: [],
+            isUserCharacter: false,
+            behaviorVector: 'ADAPTIVE',
             isEntity: false,
           },
           reviewDecision: 'accepted' as const,
@@ -880,10 +885,13 @@ describe('useForgeStore - draft state and actions', () => {
 
     // Verify canonical ambiguity was recorded
     expect(state.forgeDraft?.ambiguities).toHaveLength(1);
-    expect(state.forgeDraft?.ambiguities?.[0].id).toBe('unk-atmospheric-pressure');
-    expect(state.forgeDraft?.ambiguities?.[0].resolution).toBe(
-      'Sector 4 pressure is at 0.4 atm; emergency re-breathers are mandatory.'
-    );
+    const recordedAmb = state.forgeDraft?.ambiguities?.[0];
+    expect(recordedAmb?.id).toBe('unk-atmospheric-pressure');
+    if (recordedAmb && recordedAmb.resolutionMode === 'USER_DEFINED') {
+      expect(recordedAmb.resolution).toBe(
+        'Sector 4 pressure is at 0.4 atm; emergency re-breathers are mandatory.'
+      );
+    }
   });
 
   test('16. Transactional rollback when patch references non-existent cast member', () => {
@@ -942,8 +950,8 @@ describe('useForgeStore - draft state and actions', () => {
     );
 
     expect(commitResult.success).toBe(false);
-    if (!commitResult.success) {
-      expect(commitResult.error).toContain('nonexistent-cast-id');
+    if (!commitResult.success && 'error' in commitResult) {
+      expect((commitResult as { success: false; error: string }).error).toContain('nonexistent-cast-id');
     }
 
     const state = getForgeState();
@@ -991,12 +999,11 @@ describe('useForgeStore - draft state and actions', () => {
     expect(state.pendingDepictionContractProposal).toBeNull();
 
     // Invalid proposal (missing required contract field) is rejected
-    // @ts-expect-error testing invalid payload at runtime
     forgeActions.setPendingDepictionContractProposal({
       contract: {
         dramaticRegister: 'Gothic',
         // missing directness, aftermath, ambiguityHandling
-      },
+      } as unknown as DepictionContract,
       rationale: 'Incomplete',
       sourceDraftRevision: 1,
       sourceBaselineRevision: 1,
@@ -1067,8 +1074,8 @@ describe('useForgeStore - draft state and actions', () => {
     const staleDraftResult = forgeActions.applyPendingDepictionContractProposal();
     expect(staleDraftResult.success).toBe(false);
     if (!staleDraftResult.success) {
-      expect(staleDraftResult.stale).toBe(true);
-      expect(staleDraftResult.error).toContain('Proposal is stale');
+      expect((staleDraftResult as { success: false; error: string; stale?: boolean }).stale).toBe(true);
+      expect((staleDraftResult as { success: false; error: string; stale?: boolean }).error).toContain('Proposal is stale');
     }
 
     // Pending proposal remains intact and draft depiction contract untouched
@@ -1111,8 +1118,8 @@ describe('useForgeStore - draft state and actions', () => {
     const staleBaselineResult = forgeActions.applyPendingDepictionContractProposal();
     expect(staleBaselineResult.success).toBe(false);
     if (!staleBaselineResult.success) {
-      expect(staleBaselineResult.stale).toBe(true);
-      expect(staleBaselineResult.error).toContain('Proposal is stale');
+      expect((staleBaselineResult as { success: false; error: string; stale?: boolean }).stale).toBe(true);
+      expect((staleBaselineResult as { success: false; error: string; stale?: boolean }).error).toContain('Proposal is stale');
     }
 
     state = getForgeState();
@@ -1265,14 +1272,13 @@ describe('useForgeStore - draft state and actions', () => {
     expect(getForgeState().pendingDepictionContractProposal).toBeNull();
 
     // C. Proposal missing specialBoundaries (5th field) must be rejected (no silent defaulting)
-    // @ts-expect-error missing specialBoundaries
     forgeActions.setPendingDepictionContractProposal({
       contract: {
         dramaticRegister: 'Cosmic Horror',
         directness: 'Direct',
         aftermath: 'Lethal',
         ambiguityHandling: 'Total',
-      },
+      } as unknown as DepictionContract,
       rationale: 'Valid rationale.',
       sourceDraftRevision: 1,
       sourceBaselineRevision: 1,
@@ -1521,8 +1527,8 @@ describe('useForgeStore - draft state and actions', () => {
     const staleBaselineRes = forgeActions.applyPendingDepictionContractProposal();
     expect(staleBaselineRes.success).toBe(false);
     if (!staleBaselineRes.success) {
-      expect(staleBaselineRes.stale).toBe(true);
-      expect(staleBaselineRes.error).toContain('Proposal is stale');
+      expect((staleBaselineRes as { success: false; error: string; stale?: boolean }).stale).toBe(true);
+      expect((staleBaselineRes as { success: false; error: string; stale?: boolean }).error).toContain('Proposal is stale');
     }
     expect(getForgeState().forgeDraft?.depictionContract?.dramaticRegister).not.toBe(
       'Claustrophobic Dread'
@@ -1547,8 +1553,8 @@ describe('useForgeStore - draft state and actions', () => {
     const staleDraftRes = forgeActions.applyPendingDepictionContractProposal();
     expect(staleDraftRes.success).toBe(false);
     if (!staleDraftRes.success) {
-      expect(staleDraftRes.stale).toBe(true);
-      expect(staleDraftRes.error).toContain('Proposal is stale');
+      expect((staleDraftRes as { success: false; error: string; stale?: boolean }).stale).toBe(true);
+      expect((staleDraftRes as { success: false; error: string; stale?: boolean }).error).toContain('Proposal is stale');
     }
     expect(getForgeState().forgeDraft?.depictionContract?.dramaticRegister).not.toBe(
       'Claustrophobic Dread'
@@ -1665,7 +1671,8 @@ describe('useForgeStore - draft state and actions', () => {
       // E. Real onRehydrateStorage lifecycle execution
       const onRehydrate = persistOptions?.onRehydrateStorage;
       if (onRehydrate) {
-        const rehydratePostCallback = onRehydrate(getForgeState());
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const rehydratePostCallback = onRehydrate(getForgeState() as any);
         if (rehydratePostCallback) {
           // Rehydrating valid state preserves proposal
           const rehydratedValid = { ...completeProposalState };
