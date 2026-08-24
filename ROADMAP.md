@@ -1,16 +1,16 @@
 # The Terror Machine — Technical (Public) Roadmap
 
-This is the public technical record for **The Terror Machine**: what the machine can do, what is being verified, and what it is being built to do next.
+This is the public technical record for **The Terror Machine**: what the machine can do, what has been accepted, and what it is being built to do next.
 
-It is directional rather than a release calendar. There are no promised dates, feature quotas, or claims that a green focused test is the same thing as an accepted milestone.
+It is directional rather than a release calendar. There are no promised dates, feature quotas, or claims that one green test is the same thing as an accepted milestone.
 
-For the experiential front door, read the [README](./README.md). For the detailed operating ledger, read the [Development Roadmap](./DEVELOPMENT-ROADMAP.md).
+For the experiential front door, read the [README](./README.md). For the detailed engineering ledger, read the [Development Roadmap](./DEVELOPMENT-ROADMAP.md).
 
 ## The machine at present
 
-TTM already has a working foundation for bounded horror simulation.
+TTM has a working foundation for bounded horror simulation.
 
-A Blueprint or a Haunted House Induction enters the same Engine path. A turn is snapshotted, interpreted, generated, ratified, committed once or refused without corrupting canonical state. The application, rather than the language model, owns the places, cast, roles, consequences, receipts, and the state that survives a paragraph.
+A Blueprint or a Haunted House Induction enters the same Engine path. A turn is snapshotted, interpreted, generated, ratified, committed once or refused without corrupting canonical state. The application—not the language model—owns the places, cast, roles, consequences, receipts, and the state that survives a paragraph.
 
 ### Live foundation
 
@@ -22,79 +22,84 @@ A Blueprint or a Haunted House Induction enters the same Engine path. A turn is 
 - Deterministic consequences, receipts, telemetry, Markdown/HTML diagnostics, and retake of the most recent completed turn.
 - Development recovery through Clear System Memory and Autopilot as a soak-testing instrument.
 
+### The Forge source-review path
+
+The corrective Forge sequence through Packet 07 is landed.
+
+The Forge can now:
+
+- keep candidate decisions binary and separate from draft mutation;
+- validate and identity-match Architect responses before recording them;
+- bind ambiguity conversations to exact source and question identities;
+- commit accepted resolutions and Blueprint patches as one validated transaction;
+- maintain a persisted Source Baseline revision distinct from the draft revision;
+- preserve complete, revision-bound Depiction Contract proposals and reject stale application;
+- generate scenario-specific Depiction Contracts from bounded source evidence and creator decisions;
+- support proposal review, application, dismissal, refresh, and manual authoring;
+- keep detailed source evidence available in a focused review drawer;
+- produce a deeply immutable export artifact carrying both source revisions;
+- capture one reviewed artifact whose Copy and Download bytes remain identical until the creator refreshes a stale review.
+
+This does not mean every imported source automatically produces an export-ready Blueprint. It means the source-to-Blueprint authoring boundary is now a working system rather than a collection of adjacent prototypes.
+
 ### Current verification line
 
-Two lines of work are active and intentionally not being conflated.
+The remaining active questions include one important Forge completeness issue as well as several Engine boundaries:
 
-**Engine identity and containment**
-
-- Explicit Player-Character Binding is under review. An exact selected cast ID has been demonstrated through human telemetry, including a non-first eligible character; the full end-to-end acceptance gate remains open.
-- Scenario-bound authority enforcement and provider-refusal containment remain under review. A prompt carrying a boundary is not sufficient evidence that the Engine has enforced it.
-
-**Forge source review**
-
-The Forge is being corrected from a useful extraction surface into a dependable authoring boundary.
-
-The first three repair slices are live and awaiting combined review:
-
-- **02A — Candidate Decisions:** binary source-candidate decisions and staged review semantics.
-- **02B — Architect Response Isolation:** structured Architect-response validation and identity matching before a response can enter the authoring flow.
-- **02C — Retake Identity:** strict checkpoint session and Blueprint identity matching for retake safety.
-
-These are foundations, not a declaration that the full source-baseline, resolution, Depiction Contract, or export lifecycle is complete.
+- **Required-field synthesis from source:** imported reference material can populate premise, setting, cast, and topology while still leaving required Blueprint fields blank. Current testing exposed all four mandatory Depiction Contract fields as empty even though the source contained material from which the Architect should have been able to stage a grounded proposal. Export correctly blocks the incomplete Blueprint; the missing behavior is earlier in the authoring flow.
+- **Explicit Player-Character Binding:** exact cast selection works in the live line and has been demonstrated with a non-first eligible character, but its complete end-to-end acceptance gate remains open.
+- **Scenario authority enforcement:** an Authority Contract appearing in a prompt is not sufficient. Causal reach must be enforced before canon changes.
+- **Provider-refusal containment:** an upstream refusal must never be mistaken for player input or an ordinary successful turn.
+- **Global TypeScript debt:** the Forge stabilization sequence passed its complete test suite, lint, and production build, while two inherited type errors outside the Forge boundary remain openly tracked.
 
 ## What comes next
 
-### 1. Complete the Forge’s source-to-Blueprint handoff
+### 1. Complete source-to-required-field synthesis
 
-A source document should be evidence, not an uncontrolled author.
+When imported reference material supports a required Blueprint field, the Forge should turn that evidence into a reviewable proposal rather than leave the field silently empty.
 
-The next Forge work makes the Architect’s conversation, the accepted source baseline, and the resulting Blueprint operate as one reviewable chain:
+The first confirmed case is the Depiction Contract: dramatic register, directness, aftermath, and ambiguity handling should be proposed from the accepted source baseline and creator decisions. The proposal must remain source-grounded, revision-bound, and subject to explicit review. If the source genuinely cannot support a field, the Forge should identify the gap instead of filling it with canned horror language.
 
-1. **Strict Architect server protocol** — typed, bounded requests and responses rather than loose history payloads, Markdown JSON heuristics, or fabricated fallback results.
-2. **Resolution transaction** — an accepted ambiguity decision must update the ledger and its schema-backed Blueprint fields together, or fail without partial state.
-3. **Baseline revision and proposal state** — durable source-baseline revisioning, persisted staged proposals, and clear stale-state handling.
-4. **Depiction generation protocol** — the Architect receives the accepted source evidence, authoring decisions, current draft, and preserved uncertainties required to propose a faithful Depiction Contract.
-5. **Depiction Contract lifecycle** — generate, inspect, edit, accept, dismiss, persist, and invalidate an authoring proposal without a hidden mutation.
-6. **Evidence drawer** — keep source provenance close at hand without making the review screen an endless vertical document.
-7. **Export artifact and review snapshot** — review one revision-bound Blueprint artifact, block incomplete source work, and export exactly what was reviewed.
+### 2. Close the inherited Engine acceptance debt
 
-The desired result is simple to state: a creator can bring in a source, inspect what the Forge believes it found, answer or deliberately preserve uncertainties in the Architect conversation, accept a treatment contract that actually arose from that material, and export a Blueprint whose provenance remains inspectable.
+Finish the global TypeScript baseline and close explicit Player-Character Binding across setup, initialization, turn context, prompts, ratification, receipts, retake, persistence, and telemetry.
 
-### 2. Enforce authored boundaries in the Engine
+The selected character must remain exact without relying on cast order or scenario-specific assumptions.
+
+### 3. Enforce authored boundaries in the Engine
 
 The Engine must distinguish two questions:
 
 - **Can this actor cause this change?**
-- **If the change is accepted, how may this particular Blueprint show it?**
+- **If the change is accepted, how may this Blueprint depict it?**
 
-Authority is causal and must be adjudicated before canon. A Blueprint-specific treatment contract shapes the narrative camera—directness, implication, aftermath, dramatic register, and special boundaries—but cannot grant an actor powers the Authority Contract does not give them.
+Authority is causal. The Depiction Contract shapes the narrative camera—dramatic register, directness, aftermath, ambiguity handling, and special boundaries—but it cannot grant powers that the Authority Contract does not provide.
 
-Provider refusals are external events. They must be represented honestly, never serialized as player input or allowed to alter canonical state by accident.
-
-### 3. Make continuity durable
-
-Character and World Memory should become a dependable, inspectable continuity layer for discoveries, rules, relationships, environmental conditions, and consequences.
-
-The goal is not infinite memory. It is memory with scope, provenance, acceptance, and a bounded prompt projection.
+Provider refusals are external events. They must be represented honestly, never serialized as player input or allowed to alter canonical state accidentally.
 
 ### 4. Make Autopilot a trustworthy test participant
 
-Autopilot must run through the same identity-bearing turn path as a human player, receive the selected character’s usable context, stop or retry deliberately after failed turns, and identify generated actions in telemetry.
+Autopilot must run through the same identity-bearing turn path as a human player, receive the selected character's usable context, stop or retry deliberately after failed turns, and identify generated actions in telemetry and exports.
 
-### 5. Deepen the Voice without giving it authority
+### 5. Make continuity durable
+
+Character and World Memory should become a dependable, inspectable continuity layer for discoveries, rules, relationships, environmental conditions, and consequences.
+
+The goal is not infinite memory. It is memory with scope, provenance, acceptance, and bounded prompt projection.
+
+### 6. Deepen the Voice without giving it authority
 
 The Voice remains read-only. Its future work is better evidence-labelled context: clear distinctions among a Forge draft, an Engine session, outside research, and ordinary project discussion.
 
-### 6. Grow outward carefully
+### 7. Grow outward carefully
 
 Once the current seams are stable:
 
 - campaign continuity can move scoped state between authored Blueprints;
 - a researched generative horror grammar can guide pressure, pacing, revelation, recovery, and fear without reducing them to genre presets;
-- the Engine’s provider boundary can become more replaceable.
+- the Engine's model-provider boundary can become more replaceable.
 
-Gemini in Google AI Studio is the current reference development runtime. Provider neutrality is a design direction, not a present-tense claim.
+Active construction has moved to Antigravity. Google Gemini remains the application's current model provider through `@google/genai`; provider neutrality is still a design direction rather than a present-tense claim.
 
 ## What will not change
 
@@ -109,4 +114,4 @@ Gemini in Google AI Studio is the current reference development runtime. Provide
 ## Reading the maps
 
 - [README](./README.md) — what the machine is for, and why someone might enter it.
-- [Development Roadmap](./DEVELOPMENT-ROADMAP.md) — implementation order, acceptance rules, active defects, and verification discipline.
+- [Development Roadmap](./DEVELOPMENT-ROADMAP.md) — implementation order, acceptance rules, active debt, and verification discipline.
