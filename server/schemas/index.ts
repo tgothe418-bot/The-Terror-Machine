@@ -72,6 +72,15 @@ export const ArchitectActiveUnknownSchema = z
   })
   .strict();
 
+export const ArchitectAppliedCandidateFactSchema = z
+  .object({
+    target: z.string().max(100),
+    classification: z.enum(['evidence', 'inference']).optional(),
+    value: z.string().max(4000),
+    sourceFileName: z.string().max(500).optional(),
+  })
+  .strict();
+
 export const ArchitectDraftContextSchema = z
   .object({
     title: z.string().max(500).optional(),
@@ -96,10 +105,11 @@ export const ArchitectDraftContextSchema = z
           })
           .strict()
       )
+      .max(100)
       .optional(),
-    ambiguities: z.array(BlueprintAmbiguityDecisionSchema).optional().default([]),
-    references: z.array(z.string().max(500)).optional(),
-    draftRevision: z.number().default(1),
+    ambiguities: z.array(BlueprintAmbiguityDecisionSchema).max(100).optional().default([]),
+    references: z.array(z.string().max(500)).max(50).optional(),
+    draftRevision: z.number().int().nonnegative().default(1),
   })
   .strict();
 
@@ -117,25 +127,16 @@ export const ArchitectSourceContextSchema = z
     sourceFileName: z.string().max(500).optional(),
     sourceSummary: z.string().max(4000).optional(),
     evidence: z.array(ArchitectEvidenceItemSchema).max(12).default([]),
-    canonicalAmbiguities: z.array(BlueprintAmbiguityDecisionSchema).default([]),
+    canonicalAmbiguities: z.array(BlueprintAmbiguityDecisionSchema).max(100).default([]),
   })
   .strict();
 
 export const ArchitectBaselineContextSchema = z
   .object({
-    sourceCount: z.number().default(0),
+    sourceCount: z.number().int().nonnegative().default(0),
     sourceSummary: z.string().max(4000).optional(),
-    appliedCandidateFacts: z
-      .array(
-        z
-          .object({
-            target: z.string().max(100),
-            value: z.string().max(4000),
-            sourceFileName: z.string().max(500).optional(),
-          })
-          .strict()
-      )
-      .default([]),
+    sourceSummaries: z.array(z.string().max(4000)).max(20).optional(),
+    appliedCandidateFacts: z.array(ArchitectAppliedCandidateFactSchema).max(100).default([]),
     evidenceClaims: z
       .array(
         z
@@ -146,10 +147,11 @@ export const ArchitectBaselineContextSchema = z
           })
           .strict()
       )
+      .max(100)
       .default([]),
-    canonicalAmbiguities: z.array(BlueprintAmbiguityDecisionSchema).default([]),
-    sourceBaselineRevision: z.number().default(1),
-    draftRevision: z.number().default(1),
+    canonicalAmbiguities: z.array(BlueprintAmbiguityDecisionSchema).max(100).default([]),
+    sourceBaselineRevision: z.number().int().nonnegative().default(1),
+    draftRevision: z.number().int().nonnegative().optional(),
   })
   .strict();
 

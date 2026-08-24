@@ -310,4 +310,277 @@ describe('Forge Routes: /api/extract-blueprint', () => {
       }
     });
   });
+
+  describe('Forge Routes: /api/architect depiction contract proposal', () => {
+    const validModelProposal = {
+      contract: {
+        dramaticRegister: 'Cosmic existential dread with cold detachment',
+        directness: 'Oblique psychological degradation before manifest reality fracture',
+        aftermath: 'Irreversible cognitive dissolution and sensory phantom loops',
+        ambiguityHandling: 'Deliberate ontological void; reality shifts remain unexplained',
+        specialBoundaries: 'Strictly avoid jump scares or supernatural saviors',
+      },
+      rationale:
+        'Reflects benthic isolation and untranslatable signals from deep trench source evidence.',
+      message: 'Synthesized depiction contract tailored to station isolation.',
+    };
+
+    const validRequest = {
+      kind: 'DEPICTION_CONTRACT_PROPOSAL',
+      draftContext: {
+        title: 'Station Benthos',
+        premise: 'Deep benthic research facility loses contact.',
+        setting: {
+          location: 'Benthic Trench',
+          atmosphere: 'Oppressive, claustrophobic',
+          timePeriod: 'Near Future',
+        },
+        cast: [
+          {
+            id: 'char-1',
+            name: 'Dr. Aris',
+            description: 'Chief Oceanographer',
+            role: 'Lead',
+            personality: 'Obsessive, paranoid',
+          },
+        ],
+        environmentalRules: [
+          'Pressure hulls fail below 8000m',
+          'Acoustic echoes carry anomalous frequencies',
+        ],
+        references: ['deep_sea_expedition.json'],
+        draftRevision: 4,
+      },
+      baselineContext: {
+        sourceCount: 2,
+        sourceSummary: 'Hydrophone telemetry and crew psych evals.',
+        appliedCandidateFacts: [
+          {
+            target: 'setting_location',
+            classification: 'evidence' as const,
+            value: 'Mariana Abyssal Plain',
+            sourceFileName: 'hydrophone_log.txt',
+          },
+        ],
+        evidenceClaims: [
+          {
+            claim: 'Sub-harmonic pulse recorded at 0400 hours.',
+            excerpt: 'Pulse amplitude exceeded acoustic sensors.',
+            category: 'setting',
+          },
+        ],
+        canonicalAmbiguities: [
+          {
+            id: 'unk-pulse-origin',
+            category: 'rule',
+            question: 'What produces the sub-harmonic pulse?',
+            resolutionMode: 'CONTEXTUAL_DISCRETION' as const,
+            guidance: 'Leave pulse source unexplained and alien.',
+          },
+        ],
+        sourceBaselineRevision: 9,
+      },
+      history: [],
+    };
+
+    it('returns only validated source-grounded depiction proposals', async () => {
+      // 1. Valid case: returns HTTP 200, strictly preserves request revisions and sets createdAt
+      mockGenerateContent.mockResolvedValueOnce({
+        text: JSON.stringify(validModelProposal),
+      });
+
+      const validResponse = await fetch(`${baseUrl}/api/architect`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(validRequest),
+      });
+
+      expect(validResponse.status).toBe(200);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const validBody = (await validResponse.json()) as any;
+      expect(validBody.type).toBe('DEPICTION_CONTRACT_PROPOSAL');
+      expect(validBody.proposal).toBeDefined();
+      expect(validBody.proposal.contract.dramaticRegister).toBe(
+        'Cosmic existential dread with cold detachment'
+      );
+      expect(validBody.proposal.contract.directness).toBe(
+        'Oblique psychological degradation before manifest reality fracture'
+      );
+      expect(validBody.proposal.contract.aftermath).toBe(
+        'Irreversible cognitive dissolution and sensory phantom loops'
+      );
+      expect(validBody.proposal.contract.ambiguityHandling).toBe(
+        'Deliberate ontological void; reality shifts remain unexplained'
+      );
+      expect(validBody.proposal.contract.specialBoundaries).toBe(
+        'Strictly avoid jump scares or supernatural saviors'
+      );
+      expect(validBody.proposal.rationale).toBe(
+        'Reflects benthic isolation and untranslatable signals from deep trench source evidence.'
+      );
+      // Assert revisions come strictly from the request and timestamp is set
+      expect(validBody.proposal.sourceDraftRevision).toBe(4);
+      expect(validBody.proposal.sourceBaselineRevision).toBe(9);
+      expect(typeof validBody.proposal.createdAt).toBe('number');
+      expect(validBody.proposal.createdAt).toBeGreaterThan(0);
+
+      // 2. Table of invalid cases: must return HTTP 502 with error and no fallback text
+      const invalidCases = [
+        {
+          scenario: 'malformed non-JSON output',
+          modelOutput: 'Not JSON at all { syntax error',
+          expectedError: 'Architect returned malformed non-JSON output.',
+        },
+        {
+          scenario: 'non-object JSON output (array)',
+          modelOutput: JSON.stringify(['invalid', 'array']),
+          expectedError: 'Architect returned non-object JSON payload.',
+        },
+        {
+          scenario: 'missing contract object',
+          modelOutput: JSON.stringify({
+            message: 'Missing contract',
+            rationale: 'Some rationale',
+          }),
+          expectedError: 'Architect returned missing or invalid contract object.',
+        },
+        {
+          scenario: 'incomplete contract missing dramaticRegister',
+          modelOutput: JSON.stringify({
+            contract: {
+              directness: 'Oblique',
+              aftermath: 'Lingering',
+              ambiguityHandling: 'Void',
+              specialBoundaries: '',
+            },
+            rationale: 'Some rationale',
+          }),
+          expectedError: 'Architect contract contains placeholder or empty required fields.',
+        },
+        {
+          scenario: 'incomplete contract missing specialBoundaries (5th field)',
+          modelOutput: JSON.stringify({
+            contract: {
+              dramaticRegister: 'Gothic',
+              directness: 'Oblique',
+              aftermath: 'Lingering',
+              ambiguityHandling: 'Void',
+            },
+            rationale: 'Some rationale',
+          }),
+          expectedError: 'Architect contract is missing required specialBoundaries field.',
+        },
+        {
+          scenario: 'missing rationale',
+          modelOutput: JSON.stringify({
+            contract: {
+              dramaticRegister: 'Gothic',
+              directness: 'Oblique',
+              aftermath: 'Lingering',
+              ambiguityHandling: 'Void',
+              specialBoundaries: '',
+            },
+          }),
+          expectedError: 'Architect proposal contains placeholder or missing rationale.',
+        },
+        {
+          scenario: 'placeholder value in dramaticRegister ("TBD")',
+          modelOutput: JSON.stringify({
+            contract: {
+              dramaticRegister: 'TBD',
+              directness: 'Oblique horror',
+              aftermath: 'Lingering dread',
+              ambiguityHandling: 'Void',
+              specialBoundaries: '',
+            },
+            rationale: 'Rationale text',
+          }),
+          expectedError: 'Architect contract contains placeholder or empty required fields.',
+        },
+        {
+          scenario: 'placeholder value in directness ("N/A")',
+          modelOutput: JSON.stringify({
+            contract: {
+              dramaticRegister: 'Gothic atmosphere',
+              directness: 'N/A',
+              aftermath: 'Lingering dread',
+              ambiguityHandling: 'Void',
+              specialBoundaries: '',
+            },
+            rationale: 'Rationale text',
+          }),
+          expectedError: 'Architect contract contains placeholder or empty required fields.',
+        },
+        {
+          scenario: 'placeholder value in aftermath ("Unknown")',
+          modelOutput: JSON.stringify({
+            contract: {
+              dramaticRegister: 'Gothic atmosphere',
+              directness: 'Oblique horror',
+              aftermath: 'Unknown',
+              ambiguityHandling: 'Void',
+              specialBoundaries: '',
+            },
+            rationale: 'Rationale text',
+          }),
+          expectedError: 'Architect contract contains placeholder or empty required fields.',
+        },
+        {
+          scenario: 'placeholder value in ambiguityHandling ("[Placeholder]")',
+          modelOutput: JSON.stringify({
+            contract: {
+              dramaticRegister: 'Gothic atmosphere',
+              directness: 'Oblique horror',
+              aftermath: 'Lingering dread',
+              ambiguityHandling: '[Placeholder]',
+              specialBoundaries: '',
+            },
+            rationale: 'Rationale text',
+          }),
+          expectedError: 'Architect contract contains placeholder or empty required fields.',
+        },
+        {
+          scenario: 'placeholder in rationale ("None")',
+          modelOutput: JSON.stringify({
+            contract: {
+              dramaticRegister: 'Gothic atmosphere',
+              directness: 'Oblique horror',
+              aftermath: 'Lingering dread',
+              ambiguityHandling: 'Void',
+              specialBoundaries: '',
+            },
+            rationale: 'None',
+          }),
+          expectedError: 'Architect proposal contains placeholder or missing rationale.',
+        },
+      ];
+
+      for (const tc of invalidCases) {
+        mockGenerateContent.mockResolvedValueOnce({
+          text: tc.modelOutput,
+        });
+
+        const response = await fetch(`${baseUrl}/api/architect`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(validRequest),
+        });
+
+        expect(
+          response.status,
+          `Expected 502 for scenario "${tc.scenario}" but got ${response.status}`
+        ).toBe(502);
+
+        const body = (await response.json()) as Record<string, unknown>;
+        expect(body.error).toBeDefined();
+        if (tc.expectedError) {
+          expect(body.error).toContain(tc.expectedError);
+        }
+
+        // Strict assertion: absence of any synthesized proposal or fallback
+        expect(body.proposal).toBeUndefined();
+        expect(body.type).toBeUndefined();
+      }
+    });
+  });
 });

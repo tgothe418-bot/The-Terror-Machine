@@ -11,9 +11,9 @@ import {
 import { getMatrixRules } from "../../src/core/matrix";
 import { 
   ArchitectRequestSchema,
-  ArchitectResponseSchema,
   ArchitectFollowUpResponseSchema,
   ArchitectResolutionProposalResponseSchema,
+  ArchitectDepictionContractProposalResponseSchema,
   TestBlueprintRequestSchema,
   AnalyzeReferenceRequestSchema,
   SummarizeInterviewRequestSchema,
@@ -243,6 +243,27 @@ Generate your response in raw JSON adhering to the required schema:`;
         .map((msg) => `${msg.role === 'user' ? 'USER:' : 'ARCHITECT:'}\n${msg.content}`)
         .join('\n\n');
 
+      const creatorDecisions = (baselineContext.appliedCandidateFacts || [])
+        .map(
+          (f, idx) =>
+            `  [${idx + 1}] (${f.classification || 'decision'}) Target: ${f.target} -> "${f.value}"${f.sourceFileName ? ` (Source: ${f.sourceFileName})` : ''}`
+        )
+        .join('\n') || '  (None)';
+
+      const evidenceList = (baselineContext.evidenceClaims || [])
+        .map(
+          (e, idx) =>
+            `  [${idx + 1}] (${e.category}) Claim: "${e.claim}"${e.excerpt ? ` | Excerpt: "${e.excerpt}"` : ''}`
+        )
+        .join('\n') || '  (None)';
+
+      const ambiguityList = (baselineContext.canonicalAmbiguities || draftContext.ambiguities || [])
+        .map(
+          (a, idx) =>
+            `  [${idx + 1}] (${a.resolutionMode}) Question: "${a.question}" -> ${a.resolutionMode === 'CONTEXTUAL_DISCRETION' ? `[CONTEXTUAL DISCRETION / DELIBERATE UNCERTAINTY: ${a.guidance || 'Preserve unknown boundary'}]` : `Resolution: "${a.resolution || 'Defined'}"`}`
+        )
+        .join('\n') || '  (None)';
+
       const fullPrompt = `${ARCHITECT_DEPICTION_CONTRACT_PROMPT}
 
 === SCENARIO DRAFT CONTEXT ===
@@ -252,64 +273,154 @@ Setting: ${JSON.stringify(draftContext.setting || {})}
 Cast: ${JSON.stringify(draftContext.cast || [])}
 Environmental Rules: ${JSON.stringify(draftContext.environmentalRules || [])}
 References: ${JSON.stringify(draftContext.references || [])}
+Draft Revision: ${draftContext.draftRevision}
 
-=== SCENARIO BASELINE FACTS & EVIDENCE ===
+=== SCENARIO BASELINE CONTEXT ===
 Source Count: ${baselineContext.sourceCount}
 Source Summary: ${baselineContext.sourceSummary || 'None'}
-Applied Facts: ${JSON.stringify(baselineContext.appliedCandidateFacts)}
-Evidence Claims: ${JSON.stringify(baselineContext.evidenceClaims)}
+Source Baseline Revision: ${baselineContext.sourceBaselineRevision}
+
+--- CREATOR-AUTHORED OR ACCEPTED DECISIONS ---
+${creatorDecisions}
+
+--- SOURCE EVIDENCE ---
+${evidenceList}
+
+--- CANONICAL AMBIGUITY DECISIONS (INCLUDING CONTEXTUAL DISCRETION) ---
+${ambiguityList}
 
 === CONVERSATION LOG ===
-${formattedHistory}
+${formattedHistory || '(No previous messages)'}
 
 Synthesize a complete, non-placeholder Depiction Contract tailored for this scenario in raw JSON:`;
 
-      const response = await aiClient.models.generateContent({
-        model: policy.model,
-        contents: fullPrompt,
-        config: {
-          responseMimeType: "application/json",
-          thinkingConfig: {
-            thinkingLevel: policy.thinkingLevel,
-          },
-        },
-      });
-
-      const outputText = response.text || "{}";
-      let parsedJson: any = {};
+      let response;
       try {
-        parsedJson = JSON.parse(outputText);
-      } catch (e) {
-        console.error("Failed to parse depiction contract proposal JSON:", e);
+        response = await aiClient.models.generateContent({
+          model: policy.model,
+          contents: fullPrompt,
+          config: {
+            responseMimeType: "application/json",
+            thinkingConfig: {
+              thinkingLevel: policy.thinkingLevel,
+            },
+          },
+        });
+      } catch (err: any) {
+        console.error("Architect depiction contract AI invocation error:", err);
+        return res.status(502).json({ error: "Architect model invocation failed." });
       }
 
-      const rawProposal = parsedJson.proposal || parsedJson;
-      const contract = rawProposal.contract || rawProposal;
+      const outputText = response.text || "";
+      let parsedJson: any;
+      try {
+        const cleanJson = outputText.replace(/```json\n?|```/g, '').trim();
+        parsedJson = JSON.parse(cleanJson);
+      } catch {
+        return res.status(502).json({
+          error: "Architect returned malformed non-JSON output.",
+        });
+      }
+
+      if (!parsedJson || typeof parsedJson !== 'object' || Array.isArray(parsedJson)) {
+        return res.status(502).json({
+          error: "Architect returned non-object JSON payload.",
+        });
+      }
+
+      const rawContract =
+        parsedJson.contract && typeof parsedJson.contract === 'object' && !Array.isArray(parsedJson.contract)
+          ? parsedJson.contract
+          : parsedJson.proposal?.contract &&
+              typeof parsedJson.proposal.contract === 'object' &&
+              !Array.isArray(parsedJson.proposal.contract)
+            ? parsedJson.proposal.contract
+            : typeof parsedJson.dramaticRegister === 'string'
+              ? parsedJson
+              : parsedJson.proposal && typeof parsedJson.proposal.dramaticRegister === 'string'
+                ? parsedJson.proposal
+                : undefined;
+
+      const rawRationale =
+        typeof parsedJson.rationale === 'string'
+          ? parsedJson.rationale
+          : typeof parsedJson.proposal?.rationale === 'string'
+            ? parsedJson.proposal.rationale
+            : undefined;
+
+      const rawMessage =
+        typeof parsedJson.message === 'string' && parsedJson.message.trim()
+          ? parsedJson.message.trim()
+          : 'Architect synthesized Depiction Contract proposal based on scenario context.';
+
+      if (!rawContract || typeof rawContract !== 'object' || Array.isArray(rawContract)) {
+        return res.status(502).json({
+          error: "Architect returned missing or invalid contract object.",
+        });
+      }
+
+      const { dramaticRegister, directness, aftermath, ambiguityHandling, specialBoundaries } =
+        rawContract;
+
+      const isPlaceholder = (val: unknown): boolean => {
+        if (typeof val !== 'string') return true;
+        const trimmed = val.trim();
+        if (!trimmed) return true;
+        return /^(unknown|none|n\/a|na|tbd|todo|placeholder|to be determined|null|undefined|not applicable|\[.*?\]|<.*?>)$/i.test(
+          trimmed
+        );
+      };
+
+      if (typeof specialBoundaries !== 'string') {
+        return res.status(502).json({
+          error: "Architect contract is missing required specialBoundaries field.",
+        });
+      }
+
+      if (
+        isPlaceholder(dramaticRegister) ||
+        isPlaceholder(directness) ||
+        isPlaceholder(aftermath) ||
+        isPlaceholder(ambiguityHandling)
+      ) {
+        return res.status(502).json({
+          error: "Architect contract contains placeholder or empty required fields.",
+        });
+      }
+
+      if (isPlaceholder(rawRationale)) {
+        return res.status(502).json({
+          error: "Architect proposal contains placeholder or missing rationale.",
+        });
+      }
 
       const structuredProposal = {
         type: 'DEPICTION_CONTRACT_PROPOSAL' as const,
-        message: typeof parsedJson.message === 'string' ? parsedJson.message : 'Architect synthesized Depiction Contract proposal based on draft and baseline facts.',
+        message: rawMessage,
         proposal: {
           contract: {
-            dramaticRegister: typeof contract.dramaticRegister === 'string' && contract.dramaticRegister.trim() ? contract.dramaticRegister.trim() : 'Visceral psychological horror with clinical observational intimacy',
-            directness: typeof contract.directness === 'string' && contract.directness.trim() ? contract.directness.trim() : 'Peripheral distortion and delayed manifest threat escalation',
-            aftermath: typeof contract.aftermath === 'string' && contract.aftermath.trim() ? contract.aftermath.trim() : 'Persistent somatic deterioration and psychological dissociation',
-            ambiguityHandling: typeof contract.ambiguityHandling === 'string' && contract.ambiguityHandling.trim() ? contract.ambiguityHandling.trim() : 'Fragmented subjective perception with unverified reality boundaries',
-            specialBoundaries: typeof contract.specialBoundaries === 'string' ? contract.specialBoundaries.trim() : '',
+            dramaticRegister: dramaticRegister.trim(),
+            directness: directness.trim(),
+            aftermath: aftermath.trim(),
+            ambiguityHandling: ambiguityHandling.trim(),
+            specialBoundaries: specialBoundaries.trim(),
           },
-          rationale: typeof rawProposal.rationale === 'string' ? rawProposal.rationale : 'Depiction parameters aligned with scenario baseline facts and narrative stakes.',
+          rationale: (rawRationale as string).trim(),
           sourceDraftRevision: draftContext.draftRevision,
           sourceBaselineRevision: baselineContext.sourceBaselineRevision,
           createdAt: Date.now(),
         },
       };
 
-      const validated = ArchitectResponseSchema.safeParse(structuredProposal);
-      if (validated.success) {
-        return res.json(validated.data);
+      const validated = ArchitectDepictionContractProposalResponseSchema.safeParse(structuredProposal);
+      if (!validated.success) {
+        return res.status(502).json({
+          error: "Architect depiction proposal failed response schema validation.",
+          details: validated.error.format(),
+        });
       }
 
-      return res.json(structuredProposal);
+      return res.json(validated.data);
     }
 
     // GENERAL_MESSAGE mode
