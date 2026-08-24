@@ -47,6 +47,7 @@ import {
   BlueprintAmbiguityDecisionSchema,
   ForgeUnknownResolutionProposalSchema,
   DepictionContractProposalSchema,
+  CompleteDepictionContractSchema,
 } from '../../src/types/forge';
 
 export const ArchitectActiveUnknownSchema = z
@@ -155,6 +156,79 @@ export const ArchitectBaselineContextSchema = z
   })
   .strict();
 
+// --- DEPICTION-SPECIFIC BOUNDED REQUEST SCHEMAS ---
+export const ArchitectDepictionCandidateFactSchema = z
+  .object({
+    target: z.string().trim().min(1).max(100),
+    classification: z.enum(['evidence', 'inference']),
+    value: z.string().trim().min(1).max(4000),
+    sourceFileName: z.string().trim().min(1).max(500),
+  })
+  .strict();
+
+export const ArchitectDepictionEvidenceClaimSchema = z
+  .object({
+    claim: z.string().trim().min(1).max(2000),
+    excerpt: z.string().trim().max(4000).optional(),
+    category: z.string().trim().min(1).max(100),
+  })
+  .strict();
+
+export const ArchitectDepictionDraftContextSchema = z
+  .object({
+    title: z.string().trim().min(1).max(500),
+    premise: z.string().trim().min(1).max(4000),
+    setting: z
+      .object({
+        location: z.string().trim().max(500).optional(),
+        atmosphere: z.string().trim().max(2000).optional(),
+        timePeriod: z.string().trim().max(500).optional(),
+      })
+      .strict()
+      .optional(),
+    environmentalRules: z
+      .union([z.string().trim().max(1000), z.array(z.string().trim().max(1000)).max(50)])
+      .optional(),
+    cast: z
+      .array(
+        z
+          .object({
+            id: z.string().trim().min(1).max(200),
+            name: z.string().trim().min(1).max(200),
+            description: z.string().trim().max(2000).optional(),
+            role: z.string().trim().max(100).optional(),
+            personality: z.string().trim().max(2000).optional(),
+          })
+          .strict()
+      )
+      .max(100)
+      .optional(),
+    ambiguities: z.array(BlueprintAmbiguityDecisionSchema).max(100).default([]),
+    references: z.array(z.string().trim().min(1).max(500)).max(50).optional(),
+    draftRevision: z.number().int().positive(),
+  })
+  .strict();
+
+export const ArchitectDepictionBaselineContextSchema = z
+  .object({
+    sourceCount: z.number().int().nonnegative(),
+    sourceSummary: z.string().trim().max(4000).optional(),
+    sourceSummaries: z.array(z.string().trim().min(1).max(4000)).max(20).optional().default([]),
+    appliedCandidateFacts: z.array(ArchitectDepictionCandidateFactSchema).max(100).default([]),
+    evidenceClaims: z.array(ArchitectDepictionEvidenceClaimSchema).max(100).default([]),
+    canonicalAmbiguities: z.array(BlueprintAmbiguityDecisionSchema).max(100).default([]),
+    sourceBaselineRevision: z.number().int().positive(),
+  })
+  .strict();
+
+export const RawDepictionModelOutputSchema = z
+  .object({
+    contract: CompleteDepictionContractSchema,
+    rationale: z.string().trim().min(1).max(1000),
+    message: z.string().trim().max(4000).optional(),
+  })
+  .strict();
+
 export const ArchitectChatMessageSchema = z
   .object({
     role: z.enum(['user', 'architect']),
@@ -176,8 +250,8 @@ export const ArchitectAmbiguityResolutionRequestSchema = z
 export const ArchitectDepictionContractProposalRequestSchema = z
   .object({
     kind: z.literal('DEPICTION_CONTRACT_PROPOSAL'),
-    draftContext: ArchitectDraftContextSchema,
-    baselineContext: ArchitectBaselineContextSchema,
+    draftContext: ArchitectDepictionDraftContextSchema,
+    baselineContext: ArchitectDepictionBaselineContextSchema,
     history: z.array(ArchitectChatMessageSchema).max(50).default([]),
   })
   .strict();

@@ -14,6 +14,7 @@ import {
   ArchitectFollowUpResponseSchema,
   ArchitectResolutionProposalResponseSchema,
   ArchitectDepictionContractProposalResponseSchema,
+  RawDepictionModelOutputSchema,
   TestBlueprintRequestSchema,
   AnalyzeReferenceRequestSchema,
   SummarizeInterviewRequestSchema,
@@ -243,10 +244,20 @@ Generate your response in raw JSON adhering to the required schema:`;
         .map((msg) => `${msg.role === 'user' ? 'USER:' : 'ARCHITECT:'}\n${msg.content}`)
         .join('\n\n');
 
+      const rawSummaries =
+        baselineContext.sourceSummaries && baselineContext.sourceSummaries.length > 0
+          ? baselineContext.sourceSummaries
+          : baselineContext.sourceSummary
+            ? [baselineContext.sourceSummary]
+            : [];
+
+      const summariesList =
+        rawSummaries.map((s, idx) => `  [${idx + 1}] ${s}`).join('\n') || '  (None)';
+
       const creatorDecisions = (baselineContext.appliedCandidateFacts || [])
         .map(
           (f, idx) =>
-            `  [${idx + 1}] (${f.classification || 'decision'}) Target: ${f.target} -> "${f.value}"${f.sourceFileName ? ` (Source: ${f.sourceFileName})` : ''}`
+            `  [${idx + 1}] (${f.classification}) Target: ${f.target} -> "${f.value}" (Source: ${f.sourceFileName})`
         )
         .join('\n') || '  (None)';
 
@@ -267,8 +278,8 @@ Generate your response in raw JSON adhering to the required schema:`;
       const fullPrompt = `${ARCHITECT_DEPICTION_CONTRACT_PROMPT}
 
 === SCENARIO DRAFT CONTEXT ===
-Title: ${draftContext.title || 'Untitled'}
-Premise: ${draftContext.premise || 'None'}
+Title: ${draftContext.title}
+Premise: ${draftContext.premise}
 Setting: ${JSON.stringify(draftContext.setting || {})}
 Cast: ${JSON.stringify(draftContext.cast || [])}
 Environmental Rules: ${JSON.stringify(draftContext.environmentalRules || [])}
@@ -277,8 +288,10 @@ Draft Revision: ${draftContext.draftRevision}
 
 === SCENARIO BASELINE CONTEXT ===
 Source Count: ${baselineContext.sourceCount}
-Source Summary: ${baselineContext.sourceSummary || 'None'}
 Source Baseline Revision: ${baselineContext.sourceBaselineRevision}
+
+--- SOURCE SUMMARIES ---
+${summariesList}
 
 --- CREATOR-AUTHORED OR ACCEPTED DECISIONS ---
 ${creatorDecisions}
@@ -328,42 +341,19 @@ Synthesize a complete, non-placeholder Depiction Contract tailored for this scen
         });
       }
 
-      const rawContract =
-        parsedJson.contract && typeof parsedJson.contract === 'object' && !Array.isArray(parsedJson.contract)
-          ? parsedJson.contract
-          : parsedJson.proposal?.contract &&
-              typeof parsedJson.proposal.contract === 'object' &&
-              !Array.isArray(parsedJson.proposal.contract)
-            ? parsedJson.proposal.contract
-            : typeof parsedJson.dramaticRegister === 'string'
-              ? parsedJson
-              : parsedJson.proposal && typeof parsedJson.proposal.dramaticRegister === 'string'
-                ? parsedJson.proposal
-                : undefined;
-
-      const rawRationale =
-        typeof parsedJson.rationale === 'string'
-          ? parsedJson.rationale
-          : typeof parsedJson.proposal?.rationale === 'string'
-            ? parsedJson.proposal.rationale
-            : undefined;
-
-      const rawMessage =
-        typeof parsedJson.message === 'string' && parsedJson.message.trim()
-          ? parsedJson.message.trim()
-          : 'Architect synthesized Depiction Contract proposal based on scenario context.';
-
-      if (!rawContract || typeof rawContract !== 'object' || Array.isArray(rawContract)) {
+      const rawValidation = RawDepictionModelOutputSchema.safeParse(parsedJson);
+      if (!rawValidation.success) {
         return res.status(502).json({
-          error: "Architect returned missing or invalid contract object.",
+          error: "Architect returned invalid raw model output structure.",
+          details: rawValidation.error.format(),
         });
       }
 
+      const rawData = rawValidation.data;
       const { dramaticRegister, directness, aftermath, ambiguityHandling, specialBoundaries } =
-        rawContract;
+        rawData.contract;
 
-      const isPlaceholder = (val: unknown): boolean => {
-        if (typeof val !== 'string') return true;
+      const isPlaceholder = (val: string): boolean => {
         const trimmed = val.trim();
         if (!trimmed) return true;
         return /^(unknown|none|n\/a|na|tbd|todo|placeholder|to be determined|null|undefined|not applicable|\[.*?\]|<.*?>)$/i.test(
@@ -371,32 +361,29 @@ Synthesize a complete, non-placeholder Depiction Contract tailored for this scen
         );
       };
 
-      if (typeof specialBoundaries !== 'string') {
-        return res.status(502).json({
-          error: "Architect contract is missing required specialBoundaries field.",
-        });
-      }
-
       if (
         isPlaceholder(dramaticRegister) ||
         isPlaceholder(directness) ||
         isPlaceholder(aftermath) ||
-        isPlaceholder(ambiguityHandling)
+        isPlaceholder(ambiguityHandling) ||
+        (specialBoundaries.trim().length > 0 && isPlaceholder(specialBoundaries))
       ) {
         return res.status(502).json({
-          error: "Architect contract contains placeholder or empty required fields.",
+          error: "Architect contract contains placeholder fields.",
         });
       }
 
-      if (isPlaceholder(rawRationale)) {
+      if (isPlaceholder(rawData.rationale)) {
         return res.status(502).json({
-          error: "Architect proposal contains placeholder or missing rationale.",
+          error: "Architect proposal contains placeholder rationale.",
         });
       }
 
       const structuredProposal = {
         type: 'DEPICTION_CONTRACT_PROPOSAL' as const,
-        message: rawMessage,
+        message:
+          rawData.message ||
+          'Architect synthesized Depiction Contract proposal based on scenario context.',
         proposal: {
           contract: {
             dramaticRegister: dramaticRegister.trim(),
@@ -405,7 +392,7 @@ Synthesize a complete, non-placeholder Depiction Contract tailored for this scen
             ambiguityHandling: ambiguityHandling.trim(),
             specialBoundaries: specialBoundaries.trim(),
           },
-          rationale: (rawRationale as string).trim(),
+          rationale: rawData.rationale.trim(),
           sourceDraftRevision: draftContext.draftRevision,
           sourceBaselineRevision: baselineContext.sourceBaselineRevision,
           createdAt: Date.now(),

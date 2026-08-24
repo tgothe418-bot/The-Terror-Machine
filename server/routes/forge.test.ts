@@ -442,7 +442,7 @@ describe('Forge Routes: /api/extract-blueprint', () => {
             message: 'Missing contract',
             rationale: 'Some rationale',
           }),
-          expectedError: 'Architect returned missing or invalid contract object.',
+          expectedError: 'Architect returned invalid raw model output structure.',
         },
         {
           scenario: 'incomplete contract missing dramaticRegister',
@@ -455,7 +455,7 @@ describe('Forge Routes: /api/extract-blueprint', () => {
             },
             rationale: 'Some rationale',
           }),
-          expectedError: 'Architect contract contains placeholder or empty required fields.',
+          expectedError: 'Architect returned invalid raw model output structure.',
         },
         {
           scenario: 'incomplete contract missing specialBoundaries (5th field)',
@@ -468,7 +468,7 @@ describe('Forge Routes: /api/extract-blueprint', () => {
             },
             rationale: 'Some rationale',
           }),
-          expectedError: 'Architect contract is missing required specialBoundaries field.',
+          expectedError: 'Architect returned invalid raw model output structure.',
         },
         {
           scenario: 'missing rationale',
@@ -481,7 +481,7 @@ describe('Forge Routes: /api/extract-blueprint', () => {
               specialBoundaries: '',
             },
           }),
-          expectedError: 'Architect proposal contains placeholder or missing rationale.',
+          expectedError: 'Architect returned invalid raw model output structure.',
         },
         {
           scenario: 'placeholder value in dramaticRegister ("TBD")',
@@ -495,7 +495,7 @@ describe('Forge Routes: /api/extract-blueprint', () => {
             },
             rationale: 'Rationale text',
           }),
-          expectedError: 'Architect contract contains placeholder or empty required fields.',
+          expectedError: 'Architect contract contains placeholder fields.',
         },
         {
           scenario: 'placeholder value in directness ("N/A")',
@@ -509,7 +509,7 @@ describe('Forge Routes: /api/extract-blueprint', () => {
             },
             rationale: 'Rationale text',
           }),
-          expectedError: 'Architect contract contains placeholder or empty required fields.',
+          expectedError: 'Architect contract contains placeholder fields.',
         },
         {
           scenario: 'placeholder value in aftermath ("Unknown")',
@@ -523,7 +523,7 @@ describe('Forge Routes: /api/extract-blueprint', () => {
             },
             rationale: 'Rationale text',
           }),
-          expectedError: 'Architect contract contains placeholder or empty required fields.',
+          expectedError: 'Architect contract contains placeholder fields.',
         },
         {
           scenario: 'placeholder value in ambiguityHandling ("[Placeholder]")',
@@ -537,7 +537,7 @@ describe('Forge Routes: /api/extract-blueprint', () => {
             },
             rationale: 'Rationale text',
           }),
-          expectedError: 'Architect contract contains placeholder or empty required fields.',
+          expectedError: 'Architect contract contains placeholder fields.',
         },
         {
           scenario: 'placeholder in rationale ("None")',
@@ -551,7 +551,69 @@ describe('Forge Routes: /api/extract-blueprint', () => {
             },
             rationale: 'None',
           }),
-          expectedError: 'Architect proposal contains placeholder or missing rationale.',
+          expectedError: 'Architect proposal contains placeholder rationale.',
+        },
+        {
+          scenario: 'placeholder in specialBoundaries ("TBD")',
+          modelOutput: JSON.stringify({
+            contract: {
+              dramaticRegister: 'Gothic atmosphere',
+              directness: 'Oblique horror',
+              aftermath: 'Lingering dread',
+              ambiguityHandling: 'Void',
+              specialBoundaries: 'TBD',
+            },
+            rationale: 'Substantive rationale text',
+          }),
+          expectedError: 'Architect contract contains placeholder fields.',
+        },
+        {
+          scenario: 'placeholder in specialBoundaries ("N/A")',
+          modelOutput: JSON.stringify({
+            contract: {
+              dramaticRegister: 'Gothic atmosphere',
+              directness: 'Oblique horror',
+              aftermath: 'Lingering dread',
+              ambiguityHandling: 'Void',
+              specialBoundaries: 'N/A',
+            },
+            rationale: 'Substantive rationale text',
+          }),
+          expectedError: 'Architect contract contains placeholder fields.',
+        },
+        {
+          scenario: 'wrapped proposal structure from model',
+          modelOutput: JSON.stringify({
+            type: 'DEPICTION_CONTRACT_PROPOSAL',
+            proposal: {
+              contract: {
+                dramaticRegister: 'Gothic atmosphere',
+                directness: 'Oblique horror',
+                aftermath: 'Lingering dread',
+                ambiguityHandling: 'Void',
+                specialBoundaries: '',
+              },
+              rationale: 'Valid rationale',
+            },
+          }),
+          expectedError: 'Architect returned invalid raw model output structure.',
+        },
+        {
+          scenario: 'model output attempting to supply lifecycle revisions and timestamp',
+          modelOutput: JSON.stringify({
+            contract: {
+              dramaticRegister: 'Gothic atmosphere',
+              directness: 'Oblique horror',
+              aftermath: 'Lingering dread',
+              ambiguityHandling: 'Void',
+              specialBoundaries: '',
+            },
+            rationale: 'Valid rationale',
+            sourceDraftRevision: 99,
+            sourceBaselineRevision: 88,
+            createdAt: 12345,
+          }),
+          expectedError: 'Architect returned invalid raw model output structure.',
         },
       ];
 
@@ -580,6 +642,54 @@ describe('Forge Routes: /api/extract-blueprint', () => {
         // Strict assertion: absence of any synthesized proposal or fallback
         expect(body.proposal).toBeUndefined();
         expect(body.type).toBeUndefined();
+      }
+
+      // 3. Request validation: under-grounded or invalid request payloads must return HTTP 400
+      const invalidRequests = [
+        {
+          scenario: 'missing draftRevision',
+          payload: {
+            ...validRequest,
+            draftContext: { ...validRequest.draftContext, draftRevision: undefined },
+          },
+        },
+        {
+          scenario: 'missing sourceBaselineRevision',
+          payload: {
+            ...validRequest,
+            baselineContext: { ...validRequest.baselineContext, sourceBaselineRevision: undefined },
+          },
+        },
+        {
+          scenario: 'empty candidate target / classification / attribution',
+          payload: {
+            ...validRequest,
+            baselineContext: {
+              ...validRequest.baselineContext,
+              appliedCandidateFacts: [
+                {
+                  target: '',
+                  classification: 'evidence',
+                  value: 'Value',
+                  sourceFileName: '',
+                },
+              ],
+            },
+          },
+        },
+      ];
+
+      for (const reqCase of invalidRequests) {
+        const response = await fetch(`${baseUrl}/api/architect`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(reqCase.payload),
+        });
+
+        expect(
+          response.status,
+          `Expected 400 for request scenario "${reqCase.scenario}" but got ${response.status}`
+        ).toBe(400);
       }
     });
   });
