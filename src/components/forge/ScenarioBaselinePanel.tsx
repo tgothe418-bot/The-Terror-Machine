@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { useForgeState, forgeActions } from '../../store/useForgeStore';
 import {
   ForgeSourceAnalysis,
   ForgeSourceAnalysisSchema,
   ForgeSourceCandidate,
+  ForgeSourceEvidence,
 } from '../../types/forge';
+import { SourceEvidenceDrawer } from './SourceEvidenceDrawer';
 import {
   FileText,
   Check,
@@ -17,7 +19,6 @@ import {
   Layers,
   AlertTriangle,
   Sparkles,
-  ShieldCheck,
   ArrowUpRight,
 } from 'lucide-react';
 
@@ -35,6 +36,12 @@ export const ScenarioBaselinePanel: React.FC = () => {
   const [editingCandidateId, setEditingCandidateId] = useState<string | null>(null);
   const [editingValueText, setEditingValueText] = useState<string>('');
   const [applicationError, setApplicationError] = useState<{ sourceId: string; message: string } | null>(null);
+  const [activeEvidenceDrawer, setActiveEvidenceDrawer] = useState<{
+    candidateId: string;
+    candidateLabel: string;
+    sourceFileName: string;
+    evidence: ForgeSourceEvidence[];
+  } | null>(null);
 
   const rawEntries = Object.entries(sourceAnalyses);
   const validAnalyses: ForgeSourceAnalysis[] = [];
@@ -332,7 +339,7 @@ export const ScenarioBaselinePanel: React.FC = () => {
                         const isApplied = cand.applicationState === 'applied';
                         const isRejected = cand.reviewDecision === 'rejected';
 
-                        // Find associated evidence claim
+                        // Find associated evidence claims
                         const evidenceItems = analysis.evidence.filter((e) =>
                           cand.evidenceIds?.includes(e.id)
                         );
@@ -484,20 +491,28 @@ export const ScenarioBaselinePanel: React.FC = () => {
                               </div>
                             )}
 
-                            {/* Evidence Excerpts */}
+                            {/* Linked Evidence Compact Control */}
                             {evidenceItems.length > 0 && (
-                              <div className="space-y-1 pt-1">
-                                {evidenceItems.map((ev) => (
-                                  <div
-                                    key={ev.id}
-                                    className="text-[10px] text-zinc-500 italic flex items-start gap-1"
-                                  >
-                                    <span className="text-zinc-600 not-italic font-bold shrink-0">
-                                      ↳ Source Evidence:
-                                    </span>{' '}
-                                    <span>"{ev.excerpt || ev.claim}"</span>
-                                  </div>
-                                ))}
+                              <div className="pt-1">
+                                <button
+                                  type="button"
+                                  id={`view-evidence-btn-${cand.id}`}
+                                  aria-expanded={activeEvidenceDrawer?.candidateId === cand.id}
+                                  aria-controls={`evidence-drawer-${cand.id}`}
+                                  aria-label={`View ${evidenceItems.length} evidence items for ${cand.label}`}
+                                  onClick={() => {
+                                    setActiveEvidenceDrawer({
+                                      candidateId: cand.id,
+                                      candidateLabel: cand.label,
+                                      sourceFileName: analysis.sourceRecord.fileName,
+                                      evidence: evidenceItems,
+                                    });
+                                  }}
+                                  className="inline-flex items-center gap-1.5 px-2 py-1 bg-zinc-900/80 hover:bg-zinc-800 text-cyan-300 border border-zinc-700/80 hover:border-cyan-700 text-[11px] font-mono rounded cursor-pointer transition-colors"
+                                >
+                                  <FileText className="w-3 h-3 text-cyan-400" />
+                                  <span>Evidence · {evidenceItems.length}</span>
+                                </button>
                               </div>
                             )}
                           </div>
@@ -505,144 +520,80 @@ export const ScenarioBaselinePanel: React.FC = () => {
                       })}
                     </div>
 
-                    {/* UNKNOWNS / AMBIGUITY REVIEW LEDGER */}
+                    {/* SOURCE UNKNOWNS / AMBIGUITIES */}
                     {analysis.unknowns && analysis.unknowns.length > 0 && (
-                      <div className="bg-zinc-950/80 border border-amber-900/40 rounded p-4 space-y-4 shadow-sm">
-                        <div className="flex items-center justify-between border-b border-amber-900/30 pb-2.5">
-                          <div className="flex items-center gap-2 text-amber-400 font-mono text-[11px] font-bold uppercase tracking-wider">
-                            <HelpCircle className="w-4 h-4 text-amber-400" />
-                            <span>Identified Gaps & Ambiguities ({analysis.unknowns.length})</span>
-                          </div>
+                      <div className="space-y-3 pt-2 border-t border-zinc-900">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-mono uppercase tracking-wider text-amber-400 font-bold flex items-center gap-1.5">
+                            <HelpCircle className="w-3.5 h-3.5 text-amber-400" />
+                            <span>Ambiguities & Knowledge Gaps</span>
+                            <span className="text-[10px] text-zinc-500 font-normal">
+                              ({analysis.unknowns.length})
+                            </span>
+                          </span>
                           <span className="text-[10px] font-mono text-zinc-500">
-                            Compact Review Ledger · Conversational Ownership in Architect
+                            {resolvedUnknowns} resolved
                           </span>
                         </div>
 
-                        <div className="space-y-3">
+                        <div className="space-y-2">
                           {analysis.unknowns.map((unk) => {
-                            const isQueued = unk.status === 'queued';
-                            const isAwaitingResponse = unk.status === 'awaiting_response';
-                            const isAwaitingConfirmation = unk.status === 'awaiting_confirmation';
-                            const isResolved = unk.status === 'resolved';
-                            const isDiscretion = unk.status === 'contextual_discretion';
-                            const isNonterminal = !isResolved && !isDiscretion;
+                            const isResolved =
+                              unk.status === 'resolved' || unk.status === 'contextual_discretion';
 
                             return (
                               <div
                                 key={unk.id}
-                                id={`unknown-card-${unk.id}`}
-                                className={`p-3.5 rounded border font-mono text-xs space-y-2.5 transition-colors ${
+                                className={`p-3 rounded border font-mono text-xs space-y-2 transition-colors ${
                                   isResolved
-                                    ? 'bg-emerald-950/15 border-emerald-900/40 text-zinc-300'
-                                    : isDiscretion
-                                    ? 'bg-indigo-950/20 border-indigo-900/40 text-zinc-300'
-                                    : isAwaitingConfirmation
-                                    ? 'bg-purple-950/20 border-purple-900/50 text-zinc-200'
-                                    : 'bg-black/60 border-zinc-800 text-zinc-200'
+                                    ? 'bg-zinc-950/40 border-zinc-900 text-zinc-400'
+                                    : 'bg-amber-950/15 border-amber-900/40 text-zinc-200'
                                 }`}
                               >
-                                {/* UNKNOWN HEADER & BADGES */}
                                 <div className="flex items-start justify-between gap-3">
-                                  <div className="space-y-1 flex-1 min-w-0">
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                      <span className="text-[10px] px-1.5 py-0.5 rounded uppercase font-bold bg-amber-950/50 border border-amber-800/60 text-amber-300">
-                                        [{unk.category}]
+                                  <div className="space-y-1 flex-1">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-[10px] px-1.5 py-0.5 rounded uppercase font-bold bg-zinc-800 text-zinc-400 border border-zinc-700">
+                                        {unk.category}
                                       </span>
-
-                                      {/* Status Badge */}
-                                      {isQueued && (
-                                        <span className="text-[10px] px-1.5 py-0.5 rounded uppercase font-bold bg-amber-900/30 border border-amber-700/50 text-amber-200">
-                                          Pending Clarification
-                                        </span>
-                                      )}
-                                      {isAwaitingResponse && (
-                                        <span className="text-[10px] px-1.5 py-0.5 rounded uppercase font-bold bg-blue-950/50 border border-blue-800/60 text-blue-300">
-                                          Awaiting Follow-up
-                                        </span>
-                                      )}
-                                      {isAwaitingConfirmation && (
-                                        <span className="text-[10px] px-1.5 py-0.5 rounded uppercase font-bold bg-purple-950/50 border border-purple-800/60 text-purple-300 flex items-center gap-1">
-                                          <Sparkles className="w-3 h-3 text-purple-400" />
-                                          Resolution Ready
-                                        </span>
-                                      )}
-                                      {isResolved && (
-                                        <span className="text-[10px] px-1.5 py-0.5 rounded uppercase font-bold bg-emerald-950/50 border border-emerald-800/60 text-emerald-300 flex items-center gap-1">
-                                          <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                                          Resolved (Committed)
-                                        </span>
-                                      )}
-                                      {isDiscretion && (
-                                        <span className="text-[10px] px-1.5 py-0.5 rounded uppercase font-bold bg-indigo-950/50 border border-indigo-800/60 text-indigo-300 flex items-center gap-1">
-                                          <ShieldCheck className="w-3 h-3 text-indigo-400" />
-                                          Contextual Discretion
-                                        </span>
-                                      )}
+                                      <span
+                                        className={`text-[10px] px-1.5 py-0.5 rounded uppercase font-bold border ${
+                                          isResolved
+                                            ? 'bg-emerald-950/50 border-emerald-800/60 text-emerald-300'
+                                            : 'bg-amber-950/50 border-amber-800/60 text-amber-300'
+                                        }`}
+                                      >
+                                        {unk.status.replace('_', ' ')}
+                                      </span>
                                     </div>
-
-                                    {/* Question */}
-                                    <p className="text-zinc-100 font-semibold text-xs leading-relaxed pt-1">
-                                      {unk.question}
-                                    </p>
+                                    <div className="font-semibold text-zinc-100">{unk.question}</div>
+                                    <div className="text-[11px] text-zinc-400">
+                                      Target impact: {unk.targetEffect}
+                                    </div>
                                   </div>
 
-                                  {/* Resolve in Architect button for nonterminal items */}
-                                  {isNonterminal && (
+                                  {!isResolved && (
                                     <button
+                                      type="button"
                                       onClick={handleResolveInArchitect}
-                                      className="px-2.5 py-1 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 rounded text-[10px] uppercase font-bold flex items-center gap-1 shrink-0 cursor-pointer transition-colors"
-                                      title="Open Architect conversation to clarify or resolve this ambiguity"
+                                      className="px-2.5 py-1 bg-amber-900/60 hover:bg-amber-800 text-amber-200 border border-amber-700 text-[10px] font-bold uppercase rounded transition-colors cursor-pointer flex items-center gap-1 shrink-0"
+                                      title="Open Architect Chat to resolve this ambiguity"
                                     >
-                                      <span>Resolve in Architect</span>
-                                      <ArrowUpRight className="w-3 h-3" />
+                                      <Sparkles className="w-3 h-3 text-amber-300" />
+                                      <span>Resolve in Chat</span>
+                                      <ArrowUpRight className="w-3 h-3 text-amber-400" />
                                     </button>
                                   )}
                                 </div>
 
-                                {/* TARGET EFFECT */}
-                                <div className="text-[11px] text-zinc-400 bg-zinc-950/70 p-2 rounded border border-zinc-900 flex items-start gap-1.5">
-                                  <span className="text-amber-500/90 font-bold uppercase text-[10px] shrink-0">
-                                    Target Effect:
-                                  </span>
-                                  <span>{unk.targetEffect}</span>
-                                </div>
-
-                                {/* COMPACT SUMMARY OF SUBMITTED ANSWER OR ACCEPTED RESOLUTION */}
-                                {isResolved && (
-                                  <div className="text-[11px] text-emerald-300/90 bg-emerald-950/30 border border-emerald-900/50 p-2 rounded leading-relaxed">
-                                    <span className="font-bold text-emerald-400 block text-[10px] uppercase mb-0.5">
-                                      Committed Resolution:
-                                    </span>
-                                    {unk.resolutionProposal?.resolution ||
-                                      unk.submittedAnswer ||
-                                      'Committed to Blueprint draft.'}
-                                  </div>
-                                )}
-
-                                {isDiscretion && (
-                                  <div className="text-[11px] text-indigo-300/90 bg-indigo-950/30 border border-indigo-900/50 p-2 rounded leading-relaxed">
-                                    <span className="font-bold text-indigo-400 block text-[10px] uppercase mb-0.5">
-                                      Discretion Policy:
-                                    </span>
-                                    Delegated to engine narrative and environmental discretion during simulation runtime.
-                                  </div>
-                                )}
-
-                                {isAwaitingConfirmation && unk.resolutionProposal && (
-                                  <div className="text-[11px] text-purple-300/90 bg-purple-950/20 border border-purple-900/40 p-2 rounded leading-relaxed">
-                                    <span className="font-bold text-purple-400 block text-[10px] uppercase mb-0.5">
-                                      Proposed Resolution:
-                                    </span>
-                                    {unk.resolutionProposal.resolution}
-                                  </div>
-                                )}
-
-                                {!isResolved && !isDiscretion && !isAwaitingConfirmation && unk.submittedAnswer && (
-                                  <div className="text-[11px] text-cyan-300/90 bg-cyan-950/20 border border-cyan-900/40 p-2 rounded leading-relaxed">
-                                    <span className="font-bold text-cyan-400 block text-[10px] uppercase mb-0.5">
-                                      Submitted Clarification:
-                                    </span>
-                                    {unk.submittedAnswer}
+                                {/* Resolution Details */}
+                                {unk.resolutionProposal && (
+                                  <div className="bg-zinc-950/70 p-2.5 rounded border border-zinc-900 text-[11px] space-y-1">
+                                    <div className="text-emerald-400 font-bold flex items-center gap-1">
+                                      <CheckCircle2 className="w-3 h-3" />
+                                      <span>Resolution:</span>
+                                    </div>
+                                    <p className="text-zinc-300">{unk.resolutionProposal.resolution}</p>
                                   </div>
                                 )}
                               </div>
@@ -657,6 +608,19 @@ export const ScenarioBaselinePanel: React.FC = () => {
             );
           })}
         </div>
+      )}
+
+      {/* SOURCE EVIDENCE DRAWER OVERLAY */}
+      {activeEvidenceDrawer && (
+        <SourceEvidenceDrawer
+          isOpen={!!activeEvidenceDrawer}
+          onClose={() => setActiveEvidenceDrawer(null)}
+          candidateLabel={activeEvidenceDrawer.candidateLabel}
+          sourceFileName={activeEvidenceDrawer.sourceFileName}
+          evidence={activeEvidenceDrawer.evidence}
+          triggerElementId={`view-evidence-btn-${activeEvidenceDrawer.candidateId}`}
+          drawerId={`evidence-drawer-${activeEvidenceDrawer.candidateId}`}
+        />
       )}
     </div>
   );

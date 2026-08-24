@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { act } from 'react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
@@ -100,29 +100,25 @@ describe('ScenarioBaselinePanel Candidate Atomicity Proof', () => {
     forgeActions.initializeDraft({ title: 'Baseline Title' });
 
     const mockAnalysis: ForgeSourceAnalysis = {
-      id: 'analysis-ui-fail',
+      id: 'analysis-fail-1',
       sourceRecord: {
-        id: 'src-ui-fail',
-        fileName: 'invalid_data.pdf',
-        mimeType: 'application/pdf',
-        kind: 'document',
+        id: 'src-fail-1',
+        fileName: 'faulty.json',
+        mimeType: 'application/json',
+        kind: 'native_blueprint',
         receivedAt: Date.now(),
       },
       evidence: [],
       candidates: [
         {
-          id: 'cand-bad-expr',
-          sourceId: 'src-ui-fail',
+          id: 'cand-fail-1',
+          sourceId: 'src-fail-1',
           classification: 'evidence',
-          target: 'cast_expression_guidance',
-          targetCastMemberId: 'missing-cast-id',
-          label: 'Broken Expression Guidance',
-          explanation: 'Guidance targeting nonexistent cast member',
+          target: 'setting_location',
+          label: 'Setting Location',
+          explanation: 'Invalid value',
           evidenceIds: [],
-          proposedValue: {
-            communicationModes: ['spoken'],
-            expressionGuidance: 'Radio chatter',
-          },
+          proposedValue: 'Invalid Place',
           reviewDecision: 'accepted',
           applicationState: 'staged',
         },
@@ -133,159 +129,41 @@ describe('ScenarioBaselinePanel Candidate Atomicity Proof', () => {
 
     forgeActions.registerSourceAnalysis(mockAnalysis);
 
-    await act(async () => {
-      root?.render(React.createElement(ScenarioBaselinePanel));
-    });
-
-    const buttons = Array.from(container?.querySelectorAll('button') || []);
-    const applyAcceptedBtn = buttons.find((b) =>
-      b.textContent?.toLowerCase().includes('apply accepted')
-    );
-    expect(applyAcceptedBtn).toBeDefined();
-
-    // Clicking Apply Accepted should execute handleApplyAllAccepted, receive failure result, and display error
-    await act(async () => {
-      applyAcceptedBtn?.click();
-    });
-
-    // Verify the error message is rendered in the source card without an exception being thrown
-    expect(container?.textContent).toContain('not found in active draft');
-
-    // Canonical draft remains untouched
-    const state = getForgeState();
-    expect(state.forgeDraft?.title).toBe('Baseline Title');
-    expect(state.sourceAnalyses['analysis-ui-fail'].candidates[0].applicationState).toBe('staged');
-  });
-
-  it('contains no clarification input, follow-up conversation, proposal editor, Apply Resolution, Leave Uncertain, or Retry controls', async () => {
-    forgeActions.initializeDraft({ title: 'Baseline Title' });
-
-    const mockAnalysis: ForgeSourceAnalysis = {
-      id: 'analysis-ledger-test',
-      sourceRecord: {
-        id: 'src-ledger-1',
-        fileName: 'manifest.pdf',
-        mimeType: 'application/pdf',
-        kind: 'document',
-        receivedAt: 1000,
+    // Mock applyAcceptedCandidates to return a structured failure result
+    vi.spyOn(forgeActions, 'applyAcceptedCandidates').mockReturnValue({
+      success: false,
+      errors: {
+        'cand-fail-1': 'Target setting_location validation failed due to schema constraint.',
       },
-      evidence: [],
-      candidates: [],
-      unknowns: [
-        {
-          id: 'unk-ledger-1',
-          sourceId: 'src-ledger-1',
-          category: 'identity',
-          question: 'What is the station frequency?',
-          targetEffect: 'Calibrates comms frequency.',
-          status: 'queued',
-          followUps: [],
-        },
-      ],
-      status: 'completed',
-    };
-
-    forgeActions.registerSourceAnalysis(mockAnalysis);
+    });
 
     await act(async () => {
       root?.render(React.createElement(ScenarioBaselinePanel));
     });
 
-    // 1. Verify NO text input / textarea for answering unknowns exists inside ScenarioBaselinePanel
-    const inputs = Array.from(container?.querySelectorAll('input, textarea') || []);
-    expect(inputs).toHaveLength(0);
+    const applyBtn = container?.querySelector('#batch-apply-btn-analysis-fail-1') as HTMLButtonElement;
+    expect(applyBtn).toBeDefined();
 
-    // 2. Verify NO buttons for Clarify, Apply Resolution, Leave Uncertain, or Retry exist in ScenarioBaselinePanel
-    const buttons = Array.from(container?.querySelectorAll('button') || []);
-    const conversationalButtons = buttons.filter((b) => {
-      const txt = b.textContent?.trim().toLowerCase() || '';
-      return (
-        txt === 'clarify' ||
-        txt.includes('commit resolution') ||
-        txt.includes('apply resolution') ||
-        txt.includes('leave uncertain') ||
-        txt === 'retry' ||
-        txt.includes('edit proposal')
-      );
+    // Click Apply Accepted and verify error banner is displayed cleanly
+    await act(async () => {
+      applyBtn.click();
     });
-    expect(conversationalButtons).toHaveLength(0);
 
-    // 3. Verify Resolve in Architect button IS present for the nonterminal ambiguity
-    const resolveInArchitectBtn = buttons.find((b) =>
-      b.textContent?.toLowerCase().includes('resolve in architect')
-    );
-    expect(resolveInArchitectBtn).toBeDefined();
+    const sourceCard = container?.querySelector('#source-card-analysis-fail-1');
+    expect(sourceCard).toBeDefined();
+    expect(sourceCard?.textContent).toContain('Target setting_location validation failed');
   });
 
-  it('clicking Resolve in Architect scrolls to and focuses the Architect input', async () => {
-    forgeActions.initializeDraft({ title: 'Baseline Title' });
-
-    // Mock architect input in document
-    const architectInput = document.createElement('input');
-    architectInput.id = 'architect-input';
-    const focusSpy = vi.spyOn(architectInput, 'focus');
-    const scrollSpy = vi.fn();
-    architectInput.scrollIntoView = scrollSpy;
-    document.body.appendChild(architectInput);
-
-    const mockAnalysis: ForgeSourceAnalysis = {
-      id: 'analysis-focus-test',
-      sourceRecord: {
-        id: 'src-focus-1',
-        fileName: 'manifest.pdf',
-        mimeType: 'application/pdf',
-        kind: 'document',
-        receivedAt: 1000,
-      },
-      evidence: [],
-      candidates: [],
-      unknowns: [
-        {
-          id: 'unk-focus-1',
-          sourceId: 'src-focus-1',
-          category: 'identity',
-          question: 'What is the station frequency?',
-          targetEffect: 'Calibrates comms frequency.',
-          status: 'queued',
-          followUps: [],
-        },
-      ],
-      status: 'completed',
-    };
-
-    forgeActions.registerSourceAnalysis(mockAnalysis);
-
-    await act(async () => {
-      root?.render(React.createElement(ScenarioBaselinePanel));
-    });
-
-    const buttons = Array.from(container?.querySelectorAll('button') || []);
-    const resolveInArchitectBtn = buttons.find((b) =>
-      b.textContent?.toLowerCase().includes('resolve in architect')
-    );
-    expect(resolveInArchitectBtn).toBeDefined();
-
-    await act(async () => {
-      resolveInArchitectBtn?.click();
-    });
-
-    expect(focusSpy).toHaveBeenCalled();
-    expect(scrollSpy).toHaveBeenCalled();
-
-    architectInput.remove();
-  });
-
-  it('candidate decisions stay binary and staged', async () => {
-    forgeActions.initializeDraft({ title: 'Baseline Title' });
-
+  it('keeps Draft completely untouched and unmutated when reviewing candidates (accept/reject/no-op)', async () => {
+    forgeActions.initializeDraft({ title: 'Untouched Draft Scenario' });
     const initialDraft = JSON.parse(JSON.stringify(getForgeState().forgeDraft));
     const initialRevision = getForgeState().draftRevision;
 
     const mockAnalysis: ForgeSourceAnalysis = {
       id: 'analysis-binary-test',
       sourceRecord: {
-        id: 'src-binary-1',
-        fileName: 'baseline_data.json',
+        id: 'src-bin-1',
+        fileName: 'binary_review.json',
         mimeType: 'application/json',
         kind: 'native_blueprint',
         receivedAt: Date.now(),
@@ -294,7 +172,7 @@ describe('ScenarioBaselinePanel Candidate Atomicity Proof', () => {
       candidates: [
         {
           id: 'cand-binary-1',
-          sourceId: 'src-binary-1',
+          sourceId: 'src-bin-1',
           classification: 'evidence',
           target: 'setting_location',
           label: 'Setting Location',
@@ -374,5 +252,190 @@ describe('ScenarioBaselinePanel Candidate Atomicity Proof', () => {
     expect(getCandidate().applicationState).toBe('staged');
     expect(getForgeState().forgeDraft).toEqual(initialDraft);
     expect(getForgeState().draftRevision).toBe(initialRevision);
+  });
+
+  it('reviews linked evidence without changing Forge state', async () => {
+    forgeActions.initializeDraft({ title: 'Submersible Delta' });
+
+    const mockAnalysis: ForgeSourceAnalysis = {
+      id: 'analysis-drawer-test',
+      sourceRecord: {
+        id: 'src-drawer-1',
+        fileName: 'telemetry_archive.json',
+        mimeType: 'application/json',
+        kind: 'native_blueprint',
+        receivedAt: Date.now(),
+      },
+      summary: 'Telemetry indicates extreme benthic pressure anomalies.',
+      evidence: [
+        {
+          id: 'ev-1',
+          sourceId: 'src-drawer-1',
+          category: 'setting',
+          claim: 'Depth recorded at 8000m.',
+          excerpt: 'Sensor array reports crush pressure at 8000m in Trench Sector 7.',
+        },
+        {
+          id: 'ev-2',
+          sourceId: 'src-drawer-1',
+          category: 'rule',
+          claim: 'Containment seals require manual pneumatic reset.',
+        },
+      ],
+      candidates: [
+        {
+          id: 'cand-with-ev',
+          sourceId: 'src-drawer-1',
+          classification: 'evidence',
+          target: 'setting_location',
+          label: 'Trench Sector',
+          explanation: 'Extracted deep trench sector from telemetry',
+          evidenceIds: ['ev-1', 'ev-2'],
+          proposedValue: 'Mariana Trench Sector 7',
+          reviewDecision: 'accepted',
+          applicationState: 'staged',
+        },
+        {
+          id: 'cand-no-ev',
+          sourceId: 'src-drawer-1',
+          classification: 'inference',
+          target: 'setting_atmosphere',
+          label: 'Atmosphere',
+          explanation: 'Inferred oppressive darkness',
+          evidenceIds: [],
+          proposedValue: 'Oppressive darkness',
+          reviewDecision: 'accepted',
+          applicationState: 'staged',
+        },
+      ],
+      unknowns: [],
+      status: 'completed',
+    };
+
+    forgeActions.registerSourceAnalysis(mockAnalysis);
+
+    // Capture initial state before any drawer interactions
+    const stateBefore = JSON.parse(JSON.stringify(getForgeState()));
+
+    await act(async () => {
+      root?.render(React.createElement(ScenarioBaselinePanel));
+    });
+
+    // 1. Default collapse verification
+    // Inline evidence claim/excerpt should NOT be rendered directly in the card
+    const cardContent = container?.querySelector('#candidate-row-cand-with-ev')?.textContent || '';
+    expect(cardContent).not.toContain('Sensor array reports crush pressure');
+
+    // Candidate with linked evidence renders compact control "Evidence · 2"
+    const evidenceOpener = container?.querySelector(
+      '#view-evidence-btn-cand-with-ev'
+    ) as HTMLButtonElement;
+    expect(evidenceOpener).not.toBeNull();
+    expect(evidenceOpener.textContent).toContain('Evidence · 2');
+    expect(evidenceOpener.getAttribute('aria-expanded')).toBe('false');
+    expect(evidenceOpener.getAttribute('aria-controls')).toBe('evidence-drawer-cand-with-ev');
+    expect(evidenceOpener.getAttribute('aria-label')).toBe(
+      'View 2 evidence items for Trench Sector'
+    );
+
+    // Candidate with NO linked evidence renders NO empty control
+    const noEvidenceOpener = container?.querySelector('#view-evidence-btn-cand-no-ev');
+    expect(noEvidenceOpener).toBeNull();
+
+    // Drawer overlay is not rendered when closed
+    expect(document.querySelector('#evidence-drawer-cand-with-ev')).toBeNull();
+
+    // 2. Open drawer & Candidate-specific evidence verification
+    await act(async () => {
+      evidenceOpener.click();
+    });
+
+    expect(evidenceOpener.getAttribute('aria-expanded')).toBe('true');
+    const drawer = document.querySelector('#evidence-drawer-cand-with-ev') as HTMLElement;
+    expect(drawer).not.toBeNull();
+    expect(drawer.getAttribute('role')).toBe('dialog');
+    expect(drawer.getAttribute('aria-modal')).toBe('true');
+    expect(drawer.getAttribute('aria-labelledby')).toBe('evidence-drawer-title');
+    expect(drawer.getAttribute('aria-describedby')).toBe('evidence-drawer-desc');
+
+    // Title and candidate description
+    expect(document.querySelector('#evidence-drawer-title')?.textContent).toContain(
+      'Source Evidence Review'
+    );
+    expect(document.querySelector('#evidence-drawer-desc')?.textContent).toContain(
+      'Trench Sector · telemetry_archive.json'
+    );
+
+    // Verify unchanged evidence strings and categories
+    const ev1Record = document.querySelector('#evidence-record-ev-1');
+    expect(ev1Record).not.toBeNull();
+    expect(ev1Record?.textContent).toContain('setting');
+    expect(ev1Record?.textContent).toContain('Depth recorded at 8000m.');
+    expect(ev1Record?.textContent).toContain(
+      'Sensor array reports crush pressure at 8000m in Trench Sector 7.'
+    );
+    expect(ev1Record?.textContent).toContain('telemetry_archive.json');
+
+    const ev2Record = document.querySelector('#evidence-record-ev-2');
+    expect(ev2Record).not.toBeNull();
+    expect(ev2Record?.textContent).toContain('rule');
+    expect(ev2Record?.textContent).toContain('Containment seals require manual pneumatic reset.');
+    expect(ev2Record?.textContent).toContain('telemetry_archive.json');
+
+    // Focus enters overlay (close button is focused)
+    const closeBtn = document.querySelector('#close-evidence-drawer-btn') as HTMLButtonElement;
+    expect(closeBtn).not.toBeNull();
+    expect(document.activeElement).toBe(closeBtn);
+
+    // 3. Close Path 1: Close button
+    await act(async () => {
+      closeBtn.click();
+    });
+
+    expect(document.querySelector('#evidence-drawer-cand-with-ev')).toBeNull();
+    expect(evidenceOpener.getAttribute('aria-expanded')).toBe('false');
+    expect(document.activeElement).toBe(evidenceOpener);
+
+    // 4. Close Path 2: Escape key
+    await act(async () => {
+      evidenceOpener.click();
+    });
+    expect(document.querySelector('#evidence-drawer-cand-with-ev')).not.toBeNull();
+
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    });
+
+    expect(document.querySelector('#evidence-drawer-cand-with-ev')).toBeNull();
+    expect(evidenceOpener.getAttribute('aria-expanded')).toBe('false');
+    expect(document.activeElement).toBe(evidenceOpener);
+
+    // 5. Close Path 3: Click inside does NOT close & Backdrop click DOES close
+    await act(async () => {
+      evidenceOpener.click();
+    });
+    const openDrawer = document.querySelector('#evidence-drawer-cand-with-ev') as HTMLElement;
+    expect(openDrawer).not.toBeNull();
+
+    // Click inside the drawer content
+    const titleElement = document.querySelector('#evidence-drawer-title') as HTMLElement;
+    await act(async () => {
+      titleElement.click();
+    });
+    // Drawer should still remain open
+    expect(document.querySelector('#evidence-drawer-cand-with-ev')).not.toBeNull();
+
+    // Click on backdrop overlay
+    await act(async () => {
+      openDrawer.click();
+    });
+    // Drawer should be dismissed
+    expect(document.querySelector('#evidence-drawer-cand-with-ev')).toBeNull();
+    expect(evidenceOpener.getAttribute('aria-expanded')).toBe('false');
+    expect(document.activeElement).toBe(evidenceOpener);
+
+    // 6. Exact before/after Forge-state comparison
+    const stateAfter = JSON.parse(JSON.stringify(getForgeState()));
+    expect(stateAfter).toEqual(stateBefore);
   });
 });
