@@ -758,7 +758,7 @@ export const useForgeStoreInternal = create<ForgeStore>()(
             if (!cand) return state;
 
             // Semantic no-op check
-            if (cand.reviewDecision === decision && cand.applicationState === 'staged') {
+            if (cand.reviewDecision === decision) {
               return state;
             }
 
@@ -1136,6 +1136,20 @@ export const useForgeStoreInternal = create<ForgeStore>()(
             }
 
             const currentDraft = state.forgeDraft || createInitialDraft();
+            const existingAmbiguity = currentDraft.ambiguities?.find((a) => a.id === unk.id);
+
+            // Semantic no-op check: if unknown is already resolved with the same resolution and recorded in ambiguities
+            if (
+              unk.status === 'resolved' &&
+              unk.lastError === undefined &&
+              existingAmbiguity &&
+              existingAmbiguity.resolutionMode === 'USER_DEFINED' &&
+              existingAmbiguity.resolution === finalResolution
+            ) {
+              outcome = { success: true };
+              return state;
+            }
+
             let workingDraft: ForgeDraft = JSON.parse(JSON.stringify(currentDraft));
 
             // If proposal included a draft patch and applyDraftPatch is true, validate & apply it first

@@ -460,7 +460,7 @@ export const CompleteDepictionContractSchema = z
     directness: z.string().trim().min(1).max(1000),
     aftermath: z.string().trim().min(1).max(1000),
     ambiguityHandling: z.string().trim().min(1).max(1000),
-    specialBoundaries: z.string().trim().max(1000).optional().default(''),
+    specialBoundaries: z.string().trim().max(1000),
   })
   .strict();
 

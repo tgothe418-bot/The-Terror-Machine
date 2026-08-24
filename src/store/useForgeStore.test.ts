@@ -1264,8 +1264,23 @@ describe('useForgeStore - draft state and actions', () => {
     });
     expect(getForgeState().pendingDepictionContractProposal).toBeNull();
 
-    // C. Proposal with empty contract strings must be rejected
-    // @ts-expect-error empty contract strings
+    // C. Proposal missing specialBoundaries (5th field) must be rejected (no silent defaulting)
+    // @ts-expect-error missing specialBoundaries
+    forgeActions.setPendingDepictionContractProposal({
+      contract: {
+        dramaticRegister: 'Cosmic Horror',
+        directness: 'Direct',
+        aftermath: 'Lethal',
+        ambiguityHandling: 'Total',
+      },
+      rationale: 'Valid rationale.',
+      sourceDraftRevision: 1,
+      sourceBaselineRevision: 1,
+      createdAt: 1000,
+    });
+    expect(getForgeState().pendingDepictionContractProposal).toBeNull();
+
+    // D. Proposal with empty contract strings must be rejected at runtime by Zod
     forgeActions.setPendingDepictionContractProposal({
       contract: {
         dramaticRegister: '',
@@ -1281,8 +1296,7 @@ describe('useForgeStore - draft state and actions', () => {
     });
     expect(getForgeState().pendingDepictionContractProposal).toBeNull();
 
-    // D. Proposal with empty rationale must be rejected
-    // @ts-expect-error empty rationale
+    // E. Proposal with empty rationale must be rejected at runtime by Zod
     forgeActions.setPendingDepictionContractProposal({
       contract: {
         dramaticRegister: 'Cosmic Horror',
@@ -1365,91 +1379,115 @@ describe('useForgeStore - draft state and actions', () => {
     forgeActions.editStagedCandidate('analysis-rev-test', 'cand-rev-1', '');
     expect(getForgeState().sourceBaselineRevision).toBe(4);
 
-    // Submit unknown answer -> advances to 5
+    // Accept candidate and apply it
+    forgeActions.setCandidateReviewDecision('analysis-rev-test', 'cand-rev-1', 'accepted');
+    expect(getForgeState().sourceBaselineRevision).toBe(5);
+    forgeActions.applyAcceptedCandidates('analysis-rev-test');
+    expect(getForgeState().sourceBaselineRevision).toBe(6);
+
+    // Redundant review decision on already applied candidate -> NO-OP (remains 6)
+    forgeActions.setCandidateReviewDecision('analysis-rev-test', 'cand-rev-1', 'accepted');
+    expect(getForgeState().sourceBaselineRevision).toBe(6);
+
+    // Submit unknown answer -> advances to 7
     forgeActions.submitUnknownAnswer(
       'analysis-rev-test',
       'unk-rev-1',
       'Radioactive wasteland beyond the wall.'
     );
-    expect(getForgeState().sourceBaselineRevision).toBe(5);
+    expect(getForgeState().sourceBaselineRevision).toBe(7);
 
-    // Submit duplicate identical answer -> NO-OP (remains 5)
+    // Submit duplicate identical answer -> NO-OP (remains 7)
     forgeActions.submitUnknownAnswer(
       'analysis-rev-test',
       'unk-rev-1',
       'Radioactive wasteland beyond the wall.'
     );
-    expect(getForgeState().sourceBaselineRevision).toBe(5);
+    expect(getForgeState().sourceBaselineRevision).toBe(7);
 
-    // Receive follow-up question -> advances to 6
+    // Receive follow-up question -> advances to 8
     forgeActions.receiveUnknownFollowUp(
       'analysis-rev-test',
       'unk-rev-1',
       'Is there active radiation shielding?'
     );
-    expect(getForgeState().sourceBaselineRevision).toBe(6);
+    expect(getForgeState().sourceBaselineRevision).toBe(8);
 
-    // Receive duplicate follow-up question -> NO-OP (remains 6)
+    // Receive duplicate follow-up question -> NO-OP (remains 8)
     forgeActions.receiveUnknownFollowUp(
       'analysis-rev-test',
       'unk-rev-1',
       'Is there active radiation shielding?'
     );
-    expect(getForgeState().sourceBaselineRevision).toBe(6);
+    expect(getForgeState().sourceBaselineRevision).toBe(8);
 
-    // Receive proposal -> advances to 7
+    // Receive proposal -> advances to 9
     const proposalObj = {
       resolution: 'The wall shields against ambient gamma bursts.',
       targetEffect: 'Clarifies world boundary.',
     };
     forgeActions.receiveUnknownProposal('analysis-rev-test', 'unk-rev-1', proposalObj);
-    expect(getForgeState().sourceBaselineRevision).toBe(7);
+    expect(getForgeState().sourceBaselineRevision).toBe(9);
 
-    // Receive identical proposal -> NO-OP (remains 7)
+    // Receive identical proposal -> NO-OP (remains 9)
     forgeActions.receiveUnknownProposal('analysis-rev-test', 'unk-rev-1', proposalObj);
-    expect(getForgeState().sourceBaselineRevision).toBe(7);
+    expect(getForgeState().sourceBaselineRevision).toBe(9);
 
-    // Edit proposal with identical values -> NO-OP (remains 7)
+    // Edit proposal with identical values -> NO-OP (remains 9)
     forgeActions.editUnknownProposal(
       'analysis-rev-test',
       'unk-rev-1',
       'The wall shields against ambient gamma bursts.',
       'Clarifies world boundary.'
     );
-    expect(getForgeState().sourceBaselineRevision).toBe(7);
+    expect(getForgeState().sourceBaselineRevision).toBe(9);
 
-    // Edit proposal with modified resolution -> advances to 8
+    // Edit proposal with modified resolution -> advances to 10
     forgeActions.editUnknownProposal(
       'analysis-rev-test',
       'unk-rev-1',
       'The wall shields against ambient gamma bursts and particulate drift.',
       'Clarifies world boundary.'
     );
-    expect(getForgeState().sourceBaselineRevision).toBe(8);
-
-    // Set unknown error -> advances to 9
-    forgeActions.setUnknownError('analysis-rev-test', 'unk-rev-1', 'Network timeout');
-    expect(getForgeState().sourceBaselineRevision).toBe(9);
-
-    // Set same error -> NO-OP (remains 9)
-    forgeActions.setUnknownError('analysis-rev-test', 'unk-rev-1', 'Network timeout');
-    expect(getForgeState().sourceBaselineRevision).toBe(9);
-
-    // Retry unknown (clears error) -> advances to 10
-    forgeActions.retryUnknown('analysis-rev-test', 'unk-rev-1');
     expect(getForgeState().sourceBaselineRevision).toBe(10);
 
-    // Retry unknown when already queued with no error -> NO-OP (remains 10)
+    // Set unknown error -> advances to 11
+    forgeActions.setUnknownError('analysis-rev-test', 'unk-rev-1', 'Network timeout');
+    expect(getForgeState().sourceBaselineRevision).toBe(11);
+
+    // Set same error -> NO-OP (remains 11)
+    forgeActions.setUnknownError('analysis-rev-test', 'unk-rev-1', 'Network timeout');
+    expect(getForgeState().sourceBaselineRevision).toBe(11);
+
+    // Retry unknown (clears error) -> advances to 12
     forgeActions.retryUnknown('analysis-rev-test', 'unk-rev-1');
-    expect(getForgeState().sourceBaselineRevision).toBe(10);
+    expect(getForgeState().sourceBaselineRevision).toBe(12);
 
-    // Leave unknown uncertain (contextual discretion) -> advances to 11
-    forgeActions.leaveUnknownUncertain('analysis-rev-test', 'unk-rev-1', 'Keep boundary mysterious.');
-    expect(getForgeState().sourceBaselineRevision).toBe(11);
+    // Retry unknown when already queued with no error -> NO-OP (remains 12)
+    forgeActions.retryUnknown('analysis-rev-test', 'unk-rev-1');
+    expect(getForgeState().sourceBaselineRevision).toBe(12);
 
-    // Repeated contextual discretion with same guidance -> NO-OP (remains 11)
+    // Accept unknown resolution -> advances sourceBaselineRevision to 13 and draftRevision
+    const draftRevBeforeAccept = getForgeState().draftRevision;
+    const acceptRes1 = forgeActions.acceptUnknownResolution('analysis-rev-test', 'unk-rev-1');
+    expect(acceptRes1.success).toBe(true);
+    expect(getForgeState().sourceBaselineRevision).toBe(13);
+    expect(getForgeState().draftRevision).toBe(draftRevBeforeAccept + 1);
+
+    // Repeating identical acceptUnknownResolution -> NO-OP (neither baseline nor draft revision advances)
+    const draftRevAfterAccept = getForgeState().draftRevision;
+    const acceptRes2 = forgeActions.acceptUnknownResolution('analysis-rev-test', 'unk-rev-1');
+    expect(acceptRes2.success).toBe(true);
+    expect(getForgeState().sourceBaselineRevision).toBe(13);
+    expect(getForgeState().draftRevision).toBe(draftRevAfterAccept);
+
+    // Leave unknown uncertain (contextual discretion) -> advances to 14
     forgeActions.leaveUnknownUncertain('analysis-rev-test', 'unk-rev-1', 'Keep boundary mysterious.');
-    expect(getForgeState().sourceBaselineRevision).toBe(11);
+    expect(getForgeState().sourceBaselineRevision).toBe(14);
+
+    // Repeated contextual discretion with same guidance -> NO-OP (remains 14)
+    forgeActions.leaveUnknownUncertain('analysis-rev-test', 'unk-rev-1', 'Keep boundary mysterious.');
+    expect(getForgeState().sourceBaselineRevision).toBe(14);
 
     // --- 3. Proposal Lifecycle, Stale Protection, and Atomic Apply ---
     const currentDraftRev = getForgeState().draftRevision;
@@ -1573,8 +1611,8 @@ describe('useForgeStore - draft state and actions', () => {
       const migratedLegacyPatch = migrate(legacyPatchProposalState as any, 4) as any;
       expect(migratedLegacyPatch.pendingDepictionContractProposal).toBeNull();
 
-      // C. Incomplete proposal missing revisions is discarded during migration
-      const incompleteProposalState = {
+      // C. Incomplete proposal missing specialBoundaries (5th field) is discarded during migration
+      const missingFieldProposalState = {
         forgeDraft: { id: 'd-inc', title: 'Incomplete' },
         draftRevision: 3,
         sourceBaselineRevision: 2,
@@ -1585,11 +1623,14 @@ describe('useForgeStore - draft state and actions', () => {
             aftermath: 'Lethal',
             ambiguityHandling: 'Total',
           },
-          rationale: 'Missing revisions & timestamp',
+          rationale: 'Missing specialBoundaries',
+          sourceDraftRevision: 3,
+          sourceBaselineRevision: 2,
+          createdAt: 123456789,
         },
       };
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const migratedIncomplete = migrate(incompleteProposalState as any, 4) as any;
+      const migratedIncomplete = migrate(missingFieldProposalState as any, 4) as any;
       expect(migratedIncomplete.pendingDepictionContractProposal).toBeNull();
 
       // D. Valid complete proposal is retained during migration
@@ -1620,6 +1661,25 @@ describe('useForgeStore - draft state and actions', () => {
       expect(migratedComplete.pendingDepictionContractProposal.sourceDraftRevision).toBe(4);
       expect(migratedComplete.pendingDepictionContractProposal.sourceBaselineRevision).toBe(5);
       expect(migratedComplete.pendingDepictionContractProposal.createdAt).toBe(123456789);
+
+      // E. Real onRehydrateStorage lifecycle execution
+      const onRehydrate = persistOptions?.onRehydrateStorage;
+      if (onRehydrate) {
+        const rehydratePostCallback = onRehydrate(getForgeState());
+        if (rehydratePostCallback) {
+          // Rehydrating valid state preserves proposal
+          const rehydratedValid = { ...completeProposalState };
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          rehydratePostCallback(rehydratedValid as any, undefined);
+          expect(rehydratedValid.pendingDepictionContractProposal).not.toBeNull();
+
+          // Rehydrating invalid proposal state clears proposal
+          const rehydratedInvalid = { ...missingFieldProposalState };
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          rehydratePostCallback(rehydratedInvalid as any, undefined);
+          expect(rehydratedInvalid.pendingDepictionContractProposal).toBeNull();
+        }
+      }
     }
   });
 });
