@@ -1,7 +1,7 @@
-import React, { useState, useMemo } from 'react';
+﻿import React, { useState } from 'react';
 import { useForgeState } from '../../store/useForgeStore';
-import { validateForgeExportReadiness } from '../../lib/forgeReadiness';
-import { prepareBlueprintExport } from '../../lib/compileBlueprintDraft';
+import { validateForgeExportReadiness, ForgeExportReadinessResult } from '../../lib/forgeReadiness';
+import { prepareBlueprintExport, BlueprintExportArtifact } from '../../lib/compileBlueprintDraft';
 import {
   FileCheck2,
   FileX2,
@@ -14,6 +14,8 @@ import {
   MapPin,
   Users,
   HelpCircle,
+  RefreshCw,
+  AlertTriangle,
 } from 'lucide-react';
 
 interface ExportReviewModalProps {
@@ -21,30 +23,119 @@ interface ExportReviewModalProps {
   onClose: () => void;
 }
 
+interface ReviewSnapshot {
+  artifact: BlueprintExportArtifact | null;
+  validation: ForgeExportReadinessResult;
+  draftRevision: number;
+  sourceBaselineRevision: number;
+}
+
 export const ExportReviewModal: React.FC<ExportReviewModalProps> = ({ isOpen, onClose }) => {
   const { draftBlueprint, draftRevision, sourceBaselineRevision, sourceAnalyses } = useForgeState();
   const [copied, setCopied] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
 
-  const readiness = useMemo(() => {
-    return validateForgeExportReadiness({
+  const currentDraftRev = draftRevision || 1;
+  const currentBaseRev = sourceBaselineRevision || 1;
+
+  // Single compilation helper invoked only at the capture / refresh boundary
+  const executeCompilation = (
+    draft: typeof draftBlueprint,
+    dRev: number,
+    bRev: number
+  ): BlueprintExportArtifact | null => {
+    if (!draft) return null;
+    return prepareBlueprintExport(draft, {
+      draftRevision: dRev,
+      sourceBaselineRevision: bRev,
+    });
+  };
+
+  // Lazy snapshot initialization: captures exact revision-bound state when opened
+  const [snapshot, setSnapshot] = useState<ReviewSnapshot | null>(() => {
+    if (!isOpen) return null;
+    const readiness = validateForgeExportReadiness({
       draft: draftBlueprint,
       sourceAnalyses,
     });
-  }, [draftBlueprint, sourceAnalyses]);
 
-  const validation = readiness;
+    if (!readiness.valid || !draftBlueprint) {
+      return {
+        artifact: null,
+        validation: readiness,
+        draftRevision: currentDraftRev,
+        sourceBaselineRevision: currentBaseRev,
+      };
+    }
+
+    try {
+      const artifact = executeCompilation(draftBlueprint, currentDraftRev, currentBaseRev);
+      return {
+        artifact,
+        validation: readiness,
+        draftRevision: currentDraftRev,
+        sourceBaselineRevision: currentBaseRev,
+      };
+    } catch {
+      return {
+        artifact: null,
+        validation: readiness,
+        draftRevision: currentDraftRev,
+        sourceBaselineRevision: currentBaseRev,
+      };
+    }
+  });
 
   if (!isOpen) return null;
 
+  const activeSnapshot = snapshot || {
+    artifact: null,
+    validation: validateForgeExportReadiness({
+      draft: draftBlueprint,
+      sourceAnalyses,
+    }),
+    draftRevision: currentDraftRev,
+    sourceBaselineRevision: currentBaseRev,
+  };
+
+  const { artifact, validation, draftRevision: capturedDraftRev, sourceBaselineRevision: capturedBaseRev } =
+    activeSnapshot;
+
+  const isStale =
+    !!artifact &&
+    (capturedDraftRev !== currentDraftRev || capturedBaseRev !== currentBaseRev);
+
+  const handleRefresh = () => {
+    const freshReadiness = validateForgeExportReadiness({
+      draft: draftBlueprint,
+      sourceAnalyses,
+    });
+
+    if (!freshReadiness.valid || !draftBlueprint) {
+      setExportError('Cannot refresh: Forge draft or baseline is not export ready.');
+      return;
+    }
+
+    try {
+      const newArtifact = executeCompilation(draftBlueprint, currentDraftRev, currentBaseRev);
+      if (newArtifact) {
+        setSnapshot({
+          artifact: newArtifact,
+          validation: freshReadiness,
+          draftRevision: currentDraftRev,
+          sourceBaselineRevision: currentBaseRev,
+        });
+        setExportError(null);
+      }
+    } catch (err: unknown) {
+      setExportError(err instanceof Error ? err.message : 'Refresh compilation failed.');
+    }
+  };
+
   const handleDownload = () => {
-    if (!draftBlueprint) return;
+    if (!artifact || isStale) return;
     try {
       setExportError(null);
-      const artifact = prepareBlueprintExport(draftBlueprint, {
-        draftRevision: draftRevision || 1,
-        sourceBaselineRevision: sourceBaselineRevision || 1,
-      });
       const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(artifact.json);
       const downloadAnchorNode = document.createElement('a');
       downloadAnchorNode.setAttribute('href', dataStr);
@@ -63,12 +154,8 @@ export const ExportReviewModal: React.FC<ExportReviewModalProps> = ({ isOpen, on
   };
 
   const handleCopyJson = async () => {
-    if (!draftBlueprint) return;
+    if (!artifact || isStale) return;
     try {
-      const artifact = prepareBlueprintExport(draftBlueprint, {
-        draftRevision: draftRevision || 1,
-        sourceBaselineRevision: sourceBaselineRevision || 1,
-      });
       await navigator.clipboard.writeText(artifact.json);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
@@ -77,14 +164,16 @@ export const ExportReviewModal: React.FC<ExportReviewModalProps> = ({ isOpen, on
     }
   };
 
-  const effectiveTitle = draftBlueprint?.identity?.title || draftBlueprint?.title || '';
-  const effectivePremise = draftBlueprint?.globalPremise || draftBlueprint?.premise || '';
-  const effectiveLocation = draftBlueprint?.setting?.location || '';
-  const castCount = draftBlueprint?.cast?.length || 0;
+  const displayBlueprint = artifact?.blueprint || draftBlueprint;
+  const effectiveTitle = displayBlueprint?.identity?.title || displayBlueprint?.title || '';
+  const effectivePremise = displayBlueprint?.globalPremise || displayBlueprint?.premise || '';
+  const effectiveLocation = displayBlueprint?.setting?.location || '';
+  const castCount = displayBlueprint?.cast?.length || 0;
   const topologyNodeCount =
-    draftBlueprint?.topology?.nodes?.length || Object.keys(draftBlueprint?.topology || {}).length;
-  const contract = draftBlueprint?.depictionContract;
-  const ambiguitiesCount = draftBlueprint?.ambiguities?.length || 0;
+    displayBlueprint?.topology?.nodes?.length || Object.keys(displayBlueprint?.topology || {}).length;
+  const contract = displayBlueprint?.depictionContract;
+  const ambiguitiesCount = displayBlueprint?.ambiguities?.length || 0;
+  const sourceSummary = validation.sourceSummary;
 
   return (
     <div
@@ -118,7 +207,7 @@ export const ExportReviewModal: React.FC<ExportReviewModalProps> = ({ isOpen, on
                 Blueprint Export Pre-Flight Review
               </h2>
               <p className="text-[11px] text-zinc-500">
-                Immutable Artifact Compilation // Revision #{draftRevision || 1}
+                Snapshot: Draft r{capturedDraftRev} / Base r{capturedBaseRev}
               </p>
             </div>
           </div>
@@ -133,6 +222,35 @@ export const ExportReviewModal: React.FC<ExportReviewModalProps> = ({ isOpen, on
 
         {/* Body Content */}
         <div className="p-6 overflow-y-auto space-y-6 flex-1 custom-scrollbar text-xs">
+          {/* Stale Snapshot Notice */}
+          {isStale && (
+            <div
+              id="export-review-stale-notice"
+              className="border border-amber-800/80 bg-amber-950/30 p-4 rounded flex items-center justify-between gap-3 text-amber-200"
+            >
+              <div className="flex items-center gap-3">
+                <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0" />
+                <div className="space-y-0.5">
+                  <span className="font-bold uppercase tracking-wider block text-amber-300">
+                    Review Snapshot Is Stale
+                  </span>
+                  <span className="text-[11px] text-amber-300/90 block">
+                    Captured draft r{capturedDraftRev} / base r{capturedBaseRev} vs current draft r
+                    {currentDraftRev} / base r{currentBaseRev}.
+                  </span>
+                </div>
+              </div>
+              <button
+                id="export-review-refresh-btn"
+                onClick={handleRefresh}
+                className="px-3 py-1.5 bg-amber-900 hover:bg-amber-800 text-amber-100 border border-amber-700 font-bold uppercase text-[10px] rounded tracking-wider transition-colors cursor-pointer flex items-center gap-1.5 shrink-0"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                <span>Refresh Review</span>
+              </button>
+            </div>
+          )}
+
           {/* Validation Status Banner */}
           {validation.valid ? (
             <div className="border border-emerald-800/60 bg-emerald-950/20 p-4 rounded flex items-center justify-between">
@@ -179,6 +297,46 @@ export const ExportReviewModal: React.FC<ExportReviewModalProps> = ({ isOpen, on
             </div>
           )}
 
+          {/* Source Baseline Readiness Totals Section */}
+          <div className="space-y-3" id="export-readiness-totals-section">
+            <h3 className="text-zinc-400 font-bold uppercase tracking-widest text-[11px] border-b border-zinc-800/80 pb-1.5 flex items-center gap-2">
+              <Layers className="w-3.5 h-3.5 text-cyan-400" />
+              <span>Source Baseline Readiness Summary</span>
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="bg-zinc-900/40 border border-zinc-800/80 p-3 rounded">
+                <span className="text-zinc-500 uppercase text-[10px] block mb-1">
+                  Intake Sources
+                </span>
+                <span className="font-bold text-zinc-200 text-sm">
+                  {sourceSummary.sourceCount} {sourceSummary.sourceCount === 1 ? 'source' : 'sources'}
+                </span>
+              </div>
+              <div className="bg-zinc-900/40 border border-zinc-800/80 p-3 rounded">
+                <span className="text-zinc-500 uppercase text-[10px] block mb-1">
+                  Candidate Ledger
+                </span>
+                <span className="font-bold text-zinc-200 block text-xs">
+                  Total: {sourceSummary.candidateTotal}
+                </span>
+                <span className="text-[10px] text-zinc-400 block mt-0.5">
+                  Applied: {sourceSummary.candidateApplied} · Staged: {sourceSummary.candidateStagedAccepted} · Rejected: {sourceSummary.candidateRejected}
+                </span>
+              </div>
+              <div className="bg-zinc-900/40 border border-zinc-800/80 p-3 rounded">
+                <span className="text-zinc-500 uppercase text-[10px] block mb-1">
+                  Ambiguity Ledger
+                </span>
+                <span className="font-bold text-zinc-200 block text-xs">
+                  Total: {sourceSummary.unknownTotal}
+                </span>
+                <span className="text-[10px] text-zinc-400 block mt-0.5">
+                  Resolved: {sourceSummary.unknownResolved} · Contextual: {sourceSummary.unknownContextual} · Open: {sourceSummary.unknownOpen}
+                </span>
+              </div>
+            </div>
+          </div>
+
           {/* Section 1: Core Parameters Checklist */}
           <div className="space-y-3">
             <h3 className="text-zinc-400 font-bold uppercase tracking-widest text-[11px] border-b border-zinc-800/80 pb-1.5 flex items-center gap-2">
@@ -212,8 +370,8 @@ export const ExportReviewModal: React.FC<ExportReviewModalProps> = ({ isOpen, on
                   Coordinates (Vector / Tier)
                 </span>
                 <span className="font-bold text-cyan-400">
-                  {draftBlueprint?.startingVector || 'SOMATIC'} //{' '}
-                  {draftBlueprint?.startingTier || 'GATEWAY'}
+                  {displayBlueprint?.startingVector || 'SOMATIC'} //{' '}
+                  {displayBlueprint?.startingTier || 'GATEWAY'}
                 </span>
               </div>
               <div className="bg-zinc-900/40 border border-zinc-800/80 p-3 rounded">
@@ -340,7 +498,7 @@ export const ExportReviewModal: React.FC<ExportReviewModalProps> = ({ isOpen, on
                 <span>Ambiguity Decisions ({ambiguitiesCount})</span>
               </h3>
               <div className="space-y-2">
-                {draftBlueprint?.ambiguities?.map((amb) => (
+                {displayBlueprint?.ambiguities?.map((amb) => (
                   <div key={amb.id} className="bg-zinc-900/30 border border-zinc-800/70 p-3 rounded">
                     <div className="flex justify-between items-center mb-1">
                       <span className="text-[10px] text-zinc-500 uppercase font-bold">
@@ -386,10 +544,10 @@ export const ExportReviewModal: React.FC<ExportReviewModalProps> = ({ isOpen, on
           <div className="flex items-center gap-3">
             <button
               id="export-review-copy-json-btn"
-              disabled={!validation.valid}
+              disabled={!validation.valid || isStale || !artifact}
               onClick={handleCopyJson}
               className={`flex items-center gap-1.5 px-3 py-2 border text-xs uppercase tracking-wider rounded font-bold transition-colors ${
-                validation.valid
+                validation.valid && !isStale && !!artifact
                   ? 'bg-zinc-900 hover:bg-zinc-800 border-zinc-700 text-zinc-300 hover:text-cyan-300 cursor-pointer'
                   : 'bg-zinc-900/40 border-zinc-800 text-zinc-600 cursor-not-allowed'
               }`}
@@ -399,10 +557,10 @@ export const ExportReviewModal: React.FC<ExportReviewModalProps> = ({ isOpen, on
             </button>
             <button
               id="export-review-download-btn"
-              disabled={!validation.valid}
+              disabled={!validation.valid || isStale || !artifact}
               onClick={handleDownload}
               className={`flex items-center gap-2 px-5 py-2 border text-xs uppercase tracking-widest rounded font-bold transition-all shadow-md ${
-                validation.valid
+                validation.valid && !isStale && !!artifact
                   ? 'bg-cyan-950 hover:bg-cyan-900 border-cyan-600 text-cyan-200 hover:text-white cursor-pointer shadow-cyan-950/50'
                   : 'bg-zinc-900/40 border-zinc-800 text-zinc-600 cursor-not-allowed'
               }`}

@@ -7,6 +7,7 @@ export interface ForgeExportReadinessSummary {
   candidateApplied: number;
   candidateStagedAccepted: number;
   candidateRejected: number;
+  unknownTotal: number;
   unknownResolved: number;
   unknownContextual: number;
   unknownOpen: number;
@@ -44,6 +45,7 @@ export function validateForgeExportReadiness({
     candidateApplied: 0,
     candidateStagedAccepted: 0,
     candidateRejected: 0,
+    unknownTotal: 0,
     unknownResolved: 0,
     unknownContextual: 0,
     unknownOpen: 0,
@@ -89,6 +91,7 @@ export function validateForgeExportReadiness({
       // Check unknowns
       let openUnknownsInSource = 0;
       if (Array.isArray(analysis.unknowns)) {
+        summary.unknownTotal += analysis.unknowns.length;
         for (const unk of analysis.unknowns) {
           if (unk.status === 'resolved') {
             summary.unknownResolved += 1;
