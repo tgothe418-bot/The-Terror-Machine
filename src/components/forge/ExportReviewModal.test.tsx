@@ -103,7 +103,13 @@ describe('ExportReviewModal Component Snapshot Lifecycle', () => {
 
     const mockOnClose = vi.fn();
 
-    // 2. Open Modal & Verify Rendered Totals and Compliant Status
+    // 2. Begin with modal absent/closed (proves conditional mount boundary in Forge)
+    await act(async () => {
+      root?.render(null);
+    });
+    expect(container?.querySelector('#export-review-modal-content')).toBeNull();
+
+    // Render conditional-mount boundary with modal open
     await act(async () => {
       root?.render(React.createElement(ExportReviewModal, { isOpen: true, onClose: mockOnClose }));
     });

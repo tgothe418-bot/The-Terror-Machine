@@ -435,11 +435,13 @@ export default function Forge() {
         )}
       </div>
 
-      {/* Export Review & Compilation Modal (Packet 1B) */}
-      <ExportReviewModal
-        isOpen={isExportReviewOpen}
-        onClose={() => setIsExportReviewOpen(false)}
-      />
+      {/* Export Review & Compilation Modal (Packet 1B / 06B) */}
+      {isExportReviewOpen && (
+        <ExportReviewModal
+          isOpen={true}
+          onClose={() => setIsExportReviewOpen(false)}
+        />
+      )}
     </div>
   );
 }
