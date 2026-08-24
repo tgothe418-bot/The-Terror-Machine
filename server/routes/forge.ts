@@ -244,15 +244,10 @@ Generate your response in raw JSON adhering to the required schema:`;
         .map((msg) => `${msg.role === 'user' ? 'USER:' : 'ARCHITECT:'}\n${msg.content}`)
         .join('\n\n');
 
-      const rawSummaries =
-        baselineContext.sourceSummaries && baselineContext.sourceSummaries.length > 0
-          ? baselineContext.sourceSummaries
-          : baselineContext.sourceSummary
-            ? [baselineContext.sourceSummary]
-            : [];
-
       const summariesList =
-        rawSummaries.map((s, idx) => `  [${idx + 1}] ${s}`).join('\n') || '  (None)';
+        (baselineContext.sourceSummaries || [])
+          .map((s, idx) => `  [${idx + 1}] ${s}`)
+          .join('\n') || '  (None)';
 
       const creatorDecisions = (baselineContext.appliedCandidateFacts || [])
         .map(
@@ -280,10 +275,10 @@ Generate your response in raw JSON adhering to the required schema:`;
 === SCENARIO DRAFT CONTEXT ===
 Title: ${draftContext.title}
 Premise: ${draftContext.premise}
-Setting: ${JSON.stringify(draftContext.setting || {})}
-Cast: ${JSON.stringify(draftContext.cast || [])}
-Environmental Rules: ${JSON.stringify(draftContext.environmentalRules || [])}
-References: ${JSON.stringify(draftContext.references || [])}
+Setting: ${JSON.stringify(draftContext.setting)}
+Cast: ${JSON.stringify(draftContext.cast)}
+Environmental Rules: ${JSON.stringify(draftContext.environmentalRules)}
+References: ${JSON.stringify(draftContext.references)}
 Draft Revision: ${draftContext.draftRevision}
 
 === SCENARIO BASELINE CONTEXT ===
@@ -327,8 +322,7 @@ Synthesize a complete, non-placeholder Depiction Contract tailored for this scen
       const outputText = response.text || "";
       let parsedJson: any;
       try {
-        const cleanJson = outputText.replace(/```json\n?|```/g, '').trim();
-        parsedJson = JSON.parse(cleanJson);
+        parsedJson = JSON.parse(outputText);
       } catch {
         return res.status(502).json({
           error: "Architect returned malformed non-JSON output.",
@@ -381,9 +375,7 @@ Synthesize a complete, non-placeholder Depiction Contract tailored for this scen
 
       const structuredProposal = {
         type: 'DEPICTION_CONTRACT_PROPOSAL' as const,
-        message:
-          rawData.message ||
-          'Architect synthesized Depiction Contract proposal based on scenario context.',
+        ...(rawData.message ? { message: rawData.message } : {}),
         proposal: {
           contract: {
             dramaticRegister: dramaticRegister.trim(),

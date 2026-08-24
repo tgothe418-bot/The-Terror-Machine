@@ -184,11 +184,11 @@ export const ArchitectDepictionDraftContextSchema = z
         atmosphere: z.string().trim().max(2000).optional(),
         timePeriod: z.string().trim().max(500).optional(),
       })
-      .strict()
-      .optional(),
-    environmentalRules: z
-      .union([z.string().trim().max(1000), z.array(z.string().trim().max(1000)).max(50)])
-      .optional(),
+      .strict(),
+    environmentalRules: z.union([
+      z.string().trim().max(1000),
+      z.array(z.string().trim().max(1000)).max(50),
+    ]),
     cast: z
       .array(
         z
@@ -201,22 +201,20 @@ export const ArchitectDepictionDraftContextSchema = z
           })
           .strict()
       )
-      .max(100)
-      .optional(),
-    ambiguities: z.array(BlueprintAmbiguityDecisionSchema).max(100).default([]),
-    references: z.array(z.string().trim().min(1).max(500)).max(50).optional(),
+      .max(100),
+    ambiguities: z.array(BlueprintAmbiguityDecisionSchema).max(100),
+    references: z.array(z.string().trim().min(1).max(500)).max(50),
     draftRevision: z.number().int().positive(),
   })
   .strict();
 
 export const ArchitectDepictionBaselineContextSchema = z
   .object({
-    sourceCount: z.number().int().nonnegative(),
-    sourceSummary: z.string().trim().max(4000).optional(),
-    sourceSummaries: z.array(z.string().trim().min(1).max(4000)).max(20).optional().default([]),
-    appliedCandidateFacts: z.array(ArchitectDepictionCandidateFactSchema).max(100).default([]),
-    evidenceClaims: z.array(ArchitectDepictionEvidenceClaimSchema).max(100).default([]),
-    canonicalAmbiguities: z.array(BlueprintAmbiguityDecisionSchema).max(100).default([]),
+    sourceCount: z.number().int().nonnegative().max(20),
+    sourceSummaries: z.array(z.string().trim().min(1).max(4000)).max(20),
+    appliedCandidateFacts: z.array(ArchitectDepictionCandidateFactSchema).max(100),
+    evidenceClaims: z.array(ArchitectDepictionEvidenceClaimSchema).max(100),
+    canonicalAmbiguities: z.array(BlueprintAmbiguityDecisionSchema).max(100),
     sourceBaselineRevision: z.number().int().positive(),
   })
   .strict();
@@ -225,7 +223,7 @@ export const RawDepictionModelOutputSchema = z
   .object({
     contract: CompleteDepictionContractSchema,
     rationale: z.string().trim().min(1).max(1000),
-    message: z.string().trim().max(4000).optional(),
+    message: z.string().trim().min(1).max(4000).optional(),
   })
   .strict();
 
@@ -275,18 +273,18 @@ export type ArchitectRequest = z.infer<typeof ArchitectRequestSchema>;
 export const ArchitectFollowUpResponseSchema = z
   .object({
     type: z.literal('FOLLOW_UP'),
-    sourceId: z.string().min(1),
-    unknownId: z.string().min(1),
     message: z.string().trim().min(1),
     followUpQuestion: z.string().trim().min(1),
+    sourceId: z.string().trim().min(1),
+    unknownId: z.string().trim().min(1),
   })
   .strict();
 
 export const ArchitectResolutionProposalResponseSchema = z
   .object({
     type: z.literal('RESOLUTION_PROPOSAL'),
-    sourceId: z.string().min(1),
-    unknownId: z.string().min(1),
+    sourceId: z.string().trim().min(1),
+    unknownId: z.string().trim().min(1),
     message: z.string().trim().min(1),
     proposal: ForgeUnknownResolutionProposalSchema,
   })
@@ -295,7 +293,7 @@ export const ArchitectResolutionProposalResponseSchema = z
 export const ArchitectDepictionContractProposalResponseSchema = z
   .object({
     type: z.literal('DEPICTION_CONTRACT_PROPOSAL'),
-    message: z.string().trim().min(1),
+    message: z.string().trim().min(1).max(4000).optional(),
     proposal: DepictionContractProposalSchema,
   })
   .strict();

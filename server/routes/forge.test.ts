@@ -349,11 +349,15 @@ describe('Forge Routes: /api/extract-blueprint', () => {
           'Acoustic echoes carry anomalous frequencies',
         ],
         references: ['deep_sea_expedition.json'],
+        ambiguities: [],
         draftRevision: 4,
       },
       baselineContext: {
         sourceCount: 2,
-        sourceSummary: 'Hydrophone telemetry and crew psych evals.',
+        sourceSummaries: [
+          'Hydrophone telemetry indicates anomalous depth reverberations.',
+          'Crew psychological evaluation records acute sensory distortion.',
+        ],
         appliedCandidateFacts: [
           {
             target: 'setting_location',
@@ -384,7 +388,7 @@ describe('Forge Routes: /api/extract-blueprint', () => {
     };
 
     it('returns only validated source-grounded depiction proposals', async () => {
-      // 1. Valid case: returns HTTP 200, strictly preserves request revisions and sets createdAt
+      // 1. Valid case with model message: returns HTTP 200, strictly preserves request revisions and sets createdAt
       mockGenerateContent.mockResolvedValueOnce({
         text: JSON.stringify(validModelProposal),
       });
@@ -399,6 +403,7 @@ describe('Forge Routes: /api/extract-blueprint', () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const validBody = (await validResponse.json()) as any;
       expect(validBody.type).toBe('DEPICTION_CONTRACT_PROPOSAL');
+      expect(validBody.message).toBe('Synthesized depiction contract tailored to station isolation.');
       expect(validBody.proposal).toBeDefined();
       expect(validBody.proposal.contract.dramaticRegister).toBe(
         'Cosmic existential dread with cold detachment'
@@ -424,11 +429,41 @@ describe('Forge Routes: /api/extract-blueprint', () => {
       expect(typeof validBody.proposal.createdAt).toBe('number');
       expect(validBody.proposal.createdAt).toBeGreaterThan(0);
 
-      // 2. Table of invalid cases: must return HTTP 502 with error and no fallback text
+      // Verify plural source summaries appeared in generated prompt contents
+      const lastCall = mockGenerateContent.mock.calls[mockGenerateContent.mock.calls.length - 1];
+      const sentPrompt = lastCall[0].contents as string;
+      expect(sentPrompt).toContain('Hydrophone telemetry indicates anomalous depth reverberations.');
+      expect(sentPrompt).toContain('Crew psychological evaluation records acute sensory distortion.');
+
+      // 2. Valid case without model message: message is omitted (not manufactured)
+      mockGenerateContent.mockResolvedValueOnce({
+        text: JSON.stringify({
+          contract: validModelProposal.contract,
+          rationale: validModelProposal.rationale,
+        }),
+      });
+
+      const responseNoMsg = await fetch(`${baseUrl}/api/architect`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(validRequest),
+      });
+
+      expect(responseNoMsg.status).toBe(200);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const bodyNoMsg = (await responseNoMsg.json()) as any;
+      expect(bodyNoMsg.message).toBeUndefined();
+
+      // 3. Table of invalid model output cases: must return HTTP 502 with error and no fallback text
       const invalidCases = [
         {
           scenario: 'malformed non-JSON output',
           modelOutput: 'Not JSON at all { syntax error',
+          expectedError: 'Architect returned malformed non-JSON output.',
+        },
+        {
+          scenario: 'fenced markdown JSON output',
+          modelOutput: '```json\n' + JSON.stringify(validModelProposal) + '\n```',
           expectedError: 'Architect returned malformed non-JSON output.',
         },
         {
@@ -644,7 +679,7 @@ describe('Forge Routes: /api/extract-blueprint', () => {
         expect(body.type).toBeUndefined();
       }
 
-      // 3. Request validation: under-grounded or invalid request payloads must return HTTP 400
+      // 4. Request validation: under-grounded, missing keys, or legacy fields must return HTTP 400
       const invalidRequests = [
         {
           scenario: 'missing draftRevision',
@@ -658,6 +693,86 @@ describe('Forge Routes: /api/extract-blueprint', () => {
           payload: {
             ...validRequest,
             baselineContext: { ...validRequest.baselineContext, sourceBaselineRevision: undefined },
+          },
+        },
+        {
+          scenario: 'missing setting key',
+          payload: {
+            ...validRequest,
+            draftContext: { ...validRequest.draftContext, setting: undefined },
+          },
+        },
+        {
+          scenario: 'missing environmentalRules key',
+          payload: {
+            ...validRequest,
+            draftContext: { ...validRequest.draftContext, environmentalRules: undefined },
+          },
+        },
+        {
+          scenario: 'missing cast key',
+          payload: {
+            ...validRequest,
+            draftContext: { ...validRequest.draftContext, cast: undefined },
+          },
+        },
+        {
+          scenario: 'missing references key',
+          payload: {
+            ...validRequest,
+            draftContext: { ...validRequest.draftContext, references: undefined },
+          },
+        },
+        {
+          scenario: 'missing draftContext ambiguities key',
+          payload: {
+            ...validRequest,
+            draftContext: { ...validRequest.draftContext, ambiguities: undefined },
+          },
+        },
+        {
+          scenario: 'missing sourceSummaries key',
+          payload: {
+            ...validRequest,
+            baselineContext: { ...validRequest.baselineContext, sourceSummaries: undefined },
+          },
+        },
+        {
+          scenario: 'missing appliedCandidateFacts key',
+          payload: {
+            ...validRequest,
+            baselineContext: { ...validRequest.baselineContext, appliedCandidateFacts: undefined },
+          },
+        },
+        {
+          scenario: 'missing evidenceClaims key',
+          payload: {
+            ...validRequest,
+            baselineContext: { ...validRequest.baselineContext, evidenceClaims: undefined },
+          },
+        },
+        {
+          scenario: 'missing baselineContext canonicalAmbiguities key',
+          payload: {
+            ...validRequest,
+            baselineContext: { ...validRequest.baselineContext, canonicalAmbiguities: undefined },
+          },
+        },
+        {
+          scenario: 'sourceCount exceeding bounded maximum (>20)',
+          payload: {
+            ...validRequest,
+            baselineContext: { ...validRequest.baselineContext, sourceCount: 25 },
+          },
+        },
+        {
+          scenario: 'request with legacy singular sourceSummary',
+          payload: {
+            ...validRequest,
+            baselineContext: {
+              ...validRequest.baselineContext,
+              sourceSummary: 'Legacy single summary',
+            },
           },
         },
         {
