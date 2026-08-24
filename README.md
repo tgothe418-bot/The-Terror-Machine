@@ -94,6 +94,18 @@ Here you can also feed the machine source material and let it perform **Haunted 
 
 The Forge is a review chamber. A confident paragraph is not canon. An inference is not evidence. A proposal is not a commit.
 
+It also remembers when the table has moved.
+
+The Source Baseline has its own revision. Architect responses remain attached to the exact source and question that produced them. Accepted resolutions update the Blueprint as one transaction. A proposal made for an earlier draft cannot quietly overwrite the house after the walls have changed.
+
+The Forge can now stage a source-grounded **Depiction Contract** describing how a particular nightmare should be shown: its dramatic register, its directness, its aftermath, the uncertainty it must preserve, and any special boundaries that belong to this house alone.
+
+When Export Review opens, the machine places one revision-bound Blueprint artifact under glass. Copy and Download receive the artifact that was reviewed—not whatever the draft happened to become five seconds later.
+
+This is progress.
+
+It is not the same thing as saying the Forge has learned to finish every room.
+
 ### `[ THE ENGINE ]`
 
 The Engine is the room after the lights go out.
@@ -254,7 +266,17 @@ The target is a story that has become a place—and a place that remembers being
 
 ## CURRENT EDITION
 
-The Terror Machine is a private-first solo project in active development. The current line includes the core atomic turn path, canonical topology, role-aware participation, Blueprint and Induction entry paths, retake, telemetry, bounded character and World Memory, and the early work of turning the Forge into a proper source-review instrument.
+The Terror Machine is a private-first solo project in active development.
+
+The current line includes the atomic turn path, canonical topology, role-aware participation, Blueprint and Induction entry paths, retake, telemetry, bounded character and World Memory, and a revision-bound Forge source-review path.
+
+The Forge corrective sequence through Packet 07 is now complete. Candidate decisions remain separate from draft mutation. Architect responses are identity-bound. Ambiguity resolutions commit transactionally. Depiction proposals become stale when their source changes. Evidence remains available for inspection. Export Review captures the artifact the operator actually reviewed.
+
+The machine has learned how to keep its paperwork in order.
+
+It has not yet learned to complete every form.
+
+Imported source material can still populate most of a Blueprint while leaving required authoring fields blank, including the core Depiction Contract. The export gate correctly refuses that incomplete artifact. The next Forge work is to teach the Architect when the accepted source contains enough evidence to propose those missing essentials—and when it should admit that it does not.
 
 Some doors are still being hung. Some rooms contain development diagnostics. Some boundaries are stricter than the interface around them. This is not a promise that the haunted house is finished; it is a warning that the house is already interesting enough to get lost in.
 
@@ -266,9 +288,13 @@ The roadmap is where the sausage gets made.
 
 ## RUNNING THE MACHINE
 
-The current development runtime uses React, TypeScript, Vite, Express, Zustand, Zod, Tailwind CSS, Vitest, IndexedDB utilities, and Google Gemini through `@google/genai`.
+The application uses React, TypeScript, Vite, Express, Zustand, Zod, Tailwind CSS, Vitest, IndexedDB utilities, and Google Gemini through `@google/genai`.
 
-Gemini in Google AI Studio is the current reference development runtime. The Engine is kept behind explicit contracts so the model provider can remain replaceable when the project is ready.
+The machine is currently being built and tested in Antigravity. Gemini still supplies the application's model runtime, but the Engine sits behind explicit contracts.
+
+Workshops change.
+
+The house should survive its builders.
 
 ```bash
 npm install
