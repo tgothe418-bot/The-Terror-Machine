@@ -20,6 +20,7 @@ A Blueprint or a Haunted House Induction enters the same Engine path. A turn is 
 - Blueprint authoring and Haunted House / Ad-Lib Induction entry paths.
 - Cast presence, character stance, relationships, bounded character memory, and bounded World Memory.
 - Deterministic consequences, receipts, telemetry, Markdown/HTML diagnostics, and retake of the most recent completed turn.
+- A shared human/Autopilot response contract: concise creator input is preserved verbatim, one bounded generation is ratified or refused, and safe field-path diagnostics appear in failure receipts and exports.
 - Development recovery through Clear System Memory and Autopilot as a soak-testing instrument.
 
 ### The Forge source-review path
@@ -44,13 +45,15 @@ This does not mean every imported source automatically produces an export-ready 
 
 ### Current verification line
 
+Engine Corrective Packet 08 — Human Turn Contract Reliability — is accepted. A concise creator-written action has passed the normal live Engine path without being rewritten, padded, or sent through a separate parser. Invalid model output still fails closed; it now leaves bounded contract diagnostics in telemetry rather than an opaque failure receipt.
+
 The remaining active questions include one important Forge completeness issue as well as several Engine boundaries:
 
 - **Required-field synthesis from source:** imported reference material can populate premise, setting, cast, and topology while still leaving required Blueprint fields blank. Current testing exposed all four mandatory Depiction Contract fields as empty even though the source contained material from which the Architect should have been able to stage a grounded proposal. Export correctly blocks the incomplete Blueprint; the missing behavior is earlier in the authoring flow.
 - **Explicit Player-Character Binding:** exact cast selection works in the live line and has been demonstrated with a non-first eligible character, but its complete end-to-end acceptance gate remains open.
 - **Scenario authority enforcement:** an Authority Contract appearing in a prompt is not sufficient. Causal reach must be enforced before canon changes.
 - **Provider-refusal containment:** an upstream refusal must never be mistaken for player input or an ordinary successful turn.
-- **Global TypeScript debt:** the Forge stabilization sequence passed its complete test suite, lint, and production build, while two inherited type errors outside the Forge boundary remain openly tracked.
+- **Global TypeScript debt:** Packet 08's type check was clean in scope, but the global command still reports inherited issues in `ArchitectChat.*`, `sessionPersistence.test.ts`, `core/store.ts`, and `useForgeStore.*`. They remain openly tracked rather than being mistaken for a green global TypeScript gate.
 
 ## What comes next
 
@@ -60,7 +63,7 @@ When imported reference material supports a required Blueprint field, the Forge 
 
 The first confirmed case is the Depiction Contract: dramatic register, directness, aftermath, and ambiguity handling should be proposed from the accepted source baseline and creator decisions. The proposal must remain source-grounded, revision-bound, and subject to explicit review. If the source genuinely cannot support a field, the Forge should identify the gap instead of filling it with canned horror language.
 
-### 2. Close the inherited Engine acceptance debt
+### 2. Close the remaining Engine and baseline acceptance debt
 
 Finish the global TypeScript baseline and close explicit Player-Character Binding across setup, initialization, turn context, prompts, ratification, receipts, retake, persistence, and telemetry.
 
