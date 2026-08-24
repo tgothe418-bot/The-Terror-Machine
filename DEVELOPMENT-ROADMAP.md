@@ -24,6 +24,7 @@ A focused test proves its named behavior. It does not, by itself, close an integ
 - Canonical consequences, cast presence and continuity, stance, relationships, and bounded character memory.
 - Phase 3H.5C World Memory: deterministic identity, bounded global/current-node prompt projection, required proposal and receipt contracts, fail-closed validation, canonical commit, and export evidence.
 - Forge source review through the accepted Packet 02A–07 corrective sequence.
+- Engine Corrective Packet 08 — Human Turn Contract Reliability: the provider response schema is aligned to the application contract; concise creator-written input remains exact and shares the one-generation, ratification path with Autopilot; bounded mismatch diagnostics survive failure receipts and Markdown/HTML telemetry; creator acceptance is complete.
 
 ### Live, under review
 
@@ -47,7 +48,7 @@ The export gate behaved correctly by blocking the incomplete artifact. The remai
 
 #### Inherited global TypeScript debt
 
-Packet 07's Forge stabilization passed the complete Vitest suite, full lint, and production build. The global TypeScript command still reports inherited errors in `src/core/store.ts` and `src/core/engine/sessionPersistence.test.ts`. Those errors were outside the Forge repair boundary and remain explicit debt; they must not be described as a green TypeScript gate.
+Packet 07's Forge stabilization passed the complete Vitest suite, full lint, and production build. Packet 08's TypeScript check was clean inside its boundary, but the global command still reports inherited errors in `ArchitectChat.*`, `src/core/engine/sessionPersistence.test.ts`, `src/core/store.ts`, and `useForgeStore.*`. Those errors remain explicit debt; they must not be described as a green TypeScript gate.
 
 ## Accepted Forge corrective sequence
 
@@ -70,6 +71,12 @@ The source-to-Blueprint handoff is now one reviewable chain rather than a set of
 
 The post-07 mount correction ensures that the normal closed-to-open Export Review path actually creates the first snapshot rather than initializing while hidden.
 
+## Accepted Engine corrective sequence
+
+| Packet | Accepted boundary |
+|---|---|
+| **08 — Human Turn Contract Reliability** | The provider schema now projects the authoritative application response contract more faithfully. Concise creator input is preserved verbatim and follows the same one-generation, fail-closed route as Autopilot. Safe schema-failure paths and codes survive the failure receipt and Markdown/HTML telemetry. Focused tests, scoped lint, a scoped-clean TypeScript result, production build, and creator live smoke acceptance are recorded. |
+
 ## Next work packages
 
 ### 1. Complete source-to-required-field synthesis
@@ -91,7 +98,7 @@ This work should inspect other required Blueprint fields for the same omission p
 
 ### 2. Close the inherited baseline and 3H.5D
 
-Repair the two inherited TypeScript errors without weakening Engine contracts, then finish explicit Player-Character Binding.
+Repair the inherited TypeScript errors without weakening Engine contracts, then finish explicit Player-Character Binding.
 
 Acceptance requires:
 
