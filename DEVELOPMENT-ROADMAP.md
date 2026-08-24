@@ -7,11 +7,11 @@ It is intentionally more exact than the [Technical (Public) Roadmap](./ROADMAP.m
 ## Status language
 
 - **Landed** — present on the live line and protected by the relevant verification boundary.
-- **Live, under review** — implemented work is available on the live line, but combined inspection or acceptance evidence is incomplete.
+- **Live, under review** — implemented behavior is available, but combined inspection or acceptance evidence remains incomplete.
 - **Sequenced** — designed work with an explicit dependency order; it is not yet accepted implementation.
 - **Planned** — a direction that should not be mistaken for a current contract.
 
-A focused test proves its named behavior. It does not, by itself, close an integrated feature, a production type gate, or a human-facing authoring contract.
+A focused test proves its named behavior. It does not, by itself, close an integrated feature, a production type gate, or a human-facing contract.
 
 ## Current baseline
 
@@ -21,178 +21,129 @@ A focused test proves its named behavior. It does not, by itself, close an integ
 - Canonical topology and intent-bound expansion at an unmapped boundary.
 - Role-aware participation for Protagonist, Antagonist, and Director, including explicit authority and limits for antagonist play.
 - Blueprint and Haunted House / Ad-Lib Induction paths converging on shared Engine contracts.
-- Canonical consequences, cast presence and continuity, stance, relationships, bounded character memory, and Phase 3H.5C World Memory.
-- Bounded World Memory projection with deterministic identity, scope, acceptance, canonical commit, and export evidence.
+- Canonical consequences, cast presence and continuity, stance, relationships, and bounded character memory.
+- Phase 3H.5C World Memory: deterministic identity, bounded global/current-node prompt projection, required proposal and receipt contracts, fail-closed validation, canonical commit, and export evidence.
+- Forge source review through the accepted Packet 02A–07 corrective sequence.
 
 ### Live, under review
 
 #### Phase 3H.5D — Explicit Player-Character Binding
 
-The live line can bind an exact selected cast ID, and human telemetry demonstrates selection of a non-first eligible character. This phase is not accepted until the production type gate is clean and setup, initialization, turn context, prompts, ratification, receipts, retake, and real-route persistence tests cover the same canonical identity end to end.
+The live line can bind an exact selected cast ID, and human telemetry demonstrates selection of a non-first eligible character. This phase is not accepted until setup, initialization, turn context, prompts, ratification, receipts, retake, persistence, and telemetry carry the same canonical identity end to end without relying on cast order.
 
 #### Scenario authority enforcement
 
-Adversarial telemetry has shown that an Authority Contract can appear in prompts while a rendered outcome exceeds the actor’s granted reach. That is not enforcement. Causal authority must be adjudicated before an out-of-contract consequence, durable memory item, or receipt can become canonical.
+An Authority Contract appearing in a prompt is not enforcement. Causal authority must be adjudicated before an out-of-contract consequence, character change, durable memory item, or receipt can become canonical.
 
 #### Provider-refusal containment
 
 An upstream refusal must be contained as a first-class Engine result. Refusal text must never be attributed to player input, treated as an ordinary narrative turn, or allowed to mutate canonical state.
 
-#### Forge remediation: 02A–02C
+#### Forge required-field synthesis
 
-The first three micro-packets are live but have not yet received a combined code-and-behavior review:
+The accepted Forge sequence provides the contracts and review lifecycle for a source-grounded Depiction Contract, but imported reference material does not yet reliably activate that path. A real Blueprint import populated premise, location, cast, and topology while leaving all four required Depiction Contract fields empty: dramatic register, directness, aftermath, and ambiguity handling.
 
-| Packet | Live change | Remaining acceptance question |
-|---|---|---|
-| **02A — Candidate Decisions** | Candidate-review controls now use binary accepted/rejected decisions while review state remains staged. | Verify the complete candidate-application boundary remains deterministic and cannot hide a direct draft mutation. |
-| **02B — Architect Response Isolation** | Architect ambiguity responses are validated and identity-matched before they can affect the authoring conversation. | Verify the real UI, store, and server handoff reject malformed or mismatched responses without stranding the queue. |
-| **02C — Retake Identity** | Checkpoint restore validates session and Blueprint identity strictly. | Verify the real retake lifecycle preserves intended same-session behavior while rejecting incomplete or cross-session state. |
+The export gate behaved correctly by blocking the incomplete artifact. The remaining defect is upstream: when the accepted Source Baseline contains adequate evidence, the Architect should stage a complete, grounded proposal instead of leaving required fields blank. When evidence is inadequate, the Forge should expose a specific authoring gap and preserve uncertainty rather than generating a canned fallback.
 
-Do not describe the Forge remediation as complete until its remaining source baseline, resolution, Depiction Contract, and export slices have landed and the integrated flow has been reviewed.
+#### Inherited global TypeScript debt
 
-## Forge remediation sequence
+Packet 07's Forge stabilization passed the complete Vitest suite, full lint, and production build. The global TypeScript command still reports inherited errors in `src/core/store.ts` and `src/core/engine/sessionPersistence.test.ts`. Those errors were outside the Forge repair boundary and remain explicit debt; they must not be described as a green TypeScript gate.
 
-The Forge work is deliberately decomposed into narrow construction packets. Each packet owns one observable boundary; a later packet may rely only on behavior established by earlier accepted packets.
+## Accepted Forge corrective sequence
 
-### 03A — Architect server protocol
+The source-to-Blueprint handoff is now one reviewable chain rather than a set of loosely connected features. Acceptance of that infrastructure does not claim that every import currently reaches each required authoring step automatically.
 
-Replace loose Architect request/response handling with a strict discriminated contract.
+| Packet | Accepted boundary |
+|---|---|
+| **02A — Candidate Decisions** | Candidate decisions remain exactly accepted or rejected and do not mutate the draft directly. |
+| **02B — Architect Response Isolation** | Malformed or identity-mismatched ambiguity responses fail closed before conversation or lifecycle state is recorded. |
+| **02C — Retake Identity** | Retake checkpoints require exact, non-empty session and Blueprint identity. |
+| **03A — Architect Server Protocol** | Ambiguity resolution uses strict, bounded, identity-bound request and response contracts without fabricated fallback prose. |
+| **03B — Resolution Transaction** | An accepted resolution and its schema-backed Blueprint patch commit together or leave prior state untouched. |
+| **04A — Baseline Revision and Proposal State** | The persisted Source Baseline revision is distinct from the draft revision, and complete proposals cannot apply after either source changes. |
+| **04B — Depiction Generation Protocol** | The Architect produces scenario-specific Depiction Contract proposals from validated, bounded Forge context; malformed output fails visibly. |
+| **04C — Depiction Panel Lifecycle** | The creator can generate, review, apply, dismiss, refresh, and manually edit a source-grounded proposal. |
+| **05 — Evidence Drawer** | Candidate evidence remains available through a focused in-application review surface. |
+| **06A — Export Artifact** | Export compilation produces one deeply immutable artifact carrying the supplied draft and Source Baseline revisions. |
+| **06B — Export Review Snapshot** | Opening Export Review captures one artifact; Copy and Download use its exact bytes; revision changes require refresh. |
+| **07 — Stabilization** | Sequence-related type and fixture integrations were repaired; the full test suite, lint, and production build passed. |
 
-Required outcomes:
+The post-07 mount correction ensures that the normal closed-to-open Export Review path actually creates the first snapshot rather than initializing while hidden.
 
-- typed request kinds for general messages, ambiguity resolution, and Depiction Contract generation;
-- typed response kinds for ordinary messages, follow-up questions, resolution proposals, and Depiction Contract proposals;
-- exact source and ambiguity identity correlation;
-- request context containing only the schema-backed current draft, accepted baseline decisions, active ambiguity, and relevant conversation state;
-- no Markdown-JSON heuristic path, unknown context arrays, or generic fabricated “success” proposal when the provider response is incomplete;
-- fail-closed validation that leaves authoring state untouched.
+## Next work packages
 
-### 03B — Resolution transaction
+### 1. Complete source-to-required-field synthesis
 
-Make an accepted ambiguity resolution a canonical, atomic authoring operation.
+Connect imported Source Baseline evidence to the existing proposal lifecycle for required Blueprint fields, beginning with the Depiction Contract.
 
-Required outcomes:
+Acceptance requires:
 
-- resolution patches target schema-backed fields only;
-- missing target IDs, invalid field paths, or conflicting patches fail the transaction rather than silently no-op;
-- accepted decision, patch application, provenance, and revision change commit together;
-- repeated or duplicate patch effects are deterministic;
-- character facts persist into the canonical Blueprint rather than an undeclared property that a later parser discards.
+- detection of required fields that remain empty after source analysis and accepted candidate application;
+- a Depiction Contract generation action that is reachable in the normal imported-source workflow without hidden manual setup;
+- a complete proposal for dramatic register, directness, aftermath, ambiguity handling, and special boundaries;
+- grounding in accepted evidence, accepted creator decisions, and deliberately preserved uncertainties;
+- no canned fallback, placeholder value, or silent direct mutation of the draft;
+- an explicit, field-addressable gap when the source cannot support a responsible proposal;
+- revision-bound review, apply, dismiss, refresh, and stale-state behavior through the already accepted lifecycle;
+- an integration proof beginning with imported source material and ending with either a reviewable complete proposal or an honest unresolved requirement.
 
-### 04A — Baseline revision and proposal state
+This work should inspect other required Blueprint fields for the same omission pattern, but it must not invent material merely to make Export Review turn green.
 
-Give staged authoring work durable identity and freshness rules.
+### 2. Close the inherited baseline and 3H.5D
 
-Required outcomes:
+Repair the two inherited TypeScript errors without weakening Engine contracts, then finish explicit Player-Character Binding.
 
-- a source-baseline revision distinct from the draft revision;
-- persisted pending Depiction Contract proposal state;
-- hydration that preserves valid pending state rather than clearing it;
-- explicit invalidation when the source baseline, accepted resolutions, or relevant draft state makes a pending proposal stale;
-- readiness state that can report candidate totals, ambiguity totals, contextual-discretion decisions, and proposal freshness.
+Acceptance requires:
 
-### 04B — Depiction generation protocol
+- one canonical `player_character_id` selected from the eligible cast;
+- the stored ID surviving setup, initialization, turn context, prompts, ratification, receipts, retake, persistence, and telemetry;
+- role eligibility and seat availability enforced without relying on cast order;
+- human and automated runs exercising first and non-first eligible selections;
+- focused proofs plus the appropriate broad suite, TypeScript, lint, build, and diff gates;
+- no Blueprint names, cast assumptions, or scenario literals in production instructions.
 
-Make Depiction Contract generation reachable, contextual, and safe.
+### 3. Enforce authored participation and treatment at the Engine boundary
 
-Required outcomes:
-
-- a dedicated Architect request triggered from authoring;
-- the contract prompt receives accepted evidence, accepted ambiguity resolutions, preserved uncertainty, the current draft, and any current contract;
-- the response is a staged proposal with rationale and revision metadata;
-- incomplete provider output fails visibly; it is never replaced with generic horror prose;
-- the proposal describes the Blueprint’s dramatic register, directness, aftermath, ambiguity handling, and optional special boundaries.
-
-### 04C — Depiction Contract panel lifecycle
-
-Complete the creator-facing proposal and authoring surface.
-
-Required outcomes:
-
-- a Generate or Refresh control that reaches the protocol in 04B;
-- multi-line authoring fields with visible character counts and enforced limits;
-- a visible pending-proposal review surface with accept and dismiss;
-- manual edits remain possible;
-- a stale proposal cannot overwrite newer source or draft decisions;
-- accepted changes update the authored contract and the appropriate revision exactly once.
-
-### 05 — Evidence drawer
-
-Make source evidence inspectable without dominating the review ledger.
-
-Required outcomes:
-
-- candidates show a compact evidence affordance by default;
-- detailed excerpts open in a focused, accessible in-app drawer or modal;
-- source attribution and candidate identity remain clear;
-- review controls do not move or change meaning when evidence is opened.
-
-### 06A — Export artifact contract
-
-Separate review from serialization.
-
-Required outcomes:
-
-- a normalized, immutable prepared export artifact is captured for one specific draft revision;
-- the artifact is invalidated by a subsequent relevant authoring change;
-- export never promises that a fresh compilation is the exact state the creator reviewed;
-- the artifact preserves required source and provenance information without leaking Forge-only UI state into Blueprint JSON.
-
-### 06B — Export review snapshot
-
-Make the pre-flight screen a real readiness gate.
-
-Required outcomes:
-
-- the review displays structural state, Depiction Contract state, source candidate totals, ambiguity status, contextual discretion count, and artifact freshness;
-- unresolved or awaiting source work and accepted-but-unapplied candidate work block export;
-- the download/copy actions use the reviewed revision-bound artifact;
-- stale state is shown as stale and requires a new review;
-- field-addressable failures take the creator to the relevant authoring location.
-
-### 07 — Stabilization and integrated acceptance
-
-This is the sole broad project gate for the Forge remediation sequence.
-
-Required outcomes:
-
-- review the final changed-file list against the packet sequence;
-- run the full Vitest suite, TypeScript check, full lint, production build, and diff check;
-- repair only regressions caused by the accepted Forge work;
-- do not use the broad gate to introduce unrelated runtime or test-hygiene changes;
-- verify the actual combined path: source evidence → staged candidates → Architect ambiguity conversation → accepted/preserved decision → Depiction Contract proposal → reviewed export artifact.
-
-## Work after the Forge sequence
-
-### Enforce authored participation and treatment at the Engine boundary
-
-The Engine must use an accepted Blueprint treatment contract as a narrative-framing assumption while retaining deterministic ownership of causality and canon.
+The Engine must use accepted Blueprint contracts while retaining deterministic ownership of causality and canon.
 
 Acceptance requires:
 
 - authority adjudication before prose generation and before any canonical consequence, character state, or durable memory commits;
-- a thought-, perception-, or motivation-only antagonist never receiving ratified direct physical reach unless the Authority Contract expressly grants it;
+- a thought-, perception-, or motivation-only antagonist never receiving ratified direct physical reach unless its Authority Contract expressly grants it;
+- the Depiction Contract shaping framing and directness without granting causal authority;
 - a structured treatment receipt recording direct depiction, abstraction/aftermath, or a refusal to render;
-- decisions derived from the Blueprint contract, not a global runtime intensity toggle;
 - provider refusal represented as a distinct Engine event, never as player input;
-- tests for authority denial, permitted direct adult horror, scenario-authored abstraction, provider refusal, retake, and unchanged canonical state on a blocked result.
+- tests for authority denial, permitted direct depiction, scenario-authored abstraction, provider refusal, retake, and unchanged canonical state on a blocked result.
 
-Provider-level non-negotiable constraints remain external to the Blueprint contract. They must be represented honestly without pretending that the player authored the refusal.
+Provider-level non-negotiable constraints remain external to the Blueprint contract. They must be represented honestly without pretending the player authored the refusal.
 
-### Autopilot identity and provenance
+### 4. Make Autopilot identity-safe
 
-Autopilot must receive the selected character’s canonical context, use the same identity-bearing path as a human session, stop or retry deliberately after failure, and label generated input in telemetry.
+Autopilot must receive the selected character's canonical context, use the same identity-bearing path as a human session, stop or retry deliberately after failure, and label generated input in telemetry and exports.
 
-### Durable continuity, Voice, campaign, and provider seams
+### 5. Finish durable continuity
 
-- Extend character and World Memory through the full turn lifecycle with scoped, inspectable handoff.
-- Keep Voice observations read-only and evidence-labelled.
-- Define explicit multi-Blueprint campaign handoff only after continuity is stable.
-- Preserve a provider-replaceable Engine boundary without letting provider behavior bypass the established contracts.
+Extend character and World Memory through the complete turn lifecycle with scoped, inspectable handoff. Every durable fact needs a source, scope, acceptance decision, and bounded prompt projection.
 
-### Generative horror grammar
+Campaign handoff must remain explicit rather than becoming an implicit global ledger.
 
-Research pressure, pacing, fear, revelation, and recovery as generative principles rather than shipping a shelf of preset genre scenarios.
+### 6. Harden the Voice boundary
+
+Keep Voice observations read-only and separate from simulation canon. Add evidence-labelled context, snapshot/export parity, and clear handling for Forge drafts, Engine sessions, outside research, and ordinary project conversation.
+
+### 7. Prepare campaign, horror-grammar, and provider seams
+
+Once identity, authority, and continuity are stable:
+
+- define explicit multi-Blueprint campaign handoff;
+- research pressure, pacing, fear, revelation, and recovery as generative principles rather than preset plots;
+- preserve a provider-replaceable Engine boundary without allowing provider behavior to bypass established contracts.
+
+## Construction environment
+
+Active construction and local verification have moved from Google AI Studio to Antigravity. Google Gemini remains the application's current runtime model through `@google/genai`.
+
+The construction environment and the application provider are separate concerns. Future provider work must preserve the same Engine contracts rather than smuggling provider-specific behavior into canon.
 
 ## Engineering rules that do not bend
 
@@ -200,37 +151,37 @@ Research pressure, pacing, fear, revelation, and recovery as generative principl
 - The model proposes; deterministic application code decides what becomes true.
 - Failed validation preserves canonical state and emits useful evidence.
 - Required schemas become stricter. Stale fixtures are repaired at their source.
-- No "any", suppression comments, unsafe cast chains, permissive defaults, or fallback receipts used to make a gate appear green.
+- Broad type escapes, suppression comments, permissive defaults, and fallback receipts are not ordinary gate-repair tools. Any unavoidable test-only bridge must remain isolated and justified.
 - When a contract crosses a UI or route boundary, tests must exercise that real boundary; helper-only tests are insufficient.
 - Human review remains part of acceptance for generated Blueprints, exported telemetry, and changes affecting player identity or authorial intent.
-- A treatment contract may shape framing and directness. It cannot grant causal authority or override provider-level constraints.
+- A Depiction Contract may shape framing and directness. It cannot grant causal authority or override provider-level constraints.
 
 ## Verification discipline
 
 ### Bounded construction packets
 
-For packets 02A through 06B:
+For a narrow implementation sequence:
 
-1. implement the requested behavior before testing;
-2. run one named focused Vitest proof;
-3. make at most one corrective rerun of that same proof;
-4. lint only the files changed by that packet;
-5. stop and report unrelated failures rather than repairing them inside the packet.
+1. name one observable boundary and its focused proof;
+2. complete the implementation before running that proof;
+3. permit only a tightly bounded corrective rerun;
+4. lint the scoped files;
+5. stop and report unrelated failures instead of absorbing them into the packet.
 
-Do **not** run the full suite, global TypeScript check, full lint, or production build for each micro-packet. Those broad gates consume disproportionate agent context and turn a small construction task into unrelated test repair.
+Do not run the full suite, global TypeScript check, full lint, and production build after every micro-packet unless that packet explicitly owns a broad integration gate. Broad checks belong at planned stabilization points, where their failures can be classified coherently.
 
 ### Broad stabilization
 
-Packet 07 runs the project-wide safety gate once the earlier slices have been reviewed as a coherent whole:
+At the end of a corrective sequence, run the declared project gates in order:
 
-- full Vitest suite;
+- complete Vitest suite;
 - TypeScript check;
 - full lint;
 - production build;
 - diff check.
 
-A passing focused test does not erase a failing production type gate. A passing broad gate does not prove the requested behavior exists. Both kinds of evidence are required at the appropriate stage.
+A passing focused test does not erase a failing production type gate. A passing broad gate does not prove the requested behavior exists. Both kinds of evidence are required at the appropriate stage, and inherited failures remain visible until repaired.
 
 ## Relationship to the public technical roadmap
 
-The [Technical (Public) Roadmap](./ROADMAP.md) explains the machine’s direction for a technically curious visitor. This document records exact sequencing and acceptance discipline. Update both when current behavior or the active work boundary materially changes.
+The [Technical (Public) Roadmap](./ROADMAP.md) explains the machine's direction for a technically curious visitor. This document records exact sequencing, acceptance evidence, and open debt. Update both when current behavior or the active work boundary materially changes.
