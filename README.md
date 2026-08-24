@@ -268,13 +268,17 @@ The target is a story that has become a place—and a place that remembers being
 
 The Terror Machine is a private-first solo project in active development.
 
-The current line includes the atomic turn path, canonical topology, role-aware participation, Blueprint and Induction entry paths, retake, telemetry, bounded character and World Memory, and a revision-bound Forge source-review path.
+The current line includes the atomic turn path, canonical topology, role-aware participation, Blueprint and Induction entry paths, retake, telemetry, bounded character and World Memory, a revision-bound Forge source-review path, and a repaired human-turn response contract.
 
 The Forge corrective sequence through Packet 07 is now complete. Candidate decisions remain separate from draft mutation. Architect responses are identity-bound. Ambiguity resolutions commit transactionally. Depiction proposals become stale when their source changes. Evidence remains available for inspection. Export Review captures the artifact the operator actually reviewed.
 
 The machine has learned how to keep its paperwork in order.
 
 It has not yet learned to complete every form.
+
+The Engine corrective Packet 08 is also accepted. A concise creator-written action now walks through the same single-generation, ratified corridor as an Autopilot action. The operator's words arrive as written. If the model still offers an invalid shape, the world does not move; the receipt names the rejected part of the contract without dragging model debris into the history.
+
+The operator no longer has to write like a machine just to make the machine listen.
 
 Imported source material can still populate most of a Blueprint while leaving required authoring fields blank, including the core Depiction Contract. The export gate correctly refuses that incomplete artifact. The next Forge work is to teach the Architect when the accepted source contains enough evidence to propose those missing essentials—and when it should admit that it does not.
 
