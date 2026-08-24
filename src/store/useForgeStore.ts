@@ -733,6 +733,10 @@ export const useForgeStoreInternal = create<ForgeStore>()(
               return state;
             }
             const validAnalysis = parse.data;
+            const existing = state.sourceAnalyses[validAnalysis.id];
+            if (existing && JSON.stringify(existing) === JSON.stringify(validAnalysis)) {
+              return state;
+            }
             return {
               sourceAnalyses: {
                 ...state.sourceAnalyses,
@@ -784,6 +788,14 @@ export const useForgeStoreInternal = create<ForgeStore>()(
 
             const editResult = validateCandidateEdit(cand, editedValue);
             if (!editResult.valid || !editResult.updatedCandidate) return state;
+
+            // Semantic no-op check: same proposed value
+            if (
+              JSON.stringify(cand.proposedValue) ===
+              JSON.stringify(editResult.updatedCandidate.proposedValue)
+            ) {
+              return state;
+            }
 
             const updatedCandidates = analysis.candidates.map((c) =>
               c.id === candidateId ? editResult.updatedCandidate! : c
@@ -944,10 +956,24 @@ export const useForgeStoreInternal = create<ForgeStore>()(
             if (!unk || !answer.trim()) return state;
 
             const safeAnswer = answer.trim();
+
+            // Semantic no-op check: if answer is already recorded and status is awaiting_response
+            if (
+              unk.submittedAnswer === safeAnswer &&
+              unk.status === 'awaiting_response' &&
+              unk.lastError === undefined &&
+              (!unk.followUps.length || unk.followUps.every((f) => f.answer))
+            ) {
+              return state;
+            }
+
             const updatedFollowUps = [...unk.followUps];
             const unansweredIdx = updatedFollowUps.findIndex((f) => !f.answer);
 
             if (unansweredIdx !== -1) {
+              if (updatedFollowUps[unansweredIdx].answer === safeAnswer) {
+                return state;
+              }
               updatedFollowUps[unansweredIdx] = {
                 ...updatedFollowUps[unansweredIdx],
                 answer: safeAnswer,
@@ -988,9 +1014,15 @@ export const useForgeStoreInternal = create<ForgeStore>()(
             // Maximum 2 follow-ups allowed
             if (unk.followUps.length >= 2) return state;
 
+            const q = followUpQuestion.trim();
+            const lastFollowUp = unk.followUps[unk.followUps.length - 1];
+            if (lastFollowUp && lastFollowUp.question === q && !lastFollowUp.answer) {
+              return state;
+            }
+
             const newFollowUp = {
               id: `fu-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-              question: followUpQuestion.trim(),
+              question: q,
             };
 
             const updatedUnknown: ForgeSourceUnknown = {
@@ -1027,11 +1059,26 @@ export const useForgeStoreInternal = create<ForgeStore>()(
             const unk = analysis.unknowns.find((u) => u.id === unknownId);
             if (!unk || !proposal.resolution.trim()) return state;
 
+            const res = proposal.resolution.trim();
+            const eff = proposal.targetEffect.trim() || unk.targetEffect;
+
+            // Semantic no-op check
+            if (
+              unk.status === 'awaiting_confirmation' &&
+              unk.resolutionProposal &&
+              unk.resolutionProposal.resolution === res &&
+              unk.resolutionProposal.targetEffect === eff &&
+              JSON.stringify(unk.resolutionProposal.draftPatch) === JSON.stringify(proposal.draftPatch) &&
+              unk.lastError === undefined
+            ) {
+              return state;
+            }
+
             const updatedUnknown: ForgeSourceUnknown = {
               ...unk,
               resolutionProposal: {
-                resolution: proposal.resolution.trim(),
-                targetEffect: proposal.targetEffect.trim() || unk.targetEffect,
+                resolution: res,
+                targetEffect: eff,
                 draftPatch: proposal.draftPatch,
               },
               status: 'awaiting_confirmation',
@@ -1193,15 +1240,29 @@ export const useForgeStoreInternal = create<ForgeStore>()(
             const unk = analysis.unknowns.find((u) => u.id === unknownId);
             if (!unk) return state;
 
+            const cleanGuidance = guidance && guidance.trim() ? guidance.trim() : undefined;
+
+            // Semantic no-op check: if already contextual_discretion with same guidance
+            const currentDraft = state.forgeDraft || createInitialDraft();
+            const existingAmbiguity = currentDraft.ambiguities?.find((a) => a.id === unk.id);
+            if (
+              unk.status === 'contextual_discretion' &&
+              unk.lastError === undefined &&
+              existingAmbiguity &&
+              existingAmbiguity.resolutionMode === 'CONTEXTUAL_DISCRETION' &&
+              existingAmbiguity.guidance === cleanGuidance
+            ) {
+              return state;
+            }
+
             const decision: BlueprintAmbiguityDecision = {
               id: unk.id,
               category: unk.category,
               question: unk.question,
               resolutionMode: 'CONTEXTUAL_DISCRETION',
-              ...(guidance && guidance.trim() ? { guidance: guidance.trim() } : {}),
+              ...(cleanGuidance ? { guidance: cleanGuidance } : {}),
             };
 
-            const currentDraft = state.forgeDraft || createInitialDraft();
             const existingAmbiguities = currentDraft.ambiguities ? [...currentDraft.ambiguities] : [];
             const existingIdx = existingAmbiguities.findIndex((a) => a.id === unk.id);
             if (existingIdx !== -1) {
@@ -1247,6 +1308,11 @@ export const useForgeStoreInternal = create<ForgeStore>()(
             const unk = analysis.unknowns.find((u) => u.id === unknownId);
             if (!unk) return state;
 
+            // Semantic no-op check: if already queued with identical error
+            if (unk.status === 'queued' && unk.lastError === error) {
+              return state;
+            }
+
             const updatedUnknown: ForgeSourceUnknown = {
               ...unk,
               status: 'queued',
@@ -1275,6 +1341,11 @@ export const useForgeStoreInternal = create<ForgeStore>()(
             if (!analysis) return state;
             const unk = analysis.unknowns.find((u) => u.id === unknownId);
             if (!unk) return state;
+
+            // Semantic no-op check: if already queued with no error, retry is a no-op
+            if (unk.status === 'queued' && unk.lastError === undefined) {
+              return state;
+            }
 
             const updatedUnknown: ForgeSourceUnknown = {
               ...unk,
@@ -1320,17 +1391,30 @@ export const useForgeStoreInternal = create<ForgeStore>()(
               if (validationRes.success) {
                 finalDraftPatch = replacementPatch;
               }
-              // If invalid, keep existing draftPatch
+            }
+
+            const res = resolution.trim();
+            const eff =
+              targetEffect?.trim() ||
+              unk.resolutionProposal?.targetEffect ||
+              unk.targetEffect;
+
+            // Semantic no-op check
+            if (
+              unk.resolutionProposal &&
+              unk.resolutionProposal.resolution === res &&
+              unk.resolutionProposal.targetEffect === eff &&
+              JSON.stringify(unk.resolutionProposal.draftPatch) === JSON.stringify(finalDraftPatch) &&
+              unk.lastError === undefined
+            ) {
+              return state;
             }
 
             const updatedUnknown: ForgeSourceUnknown = {
               ...unk,
               resolutionProposal: {
-                resolution: resolution.trim(),
-                targetEffect:
-                  targetEffect?.trim() ||
-                  unk.resolutionProposal?.targetEffect ||
-                  unk.targetEffect,
+                resolution: res,
+                targetEffect: eff,
                 draftPatch: finalDraftPatch,
               },
               lastError: undefined,

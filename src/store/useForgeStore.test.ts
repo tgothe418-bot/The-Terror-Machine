@@ -1022,6 +1022,7 @@ describe('useForgeStore - draft state and actions', () => {
       rationale: 'Elevates psychological tension.',
       sourceDraftRevision: initialDraftRevision,
       sourceBaselineRevision: initialBaselineRevision,
+      createdAt: 1000,
     });
 
     const result = forgeActions.applyPendingDepictionContractProposal();
@@ -1055,6 +1056,7 @@ describe('useForgeStore - draft state and actions', () => {
       rationale: 'Gothic tone.',
       sourceDraftRevision: initialDraftRevision,
       sourceBaselineRevision: initialBaselineRevision,
+      createdAt: 1000,
     });
 
     // Mutate draft directly (advances draftRevision)
@@ -1086,6 +1088,7 @@ describe('useForgeStore - draft state and actions', () => {
       rationale: 'Gothic tone updated.',
       sourceDraftRevision: state.draftRevision,
       sourceBaselineRevision: state.sourceBaselineRevision,
+      createdAt: 2000,
     });
 
     // Advance sourceBaselineRevision by registering an analysis
@@ -1131,6 +1134,7 @@ describe('useForgeStore - draft state and actions', () => {
       rationale: 'Test dismiss.',
       sourceDraftRevision: 1,
       sourceBaselineRevision: 1,
+      createdAt: 1000,
     });
 
     expect(getForgeState().pendingDepictionContractProposal).not.toBeNull();
@@ -1228,14 +1232,80 @@ describe('useForgeStore - draft state and actions', () => {
     expect(getForgeState().sourceBaselineRevision).toBe(1);
     expect(getForgeState().draftRevision).toBe(1);
 
-    // --- 1. Successful baseline mutations increment sourceBaselineRevision ---
-    forgeActions.registerSourceAnalysis({
+    // --- 1. Incomplete Proposals Rejection (No Fabricated Defaults) ---
+    // A. Proposal missing createdAt must be rejected
+    // @ts-expect-error missing createdAt
+    forgeActions.setPendingDepictionContractProposal({
+      contract: {
+        dramaticRegister: 'Cosmic Horror',
+        directness: 'Direct',
+        aftermath: 'Lethal',
+        ambiguityHandling: 'Total',
+        specialBoundaries: '',
+      },
+      rationale: 'Valid rationale.',
+      sourceDraftRevision: 1,
+      sourceBaselineRevision: 1,
+    });
+    expect(getForgeState().pendingDepictionContractProposal).toBeNull();
+
+    // B. Proposal missing revisions must be rejected (no default to 1)
+    // @ts-expect-error missing revisions
+    forgeActions.setPendingDepictionContractProposal({
+      contract: {
+        dramaticRegister: 'Cosmic Horror',
+        directness: 'Direct',
+        aftermath: 'Lethal',
+        ambiguityHandling: 'Total',
+        specialBoundaries: '',
+      },
+      rationale: 'Valid rationale.',
+      createdAt: 1000,
+    });
+    expect(getForgeState().pendingDepictionContractProposal).toBeNull();
+
+    // C. Proposal with empty contract strings must be rejected
+    // @ts-expect-error empty contract strings
+    forgeActions.setPendingDepictionContractProposal({
+      contract: {
+        dramaticRegister: '',
+        directness: '',
+        aftermath: '',
+        ambiguityHandling: '',
+        specialBoundaries: '',
+      },
+      rationale: 'Valid rationale.',
+      sourceDraftRevision: 1,
+      sourceBaselineRevision: 1,
+      createdAt: 1000,
+    });
+    expect(getForgeState().pendingDepictionContractProposal).toBeNull();
+
+    // D. Proposal with empty rationale must be rejected
+    // @ts-expect-error empty rationale
+    forgeActions.setPendingDepictionContractProposal({
+      contract: {
+        dramaticRegister: 'Cosmic Horror',
+        directness: 'Direct',
+        aftermath: 'Lethal',
+        ambiguityHandling: 'Total',
+        specialBoundaries: '',
+      },
+      rationale: '   ',
+      sourceDraftRevision: 1,
+      sourceBaselineRevision: 1,
+      createdAt: 1000,
+    });
+    expect(getForgeState().pendingDepictionContractProposal).toBeNull();
+
+    // --- 2. Baseline Mutations & Semantic No-Op Equality Checks ---
+    const initialAnalysis = {
       id: 'analysis-rev-test',
       sourceRecord: {
         id: 'src-rev',
         fileName: 'baseline_intake.json',
         mimeType: 'application/json',
-        kind: 'native_blueprint',
+        kind: 'native_blueprint' as const,
         receivedAt: Date.now(),
       },
       evidence: [],
@@ -1243,48 +1313,145 @@ describe('useForgeStore - draft state and actions', () => {
         {
           id: 'cand-rev-1',
           sourceId: 'src-rev',
-          classification: 'evidence',
-          target: 'setting_location',
+          classification: 'evidence' as const,
+          target: 'setting_location' as const,
           label: 'Location',
           explanation: 'Source location',
           evidenceIds: [],
           proposedValue: 'Perimeter Wall',
-          reviewDecision: 'accepted',
-          applicationState: 'staged',
+          reviewDecision: 'accepted' as const,
+          applicationState: 'staged' as const,
         },
       ],
       unknowns: [
         {
           id: 'unk-rev-1',
           sourceId: 'analysis-rev-test',
-          category: 'rule',
+          category: 'rule' as const,
           question: 'What is beyond the wall?',
           targetEffect: 'Clarifies world boundary.',
-          status: 'queued',
+          status: 'queued' as const,
           followUps: [],
         },
       ],
-      status: 'completed',
-    });
+      status: 'completed' as const,
+    };
+
+    // Register new analysis -> advances to 2
+    forgeActions.registerSourceAnalysis(initialAnalysis);
     expect(getForgeState().sourceBaselineRevision).toBe(2);
 
-    // Review decision change advances baseline revision
+    // Register identical analysis -> NO-OP (remains 2)
+    forgeActions.registerSourceAnalysis(initialAnalysis);
+    expect(getForgeState().sourceBaselineRevision).toBe(2);
+
+    // Review decision change -> advances to 3
     forgeActions.setCandidateReviewDecision('analysis-rev-test', 'cand-rev-1', 'rejected');
     expect(getForgeState().sourceBaselineRevision).toBe(3);
 
-    // Redundant decision change is a no-op and does NOT advance baseline revision
+    // Redundant review decision -> NO-OP (remains 3)
     forgeActions.setCandidateReviewDecision('analysis-rev-test', 'cand-rev-1', 'rejected');
     expect(getForgeState().sourceBaselineRevision).toBe(3);
 
-    // Edit staged candidate advances baseline revision
+    // Edit staged candidate with new value -> advances to 4
     forgeActions.editStagedCandidate('analysis-rev-test', 'cand-rev-1', 'Inner Courtyard');
     expect(getForgeState().sourceBaselineRevision).toBe(4);
 
-    // Invalid edit is a no-op and does NOT advance baseline revision
+    // Edit staged candidate with same value -> NO-OP (remains 4)
+    forgeActions.editStagedCandidate('analysis-rev-test', 'cand-rev-1', 'Inner Courtyard');
+    expect(getForgeState().sourceBaselineRevision).toBe(4);
+
+    // Invalid candidate edit -> NO-OP (remains 4)
     forgeActions.editStagedCandidate('analysis-rev-test', 'cand-rev-1', '');
     expect(getForgeState().sourceBaselineRevision).toBe(4);
 
-    // --- 2. Depiction Contract Proposal: Revisions & Stale Apply Protection ---
+    // Submit unknown answer -> advances to 5
+    forgeActions.submitUnknownAnswer(
+      'analysis-rev-test',
+      'unk-rev-1',
+      'Radioactive wasteland beyond the wall.'
+    );
+    expect(getForgeState().sourceBaselineRevision).toBe(5);
+
+    // Submit duplicate identical answer -> NO-OP (remains 5)
+    forgeActions.submitUnknownAnswer(
+      'analysis-rev-test',
+      'unk-rev-1',
+      'Radioactive wasteland beyond the wall.'
+    );
+    expect(getForgeState().sourceBaselineRevision).toBe(5);
+
+    // Receive follow-up question -> advances to 6
+    forgeActions.receiveUnknownFollowUp(
+      'analysis-rev-test',
+      'unk-rev-1',
+      'Is there active radiation shielding?'
+    );
+    expect(getForgeState().sourceBaselineRevision).toBe(6);
+
+    // Receive duplicate follow-up question -> NO-OP (remains 6)
+    forgeActions.receiveUnknownFollowUp(
+      'analysis-rev-test',
+      'unk-rev-1',
+      'Is there active radiation shielding?'
+    );
+    expect(getForgeState().sourceBaselineRevision).toBe(6);
+
+    // Receive proposal -> advances to 7
+    const proposalObj = {
+      resolution: 'The wall shields against ambient gamma bursts.',
+      targetEffect: 'Clarifies world boundary.',
+    };
+    forgeActions.receiveUnknownProposal('analysis-rev-test', 'unk-rev-1', proposalObj);
+    expect(getForgeState().sourceBaselineRevision).toBe(7);
+
+    // Receive identical proposal -> NO-OP (remains 7)
+    forgeActions.receiveUnknownProposal('analysis-rev-test', 'unk-rev-1', proposalObj);
+    expect(getForgeState().sourceBaselineRevision).toBe(7);
+
+    // Edit proposal with identical values -> NO-OP (remains 7)
+    forgeActions.editUnknownProposal(
+      'analysis-rev-test',
+      'unk-rev-1',
+      'The wall shields against ambient gamma bursts.',
+      'Clarifies world boundary.'
+    );
+    expect(getForgeState().sourceBaselineRevision).toBe(7);
+
+    // Edit proposal with modified resolution -> advances to 8
+    forgeActions.editUnknownProposal(
+      'analysis-rev-test',
+      'unk-rev-1',
+      'The wall shields against ambient gamma bursts and particulate drift.',
+      'Clarifies world boundary.'
+    );
+    expect(getForgeState().sourceBaselineRevision).toBe(8);
+
+    // Set unknown error -> advances to 9
+    forgeActions.setUnknownError('analysis-rev-test', 'unk-rev-1', 'Network timeout');
+    expect(getForgeState().sourceBaselineRevision).toBe(9);
+
+    // Set same error -> NO-OP (remains 9)
+    forgeActions.setUnknownError('analysis-rev-test', 'unk-rev-1', 'Network timeout');
+    expect(getForgeState().sourceBaselineRevision).toBe(9);
+
+    // Retry unknown (clears error) -> advances to 10
+    forgeActions.retryUnknown('analysis-rev-test', 'unk-rev-1');
+    expect(getForgeState().sourceBaselineRevision).toBe(10);
+
+    // Retry unknown when already queued with no error -> NO-OP (remains 10)
+    forgeActions.retryUnknown('analysis-rev-test', 'unk-rev-1');
+    expect(getForgeState().sourceBaselineRevision).toBe(10);
+
+    // Leave unknown uncertain (contextual discretion) -> advances to 11
+    forgeActions.leaveUnknownUncertain('analysis-rev-test', 'unk-rev-1', 'Keep boundary mysterious.');
+    expect(getForgeState().sourceBaselineRevision).toBe(11);
+
+    // Repeated contextual discretion with same guidance -> NO-OP (remains 11)
+    forgeActions.leaveUnknownUncertain('analysis-rev-test', 'unk-rev-1', 'Keep boundary mysterious.');
+    expect(getForgeState().sourceBaselineRevision).toBe(11);
+
+    // --- 3. Proposal Lifecycle, Stale Protection, and Atomic Apply ---
     const currentDraftRev = getForgeState().draftRevision;
     const currentBaselineRev = getForgeState().sourceBaselineRevision;
 
@@ -1299,7 +1466,7 @@ describe('useForgeStore - draft state and actions', () => {
       rationale: 'Elevates psychological isolation.',
       sourceDraftRevision: currentDraftRev,
       sourceBaselineRevision: currentBaselineRev,
-      createdAt: Date.now(),
+      createdAt: 12345678,
     };
 
     forgeActions.setPendingDepictionContractProposal(validProposal);
@@ -1308,12 +1475,8 @@ describe('useForgeStore - draft state and actions', () => {
       getForgeState().pendingDepictionContractProposal?.contract.dramaticRegister
     ).toBe('Claustrophobic Dread');
 
-    // Mutate baseline (submit answer) -> advances sourceBaselineRevision
-    forgeActions.submitUnknownAnswer(
-      'analysis-rev-test',
-      'unk-rev-1',
-      'Radioactive wasteland beyond the wall.'
-    );
+    // Mutate baseline -> advances sourceBaselineRevision
+    forgeActions.removeSourceAnalysis('analysis-rev-test');
     expect(getForgeState().sourceBaselineRevision).toBe(currentBaselineRev + 1);
 
     // Stale apply fails because baseline revision moved
@@ -1323,7 +1486,6 @@ describe('useForgeStore - draft state and actions', () => {
       expect(staleBaselineRes.stale).toBe(true);
       expect(staleBaselineRes.error).toContain('Proposal is stale');
     }
-    // Draft remains unmutated, pending proposal is retained
     expect(getForgeState().forgeDraft?.depictionContract?.dramaticRegister).not.toBe(
       'Claustrophobic Dread'
     );
@@ -1382,7 +1544,7 @@ describe('useForgeStore - draft state and actions', () => {
       'Strictly avoid jump scares'
     );
 
-    // --- 3. Persistence Migration and Rehydration Testing ---
+    // --- 4. Persistence Migration and Rehydration Testing ---
     const persistOptions =
       useForgeState.persist?.getOptions?.() || useForgeStoreInternal.persist?.getOptions?.();
     const migrate = persistOptions?.migrate;
@@ -1411,7 +1573,26 @@ describe('useForgeStore - draft state and actions', () => {
       const migratedLegacyPatch = migrate(legacyPatchProposalState as any, 4) as any;
       expect(migratedLegacyPatch.pendingDepictionContractProposal).toBeNull();
 
-      // C. Valid complete proposal is retained during migration
+      // C. Incomplete proposal missing revisions is discarded during migration
+      const incompleteProposalState = {
+        forgeDraft: { id: 'd-inc', title: 'Incomplete' },
+        draftRevision: 3,
+        sourceBaselineRevision: 2,
+        pendingDepictionContractProposal: {
+          contract: {
+            dramaticRegister: 'Cosmic',
+            directness: 'Direct',
+            aftermath: 'Lethal',
+            ambiguityHandling: 'Total',
+          },
+          rationale: 'Missing revisions & timestamp',
+        },
+      };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const migratedIncomplete = migrate(incompleteProposalState as any, 4) as any;
+      expect(migratedIncomplete.pendingDepictionContractProposal).toBeNull();
+
+      // D. Valid complete proposal is retained during migration
       const completeProposalState = {
         forgeDraft: { id: 'd3', title: 'Valid Complete' },
         draftRevision: 4,
@@ -1438,6 +1619,7 @@ describe('useForgeStore - draft state and actions', () => {
       );
       expect(migratedComplete.pendingDepictionContractProposal.sourceDraftRevision).toBe(4);
       expect(migratedComplete.pendingDepictionContractProposal.sourceBaselineRevision).toBe(5);
+      expect(migratedComplete.pendingDepictionContractProposal.createdAt).toBe(123456789);
     }
   });
 });
