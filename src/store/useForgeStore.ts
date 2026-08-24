@@ -23,8 +23,8 @@ import {
   ForgeSourceUnknown,
   BlueprintAmbiguityDecision,
   DepictionContract,
-  DepictionContractPatch,
-  DepictionContractPatchSchema,
+  DepictionContractProposal,
+  DepictionContractProposalSchema,
   ForgeResolutionProposal,
   ForgeResolutionDraftPatch,
 } from '../types/forge';
@@ -326,11 +326,13 @@ export interface ForgeActions {
     replacementPatch?: ForgeResolutionDraftPatch
   ) => void;
 
-  // --- DEPICTION CONTRACT ACTIONS (Packet 1B Proposal-Isolation) ---
+  // --- DEPICTION CONTRACT ACTIONS (Packet 1B Isolated Proposal / Packet 04A Revision-Bound Complete Proposal) ---
   setPendingDepictionContractProposal: (
-    proposal: { patch: DepictionContractPatch; rationale: string; createdAt?: number } | null
+    proposal: DepictionContractProposal | null
   ) => void;
-  applyPendingDepictionContractProposal: () => void;
+  applyPendingDepictionContractProposal: () =>
+    | { success: true }
+    | { success: false; error: string; stale?: boolean };
   dismissPendingDepictionContractProposal: () => void;
   updateDepictionContractField: (field: keyof DepictionContract, value: string) => void;
 
@@ -381,13 +383,10 @@ export interface ForgeState {
    */
   draftBlueprint: ForgeDraft | null;
   draftRevision: number;
+  sourceBaselineRevision: number;
 
-  // --- DEPICTION CONTRACT PROPOSAL STATE (Packet 1B Isolated Proposal) ---
-  pendingDepictionContractProposal: {
-    patch: DepictionContractPatch;
-    rationale: string;
-    createdAt: number;
-  } | null;
+  // --- DEPICTION CONTRACT PROPOSAL STATE (Packet 04A Revision-Bound Complete Proposal) ---
+  pendingDepictionContractProposal: DepictionContractProposal | null;
 
   // --- SOURCE INTAKE STATE (Phase 3D-2) ---
   sourceAnalyses: Record<string, ForgeSourceAnalysis>;
@@ -479,6 +478,7 @@ const initialState: ForgeState = {
   forgeDraft: null,
   draftBlueprint: null,
   draftRevision: 1,
+  sourceBaselineRevision: 1,
   pendingDepictionContractProposal: null,
   sourceAnalyses: {},
   architectMessages: [
@@ -535,6 +535,7 @@ export const useForgeStoreInternal = create<ForgeStore>()(
             forgeDraft: draft,
             draftBlueprint: draft,
             draftRevision: 1,
+            sourceBaselineRevision: 1,
             pendingDepictionContractProposal: null,
             castLedger: deriveCastLedger(draft),
             topology: deriveTopology(draft),
@@ -614,63 +615,70 @@ export const useForgeStoreInternal = create<ForgeStore>()(
         resetStore: () => set(initialState),
         clearHistory: () => set(initialState),
 
-        // --- DEPICTION CONTRACT ACTIONS (Packet 1B Isolated Proposal) ---
+        // --- DEPICTION CONTRACT ACTIONS (Packet 1B Isolated Proposal / Packet 04A Revision-Bound Complete Proposal) ---
         setPendingDepictionContractProposal: (
-          proposal: { patch: DepictionContractPatch; rationale: string; createdAt?: number } | null
+          proposal: DepictionContractProposal | null
         ) => {
-          if (!proposal) {
+          if (proposal === null) {
             set({ pendingDepictionContractProposal: null });
             return;
           }
-          const parseResult = DepictionContractPatchSchema.safeParse(proposal.patch);
+          const parseResult = DepictionContractProposalSchema.safeParse(proposal);
           if (!parseResult.success) {
-            console.warn('[FORGE DEPICTION CONTRACT] Rejected malformed proposal patch:', parseResult.error);
+            console.warn('[FORGE DEPICTION CONTRACT] Rejected invalid proposal:', parseResult.error);
             return;
           }
           set({
-            pendingDepictionContractProposal: {
-              patch: parseResult.data,
-              rationale: proposal.rationale || '',
-              createdAt: proposal.createdAt ?? Date.now(),
-            },
+            pendingDepictionContractProposal: parseResult.data,
           });
         },
 
         applyPendingDepictionContractProposal: () => {
+          let outcome:
+            | { success: true }
+            | { success: false; error: string; stale?: boolean } = {
+            success: true,
+          };
+
           set((state: ForgeState) => {
-            if (!state.pendingDepictionContractProposal) return state;
+            const proposal = state.pendingDepictionContractProposal;
+            if (!proposal) {
+              outcome = { success: false, error: 'No pending depiction contract proposal' };
+              return state;
+            }
+
+            // Recheck both proposal revisions against current state inside the action
+            const currentDraftRevision = state.draftRevision || 1;
+            const currentBaselineRevision = state.sourceBaselineRevision || 1;
+
+            if (
+              proposal.sourceDraftRevision !== currentDraftRevision ||
+              proposal.sourceBaselineRevision !== currentBaselineRevision
+            ) {
+              outcome = {
+                success: false,
+                error: `Proposal is stale (source draft r${proposal.sourceDraftRevision}/base r${proposal.sourceBaselineRevision} vs current draft r${currentDraftRevision}/base r${currentBaselineRevision})`,
+                stale: true,
+              };
+              // A stale proposal remains stored and produces a failure result; it does not change the draft or either revision.
+              return state;
+            }
+
             const currentDraft = state.forgeDraft || createInitialDraft();
-            const currentContract = currentDraft.depictionContract || {
-              dramaticRegister: '',
-              directness: '',
-              aftermath: '',
-              ambiguityHandling: '',
-              specialBoundaries: '',
-            };
-            const patch = state.pendingDepictionContractProposal.patch;
             const updatedContract: DepictionContract = {
-              dramaticRegister:
-                patch.dramaticRegister !== undefined
-                  ? patch.dramaticRegister
-                  : currentContract.dramaticRegister,
-              directness:
-                patch.directness !== undefined ? patch.directness : currentContract.directness,
-              aftermath:
-                patch.aftermath !== undefined ? patch.aftermath : currentContract.aftermath,
-              ambiguityHandling:
-                patch.ambiguityHandling !== undefined
-                  ? patch.ambiguityHandling
-                  : currentContract.ambiguityHandling,
-              specialBoundaries:
-                patch.specialBoundaries !== undefined
-                  ? patch.specialBoundaries
-                  : (currentContract.specialBoundaries || ''),
+              dramaticRegister: proposal.contract.dramaticRegister,
+              directness: proposal.contract.directness,
+              aftermath: proposal.contract.aftermath,
+              ambiguityHandling: proposal.contract.ambiguityHandling,
+              specialBoundaries: proposal.contract.specialBoundaries || '',
             };
 
             const updatedDraft: ForgeDraft = {
               ...currentDraft,
               depictionContract: updatedContract,
             };
+
+            outcome = { success: true };
 
             return {
               forgeDraft: updatedDraft,
@@ -679,6 +687,8 @@ export const useForgeStoreInternal = create<ForgeStore>()(
               draftRevision: (state.draftRevision || 0) + 1,
             };
           });
+
+          return outcome;
         },
 
         dismissPendingDepictionContractProposal: () => {
@@ -728,6 +738,7 @@ export const useForgeStoreInternal = create<ForgeStore>()(
                 ...state.sourceAnalyses,
                 [validAnalysis.id]: validAnalysis,
               },
+              sourceBaselineRevision: (state.sourceBaselineRevision || 0) + 1,
             };
           }),
 
@@ -742,6 +753,11 @@ export const useForgeStoreInternal = create<ForgeStore>()(
             const cand = analysis.candidates.find((c) => c.id === candidateId);
             if (!cand) return state;
 
+            // Semantic no-op check
+            if (cand.reviewDecision === decision && cand.applicationState === 'staged') {
+              return state;
+            }
+
             const updatedCand = setCandidateReviewDecisionPure(cand, decision);
             const updatedCandidates = analysis.candidates.map((c) =>
               c.id === candidateId ? updatedCand : c
@@ -755,6 +771,7 @@ export const useForgeStoreInternal = create<ForgeStore>()(
                   candidates: updatedCandidates,
                 },
               },
+              sourceBaselineRevision: (state.sourceBaselineRevision || 0) + 1,
             };
           }),
 
@@ -780,6 +797,7 @@ export const useForgeStoreInternal = create<ForgeStore>()(
                   candidates: updatedCandidates,
                 },
               },
+              sourceBaselineRevision: (state.sourceBaselineRevision || 0) + 1,
             };
           }),
 
@@ -860,6 +878,7 @@ export const useForgeStoreInternal = create<ForgeStore>()(
               forgeDraft: workingDraft,
               draftBlueprint: workingDraft,
               draftRevision: (state.draftRevision || 0) + 1,
+              sourceBaselineRevision: (state.sourceBaselineRevision || 0) + 1,
               castLedger: deriveCastLedger(workingDraft),
               topology: deriveTopology(workingDraft),
               sourceAnalyses: {
@@ -884,6 +903,10 @@ export const useForgeStoreInternal = create<ForgeStore>()(
             const cand = analysis.candidates.find((c) => c.id === candidateId);
             if (!cand) return state;
 
+            if (cand.reviewDecision === 'rejected' && cand.applicationState === 'staged') {
+              return state;
+            }
+
             const updatedCand = rejectCandidatePure(cand);
             const updatedCandidates = analysis.candidates.map((c) =>
               c.id === candidateId ? updatedCand : c
@@ -897,15 +920,18 @@ export const useForgeStoreInternal = create<ForgeStore>()(
                   candidates: updatedCandidates,
                 },
               },
+              sourceBaselineRevision: (state.sourceBaselineRevision || 0) + 1,
             };
           }),
 
         removeSourceAnalysis: (sourceId: string) =>
           set((state: ForgeState) => {
+            if (!state.sourceAnalyses[sourceId]) return state;
             const remaining = { ...state.sourceAnalyses };
             delete remaining[sourceId];
             return {
               sourceAnalyses: remaining,
+              sourceBaselineRevision: (state.sourceBaselineRevision || 0) + 1,
             };
           }),
 
@@ -948,6 +974,7 @@ export const useForgeStoreInternal = create<ForgeStore>()(
                   unknowns: updatedUnknowns,
                 },
               },
+              sourceBaselineRevision: (state.sourceBaselineRevision || 0) + 1,
             };
           }),
 
@@ -985,6 +1012,7 @@ export const useForgeStoreInternal = create<ForgeStore>()(
                   unknowns: updatedUnknowns,
                 },
               },
+              sourceBaselineRevision: (state.sourceBaselineRevision || 0) + 1,
             };
           }),
 
@@ -1022,6 +1050,7 @@ export const useForgeStoreInternal = create<ForgeStore>()(
                   unknowns: updatedUnknowns,
                 },
               },
+              sourceBaselineRevision: (state.sourceBaselineRevision || 0) + 1,
             };
           }),
 
@@ -1144,6 +1173,7 @@ export const useForgeStoreInternal = create<ForgeStore>()(
               forgeDraft: workingDraft,
               draftBlueprint: workingDraft,
               draftRevision: (state.draftRevision || 0) + 1,
+              sourceBaselineRevision: (state.sourceBaselineRevision || 0) + 1,
               castLedger: deriveCastLedger(workingDraft),
               topology: deriveTopology(workingDraft),
               sourceAnalyses: {
@@ -1199,6 +1229,7 @@ export const useForgeStoreInternal = create<ForgeStore>()(
               forgeDraft: updatedDraft,
               draftBlueprint: updatedDraft,
               draftRevision: (state.draftRevision || 0) + 1,
+              sourceBaselineRevision: (state.sourceBaselineRevision || 0) + 1,
               sourceAnalyses: {
                 ...state.sourceAnalyses,
                 [analysis.id]: {
@@ -1234,6 +1265,7 @@ export const useForgeStoreInternal = create<ForgeStore>()(
                   unknowns: updatedUnknowns,
                 },
               },
+              sourceBaselineRevision: (state.sourceBaselineRevision || 0) + 1,
             };
           }),
 
@@ -1262,6 +1294,7 @@ export const useForgeStoreInternal = create<ForgeStore>()(
                   unknowns: updatedUnknowns,
                 },
               },
+              sourceBaselineRevision: (state.sourceBaselineRevision || 0) + 1,
             };
           }),
 
@@ -1315,6 +1348,7 @@ export const useForgeStoreInternal = create<ForgeStore>()(
                   unknowns: updatedUnknowns,
                 },
               },
+              sourceBaselineRevision: (state.sourceBaselineRevision || 0) + 1,
             };
           }),
 
@@ -1646,7 +1680,7 @@ export const useForgeStoreInternal = create<ForgeStore>()(
     {
       name: 'the-forge-memory',
       storage: createJSONStorage(() => idbStorage),
-      version: 4,
+      version: 5,
       migrate: (persistedState: unknown) => {
         if (!persistedState || typeof persistedState !== 'object') return persistedState;
         const stateRecord = persistedState as Record<string, unknown>;
@@ -1662,6 +1696,21 @@ export const useForgeStoreInternal = create<ForgeStore>()(
         }
         if (stateRecord.sourceAnalyses !== undefined) {
           stateRecord.sourceAnalyses = sanitizeSourceAnalyses(stateRecord.sourceAnalyses);
+        }
+        if (typeof stateRecord.sourceBaselineRevision !== 'number') {
+          stateRecord.sourceBaselineRevision = 1;
+        }
+        if (stateRecord.pendingDepictionContractProposal) {
+          const parseRes = DepictionContractProposalSchema.safeParse(
+            stateRecord.pendingDepictionContractProposal
+          );
+          if (parseRes.success) {
+            stateRecord.pendingDepictionContractProposal = parseRes.data;
+          } else {
+            stateRecord.pendingDepictionContractProposal = null;
+          }
+        } else {
+          stateRecord.pendingDepictionContractProposal = null;
         }
         return stateRecord;
       },
@@ -1680,7 +1729,19 @@ export const useForgeStoreInternal = create<ForgeStore>()(
           if (!state.draftRevision || typeof state.draftRevision !== 'number') {
             state.draftRevision = 1;
           }
-          state.pendingDepictionContractProposal = null;
+          if (!state.sourceBaselineRevision || typeof state.sourceBaselineRevision !== 'number') {
+            state.sourceBaselineRevision = 1;
+          }
+          if (state.pendingDepictionContractProposal) {
+            const parseRes = DepictionContractProposalSchema.safeParse(
+              state.pendingDepictionContractProposal
+            );
+            if (parseRes.success) {
+              state.pendingDepictionContractProposal = parseRes.data;
+            } else {
+              state.pendingDepictionContractProposal = null;
+            }
+          }
           state.sourceAnalyses = sanitizeSourceAnalyses(state.sourceAnalyses);
           // Ensure draftBlueprint is aligned with forgeDraft
           state.draftBlueprint = state.forgeDraft;
@@ -1693,6 +1754,8 @@ export const useForgeStoreInternal = create<ForgeStore>()(
         return {
           forgeDraft: state.forgeDraft,
           draftRevision: state.draftRevision || 1,
+          sourceBaselineRevision: state.sourceBaselineRevision || 1,
+          pendingDepictionContractProposal: state.pendingDepictionContractProposal,
           sourceAnalyses: state.sourceAnalyses,
           architectMessages: state.architectMessages,
           who: state.who,
