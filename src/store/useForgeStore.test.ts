@@ -1,4 +1,4 @@
-import { expect, test, describe, beforeEach } from 'vitest';
+import { expect, test, describe, beforeEach, it } from 'vitest';
 import 'fake-indexeddb/auto';
 import {
   forgeActions,
@@ -10,6 +10,7 @@ import {
   sanitizeSourceAnalyses,
 } from './useForgeStore';
 import { TopologyEdge } from '../types';
+import { DepictionContract, DepictionContractProposal } from '../types/forge';
 import { useAppStore } from './useAppStore';
 
 describe('useForgeStore - draft state and actions', () => {
@@ -494,8 +495,9 @@ describe('useForgeStore - draft state and actions', () => {
     const result = forgeActions.applyAcceptedCandidates('analysis-batch-fail');
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.errors['cand-invalid-expr']).toBeDefined();
-      expect(result.errors['cand-invalid-expr']).toContain('not found in active draft');
+      const errs = (result as { success: false; errors: Record<string, string> }).errors;
+      expect(errs['cand-invalid-expr']).toBeDefined();
+      expect(errs['cand-invalid-expr']).toContain('not found in active draft');
     }
 
     const stateAfterFail = getForgeState();
@@ -1007,7 +1009,8 @@ describe('useForgeStore - draft state and actions', () => {
       rationale: 'Incomplete',
       sourceDraftRevision: 1,
       sourceBaselineRevision: 1,
-    });
+      createdAt: 1000,
+    } as unknown as DepictionContractProposal);
 
     state = getForgeState();
     expect(state.pendingDepictionContractProposal).toBeNull();
@@ -1688,6 +1691,169 @@ describe('useForgeStore - draft state and actions', () => {
         }
       }
     }
+  });
+
+  describe('17. Negative bypass proofs: source data and unreviewed proposals cannot mutate draft', () => {
+    beforeEach(() => {
+      forgeActions.resetStore();
+    });
+
+    it('proves raw extraction and unreviewed candidates never mutate forgeDraft', () => {
+      forgeActions.initializeDraft({ title: 'Baseline Scenario' });
+      const initialDraft = JSON.parse(JSON.stringify(getForgeState().forgeDraft));
+      const initialDraftRev = getForgeState().draftRevision;
+
+      // Register an analysis with unreviewed staged candidates
+      const analysis = {
+        id: 'analysis-bypass-1',
+        sourceRecord: {
+          id: 'src-bypass-1',
+          fileName: 'classified_brief.pdf',
+          mimeType: 'application/pdf',
+          kind: 'document' as const,
+          receivedAt: Date.now(),
+        },
+        summary: 'Classified facility breach report.',
+        evidence: [
+          { id: 'ev-1', sourceId: 'src-bypass-1', category: 'setting' as const, claim: 'Facility is buried under permafrost.' },
+        ],
+        candidates: [
+          {
+            id: 'cand-bypass-1',
+            sourceId: 'src-bypass-1',
+            classification: 'evidence' as const,
+            target: 'setting_location' as const,
+            label: 'Sub-Zero Facility',
+            proposedValue: 'Permafrost Bunker 9',
+            explanation: 'Derived from brief',
+            evidenceIds: ['ev-1'],
+            reviewDecision: 'accepted' as const,
+            applicationState: 'staged' as const,
+          },
+          {
+            id: 'cand-bypass-2',
+            sourceId: 'src-bypass-1',
+            classification: 'evidence' as const,
+            target: 'scenario_title' as const,
+            label: 'Bunker 9 Outbreak',
+            proposedValue: 'The Permafrost Incident',
+            explanation: 'Derived from title',
+            evidenceIds: ['ev-1'],
+            reviewDecision: 'rejected' as const,
+            applicationState: 'staged' as const,
+          },
+        ],
+        unknowns: [
+          {
+            id: 'unk-bypass-1',
+            sourceId: 'src-bypass-1',
+            category: 'premise' as const,
+            question: 'What triggered the breach?',
+            targetEffect: 'Determines primary threat behavior.',
+            status: 'queued' as const,
+            followUps: [],
+          },
+        ],
+        status: 'completed' as const,
+      };
+
+      forgeActions.registerSourceAnalysis(analysis);
+
+      // Registration must NOT mutate draft or advance draftRevision
+      expect(getForgeState().forgeDraft).toEqual(initialDraft);
+      expect(getForgeState().draftRevision).toBe(initialDraftRev);
+
+      // Setting candidate review decision to rejected leaves draft unchanged
+      forgeActions.setCandidateReviewDecision('analysis-bypass-1', 'cand-bypass-1', 'rejected');
+      expect(getForgeState().forgeDraft).toEqual(initialDraft);
+      expect(getForgeState().draftRevision).toBe(initialDraftRev);
+
+      // Applying accepted candidates on rejected batch performs ZERO draft mutations
+      forgeActions.applyAcceptedCandidates('analysis-bypass-1');
+      expect(getForgeState().forgeDraft).toEqual(initialDraft);
+      expect(getForgeState().draftRevision).toBe(initialDraftRev);
+    });
+
+    it('proves unaccepted Architect proposals and unresolved unknowns perform zero draft mutations', () => {
+      forgeActions.initializeDraft({ title: 'Baseline Scenario' });
+      const initialDraft = JSON.parse(JSON.stringify(getForgeState().forgeDraft));
+      const initialDraftRev = getForgeState().draftRevision;
+
+      const analysis = {
+        id: 'analysis-bypass-2',
+        sourceRecord: {
+          id: 'src-bypass-2',
+          fileName: 'signals.txt',
+          mimeType: 'text/plain',
+          kind: 'document' as const,
+          receivedAt: Date.now(),
+        },
+        summary: 'Signal interception log.',
+        evidence: [],
+        candidates: [],
+        unknowns: [
+          {
+            id: 'unk-bypass-2',
+            sourceId: 'src-bypass-2',
+            category: 'premise' as const,
+            question: 'Origin of signal?',
+            targetEffect: 'Establishes cosmic origin.',
+            status: 'queued' as const,
+            followUps: [],
+          },
+        ],
+        status: 'completed' as const,
+      };
+
+      forgeActions.registerSourceAnalysis(analysis);
+      forgeActions.submitUnknownAnswer('analysis-bypass-2', 'unk-bypass-2', 'Deep cosmic beacon.');
+      forgeActions.receiveUnknownProposal('analysis-bypass-2', 'unk-bypass-2', {
+        resolution: 'The beacon originates from an extinct star system.',
+        targetEffect: 'Sets cosmic scale.',
+      });
+
+      // Receiving a proposal does NOT mutate the draft
+      expect(getForgeState().forgeDraft).toEqual(initialDraft);
+      expect(getForgeState().draftRevision).toBe(initialDraftRev);
+      expect(getForgeState().forgeDraft!.ambiguities).toEqual([]);
+
+      // Leaving unknown uncertain records CONTEXTUAL_DISCRETION without mutating general draft fields
+      forgeActions.leaveUnknownUncertain('analysis-bypass-2', 'unk-bypass-2', 'Investigate later');
+      expect(getForgeState().forgeDraft!.title).toBe(initialDraft.title);
+      expect(getForgeState().forgeDraft!.premise).toBe(initialDraft.premise);
+      expect(getForgeState().forgeDraft!.ambiguities).toHaveLength(1);
+      expect(getForgeState().forgeDraft!.ambiguities![0].resolutionMode).toBe('CONTEXTUAL_DISCRETION');
+    });
+
+    it('proves stale or unapplied depiction contract proposals perform zero draft mutations', () => {
+      forgeActions.initializeDraft({ title: 'Baseline Scenario' });
+      const initialContract = getForgeState().forgeDraft!.depictionContract;
+      const initialDraftRev = getForgeState().draftRevision;
+
+      // Staged proposal with mismatched revision
+      const staleProposal = {
+        contract: {
+          dramaticRegister: 'Cosmic dread',
+          directness: 'Oblique',
+          aftermath: 'Dissolution',
+          ambiguityHandling: 'Total void',
+          specialBoundaries: 'No jump scares',
+        },
+        rationale: 'Stale rationale',
+        sourceDraftRevision: initialDraftRev + 99, // mismatched
+        sourceBaselineRevision: getForgeState().sourceBaselineRevision,
+        createdAt: Date.now(),
+      };
+
+      forgeActions.setPendingDepictionContractProposal(staleProposal);
+      expect(getForgeState().forgeDraft!.depictionContract).toEqual(initialContract);
+
+      // Attempting to apply stale proposal fails closed with zero mutation
+      const result = forgeActions.applyPendingDepictionContractProposal();
+      expect(result.success).toBe(false);
+      expect(getForgeState().forgeDraft!.depictionContract).toEqual(initialContract);
+      expect(getForgeState().draftRevision).toBe(initialDraftRev);
+    });
   });
 });
 

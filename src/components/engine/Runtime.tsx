@@ -564,60 +564,52 @@ export default function Runtime() {
         engineGameStateBefore,
       };
 
+      // 1. Prepare complete situated game state covering all canonical receipt domains
+      const baseGameState = latestEngineState.gameState || ({} as typeof latestEngineState.gameState);
+      const preparedGameState = {
+        ...baseGameState,
+        ...(response.canonicalConsequenceReceipt
+          ? {
+              inventory: [...response.canonicalConsequenceReceipt.post_state.inventory],
+              player_injuries: [...response.canonicalConsequenceReceipt.post_state.player_injuries],
+              psychological_status:
+                response.canonicalConsequenceReceipt.post_state.psychological_status,
+            }
+          : {}),
+        ...(response.characterStanceReceipt
+          ? {
+              character_stance: createCharacterStanceState(
+                response.characterStanceReceipt.post_state
+              ),
+            }
+          : {}),
+        ...(response.characterRelationshipReceipt
+          ? {
+              character_relationships: createCharacterRelationshipState(
+                response.characterRelationshipReceipt.post_state
+              ),
+            }
+          : {}),
+        ...(response.characterMemoryReceipt
+          ? {
+              character_memory: createCharacterMemoryState(
+                response.characterMemoryReceipt.post_state
+              ),
+            }
+          : {}),
+        world_memory: createWorldMemoryState(response.worldMemoryReceipt.post_state),
+        ...(nextCharacterContinuity ? { character_continuity: nextCharacterContinuity } : {}),
+        ...(nextCharacterPresence ? { character_presence: nextCharacterPresence } : {}),
+      };
+
+      // 2. Atomic Transaction Execution:
+      // A. Commit canonical app state & checkpoint
       dispatch({ type: 'TURN_COMMITTED', payload: committedTurnPayload });
 
-      if (response.canonicalConsequenceReceipt) {
-        const consequenceReceipt = response.canonicalConsequenceReceipt;
-        useEngineStore.getState().patchGameState({
-          inventory: [...consequenceReceipt.post_state.inventory],
-          player_injuries: [...consequenceReceipt.post_state.player_injuries],
-          psychological_status: consequenceReceipt.post_state.psychological_status,
-        });
-      }
+      // B. Commit complete prepared situated game state in a single write
+      useEngineStore.getState().setGameState(preparedGameState as any);
 
-      if (response.characterStanceReceipt) {
-        const stanceReceipt = response.characterStanceReceipt;
-        useEngineStore.getState().patchGameState({
-          character_stance: createCharacterStanceState(stanceReceipt.post_state),
-        });
-      }
-
-      if (response.characterRelationshipReceipt) {
-        const relationshipReceipt = response.characterRelationshipReceipt;
-        useEngineStore.getState().patchGameState({
-          character_relationships: createCharacterRelationshipState(
-            relationshipReceipt.post_state
-          ),
-        });
-      }
-
-      if (response.characterMemoryReceipt) {
-        useEngineStore.getState().patchGameState({
-          character_memory: createCharacterMemoryState(
-            response.characterMemoryReceipt.post_state
-          ),
-        });
-      }
-
-      useEngineStore.getState().patchGameState({
-        world_memory: createWorldMemoryState(
-          response.worldMemoryReceipt.post_state
-        ),
-      });
-
-      if (activeBlueprint) {
-        const patchPayload: Partial<typeof latestEngineState.gameState> = {};
-        if (nextCharacterContinuity) {
-          patchPayload.character_continuity = nextCharacterContinuity;
-        }
-        if (nextCharacterPresence) {
-          patchPayload.character_presence = nextCharacterPresence;
-        }
-        if (Object.keys(patchPayload).length > 0) {
-          latestEngineState.patchGameState(patchPayload);
-        }
-      }
-
+      // C. Post-commit presentation projection (strictly non-canonical presentation data)
       const presentationPatch = projectPresentationPatch(response.logic_state);
       if (Object.keys(presentationPatch).length > 0) {
         useEngineStore.getState().patchGameState(presentationPatch);

@@ -699,5 +699,90 @@ describe('useAppStore retakeLastTurn integration', () => {
         });
       }
     );
+
+    it('allows retake of the last successful turn even after a subsequent turn failure occurs', () => {
+      // 1. Initial State
+      const initialGameState = {
+        current_location: 'Basement Entry',
+        player_injuries: [],
+        inventory: ['Iron Key'],
+        psychological_status: 'CALM',
+        player_role: 'witness' as const,
+        player_character_id: null,
+        perspective_mode: 'witness' as const,
+        current_tension_level: 'buildup' as const,
+        lore_and_memory: {
+          established_facts: [],
+          permanent_consequences: [],
+        },
+        npc_fixations: [],
+      };
+      useEngineStore.getState().setGameState(initialGameState);
+
+      // 2. Commit successful Turn 1
+      const preSnapshot = captureRuntimeSnapshot(useAppStore.getState());
+      const turn1Payload: CommittedTurnPayload = {
+        commandText: 'Unlock the cellar gate',
+        formattedText: 'The lock clicks open with a hollow scrape.',
+        preSnapshot,
+        engineGameStateBefore: JSON.parse(JSON.stringify(initialGameState)),
+        frame: {
+          narrative_blocks: [{ type: 'prose', content: 'The lock clicks open.' }],
+          logic_state: {
+            current_phase: 'MANIFEST',
+            suggested_tension: 30,
+          },
+        },
+        turnReceipt: {
+          turnNumber: 1,
+          nodeBefore: 'ORIGIN',
+          requestedTarget: 'CELLAR',
+          accepted: true,
+          nodeAfter: 'CELLAR',
+          activeVector: 'COGNITIVE',
+          activeTier: 'LATENT',
+          tension: 30,
+          preSnapshot,
+        },
+      };
+
+      useAppStore.getState().commitTurnResult(turn1Payload);
+      useEngineStore.getState().setGameState({
+        ...initialGameState,
+        current_location: 'Cellar Interior',
+        inventory: ['Iron Key', 'Heavy Crowbar'],
+        psychological_status: 'TENSE',
+      });
+
+      expect(useAppStore.getState().turnCount).toBe(1);
+      expect(useAppStore.getState().lastTurnCheckpoint).not.toBeNull();
+
+      // 3. Simulate Turn 2 failing (e.g. provider network timeout)
+      const preSnapshot2 = captureRuntimeSnapshot(useAppStore.getState());
+      useAppStore.getState().dispatch({
+        type: 'TURN_FAILED',
+        payload: {
+          commandText: 'Sprint into the darkness',
+          errorCategory: 'PROVIDER_FAILURE',
+          errorMessage: 'The AI provider turn generation failed.',
+          statusCode: 502,
+          preSnapshot: preSnapshot2,
+        },
+      });
+
+      // Failed turn must preserve the checkpoint from Turn 1!
+      expect(useAppStore.getState().lastTurnCheckpoint).not.toBeNull();
+      expect(useAppStore.getState().lastTurnCheckpoint?.commandText).toBe('Unlock the cellar gate');
+
+      // 4. Retake should successfully revert Turn 1
+      const retakeSuccess = useAppStore.getState().retakeLastTurn();
+      expect(retakeSuccess).toBe(true);
+
+      expect(useAppStore.getState().turnCount).toBe(0);
+      expect(useAppStore.getState().lastTurnCheckpoint).toBeNull();
+      expect(useEngineStore.getState().gameState?.current_location).toBe('Basement Entry');
+      expect(useEngineStore.getState().gameState?.inventory).toEqual(['Iron Key']);
+      expect(useEngineStore.getState().gameState?.psychological_status).toBe('CALM');
+    });
   });
 });

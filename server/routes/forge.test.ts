@@ -12,6 +12,7 @@ vi.mock('../utils/aiClient', () => ({
 }));
 
 import { createApp } from '../app';
+import { registerServerSourceAnalysis, clearServerSourceRegistry } from './forge';
 
 describe('Forge Routes: /api/extract-blueprint', () => {
   let server: http.Server;
@@ -166,6 +167,84 @@ describe('Forge Routes: /api/extract-blueprint', () => {
   });
 
   describe('Forge Routes: /api/architect ambiguity resolution', () => {
+    beforeAll(() => {
+      clearServerSourceRegistry();
+      registerServerSourceAnalysis('src-1', 'war_log.txt', ['unk-1']);
+    });
+
+    it('rejects unregistered sourceId with HTTP 400 and UNREGISTERED_SOURCE_IDENTITY code', async () => {
+      const response = await fetch(`${baseUrl}/api/architect`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          kind: 'AMBIGUITY_RESOLUTION',
+          userMessage: 'Testing unregistered source',
+          activeUnknown: {
+            sourceId: 'src-UNREGISTERED',
+            unknownId: 'unk-1',
+            category: 'premise',
+            question: 'Unregistered question?',
+            targetEffect: 'Effect',
+            submittedAnswer: 'Answer',
+            followUps: [],
+          },
+          draftContext: { title: 'Test', premise: 'Premise', draftRevision: 1 },
+          sourceContext: { sourceFileName: 'test.txt', sourceSummary: 'Summary', evidence: [], canonicalAmbiguities: [] },
+          history: [],
+        }),
+      });
+
+      expect(response.status).toBe(400);
+      const json = await response.json();
+      expect(json.code).toBe('UNREGISTERED_SOURCE_IDENTITY');
+      expect(json.error).toContain('Unregistered source identity');
+    });
+
+    it('rejects unregistered unknownId for a registered source with HTTP 400 and UNREGISTERED_UNKNOWN_IDENTITY code', async () => {
+      const response = await fetch(`${baseUrl}/api/architect`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          kind: 'AMBIGUITY_RESOLUTION',
+          userMessage: 'Testing unregistered unknown',
+          activeUnknown: {
+            sourceId: 'src-1',
+            unknownId: 'unk-UNKNOWN-ID',
+            category: 'premise',
+            question: 'Unknown gap?',
+            targetEffect: 'Effect',
+            submittedAnswer: 'Answer',
+            followUps: [],
+          },
+          draftContext: { title: 'Test', premise: 'Premise', draftRevision: 1 },
+          sourceContext: { sourceFileName: 'war_log.txt', sourceSummary: 'Summary', evidence: [], canonicalAmbiguities: [] },
+          history: [],
+        }),
+      });
+
+      expect(response.status).toBe(400);
+      const json = await response.json();
+      expect(json.code).toBe('UNREGISTERED_UNKNOWN_IDENTITY');
+      expect(json.error).toContain('Unregistered unknown identity');
+    });
+
+    it('registers a source and unknown IDs via /api/register-source', async () => {
+      const regResponse = await fetch(`${baseUrl}/api/register-source`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sourceId: 'src-new-123',
+          fileName: 'station_log.txt',
+          unknownIds: ['unk-a', 'unk-b'],
+        }),
+      });
+
+      expect(regResponse.status).toBe(200);
+      const regJson = await regResponse.json();
+      expect(regJson.success).toBe(true);
+      expect(regJson.sourceId).toBe('src-new-123');
+    });
+
     const testCases = [
       {
         scenario: 'malformed non-JSON output',

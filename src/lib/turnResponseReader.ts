@@ -103,11 +103,30 @@ export class TurnResponseError extends Error {
   }
 }
 
-export const SAFE_UNEXPECTED_TURN_MESSAGE =
-  'The turn service returned an unexpected response. The session state was not changed.';
+export const SAFE_ERROR_MESSAGES: Record<string, string> = {
+  MODEL_CONTRACT_MISMATCH:
+    'The turn service returned an invalid response structure. The session state was not changed.',
+  PROVIDER_FAILURE:
+    'The AI provider turn generation failed. The session state was not changed.',
+  INVALID_REQUEST:
+    'The turn request was invalid. The session state was not changed.',
+  NON_JSON_TURN_RESPONSE:
+    'The turn service returned an unexpected non-JSON response. The session state was not changed.',
+  MALFORMED_TURN_RESPONSE:
+    'The turn service returned a malformed response. The session state was not changed.',
+  TURN_NETWORK_FAILURE:
+    'A network failure occurred while contacting the turn service. The session state was not changed.',
+  UNKNOWN_ERROR:
+    'The turn service returned an unexpected response. The session state was not changed.',
+};
 
-export const SAFE_NETWORK_ERROR_MESSAGE =
-  'A network failure occurred while contacting the turn service. The session state was not changed.';
+export const SAFE_UNEXPECTED_TURN_MESSAGE = SAFE_ERROR_MESSAGES.UNKNOWN_ERROR;
+
+export const SAFE_NETWORK_ERROR_MESSAGE = SAFE_ERROR_MESSAGES.TURN_NETWORK_FAILURE;
+
+export function resolveSafeFailureMessage(code: string): string {
+  return SAFE_ERROR_MESSAGES[code] || SAFE_UNEXPECTED_TURN_MESSAGE;
+}
 
 function extractContentType(response: Response): string | null {
   const header = response.headers?.get?.('content-type');
@@ -134,7 +153,7 @@ export async function readTurnResponse<T = unknown>(response: Response): Promise
       code: 'NON_JSON_TURN_RESPONSE',
       status: response.status,
       contentType,
-      message: SAFE_UNEXPECTED_TURN_MESSAGE,
+      message: resolveSafeFailureMessage('NON_JSON_TURN_RESPONSE'),
     });
   }
 
@@ -147,7 +166,7 @@ export async function readTurnResponse<T = unknown>(response: Response): Promise
       code: 'MALFORMED_TURN_RESPONSE',
       status: response.status,
       contentType,
-      message: SAFE_UNEXPECTED_TURN_MESSAGE,
+      message: resolveSafeFailureMessage('MALFORMED_TURN_RESPONSE'),
     });
   }
 
@@ -159,7 +178,7 @@ export async function readTurnResponse<T = unknown>(response: Response): Promise
       code: 'MALFORMED_TURN_RESPONSE',
       status: response.status,
       contentType,
-      message: SAFE_UNEXPECTED_TURN_MESSAGE,
+      message: resolveSafeFailureMessage('MALFORMED_TURN_RESPONSE'),
     });
   }
 
@@ -176,28 +195,7 @@ export async function readTurnResponse<T = unknown>(response: Response): Promise
         : null;
 
     const code = serverCode || 'TURN_HTTP_FAILURE';
-
-    let safeMessage = '';
-    if (
-      errorObj &&
-      typeof errorObj.message === 'string' &&
-      errorObj.message.trim().length > 0 &&
-      !errorObj.message.includes('<html') &&
-      !errorObj.message.includes('<!DOCTYPE')
-    ) {
-      safeMessage = errorObj.message;
-    } else if (
-      errorObj &&
-      typeof errorObj.error === 'string' &&
-      errorObj.error.trim().length > 0 &&
-      !errorObj.error.includes('<html') &&
-      !errorObj.error.includes('<!DOCTYPE')
-    ) {
-      safeMessage = errorObj.error;
-    } else {
-      safeMessage = `The turn service returned an HTTP ${response.status} error. The session state was not changed.`;
-    }
-
+    const safeMessage = resolveSafeFailureMessage(code);
     const diagnostics = sanitizeTurnFailureDiagnostics(errorObj?.diagnostics);
 
     throw new TurnResponseError({
@@ -220,7 +218,7 @@ export function createNetworkTurnError(): TurnResponseError {
     code: 'TURN_NETWORK_FAILURE',
     status: null,
     contentType: null,
-    message: SAFE_NETWORK_ERROR_MESSAGE,
+    message: resolveSafeFailureMessage('TURN_NETWORK_FAILURE'),
   });
 }
 
@@ -244,17 +242,7 @@ export function toTurnFailureReceipt(err: unknown): TurnFailureReceipt {
           : null;
     const contentType = typeof errorObj.contentType === 'string' ? errorObj.contentType : null;
     const diagnostics = sanitizeTurnFailureDiagnostics(errorObj.diagnostics);
-
-    let message = SAFE_UNEXPECTED_TURN_MESSAGE;
-    if (
-      typeof errorObj.message === 'string' &&
-      errorObj.message.trim().length > 0 &&
-      !errorObj.message.includes('<html') &&
-      !errorObj.message.includes('<!DOCTYPE') &&
-      !errorObj.message.includes('is not valid JSON')
-    ) {
-      message = errorObj.message;
-    }
+    const message = resolveSafeFailureMessage(code);
 
     return {
       code,
@@ -269,7 +257,7 @@ export function toTurnFailureReceipt(err: unknown): TurnFailureReceipt {
     code: 'UNKNOWN_ERROR',
     status: null,
     contentType: null,
-    message: SAFE_UNEXPECTED_TURN_MESSAGE,
+    message: resolveSafeFailureMessage('UNKNOWN_ERROR'),
   };
 }
 

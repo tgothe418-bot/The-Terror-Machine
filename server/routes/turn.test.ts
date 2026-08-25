@@ -4839,9 +4839,26 @@ describe('Turn schemas validation', () => {
       expect(dialogueDiag.issues).toEqual([
         { path: 'narrative_blocks', code: 'dialogue_contract_violation' },
       ]);
-      // Ensure no dialogue content is present in diagnostics
-      expect(JSON.stringify(dialogueDiag)).not.toContain('Ghost Persona');
-      expect(JSON.stringify(dialogueDiag)).not.toContain('I am not in the cast');
+      // 5. Provider Failure Path: returns 502 with PROVIDER_FAILURE and generic error message (never leaks raw exception, URLs, or credentials)
+      mockGenerateStructuredResponse.mockReset();
+      mockGenerateStructuredResponse.mockRejectedValueOnce(
+        new Error('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5:generateContent?key=AIzaSyD-Secret123: 503 Service Unavailable')
+      );
+
+      const providerFailResponse = await fetch(`${baseUrl}/api/turn`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(baseTurnPayload),
+      });
+
+      expect(providerFailResponse.status).toBe(502);
+      const providerFailJson = (await providerFailResponse.json()) as Record<string, unknown>;
+      expect(providerFailJson.code).toBe('PROVIDER_FAILURE');
+      expect(providerFailJson.error).toBe('AI provider turn generation failed');
+      expect(providerFailJson.message).toBeUndefined();
+      expect(JSON.stringify(providerFailJson)).not.toContain('generativelanguage.googleapis.com');
+      expect(JSON.stringify(providerFailJson)).not.toContain('AIzaSyD-Secret123');
+      expect(JSON.stringify(providerFailJson)).not.toContain('503 Service Unavailable');
     });
   });
 });

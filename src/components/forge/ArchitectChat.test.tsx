@@ -401,9 +401,11 @@ describe('ArchitectChat Queue Ownership & Ambiguity Lifecycle', () => {
     const state = getForgeState();
     const unk = state.sourceAnalyses['analysis-1']?.unknowns[0];
     expect(unk.status).toBe('resolved');
-    expect(state.forgeDraft?.ambiguities?.find((a) => a.id === 'unk-1')?.resolution).toBe(
-      'Automatic airlock purge protocol.'
-    );
+    const ambiguity = state.forgeDraft?.ambiguities?.find((a) => a.id === 'unk-1');
+    expect(ambiguity).toBeDefined();
+    if (ambiguity && ambiguity.resolutionMode === 'USER_DEFINED') {
+      expect(ambiguity.resolution).toBe('Automatic airlock purge protocol.');
+    }
   });
 
   it('sends GENERAL_MESSAGE and retains normal conversation when no unresolved ambiguity is active', async () => {

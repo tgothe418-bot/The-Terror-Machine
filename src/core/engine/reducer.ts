@@ -354,16 +354,6 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
     }
 
     case 'TURN_FAILED': {
-      const lastTurnCheckpoint =
-        event.payload.allowRetake === false
-          ? null
-          : {
-              version: 1 as const,
-              commandText: event.payload.commandText,
-              engineStateBefore: captureRetakeRestorableState(state),
-              engineGameStateBefore: event.payload.engineGameStateBefore ?? null,
-            };
-
       const receipt: TurnFailureReceipt = event.payload.failureReceipt || {
         code: event.payload.errorCategory || 'UNKNOWN_ERROR',
         status: event.payload.statusCode ?? null,
@@ -417,7 +407,8 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
 
       return {
         ...state,
-        lastTurnCheckpoint,
+        // Preserve prior successful turn checkpoint unchanged
+        lastTurnCheckpoint: state.lastTurnCheckpoint,
         history: [...(state.history || []), userMsg, failMsg],
       };
     }

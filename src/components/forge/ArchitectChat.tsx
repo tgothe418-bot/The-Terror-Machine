@@ -200,7 +200,7 @@ export const ArchitectChat: React.FC = () => {
     setLocalResolutionError(null);
     const outcome = acceptUnknownResolution(sourceId, activeUnk.id);
     if (!outcome.success) {
-      setLocalResolutionError(`Failed to apply draft patch: ${outcome.error}`);
+      setLocalResolutionError(`Failed to apply draft patch: ${(outcome as { success: false; error: string }).error}`);
     }
   };
 
@@ -415,11 +415,7 @@ export const ArchitectChat: React.FC = () => {
 
         // Packet 1B: Depiction Contract proposal isolation
         if (data.type === 'DEPICTION_CONTRACT_PROPOSAL' && data.proposal) {
-          forgeActions.setPendingDepictionContractProposal({
-            patch: data.proposal.contract,
-            rationale: data.proposal.rationale || data.message || '',
-            createdAt: data.proposal.createdAt || Date.now(),
-          });
+          forgeActions.setPendingDepictionContractProposal(data.proposal);
         } else if (data.depictionContractProposal) {
           forgeActions.setPendingDepictionContractProposal(data.depictionContractProposal);
         }

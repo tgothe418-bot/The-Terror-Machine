@@ -436,12 +436,12 @@ describe('Runtime component terminal retake behavior', () => {
     expect(useEngineStore.getState().gameState.world_memory).toEqual(initialWorldMemory);
     expect(useEngineStore.getState().gameState.world_memory).toHaveLength(1);
 
-    // Verify error message in engine transcript
+    // Verify error message in engine transcript contains safe error and not raw internal exception
     const history = useAppStore.getState().history;
-    const criticalErrorMsg = history.find((m) =>
-      m.content.includes('Malformed turn response: missing required characterMemoryReceipt or worldMemoryReceipt')
-    );
-    expect(criticalErrorMsg).toBeDefined();
+    const failureMsg = history.find((m) => m.failureReceipt?.code === 'UNKNOWN_ERROR');
+    expect(failureMsg).toBeDefined();
+    expect(failureMsg?.content).toContain('[ENGINE FAILURE // UNKNOWN_ERROR]');
+    expect(failureMsg?.content).not.toContain('Malformed turn response');
   });
 
   it('preserves non-first selected player_character_id, role, and perspective mode identically across turn completion and retake', async () => {

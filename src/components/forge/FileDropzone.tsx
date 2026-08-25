@@ -48,6 +48,18 @@ export const FileDropzone = () => {
         const analysis = buildSourceAnalysisFromBlueprint(sourceRecord, rawJson);
         registerSourceAnalysis(analysis);
 
+        fetch('/api/register-source', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sourceId: analysis.id,
+            fileName: analysis.sourceRecord.fileName,
+            unknownIds: analysis.unknowns.map((u) => u.id),
+          }),
+        }).catch((err) => {
+          console.warn('[FileDropzone] Server registration note:', err);
+        });
+
         addArchitectMessage({
           role: 'architect',
           content: `[SOURCE MATERIAL ANALYZED: ${file.name}]\nExtracted ${analysis.candidates.length} baseline candidates for review. The active authoring draft remains unchanged until you accept candidates.`,

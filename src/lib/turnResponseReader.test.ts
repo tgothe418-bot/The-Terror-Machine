@@ -7,6 +7,7 @@ import {
   TurnResponseError,
   SAFE_UNEXPECTED_TURN_MESSAGE,
   SAFE_NETWORK_ERROR_MESSAGE,
+  resolveSafeFailureMessage,
 } from './turnResponseReader';
 
 describe('turnResponseReader', () => {
@@ -51,7 +52,7 @@ describe('turnResponseReader', () => {
     expect(caughtError?.code).toBe('NON_JSON_TURN_RESPONSE');
     expect(caughtError?.status).toBe(200);
     expect(caughtError?.contentType).toContain('text/html');
-    expect(caughtError?.message).toBe(SAFE_UNEXPECTED_TURN_MESSAGE);
+    expect(caughtError?.message).toBe(resolveSafeFailureMessage('NON_JSON_TURN_RESPONSE'));
     expect(caughtError?.message).not.toContain('<!doctype');
     expect(caughtError?.message).not.toContain('<html');
   });
@@ -76,7 +77,7 @@ describe('turnResponseReader', () => {
     expect(caughtError?.code).toBe('NON_JSON_TURN_RESPONSE');
     expect(caughtError?.status).toBe(502);
     expect(caughtError?.contentType).toBe('text/html');
-    expect(caughtError?.message).toBe(SAFE_UNEXPECTED_TURN_MESSAGE);
+    expect(caughtError?.message).toBe(resolveSafeFailureMessage('NON_JSON_TURN_RESPONSE'));
     expect(caughtError?.message).not.toContain('502 Bad Gateway');
     expect(caughtError?.message).not.toContain('Cloud Run');
   });
@@ -101,14 +102,15 @@ describe('turnResponseReader', () => {
     expect(caughtError?.code).toBe('MALFORMED_TURN_RESPONSE');
     expect(caughtError?.status).toBe(200);
     expect(caughtError?.contentType).toBe('application/json');
-    expect(caughtError?.message).toBe(SAFE_UNEXPECTED_TURN_MESSAGE);
+    expect(caughtError?.message).toBe(resolveSafeFailureMessage('MALFORMED_TURN_RESPONSE'));
     expect(caughtError?.message).not.toContain('Unexpected end of JSON');
     expect(caughtError?.message).not.toContain('is not valid JSON');
   });
 
-  it('5. preserves server error code and safe message from structured JSON errors', async () => {
+  it('5. preserves server error code and maps to safe allowlisted message from structured JSON errors', async () => {
     const errorPayload = {
-      error: 'Model output violated schema contract',
+      error: 'Raw un-sanitized internal server error',
+      message: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5:generateContent failed',
       code: 'MODEL_CONTRACT_MISMATCH',
       details: { issues: [] },
     };
@@ -130,7 +132,62 @@ describe('turnResponseReader', () => {
     expect(caughtError).not.toBeNull();
     expect(caughtError?.code).toBe('MODEL_CONTRACT_MISMATCH');
     expect(caughtError?.status).toBe(502);
-    expect(caughtError?.message).toBe('Model output violated schema contract');
+    expect(caughtError?.message).toBe(
+      'The turn service returned an invalid response structure. The session state was not changed.'
+    );
+    expect(caughtError?.message).not.toContain('generativelanguage.googleapis.com');
+  });
+
+  it('5b. rejects unsafe provider sentinels, endpoint URLs, stack traces, and credentials', async () => {
+    const unsafeSentinels = [
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=AIzaSyD123FakeSecretKey',
+      'GoogleGenerativeAIError: [503 Service Unavailable] at Client.send (/app/node_modules/@google/genai/dist/index.js:142:12)',
+      'RESOURCE_EXHAUSTED: Quota exceeded for project 9876543210. Rate limit: 15 RPM',
+      'Error: Database connection refused at pg_connect (server/db/connection.ts:88:9)',
+      'AIzaSyD-SecretApiKey1234567890abcdef',
+    ];
+
+    for (const unsafeText of unsafeSentinels) {
+      const response = new Response(
+        JSON.stringify({
+          error: unsafeText,
+          message: unsafeText,
+          code: 'PROVIDER_FAILURE',
+        }),
+        {
+          status: 502,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
+
+      let caught: TurnResponseError | null = null;
+      try {
+        await readTurnResponse(response);
+      } catch (err) {
+        if (err instanceof TurnResponseError) {
+          caught = err;
+        }
+      }
+
+      expect(caught).not.toBeNull();
+      expect(caught?.code).toBe('PROVIDER_FAILURE');
+      expect(caught?.message).toBe(
+        'The AI provider turn generation failed. The session state was not changed.'
+      );
+      expect(caught?.message).not.toContain(unsafeText);
+
+      const receipt = toTurnFailureReceipt({
+        code: 'PROVIDER_FAILURE',
+        status: 502,
+        message: unsafeText,
+        error: unsafeText,
+      });
+
+      expect(receipt.message).toBe(
+        'The AI provider turn generation failed. The session state was not changed.'
+      );
+      expect(receipt.message).not.toContain(unsafeText);
+    }
   });
 
   it('6. classifies non-2xx JSON response without code as TURN_HTTP_FAILURE', async () => {
@@ -155,7 +212,7 @@ describe('turnResponseReader', () => {
     expect(caughtError).not.toBeNull();
     expect(caughtError?.code).toBe('TURN_HTTP_FAILURE');
     expect(caughtError?.status).toBe(500);
-    expect(caughtError?.message).toContain('HTTP 500');
+    expect(caughtError?.message).toBe(SAFE_UNEXPECTED_TURN_MESSAGE);
   });
 
   it('7. classifies network-level errors as TURN_NETWORK_FAILURE', () => {
@@ -349,8 +406,10 @@ describe('turnResponseReader', () => {
     }
     expect(manyError?.diagnostics?.issues).toHaveLength(12);
 
-    // 4. The generic user-facing message is unchanged
-    expect(caughtError?.message).toBe('Model output violated schema contract');
+    // 4. The generic user-facing message is the safe allowlisted string
+    expect(caughtError?.message).toBe(
+      'The turn service returned an invalid response structure. The session state was not changed.'
+    );
 
     // 5. HTML and raw model bodies cannot enter diagnostics
     const htmlInDiagnostics = {

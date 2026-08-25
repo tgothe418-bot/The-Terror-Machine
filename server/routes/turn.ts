@@ -866,11 +866,9 @@ ${recentHistory}
         });
       }
       console.error('[API /turn] AI Provider failure:', modelErr);
-      const message = modelErr instanceof Error ? modelErr.message : 'Provider request failed';
       return res.status(502).json({
         error: 'AI provider turn generation failed',
         code: 'PROVIDER_FAILURE',
-        message,
       });
     }
 

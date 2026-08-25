@@ -23,6 +23,7 @@ import {
   MemoryForgeRequestSchema,
   ExtractBlueprintRequestSchema
 } from "../schemas/index";
+import { z } from "zod";
 import {
   REFERENCE_IMPORT_MAX_FILE_BYTES,
   getDecodedBase64ByteLength,
@@ -31,7 +32,49 @@ import {
 import { ForgeSourceRecord } from "../../src/types/forge";
 import { validateAndNormalizeDocumentAnalysis } from "../../src/lib/sourceBaseline";
 
+export interface RegisteredServerSourceEntry {
+  sourceId: string;
+  fileName: string;
+  unknownIds: Set<string>;
+  registeredAt: number;
+}
+
+export const serverSourceRegistry = new Map<string, RegisteredServerSourceEntry>();
+
+export function registerServerSourceAnalysis(
+  sourceId: string,
+  fileName: string,
+  unknownIds: string[]
+): void {
+  serverSourceRegistry.set(sourceId, {
+    sourceId,
+    fileName,
+    unknownIds: new Set(unknownIds),
+    registeredAt: Date.now(),
+  });
+}
+
+export function clearServerSourceRegistry(): void {
+  serverSourceRegistry.clear();
+}
+
 const router = express.Router();
+
+router.post("/register-source", (req, res) => {
+  const RegisterSchema = z.object({
+    sourceId: z.string().min(1),
+    fileName: z.string().min(1),
+    unknownIds: z.array(z.string()),
+  });
+
+  const parsed = RegisterSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: "Invalid registration payload", details: parsed.error.format() });
+  }
+
+  registerServerSourceAnalysis(parsed.data.sourceId, parsed.data.fileName, parsed.data.unknownIds);
+  return res.json({ success: true, sourceId: parsed.data.sourceId });
+});
 
 router.post("/test-blueprint", async (req, res) => {
   const parsedBody = TestBlueprintRequestSchema.safeParse(req.body);
@@ -118,6 +161,22 @@ router.post("/architect", async (req, res) => {
 
     if (parsedBody.data.kind === 'AMBIGUITY_RESOLUTION') {
       const { userMessage, activeUnknown, draftContext, sourceContext, history } = parsedBody.data;
+
+      // Independent Server Identity Verification
+      const registeredSource = serverSourceRegistry.get(activeUnknown.sourceId);
+      if (!registeredSource) {
+        return res.status(400).json({
+          error: `Unregistered source identity "${activeUnknown.sourceId}". Source analysis must be registered before resolution.`,
+          code: 'UNREGISTERED_SOURCE_IDENTITY',
+        });
+      }
+
+      if (!registeredSource.unknownIds.has(activeUnknown.unknownId)) {
+        return res.status(400).json({
+          error: `Unregistered unknown identity "${activeUnknown.unknownId}" for source "${activeUnknown.sourceId}".`,
+          code: 'UNREGISTERED_UNKNOWN_IDENTITY',
+        });
+      }
 
       const formattedHistory = history
         .map((msg) => `${msg.role === 'user' ? 'USER:' : 'ARCHITECT:'}\n${msg.content}`)
@@ -747,6 +806,14 @@ router.post("/extract-blueprint", async (req, res) => {
           error: "Failed to validate source analysis schema.",
           details: analysis.errorMessage ? [analysis.errorMessage] : [],
         });
+      }
+
+      if (analysis.status === 'completed') {
+        registerServerSourceAnalysis(
+          analysis.id,
+          analysis.sourceRecord.fileName,
+          analysis.unknowns.map((u) => u.id)
+        );
       }
 
       res.json({

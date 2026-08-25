@@ -854,7 +854,7 @@ export const useForgeStoreInternal = create<ForgeStore>()(
                 analysis.sourceRecord.fileName
               );
               if (!applyRes.success) {
-                errors[cand.id] = applyRes.error;
+                errors[cand.id] = (applyRes as { success: false; draft: ForgeDraft; error: string }).error;
               } else {
                 workingDraft = applyRes.draft;
                 appliedIds.push(cand.id);
@@ -1167,12 +1167,12 @@ export const useForgeStoreInternal = create<ForgeStore>()(
                 const failedUnknown: ForgeSourceUnknown = {
                   ...unk,
                   status: 'awaiting_confirmation',
-                  lastError: patchResult.error,
+                  lastError: (patchResult as { success: false; error: string }).error,
                 };
                 const updatedUnknowns = analysis.unknowns.map((u) =>
                   u.id === unknownId ? failedUnknown : u
                 );
-                outcome = { success: false, error: patchResult.error };
+                outcome = { success: false, error: (patchResult as { success: false; error: string }).error };
                 return {
                   sourceAnalyses: {
                     ...state.sourceAnalyses,

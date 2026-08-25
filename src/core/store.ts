@@ -295,7 +295,7 @@ export const useEngineStore = create<EngineState>()(
         }
         return {
           ...currentState,
-          ...result.data,
+          ...(result.data as unknown as Partial<EngineState>),
         };
       },
       partialize: (state) => ({

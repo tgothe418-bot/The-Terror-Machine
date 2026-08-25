@@ -930,12 +930,20 @@ describe('engineReducer atomic turn commits', () => {
       expect(nextState.lastTurnCheckpoint).toBeNull();
     });
 
-    it('records a valid lastTurnCheckpoint on TURN_FAILED', () => {
+    it('preserves existing lastTurnCheckpoint on TURN_FAILED without replacing it with failed attempt', () => {
+      const priorCheckpoint = {
+        version: 1 as const,
+        commandText: 'Examine vault door',
+        engineStateBefore: { ...initialEngineState, turnCount: 3, currentNodeId: 'CORRIDOR' },
+        engineGameStateBefore: null,
+      };
+
       const startState = {
         ...initialEngineState,
         turnCount: 4,
         currentNodeId: 'VAULT',
         tensionLevel: 25,
+        lastTurnCheckpoint: priorCheckpoint,
       };
 
       const preSnapshot = captureRuntimeSnapshot(startState);
@@ -968,11 +976,10 @@ describe('engineReducer atomic turn commits', () => {
         payload,
       });
 
-      expect(nextState.lastTurnCheckpoint).toBeDefined();
-      expect(nextState.lastTurnCheckpoint?.commandText).toBe('Force door open');
-      expect(nextState.lastTurnCheckpoint?.engineGameStateBefore).toEqual(prevGameState);
-      expect(nextState.lastTurnCheckpoint?.engineStateBefore.turnCount).toBe(4);
-      expect(nextState.lastTurnCheckpoint?.engineStateBefore.currentNodeId).toBe('VAULT');
+      expect(nextState.lastTurnCheckpoint).toBe(priorCheckpoint);
+      expect(nextState.lastTurnCheckpoint?.commandText).toBe('Examine vault door');
+      expect(nextState.lastTurnCheckpoint?.engineStateBefore.turnCount).toBe(3);
+      expect(nextState.lastTurnCheckpoint?.engineStateBefore.currentNodeId).toBe('CORRIDOR');
     });
 
     it('restores exact pre-turn state and clears checkpoint on TURN_RETAKEN', () => {
@@ -1214,6 +1221,51 @@ describe('engineReducer atomic turn commits', () => {
       expect(assistantMsg.turnReceipt?.canonicalConsequenceReceipt?.post_state.inventory).toEqual([
         'Rusty Screwdriver',
       ]);
+    });
+
+    it('preserves existing lastTurnCheckpoint on TURN_FAILED so failed turn does not destroy retake', () => {
+      const startState = {
+        ...initialEngineState,
+        turnCount: 1,
+        currentNodeId: 'PARLOR',
+        lastTurnCheckpoint: {
+          version: 1 as const,
+          commandText: 'Examine bookcase',
+          engineStateBefore: { ...initialEngineState, currentNodeId: 'FOYER' },
+          engineGameStateBefore: null,
+        },
+      };
+
+      const preSnapshot = captureRuntimeSnapshot(startState);
+      const failedPayload: FailedTurnPayload = {
+        commandText: 'Try impossible action',
+        errorCategory: 'PROVIDER_FAILURE',
+        errorMessage: 'The AI provider turn generation failed.',
+        statusCode: 502,
+        preSnapshot,
+      };
+
+      const afterFailed = engineReducer(startState, {
+        type: 'TURN_FAILED',
+        payload: failedPayload,
+      });
+
+      // Checkpoint must be preserved unchanged (both reference and content)
+      expect(afterFailed.lastTurnCheckpoint).toBe(startState.lastTurnCheckpoint);
+      expect(afterFailed.lastTurnCheckpoint?.commandText).toBe('Examine bookcase');
+      expect(afterFailed.lastTurnCheckpoint?.engineStateBefore.currentNodeId).toBe('FOYER');
+
+      // Repeated failure must still preserve the same checkpoint
+      const secondFailed = engineReducer(afterFailed, {
+        type: 'TURN_FAILED',
+        payload: {
+          ...failedPayload,
+          commandText: 'Another failing action',
+        },
+      });
+
+      expect(secondFailed.lastTurnCheckpoint).toBe(startState.lastTurnCheckpoint);
+      expect(secondFailed.lastTurnCheckpoint?.commandText).toBe('Examine bookcase');
     });
   });
 });
