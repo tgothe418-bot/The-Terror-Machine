@@ -5,7 +5,7 @@ import { useEngineStore } from '../../core/store';
 import { useAppStore } from '../../store/useAppStore';
 import { useHydratedStores } from '../../lib/sessionReconciliation';
 import { motion, AnimatePresence } from 'motion/react';
-import { NarrativeBlock } from '../../types';
+import { NarrativeBlock, TurnReceipt } from '../../types';
 
 /* eslint-disable @typescript-eslint/no-unused-vars */
 // Helper to format blocks for plain text fallback
@@ -24,8 +24,7 @@ import { exportEngineLog } from '../../lib/download';
 import { executeRatificationPipeline } from '../../lib/ratificationPipeline';
 import { createEngineHistoryMessage, createTurnHistoryEvents } from '../../core/engine/turnHistory';
 import type { CommittedTurnPayload } from '../../core/engine/events';
-import type { TurnReceipt } from '../../types';
-import { coordinateCanonicalTurnPublication } from '../../core/engine/commitCoordinator';
+import { coordinateCanonicalTurnPublication, getCanonicalSimulationState } from '../../core/engine/commitCoordinator';
 import { toTurnFailureReceipt } from '../../lib/turnResponseReader';
 import { fetchSimulatedPlayerAction, triggerMemoryForge } from '../../services/geminiService';
 import ErgodicTextRenderer from './ErgodicTextRenderer';
@@ -436,10 +435,10 @@ export default function Runtime() {
     if (!overrideInput) setInput('');
     setIsLoading(true);
 
-    const preSnapshot = captureRuntimeSnapshot(useAppStore.getState());
-    const currentGameState = useEngineStore.getState().gameState;
-    const engineGameStateBefore = currentGameState
-      ? JSON.parse(JSON.stringify(currentGameState))
+    const canonicalPreState = getCanonicalSimulationState();
+    const preSnapshot = captureRuntimeSnapshot(canonicalPreState.app);
+    const engineGameStateBefore = canonicalPreState.gameState
+      ? JSON.parse(JSON.stringify(canonicalPreState.gameState))
       : null;
 
     try {
@@ -643,14 +642,13 @@ export default function Runtime() {
     }
 
     try {
-      // A. Grab current state arrays from your store
-      const currentState = useEngineStore.getState();
-      const appState = useAppStore.getState();
+      // A. Grab coherent simulation state
+      const canonicalState = getCanonicalSimulationState();
 
       // B. Fetch the Ghost Player's action
       const simulatedAction = await fetchSimulatedPlayerAction(
-        appState.history || [],
-        currentState.gameState || null
+        canonicalState.app.history || [],
+        canonicalState.gameState || null
       );
 
       // C. Inject the simulated action into your standard submission pipeline

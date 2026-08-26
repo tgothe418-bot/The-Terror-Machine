@@ -119,7 +119,7 @@ describe('DepictionContractPanel Component Lifecycle', () => {
       status: 'completed',
     };
 
-    forgeActions.registerSourceAnalysis(stagedAnalysis);
+    forgeActions.registerSourceAnalysis(stagedAnalysis, 'mock-binding-staged');
 
     await act(async () => {
       root?.render(React.createElement(DepictionContractPanel));

@@ -598,6 +598,45 @@ export interface LogicState {
   } | null;
 }
 
+export const LogicStateSchema = z
+  .object({
+    current_phase: z.string().optional(),
+    requested_transition: z.string().nullable().optional(),
+    suggested_tension: z.number().optional(),
+    terminal_flags: z.array(z.string()).optional(),
+    escalation_state: z.string().optional(),
+    intent_classification: z.string().optional(),
+    intent_synergy: z.enum(['SUCCESS', 'FAILURE', 'N/A']).optional(),
+    cast_ledger: z.array(z.any()).optional(),
+    cast_deltas: z
+      .array(
+        z.object({
+          character_id: z.string(),
+          skepticism_delta: z.number(),
+        })
+      )
+      .optional(),
+    character_continuity: z.record(z.string(), z.any()).optional(),
+    character_presence: z.record(z.string(), z.any()).optional(),
+    character_stance: z.record(z.string(), z.any()).optional(),
+    character_relationships: z.union([z.array(z.any()), z.record(z.string(), z.any())]).optional(),
+    character_memory: z.record(z.string(), z.any()).optional(),
+    world_memory: z.union([z.array(z.any()), z.record(z.string(), z.any())]).optional(),
+    current_location: z.string().optional(),
+    player_character_id: z.string().nullable().optional(),
+    player_role: z.string().optional(),
+    perspective_mode: z.string().optional(),
+    current_tension_level: z.string().optional(),
+    lore_and_memory: z.any().optional(),
+    psychological_status: z.string().optional(),
+    player_injuries: z.array(z.string()).optional(),
+    inventory: z.array(z.string()).optional(),
+    npc_fixations: z.array(z.string()).optional(),
+    matrix_mutation: z.any().nullable().optional(),
+    matrix_shift: z.any().nullable().optional(),
+  })
+  .passthrough();
+
 export interface FrameValidation {
   accepted: boolean;
   rejected_fields: string[];

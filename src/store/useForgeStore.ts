@@ -73,27 +73,65 @@ export function clearRuntimeSourceBindings(): void {
   runtimeSourceBindings.clear();
 }
 
-export async function notifyServerRevokeBinding(binding: string): Promise<void> {
+export interface ServerBindingOperationResult {
+  success: boolean;
+  code?: string;
+  error?: string;
+}
+
+export async function notifyServerRevokeBinding(binding: string): Promise<ServerBindingOperationResult> {
+  if (!binding || binding.trim().length === 0) {
+    return { success: true };
+  }
   try {
-    await fetch('/api/revoke-source-binding', {
+    const res = await fetch('/api/revoke-source-binding', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sourceBinding: binding }),
     });
-  } catch {
-    // Non-blocking best-effort cleanup
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      return {
+        success: false,
+        code: data.code || `HTTP_${res.status}`,
+        error: data.error || 'Revocation failed',
+      };
+    }
+    return { success: true };
+  } catch (err: unknown) {
+    return {
+      success: false,
+      code: 'NETWORK_ERROR',
+      error: err instanceof Error ? err.message : 'Network error during revocation',
+    };
   }
 }
 
-export async function notifyServerCloseUnknown(binding: string, unknownId: string): Promise<void> {
+export async function notifyServerCloseUnknown(binding: string, unknownId: string): Promise<ServerBindingOperationResult> {
+  if (!binding || binding.trim().length === 0 || !unknownId || unknownId.trim().length === 0) {
+    return { success: true };
+  }
   try {
-    await fetch('/api/close-unknown', {
+    const res = await fetch('/api/close-unknown', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sourceBinding: binding, unknownId }),
     });
-  } catch {
-    // Non-blocking best-effort cleanup
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      return {
+        success: false,
+        code: data.code || `HTTP_${res.status}`,
+        error: data.error || 'Closure failed',
+      };
+    }
+    return { success: true };
+  } catch (err: unknown) {
+    return {
+      success: false,
+      code: 'NETWORK_ERROR',
+      error: err instanceof Error ? err.message : 'Network error during closure',
+    };
   }
 }
 
@@ -330,7 +368,7 @@ export interface ForgeActions {
   clearHistory: () => void;
 
   // --- SOURCE INTAKE & CANDIDATE STAGING ACTIONS ---
-  registerSourceAnalysis: (analysis: ForgeSourceAnalysis) => void;
+  registerSourceAnalysis: (analysis: ForgeSourceAnalysis, sourceBinding?: string) => void;
   setCandidateReviewDecision: (
     sourceId: string,
     candidateId: string,
@@ -792,7 +830,7 @@ export const useForgeStoreInternal = create<ForgeStore>()(
         },
 
         // --- SOURCE INTAKE & SCENARIO BASELINE ACTIONS ---
-        registerSourceAnalysis: (analysis: ForgeSourceAnalysis) =>
+        registerSourceAnalysis: (analysis: ForgeSourceAnalysis, sourceBinding?: string) =>
           set((state: ForgeState) => {
             const parse = ForgeSourceAnalysisSchema.safeParse(analysis);
             if (!parse.success) {
@@ -800,6 +838,16 @@ export const useForgeStoreInternal = create<ForgeStore>()(
               return state;
             }
             const validAnalysis = parse.data;
+            if (sourceBinding && sourceBinding.trim().length > 0) {
+              setRuntimeSourceBinding(validAnalysis.id, sourceBinding.trim());
+            }
+            const activeBinding = getRuntimeSourceBinding(validAnalysis.id);
+            if (!activeBinding || activeBinding.trim().length === 0) {
+              console.warn(
+                `[FORGE BASELINE] Rejected source analysis "${validAnalysis.id}": missing valid server-issued sourceBinding.`
+              );
+              return state;
+            }
             const existing = state.sourceAnalyses[validAnalysis.id];
             if (existing && JSON.stringify(existing) === JSON.stringify(validAnalysis)) {
               return state;

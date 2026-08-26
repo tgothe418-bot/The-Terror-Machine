@@ -112,6 +112,8 @@ export function normalizeHttpStatus(rawStatus: unknown): number | null {
   return null;
 }
 
+const JSON_MIME_REGEX = /^application\/([a-zA-Z0-9_.-]+\+)?json$/i;
+
 /**
  * Normalizes media type case-insensitively before parameters.
  * E.g., 'application/json; charset=utf-8' -> 'application/json'
@@ -121,7 +123,7 @@ export function normalizeContentType(raw: unknown): string | null {
   if (typeof raw !== 'string') return null;
   const base = raw.split(';')[0].trim().toLowerCase();
   if (APPROVED_MEDIA_TYPES.has(base)) return base;
-  if (base.endsWith('+json') || (base.startsWith('application/') && base.includes('json'))) {
+  if (JSON_MIME_REGEX.test(base)) {
     return 'application/json';
   }
   return null;

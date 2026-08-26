@@ -99,7 +99,7 @@ describe('ExportReviewModal Component Snapshot Lifecycle', () => {
       ],
       status: 'completed',
     };
-    forgeActions.registerSourceAnalysis(validAnalysis);
+    forgeActions.registerSourceAnalysis(validAnalysis, 'mock-binding-export-1');
 
     const mockOnClose = vi.fn();
 
@@ -221,7 +221,7 @@ describe('ExportReviewModal Component Snapshot Lifecycle', () => {
       status: 'completed',
     };
     act(() => {
-      forgeActions.registerSourceAnalysis(newAnalysis);
+      forgeActions.registerSourceAnalysis(newAnalysis, 'mock-binding-export-2');
     });
 
     await act(async () => {

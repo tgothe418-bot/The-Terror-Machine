@@ -68,7 +68,7 @@ describe('ArchitectChat Queue Ownership & Ambiguity Lifecycle', () => {
       status: 'completed',
     };
 
-    forgeActions.registerSourceAnalysis(mockAnalysis);
+    forgeActions.registerSourceAnalysis(mockAnalysis, 'binding-test-1');
 
     await act(async () => {
       root?.render(React.createElement(ArchitectChat));
@@ -111,7 +111,7 @@ describe('ArchitectChat Queue Ownership & Ambiguity Lifecycle', () => {
       status: 'completed',
     };
 
-    forgeActions.registerSourceAnalysis(mockAnalysis);
+    forgeActions.registerSourceAnalysis(mockAnalysis, 'binding-test-1');
 
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
@@ -176,7 +176,7 @@ describe('ArchitectChat Queue Ownership & Ambiguity Lifecycle', () => {
       status: 'completed',
     };
 
-    forgeActions.registerSourceAnalysis(mockAnalysis);
+    forgeActions.registerSourceAnalysis(mockAnalysis, 'binding-test-1');
 
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
@@ -237,7 +237,7 @@ describe('ArchitectChat Queue Ownership & Ambiguity Lifecycle', () => {
       status: 'completed',
     };
 
-    forgeActions.registerSourceAnalysis(mockAnalysis);
+    forgeActions.registerSourceAnalysis(mockAnalysis, 'binding-test-1');
 
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
@@ -301,7 +301,7 @@ describe('ArchitectChat Queue Ownership & Ambiguity Lifecycle', () => {
       status: 'completed',
     };
 
-    forgeActions.registerSourceAnalysis(mockAnalysis);
+    forgeActions.registerSourceAnalysis(mockAnalysis, 'binding-test-1');
 
     // Return mismatched IDs in response
     const fetchMock = vi.fn().mockResolvedValue({
@@ -372,7 +372,7 @@ describe('ArchitectChat Queue Ownership & Ambiguity Lifecycle', () => {
       status: 'completed',
     };
 
-    forgeActions.registerSourceAnalysis(mockAnalysis);
+    forgeActions.registerSourceAnalysis(mockAnalysis, 'binding-test-1');
 
     await act(async () => {
       root?.render(React.createElement(ArchitectChat));
@@ -537,7 +537,7 @@ describe('ArchitectChat Queue Ownership & Ambiguity Lifecycle', () => {
           status: 'completed',
         };
 
-        forgeActions.registerSourceAnalysis(mockAnalysis);
+        forgeActions.registerSourceAnalysis(mockAnalysis, 'binding-test-1');
 
         const initialDraft = JSON.parse(JSON.stringify(getForgeState().forgeDraft));
         const initialRevision = getForgeState().draftRevision;

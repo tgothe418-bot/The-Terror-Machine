@@ -947,18 +947,18 @@ describe('Phase 3B: Antagonist Authority Contracts & Victim Framing', () => {
       };
 
       const failureReceipt: TurnFailureReceipt = {
-        code: 'API_TIMEOUT',
+        code: 'PROVIDER_FAILURE',
         status: 504,
         contentType: 'application/json',
-        message: 'The simulation model timed out. Canonical state was not modified.',
+        message: 'The AI provider turn generation failed. The session state was not changed.',
       };
 
       const failedTurnPayload: FailedTurnPayload = {
         commandText: 'Override pneumatic security gates to trap Officer Cole',
         preSnapshot,
         failureReceipt,
-        errorCategory: 'API_TIMEOUT',
-        errorMessage: 'The simulation model timed out. Canonical state was not modified.',
+        errorCategory: 'PROVIDER_FAILURE',
+        errorMessage: 'The AI provider turn generation failed. The session state was not changed.',
         statusCode: 504,
         contentType: 'application/json',
         timestamp: Date.now(),
@@ -998,7 +998,7 @@ describe('Phase 3B: Antagonist Authority Contracts & Victim Framing', () => {
       expect(appStateAfter.history.length).toBe(appStateBefore.history.length + 2);
       const lastMsg = appStateAfter.history[appStateAfter.history.length - 1];
       expect(lastMsg.role).toBe('assistant');
-      expect(lastMsg.failureReceipt?.code).toBe('API_TIMEOUT');
+      expect(lastMsg.failureReceipt?.code).toBe('PROVIDER_FAILURE');
       expect(lastMsg.turnReceipt?.accepted).toBe(false);
 
       // 4. Next turn context generation still includes full contracts

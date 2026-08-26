@@ -52,12 +52,12 @@ import {
 
 export const ArchitectActiveUnknownSchema = z
   .object({
-    sourceBinding: z.string().min(1).max(200).optional(),
-    sourceId: z.string().min(1).max(200),
+    sourceBinding: z.string().min(1).max(200),
+    sourceId: z.string().min(1).max(200).optional(),
     unknownId: z.string().min(1).max(200),
-    category: z.string().min(1).max(100),
-    question: z.string().min(1).max(1000),
-    targetEffect: z.string().min(1).max(1000),
+    category: z.string().min(1).max(100).optional(),
+    question: z.string().min(1).max(1000).optional(),
+    targetEffect: z.string().min(1).max(1000).optional(),
     submittedAnswer: z.string().max(2000).default(''),
     followUps: z
       .array(

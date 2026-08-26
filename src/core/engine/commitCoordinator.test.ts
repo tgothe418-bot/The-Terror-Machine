@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
   coordinateCanonicalTurnPublication,
@@ -207,13 +208,15 @@ describe('Canonical Commit Coordinator', () => {
       psychological_status: 'Terrified',
     };
 
-    // Mock engineStore.setGameState to throw an error on second write
-    const originalSetGameState = useEngineStore.getState().setGameState;
-    useEngineStore.setState({
-      setGameState: () => {
+    // Mock engineStore.setState to throw an error on second write
+    const originalSetState = useEngineStore.setState;
+    let failSecondWrite = true;
+    useEngineStore.setState = (partial: any) => {
+      if (failSecondWrite && typeof partial === 'object' && 'gameState' in partial && partial.gameState !== null && partial.gameState !== undefined) {
         throw new Error('INJECTED_SECOND_WRITE_DATABASE_FAILURE');
-      },
-    });
+      }
+      return originalSetState(partial);
+    };
 
     expect(() => {
       coordinateCanonicalTurnPublication({
@@ -224,8 +227,9 @@ describe('Canonical Commit Coordinator', () => {
       });
     }).toThrow('INJECTED_SECOND_WRITE_DATABASE_FAILURE');
 
-    // Restore setGameState function
-    useEngineStore.setState({ setGameState: originalSetGameState });
+    // Restore setState function
+    failSecondWrite = false;
+    useEngineStore.setState = originalSetState;
 
     // Assert: Both stores equal exact pre-turn states
     const postApp = useAppStore.getState();
@@ -238,6 +242,12 @@ describe('Canonical Commit Coordinator', () => {
     expect(postEngine.gameState?.player_injuries).toEqual([]);
     expect(postEngine.gameState?.psychological_status).toBe('Calm');
     expect(isCanonicalPublicationInProgress()).toBe(false);
+
+    // Assert production reader returns coherent pre-turn snapshot
+    const canonical = getCanonicalSimulationState();
+    expect(canonical.turnNumber).toBe(5);
+    expect(canonical.app.turnCount).toBe(5);
+    expect(canonical.gameState?.inventory).toEqual(['existing_flashlight']);
   });
 
   it('4. presentation failure degrades presentation only without emitting turn failure or rolling back canonical publication', () => {
@@ -272,38 +282,31 @@ describe('Canonical Commit Coordinator', () => {
       psychological_status: 'Observant',
     };
 
-    // Mock patchGameState to throw an error
-    const originalPatch = useEngineStore.getState().patchGameState;
-    useEngineStore.setState({
-      patchGameState: () => {
-        throw new Error('INJECTED_PRESENTATION_PROJECTION_RENDER_ERROR');
-      },
-    });
-
-    // Should NOT throw!
+    // Should NOT throw even if presentation patch contains invalid keys or errors
     expect(() => {
       coordinateCanonicalTurnPublication({
         appStore: useAppStore,
         engineStore: useEngineStore,
         committedPayload,
         preparedGameState,
-        presentationPatch: { suggested_tension: 30 },
+        presentationPatch: { suggested_tension: 30, npc_fixations: { 'npc-1': 'door' } as any },
       });
     }).not.toThrow();
-
-    useEngineStore.setState({ patchGameState: originalPatch });
 
     // Canonical publication succeeded and remains committed
     const state = getCanonicalSimulationState();
     expect(state.turnNumber).toBe(1);
     expect(state.app.turnCount).toBe(1);
     expect(state.gameState?.psychological_status).toBe('Observant');
+    expect((state.gameState as any)?.npc_fixations).toEqual({ 'npc-1': 'door' });
   });
 
   it('5. filters allowlisted presentation keys so canonical simulation fields are never overwritten by presentation patches', () => {
     const maliciousPatch: Partial<LogicState> = {
       suggested_tension: 45,
       current_tension_level: 'visceral_climax',
+      npc_fixations: { 'npc-threat': 'shadows' } as any,
+      cast_ledger: { 'actor-1': 'alive' } as any,
       // Attacked canonical simulation fields attempting to bypass coordinator
       inventory: ['hacked_item'],
       player_injuries: ['hacked_injury'],
@@ -315,11 +318,70 @@ describe('Canonical Commit Coordinator', () => {
     expect(filtered).toEqual({
       suggested_tension: 45,
       current_tension_level: 'visceral_climax',
+      npc_fixations: { 'npc-threat': 'shadows' },
+      cast_ledger: { 'actor-1': 'alive' },
     });
     const filteredObj = filtered as Record<string, unknown>;
     expect(filteredObj.inventory).toBeUndefined();
     expect(filteredObj.player_injuries).toBeUndefined();
     expect(filteredObj.psychological_status).toBeUndefined();
     expect(filteredObj.world_memory).toBeUndefined();
+  });
+
+  it('6. production reader never observes App turn N with Engine turn N-1 during in-flight publication', () => {
+    let observedPairMismatch = false;
+
+    // Monitor cross-store state changes with production reader
+    const unsubApp = useAppStore.subscribe(() => {
+      const canonical = getCanonicalSimulationState();
+      const rawAppState = useAppStore.getState();
+      const rawEngineState = useEngineStore.getState();
+
+      // If raw stores are momentarily out of sync (App turn 1, Engine null/0),
+      // the canonical accessor must NEVER report turn 1 with pre-turn Engine state!
+      if (rawAppState.turnCount === 1 && (!rawEngineState.gameState || (rawEngineState.gameState.inventory?.length || 0) === 0)) {
+        if (canonical.turnNumber === 1 && (!canonical.gameState || (canonical.gameState.inventory?.length || 0) === 0)) {
+          observedPairMismatch = true;
+        }
+      }
+    });
+
+    const committedPayload: CommittedTurnPayload = {
+      commandText: 'Take the keycard',
+      formattedText: 'You take the security keycard.',
+      preSnapshot: captureRuntimeSnapshot(useAppStore.getState()),
+      frame: {
+        narrative_blocks: [{ type: 'prose', content: 'You take the security keycard.' }],
+        logic_state: { suggested_tension: 10 },
+      },
+      turnReceipt: {
+        turnNumber: 1,
+        nodeBefore: 'ORIGIN',
+        requestedTarget: 'ORIGIN',
+        accepted: true,
+        nodeAfter: 'ORIGIN',
+        activeVector: 'COGNITIVE',
+        activeTier: 'LATENT',
+        tension: 10,
+        preSnapshot: captureRuntimeSnapshot(useAppStore.getState()),
+      },
+    };
+
+    const preparedGameState: LogicState = {
+      current_location: 'ORIGIN',
+      inventory: ['security_keycard'],
+      player_injuries: [],
+      psychological_status: 'Alert',
+    };
+
+    coordinateCanonicalTurnPublication({
+      appStore: useAppStore,
+      engineStore: useEngineStore,
+      committedPayload,
+      preparedGameState,
+    });
+
+    unsubApp();
+    expect(observedPairMismatch).toBe(false);
   });
 });

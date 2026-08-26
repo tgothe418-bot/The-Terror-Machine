@@ -28,6 +28,7 @@ import { normalizeBlueprint } from '../lib/normalizeBlueprint';
 import { isHorrorVector, isExposureTier } from '../core/engine/snapshot';
 import { idbStorage } from '../lib/idbStorage';
 import { useEngineStore } from '../core/store';
+import { normalizeTurnFailureReceipt } from '../lib/turnResponseReader';
 
 export const AppPersistedSchema = z.object({
   sessionId: z.string().optional().default(''),
@@ -294,7 +295,27 @@ export const useAppStore = create<AppStore>()(
       commitTurnResult: (payload: CommittedTurnPayload) =>
         set((state) => engineReducer(state, { type: 'TURN_COMMITTED', payload })),
       failTurnResult: (payload: FailedTurnPayload) =>
-        set((state) => engineReducer(state, { type: 'TURN_FAILED', payload })),
+        set((state) => {
+          const normalizedReceipt = normalizeTurnFailureReceipt(
+            payload.failureReceipt || {
+              code: payload.errorCategory,
+              message: payload.errorMessage,
+              status: payload.statusCode,
+              contentType: payload.contentType,
+            }
+          );
+          return engineReducer(state, {
+            type: 'TURN_FAILED',
+            payload: {
+              ...payload,
+              failureReceipt: normalizedReceipt,
+              errorCategory: normalizedReceipt.code,
+              errorMessage: normalizedReceipt.message,
+              statusCode: normalizedReceipt.status,
+              contentType: normalizedReceipt.contentType,
+            },
+          });
+        }),
       retakeLastTurn: () => {
         const currentEngineState = get();
         const checkpoint = currentEngineState.lastTurnCheckpoint;

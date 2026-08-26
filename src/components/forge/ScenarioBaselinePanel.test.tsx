@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { act } from 'react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
@@ -74,7 +74,7 @@ describe('ScenarioBaselinePanel Candidate Atomicity Proof', () => {
       status: 'completed',
     };
 
-    forgeActions.registerSourceAnalysis(mockAnalysis);
+    forgeActions.registerSourceAnalysis(mockAnalysis, 'mock-binding-sb-1');
 
     await act(async () => {
       root?.render(React.createElement(ScenarioBaselinePanel));
@@ -127,7 +127,7 @@ describe('ScenarioBaselinePanel Candidate Atomicity Proof', () => {
       status: 'completed',
     };
 
-    forgeActions.registerSourceAnalysis(mockAnalysis);
+    forgeActions.registerSourceAnalysis(mockAnalysis, 'mock-binding-fail-1');
 
     // Mock applyAcceptedCandidates to return a structured failure result
     vi.spyOn(forgeActions, 'applyAcceptedCandidates').mockReturnValue({
@@ -187,7 +187,7 @@ describe('ScenarioBaselinePanel Candidate Atomicity Proof', () => {
       status: 'completed',
     };
 
-    forgeActions.registerSourceAnalysis(mockAnalysis);
+    forgeActions.registerSourceAnalysis(mockAnalysis, 'mock-binding-binary-test');
 
     await act(async () => {
       root?.render(React.createElement(ScenarioBaselinePanel));
@@ -240,6 +240,8 @@ describe('ScenarioBaselinePanel Candidate Atomicity Proof', () => {
 
     expect(getCandidate().reviewDecision).toBe('rejected');
     expect(getCandidate().applicationState).toBe('staged');
+
+    // Invariant: Active draft remains completely untouched
     expect(getForgeState().forgeDraft).toEqual(initialDraft);
     expect(getForgeState().draftRevision).toBe(initialRevision);
 
@@ -250,34 +252,35 @@ describe('ScenarioBaselinePanel Candidate Atomicity Proof', () => {
 
     expect(getCandidate().reviewDecision).toBe('accepted');
     expect(getCandidate().applicationState).toBe('staged');
+
+    // Invariant: Active draft remains completely untouched
     expect(getForgeState().forgeDraft).toEqual(initialDraft);
     expect(getForgeState().draftRevision).toBe(initialRevision);
   });
 
   it('reviews linked evidence without changing Forge state', async () => {
-    forgeActions.initializeDraft({ title: 'Submersible Delta' });
+    forgeActions.initializeDraft({ title: 'Baseline Title' });
 
     const mockAnalysis: ForgeSourceAnalysis = {
-      id: 'analysis-drawer-test',
+      id: 'analysis-evidence-test',
       sourceRecord: {
-        id: 'src-drawer-1',
+        id: 'src-ev-test',
         fileName: 'telemetry_archive.json',
         mimeType: 'application/json',
-        kind: 'native_blueprint',
+        kind: 'document',
         receivedAt: Date.now(),
       },
-      summary: 'Telemetry indicates extreme benthic pressure anomalies.',
       evidence: [
         {
           id: 'ev-1',
-          sourceId: 'src-drawer-1',
+          sourceId: 'src-ev-test',
           category: 'setting',
           claim: 'Depth recorded at 8000m.',
           excerpt: 'Sensor array reports crush pressure at 8000m in Trench Sector 7.',
         },
         {
           id: 'ev-2',
-          sourceId: 'src-drawer-1',
+          sourceId: 'src-ev-test',
           category: 'rule',
           claim: 'Containment seals require manual pneumatic reset.',
         },
@@ -285,23 +288,23 @@ describe('ScenarioBaselinePanel Candidate Atomicity Proof', () => {
       candidates: [
         {
           id: 'cand-with-ev',
-          sourceId: 'src-drawer-1',
+          sourceId: 'src-ev-test',
           classification: 'evidence',
-          target: 'setting_location',
+          target: 'setting_atmosphere',
           label: 'Trench Sector',
-          explanation: 'Extracted deep trench sector from telemetry',
+          explanation: 'Extracted atmosphere',
           evidenceIds: ['ev-1', 'ev-2'],
-          proposedValue: 'Mariana Trench Sector 7',
+          proposedValue: 'Freezing, high pressure deep trench',
           reviewDecision: 'accepted',
           applicationState: 'staged',
         },
         {
           id: 'cand-no-ev',
-          sourceId: 'src-drawer-1',
+          sourceId: 'src-ev-test',
           classification: 'inference',
           target: 'setting_atmosphere',
           label: 'Atmosphere',
-          explanation: 'Inferred oppressive darkness',
+          explanation: 'Inferred atmospheric darkness',
           evidenceIds: [],
           proposedValue: 'Oppressive darkness',
           reviewDecision: 'accepted',
@@ -312,7 +315,7 @@ describe('ScenarioBaselinePanel Candidate Atomicity Proof', () => {
       status: 'completed',
     };
 
-    forgeActions.registerSourceAnalysis(mockAnalysis);
+    forgeActions.registerSourceAnalysis(mockAnalysis, 'mock-binding-evidence-test');
 
     // Capture initial state before any drawer interactions
     const stateBefore = JSON.parse(JSON.stringify(getForgeState()));

@@ -10,8 +10,7 @@ import {
   ParticipationContext,
   LogicState,
 } from '../../types';
-import { EntityArchetype } from '../../types/reference';
-import { formatTurnFailureMessage } from '../../lib/turnResponseReader';
+import { formatTurnFailureMessage, normalizeTurnFailureReceipt } from '../../lib/turnResponseReader';
 import {
   captureRuntimeSnapshot,
   isHorrorVector,
@@ -34,7 +33,7 @@ export interface RetakeRestorableEngineState {
   roomsGenerated: number;
   maxRooms?: number;
   aesthetic?: string;
-  activeEntities?: EntityArchetype[];
+  activeEntities?: unknown[];
   traumaLedger: string[];
   activeMemory: {
     systemFlags: string[];
@@ -351,14 +350,13 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
     }
 
     case 'TURN_FAILED': {
-      const receipt: TurnFailureReceipt = event.payload.failureReceipt || {
+      const rawReceipt = event.payload.failureReceipt || {
         code: event.payload.errorCategory || 'UNKNOWN_ERROR',
         status: event.payload.statusCode ?? null,
         contentType: event.payload.contentType ?? null,
-        message:
-          event.payload.errorMessage ||
-          'The turn service returned an unexpected response. The session state was not changed.',
+        message: event.payload.errorMessage,
       };
+      const receipt: TurnFailureReceipt = normalizeTurnFailureReceipt(rawReceipt);
 
       const effectiveVector: HorrorVector = state.activeVector || 'COGNITIVE';
       const effectiveTier: ExposureTier = state.activeTier || 'LATENT';

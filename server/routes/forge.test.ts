@@ -1026,4 +1026,436 @@ describe('Forge Routes: /api/extract-blueprint', () => {
       }
     });
   });
+
+  describe('Architect Ambiguity Resolution & Server Source Binding Hardening', () => {
+    beforeAll(() => {
+      clearServerSourceRegistry();
+    });
+
+    it('handles two sources sharing the same unknown ID with distinct server bindings and resolutions', async () => {
+      clearServerSourceRegistry();
+
+      // Source A
+      const bindingA = registerServerSource({
+        id: 'src-source-a',
+        sourceRecord: {
+          id: 'src-source-a',
+          fileName: 'source_a.pdf',
+          mimeType: 'application/pdf',
+          kind: 'document',
+          receivedAt: Date.now(),
+        },
+        summary: 'Source A Summary Report',
+        evidence: [{ id: 'ev-a-1', sourceId: 'src-source-a', category: 'setting', claim: 'Claim A' }],
+        candidates: [],
+        unknowns: [
+          {
+            id: 'unk-shared-1',
+            sourceId: 'src-source-a',
+            category: 'setting',
+            question: 'What is the pressure in Sector A?',
+            targetEffect: 'Determines pressure hazard in A',
+            status: 'queued',
+            followUps: [],
+          },
+        ],
+        status: 'completed',
+      });
+
+      // Source B with identical unknownId 'unk-shared-1'
+      const bindingB = registerServerSource({
+        id: 'src-source-b',
+        sourceRecord: {
+          id: 'src-source-b',
+          fileName: 'source_b.pdf',
+          mimeType: 'application/pdf',
+          kind: 'document',
+          receivedAt: Date.now(),
+        },
+        summary: 'Source B Summary Report',
+        evidence: [{ id: 'ev-b-1', sourceId: 'src-source-b', category: 'rule', claim: 'Claim B' }],
+        candidates: [],
+        unknowns: [
+          {
+            id: 'unk-shared-1',
+            sourceId: 'src-source-b',
+            category: 'rule',
+            question: 'What is the override code in Sector B?',
+            targetEffect: 'Determines lockout behavior in B',
+            status: 'queued',
+            followUps: [],
+          },
+        ],
+        status: 'completed',
+      });
+
+      expect(bindingA).not.toBe(bindingB);
+
+      // Resolve for Source A
+      mockGenerateContent.mockResolvedValueOnce({
+        text: JSON.stringify({
+          type: 'RESOLUTION_PROPOSAL',
+          sourceId: 'src-source-a',
+          unknownId: 'unk-shared-1',
+          message: 'Resolution for A',
+          proposal: {
+            resolution: 'Pressure is 0.5 atm',
+            targetEffect: 'Determines pressure hazard in A',
+          },
+        }),
+      });
+
+      const responseA = await fetch(`${baseUrl}/api/architect`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          kind: 'AMBIGUITY_RESOLUTION',
+          userMessage: 'Pressure was reduced after incident',
+          activeUnknown: {
+            sourceBinding: bindingA,
+            unknownId: 'unk-shared-1',
+            followUps: [],
+          },
+          draftContext: {
+            title: 'Station Alpha',
+            premise: 'Deep station',
+            setting: { location: 'Benthic' },
+            cast: [],
+            environmentalRules: [],
+          },
+          history: [],
+        }),
+      });
+
+      expect(responseA.status).toBe(200);
+      const promptCallA = mockGenerateContent.mock.calls[mockGenerateContent.mock.calls.length - 1][0];
+      expect(promptCallA.contents).toContain('Source ID: src-source-a');
+      expect(promptCallA.contents).toContain('What is the pressure in Sector A?');
+      expect(promptCallA.contents).not.toContain('Source ID: src-source-b');
+      expect(promptCallA.contents).not.toContain(bindingA); // Secret token not in prompt
+
+      // Resolve for Source B
+      mockGenerateContent.mockResolvedValueOnce({
+        text: JSON.stringify({
+          type: 'RESOLUTION_PROPOSAL',
+          sourceId: 'src-source-b',
+          unknownId: 'unk-shared-1',
+          message: 'Resolution for B',
+          proposal: {
+            resolution: 'Code is 9942',
+            targetEffect: 'Determines lockout behavior in B',
+          },
+        }),
+      });
+
+      const responseB = await fetch(`${baseUrl}/api/architect`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          kind: 'AMBIGUITY_RESOLUTION',
+          userMessage: 'Override code is written on terminal',
+          activeUnknown: {
+            sourceBinding: bindingB,
+            unknownId: 'unk-shared-1',
+            followUps: [],
+          },
+          draftContext: {
+            title: 'Station Alpha',
+            premise: 'Deep station',
+            setting: { location: 'Benthic' },
+            cast: [],
+            environmentalRules: [],
+          },
+          history: [],
+        }),
+      });
+
+      expect(responseB.status).toBe(200);
+      const promptCallB = mockGenerateContent.mock.calls[mockGenerateContent.mock.calls.length - 1][0];
+      expect(promptCallB.contents).toContain('Source ID: src-source-b');
+      expect(promptCallB.contents).toContain('What is the override code in Sector B?');
+      expect(promptCallB.contents).not.toContain('Source ID: src-source-a');
+      expect(promptCallB.contents).not.toContain(bindingB); // Secret token not in prompt
+    });
+
+    it('rejects client context injection by resolving fields authoritatively from server registry', async () => {
+      clearServerSourceRegistry();
+
+      const binding = registerServerSource({
+        id: 'src-authoritative-1',
+        sourceRecord: {
+          id: 'src-authoritative-1',
+          fileName: 'station_manifest.pdf',
+          mimeType: 'application/pdf',
+          kind: 'document',
+          receivedAt: Date.now(),
+        },
+        summary: 'Official station manifest',
+        evidence: [{ id: 'ev-1', sourceId: 'src-authoritative-1', category: 'setting', claim: 'Bulkhead is titanium' }],
+        candidates: [],
+        unknowns: [
+          {
+            id: 'unk-auth-1',
+            sourceId: 'src-authoritative-1',
+            category: 'setting',
+            question: 'What is the bulkhead thickness?',
+            targetEffect: 'Defines explosive breach resistance',
+            status: 'queued',
+            followUps: [],
+          },
+        ],
+        status: 'completed',
+      });
+
+      mockGenerateContent.mockResolvedValueOnce({
+        text: JSON.stringify({
+          type: 'RESOLUTION_PROPOSAL',
+          sourceId: 'src-authoritative-1',
+          unknownId: 'unk-auth-1',
+          message: 'Bulkhead is 12 inches thick.',
+          proposal: {
+            resolution: 'Bulkhead is 12 inches thick titanium.',
+            targetEffect: 'Defines explosive breach resistance',
+          },
+        }),
+      });
+
+      // Client passes fabricated question, category, targetEffect, and sourceSummary
+      const response = await fetch(`${baseUrl}/api/architect`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          kind: 'AMBIGUITY_RESOLUTION',
+          userMessage: 'Thickness was measured directly.',
+          activeUnknown: {
+            sourceBinding: binding,
+            unknownId: 'unk-auth-1',
+            category: 'setting',
+            question: 'FABRICATED_CLIENT_INJECTED_QUESTION_ATTACK',
+            targetEffect: 'FABRICATED_CLIENT_TARGET_EFFECT',
+            followUps: [],
+          },
+          sourceContext: {
+            sourceFileName: 'fake_file.pdf',
+            sourceSummary: 'FABRICATED_CLIENT_SOURCE_SUMMARY_ATTACK',
+          },
+          draftContext: {
+            title: 'Station Alpha',
+            premise: 'Deep station',
+            setting: { location: 'Benthic' },
+            cast: [],
+            environmentalRules: [],
+          },
+          history: [],
+        }),
+      });
+
+      expect(response.status).toBe(200);
+      const promptCall = mockGenerateContent.mock.calls[mockGenerateContent.mock.calls.length - 1][0];
+
+      // Server used authoritative registry values
+      expect(promptCall.contents).toContain('Source File: station_manifest.pdf');
+      expect(promptCall.contents).toContain('Source Summary: Official station manifest');
+      expect(promptCall.contents).toContain('Core Question: What is the bulkhead thickness?');
+      expect(promptCall.contents).toContain('Target Effect / Stake: Defines explosive breach resistance');
+
+      // Client injected strings were ignored
+      expect(promptCall.contents).not.toContain('FABRICATED_CLIENT_INJECTED_QUESTION_ATTACK');
+      expect(promptCall.contents).not.toContain('FABRICATED_CLIENT_SOURCE_SUMMARY_ATTACK');
+    });
+
+    it('rejects ambiguity resolution request missing sourceBinding with HTTP 400', async () => {
+      const response = await fetch(`${baseUrl}/api/architect`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          kind: 'AMBIGUITY_RESOLUTION',
+          userMessage: 'Clarification',
+          activeUnknown: {
+            // Missing sourceBinding
+            unknownId: 'unk-missing-binding',
+            followUps: [],
+          },
+          draftContext: {
+            title: 'Test',
+            premise: 'Test',
+            setting: {},
+            cast: [],
+            environmentalRules: [],
+          },
+          history: [],
+        }),
+      });
+
+      expect(response.status).toBe(400);
+    });
+
+    it('rejects expired or unregistered sourceBinding with HTTP 400 SOURCE_BINDING_EXPIRED', async () => {
+      const response = await fetch(`${baseUrl}/api/architect`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          kind: 'AMBIGUITY_RESOLUTION',
+          userMessage: 'Clarification',
+          activeUnknown: {
+            sourceBinding: 'nonexistent-uuid-binding-999',
+            unknownId: 'unk-test',
+            followUps: [],
+          },
+          draftContext: {
+            title: 'Test',
+            premise: 'Test',
+            setting: {},
+            cast: [],
+            environmentalRules: [],
+          },
+          history: [],
+        }),
+      });
+
+      expect(response.status).toBe(400);
+      const data = await response.json();
+      expect(data.code).toBe('SOURCE_BINDING_EXPIRED');
+    });
+
+    it('rejects replay of previously closed unknown with HTTP 400 BINDING_UNKNOWN_CLOSED', async () => {
+      clearServerSourceRegistry();
+
+      const binding = registerServerSource({
+        id: 'src-close-test',
+        sourceRecord: {
+          id: 'src-close-test',
+          fileName: 'close_test.pdf',
+          mimeType: 'application/pdf',
+          kind: 'document',
+          receivedAt: Date.now(),
+        },
+        summary: 'Summary',
+        evidence: [],
+        candidates: [],
+        unknowns: [
+          {
+            id: 'unk-to-close',
+            sourceId: 'src-close-test',
+            category: 'setting',
+            question: 'Is power online?',
+            targetEffect: 'Threat mode',
+            status: 'queued',
+            followUps: [],
+          },
+        ],
+        status: 'completed',
+      });
+
+      // Close the unknown via acknowledgeable close endpoint
+      const closeRes = await fetch(`${baseUrl}/api/close-unknown`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sourceBinding: binding,
+          unknownId: 'unk-to-close',
+        }),
+      });
+
+      expect(closeRes.status).toBe(200);
+      const closeData = await closeRes.json();
+      expect(closeData.success).toBe(true);
+
+      // Attempt ambiguity resolution for closed unknown -> Replay rejection
+      const resolutionRes = await fetch(`${baseUrl}/api/architect`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          kind: 'AMBIGUITY_RESOLUTION',
+          userMessage: 'Replay attempt',
+          activeUnknown: {
+            sourceBinding: binding,
+            unknownId: 'unk-to-close',
+            followUps: [],
+          },
+          draftContext: {
+            title: 'Test',
+            premise: 'Test',
+            setting: {},
+            cast: [],
+            environmentalRules: [],
+          },
+          history: [],
+        }),
+      });
+
+      expect(resolutionRes.status).toBe(400);
+      const resData = await resolutionRes.json();
+      expect(resData.code).toBe('BINDING_UNKNOWN_CLOSED');
+    });
+
+    it('handles acknowledged revoke endpoint and prevents subsequent resolutions', async () => {
+      clearServerSourceRegistry();
+
+      const binding = registerServerSource({
+        id: 'src-revoke-test',
+        sourceRecord: {
+          id: 'src-revoke-test',
+          fileName: 'revoke_test.pdf',
+          mimeType: 'application/pdf',
+          kind: 'document',
+          receivedAt: Date.now(),
+        },
+        summary: 'Summary',
+        evidence: [],
+        candidates: [],
+        unknowns: [
+          {
+            id: 'unk-rev-1',
+            sourceId: 'src-revoke-test',
+            category: 'setting',
+            question: 'Is oxygen online?',
+            targetEffect: 'Air quality',
+            status: 'queued',
+            followUps: [],
+          },
+        ],
+        status: 'completed',
+      });
+
+      const revokeRes = await fetch(`${baseUrl}/api/revoke-source-binding`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sourceBinding: binding,
+        }),
+      });
+
+      expect(revokeRes.status).toBe(200);
+      const revokeData = await revokeRes.json();
+      expect(revokeData.success).toBe(true);
+
+      // Resolution attempt now fails with SOURCE_BINDING_EXPIRED
+      const res = await fetch(`${baseUrl}/api/architect`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          kind: 'AMBIGUITY_RESOLUTION',
+          userMessage: 'Resolution after revoke',
+          activeUnknown: {
+            sourceBinding: binding,
+            unknownId: 'unk-rev-1',
+            followUps: [],
+          },
+          draftContext: {
+            title: 'Test',
+            premise: 'Test',
+            setting: {},
+            cast: [],
+            environmentalRules: [],
+          },
+          history: [],
+        }),
+      });
+
+      expect(res.status).toBe(400);
+      const resJson = await res.json();
+      expect(resJson.code).toBe('SOURCE_BINDING_EXPIRED');
+    });
+  });
 });

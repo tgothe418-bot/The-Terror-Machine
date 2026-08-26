@@ -502,4 +502,56 @@ describe('turnResponseReader', () => {
     expect(formatted).not.toContain(DIAG_CODE_SENTINEL);
     expect(formatted).not.toContain(NESTED_SENTINEL);
   });
+
+  it('restricts JSON media matching strictly to application/json and application/*+json', async () => {
+    const validTurnData = {
+      narrative_blocks: [{ type: 'prose', content: 'The lights flicker.' }],
+    };
+
+    // Valid JSON media types
+    const validTypes = [
+      'application/json',
+      'application/json; charset=utf-8',
+      'application/problem+json',
+      'application/vnd.api+json',
+      'application/schema+json',
+    ];
+
+    for (const validMime of validTypes) {
+      const response = new Response(JSON.stringify(validTurnData), {
+        status: 200,
+        headers: { 'Content-Type': validMime },
+      });
+      const result = await readTurnResponse<typeof validTurnData>(response);
+      expect(result).toEqual(validTurnData);
+    }
+
+    // Invalid JSON media types (must be rejected as NON_JSON_TURN_RESPONSE)
+    const invalidTypes = [
+      'text/json',
+      'application/x-json-attack',
+      'application/json-seq',
+      'text/html',
+      'application/xml',
+      'application/javascript',
+    ];
+
+    for (const invalidMime of invalidTypes) {
+      const response = new Response(JSON.stringify(validTurnData), {
+        status: 200,
+        headers: { 'Content-Type': invalidMime },
+      });
+
+      let caught: TurnResponseError | null = null;
+      try {
+        await readTurnResponse(response);
+      } catch (err) {
+        if (err instanceof TurnResponseError) {
+          caught = err;
+        }
+      }
+      expect(caught).not.toBeNull();
+      expect(caught?.code).toBe('NON_JSON_TURN_RESPONSE');
+    }
+  });
 });

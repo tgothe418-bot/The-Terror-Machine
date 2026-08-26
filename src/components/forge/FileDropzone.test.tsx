@@ -9,7 +9,6 @@ import {
   forgeActions,
   getForgeState,
   getRuntimeSourceBinding,
-  setRuntimeSourceBinding,
 } from '../../store/useForgeStore';
 import { ForgeSourceAnalysis } from '../../types/forge';
 
@@ -116,8 +115,7 @@ describe('FileDropzone & Architect Binding Lifecycle UI', () => {
     };
 
     act(() => {
-      forgeActions.registerSourceAnalysis(mockAnalysis);
-      setRuntimeSourceBinding(analysisId, mockBinding);
+      forgeActions.registerSourceAnalysis(mockAnalysis, mockBinding);
     });
 
     expect(getRuntimeSourceBinding(analysisId)).toBe(mockBinding);
@@ -179,7 +177,7 @@ describe('FileDropzone & Architect Binding Lifecycle UI', () => {
 
     act(() => {
       forgeActions.initializeDraft({ title: 'Clean Scenario' });
-      forgeActions.registerSourceAnalysis(mockAnalysis);
+      forgeActions.registerSourceAnalysis(mockAnalysis, 'binding-expired-123');
     });
 
     await act(async () => {

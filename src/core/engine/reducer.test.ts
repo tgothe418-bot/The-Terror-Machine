@@ -1,12 +1,17 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect } from 'vitest';
 import { engineReducer, initialEngineState } from './reducer';
 import type { CommittedTurnPayload, FailedTurnPayload } from './events';
 import { captureRuntimeSnapshot } from './snapshot';
+import { useAppStore } from '../../store/useAppStore';
+import { buildEngineLogContent } from '../../lib/download';
+import { buildEngineTurnContext } from '../../lib/buildEngineTurnContext';
 import type {
   CanonicalConsequenceReceipt,
   HorrorVector,
   NarrativeReconciliationReceipt,
   LogicState,
+  ScenarioBlueprint,
 } from '../../types';
 
 describe('engineReducer atomic turn commits', () => {
@@ -122,10 +127,10 @@ describe('engineReducer atomic turn commits', () => {
     const preSnapshot = captureRuntimeSnapshot(startState);
 
     const failureReceipt = {
-      code: 'NON_JSON_TURN_RESPONSE',
+      code: 'NON_JSON_TURN_RESPONSE' as const,
       status: 502,
-      contentType: 'text/html; charset=utf-8',
-      message: 'The turn service returned an unexpected response. The session state was not changed.',
+      contentType: 'text/html',
+      message: 'The turn service returned an unexpected non-JSON response. The session state was not changed.',
     };
 
     const payload: FailedTurnPayload = {
@@ -158,7 +163,7 @@ describe('engineReducer atomic turn commits', () => {
     const failMsg = nextState.history[1];
     expect(failMsg.role).toBe('assistant');
     expect(failMsg.content).toBe(
-      '[ENGINE FAILURE // NON_JSON_TURN_RESPONSE // HTTP 502]\nThe turn service returned an unexpected response. The session state was not changed.'
+      '[ENGINE FAILURE // NON_JSON_TURN_RESPONSE // HTTP 502]\nThe turn service returned an unexpected non-JSON response. The session state was not changed.'
     );
     expect(failMsg.content).not.toContain('<!doctype');
     expect(failMsg.content).not.toContain('<html');
@@ -183,10 +188,10 @@ describe('engineReducer atomic turn commits', () => {
 
     const preSnapshot = captureRuntimeSnapshot(startState);
     const failureReceipt = {
-      code: 'NON_JSON_TURN_RESPONSE',
+      code: 'NON_JSON_TURN_RESPONSE' as const,
       status: 200,
-      contentType: 'text/html; charset=utf-8',
-      message: 'The turn service returned an unexpected response. The session state was not changed.',
+      contentType: 'text/html',
+      message: 'The turn service returned an unexpected non-JSON response. The session state was not changed.',
     };
 
     const nextState = engineReducer(startState, {
@@ -1267,6 +1272,134 @@ describe('engineReducer atomic turn commits', () => {
 
       expect(secondFailed.lastTurnCheckpoint).toBe(startState.lastTurnCheckpoint);
       expect(secondFailed.lastTurnCheckpoint?.commandText).toBe('Examine bookcase');
+    });
+
+    it('safely normalizes raw malicious failure receipt in failTurnResult store entrypoint and purges sentinels across history, UI, telemetry, raw exports, Markdown, HTML, and prompt context', () => {
+      useAppStore.getState().resetSession();
+
+      const RAW_HTML_SENTINEL = '<!DOCTYPE html><html><body><h1>502 Bad Gateway</h1><script>stealSecrets()</script></body></html>';
+      const INTERNAL_SECRET_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5:generateContent?key=AIzaSyD_LEAKED_KEY';
+      const INTERNAL_STACK_TRACE = 'Error: PG connection failed at /app/server/db.ts:12:3';
+
+      useAppStore.setState({
+        sessionId: 'session-fail-proof-1',
+        blueprintId: 'bp-fail-proof-1',
+        turnCount: 2,
+        currentNodeId: 'REACTOR_CORE',
+        telemetry: {
+          tension: '50',
+          pacing: 'STEADY',
+          castLedger: [],
+          engineLogic: 'Normal operation',
+        },
+      });
+
+      const preSnapshot = captureRuntimeSnapshot(useAppStore.getState());
+
+      // Raw, un-sanitized failure receipt with malicious sentinels
+      const rawUnsafePayload: FailedTurnPayload = {
+        commandText: 'Examine primary containment core',
+        failureReceipt: {
+          code: 'MODEL_CONTRACT_MISMATCH' as any,
+          status: 502,
+          contentType: 'text/html; charset=utf-8',
+          message: `${RAW_HTML_SENTINEL} ${INTERNAL_SECRET_URL} ${INTERNAL_STACK_TRACE}`,
+        } as any,
+        errorCategory: 'MODEL_CONTRACT_MISMATCH',
+        errorMessage: `${RAW_HTML_SENTINEL} ${INTERNAL_SECRET_URL} ${INTERNAL_STACK_TRACE}`,
+        statusCode: 502,
+        contentType: 'text/html; charset=utf-8',
+        preSnapshot,
+      };
+
+      // Call the store action entrypoint
+      useAppStore.getState().failTurnResult(rawUnsafePayload);
+
+      const stateAfterFail = useAppStore.getState();
+
+      // 1. History: State contains normalized failure message without raw sentinels
+      expect(stateAfterFail.history).toHaveLength(2);
+      const userMsg = stateAfterFail.history[0];
+      const assistantMsg = stateAfterFail.history[1];
+      expect(userMsg.content).toBe('Examine primary containment core');
+      expect(assistantMsg.content).not.toContain(RAW_HTML_SENTINEL);
+      expect(assistantMsg.content).not.toContain('stealSecrets');
+      expect(assistantMsg.content).not.toContain(INTERNAL_SECRET_URL);
+      expect(assistantMsg.content).not.toContain(INTERNAL_STACK_TRACE);
+      expect(assistantMsg.content).toContain('The turn service returned an invalid response structure.');
+
+      // 2. UI Text
+      const uiText = assistantMsg.content || '';
+      expect(uiText).not.toContain('<!DOCTYPE');
+      expect(uiText).not.toContain('AIzaSyD');
+
+      // 3. Telemetry
+      const telState = JSON.stringify(stateAfterFail.telemetry);
+      expect(telState).not.toContain(RAW_HTML_SENTINEL);
+      expect(telState).not.toContain(INTERNAL_SECRET_URL);
+      expect(telState).not.toContain(INTERNAL_STACK_TRACE);
+
+      // 4. Raw Export (JSON)
+      const rawJsonExport = JSON.stringify(stateAfterFail.history);
+      expect(rawJsonExport).not.toContain(RAW_HTML_SENTINEL);
+      expect(rawJsonExport).not.toContain('stealSecrets');
+      expect(rawJsonExport).not.toContain(INTERNAL_SECRET_URL);
+      expect(rawJsonExport).not.toContain(INTERNAL_STACK_TRACE);
+
+      // 5. Markdown Export
+      const mdExport = buildEngineLogContent(stateAfterFail.history, 'md')?.content || '';
+      expect(mdExport).not.toContain(RAW_HTML_SENTINEL);
+      expect(mdExport).not.toContain('stealSecrets');
+      expect(mdExport).not.toContain(INTERNAL_SECRET_URL);
+      expect(mdExport).not.toContain(INTERNAL_STACK_TRACE);
+
+      // 6. HTML Export
+      const htmlExport = buildEngineLogContent(stateAfterFail.history, 'html')?.content || '';
+      expect(htmlExport).not.toContain(RAW_HTML_SENTINEL);
+      expect(htmlExport).not.toContain('stealSecrets');
+      expect(htmlExport).not.toContain(INTERNAL_SECRET_URL);
+      expect(htmlExport).not.toContain(INTERNAL_STACK_TRACE);
+
+      // 7. Subsequent Prompt Input
+      const mockBlueprint: ScenarioBlueprint = {
+        id: 'bp-fail-proof-1',
+        title: 'Reactor Station',
+        premise: 'Deep core reactor station',
+        startingVector: 'COGNITIVE',
+        startingTier: 'LATENT',
+        contentScale: 1,
+        contentLevelDescription: 'Standard',
+        narrativeRules: {
+          incitingIncident: 'Coolant leak',
+          currentTensionLevel: 'CALM',
+          keyPlotElements: [],
+        },
+        setting: { location: 'Reactor Core', atmosphere: 'Humming machinery', timePeriod: 'Future' },
+        cast: [
+          {
+            id: 'char-1',
+            name: 'Specialist Ray',
+            role: 'protagonist',
+            description: 'Core technician',
+            isUserCharacter: true,
+          },
+        ],
+        topology: { nodes: ['REACTOR_CORE'], connections: [] },
+      };
+
+      const promptContext = buildEngineTurnContext({
+        blueprint: mockBlueprint,
+        selectedRole: 'protagonist',
+        runtimeState: {
+          currentNodeId: 'REACTOR_CORE',
+        },
+      });
+
+      const serializedPrompt = JSON.stringify(promptContext);
+      expect(serializedPrompt).not.toContain(RAW_HTML_SENTINEL);
+      expect(serializedPrompt).not.toContain('stealSecrets');
+      expect(serializedPrompt).not.toContain(INTERNAL_SECRET_URL);
+      expect(serializedPrompt).not.toContain(INTERNAL_STACK_TRACE);
     });
   });
 });

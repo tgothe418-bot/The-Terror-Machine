@@ -263,13 +263,27 @@ router.post("/architect", async (req, res) => {
       const { userMessage, activeUnknown, draftContext, sourceContext, history } = parsedBody.data;
 
       sweepExpiredServerSourceBindings();
-      // Independent Server Identity Verification via server-issued sourceBinding or registered sourceId
-      const bindingKey = activeUnknown.sourceBinding || activeUnknown.sourceId;
+      // Independent Server Identity Verification via server-issued sourceBinding
+      const bindingKey = activeUnknown.sourceBinding;
+      if (!bindingKey) {
+        return res.status(400).json({
+          error: "Source binding is required for ambiguity resolution.",
+          code: "SOURCE_BINDING_REQUIRED",
+        });
+      }
+
       const registeredSource = serverSourceRegistry.get(bindingKey);
       if (!registeredSource) {
         return res.status(400).json({
           error: `Source binding "${bindingKey}" is missing, expired, or invalid. Source analysis must be registered before resolution.`,
           code: 'SOURCE_BINDING_EXPIRED',
+        });
+      }
+
+      if (activeUnknown.sourceId && activeUnknown.sourceId !== registeredSource.sourceId) {
+        return res.status(400).json({
+          error: `Client sourceId "${activeUnknown.sourceId}" does not match registered source binding "${registeredSource.sourceId}".`,
+          code: 'SOURCE_ID_MISMATCH',
         });
       }
 
@@ -287,32 +301,41 @@ router.post("/architect", async (req, res) => {
         });
       }
 
+      // Authoritative field resolution directly from server registry
+      const registeredUnknown = registeredSource.unknowns.get(activeUnknown.unknownId)!;
+      const resolvedSourceId = registeredSource.sourceId;
+      const resolvedFileName = registeredSource.fileName;
+      const resolvedSummary = registeredSource.sourceSummary;
+      const resolvedEvidence = (registeredSource.evidence || []).slice(0, 12);
+      const resolvedCategory = registeredUnknown.category;
+      const resolvedQuestion = registeredUnknown.question;
+      const resolvedTargetEffect = registeredUnknown.targetEffect;
+
       const formattedHistory = history
         .map((msg) => `${msg.role === 'user' ? 'USER:' : 'ARCHITECT:'}\n${msg.content}`)
         .join('\n\n');
 
       const maxFollowUpsReached = activeUnknown.followUps.length >= 2;
       const canonicalAmbiguities = sourceContext?.canonicalAmbiguities || draftContext.ambiguities || [];
-      const evidenceList = (sourceContext?.evidence || []).slice(0, 12);
 
       const fullPrompt = `${ARCHITECT_AMBIGUITY_SYSTEM_PROMPT}
 
 === ACTIVE UNKNOWN TO RESOLVE ===
-Source ID: ${activeUnknown.sourceId}
+Source ID: ${resolvedSourceId}
 Unknown ID: ${activeUnknown.unknownId}
-Category: ${activeUnknown.category}
-Core Question: ${activeUnknown.question}
-Target Effect / Stake: ${activeUnknown.targetEffect}
+Category: ${resolvedCategory}
+Core Question: ${resolvedQuestion}
+Target Effect / Stake: ${resolvedTargetEffect}
 Creator's Submitted Clarification: "${activeUnknown.submittedAnswer || userMessage}"
 Previous Follow-Ups (${activeUnknown.followUps.length}/2):
 ${activeUnknown.followUps.map((f, i) => `  [${i + 1}] Q: "${f.question}" -> A: "${f.answer || ''}"`).join('\n') || '  (None)'}
 ${maxFollowUpsReached ? 'CRITICAL LIMIT NOTICE: 2 follow-ups have already been conducted. You MUST NOT ask another follow-up question. You MUST return a RESOLUTION_PROPOSAL.' : ''}
 
 === BOUNDED SOURCE CONTEXT ===
-Source File: ${sourceContext?.sourceFileName || 'Unknown / Not specified'}
-Source Summary: ${sourceContext?.sourceSummary || 'None'}
-Relevant Evidence Records (${evidenceList.length}/12 max):
-${evidenceList.map((e, idx) => `  [${idx + 1}] (${e.category}) Claim: "${e.claim}"${e.excerpt ? ` | Excerpt: "${e.excerpt}"` : ''}`).join('\n') || '  (None)'}
+Source File: ${resolvedFileName}
+Source Summary: ${resolvedSummary || 'None'}
+Relevant Evidence Records (${resolvedEvidence.length}/12 max):
+${resolvedEvidence.map((e, idx) => `  [${idx + 1}] (${e.category}) Claim: "${e.claim}"${e.excerpt ? ` | Excerpt: "${e.excerpt}"` : ''}`).join('\n') || '  (None)'}
 
 === EXISTING CANONICAL AMBIGUITY DECISIONS ===
 ${canonicalAmbiguities.length > 0 ? JSON.stringify(canonicalAmbiguities, null, 2) : '  (None)'}
@@ -374,12 +397,12 @@ Generate your response in raw JSON adhering to the required schema:`;
 
       if (
         typeof parsedJson.sourceId !== 'string' ||
-        parsedJson.sourceId !== activeUnknown.sourceId ||
+        parsedJson.sourceId !== resolvedSourceId ||
         typeof parsedJson.unknownId !== 'string' ||
         parsedJson.unknownId !== activeUnknown.unknownId
       ) {
         return res.status(502).json({
-          error: `Architect returned identity mismatch: expected sourceId="${activeUnknown.sourceId}", unknownId="${activeUnknown.unknownId}"`,
+          error: `Architect returned identity mismatch: expected sourceId="${resolvedSourceId}", unknownId="${activeUnknown.unknownId}"`,
         });
       }
 

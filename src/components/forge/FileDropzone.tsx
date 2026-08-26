@@ -52,14 +52,12 @@ export const FileDropzone = () => {
 
         const data = await response.json();
         if (data.error) throw new Error(data.error);
-        if (!data.analysis) {
-          throw new Error('Server response did not include source analysis.');
+        if (!data.sourceBinding) {
+          throw new Error('Server response did not include a valid source binding.');
         }
 
-        registerSourceAnalysis(data.analysis);
-        if (data.sourceBinding) {
-          setRuntimeSourceBinding(data.analysis.id, data.sourceBinding);
-        }
+        setRuntimeSourceBinding(data.analysis.id, data.sourceBinding);
+        registerSourceAnalysis(data.analysis, data.sourceBinding);
 
         addArchitectMessage({
           role: 'architect',
@@ -101,8 +99,8 @@ export const FileDropzone = () => {
       const data = await response.json();
 
       if (data.error) throw new Error(data.error);
-      if (!data.analysis) {
-        throw new Error('Server response did not include source analysis.');
+      if (!data.sourceBinding) {
+        throw new Error('Server response did not include a valid source binding.');
       }
 
       const sourceRecord: ForgeSourceRecord = {
@@ -115,10 +113,8 @@ export const FileDropzone = () => {
       };
 
       const normalizedAnalysis = validateAndNormalizeDocumentAnalysis(data.analysis, sourceRecord);
-      registerSourceAnalysis(normalizedAnalysis);
-      if (data.sourceBinding) {
-        setRuntimeSourceBinding(normalizedAnalysis.id, data.sourceBinding);
-      }
+      setRuntimeSourceBinding(normalizedAnalysis.id, data.sourceBinding);
+      registerSourceAnalysis(normalizedAnalysis, data.sourceBinding);
 
       addArchitectMessage({
         role: 'architect',

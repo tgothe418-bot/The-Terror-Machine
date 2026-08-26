@@ -1,5 +1,6 @@
-import type {
+import {
   LogicState,
+  LogicStateSchema,
   SpatialNode,
   HorrorVector,
   ExposureTier,
@@ -11,6 +12,7 @@ import type { AppStore } from '../../store/useAppStore';
 import type { EngineState } from '../store';
 import { useAppStore } from '../../store/useAppStore';
 import { useEngineStore } from '../store';
+import { engineReducer } from './reducer';
 
 export interface AppStoreSlice {
   sessionId: string | null;
@@ -33,16 +35,22 @@ export interface CanonicalSimulationState {
   app: AppStoreSlice;
   gameState: LogicState | null;
   turnNumber: number;
+  sharedRevision: number;
   isPublicationInProgress: boolean;
 }
 
 // In-flight publication lock & snapshot cache
 let _isPublicationInProgress = false;
+let _sharedPublicationRevision = 0;
 let _prePublicationAppSlice: AppStoreSlice | null = null;
 let _prePublicationGameState: LogicState | null = null;
 
 export function isCanonicalPublicationInProgress(): boolean {
   return _isPublicationInProgress;
+}
+
+export function getSharedPublicationRevision(): number {
+  return _sharedPublicationRevision;
 }
 
 /**
@@ -96,6 +104,7 @@ export function getCanonicalSimulationState(): CanonicalSimulationState {
       app: _prePublicationAppSlice,
       gameState: _prePublicationGameState,
       turnNumber: _prePublicationAppSlice.turnCount,
+      sharedRevision: _sharedPublicationRevision,
       isPublicationInProgress: true,
     };
   }
@@ -109,12 +118,15 @@ export function getCanonicalSimulationState(): CanonicalSimulationState {
     app: appSlice,
     gameState,
     turnNumber: appSlice.turnCount,
+    sharedRevision: _sharedPublicationRevision,
     isPublicationInProgress: false,
   };
 }
 
 // Allowlisted strictly non-canonical presentation fields
 const ALLOWED_PRESENTATION_KEYS = new Set([
+  'npc_fixations',
+  'cast_ledger',
   'current_tension_level',
   'intent_classification',
   'intent_synergy',
@@ -152,8 +164,8 @@ export interface CoordinateTurnPublicationParams {
 
 /**
  * Coordinates publication of a ratified turn across AppStore and EngineStore.
- * Enforces pre-flight validation, revision lock, atomic publication, rollback on write error,
- * and isolated post-commit presentation projection.
+ * Enforces authoritative schema validation, pre-computation of both post-turn states,
+ * revision lock, atomic publication, rollback on write error, and isolated post-commit presentation projection.
  */
 export function coordinateCanonicalTurnPublication({
   appStore = useAppStore,
@@ -162,37 +174,41 @@ export function coordinateCanonicalTurnPublication({
   preparedGameState,
   presentationPatch,
 }: CoordinateTurnPublicationParams): void {
-  // 1. Capture pure pre-turn data slices
+  // 1. Authoritative pre-flight schema validation
+  const validatedGameState = LogicStateSchema.parse(preparedGameState) as LogicState;
+
+  // 2. Capture pure pre-turn data slices
   const preAppSlice = captureAppSlice(appStore.getState());
   const preGameState = engineStore.getState().gameState
     ? cloneDataSlice(engineStore.getState().gameState)
     : null;
 
-  // 2. Validate prepared situated state
-  if (!preparedGameState || typeof preparedGameState !== 'object') {
-    throw new Error('[CommitCoordinator] Invalid preparedGameState: must be a non-null LogicState object');
-  }
+  // 3. Pre-compute both complete post-turn states before publication
+  const postAppState = engineReducer(appStore.getState(), {
+    type: 'TURN_COMMITTED',
+    payload: committedPayload,
+  });
+  const postGameState = cloneDataSlice(validatedGameState);
 
-  // 3. Set publication fence
+  // 4. Set publication fence
   _isPublicationInProgress = true;
   _prePublicationAppSlice = preAppSlice;
   _prePublicationGameState = preGameState;
 
   try {
-    // 4. Coordinated publication:
+    // 5. Coordinated publication:
     // A. Commit canonical application state & checkpoint
-    appStore.getState().dispatch({ type: 'TURN_COMMITTED', payload: committedPayload });
+    appStore.setState(postAppState);
 
     // B. Commit prepared situated game state
-    engineStore.getState().setGameState(preparedGameState);
+    engineStore.setState({ gameState: postGameState });
+
+    // C. Both writes succeeded: advance shared publication revision
+    _sharedPublicationRevision += 1;
   } catch (err) {
     // Rollback: restore both stores immediately to pre-turn snapshots before failure emission
     appStore.setState(preAppSlice);
-    if (preGameState !== null) {
-      engineStore.getState().setGameState(preGameState);
-    } else {
-      engineStore.setState({ gameState: null });
-    }
+    engineStore.setState({ gameState: preGameState });
     throw err;
   } finally {
     _isPublicationInProgress = false;
@@ -200,12 +216,14 @@ export function coordinateCanonicalTurnPublication({
     _prePublicationGameState = null;
   }
 
-  // 5. Post-commit presentation projection (strictly presentation-only, fails gracefully)
+  // 6. Post-commit presentation projection (strictly presentation-only, fails gracefully)
   if (presentationPatch && Object.keys(presentationPatch).length > 0) {
     try {
       const filtered = filterAllowlistedPresentationPatch(presentationPatch);
       if (Object.keys(filtered).length > 0) {
-        engineStore.getState().patchGameState(filtered);
+        engineStore.setState((state) => ({
+          gameState: state.gameState ? { ...state.gameState, ...filtered } : filtered,
+        }));
       }
     } catch (projErr) {
       console.warn(
