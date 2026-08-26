@@ -159,6 +159,14 @@ describe('Phase 3D-1: Forge Draft Contract, Review Validation, and Compiler Boun
         keyPlotElements: ['Restore auxiliary power'],
       },
       characters: [],
+      horrorGrammar: {
+        valueBaselineReview: 'REVIEWED_NONE',
+        pursuitReviews: {
+          'c-aris': 'REVIEWED_NONE',
+        },
+        valueAnchors: [],
+        characterPursuits: [],
+      },
     };
 
     const result = compileForgeDraft(validDraft);
@@ -247,6 +255,14 @@ describe('Phase 3D-1: Forge Draft Contract, Review Validation, and Compiler Boun
       contentScale: 3,
       contentLevelDescription: 'Standard',
       environmentalRules: '',
+      horrorGrammar: {
+        valueBaselineReview: 'REVIEWED_NONE',
+        pursuitReviews: {
+          c1: 'REVIEWED_NONE',
+        },
+        valueAnchors: [],
+        characterPursuits: [],
+      },
     };
 
     const artifact = prepareBlueprintExport(validDraft, { draftRevision: 1, sourceBaselineRevision: 1 });

@@ -1,0 +1,418 @@
+import { describe, expect, it } from 'vitest';
+import {
+  resolveSituatedPressure,
+  resolvePressureThreadTransitions,
+} from './situatedPressure';
+import { normalizeBlueprint } from './normalizeBlueprint';
+import type { EngineTurnContext, Blueprint } from '../types';
+import type {
+  SituatedPressureProposal,
+  CastActivityReceipt,
+  SituatedPressureThread,
+} from '../types/horrorGrammar';
+
+describe('Situated Pressure Ratifier (Packet 1-3)', () => {
+  const createMockBlueprint = (): Blueprint =>
+    normalizeBlueprint({
+      id: 'bp-1',
+      identity: {
+        title: 'Facility Omega',
+        version: '1.0',
+        author: 'Test',
+        thematicAnchor: 'Containment',
+      },
+      title: 'Facility Omega',
+      globalPremise: 'Underground lab complex',
+      premise: 'Underground lab complex',
+      setting: {
+        location: 'Sub-Level',
+        atmosphere: 'Sterile',
+        timePeriod: '1999',
+      },
+      startingVector: 'COGNITIVE',
+      startingTier: 'LATENT',
+      environmentalRules: ['Power fluctuations breach containment.'],
+      constraints: [],
+      contentScale: 2,
+      contentLevelDescription: 'Standard',
+      cast: [
+        {
+          id: 'char-tech',
+          name: 'Technician Mercer',
+          description: 'Tech',
+          role: 'Engineer',
+          personality: 'Anxious',
+          goals: 'Fix power',
+          traits: ['Technical'],
+          isUserCharacter: false,
+          behaviorVector: 'COGNITIVE',
+          isEntity: false,
+          starting_location: 'NODE_CONTROL',
+        },
+      ],
+      topology: {
+        nodes: ['NODE_CONTROL'],
+        connections: [],
+      },
+      horrorGrammar: {
+        valueBaselineReview: 'REVIEWED',
+        pursuitReviews: {
+          'char-tech': 'REVIEWED',
+        },
+        valueAnchors: [
+          {
+            id: 'val-reactor-core',
+            holder: { kind: 'PLACE', nodeId: 'NODE_CONTROL' },
+            label: 'Primary Reactor Core',
+            description: 'Sub-critical cooling state prevents meltdown',
+            basisSummary: 'Facility power engineering',
+            provenance: { kind: 'CREATOR_DEFINED' },
+          },
+        ],
+        characterPursuits: [],
+      },
+    }) as Blueprint;
+
+  const createMockContext = (bp: Blueprint): EngineTurnContext => ({
+    version: 1,
+    scenario: {
+      id: bp.id,
+      title: bp.title,
+      premise: bp.premise,
+      worldRules: ['Power fluctuations breach containment.'],
+      setting: bp.setting,
+      startingVector: 'COGNITIVE',
+      startingTier: 'LATENT',
+      incitingIncident: '',
+      pacingDirective: '',
+      keyPlotElements: [],
+    },
+    player: {
+      role: 'protagonist',
+      characterId: 'char-user',
+      name: 'Officer Ray',
+      description: 'Security officer',
+      isEntity: false,
+    },
+    cast: [
+      {
+        id: 'char-tech',
+        name: 'Technician Mercer',
+        role: 'Engineer',
+        description: 'Tech',
+        personality: 'Anxious',
+        goals: 'Fix power',
+        traits: ['Technical'],
+        isEntity: false,
+        isUserCharacter: false,
+        skepticism: 0.5,
+        isPresent: true,
+        stance: null,
+        memory: [],
+      },
+    ],
+    topology: {
+      currentNodeId: 'NODE_CONTROL',
+      readableNodeLabel: 'Control Room',
+      allowedOutgoingExits: [],
+    },
+    runtime: {
+      phase: 'LATENT',
+      tension: 15,
+      coherence: 1.0,
+      reconciliationRevision: 0,
+      activeVector: 'COGNITIVE',
+      activeTier: 'LATENT',
+      activeFlags: [],
+      turnNumber: 2,
+    },
+    consequenceState: {
+      inventory: [],
+      player_injuries: [],
+      psychological_status: 'STABLE',
+    },
+    relationshipState: [],
+    memoryState: {},
+    worldMemory: [],
+    horrorGrammar: {
+      fictionalTime: {
+        moment_revision: 2,
+        scene_beat_revision: 1,
+        extended_revision: 0,
+        last_cost: 'MOMENT',
+      },
+      presentActorOpportunities: [],
+      offscreenPursuitOpportunities: [],
+      relevantValueAnchors: bp.horrorGrammar!.valueAnchors,
+      authorityInstruction: 'Standard authority',
+    },
+  });
+
+  it('accepts NONE proposal cleanly without state mutation', () => {
+    const bp = createMockBlueprint();
+    const context = createMockContext(bp);
+
+    const proposal: SituatedPressureProposal = {
+      kind: 'NONE',
+      reason: 'PRESSURE_NOT_CALLED_FOR',
+    };
+
+    const receipt = resolveSituatedPressure({
+      proposal,
+      currentContext: context,
+      preThreads: [],
+      currentTurn: 2,
+      blueprint: bp,
+    });
+
+    expect(receipt.outcome).toBe('NO_PROPOSAL');
+    expect(receipt.reasonCode).toBe('PRESSURE_NOT_CALLED_FOR');
+    expect(receipt.admittedManifestation).toBe(false);
+    expect(receipt.postState).toEqual([]);
+  });
+
+  it('rejects proposal referencing nonexistent Value Anchor ID', () => {
+    const bp = createMockBlueprint();
+    const context = createMockContext(bp);
+
+    const proposal: SituatedPressureProposal = {
+      kind: 'PRESSURE',
+      proposalId: 'prop-press-1',
+      valueAnchorId: 'val-unregistered-item',
+      sourceReference: 'CONDITION_BREACH',
+      operator: 'EXPOSE',
+      affectedDimension: 'SAFETY',
+      adverseProspect: 'Breach threatens unknown item',
+      authorityReferences: ['RULE_1'],
+      persistenceTarget: 'PRESSURE_THREAD',
+      responseWindowOpen: true,
+      manifestationBlock: {
+        type: 'prose',
+        content: 'Alarm sounds.',
+      },
+    };
+
+    const receipt = resolveSituatedPressure({
+      proposal,
+      currentContext: context,
+      preThreads: [],
+      currentTurn: 2,
+      blueprint: bp,
+    });
+
+    expect(receipt.outcome).toBe('REJECTED');
+    expect(receipt.reasonCode).toBe('VALUE_ANCHOR_NOT_FOUND');
+    expect(receipt.admittedManifestation).toBe(false);
+  });
+
+  it('rejects proposal with sourceReference ACTIVITY when activity was not accepted', () => {
+    const bp = createMockBlueprint();
+    const context = createMockContext(bp);
+
+    const proposal: SituatedPressureProposal = {
+      kind: 'PRESSURE',
+      proposalId: 'prop-press-2',
+      valueAnchorId: 'val-reactor-core',
+      sourceReference: 'ACTIVITY',
+      operator: 'DEGRADE_CAPABILITY',
+      affectedDimension: 'CAPABILITY',
+      adverseProspect: 'Coolant pumps losing pressure',
+      authorityReferences: ['CONSOLE_FEED'],
+      persistenceTarget: 'PRESSURE_THREAD',
+      responseWindowOpen: true,
+      manifestationBlock: {
+        type: 'prose',
+        content: 'Coolant alarm screams.',
+      },
+    };
+
+    const rejectedActivityReceipt: CastActivityReceipt = {
+      version: 1,
+      outcome: 'REJECTED',
+      reasonCode: 'MISMATCHED_PURSUIT_ID',
+      preState: [],
+      postState: [],
+      admittedManifestation: false,
+      acceptedEventId: null,
+    };
+
+    const receipt = resolveSituatedPressure({
+      proposal,
+      activityReceipt: rejectedActivityReceipt,
+      currentContext: context,
+      preThreads: [],
+      currentTurn: 2,
+      blueprint: bp,
+    });
+
+    expect(receipt.outcome).toBe('REJECTED');
+    expect(receipt.reasonCode).toBe('ACTIVITY_SOURCE_NOT_ACCEPTED');
+  });
+
+  it('rejects proposal when responseWindowOpen is false', () => {
+    const bp = createMockBlueprint();
+    const context = createMockContext(bp);
+
+    const proposal: SituatedPressureProposal = {
+      kind: 'PRESSURE',
+      proposalId: 'prop-press-closed',
+      valueAnchorId: 'val-reactor-core',
+      sourceReference: 'POWER_DROP',
+      operator: 'IMPOSE_COST',
+      affectedDimension: 'TIME',
+      adverseProspect: 'Immediate meltdown completed with no escape window',
+      authorityReferences: ['RULE_1'],
+      persistenceTarget: 'PRESSURE_THREAD',
+      responseWindowOpen: false, // Closed response window
+      manifestationBlock: {
+        type: 'prose',
+        content: 'The core explodes instantly.',
+      },
+    };
+
+    const receipt = resolveSituatedPressure({
+      proposal,
+      currentContext: context,
+      preThreads: [],
+      currentTurn: 2,
+      blueprint: bp,
+    });
+
+    expect(receipt.outcome).toBe('REJECTED');
+    expect(receipt.reasonCode).toBe('RESPONSE_WINDOW_CLOSED');
+  });
+
+  it('ratifies valid pressure proposal and copies holder directly from accepted blueprint anchor', () => {
+    const bp = createMockBlueprint();
+    const context = createMockContext(bp);
+
+    const proposal: SituatedPressureProposal = {
+      kind: 'PRESSURE',
+      proposalId: 'prop-press-valid',
+      valueAnchorId: 'val-reactor-core',
+      sourceReference: 'ACTIVITY',
+      operator: 'CONSTRAIN_ACCESS',
+      affectedDimension: 'ACCESS',
+      adverseProspect: 'Primary coolant valve is jammed shut behind expanding steam',
+      authorityReferences: ['COOLING_RULE'],
+      persistenceTarget: 'PRESSURE_THREAD',
+      responseWindowOpen: true,
+      manifestationBlock: {
+        type: 'prose',
+        content: 'Superheated steam hisses from the primary coolant junction, blocking the manual override wheel.',
+      },
+    };
+
+    const acceptedActivityReceipt: CastActivityReceipt = {
+      version: 1,
+      outcome: 'ACCEPTED',
+      reasonCode: 'ACTIVITY_RATIFIED',
+      preState: [],
+      postState: [],
+      admittedManifestation: true,
+      acceptedEventId: 'evt-1',
+    };
+
+    const receipt = resolveSituatedPressure({
+      proposal,
+      activityReceipt: acceptedActivityReceipt,
+      currentContext: context,
+      preThreads: [],
+      currentTurn: 2,
+      blueprint: bp,
+    });
+
+    expect(receipt.outcome).toBe('ACCEPTED');
+    expect(receipt.reasonCode).toBe('PRESSURE_RATIFIED');
+    expect(receipt.admittedManifestation).toBe(true);
+    expect(receipt.postState).toHaveLength(1);
+
+    const thread = receipt.postState[0];
+    expect(thread.valueAnchorId).toBe('val-reactor-core');
+    expect(thread.holder).toEqual({ kind: 'PLACE', nodeId: 'NODE_CONTROL' });
+    expect(thread.status).toBe('OPEN');
+    expect(thread.operator).toBe('CONSTRAIN_ACCESS');
+    expect(thread.createdTurn).toBe(2);
+  });
+
+  describe('Pressure Thread Lifecycle Transitions (Packet 1-4)', () => {
+    it('applies RESOLVED transition citing accepted consequence or action', () => {
+      const preThread: SituatedPressureThread = {
+        id: 'thr-1-val-core',
+        valueAnchorId: 'val-reactor-core',
+        holder: { kind: 'PLACE', nodeId: 'NODE_CONTROL' },
+        sourceReference: 'BASELINE',
+        operator: 'CONSTRAIN_ACCESS',
+        affectedDimension: 'ACCESS',
+        adverseProspect: 'Steam blocking valve',
+        manifestationSummary: null,
+        status: 'OPEN',
+        createdTurn: 1,
+        lastChangedTurn: 1,
+        persistenceTarget: 'PRESSURE_THREAD',
+      };
+
+      const receipt = resolvePressureThreadTransitions({
+        proposal: {
+          transitions: [
+            {
+              threadId: 'thr-1-val-core',
+              proposedStatus: 'RESOLVED',
+              causeReference: 'USER_ACTION',
+              rationale: 'Player turned the emergency shutoff release.',
+            },
+          ],
+        },
+        preThreads: [preThread],
+        currentTurn: 2,
+        validCauses: ['USER_ACTION'],
+      });
+
+      expect(receipt.decisions[0].outcome).toBe('APPLIED');
+      expect(receipt.postState[0].status).toBe('RESOLVED');
+      expect(receipt.postState[0].lastChangedTurn).toBe(2);
+    });
+
+    it('applies TRANSFORMED transition creating new replacement thread atomically', () => {
+      const preThread: SituatedPressureThread = {
+        id: 'thr-1-val-core',
+        valueAnchorId: 'val-reactor-core',
+        holder: { kind: 'PLACE', nodeId: 'NODE_CONTROL' },
+        sourceReference: 'BASELINE',
+        operator: 'CONSTRAIN_ACCESS',
+        affectedDimension: 'ACCESS',
+        adverseProspect: 'Steam blocking valve',
+        manifestationSummary: null,
+        status: 'OPEN',
+        createdTurn: 1,
+        lastChangedTurn: 1,
+        persistenceTarget: 'PRESSURE_THREAD',
+      };
+
+      const receipt = resolvePressureThreadTransitions({
+        proposal: {
+          transitions: [
+            {
+              threadId: 'thr-1-val-core',
+              proposedStatus: 'TRANSFORMED',
+              causeReference: 'act-2-pipe-burst',
+              replacementAdverseProspect: 'The entire corridor is flooding with boiling brine.',
+              rationale: 'Valve cracked open, causing structural pipe rupture.',
+            },
+          ],
+        },
+        preThreads: [preThread],
+        currentTurn: 2,
+        validCauses: ['act-2-pipe-burst'],
+      });
+
+      expect(receipt.decisions[0].outcome).toBe('APPLIED');
+      expect(receipt.postState).toHaveLength(2);
+      expect(receipt.postState[0].status).toBe('TRANSFORMED');
+      expect(receipt.postState[1].status).toBe('OPEN');
+      expect(receipt.postState[1].adverseProspect).toBe(
+        'The entire corridor is flooding with boiling brine.'
+      );
+    });
+  });
+});

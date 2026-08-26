@@ -795,5 +795,99 @@ describe('buildEngineTurnContext & buildContextReceipt', () => {
       expect(serialized).not.toContain(CODE_SENTINEL);
       expect(serialized).not.toContain(MESSAGE_SENTINEL);
     });
+
+    it('builds horror grammar turn context with bounded opportunities and authority instruction', () => {
+      const bpWithHorrorGrammar = {
+        ...mockBlueprint,
+        horrorGrammar: {
+          valueBaselineReview: 'REVIEWED',
+          pursuitReviews: {
+            'char-warden': 'REVIEWED',
+            'char-orderly': 'REVIEWED',
+          },
+          valueAnchors: [
+            {
+              id: 'val-ward',
+              holder: { kind: 'PLACE', nodeId: 'WARD_4B' },
+              label: 'Ward 4B Integrity',
+              description: 'The physical stability of the ward',
+              basisSummary: 'Hospital blueprints',
+              provenance: { kind: 'CREATOR_DEFINED' },
+            },
+            {
+              id: 'val-warden-duty',
+              holder: { kind: 'CHARACTER', castMemberId: 'char-warden' },
+              label: 'Warden Containment Protocol',
+              description: 'Enforce quarantine at all costs',
+              basisSummary: 'Surgical duty',
+              provenance: { kind: 'CREATOR_DEFINED' },
+            },
+          ],
+          characterPursuits: [
+            {
+              id: 'pursuit-warden',
+              castMemberId: 'char-warden',
+              objective: 'Contain quarantine breach',
+              presentApproach: 'Patrolling surgical corridor',
+              locationNodeId: 'OPERATING_THEATRE',
+              status: 'ACTIVE',
+              reviewWindow: 'MOMENT',
+              triggerReferences: [],
+              basisSummary: 'Quarantine directive',
+              provenance: { kind: 'CREATOR_DEFINED' },
+            },
+            {
+              id: 'pursuit-orderly',
+              castMemberId: 'char-orderly',
+              objective: 'Find key ring',
+              presentApproach: 'Searching nurse station drawers',
+              locationNodeId: 'WARD_4B',
+              status: 'ACTIVE',
+              reviewWindow: 'MOMENT',
+              triggerReferences: [],
+              basisSummary: 'Shift responsibility',
+              provenance: { kind: 'CREATOR_DEFINED' },
+            },
+          ],
+        },
+      };
+
+      const context = buildEngineTurnContext({
+        blueprint: bpWithHorrorGrammar,
+        selectedRole: 'protagonist',
+        selectedCharacterId: 'char-clara',
+        characterPresence: {
+          'char-clara': { nodeId: 'WARD_4B' },
+          'char-orderly': { nodeId: 'WARD_4B' },
+          'char-warden': { nodeId: 'OPERATING_THEATRE' },
+        },
+        runtimeState: {
+          currentNodeId: 'WARD_4B',
+        },
+      });
+
+      expect(context.horrorGrammar).toBeDefined();
+      expect(context.horrorGrammar?.fictionalTime).toEqual({
+        moment_revision: 0,
+        scene_beat_revision: 0,
+        extended_revision: 0,
+        last_cost: null,
+      });
+      // Orderly is present at WARD_4B
+      expect(context.horrorGrammar?.presentActorOpportunities).toHaveLength(1);
+      expect(context.horrorGrammar?.presentActorOpportunities[0].castMemberId).toBe('char-orderly');
+      expect(context.horrorGrammar?.presentActorOpportunities[0].opportunityKind).toBe('PRESENT');
+
+      // User Clara is NEVER in opportunity pool
+      const claraInPool = [
+        ...(context.horrorGrammar?.presentActorOpportunities || []),
+        ...(context.horrorGrammar?.offscreenPursuitOpportunities || []),
+      ].some((o) => o.castMemberId === 'char-clara');
+      expect(claraInPool).toBe(false);
+
+      expect(context.horrorGrammar?.authorityInstruction).toContain(
+        'Only non-User characters listed under presentActorOpportunities and offscreenPursuitOpportunities are eligible'
+      );
+    });
   });
 });

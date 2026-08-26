@@ -33,6 +33,23 @@ import {
   WorldMemoryReceipt,
 } from '../../src/types/worldMemory';
 import { resolveWorldMemory, selectSituatedWorldMemory } from '../../src/lib/worldMemory';
+import { resolveCastActivity } from '../../src/lib/castActivity';
+import {
+  resolveSituatedPressure,
+  resolvePressureThreadTransitions,
+} from '../../src/lib/situatedPressure';
+import {
+  createInitialValueStateLedger,
+  resolveValueState,
+} from '../../src/lib/valueState';
+import {
+  createInitialCharacterPursuitLedger,
+  resolveCharacterPursuit,
+} from '../../src/lib/characterPursuits';
+import {
+  createInitialCharacterDevelopmentLedger,
+  resolveCharacterDevelopment,
+} from '../../src/lib/characterDevelopment';
 import {
   generateStructuredResponse,
   ProviderRefusalError,
@@ -671,6 +688,47 @@ The user acts as an external scene director. A direction is a proposal for focus
             .join('\n')
         : '• No durable world memories recorded.';
 
+    let horrorGrammarSection = '';
+    if (context.horrorGrammar) {
+      const hg = context.horrorGrammar;
+      const presentOppsFormatted =
+        hg.presentActorOpportunities.length > 0
+          ? hg.presentActorOpportunities
+              .map(
+                (o) =>
+                  `• [PRESENT] Cast ID: ${o.castMemberId}${o.objective ? ` | Objective: "${o.objective}"` : ''}${o.presentApproach ? ` | Approach: "${o.presentApproach}"` : ''}`
+              )
+              .join('\n')
+          : '• None';
+      const offscreenOppsFormatted =
+        hg.offscreenPursuitOpportunities.length > 0
+          ? hg.offscreenPursuitOpportunities
+              .map(
+                (o) =>
+                  `• [OFFSCREEN] Cast ID: ${o.castMemberId}${o.objective ? ` | Objective: "${o.objective}"` : ''}${o.presentApproach ? ` | Approach: "${o.presentApproach}"` : ''}${o.reviewWindow ? ` | Window: ${o.reviewWindow}` : ''}`
+              )
+              .join('\n')
+          : '• None';
+      const valueAnchorsFormatted =
+        hg.relevantValueAnchors.length > 0
+          ? hg.relevantValueAnchors
+              .map((v) => `• [${v.id}] ${v.label}: "${v.description}" (Holder: ${v.holder.kind})`)
+              .join('\n')
+          : '• None';
+
+      horrorGrammarSection = `\n[CAST ACTIVITY OPPORTUNITY POOL (OBSERVATIONAL)]
+Fictional Time Revisions: Moment ${hg.fictionalTime.moment_revision} | Scene Beat ${hg.fictionalTime.scene_beat_revision} | Extended ${hg.fictionalTime.extended_revision} (Last Cost: ${hg.fictionalTime.last_cost || 'None'})
+Present Opportunities:
+${presentOppsFormatted}
+Offscreen Opportunities (Max 2):
+${offscreenOppsFormatted}
+Relevant Value Anchors:
+${valueAnchorsFormatted}
+Authority Directive:
+${hg.authorityInstruction}
+`;
+    }
+
     // Construct the dense, authoritative contract prompt
     const prompt = `[SCENARIO CONTRACT]
 Title: ${context.scenario.title}
@@ -689,7 +747,7 @@ Entity Status: ${context.player.isEntity ? 'Entity' : 'Mortal'}
 
 [CAST LEDGER]
 ${castLedgerFormatted}
-
+${horrorGrammarSection}
 [CHARACTER DIALOGUE CONTRACT]
 - A dialogue block is optional. When the user's action directly addresses a cast member whose communication modes include spoken or mediated, answer with at most one dialogue block when that member gives a material response.
 - For a dialogue block, type must be "dialogue", speaker must be the exact existing CAST LEDGER name, and content must contain only that character's concise utterance.
@@ -797,6 +855,30 @@ Current Psychological Status: ${psychStatusFormatted}
 - Do not write these values in logic_state.
 - SYSTEM_INIT must emit an empty mutation array.
 - A proposal may be rejected while ordinary prose is preserved.
+
+[CAST ACTIVITY PROPOSAL CONTRACT]
+- cast_activity_proposal proposes at most one self-originating non-User activity from the Opportunity Pool above, or kind: "NONE".
+- kind: "NONE" (with a reason string) is valid on every turn regardless of phase or tension.
+- For kind: "ACTIVITY", you must choose an eligible castMemberId from the Opportunity Pool. An offscreen character requires their exact pursuitId.
+- State a concise activitySummary, authorityReferences from scenario context, and a valid perceptionPath:
+  • DIRECT: co-present in the same room.
+  • MEDIATED: intercom/radio/terminal.
+  • LOCAL_TRACE: tangible environmental trace or disturbance left at the current location.
+  • UNOBSERVED: activity occurs elsewhere with no immediate sensory perception (must have manifestationBlock: null).
+- An isolated manifestationBlock (prose or dialogue) describes ONLY this activity. Dialogue speaker must be the non-User actor.
+- NEVER propose actions, decisions, thoughts, feelings, or choices for the player-controlled character.
+- Do NOT copy unratified activity prose into base narrative_blocks, engine_thoughts, or logic_state.
+
+[SITUATED PRESSURE PROPOSAL CONTRACT]
+- situated_pressure_proposal proposes at most one value-anchored prospective pressure event, or kind: "NONE".
+- kind: "NONE" (with a reason string) is valid on every turn regardless of phase or tension.
+- For kind: "PRESSURE", cite a valid valueAnchorId from the scenario anchors above and a sourceReference ("ACTIVITY" or canonical condition).
+- Choose an operator (EXPOSE, CONSTRAIN_ACCESS, ACCELERATE, CORRUPT_TRUST, DEGRADE_CAPABILITY, CLOSE_DISTANCE, DESTABILIZE_KNOWLEDGE, VIOLATE_EXPECTATION, IMPOSE_COST, OTHER) and affectedDimension (ACCESS, KNOWLEDGE, TIME, TRUST, EXPOSURE, CAPABILITY, SAFETY, RELATIONSHIP, FREEDOM, IDENTITY, OTHER).
+- State an adverseProspect: a prospective threat to the value, not proof that the worst has already happened.
+- Set responseWindowOpen: true. Keep the response window open for the player.
+- An isolated manifestationBlock presents the sensory realization of this emerging threat.
+- NEVER conclude the outcome, dictate the player's reaction, or choose for the player.
+- Do NOT copy unratified pressure prose into base narrative_blocks, engine_thoughts, or logic_state.
 
 [INTERPRETATION & CAUSAL RECONCILIATION CONTRACT]
 - The intent_proposal and reconciliation_proposal interpret an attempted action; they are metadata, never player commands or proof of success.
@@ -959,11 +1041,96 @@ ${recentHistory}
       narrativeReconciliationReceipt,
     });
 
-    const characterStanceReceipt = finalizeCharacterStance({
+    const castActivityProposalReceipt = resolveCastActivity({
+      proposal: engineResponse.cast_activity_proposal,
+      eligibilityReceipt: context.horrorGrammar
+        ? {
+            version: 1,
+            presentOpportunities: context.horrorGrammar.presentActorOpportunities,
+            offscreenOpportunities: context.horrorGrammar.offscreenPursuitOpportunities,
+            boundedOutPursuitIds: [],
+            dormantCount: 0,
+            notDueCount: 0,
+            ledgerSnapshot: context.horrorGrammar.fictionalTime,
+            scheduleSnapshotRevision: context.runtime.turnNumber,
+          }
+        : null,
+      currentContext: context,
+      preEvents:
+        (context as unknown as { activityEvents?: import('../../src/types/horrorGrammar').CastActivityEvent[] })
+          .activityEvents || [],
+      currentTurn: context.runtime.turnNumber,
+    });
+
+    const situatedPressureReceipt = resolveSituatedPressure({
+      proposal: engineResponse.situated_pressure_proposal,
+      activityReceipt: castActivityProposalReceipt,
+      currentContext: context,
+      preThreads:
+        (context as unknown as { pressureThreads?: import('../../src/types/horrorGrammar').SituatedPressureThread[] })
+          .pressureThreads || [],
+      currentTurn: context.runtime.turnNumber,
+    });
+
+    const validCauses: string[] = [
+      'USER_ACTION',
+      'BASELINE',
+      intentReceipt.action_kind,
+      ...(castActivityProposalReceipt.acceptedEventId
+        ? [castActivityProposalReceipt.acceptedEventId, 'ACTIVITY']
+        : []),
+      ...(canonicalConsequenceReceipt.decisions || [])
+        .filter((d) => d.outcome === 'APPLIED')
+        .map((d) => `csq-${d.mutation.domain}-${d.mutation.operation}`),
+    ];
+
+    const valueStateReceipt = resolveValueState({
+      proposal: engineResponse.value_state_proposal,
+      preState:
+        (context as unknown as { valueStateLedger?: import('../../src/types/horrorGrammar').ValueStateLedger })
+          .valueStateLedger ||
+        createInitialValueStateLedger((context as unknown as { blueprint?: import('../../src/types').Blueprint }).blueprint),
+      currentTurn: context.runtime.turnNumber,
+      blueprint: (context as unknown as { blueprint?: import('../../src/types').Blueprint }).blueprint,
+      userCharacterId: context.player.characterId,
+      validCauses,
+    });
+
+    const characterPursuitReceipt = resolveCharacterPursuit({
+      proposal: engineResponse.character_pursuit_proposal,
+      preState:
+        (context as unknown as { characterPursuitLedger?: import('../../src/types/horrorGrammar').CharacterPursuitLedger })
+          .characterPursuitLedger ||
+        createInitialCharacterPursuitLedger((context as unknown as { blueprint?: import('../../src/types').Blueprint }).blueprint),
+      currentTurn: context.runtime.turnNumber,
+      blueprint: (context as unknown as { blueprint?: import('../../src/types').Blueprint }).blueprint,
+      userCharacterId: context.player.characterId,
+      validCauses,
+    });
+
+    const characterDevelopmentReceipt = resolveCharacterDevelopment({
+      proposal: engineResponse.character_development_proposal,
+      preState:
+        (context as unknown as { characterDevelopmentLedger?: import('../../src/types/horrorGrammar').CharacterDevelopmentLedger })
+          .characterDevelopmentLedger || createInitialCharacterDevelopmentLedger(),
+      currentTurn: context.runtime.turnNumber,
+      userCharacterId: context.player.characterId,
+      validCauses,
+    });
+
+    const pressureThreadTransitionReceipt = resolvePressureThreadTransitions({
+      proposal: engineResponse.pressure_transition_proposal,
+      preThreads: situatedPressureReceipt.postState,
+      currentTurn: context.runtime.turnNumber,
+      validCauses,
+    });
+
+    const characterStanceReceipt = resolveCharacterStance({
       proposal: engineResponse.character_stance_proposal,
+      currentState: context.characterStance || {},
       context,
       intentReceipt,
-      narrativeReconciliationReceipt,
+      reconciliationReceipt: narrativeReconciliationReceipt,
       castInteractionReceipt,
     });
 
@@ -991,8 +1158,25 @@ ${recentHistory}
       castInteractionReceipt,
     });
 
+    // 5. Isolated narrative composition
+    const composedNarrativeBlocks = [...boundedResult.narrative_blocks];
+    if (
+      castActivityProposalReceipt.admittedManifestation &&
+      engineResponse.cast_activity_proposal?.kind === 'ACTIVITY' &&
+      engineResponse.cast_activity_proposal.manifestationBlock
+    ) {
+      composedNarrativeBlocks.push(engineResponse.cast_activity_proposal.manifestationBlock);
+    }
+    if (
+      situatedPressureReceipt.admittedManifestation &&
+      engineResponse.situated_pressure_proposal?.kind === 'PRESSURE' &&
+      engineResponse.situated_pressure_proposal.manifestationBlock
+    ) {
+      composedNarrativeBlocks.push(engineResponse.situated_pressure_proposal.manifestationBlock);
+    }
+
     const finalResponse: TurnResponse = {
-      narrative_blocks: boundedResult.narrative_blocks,
+      narrative_blocks: composedNarrativeBlocks,
       logic_state: boundedResult.logic_state,
       topologyDelta: boundedResult.topologyDelta,
       transitionReceipt,
@@ -1004,6 +1188,12 @@ ${recentHistory}
       characterRelationshipReceipt,
       characterMemoryReceipt,
       worldMemoryReceipt,
+      castActivityProposalReceipt,
+      situatedPressureReceipt,
+      valueStateReceipt,
+      characterPursuitReceipt,
+      characterDevelopmentReceipt,
+      pressureThreadTransitionReceipt,
     };
 
     return res.json(finalResponse);

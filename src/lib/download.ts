@@ -402,6 +402,19 @@ interface ParsedTelemetrySections {
     validation: Array<{ label: string; value: string }>;
     failure?: Array<{ label: string; value: string }>;
   };
+  horrorGrammarForensics: {
+    hasReceipts: boolean;
+    fictionalTime?: Record<string, unknown>;
+    castActivity?: {
+      eligibility?: Record<string, unknown>;
+      proposalReceipt?: Record<string, unknown>;
+    };
+    situatedPressure?: Record<string, unknown>;
+    valueState?: Record<string, unknown>;
+    characterPursuit?: Record<string, unknown>;
+    characterDevelopment?: Record<string, unknown>;
+    pressureTransitions?: Record<string, unknown>;
+  };
   rawPayload: Record<string, unknown>;
 }
 
@@ -538,6 +551,102 @@ export function parseTelemetrySections(logicData: Record<string, unknown>): Pars
     typeof logicData.transitionReceipt === 'object' && logicData.transitionReceipt !== null
       ? logicData.transitionReceipt
       : undefined
+  ) as Record<string, unknown> | undefined;
+
+  const fictionalTimeReceipt = (
+    (turn &&
+    typeof turn.fictionalTimeReceipt === 'object' &&
+    turn.fictionalTimeReceipt !== null
+      ? turn.fictionalTimeReceipt
+      : undefined) ||
+    (typeof logicData.fictionalTimeReceipt === 'object' &&
+    logicData.fictionalTimeReceipt !== null
+      ? logicData.fictionalTimeReceipt
+      : undefined)
+  ) as Record<string, unknown> | undefined;
+
+  const castActivityReceipt = (
+    (turn &&
+    typeof turn.castActivityReceipt === 'object' &&
+    turn.castActivityReceipt !== null
+      ? turn.castActivityReceipt
+      : undefined) ||
+    (typeof logicData.castActivityReceipt === 'object' &&
+    logicData.castActivityReceipt !== null
+      ? logicData.castActivityReceipt
+      : undefined)
+  ) as Record<string, unknown> | undefined;
+
+  const castActivityProposalReceipt = (
+    (turn &&
+    typeof turn.castActivityProposalReceipt === 'object' &&
+    turn.castActivityProposalReceipt !== null
+      ? turn.castActivityProposalReceipt
+      : undefined) ||
+    (typeof logicData.castActivityProposalReceipt === 'object' &&
+    logicData.castActivityProposalReceipt !== null
+      ? logicData.castActivityProposalReceipt
+      : undefined)
+  ) as Record<string, unknown> | undefined;
+
+  const situatedPressureReceipt = (
+    (turn &&
+    typeof turn.situatedPressureReceipt === 'object' &&
+    turn.situatedPressureReceipt !== null
+      ? turn.situatedPressureReceipt
+      : undefined) ||
+    (typeof logicData.situatedPressureReceipt === 'object' &&
+    logicData.situatedPressureReceipt !== null
+      ? logicData.situatedPressureReceipt
+      : undefined)
+  ) as Record<string, unknown> | undefined;
+
+  const valueStateReceipt = (
+    (turn &&
+    typeof turn.valueStateReceipt === 'object' &&
+    turn.valueStateReceipt !== null
+      ? turn.valueStateReceipt
+      : undefined) ||
+    (typeof logicData.valueStateReceipt === 'object' &&
+    logicData.valueStateReceipt !== null
+      ? logicData.valueStateReceipt
+      : undefined)
+  ) as Record<string, unknown> | undefined;
+
+  const characterPursuitReceipt = (
+    (turn &&
+    typeof turn.characterPursuitReceipt === 'object' &&
+    turn.characterPursuitReceipt !== null
+      ? turn.characterPursuitReceipt
+      : undefined) ||
+    (typeof logicData.characterPursuitReceipt === 'object' &&
+    logicData.characterPursuitReceipt !== null
+      ? logicData.characterPursuitReceipt
+      : undefined)
+  ) as Record<string, unknown> | undefined;
+
+  const characterDevelopmentReceipt = (
+    (turn &&
+    typeof turn.characterDevelopmentReceipt === 'object' &&
+    turn.characterDevelopmentReceipt !== null
+      ? turn.characterDevelopmentReceipt
+      : undefined) ||
+    (typeof logicData.characterDevelopmentReceipt === 'object' &&
+    logicData.characterDevelopmentReceipt !== null
+      ? logicData.characterDevelopmentReceipt
+      : undefined)
+  ) as Record<string, unknown> | undefined;
+
+  const pressureThreadTransitionReceipt = (
+    (turn &&
+    typeof turn.pressureThreadTransitionReceipt === 'object' &&
+    turn.pressureThreadTransitionReceipt !== null
+      ? turn.pressureThreadTransitionReceipt
+      : undefined) ||
+    (typeof logicData.pressureThreadTransitionReceipt === 'object' &&
+    logicData.pressureThreadTransitionReceipt !== null
+      ? logicData.pressureThreadTransitionReceipt
+      : undefined)
   ) as Record<string, unknown> | undefined;
 
   const validation = (typeof logicData.validation === 'object' && logicData.validation !== null
@@ -1085,6 +1194,28 @@ export function parseTelemetrySections(logicData: Record<string, unknown>): Pars
       validation: validationItems,
       failure: failureItems,
     },
+    horrorGrammarForensics: {
+      hasReceipts: Boolean(
+        fictionalTimeReceipt ||
+        castActivityReceipt ||
+        castActivityProposalReceipt ||
+        situatedPressureReceipt ||
+        valueStateReceipt ||
+        characterPursuitReceipt ||
+        characterDevelopmentReceipt ||
+        pressureThreadTransitionReceipt
+      ),
+      fictionalTime: fictionalTimeReceipt,
+      castActivity: {
+        eligibility: castActivityReceipt,
+        proposalReceipt: castActivityProposalReceipt,
+      },
+      situatedPressure: situatedPressureReceipt,
+      valueState: valueStateReceipt,
+      characterPursuit: characterPursuitReceipt,
+      characterDevelopment: characterDevelopmentReceipt,
+      pressureTransitions: pressureThreadTransitionReceipt,
+    },
     rawPayload: logicData,
   };
 }
@@ -1303,6 +1434,54 @@ function renderHtmlTelemetrySections(logicData: Record<string, unknown>): string
   html += `</ul>`;
   html += `</div>`;
 
+  // Horror Grammar 1 Forensics
+  if (sections.horrorGrammarForensics.hasReceipts) {
+    html += `<div class="telemetry-section">`;
+    html += `<h4>Horror Grammar 1 Forensics</h4>`;
+    html += `<ul>`;
+    const hg = sections.horrorGrammarForensics;
+    if (hg.fictionalTime) {
+      const ft = hg.fictionalTime as any;
+      html += `<li><strong>Fictional Time:</strong> Moment ${escapeHtml(String(ft.postState?.moment_revision ?? ft.moment_revision ?? '0'))}, Scene ${escapeHtml(String(ft.postState?.scene_beat_revision ?? ft.scene_beat_revision ?? '0'))}, Extended ${escapeHtml(String(ft.postState?.extended_revision ?? ft.extended_revision ?? '0'))} (Cost: ${escapeHtml(String(ft.costApplied ?? ft.last_cost ?? 'NONE'))})</li>`;
+    }
+    if (hg.castActivity?.eligibility) {
+      const el = hg.castActivity.eligibility as any;
+      const presCount = Array.isArray(el.presentOpportunities) ? el.presentOpportunities.length : 0;
+      const offCount = Array.isArray(el.offscreenOpportunities) ? el.offscreenOpportunities.length : 0;
+      html += `<li><strong>Cast Activity Opportunities:</strong> ${presCount} present, ${offCount} offscreen</li>`;
+    }
+    if (hg.castActivity?.proposalReceipt) {
+      const ar = hg.castActivity.proposalReceipt as any;
+      html += `<li><strong>Cast Activity Proposal:</strong> Outcome: ${escapeHtml(String(ar.outcome))} (Reason: ${escapeHtml(String(ar.reasonCode))}) | Admitted: ${escapeHtml(String(ar.admittedManifestation))}</li>`;
+    }
+    if (hg.situatedPressure) {
+      const pr = hg.situatedPressure as any;
+      html += `<li><strong>Situated Pressure Proposal:</strong> Outcome: ${escapeHtml(String(pr.outcome))} (Reason: ${escapeHtml(String(pr.reasonCode))}) | Admitted: ${escapeHtml(String(pr.admittedManifestation))}</li>`;
+    }
+    if (hg.valueState && Array.isArray((hg.valueState as any).decisions)) {
+      for (const d of (hg.valueState as any).decisions) {
+        html += `<li><strong>Value Decision [${escapeHtml(String(d.anchorId))} / ${escapeHtml(String(d.operation))}]:</strong> Outcome: ${escapeHtml(String(d.outcome))} (Reason: ${escapeHtml(String(d.reasonCode))}, Cause: ${escapeHtml(String(d.causeReference))})</li>`;
+      }
+    }
+    if (hg.characterPursuit && Array.isArray((hg.characterPursuit as any).decisions)) {
+      for (const d of (hg.characterPursuit as any).decisions) {
+        html += `<li><strong>Pursuit Decision [${escapeHtml(String(d.pursuitId))} / ${escapeHtml(String(d.operation))}]:</strong> Outcome: ${escapeHtml(String(d.outcome))} (Reason: ${escapeHtml(String(d.reasonCode))}, Cause: ${escapeHtml(String(d.causeReference))})</li>`;
+      }
+    }
+    if (hg.characterDevelopment && Array.isArray((hg.characterDevelopment as any).decisions)) {
+      for (const d of (hg.characterDevelopment as any).decisions) {
+        html += `<li><strong>Character Development Decision [${escapeHtml(String(d.castMemberId))} / ${escapeHtml(String(d.operation))}]:</strong> Outcome: ${escapeHtml(String(d.outcome))} (Reason: ${escapeHtml(String(d.reasonCode))}, Cause: ${escapeHtml(String(d.causeReference))})</li>`;
+      }
+    }
+    if (hg.pressureTransitions && Array.isArray((hg.pressureTransitions as any).decisions)) {
+      for (const d of (hg.pressureTransitions as any).decisions) {
+        html += `<li><strong>Pressure Transition [${escapeHtml(String(d.threadId))} -> ${escapeHtml(String(d.proposedStatus))}]:</strong> Outcome: ${escapeHtml(String(d.outcome))} (Reason: ${escapeHtml(String(d.reasonCode))}, Cause: ${escapeHtml(String(d.causeReference))})</li>`;
+      }
+    }
+    html += `</ul>`;
+    html += `</div>`;
+  }
+
   // 9. Raw Structured Payload
   html += `<details class="raw-payload-panel">`;
   html += `<summary class="speaker-label speaker-engine">Raw Structured Payload</summary>`;
@@ -1478,6 +1657,51 @@ function renderMarkdownTelemetrySections(logicData: Record<string, unknown>): st
     }
   }
   md += `\n`;
+
+  // Horror Grammar 1 Forensics
+  if (sections.horrorGrammarForensics.hasReceipts) {
+    md += `#### Horror Grammar 1 Forensics\n`;
+    const hg = sections.horrorGrammarForensics;
+    if (hg.fictionalTime) {
+      const ft = hg.fictionalTime as any;
+      md += `- **Fictional Time:** Moment ${ft.postState?.moment_revision ?? ft.moment_revision ?? '0'}, Scene ${ft.postState?.scene_beat_revision ?? ft.scene_beat_revision ?? '0'}, Extended ${ft.postState?.extended_revision ?? ft.extended_revision ?? '0'} (Cost: ${ft.costApplied ?? ft.last_cost ?? 'NONE'})\n`;
+    }
+    if (hg.castActivity?.eligibility) {
+      const el = hg.castActivity.eligibility as any;
+      const presCount = Array.isArray(el.presentOpportunities) ? el.presentOpportunities.length : 0;
+      const offCount = Array.isArray(el.offscreenOpportunities) ? el.offscreenOpportunities.length : 0;
+      md += `- **Cast Activity Opportunities:** ${presCount} present, ${offCount} offscreen\n`;
+    }
+    if (hg.castActivity?.proposalReceipt) {
+      const ar = hg.castActivity.proposalReceipt as any;
+      md += `- **Cast Activity Proposal:** Outcome: ${ar.outcome} (Reason: ${ar.reasonCode}) | Admitted: ${ar.admittedManifestation}\n`;
+    }
+    if (hg.situatedPressure) {
+      const pr = hg.situatedPressure as any;
+      md += `- **Situated Pressure Proposal:** Outcome: ${pr.outcome} (Reason: ${pr.reasonCode}) | Admitted: ${pr.admittedManifestation}\n`;
+    }
+    if (hg.valueState && Array.isArray((hg.valueState as any).decisions)) {
+      for (const d of (hg.valueState as any).decisions) {
+        md += `- **Value Decision [${d.anchorId} / ${d.operation}]:** Outcome: ${d.outcome} (Reason: ${d.reasonCode}, Cause: ${d.causeReference})\n`;
+      }
+    }
+    if (hg.characterPursuit && Array.isArray((hg.characterPursuit as any).decisions)) {
+      for (const d of (hg.characterPursuit as any).decisions) {
+        md += `- **Pursuit Decision [${d.pursuitId} / ${d.operation}]:** Outcome: ${d.outcome} (Reason: ${d.reasonCode}, Cause: ${d.causeReference})\n`;
+      }
+    }
+    if (hg.characterDevelopment && Array.isArray((hg.characterDevelopment as any).decisions)) {
+      for (const d of (hg.characterDevelopment as any).decisions) {
+        md += `- **Character Development Decision [${d.castMemberId} / ${d.operation}]:** Outcome: ${d.outcome} (Reason: ${d.reasonCode}, Cause: ${d.causeReference})\n`;
+      }
+    }
+    if (hg.pressureTransitions && Array.isArray((hg.pressureTransitions as any).decisions)) {
+      for (const d of (hg.pressureTransitions as any).decisions) {
+        md += `- **Pressure Transition [${d.threadId} -> ${d.proposedStatus}]:** Outcome: ${d.outcome} (Reason: ${d.reasonCode}, Cause: ${d.causeReference})\n`;
+      }
+    }
+    md += `\n`;
+  }
 
   // 8. Raw Structured Payload
   md += `#### Raw Structured Payload\n`;

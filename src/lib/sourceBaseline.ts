@@ -397,6 +397,57 @@ export function buildSourceAnalysisFromBlueprint(
     });
   }
 
+  // 8. Value Anchors
+  const anchors = normalized.horrorGrammar?.valueAnchors || [];
+  anchors.forEach((anchor, idx) => {
+    const evId = `${sourceId}-ev-anchor-${anchor.id || idx}`;
+    evidence.push({
+      id: evId,
+      sourceId,
+      category: 'other',
+      claim: `Value anchor: "${anchor.label}" (${anchor.description})`,
+      excerpt: anchor.basisSummary || anchor.description,
+    });
+    candidates.push({
+      id: `${sourceId}-cand-anchor-${anchor.id || idx}`,
+      sourceId,
+      classification: 'evidence',
+      target: 'value_anchor',
+      label: `Value Anchor: ${anchor.label}`,
+      explanation: `Extracted value anchor with basis "${anchor.basisSummary}".`,
+      evidenceIds: [evId],
+      proposedValue: anchor,
+      reviewDecision: 'accepted',
+      applicationState: 'staged',
+    });
+  });
+
+  // 9. Character Pursuits
+  const pursuits = normalized.horrorGrammar?.characterPursuits || [];
+  pursuits.forEach((pursuit, idx) => {
+    const evId = `${sourceId}-ev-pursuit-${pursuit.id || idx}`;
+    evidence.push({
+      id: evId,
+      sourceId,
+      category: 'cast',
+      claim: `Character pursuit for ${pursuit.castMemberId}: "${pursuit.objective}"`,
+      excerpt: pursuit.basisSummary || pursuit.objective,
+    });
+    candidates.push({
+      id: `${sourceId}-cand-pursuit-${pursuit.id || idx}`,
+      sourceId,
+      classification: 'evidence',
+      target: 'character_pursuit',
+      label: `Pursuit: ${pursuit.objective.slice(0, 40)}`,
+      explanation: `Extracted character pursuit with approach "${pursuit.presentApproach}".`,
+      evidenceIds: [evId],
+      proposedValue: pursuit,
+      targetCastMemberId: pursuit.castMemberId,
+      reviewDecision: 'accepted',
+      applicationState: 'staged',
+    });
+  });
+
   return {
     id: `${sourceId}-analysis`,
     sourceRecord,
@@ -744,6 +795,59 @@ export function applyCandidateToDraft(
       cloned.references = currentRefs;
       break;
     }
+
+    case 'value_anchor': {
+      const anchor = candidate.proposedValue;
+      if (!anchor || typeof anchor !== 'object' || !anchor.id || !anchor.label) {
+        return { success: false, draft, error: 'Value anchor proposed value must be a valid value anchor object.' };
+      }
+      if (!cloned.horrorGrammar) {
+        cloned.horrorGrammar = {
+          valueBaselineReview: 'UNREVIEWED',
+          pursuitReviews: {},
+          valueAnchors: [],
+          characterPursuits: [],
+        };
+      }
+      const currentAnchors = [...(cloned.horrorGrammar.valueAnchors || [])];
+      const existingIdx = currentAnchors.findIndex((a) => a.id === anchor.id);
+      if (existingIdx >= 0) {
+        currentAnchors[existingIdx] = anchor;
+      } else {
+        currentAnchors.push(anchor);
+      }
+      cloned.horrorGrammar.valueAnchors = currentAnchors;
+      cloned.horrorGrammar.valueBaselineReview = 'REVIEWED';
+      break;
+    }
+
+    case 'character_pursuit': {
+      const pursuit = candidate.proposedValue;
+      if (!pursuit || typeof pursuit !== 'object' || !pursuit.id || !pursuit.castMemberId) {
+        return { success: false, draft, error: 'Character pursuit proposed value must be a valid character pursuit object.' };
+      }
+      if (!cloned.horrorGrammar) {
+        cloned.horrorGrammar = {
+          valueBaselineReview: 'UNREVIEWED',
+          pursuitReviews: {},
+          valueAnchors: [],
+          characterPursuits: [],
+        };
+      }
+      const currentPursuits = [...(cloned.horrorGrammar.characterPursuits || [])];
+      const existingIdx = currentPursuits.findIndex((p) => p.id === pursuit.id);
+      if (existingIdx >= 0) {
+        currentPursuits[existingIdx] = pursuit;
+      } else {
+        currentPursuits.push(pursuit);
+      }
+      cloned.horrorGrammar.characterPursuits = currentPursuits;
+      if (!cloned.horrorGrammar.pursuitReviews) {
+        cloned.horrorGrammar.pursuitReviews = {};
+      }
+      cloned.horrorGrammar.pursuitReviews[pursuit.castMemberId] = 'REVIEWED';
+      break;
+    }
   }
 
   // Provenance: append sourceFileName to references if not already present
@@ -761,11 +865,17 @@ export function applyCandidateToDraft(
 
 /**
  * Gets the execution priority for a candidate target.
- * cast_seed (1) runs before regular fields (2), which run before cast_expression_guidance (3).
+ * cast_seed and initial_topology_node (1) run before regular fields (2), which run before dependencies (3).
  */
 export function getCandidateApplicationPriority(target: ForgeSourceCandidate['target']): number {
-  if (target === 'cast_seed') return 1;
-  if (target === 'cast_expression_guidance') return 3;
+  if (target === 'cast_seed' || target === 'initial_topology_node') return 1;
+  if (
+    target === 'cast_expression_guidance' ||
+    target === 'value_anchor' ||
+    target === 'character_pursuit'
+  ) {
+    return 3;
+  }
   return 2;
 }
 
@@ -906,22 +1016,86 @@ export function applyResolutionDraftPatch(
 
   // 2. Validate every operation and referenced cast member against the untouched draft
   const castList = draft.cast || [];
+  const validCastIds = new Set(castList.map((c) => c.id).filter(Boolean));
+  const validNodeIds = new Set(draft.topology?.nodes?.filter(Boolean) || []);
+
   for (let idx = 0; idx < parsedPatch.data.operations.length; idx++) {
     const op = parsedPatch.data.operations[idx];
-    const text = (op.text || '').trim();
-    if (!text) {
-      return {
-        success: false,
-        error: `Operation [${idx + 1}] (${op.target}) text cannot be empty.`,
-      };
-    }
 
-    if (op.target === 'cast_description' || op.target === 'cast_personality') {
-      const targetCast = castList.find((c) => c.id === op.castMemberId);
+    if (
+      op.target === 'cast_description' ||
+      op.target === 'cast_personality' ||
+      op.target === 'premise_detail' ||
+      op.target === 'setting_atmosphere' ||
+      op.target === 'environmental_rule' ||
+      op.target === 'narrative_rule'
+    ) {
+      const text = (op.text || '').trim();
+      if (!text) {
+        return {
+          success: false,
+          error: `Operation [${idx + 1}] (${op.target}) text cannot be empty.`,
+        };
+      }
+
+      if (op.target === 'cast_description' || op.target === 'cast_personality') {
+        const targetCast = castList.find((c) => c.id === op.castMemberId);
+        if (!targetCast) {
+          return {
+            success: false,
+            error: `Referenced cast member "${op.castMemberId}" not found in active draft for operation [${idx + 1}] (${op.target}).`,
+          };
+        }
+      }
+    } else if (op.target === 'add_value_anchor') {
+      if (op.anchor.holder.kind === 'CHARACTER') {
+        if (!validCastIds.has(op.anchor.holder.castMemberId)) {
+          return {
+            success: false,
+            error: `Value anchor references unknown cast member ID: "${op.anchor.holder.castMemberId}".`,
+          };
+        }
+      } else if (op.anchor.holder.kind === 'RELATIONSHIP') {
+        const [c1, c2] = op.anchor.holder.castMemberIds;
+        if (!validCastIds.has(c1) || !validCastIds.has(c2)) {
+          return {
+            success: false,
+            error: `Relationship value anchor references unknown cast member ID.`,
+          };
+        }
+      } else if (op.anchor.holder.kind === 'PLACE') {
+        if (validNodeIds.size > 0 && !validNodeIds.has(op.anchor.holder.nodeId)) {
+          return {
+            success: false,
+            error: `Place value anchor references unknown topology node ID: "${op.anchor.holder.nodeId}".`,
+          };
+        }
+      }
+    } else if (op.target === 'add_character_pursuit') {
+      const targetCast = castList.find((c) => c.id === op.pursuit.castMemberId);
       if (!targetCast) {
         return {
           success: false,
-          error: `Referenced cast member "${op.castMemberId}" not found in active draft for operation [${idx + 1}] (${op.target}).`,
+          error: `Character pursuit references unknown cast member ID: "${op.pursuit.castMemberId}".`,
+        };
+      }
+      if (targetCast.isUserCharacter) {
+        return {
+          success: false,
+          error: 'Character pursuits cannot be assigned to User-controlled characters.',
+        };
+      }
+      if (op.pursuit.locationNodeId && validNodeIds.size > 0 && !validNodeIds.has(op.pursuit.locationNodeId)) {
+        return {
+          success: false,
+          error: `Character pursuit references unknown topology node ID: "${op.pursuit.locationNodeId}".`,
+        };
+      }
+    } else if (op.target === 'set_character_pursuit_review_state') {
+      if (!validCastIds.has(op.castMemberId)) {
+        return {
+          success: false,
+          error: `Pursuit review state references unknown cast member ID: "${op.castMemberId}".`,
         };
       }
     }
@@ -931,10 +1105,9 @@ export function applyResolutionDraftPatch(
   const nextDraft: ForgeDraft = JSON.parse(JSON.stringify(draft));
 
   for (const op of parsedPatch.data.operations) {
-    const text = op.text.trim();
-
     switch (op.target) {
       case 'cast_description': {
+        const text = op.text.trim();
         if (!nextDraft.cast) nextDraft.cast = [];
         nextDraft.cast = nextDraft.cast.map((c) => {
           if (c.id === op.castMemberId) {
@@ -948,6 +1121,7 @@ export function applyResolutionDraftPatch(
         break;
       }
       case 'cast_personality': {
+        const text = op.text.trim();
         if (!nextDraft.cast) nextDraft.cast = [];
         nextDraft.cast = nextDraft.cast.map((c) => {
           if (c.id === op.castMemberId) {
@@ -961,6 +1135,7 @@ export function applyResolutionDraftPatch(
         break;
       }
       case 'premise_detail': {
+        const text = op.text.trim();
         const updated = appendDeterministicText(
           nextDraft.premise || nextDraft.globalPremise || '',
           text,
@@ -971,6 +1146,7 @@ export function applyResolutionDraftPatch(
         break;
       }
       case 'setting_atmosphere': {
+        const text = op.text.trim();
         if (!nextDraft.setting) {
           nextDraft.setting = { location: '', atmosphere: '', timePeriod: '' };
         }
@@ -982,6 +1158,7 @@ export function applyResolutionDraftPatch(
         break;
       }
       case 'environmental_rule': {
+        const text = op.text.trim();
         if (Array.isArray(nextDraft.environmentalRules)) {
           const rules = [...nextDraft.environmentalRules];
           if (!rules.includes(text)) {
@@ -1001,6 +1178,7 @@ export function applyResolutionDraftPatch(
         break;
       }
       case 'narrative_rule': {
+        const text = op.text.trim();
         if (!nextDraft.narrativeRules) {
           nextDraft.narrativeRules = {
             incitingIncident: '',
@@ -1016,6 +1194,100 @@ export function applyResolutionDraftPatch(
           currentPlot.push(text);
         }
         nextDraft.narrativeRules.keyPlotElements = currentPlot;
+        break;
+      }
+      case 'add_value_anchor': {
+        if (!nextDraft.horrorGrammar) {
+          nextDraft.horrorGrammar = {
+            valueBaselineReview: 'UNREVIEWED',
+            pursuitReviews: {},
+            valueAnchors: [],
+            characterPursuits: [],
+          };
+        }
+        const currentAnchors = [...(nextDraft.horrorGrammar.valueAnchors || [])];
+        const existingIdx = currentAnchors.findIndex((a) => a.id === op.anchor.id);
+        if (existingIdx >= 0) {
+          currentAnchors[existingIdx] = op.anchor;
+        } else {
+          currentAnchors.push(op.anchor);
+        }
+        nextDraft.horrorGrammar.valueAnchors = currentAnchors;
+        nextDraft.horrorGrammar.valueBaselineReview = 'REVIEWED';
+        break;
+      }
+      case 'set_value_review_state': {
+        if (!nextDraft.horrorGrammar) {
+          nextDraft.horrorGrammar = {
+            valueBaselineReview: 'UNREVIEWED',
+            pursuitReviews: {},
+            valueAnchors: [],
+            characterPursuits: [],
+          };
+        }
+        nextDraft.horrorGrammar.valueBaselineReview = op.state;
+        if (op.state === 'REVIEWED_NONE') {
+          nextDraft.horrorGrammar.valueAnchors = [];
+        }
+        break;
+      }
+      case 'add_character_pursuit': {
+        if (!nextDraft.horrorGrammar) {
+          nextDraft.horrorGrammar = {
+            valueBaselineReview: 'UNREVIEWED',
+            pursuitReviews: {},
+            valueAnchors: [],
+            characterPursuits: [],
+          };
+        }
+        const currentPursuits = [...(nextDraft.horrorGrammar.characterPursuits || [])];
+        const existingIdx = currentPursuits.findIndex((p) => p.id === op.pursuit.id);
+        if (existingIdx >= 0) {
+          currentPursuits[existingIdx] = op.pursuit;
+        } else {
+          currentPursuits.push(op.pursuit);
+        }
+        nextDraft.horrorGrammar.characterPursuits = currentPursuits;
+        if (!nextDraft.horrorGrammar.pursuitReviews) {
+          nextDraft.horrorGrammar.pursuitReviews = {};
+        }
+        nextDraft.horrorGrammar.pursuitReviews[op.pursuit.castMemberId] = 'REVIEWED';
+        break;
+      }
+      case 'set_character_pursuit_review_state': {
+        if (!nextDraft.horrorGrammar) {
+          nextDraft.horrorGrammar = {
+            valueBaselineReview: 'UNREVIEWED',
+            pursuitReviews: {},
+            valueAnchors: [],
+            characterPursuits: [],
+          };
+        }
+        if (!nextDraft.horrorGrammar.pursuitReviews) {
+          nextDraft.horrorGrammar.pursuitReviews = {};
+        }
+        nextDraft.horrorGrammar.pursuitReviews[op.castMemberId] = op.state;
+        if (op.state === 'REVIEWED_NONE') {
+          nextDraft.horrorGrammar.characterPursuits = (
+            nextDraft.horrorGrammar.characterPursuits || []
+          ).filter((p) => p.castMemberId !== op.castMemberId);
+        }
+        break;
+      }
+      case 'remove_value_anchor': {
+        if (nextDraft.horrorGrammar) {
+          nextDraft.horrorGrammar.valueAnchors = (
+            nextDraft.horrorGrammar.valueAnchors || []
+          ).filter((a) => a.id !== op.anchorId);
+        }
+        break;
+      }
+      case 'remove_character_pursuit': {
+        if (nextDraft.horrorGrammar) {
+          nextDraft.horrorGrammar.characterPursuits = (
+            nextDraft.horrorGrammar.characterPursuits || []
+          ).filter((p) => p.id !== op.pursuitId);
+        }
         break;
       }
     }

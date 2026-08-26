@@ -19,6 +19,31 @@ import {
   BlueprintAmbiguityDecisionsSchema,
   DepictionContractSchema,
 } from './blueprintAuthoring';
+import {
+  HorrorGrammarAuthoringSchema,
+  FictionalTimeLedgerSchema,
+  PursuitScheduleLedgerSchema,
+  FictionalTimeLedger,
+  PursuitScheduleLedger,
+  FictionalTimeReceipt,
+  CastActivityEligibilityReceipt,
+  CastActivityEventSchema,
+  SituatedPressureThreadSchema,
+  CastActivityEvent,
+  SituatedPressureThread,
+  CastActivityReceipt,
+  SituatedPressureReceipt,
+  ValueStateLedgerSchema,
+  ValueStateLedger,
+  ValueStateReceipt,
+  CharacterPursuitLedgerSchema,
+  CharacterPursuitLedger,
+  CharacterPursuitReceipt,
+  CharacterDevelopmentLedgerSchema,
+  CharacterDevelopmentLedger,
+  CharacterDevelopmentReceipt,
+  PressureThreadTransitionReceipt,
+} from './horrorGrammar';
 export * from './engineContract';
 export * from './participation';
 export * from './forge';
@@ -28,6 +53,7 @@ export * from './characterRelationships';
 export * from './characterMemory';
 export * from './worldMemory';
 export * from './blueprintAuthoring';
+export * from './horrorGrammar';
 
 export type AppPhase = 'hub' | 'forge' | 'engine' | 'voice';
 
@@ -174,6 +200,12 @@ export const BlueprintSchema = z.object({
   hauntedHouse: HauntedHouseProvenanceSchema.optional(),
   ambiguities: BlueprintAmbiguityDecisionsSchema.optional().default([]),
   depictionContract: DepictionContractSchema.optional(),
+  horrorGrammar: HorrorGrammarAuthoringSchema.optional().default(() => ({
+    valueBaselineReview: 'UNREVIEWED' as const,
+    pursuitReviews: {},
+    valueAnchors: [],
+    characterPursuits: [],
+  })),
 });
 
 // For compatibility with previous types, though we augment them
@@ -354,6 +386,14 @@ export interface TurnReceipt {
   characterRelationshipReceipt?: CharacterRelationshipReceipt;
   characterMemoryReceipt?: CharacterMemoryReceipt;
   worldMemoryReceipt?: WorldMemoryReceipt;
+  fictionalTimeReceipt?: FictionalTimeReceipt;
+  castActivityReceipt?: CastActivityEligibilityReceipt;
+  castActivityProposalReceipt?: CastActivityReceipt;
+  situatedPressureReceipt?: SituatedPressureReceipt;
+  valueStateReceipt?: ValueStateReceipt;
+  characterPursuitReceipt?: CharacterPursuitReceipt;
+  characterDevelopmentReceipt?: CharacterDevelopmentReceipt;
+  pressureThreadTransitionReceipt?: PressureThreadTransitionReceipt;
 }
 
 export interface TurnFailureDiagnosticIssue {
@@ -566,6 +606,13 @@ export interface LogicState {
   character_relationships?: CharacterRelationshipState;
   character_memory?: CharacterMemoryById;
   world_memory?: WorldMemoryState;
+  fictional_time_ledger?: FictionalTimeLedger;
+  pursuit_schedule_ledger?: PursuitScheduleLedger;
+  activity_events?: CastActivityEvent[];
+  pressure_threads?: SituatedPressureThread[];
+  value_state_ledger?: ValueStateLedger;
+  character_pursuit_ledger?: CharacterPursuitLedger;
+  character_development_ledger?: CharacterDevelopmentLedger;
   current_location?: string;
   player_character_id?: string | null;
   player_role?: PlayerRole | string;
@@ -622,6 +669,13 @@ export const LogicStateSchema = z
     character_relationships: z.union([z.array(z.any()), z.record(z.string(), z.any())]).optional(),
     character_memory: z.record(z.string(), z.any()).optional(),
     world_memory: z.union([z.array(z.any()), z.record(z.string(), z.any())]).optional(),
+    fictional_time_ledger: FictionalTimeLedgerSchema.optional(),
+    pursuit_schedule_ledger: PursuitScheduleLedgerSchema.optional(),
+    activity_events: z.array(CastActivityEventSchema).optional(),
+    pressure_threads: z.array(SituatedPressureThreadSchema).optional(),
+    value_state_ledger: ValueStateLedgerSchema.optional(),
+    character_pursuit_ledger: CharacterPursuitLedgerSchema.optional(),
+    character_development_ledger: CharacterDevelopmentLedgerSchema.optional(),
     current_location: z.string().optional(),
     player_character_id: z.string().nullable().optional(),
     player_role: z.string().optional(),
@@ -663,6 +717,14 @@ export interface RatifiedEngineFrame {
   characterRelationshipReceipt?: CharacterRelationshipReceipt;
   characterMemoryReceipt?: CharacterMemoryReceipt;
   worldMemoryReceipt?: WorldMemoryReceipt;
+  fictionalTimeReceipt?: FictionalTimeReceipt;
+  castActivityReceipt?: CastActivityEligibilityReceipt;
+  castActivityProposalReceipt?: CastActivityReceipt;
+  situatedPressureReceipt?: SituatedPressureReceipt;
+  valueStateReceipt?: ValueStateReceipt;
+  characterPursuitReceipt?: CharacterPursuitReceipt;
+  characterDevelopmentReceipt?: CharacterDevelopmentReceipt;
+  pressureThreadTransitionReceipt?: PressureThreadTransitionReceipt;
   preSnapshot?: RuntimeStateSnapshot;
   reconciliation?: {
     isHallucinationCollision: boolean;

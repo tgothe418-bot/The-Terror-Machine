@@ -555,6 +555,14 @@ export default function Runtime() {
         characterRelationshipReceipt: response.characterRelationshipReceipt,
         characterMemoryReceipt: response.characterMemoryReceipt,
         worldMemoryReceipt: response.worldMemoryReceipt,
+        fictionalTimeReceipt: response.fictionalTimeReceipt,
+        castActivityReceipt: response.castActivityReceipt,
+        castActivityProposalReceipt: response.castActivityProposalReceipt,
+        situatedPressureReceipt: response.situatedPressureReceipt,
+        valueStateReceipt: response.valueStateReceipt,
+        characterPursuitReceipt: response.characterPursuitReceipt,
+        characterDevelopmentReceipt: response.characterDevelopmentReceipt,
+        pressureThreadTransitionReceipt: response.pressureThreadTransitionReceipt,
       };
 
       const committedTurnPayload: CommittedTurnPayload = {
@@ -601,6 +609,39 @@ export default function Runtime() {
             }
           : {}),
         world_memory: createWorldMemoryState(response.worldMemoryReceipt.post_state),
+        ...(response.logic_state?.fictional_time_ledger
+          ? { fictional_time_ledger: response.logic_state.fictional_time_ledger }
+          : {}),
+        ...(response.logic_state?.pursuit_schedule_ledger
+          ? { pursuit_schedule_ledger: response.logic_state.pursuit_schedule_ledger }
+          : {}),
+        ...(response.castActivityProposalReceipt
+          ? { activity_events: response.castActivityProposalReceipt.postState }
+          : response.logic_state?.activity_events
+            ? { activity_events: response.logic_state.activity_events }
+            : {}),
+        ...(response.pressureThreadTransitionReceipt
+          ? { pressure_threads: response.pressureThreadTransitionReceipt.postState }
+          : response.situatedPressureReceipt
+            ? { pressure_threads: response.situatedPressureReceipt.postState }
+            : response.logic_state?.pressure_threads
+              ? { pressure_threads: response.logic_state.pressure_threads }
+              : {}),
+        ...(response.valueStateReceipt
+          ? { value_state_ledger: response.valueStateReceipt.postState }
+          : response.logic_state?.value_state_ledger
+            ? { value_state_ledger: response.logic_state.value_state_ledger }
+            : {}),
+        ...(response.characterPursuitReceipt
+          ? { character_pursuit_ledger: response.characterPursuitReceipt.postState }
+          : response.logic_state?.character_pursuit_ledger
+            ? { character_pursuit_ledger: response.logic_state.character_pursuit_ledger }
+            : {}),
+        ...(response.characterDevelopmentReceipt
+          ? { character_development_ledger: response.characterDevelopmentReceipt.postState }
+          : response.logic_state?.character_development_ledger
+            ? { character_development_ledger: response.logic_state.character_development_ledger }
+            : {}),
         ...(nextCharacterContinuity ? { character_continuity: nextCharacterContinuity } : {}),
         ...(nextCharacterPresence ? { character_presence: nextCharacterPresence } : {}),
       };

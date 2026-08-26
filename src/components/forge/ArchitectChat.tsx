@@ -626,16 +626,37 @@ export const ArchitectChat: React.FC = () => {
                           Draft Patch Operations ({activeUnk.resolutionProposal.draftPatch.operations.length}):
                         </div>
                         <ul className="space-y-1 text-zinc-300">
-                          {activeUnk.resolutionProposal.draftPatch.operations.map((op, opIdx) => (
-                            <li key={opIdx} className="flex items-start gap-1.5 bg-black/40 p-1.5 rounded border border-purple-900/30">
-                              <span className="px-1.5 py-0.2 bg-purple-900/60 text-purple-200 rounded text-[9px] uppercase font-bold shrink-0">
-                                {op.target}
-                              </span>
-                              <span className="text-zinc-200 truncate flex-1" title={op.text}>
-                                {op.text}
-                              </span>
-                            </li>
-                          ))}
+                          {activeUnk.resolutionProposal.draftPatch.operations.map((op, opIdx) => {
+                            const summaryText =
+                              'text' in op
+                                ? op.text
+                                : 'anchor' in op
+                                ? `${op.anchor.label}: ${op.anchor.description}`
+                                : 'pursuit' in op
+                                ? `${op.pursuit.castMemberId}: ${op.pursuit.objective}`
+                                : 'state' in op && 'castMemberId' in op
+                                ? `${op.castMemberId} -> ${op.state}`
+                                : 'state' in op
+                                ? op.state
+                                : 'anchorId' in op
+                                ? op.anchorId
+                                : 'pursuitId' in op
+                                ? op.pursuitId
+                                : '';
+                            return (
+                              <li
+                                key={opIdx}
+                                className="flex items-start gap-1.5 bg-black/40 p-1.5 rounded border border-purple-900/30"
+                              >
+                                <span className="px-1.5 py-0.2 bg-purple-900/60 text-purple-200 rounded text-[9px] uppercase font-bold shrink-0">
+                                  {op.target}
+                                </span>
+                                <span className="text-zinc-200 truncate flex-1" title={summaryText}>
+                                  {summaryText}
+                                </span>
+                              </li>
+                            );
+                          })}
                         </ul>
                       </div>
                     )}

@@ -15,6 +15,14 @@ import { buildEngineTurnContext, buildContextReceipt } from './buildEngineTurnCo
 import { readTurnResponse, createNetworkTurnError, TurnResponseError } from './turnResponseReader';
 export { TurnResponseError };
 import { captureRuntimeSnapshot } from '../core/engine/snapshot';
+import {
+  createInitialFictionalTimeLedger,
+  advanceFictionalTimeLedger,
+} from './fictionalTime';
+import {
+  selectCastActivityEligibility,
+  advancePursuitScheduleLedger,
+} from './castActivityEligibility';
 
 export const DECAY_SCALE: DecayThreshold[] = [
   {
@@ -220,9 +228,13 @@ export const executeRatificationPipeline = async (
     characterRelationships: engineState.gameState?.character_relationships,
     characterMemory: engineState.gameState?.character_memory,
     worldMemory: engineState.gameState?.world_memory,
+    fictionalTimeLedger: engineState.gameState?.fictional_time_ledger,
+    pursuitScheduleLedger: engineState.gameState?.pursuit_schedule_ledger,
     runtimeState: {
       ...preSnapshot,
       playerCharacterId,
+      fictionalTimeLedger: engineState.gameState?.fictional_time_ledger,
+      pursuitScheduleLedger: engineState.gameState?.pursuit_schedule_ledger,
     },
   });
 
@@ -324,10 +336,98 @@ export const executeRatificationPipeline = async (
     parsedResult.data.characterMemoryReceipt;
   validatedEvent.worldMemoryReceipt =
     parsedResult.data.worldMemoryReceipt;
+  if (parsedResult.data.castActivityProposalReceipt) {
+    validatedEvent.castActivityProposalReceipt = parsedResult.data.castActivityProposalReceipt;
+    validatedEvent.logic_state = {
+      ...validatedEvent.logic_state,
+      activity_events: parsedResult.data.castActivityProposalReceipt.postState,
+    };
+  }
+  if (parsedResult.data.situatedPressureReceipt) {
+    validatedEvent.situatedPressureReceipt = parsedResult.data.situatedPressureReceipt;
+    validatedEvent.logic_state = {
+      ...validatedEvent.logic_state,
+      pressure_threads: parsedResult.data.situatedPressureReceipt.postState,
+    };
+  }
+  if (parsedResult.data.valueStateReceipt) {
+    validatedEvent.valueStateReceipt = parsedResult.data.valueStateReceipt;
+    validatedEvent.logic_state = {
+      ...validatedEvent.logic_state,
+      value_state_ledger: parsedResult.data.valueStateReceipt.postState,
+    };
+  }
+  if (parsedResult.data.characterPursuitReceipt) {
+    validatedEvent.characterPursuitReceipt = parsedResult.data.characterPursuitReceipt;
+    validatedEvent.logic_state = {
+      ...validatedEvent.logic_state,
+      character_pursuit_ledger: parsedResult.data.characterPursuitReceipt.postState,
+    };
+  }
+  if (parsedResult.data.characterDevelopmentReceipt) {
+    validatedEvent.characterDevelopmentReceipt = parsedResult.data.characterDevelopmentReceipt;
+    validatedEvent.logic_state = {
+      ...validatedEvent.logic_state,
+      character_development_ledger: parsedResult.data.characterDevelopmentReceipt.postState,
+    };
+  }
+  if (parsedResult.data.pressureThreadTransitionReceipt) {
+    validatedEvent.pressureThreadTransitionReceipt =
+      parsedResult.data.pressureThreadTransitionReceipt;
+    validatedEvent.logic_state = {
+      ...validatedEvent.logic_state,
+      pressure_threads: parsedResult.data.pressureThreadTransitionReceipt.postState,
+    };
+  }
+
+  const preFictionalTime =
+    engineState.gameState?.fictional_time_ledger || createInitialFictionalTimeLedger();
+  const prePursuitSchedule = engineState.gameState?.pursuit_schedule_ledger || {};
 
   // Attach context receipt for SYSTEM_INIT
   if (userAction === 'SYSTEM_INIT') {
     validatedEvent.contextReceipt = buildContextReceipt(turnContext, engineState.activeBlueprint);
+    validatedEvent.logic_state = {
+      ...validatedEvent.logic_state,
+      fictional_time_ledger: preFictionalTime,
+      pursuit_schedule_ledger: prePursuitSchedule,
+    };
+  } else {
+    const reconCost =
+      validatedEvent.narrativeReconciliationReceipt?.fictional_time_cost || 'UNCLEAR';
+    const fictionalTimeReceipt = advanceFictionalTimeLedger(preFictionalTime, reconCost);
+
+    const castPresenceMap: Record<string, string> = {};
+    for (const [cId, rec] of Object.entries(engineState.gameState?.character_presence || {})) {
+      if ((rec as any)?.nodeId) castPresenceMap[cId] = (rec as any).nodeId;
+    }
+
+    const eligibilityReceipt = selectCastActivityEligibility({
+      blueprint: engineState.activeBlueprint,
+      currentTopologyNode: preSnapshot.currentNodeId || 'NODE_INIT',
+      fictionalTime: preFictionalTime,
+      pursuitSchedule: prePursuitSchedule,
+      userCharacterId: playerCharacterId,
+      turnNumber: preSnapshot.turnCount || 0,
+      castPresenceMap,
+    });
+
+    const postSchedule = advancePursuitScheduleLedger({
+      preSchedule: prePursuitSchedule,
+      eligibilityReceipt,
+      fictionalTime: fictionalTimeReceipt.postState,
+      turnNumber: (preSnapshot.turnCount || 0) + 1,
+      blueprint: engineState.activeBlueprint,
+    });
+
+    validatedEvent.fictionalTimeReceipt = fictionalTimeReceipt;
+    validatedEvent.castActivityReceipt = eligibilityReceipt;
+
+    validatedEvent.logic_state = {
+      ...validatedEvent.logic_state,
+      fictional_time_ledger: fictionalTimeReceipt.postState,
+      pursuit_schedule_ledger: postSchedule,
+    };
   }
 
   // Expansion Guard:

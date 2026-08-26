@@ -26,6 +26,24 @@ import {
   WorldMemoryProposalSchema,
   WorldMemoryReceiptSchema,
 } from './worldMemory';
+import {
+  FictionalTimeCostSchema,
+  HorrorGrammarTurnContextSchema,
+  FictionalTimeReceiptSchema,
+  CastActivityEligibilityReceiptSchema,
+  CastActivityProposalSchema,
+  SituatedPressureProposalSchema,
+  CastActivityReceiptSchema,
+  SituatedPressureReceiptSchema,
+  ValueStateProposalSchema,
+  ValueStateReceiptSchema,
+  CharacterPursuitProposalSchema,
+  CharacterPursuitReceiptSchema,
+  CharacterDevelopmentProposalSchema,
+  CharacterDevelopmentReceiptSchema,
+  PressureThreadTransitionProposalSchema,
+  PressureThreadTransitionReceiptSchema,
+} from './horrorGrammar';
 export * from './adLib';
 export * from './consequence';
 export * from './characterStance';
@@ -133,6 +151,7 @@ export const EngineTurnContextSchema = z.object({
   relationshipState: CharacterRelationshipStateSchema.default([]),
   memoryState: CharacterMemoryByIdSchema.default({}),
   worldMemory: WorldMemoryStateSchema.default([]),
+  horrorGrammar: HorrorGrammarTurnContextSchema.optional(),
 });
 
 export type EngineTurnContext = z.infer<typeof EngineTurnContextSchema>;
@@ -308,9 +327,6 @@ export type ReconciliationFeasibility = z.infer<typeof ReconciliationFeasibility
 export const ReconciliationReasonCodeSchema = z.enum(RECONCILIATION_REASON_CODES);
 export type ReconciliationReasonCode = z.infer<typeof ReconciliationReasonCodeSchema>;
 
-export const FictionalTimeCostSchema = z.enum(FICTIONAL_TIME_COSTS);
-export type FictionalTimeCost = z.infer<typeof FictionalTimeCostSchema>;
-
 export const AuthorityAlignmentSchema = z.enum(AUTHORITY_ALIGNMENTS);
 export type AuthorityAlignment = z.infer<typeof AuthorityAlignmentSchema>;
 
@@ -355,6 +371,26 @@ export const TurnResultSchema = z.object({
   character_relationship_proposal: CharacterRelationshipProposalSchema,
   character_memory_proposal: CharacterMemoryProposalSchema,
   world_memory_proposal: WorldMemoryProposalSchema,
+  cast_activity_proposal: CastActivityProposalSchema.optional().default({
+    kind: 'NONE',
+    reason: 'NO_OPPORTUNITY_CHOSEN',
+  }),
+  situated_pressure_proposal: SituatedPressureProposalSchema.optional().default({
+    kind: 'NONE',
+    reason: 'NO_PRESSURE_CHOSEN',
+  }),
+  value_state_proposal: ValueStateProposalSchema.optional().default({
+    changes: [],
+  }),
+  character_pursuit_proposal: CharacterPursuitProposalSchema.optional().default({
+    changes: [],
+  }),
+  character_development_proposal: CharacterDevelopmentProposalSchema.optional().default({
+    changes: [],
+  }),
+  pressure_transition_proposal: PressureThreadTransitionProposalSchema.optional().default({
+    transitions: [],
+  }),
   logic_state: z
     .object({
       current_phase: z.string().optional(),
@@ -407,6 +443,8 @@ export const TurnResultSchema = z.object({
 export type TurnResult = z.infer<typeof TurnResultSchema>;
 
 export const TurnResponseSchema = TurnResultSchema.omit({
+  narrative_blocks: true,
+  logic_state: true,
   intent_proposal: true,
   reconciliation_proposal: true,
   consequence_proposal: true,
@@ -414,7 +452,15 @@ export const TurnResponseSchema = TurnResultSchema.omit({
   character_relationship_proposal: true,
   character_memory_proposal: true,
   world_memory_proposal: true,
+  cast_activity_proposal: true,
+  situated_pressure_proposal: true,
+  value_state_proposal: true,
+  character_pursuit_proposal: true,
+  character_development_proposal: true,
+  pressure_transition_proposal: true,
 }).extend({
+  narrative_blocks: z.array(NarrativeBlockSchema).max(4),
+  logic_state: z.record(z.string(), z.any()),
   transitionReceipt: TransitionReceiptSchema.optional(),
   castInteractionReceipt: CastInteractionReceiptSchema.optional(),
   intentReceipt: IntentReceiptSchema.optional(),
@@ -424,6 +470,14 @@ export const TurnResponseSchema = TurnResultSchema.omit({
   characterRelationshipReceipt: CharacterRelationshipReceiptSchema,
   characterMemoryReceipt: CharacterMemoryReceiptSchema,
   worldMemoryReceipt: WorldMemoryReceiptSchema,
+  fictionalTimeReceipt: FictionalTimeReceiptSchema.optional(),
+  castActivityReceipt: CastActivityEligibilityReceiptSchema.optional(),
+  castActivityProposalReceipt: CastActivityReceiptSchema.optional(),
+  situatedPressureReceipt: SituatedPressureReceiptSchema.optional(),
+  valueStateReceipt: ValueStateReceiptSchema.optional(),
+  characterPursuitReceipt: CharacterPursuitReceiptSchema.optional(),
+  characterDevelopmentReceipt: CharacterDevelopmentReceiptSchema.optional(),
+  pressureThreadTransitionReceipt: PressureThreadTransitionReceiptSchema.optional(),
 });
 
 export type TurnResponse = z.infer<typeof TurnResponseSchema>;

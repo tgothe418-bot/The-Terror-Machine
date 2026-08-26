@@ -17,6 +17,9 @@ import {
   CharacterRelationshipState,
   CharacterMemoryById,
   WorldMemoryState,
+  FictionalTimeLedger,
+  PursuitScheduleLedger,
+  HorrorGrammarTurnContext,
 } from '../types';
 import { buildCharacterContinuity, DEFAULT_SKEPTICISM } from './castContinuity';
 import { buildCharacterPresence } from './castPresence';
@@ -25,6 +28,11 @@ import { createCharacterStanceState } from './characterStance';
 import { createCharacterRelationshipState } from './characterRelationships';
 import { createCharacterMemoryState } from './characterMemory';
 import { createWorldMemoryState, migrateLegacyLoreAndMemory } from './worldMemory';
+import { createInitialFictionalTimeLedger } from './fictionalTime';
+import {
+  selectCastActivityEligibility,
+  getRelevantValueAnchorsForOpportunities,
+} from './castActivityEligibility';
 
 export interface BuildEngineTurnContextOptions {
   blueprint: unknown;
@@ -39,6 +47,12 @@ export interface BuildEngineTurnContextOptions {
   characterRelationships?: CharacterRelationshipState | null;
   characterMemory?: CharacterMemoryById | null;
   worldMemory?: WorldMemoryState | null;
+  fictionalTimeLedger?: FictionalTimeLedger | null;
+  pursuitScheduleLedger?: PursuitScheduleLedger | null;
+  characterPursuitLedger?: import('../types/horrorGrammar').CharacterPursuitLedger | null;
+  valueStateLedger?: import('../types/horrorGrammar').ValueStateLedger | null;
+  characterDevelopmentLedger?: import('../types/horrorGrammar').CharacterDevelopmentLedger | null;
+  acceptedTriggerReferences?: string[];
   runtimeState?: {
     currentNodeId?: string | null;
     playerCharacterId?: string | null;
@@ -53,6 +67,16 @@ export interface BuildEngineTurnContextOptions {
     participationContext?: ParticipationContext | null;
     characterRelationships?: CharacterRelationshipState | null;
     worldMemory?: WorldMemoryState | null;
+    fictionalTimeLedger?: FictionalTimeLedger | null;
+    fictional_time_ledger?: FictionalTimeLedger | null;
+    pursuitScheduleLedger?: PursuitScheduleLedger | null;
+    pursuit_schedule_ledger?: PursuitScheduleLedger | null;
+    characterPursuitLedger?: import('../types/horrorGrammar').CharacterPursuitLedger | null;
+    character_pursuit_ledger?: import('../types/horrorGrammar').CharacterPursuitLedger | null;
+    valueStateLedger?: import('../types/horrorGrammar').ValueStateLedger | null;
+    value_state_ledger?: import('../types/horrorGrammar').ValueStateLedger | null;
+    characterDevelopmentLedger?: import('../types/horrorGrammar').CharacterDevelopmentLedger | null;
+    character_development_ledger?: import('../types/horrorGrammar').CharacterDevelopmentLedger | null;
   };
 }
 
@@ -335,6 +359,55 @@ export function buildEngineTurnContext(
       ? runtimeState.turnCount
       : 0;
 
+  const fictionalTime =
+    opts.fictionalTimeLedger ??
+    opts.runtimeState?.fictionalTimeLedger ??
+    opts.runtimeState?.fictional_time_ledger ??
+    createInitialFictionalTimeLedger();
+
+  const pursuitSchedule =
+    opts.pursuitScheduleLedger ??
+    opts.runtimeState?.pursuitScheduleLedger ??
+    opts.runtimeState?.pursuit_schedule_ledger ??
+    {};
+
+  const characterPursuitLedger =
+    opts.characterPursuitLedger ??
+    opts.runtimeState?.characterPursuitLedger ??
+    opts.runtimeState?.character_pursuit_ledger ??
+    null;
+
+  const castPresenceMap: Record<string, string> = {};
+  for (const [cId, rec] of Object.entries(presence)) {
+    if (rec?.nodeId) castPresenceMap[cId] = rec.nodeId;
+  }
+
+  const eligibility = selectCastActivityEligibility({
+    blueprint: normBp,
+    currentTopologyNode: currentNodeId,
+    fictionalTime,
+    pursuitSchedule,
+    characterPursuitLedger,
+    userCharacterId: characterId,
+    turnNumber,
+    acceptedTriggerReferences: opts.acceptedTriggerReferences,
+    castPresenceMap,
+  });
+
+  const relevantValueAnchors = getRelevantValueAnchorsForOpportunities(
+    [...eligibility.presentOpportunities, ...eligibility.offscreenOpportunities],
+    normBp
+  );
+
+  const horrorGrammarContext: HorrorGrammarTurnContext = {
+    fictionalTime,
+    presentActorOpportunities: eligibility.presentOpportunities,
+    offscreenPursuitOpportunities: eligibility.offscreenOpportunities,
+    relevantValueAnchors,
+    authorityInstruction:
+      'Only non-User characters listed under presentActorOpportunities and offscreenPursuitOpportunities are eligible for activity consideration on this turn. Do not generate independent actions for other cast members or the User character.',
+  };
+
   return {
     version: 1,
     scenario: {
@@ -384,6 +457,7 @@ export function buildEngineTurnContext(
     relationshipState,
     memoryState,
     worldMemory,
+    horrorGrammar: horrorGrammarContext,
   };
 }
 

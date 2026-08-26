@@ -867,12 +867,12 @@ router.post("/extract-blueprint", async (req, res) => {
           {
             "id": "cand-1",
             "classification": "evidence or inference",
-            "target": "one of: scenario_title, premise, setting_location, setting_atmosphere, setting_time_period, environmental_rule, narrative_rule, cast_seed, cast_expression_guidance, initial_topology_node, reference_attribution",
+            "target": "one of: scenario_title, premise, setting_location, setting_atmosphere, setting_time_period, environmental_rule, narrative_rule, cast_seed, cast_expression_guidance, initial_topology_node, reference_attribution, value_anchor, character_pursuit",
             "label": "Short human-readable label",
             "explanation": "Why this candidate was extracted from the evidence",
             "evidenceIds": ["ev-1"],
-            "proposedValue": "value matching the target (string for title/premise/setting/rule/node/reference; full cast member object for cast_seed; expression profile object for cast_expression_guidance)",
-            "targetCastMemberId": "optional cast member id (required if target is cast_expression_guidance)"
+            "proposedValue": "value matching the target (string for title/premise/setting/rule/node/reference; full cast member object for cast_seed; expression profile object for cast_expression_guidance; value anchor object for value_anchor; character pursuit object for character_pursuit)",
+            "targetCastMemberId": "optional cast member id (required if target is cast_expression_guidance or character_pursuit)"
           }
         ],
         "unknowns": [
@@ -896,10 +896,13 @@ router.post("/extract-blueprint", async (req, res) => {
          - 'narrative_rule': Discrete plot element or dramatic rule string.
          - 'cast_seed': Object with { name, role, description, isEntity, behaviorVector, vulnerabilityBase: { resilience, skepticism, baggage } }.
          - 'cast_expression_guidance': Object with { communicationModes: string[], expressionGuidance: string, silenceGuidance?: string } and matching targetCastMemberId.
+         - 'value_anchor': Object with { id, holder: { kind, ... }, label, description, basisSummary, provenance: { kind: 'REVIEWED_SOURCE', sourceId, evidenceIds } }.
+         - 'character_pursuit': Object with { id, castMemberId, objective, presentApproach, locationNodeId?, status: 'ACTIVE'|'DORMANT', reviewWindow: 'MOMENT'|'SCENE_BEAT'|'EXTENDED'|'EVENT_DRIVEN', triggerReferences: string[], basisSummary, provenance: { kind: 'REVIEWED_SOURCE', sourceId, evidenceIds } }.
          - 'initial_topology_node': String spatial node name.
          - 'reference_attribution': The document file name "${fileName}".
       2. Comprehensive Casting: Extract all primary characters and entities/monsters found in the document.
-      3. Evidence backing: Link candidate evidenceIds to corresponding entries in the evidence list.
+      3. Values and Pursuits: Extract fictional states characters strive to preserve/attain, and what non-User characters are currently pursuing.
+      4. Evidence backing: Link candidate evidenceIds to corresponding entries in the evidence list.
     `;
 
     const aiClient = getAiClient();

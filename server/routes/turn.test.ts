@@ -856,6 +856,26 @@ describe('Turn schemas validation', () => {
       world_memory_proposal: {
         candidates: [],
       },
+      cast_activity_proposal: {
+        kind: 'NONE' as const,
+        reason: 'NO_OPPORTUNITY_CHOSEN',
+      },
+      situated_pressure_proposal: {
+        kind: 'NONE' as const,
+        reason: 'NO_PRESSURE_CHOSEN',
+      },
+      value_state_proposal: {
+        changes: [],
+      },
+      character_pursuit_proposal: {
+        changes: [],
+      },
+      character_development_proposal: {
+        changes: [],
+      },
+      pressure_transition_proposal: {
+        transitions: [],
+      },
       logic_state: {
         current_phase: 'LATENT',
         suggested_tension: 4,
@@ -4216,6 +4236,26 @@ describe('Turn schemas validation', () => {
         world_memory_proposal: {
           candidates: [],
         },
+        cast_activity_proposal: {
+          kind: 'NONE',
+          reason: 'NO_OPPORTUNITY_CHOSEN',
+        },
+        situated_pressure_proposal: {
+          kind: 'NONE',
+          reason: 'NO_PRESSURE_CHOSEN',
+        },
+        value_state_proposal: {
+          changes: [],
+        },
+        character_pursuit_proposal: {
+          changes: [],
+        },
+        character_development_proposal: {
+          changes: [],
+        },
+        pressure_transition_proposal: {
+          transitions: [],
+        },
         logic_state: {
           current_phase: 'LATENT',
           suggested_tension: 1,
@@ -4484,6 +4524,26 @@ describe('Turn schemas validation', () => {
         world_memory_proposal: {
           candidates: [],
         },
+        cast_activity_proposal: {
+          kind: 'NONE',
+          reason: 'NO_OPPORTUNITY_CHOSEN',
+        },
+        situated_pressure_proposal: {
+          kind: 'NONE',
+          reason: 'NO_PRESSURE_CHOSEN',
+        },
+        value_state_proposal: {
+          changes: [],
+        },
+        character_pursuit_proposal: {
+          changes: [],
+        },
+        character_development_proposal: {
+          changes: [],
+        },
+        pressure_transition_proposal: {
+          transitions: [],
+        },
         logic_state: {
           current_phase: 'LATENT',
           suggested_tension: 1,
@@ -4716,6 +4776,12 @@ describe('Turn schemas validation', () => {
         character_relationship_proposal: { changes: [] },
         character_memory_proposal: { candidates: [] },
         world_memory_proposal: { candidates: [] },
+        cast_activity_proposal: { kind: 'NONE', reason: 'NO_OPPORTUNITY_CHOSEN' },
+        situated_pressure_proposal: { kind: 'NONE', reason: 'NO_PRESSURE_CHOSEN' },
+        value_state_proposal: { changes: [] },
+        character_pursuit_proposal: { changes: [] },
+        character_development_proposal: { changes: [] },
+        pressure_transition_proposal: { transitions: [] },
         logic_state: {
           current_phase: 'MANIFEST',
           suggested_tension: 20,

@@ -555,6 +555,19 @@ const createInitialDraft = (initial?: ForgeDraftPatch): ForgeDraft => ({
   terminalConditions: initial?.terminalConditions,
   characters: initial?.characters ? [...initial.characters] : [],
   hauntedHouse: initial?.hauntedHouse,
+  horrorGrammar: initial?.horrorGrammar
+    ? {
+        valueBaselineReview: initial.horrorGrammar.valueBaselineReview || 'UNREVIEWED',
+        pursuitReviews: initial.horrorGrammar.pursuitReviews ? { ...initial.horrorGrammar.pursuitReviews } : {},
+        valueAnchors: initial.horrorGrammar.valueAnchors ? [...initial.horrorGrammar.valueAnchors] : [],
+        characterPursuits: initial.horrorGrammar.characterPursuits ? [...initial.horrorGrammar.characterPursuits] : [],
+      }
+    : {
+        valueBaselineReview: 'UNREVIEWED',
+        pursuitReviews: {},
+        valueAnchors: [],
+        characterPursuits: [],
+      },
 });
 
 const initialState: ForgeState = {

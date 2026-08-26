@@ -144,6 +144,137 @@ export function validateForgeDraft(rawDraft: unknown): ForgeValidationResult {
     }
   }
 
+  // 7. Horror Grammar Foundations (Values & Pursuits)
+  const hg = draft.horrorGrammar;
+  const validCastIds = new Set(draft.cast?.map((c) => c.id).filter(Boolean) || []);
+  const validNodeIds = new Set(draft.topology?.nodes?.filter(Boolean) || []);
+  const userCastIds = new Set(
+    draft.cast?.filter((c) => c.isUserCharacter).map((c) => c.id).filter(Boolean) || []
+  );
+
+  if (!hg || hg.valueBaselineReview === 'UNREVIEWED') {
+    errors['horrorGrammar.valueBaselineReview'] = [
+      'Value baseline review is required (either accepted anchors or explicit reviewed none)',
+    ];
+  } else if (hg.valueBaselineReview === 'REVIEWED') {
+    if (!hg.valueAnchors || hg.valueAnchors.length === 0) {
+      errors['horrorGrammar.valueAnchors'] = [
+        'Value baseline is marked as reviewed, but no value anchors are present',
+      ];
+    }
+  } else if (hg.valueBaselineReview === 'REVIEWED_NONE') {
+    if (hg.valueAnchors && hg.valueAnchors.length > 0) {
+      errors['horrorGrammar.valueAnchors'] = [
+        'Value baseline is marked as reviewed none, but value anchors are present',
+      ];
+    }
+  }
+
+  // Validate value anchor references
+  if (hg?.valueAnchors && Array.isArray(hg.valueAnchors)) {
+    const seenAnchorIds = new Set<string>();
+    hg.valueAnchors.forEach((anchor, idx) => {
+      const fieldPrefix = `horrorGrammar.valueAnchors[${idx}]`;
+      if (seenAnchorIds.has(anchor.id)) {
+        errors[`${fieldPrefix}.id`] = [`Duplicate value anchor ID: "${anchor.id}"`];
+      }
+      seenAnchorIds.add(anchor.id);
+
+      if (anchor.holder.kind === 'CHARACTER') {
+        if (!validCastIds.has(anchor.holder.castMemberId)) {
+          errors[`${fieldPrefix}.holder.castMemberId`] = [
+            `Value anchor references unknown cast member ID: "${anchor.holder.castMemberId}"`,
+          ];
+        }
+      } else if (anchor.holder.kind === 'RELATIONSHIP') {
+        const [c1, c2] = anchor.holder.castMemberIds;
+        if (c1 === c2) {
+          errors[`${fieldPrefix}.holder.castMemberIds`] = [
+            'Relationship value anchor requires two distinct cast member IDs',
+          ];
+        }
+        if (!validCastIds.has(c1) || !validCastIds.has(c2)) {
+          errors[`${fieldPrefix}.holder.castMemberIds`] = [
+            `Relationship value anchor references unknown cast member ID: "${!validCastIds.has(c1) ? c1 : c2}"`,
+          ];
+        }
+      } else if (anchor.holder.kind === 'PLACE') {
+        if (validNodeIds.size > 0 && !validNodeIds.has(anchor.holder.nodeId)) {
+          errors[`${fieldPrefix}.holder.nodeId`] = [
+            `Place value anchor references unknown topology node ID: "${anchor.holder.nodeId}"`,
+          ];
+        }
+      }
+    });
+  }
+
+  // Validate non-User cast pursuit reviews
+  const nonUserCast = draft.cast?.filter((c) => !c.isUserCharacter) || [];
+  for (const member of nonUserCast) {
+    const pReview = hg?.pursuitReviews?.[member.id];
+    const memberName = member.name || member.id;
+    if (!pReview || pReview === 'UNREVIEWED') {
+      errors[`horrorGrammar.pursuitReviews.${member.id}`] = [
+        `Pursuit baseline review is required for non-User character "${memberName}"`,
+      ];
+    } else if (pReview === 'REVIEWED') {
+      const matchingPursuits = (hg?.characterPursuits || []).filter(
+        (p) => p.castMemberId === member.id
+      );
+      if (matchingPursuits.length === 0) {
+        errors[`horrorGrammar.pursuitReviews.${member.id}`] = [
+          `Pursuit review is marked as reviewed for "${memberName}", but no pursuits are accepted`,
+        ];
+      }
+    } else if (pReview === 'REVIEWED_NONE') {
+      const matchingPursuits = (hg?.characterPursuits || []).filter(
+        (p) => p.castMemberId === member.id
+      );
+      if (matchingPursuits.length > 0) {
+        errors[`horrorGrammar.pursuitReviews.${member.id}`] = [
+          `Pursuit review is marked as reviewed none for "${memberName}", but pursuits are present`,
+        ];
+      }
+    }
+  }
+
+  // Validate character pursuits references and sovereignty
+  if (hg?.characterPursuits && Array.isArray(hg.characterPursuits)) {
+    const seenPursuitIds = new Set<string>();
+    hg.characterPursuits.forEach((pursuit, idx) => {
+      const fieldPrefix = `horrorGrammar.characterPursuits[${idx}]`;
+      if (seenPursuitIds.has(pursuit.id)) {
+        errors[`${fieldPrefix}.id`] = [`Duplicate character pursuit ID: "${pursuit.id}"`];
+      }
+      seenPursuitIds.add(pursuit.id);
+
+      if (userCastIds.has(pursuit.castMemberId)) {
+        errors[`${fieldPrefix}.castMemberId`] = [
+          'Character pursuits cannot be assigned to User-controlled characters',
+        ];
+      } else if (!validCastIds.has(pursuit.castMemberId)) {
+        errors[`${fieldPrefix}.castMemberId`] = [
+          `Character pursuit references unknown cast member ID: "${pursuit.castMemberId}"`,
+        ];
+      }
+
+      if (pursuit.locationNodeId && validNodeIds.size > 0 && !validNodeIds.has(pursuit.locationNodeId)) {
+        errors[`${fieldPrefix}.locationNodeId`] = [
+          `Character pursuit references unknown topology node ID: "${pursuit.locationNodeId}"`,
+        ];
+      }
+
+      if (
+        pursuit.reviewWindow === 'EVENT_DRIVEN' &&
+        (!pursuit.triggerReferences || pursuit.triggerReferences.length === 0)
+      ) {
+        errors[`${fieldPrefix}.triggerReferences`] = [
+          'EVENT_DRIVEN review window requires at least one trigger reference',
+        ];
+      }
+    });
+  }
+
   return {
     valid: Object.keys(errors).length === 0,
     errors,

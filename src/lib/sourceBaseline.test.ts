@@ -302,6 +302,14 @@ describe('sourceBaseline pure functions', () => {
           },
         },
       ],
+      horrorGrammar: {
+        valueBaselineReview: 'REVIEWED_NONE',
+        pursuitReviews: {
+          'char-mercer': 'REVIEWED_NONE',
+        },
+        valueAnchors: [],
+        characterPursuits: [],
+      },
     };
 
     const compileRes = compileForgeDraft(draft);
@@ -440,6 +448,14 @@ describe('sourceBaseline pure functions', () => {
           specialBoundaries: 'None',
         },
         cast: [],
+        horrorGrammar: {
+          valueBaselineReview: 'REVIEWED_NONE',
+          pursuitReviews: {
+            'char-corvus': 'REVIEWED_NONE',
+          },
+          valueAnchors: [],
+          characterPursuits: [],
+        },
       };
 
       const castCandidate: ForgeSourceCandidate = {
@@ -738,10 +754,98 @@ describe('sourceBaseline pure functions', () => {
       expect(analysis.candidates).toHaveLength(1);
       expect(analysis.candidates[0].target).toBe('cast_seed');
       expect(analysis.candidates[0].reviewDecision).toBe('accepted');
-      expect(analysis.candidates[0].applicationState).toBe('staged');
       const castMember = analysis.candidates[0].proposedValue as { id: string; name: string };
       expect(castMember.id).toBe('src-test-cast-fallback-cast-0');
       expect(castMember.name).toBe('Engineer Mercer');
+    });
+
+    it('extracts and applies value_anchor and character_pursuit candidates correctly', () => {
+      const initialDraft: ForgeDraft = {
+        id: 'draft-hg-test',
+        title: 'Bunker 11',
+        premise: 'Underground fallout facility.',
+        setting: { location: 'Bunker', atmosphere: 'Bleak', timePeriod: '1985' },
+        startingVector: 'COGNITIVE',
+        startingTier: 'LATENT',
+        depictionContract: {
+          dramaticRegister: 'Cold War Realism',
+          directness: 'High directness',
+          aftermath: 'Grim consequences',
+          ambiguityHandling: 'Explicit uncertainty',
+          specialBoundaries: 'None',
+        },
+        cast: [
+          {
+            id: 'char-guard',
+            name: 'Officer Petrov',
+            role: 'Sentinel',
+            isUserCharacter: false,
+          },
+        ],
+        topology: { nodes: ['NODE_GATE'], connections: [] },
+      };
+
+      const anchorCandidate: ForgeSourceCandidate = {
+        id: 'cand-val-1',
+        sourceId: 'src-1',
+        classification: 'evidence',
+        target: 'value_anchor',
+        label: 'Defense Perimeter',
+        explanation: 'Extracted defense priority',
+        evidenceIds: ['ev-1'],
+        proposedValue: {
+          id: 'val-perimeter',
+          holder: { kind: 'PLACE', nodeId: 'NODE_GATE' },
+          label: 'Defense Perimeter',
+          description: 'Gate must remain locked',
+          basisSummary: 'Standing orders',
+          provenance: { kind: 'CREATOR_DEFINED' },
+        },
+        reviewDecision: 'accepted',
+        applicationState: 'staged',
+      };
+
+      const applyAnchorRes = applyCandidateToDraft(initialDraft, anchorCandidate);
+      expect(applyAnchorRes.success).toBe(true);
+      if (!applyAnchorRes.success) return;
+
+      expect(applyAnchorRes.draft.horrorGrammar?.valueBaselineReview).toBe('REVIEWED');
+      expect(applyAnchorRes.draft.horrorGrammar?.valueAnchors).toHaveLength(1);
+
+      const pursuitCandidate: ForgeSourceCandidate = {
+        id: 'cand-pursuit-1',
+        sourceId: 'src-1',
+        classification: 'evidence',
+        target: 'character_pursuit',
+        label: 'Guard the Gate',
+        explanation: 'Active duty',
+        evidenceIds: ['ev-2'],
+        proposedValue: {
+          id: 'pursuit-guard',
+          castMemberId: 'char-guard',
+          objective: 'Maintain perimeter watch',
+          presentApproach: 'Patrolling gate entrance with rifle ready',
+          locationNodeId: 'NODE_GATE',
+          status: 'ACTIVE',
+          reviewWindow: 'SCENE_BEAT',
+          triggerReferences: [],
+          basisSummary: 'Duty schedule',
+          provenance: { kind: 'CREATOR_DEFINED' },
+        },
+        targetCastMemberId: 'char-guard',
+        reviewDecision: 'accepted',
+        applicationState: 'staged',
+      };
+
+      const applyPursuitRes = applyCandidateToDraft(applyAnchorRes.draft, pursuitCandidate);
+      expect(applyPursuitRes.success).toBe(true);
+      if (!applyPursuitRes.success) return;
+
+      expect(applyPursuitRes.draft.horrorGrammar?.pursuitReviews['char-guard']).toBe('REVIEWED');
+      expect(applyPursuitRes.draft.horrorGrammar?.characterPursuits).toHaveLength(1);
+
+      const compileRes = compileForgeDraft(applyPursuitRes.draft);
+      expect(compileRes.success).toBe(true);
     });
   });
 });

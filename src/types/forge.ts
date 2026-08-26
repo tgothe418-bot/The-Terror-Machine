@@ -5,7 +5,15 @@ import {
   BlueprintAmbiguityDecisionsSchema,
   DepictionContractSchema,
 } from './blueprintAuthoring';
+import {
+  HorrorGrammarAuthoringSchema,
+  ValueAnchorSchema,
+  CharacterPursuitSchema,
+  ValueBaselineReviewStateSchema,
+  PursuitReviewStateSchema,
+} from './horrorGrammar';
 export * from './blueprintAuthoring';
+export * from './horrorGrammar';
 
 // ============================================================================
 // Phase 3E Character Expression Profile (Passive Data Seam)
@@ -153,6 +161,12 @@ export const ForgeDraftSchema = z.object({
   hauntedHouse: HauntedHouseProvenanceSchema.optional(),
   ambiguities: BlueprintAmbiguityDecisionsSchema.optional().default([]),
   depictionContract: DepictionContractSchema.optional(),
+  horrorGrammar: HorrorGrammarAuthoringSchema.optional().default(() => ({
+    valueBaselineReview: 'UNREVIEWED' as const,
+    pursuitReviews: {},
+    valueAnchors: [],
+    characterPursuits: [],
+  })),
 });
 
 export type ForgeDraft = z.input<typeof ForgeDraftSchema>;
@@ -252,6 +266,8 @@ export const ForgeSourceCandidateTargetSchema = z.enum([
   'cast_expression_guidance',
   'initial_topology_node',
   'reference_attribution',
+  'value_anchor',
+  'character_pursuit',
 ]);
 export type ForgeSourceCandidateTarget = z.infer<typeof ForgeSourceCandidateTargetSchema>;
 
@@ -368,6 +384,22 @@ export const CastExpressionCandidateSchema = z
   })
   .strict();
 
+export const ValueAnchorCandidateSchema = z
+  .object({
+    ...BaseCandidateProps,
+    target: z.literal('value_anchor'),
+    proposedValue: ValueAnchorSchema,
+  })
+  .strict();
+
+export const CharacterPursuitCandidateSchema = z
+  .object({
+    ...BaseCandidateProps,
+    target: z.literal('character_pursuit'),
+    proposedValue: CharacterPursuitSchema,
+  })
+  .strict();
+
 export const ForgeSourceCandidateSchema = z.discriminatedUnion('target', [
   ScenarioTitleCandidateSchema,
   PremiseCandidateSchema,
@@ -380,6 +412,8 @@ export const ForgeSourceCandidateSchema = z.discriminatedUnion('target', [
   CastExpressionCandidateSchema,
   InitialTopologyNodeCandidateSchema,
   ReferenceAttributionCandidateSchema,
+  ValueAnchorCandidateSchema,
+  CharacterPursuitCandidateSchema,
 ]);
 export type ForgeSourceCandidate = z.infer<typeof ForgeSourceCandidateSchema>;
 
@@ -438,6 +472,43 @@ export const ForgeResolutionPatchOperationSchema = z.discriminatedUnion('target'
     .object({
       target: z.literal('narrative_rule'),
       text: z.string().trim().min(1).max(1000),
+    })
+    .strict(),
+  z
+    .object({
+      target: z.literal('add_value_anchor'),
+      anchor: ValueAnchorSchema,
+    })
+    .strict(),
+  z
+    .object({
+      target: z.literal('set_value_review_state'),
+      state: ValueBaselineReviewStateSchema,
+    })
+    .strict(),
+  z
+    .object({
+      target: z.literal('add_character_pursuit'),
+      pursuit: CharacterPursuitSchema,
+    })
+    .strict(),
+  z
+    .object({
+      target: z.literal('set_character_pursuit_review_state'),
+      castMemberId: z.string().min(1),
+      state: PursuitReviewStateSchema,
+    })
+    .strict(),
+  z
+    .object({
+      target: z.literal('remove_value_anchor'),
+      anchorId: z.string().min(1),
+    })
+    .strict(),
+  z
+    .object({
+      target: z.literal('remove_character_pursuit'),
+      pursuitId: z.string().min(1),
     })
     .strict(),
 ]);
