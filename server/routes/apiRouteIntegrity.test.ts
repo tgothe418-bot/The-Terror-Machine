@@ -181,12 +181,12 @@ describe('Phase 2G: Runtime API Route Integrity Suite', () => {
 
       expect(caughtError).toBeInstanceOf(TurnResponseError);
       const turnErr = caughtError as TurnResponseError;
-      expect(turnErr.code).toBe('INVALID_REQUEST');
+      expect(turnErr.code).toBe('MODEL_CONTRACT_MISMATCH');
       expect(turnErr.status).toBe(400);
       expect(turnErr.contentType).toContain('application/json');
 
       const receipt = toTurnFailureReceipt(turnErr);
-      expect(receipt.code).toBe('INVALID_REQUEST');
+      expect(receipt.code).toBe('MODEL_CONTRACT_MISMATCH');
       expect(receipt.status).toBe(400);
     });
 
@@ -202,7 +202,7 @@ describe('Phase 2G: Runtime API Route Integrity Suite', () => {
 
       expect(caughtError).toBeInstanceOf(TurnResponseError);
       const turnErr = caughtError as TurnResponseError;
-      expect(turnErr.code).toBe('API_ROUTE_NOT_FOUND');
+      expect(turnErr.code).toBe('TURN_HTTP_FAILURE');
       expect(turnErr.status).toBe(404);
     });
 

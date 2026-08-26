@@ -5,6 +5,7 @@ import {
   selectActiveUnknown,
   ArchitectMessage,
   ForgeState,
+  getRuntimeSourceBinding,
 } from '../../store/useForgeStore';
 import {
   ForgeResolutionDraftPatch,
@@ -283,6 +284,7 @@ export const ArchitectChat: React.FC = () => {
           kind: 'AMBIGUITY_RESOLUTION',
           userMessage: userText,
           activeUnknown: {
+            sourceBinding: getRuntimeSourceBinding(targetSourceId),
             sourceId: targetSourceId,
             unknownId: targetUnknownId,
             category: activeUnk?.category,

@@ -770,5 +770,30 @@ describe('buildEngineTurnContext & buildContextReceipt', () => {
       expect(orderly?.isUserCharacter).toBe(true);
       expect(clara?.isUserCharacter).toBe(false);
     });
+
+    it('proves failure receipts and unsafe sentinels are completely excluded from built prompt context', () => {
+      const CODE_SENTINEL = 'https://malicious.internal.api/key?secret=123';
+      const MESSAGE_SENTINEL = 'DATABASE_PASSWORD=secret_password_here';
+
+      const context = buildEngineTurnContext({
+        blueprint: mockBlueprint,
+        selectedRole: 'protagonist',
+        selectedCharacterId: 'char-orderly',
+        runtimeState: {
+          currentNodeId: 'WARD_4B',
+          // Pass failure metadata attempting to leak into turn context
+          ...({
+            lastFailure: {
+              code: CODE_SENTINEL,
+              message: MESSAGE_SENTINEL,
+            },
+          } as unknown as Record<string, unknown>),
+        },
+      });
+
+      const serialized = JSON.stringify(context);
+      expect(serialized).not.toContain(CODE_SENTINEL);
+      expect(serialized).not.toContain(MESSAGE_SENTINEL);
+    });
   });
 });

@@ -893,7 +893,7 @@ describe('engineReducer atomic turn commits', () => {
       expect(nextState.lastTurnCheckpoint?.engineStateBefore.activeMemory.systemFlags).toEqual(['FLAG_A']);
     });
 
-    it('sets lastTurnCheckpoint to null when allowRetake is false', () => {
+    it('unconditionally captures valid lastTurnCheckpoint on every TURN_COMMITTED including terminal turns', () => {
       const startState = {
         ...initialEngineState,
         turnCount: 2,
@@ -901,13 +901,12 @@ describe('engineReducer atomic turn commits', () => {
 
       const preSnapshot = captureRuntimeSnapshot(startState);
       const payload: CommittedTurnPayload = {
-        commandText: 'Commit irreversible action',
+        commandText: 'Commit irreversible terminal action',
         formattedText: 'The gateway seals permanently.',
         preSnapshot,
-        allowRetake: false,
         frame: {
           narrative_blocks: [{ type: 'prose', content: 'The gateway seals permanently.' }],
-          logic_state: { suggested_tension: 50 },
+          logic_state: { suggested_tension: 50, terminal_flags: ['TERMINAL_CONVERGED'] },
         },
         turnReceipt: {
           turnNumber: 3,
@@ -927,7 +926,9 @@ describe('engineReducer atomic turn commits', () => {
         payload,
       });
 
-      expect(nextState.lastTurnCheckpoint).toBeNull();
+      expect(nextState.lastTurnCheckpoint).not.toBeNull();
+      expect(nextState.lastTurnCheckpoint?.commandText).toBe('Commit irreversible terminal action');
+      expect(nextState.lastTurnCheckpoint?.engineStateBefore.turnCount).toBe(2);
     });
 
     it('preserves existing lastTurnCheckpoint on TURN_FAILED without replacing it with failed attempt', () => {

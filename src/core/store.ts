@@ -54,7 +54,7 @@ export const EnginePersistedSchema = z.object({
   engineWorldStateSummary: z
     .string()
     .optional()
-    .default('The subject is contained. Initial parameters active.'),
+    .default(''),
   telemetry: z.any().nullable().optional().default(null),
 });
 
@@ -72,7 +72,7 @@ export interface TelemetryMetrics {
   engineLogic: string;
 }
 
-interface EngineState {
+export interface EngineState {
   activeSessionId: string | null;
   activeBlueprint: Blueprint | null;
   participationContext: ParticipationContext | null;
@@ -113,7 +113,7 @@ export const useEngineStore = create<EngineState>()(
       engineMessages: [],
       engineTextBuffer: [],
       maxBufferTurns: 12,
-      engineWorldStateSummary: 'The subject is contained. Initial parameters active.',
+      engineWorldStateSummary: '',
       telemetry: null,
       updateTelemetry: (metrics) => set({ telemetry: metrics }),
       setBlueprint: (blueprint, role, participationContext = null, selectedCharacterId) => {
@@ -150,7 +150,7 @@ export const useEngineStore = create<EngineState>()(
           participationContext: participationContext || null,
           engineMessages: [],
           engineTextBuffer: [],
-          engineWorldStateSummary: 'The subject is contained. Initial parameters active.',
+          engineWorldStateSummary: '',
           gameState: {
             current_location: normalizedBlueprint.setting?.location || 'Unknown',
             player_injuries: [],
@@ -176,7 +176,7 @@ export const useEngineStore = create<EngineState>()(
           gameState: null,
           engineMessages: [],
           engineTextBuffer: [],
-          engineWorldStateSummary: 'The subject is contained. Initial parameters active.',
+          engineWorldStateSummary: '',
         }),
       updateGameState: (newState) => set({ gameState: newState }),
       setGameState: (newState) => set({ gameState: newState }),
@@ -259,17 +259,17 @@ export const useEngineStore = create<EngineState>()(
         set({ engineWorldStateSummary: newSummary });
       },
       resetEngine: () =>
-        set((state) => ({
-          ...state,
+        set({
           activeSessionId: null,
           activeBlueprint: null,
           participationContext: null,
           gameState: null,
           engineTextBuffer: [],
           engineMessages: [],
-          logicState: undefined,
-          engineWorldStateSummary: 'The subject is contained. Initial parameters active.',
-        })),
+          engineWorldStateSummary: '',
+          telemetry: null,
+          maxBufferTurns: 12,
+        }),
     }),
     {
       name: 'the-engine-memory',

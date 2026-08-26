@@ -203,15 +203,12 @@ export const initialEngineState: EngineState = {
 export function engineReducer(state: EngineState, event: EngineEvent): EngineState {
   switch (event.type) {
     case 'TURN_COMMITTED': {
-      const lastTurnCheckpoint =
-        event.payload.allowRetake === false
-          ? null
-          : {
-              version: 1 as const,
-              commandText: event.payload.commandText,
-              engineStateBefore: captureRetakeRestorableState(state),
-              engineGameStateBefore: event.payload.engineGameStateBefore ?? null,
-            };
+      const lastTurnCheckpoint = {
+        version: 1 as const,
+        commandText: event.payload.commandText,
+        engineStateBefore: captureRetakeRestorableState(state),
+        engineGameStateBefore: event.payload.engineGameStateBefore ?? null,
+      };
 
       // 1. Consume required pre-turn snapshot directly from the payload
       const preSnapshot = event.payload.preSnapshot;

@@ -12,7 +12,7 @@ vi.mock('../utils/aiClient', () => ({
 }));
 
 import { createApp } from '../app';
-import { registerServerSourceAnalysis, clearServerSourceRegistry } from './forge';
+import { registerServerSource, clearServerSourceRegistry } from './forge';
 
 describe('Forge Routes: /api/extract-blueprint', () => {
   let server: http.Server;
@@ -167,12 +167,38 @@ describe('Forge Routes: /api/extract-blueprint', () => {
   });
 
   describe('Forge Routes: /api/architect ambiguity resolution', () => {
+    let activeBinding: string;
+
     beforeAll(() => {
       clearServerSourceRegistry();
-      registerServerSourceAnalysis('src-1', 'war_log.txt', ['unk-1']);
+      activeBinding = registerServerSource({
+        id: 'src-1',
+        sourceRecord: {
+          id: 'src-1',
+          fileName: 'war_log.txt',
+          mimeType: 'text/plain',
+          kind: 'document',
+          receivedAt: Date.now(),
+        },
+        summary: 'War log for Outpost 9',
+        candidates: [],
+        evidence: [],
+        unknowns: [
+          {
+            id: 'unk-1',
+            sourceId: 'src-1',
+            category: 'premise',
+            question: 'What happened to Outpost 9?',
+            targetEffect: 'Establishes backstory of Outpost 9.',
+            status: 'queued',
+            followUps: [],
+          },
+        ],
+        status: 'completed',
+      });
     });
 
-    it('rejects unregistered sourceId with HTTP 400 and UNREGISTERED_SOURCE_IDENTITY code', async () => {
+    it('rejects unregistered sourceId or missing sourceBinding with HTTP 400 and SOURCE_BINDING_EXPIRED code', async () => {
       const response = await fetch(`${baseUrl}/api/architect`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -180,6 +206,7 @@ describe('Forge Routes: /api/extract-blueprint', () => {
           kind: 'AMBIGUITY_RESOLUTION',
           userMessage: 'Testing unregistered source',
           activeUnknown: {
+            sourceBinding: 'binding-UNREGISTERED',
             sourceId: 'src-UNREGISTERED',
             unknownId: 'unk-1',
             category: 'premise',
@@ -196,8 +223,8 @@ describe('Forge Routes: /api/extract-blueprint', () => {
 
       expect(response.status).toBe(400);
       const json = await response.json();
-      expect(json.code).toBe('UNREGISTERED_SOURCE_IDENTITY');
-      expect(json.error).toContain('Unregistered source identity');
+      expect(json.code).toBe('SOURCE_BINDING_EXPIRED');
+      expect(json.error).toContain('missing, expired, or invalid');
     });
 
     it('rejects unregistered unknownId for a registered source with HTTP 400 and UNREGISTERED_UNKNOWN_IDENTITY code', async () => {
@@ -208,6 +235,7 @@ describe('Forge Routes: /api/extract-blueprint', () => {
           kind: 'AMBIGUITY_RESOLUTION',
           userMessage: 'Testing unregistered unknown',
           activeUnknown: {
+            sourceBinding: activeBinding,
             sourceId: 'src-1',
             unknownId: 'unk-UNKNOWN-ID',
             category: 'premise',
@@ -228,21 +256,105 @@ describe('Forge Routes: /api/extract-blueprint', () => {
       expect(json.error).toContain('Unregistered unknown identity');
     });
 
-    it('registers a source and unknown IDs via /api/register-source', async () => {
+    it('registers a native JSON source and recomputes payload byte size via /api/register-source', async () => {
       const regResponse = await fetch(`${baseUrl}/api/register-source`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          sourceId: 'src-new-123',
-          fileName: 'station_log.txt',
-          unknownIds: ['unk-a', 'unk-b'],
+          rawBlueprint: {
+            title: 'Station Alpha',
+            premise: 'Deep ocean research facility undergoes catastrophic breach.',
+            setting: { location: 'Benthic Trench' },
+            cast: [{ name: 'Dr. Daniel Mercer', role: 'PROTAGONIST' }],
+          },
+          fileName: 'station_log.json',
         }),
       });
 
       expect(regResponse.status).toBe(200);
       const regJson = await regResponse.json();
       expect(regJson.success).toBe(true);
-      expect(regJson.sourceId).toBe('src-new-123');
+      expect(typeof regJson.sourceBinding).toBe('string');
+      expect(regJson.analysis.sourceRecord.fileSizeBytes).toBeGreaterThan(0);
+    });
+
+    it('proves closed unknown replay rejection via /api/close-unknown and binding revocation via /api/revoke-source-binding', async () => {
+      // 1. Close unk-1 on activeBinding
+      const closeResponse = await fetch(`${baseUrl}/api/close-unknown`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sourceBinding: activeBinding,
+          unknownId: 'unk-1',
+        }),
+      });
+      expect(closeResponse.status).toBe(200);
+      const closeJson = await closeResponse.json();
+      expect(closeJson.closed).toBe(true);
+
+      // 2. Replay resolution on closed unknown -> rejected with HTTP 400 BINDING_UNKNOWN_CLOSED
+      const replayResponse = await fetch(`${baseUrl}/api/architect`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          kind: 'AMBIGUITY_RESOLUTION',
+          userMessage: 'Replaying closed unknown',
+          activeUnknown: {
+            sourceBinding: activeBinding,
+            sourceId: 'src-1',
+            unknownId: 'unk-1',
+            category: 'premise',
+            question: 'What happened to Outpost 9?',
+            targetEffect: 'Establishes backstory of Outpost 9.',
+            submittedAnswer: 'Answer',
+            followUps: [],
+          },
+          draftContext: { title: 'Test', premise: 'Premise', draftRevision: 1 },
+          sourceContext: { sourceFileName: 'war_log.txt', sourceSummary: 'Summary', evidence: [], canonicalAmbiguities: [] },
+          history: [],
+        }),
+      });
+      expect(replayResponse.status).toBe(400);
+      const replayJson = await replayResponse.json();
+      expect(replayJson.code).toBe('BINDING_UNKNOWN_CLOSED');
+
+      // 3. Revoke binding
+      const revokeResponse = await fetch(`${baseUrl}/api/revoke-source-binding`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sourceBinding: activeBinding,
+        }),
+      });
+      expect(revokeResponse.status).toBe(200);
+      const revokeJson = await revokeResponse.json();
+      expect(revokeJson.revoked).toBe(true);
+
+      // 4. Access with revoked binding -> rejected with HTTP 400 SOURCE_BINDING_EXPIRED
+      const revokedAccessResponse = await fetch(`${baseUrl}/api/architect`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          kind: 'AMBIGUITY_RESOLUTION',
+          userMessage: 'Accessing revoked binding',
+          activeUnknown: {
+            sourceBinding: activeBinding,
+            sourceId: 'src-1',
+            unknownId: 'unk-1',
+            category: 'premise',
+            question: 'What happened?',
+            targetEffect: 'Effect',
+            submittedAnswer: 'Answer',
+            followUps: [],
+          },
+          draftContext: { title: 'Test', premise: 'Premise', draftRevision: 1 },
+          sourceContext: { sourceFileName: 'war_log.txt', sourceSummary: 'Summary', evidence: [], canonicalAmbiguities: [] },
+          history: [],
+        }),
+      });
+      expect(revokedAccessResponse.status).toBe(400);
+      const revokedAccessJson = await revokedAccessResponse.json();
+      expect(revokedAccessJson.code).toBe('SOURCE_BINDING_EXPIRED');
     });
 
     const testCases = [
@@ -327,6 +439,32 @@ describe('Forge Routes: /api/extract-blueprint', () => {
     ];
 
     it('rejects invalid or unbound ambiguity responses without fallback', async () => {
+      const validBinding = registerServerSource({
+        id: 'src-1',
+        sourceRecord: {
+          id: 'src-1',
+          fileName: 'war_log.txt',
+          mimeType: 'text/plain',
+          kind: 'document',
+          receivedAt: Date.now(),
+        },
+        summary: 'Log detailing wartime experiment.',
+        candidates: [],
+        evidence: [],
+        unknowns: [
+          {
+            id: 'unk-1',
+            sourceId: 'src-1',
+            category: 'premise',
+            question: 'When was the entity created?',
+            targetEffect: 'Determines timeline constraints.',
+            status: 'queued',
+            followUps: [],
+          },
+        ],
+        status: 'completed',
+      });
+
       for (const tc of testCases) {
         mockGenerateContent.mockResolvedValueOnce({
           text: tc.modelOutput,
@@ -341,6 +479,7 @@ describe('Forge Routes: /api/extract-blueprint', () => {
             kind: 'AMBIGUITY_RESOLUTION',
             userMessage: 'The entity was created during the war.',
             activeUnknown: {
+              sourceBinding: validBinding,
               sourceId: 'src-1',
               unknownId: 'unk-1',
               category: 'premise',

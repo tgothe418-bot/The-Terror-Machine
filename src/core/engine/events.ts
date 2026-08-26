@@ -33,7 +33,6 @@ export interface CommittedTurnPayload {
   preSnapshot: RuntimeStateSnapshot;
   timestamp?: number;
   engineGameStateBefore?: LogicState | null;
-  allowRetake?: boolean;
 }
 
 export interface FailedTurnPayload {
@@ -46,7 +45,6 @@ export interface FailedTurnPayload {
   contentType?: string | null;
   timestamp?: number;
   engineGameStateBefore?: LogicState | null;
-  allowRetake?: boolean;
 }
 
 // The definitive list of all legal engine events

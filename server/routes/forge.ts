@@ -29,29 +29,60 @@ import {
   getDecodedBase64ByteLength,
   createPayloadTooLargeError
 } from "../../src/lib/referenceImportPolicy";
-import { ForgeSourceRecord } from "../../src/types/forge";
-import { validateAndNormalizeDocumentAnalysis } from "../../src/lib/sourceBaseline";
+import { ForgeSourceRecord, ForgeSourceAnalysis } from "../../src/types/forge";
+import {
+  validateAndNormalizeDocumentAnalysis,
+  buildSourceAnalysisFromBlueprint
+} from "../../src/lib/sourceBaseline";
 
 export interface RegisteredServerSourceEntry {
+  sourceBinding: string;
   sourceId: string;
   fileName: string;
-  unknownIds: Set<string>;
+  sourceSummary: string;
+  evidence: Array<{ id: string; category: string; claim: string; excerpt?: string }>;
+  unknowns: Map<string, { id: string; category: string; question: string; targetEffect: string }>;
+  closedUnknowns: Set<string>;
   registeredAt: number;
 }
 
 export const serverSourceRegistry = new Map<string, RegisteredServerSourceEntry>();
+const BINDING_TTL_MS = 2 * 60 * 60 * 1000; // 2 hours
 
-export function registerServerSourceAnalysis(
-  sourceId: string,
-  fileName: string,
-  unknownIds: string[]
-): void {
-  serverSourceRegistry.set(sourceId, {
-    sourceId,
-    fileName,
-    unknownIds: new Set(unknownIds),
+export function sweepExpiredServerSourceBindings(): void {
+  const now = Date.now();
+  for (const [bindingId, entry] of serverSourceRegistry.entries()) {
+    if (now - entry.registeredAt > BINDING_TTL_MS) {
+      serverSourceRegistry.delete(bindingId);
+    }
+  }
+}
+
+export function registerServerSource(analysis: ForgeSourceAnalysis): string {
+  sweepExpiredServerSourceBindings();
+  const sourceBinding = crypto.randomUUID();
+  const entry: RegisteredServerSourceEntry = {
+    sourceBinding,
+    sourceId: analysis.id,
+    fileName: analysis.sourceRecord.fileName,
+    sourceSummary: analysis.summary || '',
+    evidence: (analysis.evidence || []).map((e) => ({
+      id: e.id,
+      category: e.category,
+      claim: e.claim,
+      excerpt: e.excerpt,
+    })),
+    unknowns: new Map(
+      (analysis.unknowns || []).map((u) => [
+        u.id,
+        { id: u.id, category: u.category, question: u.question, targetEffect: u.targetEffect },
+      ])
+    ),
+    closedUnknowns: new Set(),
     registeredAt: Date.now(),
-  });
+  };
+  serverSourceRegistry.set(sourceBinding, entry);
+  return sourceBinding;
 }
 
 export function clearServerSourceRegistry(): void {
@@ -62,9 +93,9 @@ const router = express.Router();
 
 router.post("/register-source", (req, res) => {
   const RegisterSchema = z.object({
-    sourceId: z.string().min(1),
-    fileName: z.string().min(1),
-    unknownIds: z.array(z.string()),
+    rawBlueprint: z.unknown(),
+    fileName: z.string().min(1).default('imported_blueprint.json'),
+    mimeType: z.string().default('application/json'),
   });
 
   const parsed = RegisterSchema.safeParse(req.body);
@@ -72,8 +103,77 @@ router.post("/register-source", (req, res) => {
     return res.status(400).json({ error: "Invalid registration payload", details: parsed.error.format() });
   }
 
-  registerServerSourceAnalysis(parsed.data.sourceId, parsed.data.fileName, parsed.data.unknownIds);
-  return res.json({ success: true, sourceId: parsed.data.sourceId });
+  try {
+    const rawBlueprint = parsed.data.rawBlueprint;
+    const fileName = parsed.data.fileName;
+    // Recompute payload size server-side
+    const rawString = typeof rawBlueprint === 'string' ? rawBlueprint : JSON.stringify(rawBlueprint);
+    const fileSizeBytes = Buffer.byteLength(rawString, 'utf-8');
+
+    if (fileSizeBytes > REFERENCE_IMPORT_MAX_FILE_BYTES) {
+      return res.status(413).json(createPayloadTooLargeError());
+    }
+
+    const sourceRecord: ForgeSourceRecord = {
+      id: `src-${fileName.replace(/[^a-zA-Z0-9]/g, '_')}-${Date.now()}`,
+      fileName,
+      mimeType: parsed.data.mimeType || 'application/json',
+      kind: 'native_blueprint',
+      receivedAt: Date.now(),
+      fileSizeBytes,
+    };
+
+    const analysis = buildSourceAnalysisFromBlueprint(sourceRecord, rawBlueprint, fileSizeBytes);
+    const sourceBinding = registerServerSource(analysis);
+
+    return res.json({
+      success: true,
+      analysis,
+      sourceBinding,
+    });
+  } catch (err: any) {
+    console.error("Failed to register and analyze native source:", err);
+    return res.status(500).json({ error: "Failed to normalize and register source: " + (err.message || String(err)) });
+  }
+});
+
+router.post("/close-unknown", (req, res) => {
+  const CloseSchema = z.object({
+    sourceBinding: z.string().min(1),
+    unknownId: z.string().min(1),
+  });
+
+  const parsed = CloseSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: "Invalid close-unknown payload" });
+  }
+
+  sweepExpiredServerSourceBindings();
+  const entry = serverSourceRegistry.get(parsed.data.sourceBinding);
+  if (!entry) {
+    return res.status(400).json({ error: "Source binding expired or missing.", code: "SOURCE_BINDING_EXPIRED" });
+  }
+
+  if (!entry.unknowns.has(parsed.data.unknownId)) {
+    return res.status(400).json({ error: "Unknown identity not found on registered source.", code: "UNREGISTERED_UNKNOWN_IDENTITY" });
+  }
+
+  entry.closedUnknowns.add(parsed.data.unknownId);
+  return res.json({ success: true, closed: true, unknownId: parsed.data.unknownId });
+});
+
+router.post("/revoke-source-binding", (req, res) => {
+  const RevokeSchema = z.object({
+    sourceBinding: z.string().min(1),
+  });
+
+  const parsed = RevokeSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: "Invalid revocation payload" });
+  }
+
+  serverSourceRegistry.delete(parsed.data.sourceBinding);
+  return res.json({ success: true, revoked: true });
 });
 
 router.post("/test-blueprint", async (req, res) => {
@@ -162,18 +262,27 @@ router.post("/architect", async (req, res) => {
     if (parsedBody.data.kind === 'AMBIGUITY_RESOLUTION') {
       const { userMessage, activeUnknown, draftContext, sourceContext, history } = parsedBody.data;
 
-      // Independent Server Identity Verification
-      const registeredSource = serverSourceRegistry.get(activeUnknown.sourceId);
+      sweepExpiredServerSourceBindings();
+      // Independent Server Identity Verification via server-issued sourceBinding or registered sourceId
+      const bindingKey = activeUnknown.sourceBinding || activeUnknown.sourceId;
+      const registeredSource = serverSourceRegistry.get(bindingKey);
       if (!registeredSource) {
         return res.status(400).json({
-          error: `Unregistered source identity "${activeUnknown.sourceId}". Source analysis must be registered before resolution.`,
-          code: 'UNREGISTERED_SOURCE_IDENTITY',
+          error: `Source binding "${bindingKey}" is missing, expired, or invalid. Source analysis must be registered before resolution.`,
+          code: 'SOURCE_BINDING_EXPIRED',
         });
       }
 
-      if (!registeredSource.unknownIds.has(activeUnknown.unknownId)) {
+      if (registeredSource.closedUnknowns.has(activeUnknown.unknownId)) {
         return res.status(400).json({
-          error: `Unregistered unknown identity "${activeUnknown.unknownId}" for source "${activeUnknown.sourceId}".`,
+          error: `Unknown "${activeUnknown.unknownId}" has already been resolved and closed. Replay rejected.`,
+          code: 'BINDING_UNKNOWN_CLOSED',
+        });
+      }
+
+      if (!registeredSource.unknowns.has(activeUnknown.unknownId)) {
+        return res.status(400).json({
+          error: `Unregistered unknown identity "${activeUnknown.unknownId}" for source "${registeredSource.fileName}".`,
           code: 'UNREGISTERED_UNKNOWN_IDENTITY',
         });
       }
@@ -808,17 +917,15 @@ router.post("/extract-blueprint", async (req, res) => {
         });
       }
 
+      let sourceBinding: string | undefined;
       if (analysis.status === 'completed') {
-        registerServerSourceAnalysis(
-          analysis.id,
-          analysis.sourceRecord.fileName,
-          analysis.unknowns.map((u) => u.id)
-        );
+        sourceBinding = registerServerSource(analysis);
       }
 
       res.json({
         success: true,
         analysis,
+        sourceBinding,
       });
     } catch (e: any) {
       console.error("Failed to parse Architect Extraction JSON:", e);

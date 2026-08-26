@@ -18,7 +18,6 @@ export default function WelcomeScreen() {
     clearVoice();
     clearForge();
     clearEngine();
-    useEngineStore.getState().resetEngine();
     useAppStore.getState().resetSession();
     setIsConfirmingReset(false);
   };

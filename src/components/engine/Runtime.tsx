@@ -25,6 +25,7 @@ import { executeRatificationPipeline } from '../../lib/ratificationPipeline';
 import { createEngineHistoryMessage, createTurnHistoryEvents } from '../../core/engine/turnHistory';
 import type { CommittedTurnPayload } from '../../core/engine/events';
 import type { TurnReceipt } from '../../types';
+import { coordinateCanonicalTurnPublication } from '../../core/engine/commitCoordinator';
 import { toTurnFailureReceipt } from '../../lib/turnResponseReader';
 import { fetchSimulatedPlayerAction, triggerMemoryForge } from '../../services/geminiService';
 import ErgodicTextRenderer from './ErgodicTextRenderer';
@@ -602,18 +603,15 @@ export default function Runtime() {
         ...(nextCharacterPresence ? { character_presence: nextCharacterPresence } : {}),
       };
 
-      // 2. Atomic Transaction Execution:
-      // A. Commit canonical app state & checkpoint
-      dispatch({ type: 'TURN_COMMITTED', payload: committedTurnPayload });
-
-      // B. Commit complete prepared situated game state in a single write
-      useEngineStore.getState().setGameState(preparedGameState as any);
-
-      // C. Post-commit presentation projection (strictly non-canonical presentation data)
+      // 2. Coordinated Canonical Publication
       const presentationPatch = projectPresentationPatch(response.logic_state);
-      if (Object.keys(presentationPatch).length > 0) {
-        useEngineStore.getState().patchGameState(presentationPatch);
-      }
+      coordinateCanonicalTurnPublication({
+        appStore: useAppStore,
+        engineStore: useEngineStore,
+        committedPayload: committedTurnPayload,
+        preparedGameState,
+        presentationPatch,
+      });
     } catch (err: unknown) {
       console.error(err);
       const failureReceipt = toTurnFailureReceipt(err);
@@ -680,8 +678,6 @@ export default function Runtime() {
     setIsAutopilotRunning(false);
     autopilotRef.current = false;
   };
-
-  const resetEngine = useEngineStore((state) => state.resetEngine);
 
   if (!isHydrated || !isCoherent) return null;
 
@@ -754,7 +750,6 @@ export default function Runtime() {
           </button>
           <button
             onClick={() => {
-              resetEngine();
               useAppStore.getState().resetSession();
             }}
             className="px-3 py-1.5 text-xs font-mono text-red-400 hover:text-red-100 bg-red-900/20 hover:bg-red-900/50 border border-red-900/50 transition-colors duration-150 rounded cursor-pointer"

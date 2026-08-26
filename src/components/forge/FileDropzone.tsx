@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useForgeState, forgeActions } from '../../store/useForgeStore';
+import { useForgeState, forgeActions, setRuntimeSourceBinding } from '../../store/useForgeStore';
 import { fileToBase64, parseBlueprintFile } from '../../lib/fileParser';
 import {
   REFERENCE_IMPORT_MAX_FILE_BYTES,
@@ -7,10 +7,7 @@ import {
   REFERENCE_IMPORT_HUMAN_MAX_SIZE,
 } from '../../lib/referenceImportPolicy';
 import { readSafeResponseError } from '../../lib/responseErrorReader';
-import {
-  buildSourceAnalysisFromBlueprint,
-  validateAndNormalizeDocumentAnalysis,
-} from '../../lib/sourceBaseline';
+import { validateAndNormalizeDocumentAnalysis } from '../../lib/sourceBaseline';
 import { ForgeSourceRecord } from '../../types/forge';
 
 export const FileDropzone = () => {
@@ -34,35 +31,39 @@ export const FileDropzone = () => {
     try {
       const sourceId = `src-${crypto.randomUUID()}`;
 
-      // 1. JSON Blueprint Native Load (Local parsing)
+      // 1. JSON Blueprint Native Load (Local parsing + server normalization & binding)
       if (file.type === 'application/json' || file.name.endsWith('.json')) {
         const rawJson = await parseBlueprintFile(file);
-        const sourceRecord: ForgeSourceRecord = {
-          id: sourceId,
-          fileName: file.name,
-          mimeType: file.type || 'application/json',
-          kind: 'native_blueprint',
-          receivedAt: Date.now(),
-          fileSizeBytes: file.size,
-        };
-        const analysis = buildSourceAnalysisFromBlueprint(sourceRecord, rawJson);
-        registerSourceAnalysis(analysis);
 
-        fetch('/api/register-source', {
+        const response = await fetch('/api/register-source', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            sourceId: analysis.id,
-            fileName: analysis.sourceRecord.fileName,
-            unknownIds: analysis.unknowns.map((u) => u.id),
+            rawBlueprint: rawJson,
+            fileName: file.name,
+            mimeType: file.type || 'application/json',
           }),
-        }).catch((err) => {
-          console.warn('[FileDropzone] Server registration note:', err);
         });
+
+        if (!response.ok) {
+          const safeErrorMsg = await readSafeResponseError(response);
+          throw new Error(safeErrorMsg);
+        }
+
+        const data = await response.json();
+        if (data.error) throw new Error(data.error);
+        if (!data.analysis) {
+          throw new Error('Server response did not include source analysis.');
+        }
+
+        registerSourceAnalysis(data.analysis);
+        if (data.sourceBinding) {
+          setRuntimeSourceBinding(data.analysis.id, data.sourceBinding);
+        }
 
         addArchitectMessage({
           role: 'architect',
-          content: `[SOURCE MATERIAL ANALYZED: ${file.name}]\nExtracted ${analysis.candidates.length} baseline candidates for review. The active authoring draft remains unchanged until you accept candidates.`,
+          content: `[SOURCE MATERIAL ANALYZED: ${file.name}]\nExtracted ${data.analysis.candidates.length} baseline candidates for review. The active authoring draft remains unchanged until you accept candidates.`,
         });
 
         setIsProcessing(false);
@@ -115,6 +116,9 @@ export const FileDropzone = () => {
 
       const normalizedAnalysis = validateAndNormalizeDocumentAnalysis(data.analysis, sourceRecord);
       registerSourceAnalysis(normalizedAnalysis);
+      if (data.sourceBinding) {
+        setRuntimeSourceBinding(normalizedAnalysis.id, data.sourceBinding);
+      }
 
       addArchitectMessage({
         role: 'architect',

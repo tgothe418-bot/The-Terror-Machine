@@ -132,7 +132,6 @@ export function reconcileSessionStores(
   if (!evalResult.isCoherent) {
     // Fail closed: clear contaminated session state to prevent state blending
     appStore.getState().resetSession();
-    engineStore.getState().resetEngine();
     return evalResult;
   }
 

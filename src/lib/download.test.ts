@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildEngineLogContent, generateTelemetryFilename, buildCanonicalStateDiff } from './download';
+import { normalizeTurnFailureReceipt } from './turnResponseReader';
 import type {
   RuntimeStateSnapshot,
   IntentReceipt,
@@ -1432,6 +1433,80 @@ describe('Engine telemetry export', () => {
       expect(successHtml).toContain('<strong>Accepted:</strong> true');
       expect(successHtml).not.toContain('Diagnostic Kind');
       expect(successHtml).not.toContain('Rejected Paths');
+    });
+
+    it('proves normalized failure receipts in structured JSON, Markdown, and HTML exports contain zero unsafe sentinels', () => {
+      const CODE_SENTINEL = 'https://malicious.internal.api/key?secret=123';
+      const MESSAGE_SENTINEL = 'DATABASE_PASSWORD=secret_password_here';
+      const CONTENT_TYPE_SENTINEL = 'text/html; charset=utf-8; <script>evil()</script>';
+      const PATH_SENTINEL = 'https://api.internal/v1/auth/tokens?user=root';
+      const DIAG_CODE_SENTINEL = 'UNKNOWN_LEAKED_INTERNAL_ERROR_STACK_TRACE_HERE';
+      const NESTED_SENTINEL = 'INTERNAL_AUTH_BEARER_TOKEN_99999';
+
+      const rawUnsafeError = {
+        code: CODE_SENTINEL,
+        message: MESSAGE_SENTINEL,
+        error: MESSAGE_SENTINEL,
+        status: 999999,
+        contentType: CONTENT_TYPE_SENTINEL,
+        unknown_nested_secret: NESTED_SENTINEL,
+        diagnostics: {
+          kind: 'SCHEMA_VALIDATION',
+          issues: [
+            { path: PATH_SENTINEL, code: 'invalid_type' },
+            { path: 'valid.path.field', code: DIAG_CODE_SENTINEL },
+            { path: 'valid.path[0]', code: 'invalid_type' },
+          ],
+          extra_secret: NESTED_SENTINEL,
+        },
+      };
+
+      const normalizedReceipt = normalizeTurnFailureReceipt(rawUnsafeError);
+
+      const failedMessages = [
+        {
+          role: 'user' as const,
+          content: 'I attempt an action that causes provider failure',
+          timestamp: 1,
+        },
+        {
+          role: 'assistant' as const,
+          content: '[ENGINE FAILURE // UNKNOWN_ERROR]\nThe turn service returned an unexpected response. The session state was not changed.',
+          timestamp: 2,
+          turnReceipt: {
+            turnNumber: 1,
+            nodeBefore: 'ORIGIN',
+            requestedTarget: null,
+            accepted: false,
+            reason: 'Turn failed',
+            nodeAfter: 'ORIGIN',
+            activeVector: 'COGNITIVE' as const,
+            activeTier: 'LATENT' as const,
+            tension: 0,
+            failureReceipt: normalizedReceipt,
+          },
+        },
+      ];
+
+      const jsonExport = JSON.stringify(failedMessages, null, 2);
+      const mdExport = buildEngineLogContent(failedMessages, 'md')!.content;
+      const htmlExport = buildEngineLogContent(failedMessages, 'html')!.content;
+
+      const exports = [jsonExport, mdExport, htmlExport];
+
+      for (const content of exports) {
+        expect(content).not.toContain(CODE_SENTINEL);
+        expect(content).not.toContain(MESSAGE_SENTINEL);
+        expect(content).not.toContain('evil()');
+        expect(content).not.toContain(PATH_SENTINEL);
+        expect(content).not.toContain(DIAG_CODE_SENTINEL);
+        expect(content).not.toContain(NESTED_SENTINEL);
+      }
+
+      // Valid diagnostic survives
+      expect(jsonExport).toContain('valid.path[0]');
+      expect(mdExport).toContain('valid.path[0]');
+      expect(htmlExport).toContain('valid.path[0]');
     });
   });
 });

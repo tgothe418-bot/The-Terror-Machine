@@ -5,7 +5,7 @@ import { REFERENCE_IMPORT_ERROR_MESSAGE } from './referenceImportPolicy';
  * without ever exposing raw HTML or raw upstream bodies in the UI.
  */
 export async function readSafeResponseError(response: Response): Promise<string> {
-  const contentType = response.headers.get('content-type') || '';
+  const contentType = response.headers?.get ? (response.headers.get('content-type') || '') : '';
 
   // 1. If response is JSON, read structured error
   if (contentType.includes('application/json')) {

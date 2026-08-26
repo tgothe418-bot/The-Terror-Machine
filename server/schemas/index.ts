@@ -52,6 +52,7 @@ import {
 
 export const ArchitectActiveUnknownSchema = z
   .object({
+    sourceBinding: z.string().min(1).max(200).optional(),
     sourceId: z.string().min(1).max(200),
     unknownId: z.string().min(1).max(200),
     category: z.string().min(1).max(100),

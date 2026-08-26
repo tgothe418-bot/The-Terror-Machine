@@ -338,15 +338,39 @@ export const useAppStore = create<AppStore>()(
         get().dispatch({ type: 'TURN_RETAKEN' });
         return true;
       },
-      resetSession: () =>
+      resetSession: () => {
+        useEngineStore.getState().resetEngine();
         set({
           ...initialEngineState,
+          sessionId: '',
+          blueprintId: '',
+          participationContext: null,
+          phase: 'HUB',
+          escalation_state: 'LATENT',
+          currentNodeId: 'ORIGIN',
+          activeVector: 'COGNITIVE',
+          activeTier: 'LATENT',
+          decay: { stage: 'STABLE', coherence: 1.0 },
+          turnCount: 0,
+          roomsGenerated: 0,
+          traumaLedger: [],
+          activeMemory: { systemFlags: [], somaState: [], geomState: [] },
+          motifLedger: {},
+          pacingLedger: {
+            failedEscapeAttempts: 0,
+            memoryAnchorsRemaining: 3,
+            spatialContradictions: 0,
+          },
+          timelineRevision: 0,
+          lastDistilledRevision: -1,
+          reconciliationRevision: 0,
+          history: [],
+          storyLog: [],
           isTransitioning: false,
           activeCampaign: null,
           currentActId: null,
           suspendedActs: {},
           narrativeVelocity: 'slow_burn' as NarrativeVelocity,
-          reconciliationRevision: 0,
           uiTranscript: [],
           enginePayload: [],
           turnSnapshot: null,
@@ -361,9 +385,9 @@ export const useAppStore = create<AppStore>()(
           isGenerating: false,
           currentPhase: 'INIT',
           tensionLevel: 0,
-          storyLog: [],
           lastTurnCheckpoint: null,
-        }),
+        });
+      },
 
       isGenerating: false,
       currentPhase: 'INIT',

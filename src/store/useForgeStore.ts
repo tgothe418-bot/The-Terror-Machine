@@ -52,6 +52,51 @@ export const defaultStyleVector: ProseStyleVector = {
   ],
 };
 
+// Ephemeral, non-canonical, non-persisted runtime map: analysisId -> serverIssuedBinding
+export const runtimeSourceBindings = new Map<string, string>();
+
+export function setRuntimeSourceBinding(analysisId: string, binding: string): void {
+  runtimeSourceBindings.set(analysisId, binding);
+}
+
+export function getRuntimeSourceBinding(analysisId: string): string | undefined {
+  return runtimeSourceBindings.get(analysisId);
+}
+
+export function removeRuntimeSourceBinding(analysisId: string): string | undefined {
+  const binding = runtimeSourceBindings.get(analysisId);
+  runtimeSourceBindings.delete(analysisId);
+  return binding;
+}
+
+export function clearRuntimeSourceBindings(): void {
+  runtimeSourceBindings.clear();
+}
+
+export async function notifyServerRevokeBinding(binding: string): Promise<void> {
+  try {
+    await fetch('/api/revoke-source-binding', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sourceBinding: binding }),
+    });
+  } catch {
+    // Non-blocking best-effort cleanup
+  }
+}
+
+export async function notifyServerCloseUnknown(binding: string, unknownId: string): Promise<void> {
+  try {
+    await fetch('/api/close-unknown', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sourceBinding: binding, unknownId }),
+    });
+  } catch {
+    // Non-blocking best-effort cleanup
+  }
+}
+
 // Re-export type aliases for backward compatibility across Forge components
 export type DraftIdentity = ForgeDraftIdentity;
 export type DraftCastMember = ForgeDraftCastMember;
@@ -525,7 +570,7 @@ export type ForgeStore = ForgeState & { actions: ForgeActions };
 
 export const useForgeStoreInternal = create<ForgeStore>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       ...initialState,
       actions: {
         // --- CANONICAL DRAFT ACTIONS ---
@@ -595,6 +640,16 @@ export const useForgeStoreInternal = create<ForgeStore>()(
         },
 
         removeReference: (fileName: string) => {
+          const state = get();
+          for (const [id, analysis] of Object.entries(state.sourceAnalyses || {}) as [string, ForgeSourceAnalysis][]) {
+            if (analysis?.sourceRecord?.fileName === fileName) {
+              const binding = removeRuntimeSourceBinding(id);
+              if (binding) {
+                notifyServerRevokeBinding(binding);
+              }
+            }
+          }
+
           set((state: ForgeState) => {
             if (!state.forgeDraft) return state;
             const updatedRefs = (state.forgeDraft.references || []).filter((ref) => ref !== fileName);
@@ -612,8 +667,20 @@ export const useForgeStoreInternal = create<ForgeStore>()(
           });
         },
 
-        resetStore: () => set(initialState),
-        clearHistory: () => set(initialState),
+        resetStore: () => {
+          for (const binding of runtimeSourceBindings.values()) {
+            notifyServerRevokeBinding(binding);
+          }
+          clearRuntimeSourceBindings();
+          set(initialState);
+        },
+        clearHistory: () => {
+          for (const binding of runtimeSourceBindings.values()) {
+            notifyServerRevokeBinding(binding);
+          }
+          clearRuntimeSourceBindings();
+          set(initialState);
+        },
 
         // --- DEPICTION CONTRACT ACTIONS (Packet 1B Isolated Proposal / Packet 04A Revision-Bound Complete Proposal) ---
         setPendingDepictionContractProposal: (
@@ -936,7 +1003,11 @@ export const useForgeStoreInternal = create<ForgeStore>()(
             };
           }),
 
-        removeSourceAnalysis: (sourceId: string) =>
+        removeSourceAnalysis: (sourceId: string) => {
+          const binding = removeRuntimeSourceBinding(sourceId);
+          if (binding) {
+            notifyServerRevokeBinding(binding);
+          }
           set((state: ForgeState) => {
             if (!state.sourceAnalyses[sourceId]) return state;
             const remaining = { ...state.sourceAnalyses };
@@ -945,7 +1016,8 @@ export const useForgeStoreInternal = create<ForgeStore>()(
               sourceAnalyses: remaining,
               sourceBaselineRevision: (state.sourceBaselineRevision || 0) + 1,
             };
-          }),
+          });
+        },
 
         // --- AMBIGUITY RESOLUTION ACTIONS ---
         submitUnknownAnswer: (sourceId: string, unknownId: string, answer: string) =>
@@ -1244,11 +1316,22 @@ export const useForgeStoreInternal = create<ForgeStore>()(
             };
           });
 
+          if (outcome.success) {
+            const binding = getRuntimeSourceBinding(sourceId);
+            if (binding) {
+              notifyServerCloseUnknown(binding, unknownId);
+            }
+          }
+
           return outcome;
         },
 
-        leaveUnknownUncertain: (sourceId: string, unknownId: string, guidance?: string) =>
-          set((state: ForgeState) => {
+        leaveUnknownUncertain: (sourceId: string, unknownId: string, guidance?: string) => {
+          const binding = getRuntimeSourceBinding(sourceId);
+          if (binding) {
+            notifyServerCloseUnknown(binding, unknownId);
+          }
+          return set((state: ForgeState) => {
             const analysis = state.sourceAnalyses[sourceId];
             if (!analysis) return state;
             const unk = analysis.unknowns.find((u) => u.id === unknownId);
@@ -1313,7 +1396,8 @@ export const useForgeStoreInternal = create<ForgeStore>()(
                 },
               },
             };
-          }),
+          });
+        },
 
         setUnknownError: (sourceId: string, unknownId: string, error: string) =>
           set((state: ForgeState) => {

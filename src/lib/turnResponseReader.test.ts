@@ -7,7 +7,9 @@ import {
   TurnResponseError,
   SAFE_UNEXPECTED_TURN_MESSAGE,
   SAFE_NETWORK_ERROR_MESSAGE,
+  SAFE_ERROR_MESSAGES,
   resolveSafeFailureMessage,
+  normalizeTurnFailureReceipt,
 } from './turnResponseReader';
 
 describe('turnResponseReader', () => {
@@ -212,7 +214,7 @@ describe('turnResponseReader', () => {
     expect(caughtError).not.toBeNull();
     expect(caughtError?.code).toBe('TURN_HTTP_FAILURE');
     expect(caughtError?.status).toBe(500);
-    expect(caughtError?.message).toBe(SAFE_UNEXPECTED_TURN_MESSAGE);
+    expect(caughtError?.message).toBe(resolveSafeFailureMessage('TURN_HTTP_FAILURE'));
   });
 
   it('7. classifies network-level errors as TURN_NETWORK_FAILURE', () => {
@@ -383,7 +385,7 @@ describe('turnResponseReader', () => {
     // Oversized issues array is capped to 12
     const manyIssues = Array.from({ length: 20 }, (_, i) => ({
       path: `field.path.${i}`,
-      code: `code_${i}`,
+      code: 'invalid_type',
     }));
     const responseWithMany = new Response(
       JSON.stringify({
@@ -439,5 +441,65 @@ describe('turnResponseReader', () => {
       }
     }
     expect(htmlError?.diagnostics).toBeUndefined();
+  });
+
+  it('proves distinct unsafe sentinels in code, message, contentType, diagnostic path, diagnostic code, and nested fields never survive', () => {
+    const CODE_SENTINEL = 'https://malicious.internal.api/key?secret=123';
+    const MESSAGE_SENTINEL = 'DATABASE_PASSWORD=secret_password_here';
+    const CONTENT_TYPE_SENTINEL = 'text/html; charset=utf-8; <script>evil()</script>';
+    const PATH_SENTINEL = 'https://api.internal/v1/auth/tokens?user=root';
+    const DIAG_CODE_SENTINEL = 'UNKNOWN_LEAKED_INTERNAL_ERROR_STACK_TRACE_HERE';
+    const NESTED_SENTINEL = 'INTERNAL_AUTH_BEARER_TOKEN_99999';
+
+    const rawUnsafeError = {
+      code: CODE_SENTINEL,
+      message: MESSAGE_SENTINEL,
+      error: MESSAGE_SENTINEL,
+      status: 999999, // invalid status
+      contentType: CONTENT_TYPE_SENTINEL,
+      unknown_nested_secret: NESTED_SENTINEL,
+      diagnostics: {
+        kind: 'SCHEMA_VALIDATION',
+        issues: [
+          { path: PATH_SENTINEL, code: 'invalid_type' },
+          { path: 'valid.path.field', code: DIAG_CODE_SENTINEL },
+          { path: 'valid.path[0]', code: 'invalid_type' }, // valid
+        ],
+        extra_secret: NESTED_SENTINEL,
+      },
+    };
+
+    const receipt = normalizeTurnFailureReceipt(rawUnsafeError);
+
+    // 1. Code is mapped to UNKNOWN_ERROR
+    expect(receipt.code).toBe('UNKNOWN_ERROR');
+
+    // 2. Message is strictly safe string from local table
+    expect(receipt.message).toBe(SAFE_ERROR_MESSAGES.UNKNOWN_ERROR);
+    expect(receipt.message).not.toContain(MESSAGE_SENTINEL);
+
+    // 3. Status is normalized to null (since 999999 is outside 100-599)
+    expect(receipt.status).toBeNull();
+
+    // 4. ContentType is normalized to text/html
+    expect(receipt.contentType).toBe('text/html');
+    expect(receipt.contentType).not.toContain('script');
+
+    // 5. Unsafe diagnostic path and unsafe diagnostic code are filtered out
+    expect(receipt.diagnostics).toBeDefined();
+    expect(receipt.diagnostics?.issues).toHaveLength(1);
+    expect(receipt.diagnostics?.issues[0]).toEqual({
+      path: 'valid.path[0]',
+      code: 'invalid_type',
+    });
+
+    // 6. Formatted failure message has zero sentinels
+    const formatted = formatTurnFailureMessage(receipt);
+    expect(formatted).not.toContain(CODE_SENTINEL);
+    expect(formatted).not.toContain(MESSAGE_SENTINEL);
+    expect(formatted).not.toContain(CONTENT_TYPE_SENTINEL);
+    expect(formatted).not.toContain(PATH_SENTINEL);
+    expect(formatted).not.toContain(DIAG_CODE_SENTINEL);
+    expect(formatted).not.toContain(NESTED_SENTINEL);
   });
 });
