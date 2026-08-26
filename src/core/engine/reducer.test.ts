@@ -1401,5 +1401,85 @@ describe('engineReducer atomic turn commits', () => {
       expect(serializedPrompt).not.toContain(INTERNAL_SECRET_URL);
       expect(serializedPrompt).not.toContain(INTERNAL_STACK_TRACE);
     });
+
+    it('proves PROVIDER_REFUSAL sanitization across state, history, prompt context, and exports', () => {
+      useAppStore.getState().resetSession();
+
+      const REFUSAL_TEXT_SENTINEL = 'SAFETY_POLICY_TRIGGERED: Prohibited somatic violence at byte 881';
+      const PROVIDER_METADATA_SENTINEL = 'gemini-2.5-pro::blockReason=SAFETY::candidate=0';
+      const ENDPOINT_URL_SENTINEL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=AIzaSy_SecretKey99';
+      const STACK_SENTINEL = 'at GoogleGenAI.generateContent (C:\\server\\ai\\client.ts:482:11)';
+      const CREDENTIAL_SENTINEL = 'AIzaSy_SecretKey99';
+
+      const preSnapshot = {
+        version: 1 as const,
+        currentNodeId: 'ORIGIN',
+        activeVector: 'COGNITIVE' as const,
+        activeTier: 'LATENT' as const,
+        phase: 'LATENT',
+        tension: 10,
+        coherence: 1.0,
+        reconciliationRevision: 0,
+        turnCount: 0,
+        activeFlags: [],
+      };
+
+      const unsafeRefusalPayload: FailedTurnPayload = {
+        commandText: 'Force open the sealed valve with bare hands',
+        failureReceipt: {
+          code: 'PROVIDER_REFUSAL' as any,
+          status: 502,
+          contentType: 'application/json',
+          message: `${REFUSAL_TEXT_SENTINEL} ${PROVIDER_METADATA_SENTINEL} ${ENDPOINT_URL_SENTINEL} ${STACK_SENTINEL}`,
+        } as any,
+        errorCategory: 'PROVIDER_REFUSAL',
+        errorMessage: `${REFUSAL_TEXT_SENTINEL} ${PROVIDER_METADATA_SENTINEL} ${ENDPOINT_URL_SENTINEL} ${STACK_SENTINEL}`,
+        statusCode: 502,
+        contentType: 'application/json',
+        preSnapshot,
+      };
+
+      useAppStore.getState().failTurnResult(unsafeRefusalPayload);
+
+      const state = useAppStore.getState();
+
+      // 1. History retains safe code and safe allowlisted message, zero raw sentinels
+      expect(state.history).toHaveLength(2);
+      const assistantMsg = state.history[1];
+      expect(assistantMsg.content).toContain('The simulation model declined to generate a turn.');
+      expect(assistantMsg.content).not.toContain(REFUSAL_TEXT_SENTINEL);
+      expect(assistantMsg.content).not.toContain(PROVIDER_METADATA_SENTINEL);
+      expect(assistantMsg.content).not.toContain(ENDPOINT_URL_SENTINEL);
+      expect(assistantMsg.content).not.toContain(STACK_SENTINEL);
+      expect(assistantMsg.content).not.toContain(CREDENTIAL_SENTINEL);
+
+      // 2. Telemetry contains zero raw sentinels
+      const telemetryStr = JSON.stringify(state.telemetry);
+      expect(telemetryStr).not.toContain(REFUSAL_TEXT_SENTINEL);
+      expect(telemetryStr).not.toContain(PROVIDER_METADATA_SENTINEL);
+      expect(telemetryStr).not.toContain(ENDPOINT_URL_SENTINEL);
+      expect(telemetryStr).not.toContain(STACK_SENTINEL);
+
+      // 3. Raw JSON Export contains zero raw sentinels
+      const jsonExport = JSON.stringify(state.history);
+      expect(jsonExport).not.toContain(REFUSAL_TEXT_SENTINEL);
+      expect(jsonExport).not.toContain(PROVIDER_METADATA_SENTINEL);
+      expect(jsonExport).not.toContain(ENDPOINT_URL_SENTINEL);
+      expect(jsonExport).not.toContain(CREDENTIAL_SENTINEL);
+
+      // 4. Markdown Export contains zero raw sentinels
+      const mdExport = buildEngineLogContent(state.history, 'md')?.content || '';
+      expect(mdExport).not.toContain(REFUSAL_TEXT_SENTINEL);
+      expect(mdExport).not.toContain(PROVIDER_METADATA_SENTINEL);
+      expect(mdExport).not.toContain(ENDPOINT_URL_SENTINEL);
+      expect(mdExport).not.toContain(CREDENTIAL_SENTINEL);
+
+      // 5. HTML Export contains zero raw sentinels
+      const htmlExport = buildEngineLogContent(state.history, 'html')?.content || '';
+      expect(htmlExport).not.toContain(REFUSAL_TEXT_SENTINEL);
+      expect(htmlExport).not.toContain(PROVIDER_METADATA_SENTINEL);
+      expect(htmlExport).not.toContain(ENDPOINT_URL_SENTINEL);
+      expect(htmlExport).not.toContain(CREDENTIAL_SENTINEL);
+    });
   });
 });

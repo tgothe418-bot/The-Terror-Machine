@@ -28,12 +28,16 @@ import type {
   CharacterMemoryReceipt,
 } from '../../src/types/characterMemory';
 import { resolveCharacterMemory } from '../../src/lib/characterMemory';
-import type {
+import {
   WorldMemoryProposal,
   WorldMemoryReceipt,
 } from '../../src/types/worldMemory';
 import { resolveWorldMemory, selectSituatedWorldMemory } from '../../src/lib/worldMemory';
-import { generateStructuredResponse } from '../utils/aiClient';
+import {
+  generateStructuredResponse,
+  ProviderRefusalError,
+  EmptyProviderResponseError,
+} from '../utils/aiClient';
 import { resolveTransition } from '../engine/transitionResolver';
 import { clampSkepticismDelta } from '../../src/lib/castContinuity';
 import { createIntentReceipt } from '../../src/lib/intentReceipt';
@@ -843,6 +847,26 @@ ${recentHistory}
     try {
       engineResponse = await generateStructuredResponse(prompt, TurnResultSchema);
     } catch (modelErr: unknown) {
+      if (
+        modelErr instanceof ProviderRefusalError ||
+        (modelErr as { code?: string })?.code === 'PROVIDER_REFUSAL'
+      ) {
+        console.warn('[API /turn] AI Provider refusal');
+        return res.status(502).json({
+          error: 'AI provider declined turn generation',
+          code: 'PROVIDER_REFUSAL',
+        });
+      }
+      if (
+        modelErr instanceof EmptyProviderResponseError ||
+        (modelErr as { code?: string })?.code === 'EMPTY_PROVIDER_RESPONSE'
+      ) {
+        console.error('[API /turn] AI Provider empty response');
+        return res.status(502).json({
+          error: 'AI provider returned an empty response',
+          code: 'PROVIDER_FAILURE',
+        });
+      }
       if (modelErr instanceof z.ZodError || (modelErr as { name?: string })?.name === 'ZodError') {
         console.error('[API /turn] Model contract mismatch:', modelErr);
         const zodError =

@@ -194,10 +194,14 @@ export async function sendChatMessage(payload: {
   return response.json();
 }
 
+export type SimulatedPlayerActionResult =
+  | { success: true; action: string }
+  | { success: false; code: string };
+
 export const fetchSimulatedPlayerAction = async (
   history: Message[],
   logicState: LogicState | null
-): Promise<string> => {
+): Promise<SimulatedPlayerActionResult> => {
   try {
     const response = await fetch('/api/simulate-player', {
       method: 'POST',
@@ -205,13 +209,21 @@ export const fetchSimulatedPlayerAction = async (
       body: JSON.stringify({ history, logicState }),
     });
 
-    if (!response.ok) throw new Error('Ghost player failed to respond.');
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      const code = typeof data?.code === 'string' ? data.code : 'AUTOPILOT_ACTION_FAILURE';
+      return { success: false, code };
+    }
 
     const data = await response.json();
-    return data.action;
+    if (typeof data?.action === 'string' && data.action.trim().length > 0) {
+      return { success: true, action: data.action.trim() };
+    }
+
+    return { success: false, code: 'AUTOPILOT_ACTION_FAILURE' };
   } catch (error) {
     console.error('// AUTOPILOT FAILURE //', error);
-    return '[ SYSTEM OVERRIDE: The spatial geometry resists traversal. The requested pathway is inaccessible. ]';
+    return { success: false, code: 'TURN_NETWORK_FAILURE' };
   }
 };
 

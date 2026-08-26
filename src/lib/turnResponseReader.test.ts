@@ -554,4 +554,20 @@ describe('turnResponseReader', () => {
       expect(caught?.code).toBe('NON_JSON_TURN_RESPONSE');
     }
   });
+
+  it('normalizes PROVIDER_REFUSAL receipts with fixed safe message and discards server prose', () => {
+    const rawReceipt = {
+      code: 'PROVIDER_REFUSAL',
+      status: 502,
+      contentType: 'application/json',
+      message: 'Server internal refusal reason: SAFETY violation at line 42',
+    };
+
+    const normalized = normalizeTurnFailureReceipt(rawReceipt);
+    expect(normalized.code).toBe('PROVIDER_REFUSAL');
+    expect(normalized.status).toBe(502);
+    expect(normalized.message).toBe(SAFE_ERROR_MESSAGES.PROVIDER_REFUSAL);
+    expect(normalized.message).not.toContain('SAFETY violation');
+    expect(normalized.message).not.toContain('line 42');
+  });
 });

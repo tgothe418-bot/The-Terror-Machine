@@ -560,4 +560,50 @@ describe('Runtime component terminal retake behavior', () => {
     expect(postFailureEngineState.player_character_id).toBe('char-2');
     expect(postFailureEngineState.perspective_mode).toBe('embodied');
   });
+
+  it('restores human input into the editable input box upon PROVIDER_REFUSAL and preserves checkpoint', async () => {
+    const { TurnResponseError } = await import('../../lib/turnResponseReader');
+
+    const refusalError = new TurnResponseError({
+      code: 'PROVIDER_REFUSAL',
+      status: 502,
+      contentType: 'application/json',
+      message: 'The simulation model declined to generate a turn.',
+    });
+
+    vi.mocked(executeRatificationPipeline).mockRejectedValueOnce(refusalError);
+
+    await act(async () => {
+      root?.render(<Runtime />);
+    });
+
+    const textareaEl = container?.querySelector('textarea') as HTMLTextAreaElement;
+    expect(textareaEl).not.toBeNull();
+
+    // Type human input
+    await act(async () => {
+      const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+        window.HTMLTextAreaElement.prototype,
+        'value'
+      )?.set;
+      nativeInputValueSetter?.call(textareaEl, 'Examine the frozen bulkhead carefully');
+      textareaEl.dispatchEvent(new Event('input', { bubbles: true }));
+      textareaEl.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+
+    // Trigger Enter key submission
+    await act(async () => {
+      textareaEl.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })
+      );
+    });
+
+    // Verify input was restored after refusal
+    expect(textareaEl.value).toBe('Examine the frozen bulkhead carefully');
+
+    // Verify last failure receipt is safe PROVIDER_REFUSAL
+    const lastMsg = useAppStore.getState().history.slice(-1)[0];
+    expect(lastMsg?.failureReceipt?.code).toBe('PROVIDER_REFUSAL');
+    expect(useAppStore.getState().turnCount).toBe(0);
+  });
 });

@@ -426,11 +426,14 @@ export default function Runtime() {
     }
   }, [isHydrated, isCoherent, engineMessages.length, startSimulation, activeBlueprint]);
 
-  const handleCommand = async (e?: React.FormEvent, overrideInput?: string) => {
+  const handleCommand = async (
+    e?: React.FormEvent,
+    overrideInput?: string
+  ): Promise<'COMMITTED' | 'REFUSED' | 'FAILED' | 'IGNORED'> => {
     e?.preventDefault();
-    if (!isHydrated || !isCoherent) return;
+    if (!isHydrated || !isCoherent) return 'IGNORED';
     const commandText = overrideInput || input;
-    if (!commandText.trim() || isLoading) return;
+    if (!commandText.trim() || isLoading) return 'IGNORED';
 
     if (!overrideInput) setInput('');
     setIsLoading(true);
@@ -611,9 +614,15 @@ export default function Runtime() {
         preparedGameState,
         presentationPatch,
       });
+
+      return 'COMMITTED';
     } catch (err: unknown) {
       console.error(err);
       const failureReceipt = toTurnFailureReceipt(err);
+
+      if (failureReceipt.code === 'PROVIDER_REFUSAL' && !overrideInput) {
+        setInput(commandText);
+      }
 
       dispatch({
         type: 'TURN_FAILED',
@@ -628,6 +637,8 @@ export default function Runtime() {
           engineGameStateBefore,
         },
       });
+
+      return failureReceipt.code === 'PROVIDER_REFUSAL' ? 'REFUSED' : 'FAILED';
     } finally {
       setIsLoading(false);
     }
@@ -646,16 +657,34 @@ export default function Runtime() {
       const canonicalState = getCanonicalSimulationState();
 
       // B. Fetch the Ghost Player's action
-      const simulatedAction = await fetchSimulatedPlayerAction(
+      const simulatedResult = await fetchSimulatedPlayerAction(
         canonicalState.app.history || [],
         canonicalState.gameState || null
       );
 
+      if (!simulatedResult.success || !simulatedResult.action) {
+        setIsAutopilotRunning(false);
+        autopilotRef.current = false;
+        console.warn('// AUTOPILOT STOPPED // Action generation failed or declined.');
+        return;
+      }
+
       // C. Inject the simulated action into your standard submission pipeline
-      await handleCommand(undefined, simulatedAction);
+      const outcome = await handleCommand(undefined, simulatedResult.action);
+
+      if (outcome !== 'COMMITTED' || !autopilotRef.current) {
+        setIsAutopilotRunning(false);
+        autopilotRef.current = false;
+        return;
+      }
 
       // D. Wait a moment for visual pacing and to prevent API rate-limiting
       await new Promise((resolve) => setTimeout(resolve, 2500));
+
+      if (!autopilotRef.current) {
+        setIsAutopilotRunning(false);
+        return;
+      }
 
       // E. Recurse for the next turn
       runAutopilotSequence(turnsRemaining - 1);

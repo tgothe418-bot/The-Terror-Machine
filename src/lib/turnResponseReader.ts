@@ -11,6 +11,7 @@ export const SAFE_TURN_FAILURE_CODES = [
   'FRAME_VALIDATION_REJECTED',
   'MODEL_CONTRACT_MISMATCH',
   'PROVIDER_FAILURE',
+  'PROVIDER_REFUSAL',
   'NON_JSON_TURN_RESPONSE',
   'MALFORMED_TURN_RESPONSE',
   'TURN_NETWORK_FAILURE',
@@ -30,6 +31,8 @@ export const SAFE_ERROR_MESSAGES: Record<SafeTurnFailureCode, string> = {
     'The turn service returned an invalid response structure. The session state was not changed.',
   PROVIDER_FAILURE:
     'The AI provider turn generation failed. The session state was not changed.',
+  PROVIDER_REFUSAL:
+    'The simulation model declined to generate a turn. The session state was not changed. You may retry or rephrase your action.',
   NON_JSON_TURN_RESPONSE:
     'The turn service returned an unexpected non-JSON response. The session state was not changed.',
   MALFORMED_TURN_RESPONSE:

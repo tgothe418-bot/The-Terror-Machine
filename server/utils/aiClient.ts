@@ -438,6 +438,94 @@ export const turnResponseSchema = {
   ],
 } satisfies Schema;
 
+export type ProviderResponseClassification =
+  | { kind: 'CONTENT'; text: string }
+  | { kind: 'PROVIDER_REFUSAL'; reason?: string }
+  | { kind: 'EMPTY_PROVIDER_RESPONSE' };
+
+export const EXPLICIT_REFUSAL_FINISH_REASONS = new Set([
+  'SAFETY',
+  'BLOCKLIST',
+  'PROHIBITED_CONTENT',
+  'SPII',
+  'RECITATION',
+  'OTHER',
+]);
+
+/**
+ * Pure server-side classifier for @google/genai response metadata.
+ * Inspects promptFeedback.blockReason and candidates[0].finishReason prior to accessing response.text.
+ * Retains only bounded code/reason and sanitizes all raw response, prompt, stack, or credential sentinels.
+ */
+export function classifyProviderResponse(response: unknown): ProviderResponseClassification {
+  if (!response || typeof response !== 'object') {
+    return { kind: 'EMPTY_PROVIDER_RESPONSE' };
+  }
+
+  const res = response as {
+    promptFeedback?: { blockReason?: string | null };
+    candidates?: Array<{ finishReason?: string | null }>;
+    text?: string | null;
+  };
+
+  // 1. Check prompt-level block reason
+  const blockReason = res.promptFeedback?.blockReason;
+  if (
+    blockReason &&
+    typeof blockReason === 'string' &&
+    blockReason !== 'BLOCK_REASON_UNSPECIFIED' &&
+    blockReason !== 'UNKNOWN'
+  ) {
+    return {
+      kind: 'PROVIDER_REFUSAL',
+      reason: blockReason,
+    };
+  }
+
+  // 2. Check candidate-level finish reason
+  const firstCandidate = res.candidates?.[0];
+  const finishReason = firstCandidate?.finishReason;
+  if (finishReason && typeof finishReason === 'string') {
+    const normalized = finishReason.toUpperCase();
+    if (EXPLICIT_REFUSAL_FINISH_REASONS.has(normalized)) {
+      return {
+        kind: 'PROVIDER_REFUSAL',
+        reason: normalized,
+      };
+    }
+  }
+
+  // 3. Inspect text content
+  const rawText = typeof res.text === 'string' ? res.text : '';
+  const trimmed = rawText.trim();
+  if (trimmed.length > 0) {
+    return {
+      kind: 'CONTENT',
+      text: rawText,
+    };
+  }
+
+  return { kind: 'EMPTY_PROVIDER_RESPONSE' };
+}
+
+export class ProviderRefusalError extends Error {
+  readonly code = 'PROVIDER_REFUSAL';
+  readonly reason?: string;
+  constructor(reason?: string) {
+    super('AI provider declined turn generation');
+    this.name = 'ProviderRefusalError';
+    this.reason = reason;
+  }
+}
+
+export class EmptyProviderResponseError extends Error {
+  readonly code = 'EMPTY_PROVIDER_RESPONSE';
+  constructor() {
+    super('AI provider returned an empty response');
+    this.name = 'EmptyProviderResponseError';
+  }
+}
+
 export function unwrapStrictJsonResponse(text: string): string {
   const trimmed = text.trim();
   const fenced = trimmed.match(/^```(?:json)?[ \t]*\r?\n([\s\S]*?)\r?\n```$/i);
@@ -472,8 +560,16 @@ export const generateStructuredResponse = async <T = unknown>(
     },
   });
 
+  const classification = classifyProviderResponse(response);
+  if (classification.kind === 'PROVIDER_REFUSAL') {
+    throw new ProviderRefusalError(classification.reason);
+  }
+  if (classification.kind === 'EMPTY_PROVIDER_RESPONSE') {
+    throw new EmptyProviderResponseError();
+  }
+
   try {
-    return parseStructuredTurnResponse(response.text ?? '', zodSchema);
+    return parseStructuredTurnResponse(classification.text, zodSchema);
   } catch (err) {
     console.error("Failed to parse or validate schema:", err);
     throw err;

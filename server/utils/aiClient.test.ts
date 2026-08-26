@@ -3,6 +3,9 @@ import {
   unwrapStrictJsonResponse,
   parseStructuredTurnResponse,
   turnResponseSchema,
+  classifyProviderResponse,
+  ProviderRefusalError,
+  EmptyProviderResponseError,
 } from './aiClient';
 import { TurnResultSchema } from '../schemas/engine';
 
@@ -234,5 +237,114 @@ describe('provider turn response contract', () => {
     const sampleInvalidWorldNode = createValidBaseResult();
     (sampleInvalidWorldNode.world_memory_proposal.candidates[0] as Record<string, unknown>).node_id = null;
     expect(() => parseStructuredTurnResponse(JSON.stringify(sampleInvalidWorldNode), TurnResultSchema)).toThrow();
+  });
+});
+
+describe('classifyProviderResponse', () => {
+  it('classifies explicit prompt-level block reason as PROVIDER_REFUSAL', () => {
+    const res = {
+      promptFeedback: { blockReason: 'SAFETY' },
+      text: null,
+    };
+    const result = classifyProviderResponse(res);
+    expect(result.kind).toBe('PROVIDER_REFUSAL');
+    if (result.kind === 'PROVIDER_REFUSAL') {
+      expect(result.reason).toBe('SAFETY');
+    }
+  });
+
+  it('classifies explicit candidate finishReason as PROVIDER_REFUSAL', () => {
+    const refusalReasons = ['SAFETY', 'BLOCKLIST', 'PROHIBITED_CONTENT', 'SPII', 'RECITATION', 'OTHER'];
+    for (const finishReason of refusalReasons) {
+      const res = {
+        candidates: [{ finishReason }],
+        text: '',
+      };
+      const result = classifyProviderResponse(res);
+      expect(result.kind).toBe('PROVIDER_REFUSAL');
+      if (result.kind === 'PROVIDER_REFUSAL') {
+        expect(result.reason).toBe(finishReason);
+      }
+    }
+  });
+
+  it('does not classify unspecified block reason or unspecified finish reason as refusal', () => {
+    const resUnspecBlock = {
+      promptFeedback: { blockReason: 'BLOCK_REASON_UNSPECIFIED' },
+      candidates: [{ finishReason: 'STOP' }],
+      text: '{"ok": true}',
+    };
+    const resultBlock = classifyProviderResponse(resUnspecBlock);
+    expect(resultBlock.kind).toBe('CONTENT');
+
+    const resUnspecFinish = {
+      candidates: [{ finishReason: 'FINISH_REASON_UNSPECIFIED' }],
+      text: '{"ok": true}',
+    };
+    const resultFinish = classifyProviderResponse(resUnspecFinish);
+    expect(resultFinish.kind).toBe('CONTENT');
+  });
+
+  it('classifies STOP with non-empty text as CONTENT', () => {
+    const res = {
+      candidates: [{ finishReason: 'STOP' }],
+      text: '{"narrative_blocks": []}',
+    };
+    const result = classifyProviderResponse(res);
+    expect(result.kind).toBe('CONTENT');
+    if (result.kind === 'CONTENT') {
+      expect(result.text).toBe('{"narrative_blocks": []}');
+    }
+  });
+
+  it('classifies MAX_TOKENS with non-empty text as CONTENT (not automatically refusal)', () => {
+    const res = {
+      candidates: [{ finishReason: 'MAX_TOKENS' }],
+      text: '{"partial": true}',
+    };
+    const result = classifyProviderResponse(res);
+    expect(result.kind).toBe('CONTENT');
+  });
+
+  it('classifies empty or whitespace-only response without refusal metadata as EMPTY_PROVIDER_RESPONSE', () => {
+    const resEmpty = {
+      candidates: [{ finishReason: 'STOP' }],
+      text: '',
+    };
+    expect(classifyProviderResponse(resEmpty).kind).toBe('EMPTY_PROVIDER_RESPONSE');
+
+    const resWhitespace = {
+      candidates: [{ finishReason: 'STOP' }],
+      text: '   \n\t  ',
+    };
+    expect(classifyProviderResponse(resWhitespace).kind).toBe('EMPTY_PROVIDER_RESPONSE');
+
+    expect(classifyProviderResponse(null).kind).toBe('EMPTY_PROVIDER_RESPONSE');
+    expect(classifyProviderResponse({}).kind).toBe('EMPTY_PROVIDER_RESPONSE');
+  });
+
+  it('passes malformed non-empty JSON as CONTENT (which then fails through existing parser/schema boundary)', () => {
+    const res = {
+      candidates: [{ finishReason: 'STOP' }],
+      text: '{"malformed json: true',
+    };
+    const result = classifyProviderResponse(res);
+    expect(result.kind).toBe('CONTENT');
+    if (result.kind === 'CONTENT') {
+      expect(() => parseStructuredTurnResponse(result.text, TurnResultSchema)).toThrow();
+    }
+  });
+
+  it('ensures raw response objects, stacks, URLs, and credentials are absent from sanitized error types', () => {
+    const err = new ProviderRefusalError('SAFETY');
+    expect(err.code).toBe('PROVIDER_REFUSAL');
+    expect(err.reason).toBe('SAFETY');
+    expect(err.message).toBe('AI provider declined turn generation');
+    expect(JSON.stringify(err)).not.toContain('http://');
+    expect(JSON.stringify(err)).not.toContain('AI_API_KEY');
+
+    const emptyErr = new EmptyProviderResponseError();
+    expect(emptyErr.code).toBe('EMPTY_PROVIDER_RESPONSE');
+    expect(emptyErr.message).toBe('AI provider returned an empty response');
   });
 });

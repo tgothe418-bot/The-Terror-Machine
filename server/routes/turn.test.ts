@@ -4859,6 +4859,43 @@ describe('Turn schemas validation', () => {
       expect(JSON.stringify(providerFailJson)).not.toContain('generativelanguage.googleapis.com');
       expect(JSON.stringify(providerFailJson)).not.toContain('AIzaSyD-Secret123');
       expect(JSON.stringify(providerFailJson)).not.toContain('503 Service Unavailable');
+
+      // 6. Provider Refusal Path: returns 502 with PROVIDER_REFUSAL and safe generic message
+      const { ProviderRefusalError, EmptyProviderResponseError } = await import('../utils/aiClient');
+      mockGenerateStructuredResponse.mockReset();
+      mockGenerateStructuredResponse.mockRejectedValueOnce(
+        new ProviderRefusalError('SAFETY')
+      );
+
+      const refusalResponse = await fetch(`${baseUrl}/api/turn`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(baseTurnPayload),
+      });
+
+      expect(refusalResponse.status).toBe(502);
+      const refusalJson = (await refusalResponse.json()) as Record<string, unknown>;
+      expect(refusalJson.code).toBe('PROVIDER_REFUSAL');
+      expect(refusalJson.error).toBe('AI provider declined turn generation');
+      expect(JSON.stringify(refusalJson)).not.toContain('SAFETY');
+      expect(JSON.stringify(refusalJson)).not.toContain('http');
+
+      // 7. Empty Provider Response Path: returns 502 with PROVIDER_FAILURE (not MODEL_CONTRACT_MISMATCH)
+      mockGenerateStructuredResponse.mockReset();
+      mockGenerateStructuredResponse.mockRejectedValueOnce(
+        new EmptyProviderResponseError()
+      );
+
+      const emptyResponse = await fetch(`${baseUrl}/api/turn`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(baseTurnPayload),
+      });
+
+      expect(emptyResponse.status).toBe(502);
+      const emptyJson = (await emptyResponse.json()) as Record<string, unknown>;
+      expect(emptyJson.code).toBe('PROVIDER_FAILURE');
+      expect(emptyJson.code).not.toBe('MODEL_CONTRACT_MISMATCH');
     });
   });
 });

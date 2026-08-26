@@ -2,9 +2,8 @@
 import express from "express";
 import fs from "fs";
 import path from "path";
-import crypto from "crypto";
 import { Type } from "@google/genai";
-import { getAiClient } from "../utils/aiClient";
+import { getAiClient, classifyProviderResponse } from "../utils/aiClient";
 import { getGeminiPolicy } from "../ai/modelPolicy";
 import { buildOrchestratorPrompt } from "../../src/core/prompts/orchestrator";
 // Removed jsonParser
@@ -507,10 +506,35 @@ router.post("/simulate-player", async (req, res) => {
       },
     });
 
-    res.json({ action: (response.text || "I look around carefully.").trim() });
-  } catch (error: any) {
+    const classification = classifyProviderResponse(response);
+    if (classification.kind === 'PROVIDER_REFUSAL') {
+      return res.status(502).json({
+        error: 'Simulation model declined player action generation.',
+        code: 'PROVIDER_REFUSAL',
+      });
+    }
+    if (classification.kind === 'EMPTY_PROVIDER_RESPONSE') {
+      return res.status(502).json({
+        error: 'Simulation model returned an empty player action.',
+        code: 'AUTOPILOT_ACTION_FAILURE',
+      });
+    }
+
+    const trimmedAction = classification.text.trim();
+    if (!trimmedAction) {
+      return res.status(502).json({
+        error: 'Simulation model returned an empty player action.',
+        code: 'AUTOPILOT_ACTION_FAILURE',
+      });
+    }
+
+    return res.json({ action: trimmedAction });
+  } catch (error: unknown) {
     console.error("Ghost Player Simulation Error:", error);
-    res.status(500).json({ error: "Failed to simulate player turn." });
+    return res.status(502).json({
+      error: "Failed to simulate player turn.",
+      code: "AUTOPILOT_ACTION_FAILURE",
+    });
   }
 });
 
