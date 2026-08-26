@@ -74,6 +74,16 @@ The Horror Grammar 1 series is present on the live line, but the series is not a
 
 Horror Grammar 2 is not started. No subsequent grammar packet should be treated as active implementation until this closure is accepted.
 
+## Deferred, non-blocking observations
+
+These are recorded for later audit once the critical integration closure is working. They do not hold the larger creative direction unless a live trace demonstrates canonical corruption, loss of User agency, stranded recovery, or unsafe provider/internal leakage.
+
+- Reconcile opportunity-selection wording between Blueprint baseline activity and runtime overlays after state threading is complete.
+- Review turn and revision display identifiers for any off-by-one presentation without changing canonical identity.
+- Tighten free-form reason codes, bounded array limits, and enum/provenance wording where real traces show that the current contracts are too loose.
+- Expand broader multi-turn fixtures and CI coverage after the real boundary proofs exist; helper-only coverage is not a substitute for that proof, but its absence is not itself a reason to stop construction.
+- Polish forensic drawer presentation and export labeling after the typed forensic record is in the correct place.
+
 ## Accepted Forge corrective sequence
 
 The source-to-Blueprint handoff is now one reviewable chain rather than a set of loosely connected features. Acceptance of that infrastructure does not claim that every import currently reaches each required authoring step automatically.
