@@ -13,6 +13,12 @@ It is intentionally more exact than the [Technical (Public) Roadmap](./ROADMAP.m
 
 A focused test proves its named behavior. It does not, by itself, close an integrated feature, a production type gate, or a human-facing contract.
 
+## Live code baseline reviewed for this ledger
+
+- Horror Grammar 1 implementation reviewed: [b0253fe](https://github.com/tgothe418-bot/The-Terror-Machine/commit/b0253fed9302e4b5fac8b8c633de0bab016c587b) (Packets 1-1 through 1-5).
+- README refresh reviewed: [e5e7f9d](https://github.com/tgothe418-bot/The-Terror-Machine/commit/e5e7f9de5e3bfed16341c91d41229317692f093c).
+- The branch was clean and synced when reviewed. The status below is based on live code inspection as well as reported tests; a packet's completion report is not accepted evidence by itself.
+
 ## Current baseline
 
 ### Landed
@@ -25,6 +31,7 @@ A focused test proves its named behavior. It does not, by itself, close an integ
 - Phase 3H.5C World Memory: deterministic identity, bounded global/current-node prompt projection, required proposal and receipt contracts, fail-closed validation, canonical commit, and export evidence.
 - Forge source review through the accepted Packet 02A–07 corrective sequence.
 - Engine Corrective Packet 08 — Human Turn Contract Reliability: the provider response schema is aligned to the application contract; concise creator-written input remains exact and shares the one-generation, ratification path with Autopilot; bounded mismatch diagnostics survive failure receipts and Markdown/HTML telemetry; creator acceptance is complete.
+- Horror Grammar 0 — Provider-Refusal Containment Correction: provider block metadata is classified before parsing; empty/refused responses fail closed; synthetic player-action fallbacks are removed; Autopilot halts on failed generation or non-commit; human input and canonical state remain recoverable.
 
 ### Live, under review
 
@@ -36,10 +43,6 @@ The live line can bind an exact selected cast ID, and human telemetry demonstrat
 
 An Authority Contract appearing in a prompt is not enforcement. Causal authority must be adjudicated before an out-of-contract consequence, character change, durable memory item, or receipt can become canonical.
 
-#### Provider-refusal containment
-
-An upstream refusal must be contained as a first-class Engine result. Refusal text must never be attributed to player input, treated as an ordinary narrative turn, or allowed to mutate canonical state.
-
 #### Forge required-field synthesis
 
 The accepted Forge sequence provides the contracts and review lifecycle for a source-grounded Depiction Contract, but imported reference material does not yet reliably activate that path. A real Blueprint import populated premise, location, cast, and topology while leaving all four required Depiction Contract fields empty: dramatic register, directness, aftermath, and ambiguity handling.
@@ -49,6 +52,27 @@ The export gate behaved correctly by blocking the incomplete artifact. The remai
 #### Inherited global TypeScript debt
 
 Packet 07's Forge stabilization passed the complete Vitest suite, full lint, and production build. Packet 08's TypeScript check was clean inside its boundary, but the global command still reports inherited errors in `ArchitectChat.*`, `src/core/engine/sessionPersistence.test.ts`, `src/core/store.ts`, and `useForgeStore.*`. Those errors remain explicit debt; they must not be described as a green TypeScript gate.
+
+## Horror Grammar 1 construction ledger
+
+The Horror Grammar 1 series is present on the live line, but the series is not accepted as an integrated milestone. Its purpose is to let the Blueprint provide values, pursuits, fictional time, and narrative pressure so non-User characters can continue pursuing their own concerns without turning the Engine into a visible stat system. The User supplies actions; the Engine may commit only causally supported changes.
+
+| Packet | Construction boundary | Current disposition |
+|---|---|---|
+| **1-1 — Forge value and pursuit foundations** | Value and pursuit types, provenance, Blueprint authoring, and proposal foundations are present. | Implementation present; cross-boundary continuity still open. |
+| **1-2 — Fictional time and cast activity selection** | Fictional-time ledger, activity scheduling, and bounded offscreen opportunity selection are present. | Implementation present; real consecutive-turn handoff still open. |
+| **1-3 — Validated non-User initiative and situated pressure** | Initiative and pressure ratifiers plus isolated narrative composition are present. | Implementation present; exact authority/perception/speaker/source validation still open. |
+| **1-4 — Causal value, pursuit, and character evolution** | Value state, pursuit overlays, development, and pressure-thread lifecycle structures are present. | Implementation present; canonical state threading and publication still open. |
+| **1-5 — Forensic telemetry and integration gate** | Forensic/export scaffolding and integration tests are present. | Implementation present; typed Runtime forensic evidence and real multi-turn acceptance still open. |
+
+### Critical integration closure
+
+1. **State threading:** extend the actual Engine turn context and route contract with bounded HG1 state, initialize it from the accepted Blueprint, and publish the ratified post-state without empty fallbacks replacing prior ledgers.
+2. **Authority and perception:** resolve exact Blueprint authority and evidence references; require the correct actor, channel, location, and situated knowledge for activity and pressure manifestations; reject ungrounded or misattributed changes before canon and narrative composition.
+3. **Forensic boundary:** add a typed, bounded forensic record and a readable Runtime view. Preserve exact rejected proposal evidence only in that labeled forensic section; keep provider metadata, credentials, stack traces, endpoint details, and rejected material out of story, prompt, and ordinary canonical history.
+4. **Integration proof:** exercise two consecutive real turns, a rejected/refused turn, and Retake with state-preservation and forensic-isolation assertions. Focused tests belong to this closure; the full suite and broad tooling gates belong at the declared stabilization point.
+
+Horror Grammar 2 is not started. No subsequent grammar packet should be treated as active implementation until this closure is accepted.
 
 ## Accepted Forge corrective sequence
 
@@ -76,10 +100,26 @@ The post-07 mount correction ensures that the normal closed-to-open Export Revie
 | Packet | Accepted boundary |
 |---|---|
 | **08 — Human Turn Contract Reliability** | The provider schema now projects the authoritative application response contract more faithfully. Concise creator input is preserved verbatim and follows the same one-generation, fail-closed route as Autopilot. Safe schema-failure paths and codes survive the failure receipt and Markdown/HTML telemetry. Focused tests, scoped lint, a scoped-clean TypeScript result, production build, and creator live smoke acceptance are recorded. |
+| **Horror Grammar 0 — Provider-Refusal Containment Correction** | Provider refusal and empty-response metadata are classified before parsing; route failures omit synthetic action input; Autopilot stops on failed generation or non-commit; human input is recoverable and canonical state remains unchanged. |
 
 ## Next work packages
 
-### 1. Complete source-to-required-field synthesis
+### 1. Close the Horror Grammar 1 integration gate
+
+Do not begin Horror Grammar 2 until this gate closes. The work is deliberately bounded to the critical continuity, authority, and forensic seams exposed by live review.
+
+Acceptance requires:
+
+- the real turn request and response carry bounded Blueprint, value, pursuit, fictional-time, activity, pressure, and development state across at least two consecutive turns;
+- initialization and post-turn publication are canonical and fail closed; missing optional fields cannot replace existing ledgers with empty defaults;
+- activity and pressure ratifiers require exact, Blueprint-grounded authority, perception, speaker, source, channel, and location evidence;
+- only validated manifestations may alter canonical state or enter final narrative composition;
+- a typed Horror Grammar forensic record is available in the Runtime review surface and diagnostics, with bounded rejected proposal evidence retained only in an explicitly labeled forensic section;
+- provider metadata, credentials, stack traces, endpoint details, and unbounded raw response material never enter story, prompt, canonical history, or ordinary export content;
+- focused two-turn, authority/perception, refusal/rejection, forensic, and Retake proofs pass at the relevant boundaries;
+- broad Vitest, TypeScript, lint, build, and diff gates are run once at the closure's stabilization point, not demanded for every micro-packet.
+
+### 2. Complete source-to-required-field synthesis
 
 Connect imported Source Baseline evidence to the existing proposal lifecycle for required Blueprint fields, beginning with the Depiction Contract.
 
@@ -96,7 +136,7 @@ Acceptance requires:
 
 This work should inspect other required Blueprint fields for the same omission pattern, but it must not invent material merely to make Export Review turn green.
 
-### 2. Close the inherited baseline and 3H.5D
+### 3. Close the inherited baseline and 3H.5D
 
 Repair the inherited TypeScript errors without weakening Engine contracts, then finish explicit Player-Character Binding.
 
@@ -109,7 +149,7 @@ Acceptance requires:
 - focused proofs plus the appropriate broad suite, TypeScript, lint, build, and diff gates;
 - no Blueprint names, cast assumptions, or scenario literals in production instructions.
 
-### 3. Enforce authored participation and treatment at the Engine boundary
+### 4. Enforce authored participation and treatment at the Engine boundary
 
 The Engine must use accepted Blueprint contracts while retaining deterministic ownership of causality and canon.
 
@@ -124,21 +164,21 @@ Acceptance requires:
 
 Provider-level non-negotiable constraints remain external to the Blueprint contract. They must be represented honestly without pretending the player authored the refusal.
 
-### 4. Make Autopilot identity-safe
+### 5. Make Autopilot identity-safe
 
 Autopilot must receive the selected character's canonical context, use the same identity-bearing path as a human session, stop or retry deliberately after failure, and label generated input in telemetry and exports.
 
-### 5. Finish durable continuity
+### 6. Finish durable continuity
 
 Extend character and World Memory through the complete turn lifecycle with scoped, inspectable handoff. Every durable fact needs a source, scope, acceptance decision, and bounded prompt projection.
 
 Campaign handoff must remain explicit rather than becoming an implicit global ledger.
 
-### 6. Harden the Voice boundary
+### 7. Harden the Voice boundary
 
 Keep Voice observations read-only and separate from simulation canon. Add evidence-labelled context, snapshot/export parity, and clear handling for Forge drafts, Engine sessions, outside research, and ordinary project conversation.
 
-### 7. Prepare campaign, horror-grammar, and provider seams
+### 8. Prepare campaign, horror-grammar, and provider seams
 
 Once identity, authority, and continuity are stable:
 
