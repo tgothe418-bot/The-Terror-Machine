@@ -270,17 +270,21 @@ The Terror Machine is a private-first solo project in active development.
 
 The current line includes the atomic turn path, canonical topology, role-aware participation, Blueprint and Induction entry paths, retake, telemetry, bounded character and World Memory, a revision-bound Forge source-review path, and a repaired human-turn response contract.
 
-The Forge corrective sequence through Packet 07 is now complete. Candidate decisions remain separate from draft mutation. Architect responses are identity-bound. Ambiguity resolutions commit transactionally. Depiction proposals become stale when their source changes. Evidence remains available for inspection. Export Review captures the artifact the operator actually reviewed.
+The Forge has learned to ask a more dangerous question than “what exists?” It asks what matters. A value may belong to a body, a relationship, a room, or the shape of the story itself. A character may enter the house already pursuing something, even when the User is looking elsewhere. Those foundations come from reviewed evidence or deliberate authorship. They are not a score, a leash, or a hidden instruction to force the plot toward a prepared ending.
 
-The machine has learned how to keep its paperwork in order.
+The first Horror Grammar has been fitted to the Engine. Fictional time now has a pulse: a glance, a conversation, and a long search need not cost the same amount of night. People who are not being played can still have somewhere to be and something to do. While the User studies one door, someone else may be testing a lock; while the User follows a sound, a value may begin to stand in danger. The machine can place that pressure in the room without choosing the User's answer.
 
-It has not yet learned to complete every form.
+There is no pursuit clock for the operator to manage and no horror score hiding behind the walls. The ledgers exist so the machine can carry consequence without asking the person at the controls to become its bookkeeper.
 
-The Engine corrective Packet 08 is also accepted. A concise creator-written action now walks through the same single-generation, ratified corridor as an Autopilot action. The operator's words arrive as written. If the model still offers an invalid shape, the world does not move; the receipt names the rejected part of the contract without dragging model debris into the history.
+The new wing is not yet fully wired. Activity, pressure, value, pursuit, and character-development records have been installed, but their complete turn-to-turn continuity, authority checks, and forensic presentation are still under integration review. The house is learning to show not only what happened, but what it considered, what it refused, and why.
 
-The operator no longer has to write like a machine just to make the machine listen.
+Until that work is closed, Horror Grammar 1 is an occupied construction site: part of the current build, not a promise that every new thread already survives every room change.
 
-Imported source material can still populate most of a Blueprint while leaving required authoring fields blank, including the core Depiction Contract. The export gate correctly refuses that incomplete artifact. The next Forge work is to teach the Architect when the accepted source contains enough evidence to propose those missing essentials—and when it should admit that it does not.
+Sometimes the outside oracle refuses to answer. That refusal is filed as a technical event. It does not become something the player said, an action the character took, or a sentence smuggled into the story.
+
+The machine has learned how to keep more of its paperwork in order.
+
+It is still learning which papers belong in the room.
 
 Some doors are still being hung. Some rooms contain development diagnostics. Some boundaries are stricter than the interface around them. This is not a promise that the haunted house is finished; it is a warning that the house is already interesting enough to get lost in.
 
