@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildEngineTurnContext, buildContextReceipt } from './buildEngineTurnContext';
 import { deriveCharacterMemoryId } from './characterMemory';
-import { SpatialNode } from '../types';
+import { SpatialNode, CastActivityEvent, SituatedPressureThread } from '../types';
 
 describe('buildEngineTurnContext & buildContextReceipt', () => {
   const mockBlueprint = {
@@ -888,6 +888,122 @@ describe('buildEngineTurnContext & buildContextReceipt', () => {
       expect(context.horrorGrammar?.authorityInstruction).toContain(
         'Only non-User characters listed under presentActorOpportunities and offscreenPursuitOpportunities are eligible'
       );
+
+      // Packet 1-6 Proof 1: Fresh reviewed blueprint creates complete HG1 snapshot & baseline
+      expect(context.horrorGrammar?.runtimeState).toBeDefined();
+      expect(context.horrorGrammar?.runtimeState.fictionalTime).toEqual({
+        moment_revision: 0,
+        scene_beat_revision: 0,
+        extended_revision: 0,
+        last_cost: null,
+      });
+      expect(context.horrorGrammar?.runtimeState.pursuitSchedule).toEqual({});
+      expect(context.horrorGrammar?.runtimeState.recentActivityEvents).toEqual([]);
+      expect(context.horrorGrammar?.runtimeState.activePressureThreads).toEqual([]);
+      expect(context.horrorGrammar?.runtimeState.valueState).toHaveProperty('val-ward');
+      expect(context.horrorGrammar?.runtimeState.characterPursuits).toHaveProperty('pursuit-warden');
+      expect(context.horrorGrammar?.runtimeState.characterDevelopment).toEqual({});
+
+      expect(context.horrorGrammar?.authoringBaseline).toEqual({
+        valueBaselineReview: 'REVIEWED',
+        pursuitReviews: {
+          'char-warden': 'REVIEWED',
+          'char-orderly': 'REVIEWED',
+        },
+        valueAnchors: bpWithHorrorGrammar.horrorGrammar.valueAnchors,
+        characterPursuits: bpWithHorrorGrammar.horrorGrammar.characterPursuits,
+      });
+    });
+
+    it('retains supplied nonempty HG1 ledgers byte-for-byte in runtimeState snapshot', () => {
+      const sentinelValueLedger = {
+        'val-custom': {
+          anchorId: 'val-custom',
+          lifecycle: 'ACTIVE' as const,
+          condition: 'THREATENED' as const,
+          currentFormNote: 'Cracked foundation',
+          lastCauseReference: 'EVT-PREV-01',
+          lastChangedTurn: 2,
+        },
+      };
+      const sentinelPursuitLedger = {
+        'pursuit-custom': {
+          pursuitId: 'pursuit-custom',
+          castMemberId: 'char-orderly',
+          currentObjective: 'Barricade door',
+          currentApproach: 'Using steel cart',
+          currentLocationNodeId: 'WARD_4B',
+          status: 'ACTIVE' as const,
+          progressSummary: 'Halfway barricaded',
+          lastCauseReference: 'ACT-01',
+          lastActivityTurn: 1,
+          lastChangedTurn: 1,
+          reviewWindow: 'MOMENT' as const,
+        },
+      };
+      const sentinelActivityEvents: CastActivityEvent[] = [
+        {
+          id: 'act-evt-sentinel-01',
+          castMemberId: 'char-orderly',
+          pursuitId: 'pursuit-custom',
+          activitySummary: 'Orderly Thomas slams the bolt in place.',
+          locationNodeId: 'WARD_4B',
+          perceptionPath: 'DIRECT',
+          committedTurn: 1,
+          authorityReferences: [],
+          wasManifested: true,
+        },
+      ];
+      const sentinelPressureThreads: SituatedPressureThread[] = [
+        {
+          id: 'prs-thread-sentinel-01',
+          valueAnchorId: 'val-custom',
+          holder: { kind: 'PLACE', nodeId: 'WARD_4B' },
+          operator: 'CONSTRAIN_ACCESS',
+          affectedDimension: 'SAFETY',
+          adverseProspect: 'Door seal fails under pressure',
+          manifestationSummary: null,
+          persistenceTarget: 'PRESSURE_THREAD',
+          status: 'OPEN',
+          createdTurn: 1,
+          lastChangedTurn: 1,
+          sourceReference: 'act-evt-sentinel-01',
+          authorityReferences: [],
+        },
+      ];
+      const sentinelDevelopmentLedger = {
+        'char-orderly': [
+          {
+            id: 'dev-fact-01',
+            castMemberId: 'char-orderly',
+            dimension: 'BELIEF' as const,
+            statement: 'Believes the wardens have abandoned them.',
+            lifecycle: 'ACTIVE' as const,
+            establishedTurn: 1,
+            lastChangedTurn: 1,
+            causeReference: 'act-evt-sentinel-01',
+          },
+        ],
+      };
+
+      const context = buildEngineTurnContext({
+        blueprint: mockBlueprint,
+        valueStateLedger: sentinelValueLedger,
+        characterPursuitLedger: sentinelPursuitLedger,
+        activityEvents: sentinelActivityEvents,
+        pressureThreads: sentinelPressureThreads,
+        characterDevelopmentLedger: sentinelDevelopmentLedger,
+        runtimeState: {
+          currentNodeId: 'WARD_4B',
+          turnCount: 2,
+        },
+      });
+
+      expect(context.horrorGrammar?.runtimeState.valueState).toEqual(sentinelValueLedger);
+      expect(context.horrorGrammar?.runtimeState.characterPursuits).toEqual(sentinelPursuitLedger);
+      expect(context.horrorGrammar?.runtimeState.recentActivityEvents).toEqual(sentinelActivityEvents);
+      expect(context.horrorGrammar?.runtimeState.activePressureThreads).toEqual(sentinelPressureThreads);
+      expect(context.horrorGrammar?.runtimeState.characterDevelopment).toEqual(sentinelDevelopmentLedger);
     });
   });
 });

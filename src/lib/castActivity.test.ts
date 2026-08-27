@@ -355,4 +355,99 @@ describe('Cast Activity Ratifier (Packet 1-3)', () => {
     expect(receipt.postState).toHaveLength(1);
     expect(receipt.postState[0].wasManifested).toBe(false);
   });
+
+  it('rejects LOCAL_TRACE proposal with dialogue manifestation', () => {
+    const context = createMockContext();
+    const eligibility = createMockEligibility();
+
+    const proposal: CastActivityProposal = {
+      kind: 'ACTIVITY',
+      proposalId: 'prop-trace-dialogue',
+      castMemberId: 'char-tech',
+      locationNodeId: 'NODE_CONTROL',
+      activitySummary: 'Mercer left boot prints in the dust.',
+      authorityReferences: ['opp-present-char-tech'],
+      perceptionPath: 'LOCAL_TRACE',
+      manifestationBlock: {
+        type: 'dialogue',
+        speaker: 'Technician Mercer',
+        content: 'I left footprints here.',
+      },
+    };
+
+    const receipt = resolveCastActivity({
+      proposal,
+      eligibilityReceipt: eligibility,
+      currentContext: context,
+      preEvents: [],
+      currentTurn: 2,
+    });
+
+    expect(receipt.outcome).toBe('REJECTED');
+    expect(receipt.reasonCode).toBe('LOCAL_TRACE_CANNOT_USE_DIALOGUE');
+  });
+
+  it('rejects MEDIATED proposal when cast member lacks mediated capability', () => {
+    const context = createMockContext();
+    const eligibility = createMockEligibility();
+
+    // char-guard only has 'spoken', not 'mediated'
+    const proposal: CastActivityProposal = {
+      kind: 'ACTIVITY',
+      proposalId: 'prop-guard-radio',
+      castMemberId: 'char-guard',
+      pursuitId: 'pursuit-guard',
+      locationNodeId: 'NODE_GATE',
+      activitySummary: 'Petrov radios from gate.',
+      authorityReferences: ['pursuit-guard'],
+      perceptionPath: 'MEDIATED',
+      manifestationBlock: {
+        type: 'dialogue',
+        speaker: 'Guard Petrov',
+        content: 'Gate is secure over radio.',
+      },
+    };
+
+    const receipt = resolveCastActivity({
+      proposal,
+      eligibilityReceipt: eligibility,
+      currentContext: context,
+      preEvents: [],
+      currentTurn: 2,
+    });
+
+    expect(receipt.outcome).toBe('REJECTED');
+    expect(receipt.reasonCode).toBe('MEDIATED_PERCEPTION_UNSUPPORTED_BY_ACTOR_PROFILE');
+  });
+
+  it('rejects dialogue manifestation when speaker does not match the activity actor', () => {
+    const context = createMockContext();
+    const eligibility = createMockEligibility();
+
+    const proposal: CastActivityProposal = {
+      kind: 'ACTIVITY',
+      proposalId: 'prop-speaker-mismatch',
+      castMemberId: 'char-tech',
+      locationNodeId: 'NODE_CONTROL',
+      activitySummary: 'Mercer works on console.',
+      authorityReferences: ['opp-present-char-tech'],
+      perceptionPath: 'DIRECT',
+      manifestationBlock: {
+        type: 'dialogue',
+        speaker: 'Guard Petrov', // Petrov speaking for Mercer's action
+        content: 'I will help with that.',
+      },
+    };
+
+    const receipt = resolveCastActivity({
+      proposal,
+      eligibilityReceipt: eligibility,
+      currentContext: context,
+      preEvents: [],
+      currentTurn: 2,
+    });
+
+    expect(receipt.outcome).toBe('REJECTED');
+    expect(receipt.reasonCode).toBe('INVALID_MANIFESTATION_DIALOGUE_SPEAKER');
+  });
 });

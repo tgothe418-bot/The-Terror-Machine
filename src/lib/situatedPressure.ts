@@ -79,6 +79,7 @@ export function resolveSituatedPressure({
 
   // 2. Value Anchor must exist in Blueprint baseline
   const availableAnchors =
+    currentContext.horrorGrammar?.authoringBaseline?.valueAnchors ||
     blueprint?.horrorGrammar?.valueAnchors ||
     currentContext.horrorGrammar?.relevantValueAnchors ||
     [];
@@ -98,12 +99,58 @@ export function resolveSituatedPressure({
   }
 
   // 3. Source reference validation
+  let validatedSourceRef = sourceReference;
   if (sourceReference === 'ACTIVITY') {
     if (!activityReceipt || activityReceipt.outcome !== 'ACCEPTED') {
       return {
         version: 1,
         outcome: 'REJECTED',
         reasonCode: 'ACTIVITY_SOURCE_NOT_ACCEPTED',
+        preState: normalizedPreState,
+        postState: normalizedPreState,
+        admittedManifestation: false,
+        acceptedThreadId: null,
+        proposalSnapshot,
+      };
+    }
+    validatedSourceRef = activityReceipt.acceptedEventId || 'ACTIVITY';
+  } else if (
+    activityReceipt &&
+    activityReceipt.acceptedEventId &&
+    sourceReference === activityReceipt.acceptedEventId
+  ) {
+    if (activityReceipt.outcome !== 'ACCEPTED') {
+      return {
+        version: 1,
+        outcome: 'REJECTED',
+        reasonCode: 'ACTIVITY_SOURCE_NOT_ACCEPTED',
+        preState: normalizedPreState,
+        postState: normalizedPreState,
+        admittedManifestation: false,
+        acceptedThreadId: null,
+        proposalSnapshot,
+      };
+    }
+  } else {
+    // Check against pre-state threads, recent events, or registry
+    const registry = currentContext.horrorGrammar?.evidenceRegistry || [];
+    const isKnownRef =
+      normalizedPreState.some((t) => t.id === sourceReference) ||
+      registry.some((e) => e.id === sourceReference) ||
+      sourceReference.startsWith('evt-') ||
+      sourceReference.startsWith('act-') ||
+      sourceReference.startsWith('thr-') ||
+      sourceReference.startsWith('prs-') ||
+      sourceReference.startsWith('csq-') ||
+      sourceReference.startsWith('rule-') ||
+      sourceReference.startsWith('val-') ||
+      sourceReference === 'BASELINE';
+
+    if (!isKnownRef && registry.length > 0) {
+      return {
+        version: 1,
+        outcome: 'REJECTED',
+        reasonCode: 'INVALID_SOURCE_REFERENCE',
         preState: normalizedPreState,
         postState: normalizedPreState,
         admittedManifestation: false,
@@ -130,6 +177,26 @@ export function resolveSituatedPressure({
   // 5. Validate manifestation block
   if (manifestationBlock) {
     if (manifestationBlock.type === 'dialogue') {
+      // Environmental or non-character pressure cannot use dialogue
+      const isActivitySource =
+        sourceReference === 'ACTIVITY' ||
+        (activityReceipt?.acceptedEventId && sourceReference === activityReceipt.acceptedEventId) ||
+        sourceReference.startsWith('act-') ||
+        sourceReference.startsWith('evt-');
+
+      if (!isActivitySource && matchingAnchor.holder.kind !== 'CHARACTER') {
+        return {
+          version: 1,
+          outcome: 'REJECTED',
+          reasonCode: 'ENVIRONMENTAL_PRESSURE_CANNOT_USE_DIALOGUE',
+          preState: normalizedPreState,
+          postState: normalizedPreState,
+          admittedManifestation: false,
+          acceptedThreadId: null,
+          proposalSnapshot,
+        };
+      }
+
       const speakerName = manifestationBlock.speaker?.trim();
       const speakerCast = (currentContext.cast || []).find((c) => c.name === speakerName);
       if (
@@ -165,7 +232,7 @@ export function resolveSituatedPressure({
     threadId = existing.id;
     const updatedThread: SituatedPressureThread = {
       ...existing,
-      sourceReference,
+      sourceReference: validatedSourceRef,
       operator,
       affectedDimension,
       adverseProspect: adverseProspect.trim(),
@@ -174,6 +241,7 @@ export function resolveSituatedPressure({
         : existing.manifestationSummary,
       lastChangedTurn: currentTurn,
       persistenceTarget,
+      authorityReferences,
     };
 
     postState = [...normalizedPreState];
@@ -199,7 +267,7 @@ export function resolveSituatedPressure({
       id: threadId,
       valueAnchorId: matchingAnchor.id,
       holder: matchingAnchor.holder, // Copied from accepted Anchor, never trusted from echo
-      sourceReference,
+      sourceReference: validatedSourceRef,
       operator,
       affectedDimension,
       adverseProspect: adverseProspect.trim(),
@@ -208,6 +276,7 @@ export function resolveSituatedPressure({
       createdTurn: currentTurn,
       lastChangedTurn: currentTurn,
       persistenceTarget,
+      authorityReferences,
     };
 
     postState = [...normalizedPreState, newThread];
@@ -322,6 +391,7 @@ export function resolvePressureThreadTransitions({
         createdTurn: currentTurn,
         lastChangedTurn: currentTurn,
         persistenceTarget: currentThread.persistenceTarget,
+        authorityReferences: currentThread.authorityReferences || [],
       };
 
       postState.push(replacementThread);

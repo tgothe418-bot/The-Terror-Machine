@@ -209,6 +209,7 @@ describe('Runtime Horror Grammar 1 Integration', () => {
             createdTurn: 1,
             lastChangedTurn: 1,
             persistenceTarget: 'PRESSURE_THREAD',
+            authorityReferences: [],
           },
         ],
       },
@@ -289,6 +290,7 @@ describe('Runtime Horror Grammar 1 Integration', () => {
             createdTurn: 1,
             lastChangedTurn: 1,
             persistenceTarget: 'PRESSURE_THREAD',
+            authorityReferences: [],
           },
         ],
         admittedManifestation: true,
@@ -360,5 +362,38 @@ describe('Runtime Horror Grammar 1 Integration', () => {
     expect(finalEngineState.gameState?.value_state_ledger?.['val-reactor-core']?.condition).toBe(
       'THREATENED'
     );
+    expect(finalEngineState.gameState?.character_pursuit_ledger).toBeDefined();
+    expect(finalEngineState.gameState?.character_development_ledger).toBeDefined();
+    expect(finalEngineState.gameState?.fictional_time_ledger).toBeDefined();
+    expect(finalEngineState.gameState?.pursuit_schedule_ledger).toBeDefined();
+  });
+
+  it('fails turn and commits nothing if ratification throws an error (Proof 4b)', async () => {
+    const priorState = useEngineStore.getState().gameState;
+    const { TurnResponseError } = await import('../../lib/turnResponseReader');
+
+    vi.mocked(executeRatificationPipeline).mockRejectedValue(
+      new TurnResponseError({
+        code: 'STRUCTURAL_RESPONSE_MISMATCH',
+        status: 500,
+        contentType: 'application/json',
+        message: 'Malformed HG1 response',
+      })
+    );
+
+    await act(async () => {
+      root!.render(<Runtime />);
+    });
+
+    const observeButton = container!.querySelector('button[title*="Observe"]') as HTMLButtonElement;
+    expect(observeButton).toBeTruthy();
+
+    await act(async () => {
+      observeButton.click();
+    });
+
+    // Game state remains completely unmutated
+    expect(useEngineStore.getState().gameState).toEqual(priorState);
+    expect(useAppStore.getState().turnCount).toBe(0);
   });
 });

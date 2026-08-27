@@ -227,14 +227,23 @@ export const executeRatificationPipeline = async (
     characterStance: engineState.gameState?.character_stance,
     characterRelationships: engineState.gameState?.character_relationships,
     characterMemory: engineState.gameState?.character_memory,
-    worldMemory: engineState.gameState?.world_memory,
     fictionalTimeLedger: engineState.gameState?.fictional_time_ledger,
     pursuitScheduleLedger: engineState.gameState?.pursuit_schedule_ledger,
+    activityEvents: engineState.gameState?.activity_events,
+    pressureThreads: engineState.gameState?.pressure_threads,
+    valueStateLedger: engineState.gameState?.value_state_ledger,
+    characterPursuitLedger: engineState.gameState?.character_pursuit_ledger,
+    characterDevelopmentLedger: engineState.gameState?.character_development_ledger,
     runtimeState: {
       ...preSnapshot,
       playerCharacterId,
       fictionalTimeLedger: engineState.gameState?.fictional_time_ledger,
       pursuitScheduleLedger: engineState.gameState?.pursuit_schedule_ledger,
+      activityEvents: engineState.gameState?.activity_events,
+      pressureThreads: engineState.gameState?.pressure_threads,
+      valueStateLedger: engineState.gameState?.value_state_ledger,
+      characterPursuitLedger: engineState.gameState?.character_pursuit_ledger,
+      characterDevelopmentLedger: engineState.gameState?.character_development_ledger,
     },
   });
 
@@ -378,6 +387,9 @@ export const executeRatificationPipeline = async (
       ...validatedEvent.logic_state,
       pressure_threads: parsedResult.data.pressureThreadTransitionReceipt.postState,
     };
+  }
+  if (parsedResult.data.horrorGrammarForensics) {
+    validatedEvent.horrorGrammarForensics = parsedResult.data.horrorGrammarForensics;
   }
 
   const preFictionalTime =

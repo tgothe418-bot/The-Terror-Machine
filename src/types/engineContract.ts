@@ -43,6 +43,7 @@ import {
   CharacterDevelopmentReceiptSchema,
   PressureThreadTransitionProposalSchema,
   PressureThreadTransitionReceiptSchema,
+  HorrorGrammarForensicRecordSchema,
 } from './horrorGrammar';
 export * from './adLib';
 export * from './consequence';
@@ -478,6 +479,7 @@ export const TurnResponseSchema = TurnResultSchema.omit({
   characterPursuitReceipt: CharacterPursuitReceiptSchema.optional(),
   characterDevelopmentReceipt: CharacterDevelopmentReceiptSchema.optional(),
   pressureThreadTransitionReceipt: PressureThreadTransitionReceiptSchema.optional(),
+  horrorGrammarForensics: HorrorGrammarForensicRecordSchema.optional(),
 });
 
 export type TurnResponse = z.infer<typeof TurnResponseSchema>;

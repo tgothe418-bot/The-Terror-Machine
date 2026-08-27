@@ -606,4 +606,167 @@ describe('Runtime component terminal retake behavior', () => {
     expect(lastMsg?.failureReceipt?.code).toBe('PROVIDER_REFUSAL');
     expect(useAppStore.getState().turnCount).toBe(0);
   });
+
+  it('restores exact pre-turn HG1 state slice during retake (Proof 5)', async () => {
+    const initialTime = {
+      moment_revision: 3,
+      scene_beat_revision: 1,
+      extended_revision: 0,
+      last_cost: 'MOMENT' as const,
+    };
+    const initialSchedule = {
+      'pur-tech': {
+        pursuitId: 'pur-tech',
+        castMemberId: 'char-1',
+        lastConsideredMomentRevision: 3,
+        lastConsideredSceneBeatRevision: 1,
+        lastConsideredExtendedRevision: 0,
+        lastConsideredTurn: 1,
+        latestDisposition: 'PRESENT_OPPORTUNITY' as const,
+      },
+    };
+    const initialValue = {
+      'val-1': {
+        anchorId: 'val-1',
+        lifecycle: 'ACTIVE' as const,
+        condition: 'ESTABLISHED' as const,
+        currentFormNote: null,
+        lastCauseReference: 'BASELINE',
+        lastChangedTurn: 0,
+      },
+    };
+    const initialPursuit = {
+      'pur-tech': {
+        pursuitId: 'pur-tech',
+        castMemberId: 'char-1',
+        currentObjective: 'Survive',
+        currentApproach: 'Holding flashlight',
+        currentLocationNodeId: 'ORIGIN',
+        status: 'ACTIVE' as const,
+        progressSummary: 'Initial baseline',
+        lastCauseReference: 'BASELINE',
+        lastActivityTurn: null,
+        lastChangedTurn: 0,
+        reviewWindow: 'MOMENT' as const,
+      },
+    };
+    const initialDev = {
+      'char-1': [
+        {
+          id: 'dev-1',
+          castMemberId: 'char-1',
+          dimension: 'BELIEF' as const,
+          statement: 'Initial belief',
+          lifecycle: 'ACTIVE' as const,
+          establishedTurn: 0,
+          lastChangedTurn: 0,
+          causeReference: 'BASELINE',
+        },
+      ],
+    };
+
+    useEngineStore.setState({
+      gameState: {
+        ...useEngineStore.getState().gameState,
+        fictional_time_ledger: initialTime,
+        pursuit_schedule_ledger: initialSchedule,
+        activity_events: [],
+        pressure_threads: [],
+        value_state_ledger: initialValue,
+        character_pursuit_ledger: initialPursuit,
+        character_development_ledger: initialDev,
+      },
+    });
+
+    await act(async () => {
+      root?.render(<Runtime />);
+    });
+
+    const preSnapshot = captureRuntimeSnapshot(useAppStore.getState());
+    const prevGameState = useEngineStore.getState().gameState;
+
+    // Mutated turn with advanced HG1 state
+    const mutatedTime = { ...initialTime, moment_revision: 4 };
+    const mutatedValue = {
+      'val-1': {
+        ...initialValue['val-1'],
+        condition: 'THREATENED' as const,
+        lastChangedTurn: 1,
+      },
+    };
+    const newActivityEvent = {
+      id: 'act-new-01',
+      castMemberId: 'char-1',
+      pursuitId: 'pur-tech',
+      activitySummary: 'Search dark corner',
+      locationNodeId: 'ORIGIN',
+      perceptionPath: 'DIRECT' as const,
+      committedTurn: 1,
+      authorityReferences: [],
+      wasManifested: true,
+    };
+
+    const payload: CommittedTurnPayload = {
+      commandText: 'Search the altar',
+      formattedText: 'You find dark residues.',
+      preSnapshot,
+      engineGameStateBefore: JSON.parse(JSON.stringify(prevGameState)),
+      frame: {
+        narrative_blocks: [{ type: 'prose', content: 'You find dark residues.' }],
+        logic_state: {
+          current_phase: 'ENGAGED',
+          suggested_tension: 15,
+          fictional_time_ledger: mutatedTime,
+          value_state_ledger: mutatedValue,
+          activity_events: [newActivityEvent],
+        },
+      },
+      turnReceipt: {
+        turnNumber: 1,
+        nodeBefore: 'ORIGIN',
+        requestedTarget: 'ORIGIN',
+        accepted: true,
+        nodeAfter: 'ORIGIN',
+        activeVector: 'SOMATIC',
+        activeTier: 'MANIFEST',
+        tension: 15,
+        preSnapshot,
+      },
+    };
+
+    // Commit turn
+    await act(async () => {
+      useAppStore.getState().commitTurnResult(payload);
+      useEngineStore.getState().updateGameState({
+        ...prevGameState,
+        fictional_time_ledger: mutatedTime,
+        value_state_ledger: mutatedValue,
+        activity_events: [newActivityEvent],
+      });
+    });
+
+    expect(useEngineStore.getState().gameState.activity_events).toHaveLength(1);
+    expect(useEngineStore.getState().gameState.value_state_ledger['val-1'].condition).toBe(
+      'THREATENED'
+    );
+
+    // Retake
+    const retakeButton = Array.from(container?.querySelectorAll('button') || []).find((b) =>
+      b.textContent?.includes('[ RETAKE ]')
+    );
+    expect(retakeButton).toBeDefined();
+
+    await act(async () => {
+      retakeButton?.click();
+    });
+
+    // Check restored HG1 state
+    const restoredGameState = useEngineStore.getState().gameState;
+    expect(restoredGameState.fictional_time_ledger).toEqual(initialTime);
+    expect(restoredGameState.pursuit_schedule_ledger).toEqual(initialSchedule);
+    expect(restoredGameState.activity_events).toEqual([]);
+    expect(restoredGameState.value_state_ledger).toEqual(initialValue);
+    expect(restoredGameState.character_pursuit_ledger).toEqual(initialPursuit);
+    expect(restoredGameState.character_development_ledger).toEqual(initialDev);
+  });
 });

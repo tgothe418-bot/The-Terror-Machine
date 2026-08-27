@@ -43,6 +43,7 @@ import {
   CharacterDevelopmentLedger,
   CharacterDevelopmentReceipt,
   PressureThreadTransitionReceipt,
+  HorrorGrammarForensicRecord,
 } from './horrorGrammar';
 export * from './engineContract';
 export * from './participation';
@@ -394,6 +395,7 @@ export interface TurnReceipt {
   characterPursuitReceipt?: CharacterPursuitReceipt;
   characterDevelopmentReceipt?: CharacterDevelopmentReceipt;
   pressureThreadTransitionReceipt?: PressureThreadTransitionReceipt;
+  horrorGrammarForensics?: HorrorGrammarForensicRecord;
 }
 
 export interface TurnFailureDiagnosticIssue {
@@ -725,6 +727,7 @@ export interface RatifiedEngineFrame {
   characterPursuitReceipt?: CharacterPursuitReceipt;
   characterDevelopmentReceipt?: CharacterDevelopmentReceipt;
   pressureThreadTransitionReceipt?: PressureThreadTransitionReceipt;
+  horrorGrammarForensics?: HorrorGrammarForensicRecord;
   preSnapshot?: RuntimeStateSnapshot;
   reconciliation?: {
     isHallucinationCollision: boolean;

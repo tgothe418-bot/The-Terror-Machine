@@ -7,6 +7,10 @@ import { distillContext } from '../services/geminiService';
 import { useAppStore } from '../store/useAppStore';
 import { normalizeBlueprint } from '../lib/normalizeBlueprint';
 import { resolvePerspectiveBinding } from '../lib/playerCharacterBinding';
+import { createInitialFictionalTimeLedger } from '../lib/fictionalTime';
+import { createInitialValueStateLedger } from '../lib/valueState';
+import { createInitialCharacterPursuitLedger } from '../lib/characterPursuits';
+import { createInitialCharacterDevelopmentLedger } from '../lib/characterDevelopment';
 
 export { resolvePerspectiveBinding } from '../lib/playerCharacterBinding';
 
@@ -165,6 +169,13 @@ export const useEngineStore = create<EngineState>()(
               permanent_consequences: [],
             },
             npc_fixations: [],
+            fictional_time_ledger: createInitialFictionalTimeLedger(),
+            pursuit_schedule_ledger: {},
+            activity_events: [],
+            pressure_threads: [],
+            value_state_ledger: createInitialValueStateLedger(normalizedBlueprint),
+            character_pursuit_ledger: createInitialCharacterPursuitLedger(normalizedBlueprint),
+            character_development_ledger: createInitialCharacterDevelopmentLedger(),
           },
         });
       },

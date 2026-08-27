@@ -38,18 +38,9 @@ import {
   resolveSituatedPressure,
   resolvePressureThreadTransitions,
 } from '../../src/lib/situatedPressure';
-import {
-  createInitialValueStateLedger,
-  resolveValueState,
-} from '../../src/lib/valueState';
-import {
-  createInitialCharacterPursuitLedger,
-  resolveCharacterPursuit,
-} from '../../src/lib/characterPursuits';
-import {
-  createInitialCharacterDevelopmentLedger,
-  resolveCharacterDevelopment,
-} from '../../src/lib/characterDevelopment';
+import { resolveValueState } from '../../src/lib/valueState';
+import { resolveCharacterPursuit } from '../../src/lib/characterPursuits';
+import { resolveCharacterDevelopment } from '../../src/lib/characterDevelopment';
 import {
   generateStructuredResponse,
   ProviderRefusalError,
@@ -1041,24 +1032,26 @@ ${recentHistory}
       narrativeReconciliationReceipt,
     });
 
+    const hgContext = context.horrorGrammar;
+    const hgRuntime = hgContext?.runtimeState;
+    const hgBaseline = hgContext?.authoringBaseline;
+
     const castActivityProposalReceipt = resolveCastActivity({
       proposal: engineResponse.cast_activity_proposal,
-      eligibilityReceipt: context.horrorGrammar
+      eligibilityReceipt: hgContext
         ? {
             version: 1,
-            presentOpportunities: context.horrorGrammar.presentActorOpportunities,
-            offscreenOpportunities: context.horrorGrammar.offscreenPursuitOpportunities,
+            presentOpportunities: hgContext.presentActorOpportunities,
+            offscreenOpportunities: hgContext.offscreenPursuitOpportunities,
             boundedOutPursuitIds: [],
             dormantCount: 0,
             notDueCount: 0,
-            ledgerSnapshot: context.horrorGrammar.fictionalTime,
+            ledgerSnapshot: hgContext.fictionalTime,
             scheduleSnapshotRevision: context.runtime.turnNumber,
           }
         : null,
       currentContext: context,
-      preEvents:
-        (context as unknown as { activityEvents?: import('../../src/types/horrorGrammar').CastActivityEvent[] })
-          .activityEvents || [],
+      preEvents: hgRuntime?.recentActivityEvents || [],
       currentTurn: context.runtime.turnNumber,
     });
 
@@ -1066,9 +1059,7 @@ ${recentHistory}
       proposal: engineResponse.situated_pressure_proposal,
       activityReceipt: castActivityProposalReceipt,
       currentContext: context,
-      preThreads:
-        (context as unknown as { pressureThreads?: import('../../src/types/horrorGrammar').SituatedPressureThread[] })
-          .pressureThreads || [],
+      preThreads: hgRuntime?.activePressureThreads || [],
       currentTurn: context.runtime.turnNumber,
     });
 
@@ -1086,33 +1077,25 @@ ${recentHistory}
 
     const valueStateReceipt = resolveValueState({
       proposal: engineResponse.value_state_proposal,
-      preState:
-        (context as unknown as { valueStateLedger?: import('../../src/types/horrorGrammar').ValueStateLedger })
-          .valueStateLedger ||
-        createInitialValueStateLedger((context as unknown as { blueprint?: import('../../src/types').Blueprint }).blueprint),
+      preState: hgRuntime?.valueState || {},
       currentTurn: context.runtime.turnNumber,
-      blueprint: (context as unknown as { blueprint?: import('../../src/types').Blueprint }).blueprint,
+      authoringBaseline: hgBaseline,
       userCharacterId: context.player.characterId,
       validCauses,
     });
 
     const characterPursuitReceipt = resolveCharacterPursuit({
       proposal: engineResponse.character_pursuit_proposal,
-      preState:
-        (context as unknown as { characterPursuitLedger?: import('../../src/types/horrorGrammar').CharacterPursuitLedger })
-          .characterPursuitLedger ||
-        createInitialCharacterPursuitLedger((context as unknown as { blueprint?: import('../../src/types').Blueprint }).blueprint),
+      preState: hgRuntime?.characterPursuits || {},
       currentTurn: context.runtime.turnNumber,
-      blueprint: (context as unknown as { blueprint?: import('../../src/types').Blueprint }).blueprint,
+      authoringBaseline: hgBaseline,
       userCharacterId: context.player.characterId,
       validCauses,
     });
 
     const characterDevelopmentReceipt = resolveCharacterDevelopment({
       proposal: engineResponse.character_development_proposal,
-      preState:
-        (context as unknown as { characterDevelopmentLedger?: import('../../src/types/horrorGrammar').CharacterDevelopmentLedger })
-          .characterDevelopmentLedger || createInitialCharacterDevelopmentLedger(),
+      preState: hgRuntime?.characterDevelopment || {},
       currentTurn: context.runtime.turnNumber,
       userCharacterId: context.player.characterId,
       validCauses,
@@ -1175,6 +1158,82 @@ ${recentHistory}
       composedNarrativeBlocks.push(engineResponse.situated_pressure_proposal.manifestationBlock);
     }
 
+    // 6. Build typed developer forensic record (Packet 1-8)
+    const actProp = engineResponse.cast_activity_proposal;
+    const pressProp = engineResponse.situated_pressure_proposal;
+
+    const activityEvidence: import('../../src/types/horrorGrammar').ForensicActivityEvidence = {
+      disposition:
+        castActivityProposalReceipt.outcome === 'ACCEPTED'
+          ? 'ACCEPTED'
+          : castActivityProposalReceipt.outcome === 'REJECTED'
+            ? 'REJECTED'
+            : 'NONE',
+      reasonCode: castActivityProposalReceipt.reasonCode,
+      admittedToNarrative: castActivityProposalReceipt.admittedManifestation,
+      proposalId: actProp?.kind === 'ACTIVITY' ? actProp.proposalId : null,
+      castMemberId: actProp?.kind === 'ACTIVITY' ? actProp.castMemberId : null,
+      pursuitId: actProp?.kind === 'ACTIVITY' ? actProp.pursuitId || null : null,
+      locationNodeId: actProp?.kind === 'ACTIVITY' ? actProp.locationNodeId || null : null,
+      perceptionPath: actProp?.kind === 'ACTIVITY' ? actProp.perceptionPath : null,
+      activitySummary: actProp?.kind === 'ACTIVITY' ? actProp.activitySummary : null,
+      authorityReferences: actProp?.kind === 'ACTIVITY' ? actProp.authorityReferences || [] : [],
+      manifestationBlock: actProp?.kind === 'ACTIVITY' ? actProp.manifestationBlock || null : null,
+      acceptedEventId: castActivityProposalReceipt.acceptedEventId,
+    };
+
+    const pressureEvidence: import('../../src/types/horrorGrammar').ForensicPressureEvidence = {
+      disposition:
+        situatedPressureReceipt.outcome === 'ACCEPTED'
+          ? 'ACCEPTED'
+          : situatedPressureReceipt.outcome === 'REJECTED'
+            ? 'REJECTED'
+            : 'NONE',
+      reasonCode: situatedPressureReceipt.reasonCode,
+      admittedToNarrative: situatedPressureReceipt.admittedManifestation,
+      proposalId: pressProp?.kind === 'PRESSURE' ? pressProp.proposalId : null,
+      valueAnchorId: pressProp?.kind === 'PRESSURE' ? pressProp.valueAnchorId : null,
+      sourceReference: pressProp?.kind === 'PRESSURE' ? pressProp.sourceReference : null,
+      operator: pressProp?.kind === 'PRESSURE' ? pressProp.operator : null,
+      affectedDimension: pressProp?.kind === 'PRESSURE' ? pressProp.affectedDimension : null,
+      adverseProspect: pressProp?.kind === 'PRESSURE' ? pressProp.adverseProspect : null,
+      authorityReferences: pressProp?.kind === 'PRESSURE' ? pressProp.authorityReferences || [] : [],
+      manifestationBlock: pressProp?.kind === 'PRESSURE' ? pressProp.manifestationBlock || null : null,
+      acceptedThreadId: situatedPressureReceipt.acceptedThreadId,
+    };
+
+    const presentOpportunityIds = (hgContext?.presentActorOpportunities || []).map(
+      (o) => o.opportunityId || `opp-present-${o.castMemberId}`
+    );
+    const selectedOffscreenPursuitIds = (hgContext?.offscreenPursuitOpportunities || [])
+      .map((o) => o.pursuitId)
+      .filter((id): id is string => Boolean(id));
+
+    const horrorGrammarForensics: import('../../src/types/horrorGrammar').HorrorGrammarForensicRecord = {
+      version: 1,
+      turnNumber: context.runtime.turnNumber,
+      preFictionalTime: hgContext?.fictionalTime || {
+        moment_revision: 0,
+        scene_beat_revision: 0,
+        extended_revision: 0,
+        last_cost: null,
+      },
+      presentOpportunityIds,
+      selectedOffscreenPursuitIds,
+      boundedOutPursuitIds: [],
+      dormantCount: 0,
+      notDueCount: 0,
+      activityEvidence,
+      pressureEvidence,
+      causalDecisions: {
+        valueDecisions: valueStateReceipt.decisions || [],
+        pursuitDecisions: characterPursuitReceipt.decisions || [],
+        developmentDecisions: characterDevelopmentReceipt.decisions || [],
+        pressureTransitions: pressureThreadTransitionReceipt.decisions || [],
+      },
+      composedNarrativeBlockCount: composedNarrativeBlocks.length,
+    };
+
     const finalResponse: TurnResponse = {
       narrative_blocks: composedNarrativeBlocks,
       logic_state: boundedResult.logic_state,
@@ -1194,6 +1253,7 @@ ${recentHistory}
       characterPursuitReceipt,
       characterDevelopmentReceipt,
       pressureThreadTransitionReceipt,
+      horrorGrammarForensics,
     };
 
     return res.json(finalResponse);

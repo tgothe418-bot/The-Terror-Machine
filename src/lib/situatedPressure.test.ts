@@ -145,6 +145,27 @@ describe('Situated Pressure Ratifier (Packet 1-3)', () => {
       offscreenPursuitOpportunities: [],
       relevantValueAnchors: bp.horrorGrammar!.valueAnchors,
       authorityInstruction: 'Standard authority',
+      runtimeState: {
+        fictionalTime: {
+          moment_revision: 2,
+          scene_beat_revision: 1,
+          extended_revision: 0,
+          last_cost: 'MOMENT',
+        },
+        pursuitSchedule: {},
+        recentActivityEvents: [],
+        activePressureThreads: [],
+        valueState: {},
+        characterPursuits: {},
+        characterDevelopment: {},
+      },
+      authoringBaseline: {
+        valueBaselineReview: 'REVIEWED',
+        pursuitReviews: {},
+        valueAnchors: bp.horrorGrammar!.valueAnchors,
+        characterPursuits: [],
+      },
+      evidenceRegistry: [],
     },
   });
 
@@ -350,6 +371,7 @@ describe('Situated Pressure Ratifier (Packet 1-3)', () => {
         createdTurn: 1,
         lastChangedTurn: 1,
         persistenceTarget: 'PRESSURE_THREAD',
+        authorityReferences: [],
       };
 
       const receipt = resolvePressureThreadTransitions({
@@ -387,6 +409,7 @@ describe('Situated Pressure Ratifier (Packet 1-3)', () => {
         createdTurn: 1,
         lastChangedTurn: 1,
         persistenceTarget: 'PRESSURE_THREAD',
+        authorityReferences: [],
       };
 
       const receipt = resolvePressureThreadTransitions({
@@ -414,5 +437,83 @@ describe('Situated Pressure Ratifier (Packet 1-3)', () => {
         'The entire corridor is flooding with boiling brine.'
       );
     });
+  });
+
+  it('rejects environmental/condition pressure attempting dialogue manifestation', () => {
+    const bp = createMockBlueprint();
+    const context = createMockContext(bp);
+
+    const proposal: SituatedPressureProposal = {
+      kind: 'PRESSURE',
+      proposalId: 'prop-env-dialogue',
+      valueAnchorId: 'val-reactor-core',
+      sourceReference: 'rule-1',
+      operator: 'CONSTRAIN_ACCESS',
+      affectedDimension: 'ACCESS',
+      adverseProspect: 'Steam floods corridor',
+      authorityReferences: ['rule-1'],
+      persistenceTarget: 'PRESSURE_THREAD',
+      responseWindowOpen: true,
+      manifestationBlock: {
+        type: 'dialogue',
+        speaker: 'Technician Mercer',
+        content: 'The steam is too hot!',
+      },
+    };
+
+    const receipt = resolveSituatedPressure({
+      proposal,
+      currentContext: context,
+      preThreads: [],
+      currentTurn: 2,
+      blueprint: bp,
+    });
+
+    expect(receipt.outcome).toBe('REJECTED');
+    expect(receipt.reasonCode).toBe('ENVIRONMENTAL_PRESSURE_CANNOT_USE_DIALOGUE');
+  });
+
+  it('rejects pressure proposal with arbitrary ungrounded sourceReference', () => {
+    const bp = createMockBlueprint();
+    const context = createMockContext(bp);
+    context.horrorGrammar = {
+      ...context.horrorGrammar!,
+      evidenceRegistry: [
+        {
+          id: 'rule-1',
+          category: 'SCENARIO_RULE',
+          ownerRef: bp.id,
+          description: 'Power fluctuations breach containment.',
+        },
+      ],
+    };
+
+    const proposal: SituatedPressureProposal = {
+      kind: 'PRESSURE',
+      proposalId: 'prop-ungrounded-source',
+      valueAnchorId: 'val-reactor-core',
+      sourceReference: 'invented_hallucinated_source_tag',
+      operator: 'CONSTRAIN_ACCESS',
+      affectedDimension: 'ACCESS',
+      adverseProspect: 'Steam floods corridor',
+      authorityReferences: ['rule-1'],
+      persistenceTarget: 'PRESSURE_THREAD',
+      responseWindowOpen: true,
+      manifestationBlock: {
+        type: 'prose',
+        content: 'Steam hisses violently.',
+      },
+    };
+
+    const receipt = resolveSituatedPressure({
+      proposal,
+      currentContext: context,
+      preThreads: [],
+      currentTurn: 2,
+      blueprint: bp,
+    });
+
+    expect(receipt.outcome).toBe('REJECTED');
+    expect(receipt.reasonCode).toBe('INVALID_SOURCE_REFERENCE');
   });
 });

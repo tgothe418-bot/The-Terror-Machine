@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import type { Message, ContextReceipt, RuntimeStateSnapshot } from '../types';
+import type { Message, ContextReceipt, RuntimeStateSnapshot, HorrorGrammarForensicRecord } from '../types';
 import { buildEngineTurnContext, buildContextReceipt } from './buildEngineTurnContext';
 
 /**
@@ -404,6 +404,7 @@ interface ParsedTelemetrySections {
   };
   horrorGrammarForensics: {
     hasReceipts: boolean;
+    record?: HorrorGrammarForensicRecord;
     fictionalTime?: Record<string, unknown>;
     castActivity?: {
       eligibility?: Record<string, unknown>;
@@ -1167,6 +1168,10 @@ export function parseTelemetrySections(logicData: Record<string, unknown>): Pars
     }
   }
 
+  const hgForensicsRecord = (
+    turn?.horrorGrammarForensics || logicData.horrorGrammarForensics
+  ) as HorrorGrammarForensicRecord | undefined;
+
   return {
     intentAndPressure,
     intentSynergy,
@@ -1196,6 +1201,7 @@ export function parseTelemetrySections(logicData: Record<string, unknown>): Pars
     },
     horrorGrammarForensics: {
       hasReceipts: Boolean(
+        hgForensicsRecord ||
         fictionalTimeReceipt ||
         castActivityReceipt ||
         castActivityProposalReceipt ||
@@ -1205,6 +1211,7 @@ export function parseTelemetrySections(logicData: Record<string, unknown>): Pars
         characterDevelopmentReceipt ||
         pressureThreadTransitionReceipt
       ),
+      record: hgForensicsRecord,
       fictionalTime: fictionalTimeReceipt,
       castActivity: {
         eligibility: castActivityReceipt,
@@ -1440,23 +1447,55 @@ function renderHtmlTelemetrySections(logicData: Record<string, unknown>): string
     html += `<h4>Horror Grammar 1 Forensics</h4>`;
     html += `<ul>`;
     const hg = sections.horrorGrammarForensics;
-    if (hg.fictionalTime) {
-      const ft = hg.fictionalTime as any;
-      html += `<li><strong>Fictional Time:</strong> Moment ${escapeHtml(String(ft.postState?.moment_revision ?? ft.moment_revision ?? '0'))}, Scene ${escapeHtml(String(ft.postState?.scene_beat_revision ?? ft.scene_beat_revision ?? '0'))}, Extended ${escapeHtml(String(ft.postState?.extended_revision ?? ft.extended_revision ?? '0'))} (Cost: ${escapeHtml(String(ft.costApplied ?? ft.last_cost ?? 'NONE'))})</li>`;
-    }
-    if (hg.castActivity?.eligibility) {
-      const el = hg.castActivity.eligibility as any;
-      const presCount = Array.isArray(el.presentOpportunities) ? el.presentOpportunities.length : 0;
-      const offCount = Array.isArray(el.offscreenOpportunities) ? el.offscreenOpportunities.length : 0;
-      html += `<li><strong>Cast Activity Opportunities:</strong> ${presCount} present, ${offCount} offscreen</li>`;
-    }
-    if (hg.castActivity?.proposalReceipt) {
-      const ar = hg.castActivity.proposalReceipt as any;
-      html += `<li><strong>Cast Activity Proposal:</strong> Outcome: ${escapeHtml(String(ar.outcome))} (Reason: ${escapeHtml(String(ar.reasonCode))}) | Admitted: ${escapeHtml(String(ar.admittedManifestation))}</li>`;
-    }
-    if (hg.situatedPressure) {
-      const pr = hg.situatedPressure as any;
-      html += `<li><strong>Situated Pressure Proposal:</strong> Outcome: ${escapeHtml(String(pr.outcome))} (Reason: ${escapeHtml(String(pr.reasonCode))}) | Admitted: ${escapeHtml(String(pr.admittedManifestation))}</li>`;
+    const rec = hg.record;
+    if (rec) {
+      html += `<li><strong>Turn Identity:</strong> Turn ${escapeHtml(String(rec.turnNumber))} | Fictional Time: Moment ${escapeHtml(String(rec.preFictionalTime.moment_revision))} → ${escapeHtml(String(rec.postFictionalTime?.moment_revision ?? rec.preFictionalTime.moment_revision))}</li>`;
+      html += `<li><strong>Opportunities:</strong> Present: ${escapeHtml(rec.presentOpportunityIds.join(', ') || 'None')}, Offscreen: ${escapeHtml(rec.selectedOffscreenPursuitIds.join(', ') || 'None')}</li>`;
+
+      const actDisp = rec.activityEvidence.disposition === 'REJECTED'
+        ? 'REJECTED — NONCANONICAL'
+        : rec.activityEvidence.disposition === 'ACCEPTED'
+        ? 'ACCEPTED — ADMITTED'
+        : 'NONE';
+      html += `<li><strong>Cast Activity Proposal:</strong> Disposition: ${escapeHtml(actDisp)} (Reason: ${escapeHtml(rec.activityEvidence.reasonCode)})</li>`;
+      if (rec.activityEvidence.manifestationBlock) {
+        const label = rec.activityEvidence.disposition === 'REJECTED'
+          ? 'REJECTED MANIFESTATION CONTENT (NONCANONICAL)'
+          : 'ADMITTED MANIFESTATION CONTENT';
+        html += `<li><strong>Activity Manifestation (${escapeHtml(label)}):</strong> <em>"${escapeHtml(rec.activityEvidence.manifestationBlock.content)}"</em></li>`;
+      }
+
+      const pressDisp = rec.pressureEvidence.disposition === 'REJECTED'
+        ? 'REJECTED — NONCANONICAL'
+        : rec.pressureEvidence.disposition === 'ACCEPTED'
+        ? 'ACCEPTED — ADMITTED'
+        : 'NONE';
+      html += `<li><strong>Situated Pressure Proposal:</strong> Disposition: ${escapeHtml(pressDisp)} (Reason: ${escapeHtml(rec.pressureEvidence.reasonCode)})</li>`;
+      if (rec.pressureEvidence.manifestationBlock) {
+        const label = rec.pressureEvidence.disposition === 'REJECTED'
+          ? 'REJECTED MANIFESTATION CONTENT (NONCANONICAL)'
+          : 'ADMITTED MANIFESTATION CONTENT';
+        html += `<li><strong>Pressure Manifestation (${escapeHtml(label)}):</strong> <em>"${escapeHtml(rec.pressureEvidence.manifestationBlock.content)}"</em></li>`;
+      }
+    } else {
+      if (hg.fictionalTime) {
+        const ft = hg.fictionalTime as any;
+        html += `<li><strong>Fictional Time:</strong> Moment ${escapeHtml(String(ft.postState?.moment_revision ?? ft.moment_revision ?? '0'))}, Scene ${escapeHtml(String(ft.postState?.scene_beat_revision ?? ft.scene_beat_revision ?? '0'))}, Extended ${escapeHtml(String(ft.postState?.extended_revision ?? ft.extended_revision ?? '0'))} (Cost: ${escapeHtml(String(ft.costApplied ?? ft.last_cost ?? 'NONE'))})</li>`;
+      }
+      if (hg.castActivity?.eligibility) {
+        const el = hg.castActivity.eligibility as any;
+        const presCount = Array.isArray(el.presentOpportunities) ? el.presentOpportunities.length : 0;
+        const offCount = Array.isArray(el.offscreenOpportunities) ? el.offscreenOpportunities.length : 0;
+        html += `<li><strong>Cast Activity Opportunities:</strong> ${presCount} present, ${offCount} offscreen</li>`;
+      }
+      if (hg.castActivity?.proposalReceipt) {
+        const ar = hg.castActivity.proposalReceipt as any;
+        html += `<li><strong>Cast Activity Proposal:</strong> Outcome: ${escapeHtml(String(ar.outcome))} (Reason: ${escapeHtml(String(ar.reasonCode))}) | Admitted: ${escapeHtml(String(ar.admittedManifestation))}</li>`;
+      }
+      if (hg.situatedPressure) {
+        const pr = hg.situatedPressure as any;
+        html += `<li><strong>Situated Pressure Proposal:</strong> Outcome: ${escapeHtml(String(pr.outcome))} (Reason: ${escapeHtml(String(pr.reasonCode))}) | Admitted: ${escapeHtml(String(pr.admittedManifestation))}</li>`;
+      }
     }
     if (hg.valueState && Array.isArray((hg.valueState as any).decisions)) {
       for (const d of (hg.valueState as any).decisions) {
@@ -1662,23 +1701,55 @@ function renderMarkdownTelemetrySections(logicData: Record<string, unknown>): st
   if (sections.horrorGrammarForensics.hasReceipts) {
     md += `#### Horror Grammar 1 Forensics\n`;
     const hg = sections.horrorGrammarForensics;
-    if (hg.fictionalTime) {
-      const ft = hg.fictionalTime as any;
-      md += `- **Fictional Time:** Moment ${ft.postState?.moment_revision ?? ft.moment_revision ?? '0'}, Scene ${ft.postState?.scene_beat_revision ?? ft.scene_beat_revision ?? '0'}, Extended ${ft.postState?.extended_revision ?? ft.extended_revision ?? '0'} (Cost: ${ft.costApplied ?? ft.last_cost ?? 'NONE'})\n`;
-    }
-    if (hg.castActivity?.eligibility) {
-      const el = hg.castActivity.eligibility as any;
-      const presCount = Array.isArray(el.presentOpportunities) ? el.presentOpportunities.length : 0;
-      const offCount = Array.isArray(el.offscreenOpportunities) ? el.offscreenOpportunities.length : 0;
-      md += `- **Cast Activity Opportunities:** ${presCount} present, ${offCount} offscreen\n`;
-    }
-    if (hg.castActivity?.proposalReceipt) {
-      const ar = hg.castActivity.proposalReceipt as any;
-      md += `- **Cast Activity Proposal:** Outcome: ${ar.outcome} (Reason: ${ar.reasonCode}) | Admitted: ${ar.admittedManifestation}\n`;
-    }
-    if (hg.situatedPressure) {
-      const pr = hg.situatedPressure as any;
-      md += `- **Situated Pressure Proposal:** Outcome: ${pr.outcome} (Reason: ${pr.reasonCode}) | Admitted: ${pr.admittedManifestation}\n`;
+    const rec = hg.record;
+    if (rec) {
+      md += `- **Turn Identity:** Turn ${rec.turnNumber} | Fictional Time: Moment ${rec.preFictionalTime.moment_revision} → ${rec.postFictionalTime?.moment_revision ?? rec.preFictionalTime.moment_revision}\n`;
+      md += `- **Opportunities:** Present: ${rec.presentOpportunityIds.join(', ') || 'None'}, Offscreen: ${rec.selectedOffscreenPursuitIds.join(', ') || 'None'}\n`;
+
+      const actDisp = rec.activityEvidence.disposition === 'REJECTED'
+        ? 'REJECTED — NONCANONICAL'
+        : rec.activityEvidence.disposition === 'ACCEPTED'
+        ? 'ACCEPTED — ADMITTED'
+        : 'NONE';
+      md += `- **Cast Activity Proposal:** Disposition: ${actDisp} (Reason: ${rec.activityEvidence.reasonCode})\n`;
+      if (rec.activityEvidence.manifestationBlock) {
+        const label = rec.activityEvidence.disposition === 'REJECTED'
+          ? 'REJECTED MANIFESTATION CONTENT (NONCANONICAL)'
+          : 'ADMITTED MANIFESTATION CONTENT';
+        md += `> **[${label}]:** "${rec.activityEvidence.manifestationBlock.content}"\n`;
+      }
+
+      const pressDisp = rec.pressureEvidence.disposition === 'REJECTED'
+        ? 'REJECTED — NONCANONICAL'
+        : rec.pressureEvidence.disposition === 'ACCEPTED'
+        ? 'ACCEPTED — ADMITTED'
+        : 'NONE';
+      md += `- **Situated Pressure Proposal:** Disposition: ${pressDisp} (Reason: ${rec.pressureEvidence.reasonCode})\n`;
+      if (rec.pressureEvidence.manifestationBlock) {
+        const label = rec.pressureEvidence.disposition === 'REJECTED'
+          ? 'REJECTED MANIFESTATION CONTENT (NONCANONICAL)'
+          : 'ADMITTED MANIFESTATION CONTENT';
+        md += `> **[${label}]:** "${rec.pressureEvidence.manifestationBlock.content}"\n`;
+      }
+    } else {
+      if (hg.fictionalTime) {
+        const ft = hg.fictionalTime as any;
+        md += `- **Fictional Time:** Moment ${ft.postState?.moment_revision ?? ft.moment_revision ?? '0'}, Scene ${ft.postState?.scene_beat_revision ?? ft.scene_beat_revision ?? '0'}, Extended ${ft.postState?.extended_revision ?? ft.extended_revision ?? '0'} (Cost: ${ft.costApplied ?? ft.last_cost ?? 'NONE'})\n`;
+      }
+      if (hg.castActivity?.eligibility) {
+        const el = hg.castActivity.eligibility as any;
+        const presCount = Array.isArray(el.presentOpportunities) ? el.presentOpportunities.length : 0;
+        const offCount = Array.isArray(el.offscreenOpportunities) ? el.offscreenOpportunities.length : 0;
+        md += `- **Cast Activity Opportunities:** ${presCount} present, ${offCount} offscreen\n`;
+      }
+      if (hg.castActivity?.proposalReceipt) {
+        const ar = hg.castActivity.proposalReceipt as any;
+        md += `- **Cast Activity Proposal:** Outcome: ${ar.outcome} (Reason: ${ar.reasonCode}) | Admitted: ${ar.admittedManifestation}\n`;
+      }
+      if (hg.situatedPressure) {
+        const pr = hg.situatedPressure as any;
+        md += `- **Situated Pressure Proposal:** Outcome: ${pr.outcome} (Reason: ${pr.reasonCode}) | Admitted: ${pr.admittedManifestation}\n`;
+      }
     }
     if (hg.valueState && Array.isArray((hg.valueState as any).decisions)) {
       for (const d of (hg.valueState as any).decisions) {

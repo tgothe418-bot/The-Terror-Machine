@@ -5,6 +5,7 @@ import {
   CharacterPursuitProposal,
   CharacterPursuitReceipt,
   PursuitStatus,
+  HorrorGrammarAuthoringBaseline,
 } from '../types/horrorGrammar';
 
 export function createInitialCharacterPursuitLedger(
@@ -36,6 +37,7 @@ export interface ResolveCharacterPursuitInput {
   proposal?: CharacterPursuitProposal | null;
   preState?: CharacterPursuitLedger | null;
   currentTurn: number;
+  authoringBaseline?: HorrorGrammarAuthoringBaseline | null;
   blueprint?: Blueprint | null;
   userCharacterId?: string | null;
   validCauses?: string[];
@@ -45,6 +47,7 @@ export function resolveCharacterPursuit({
   proposal,
   preState = {},
   currentTurn,
+  authoringBaseline,
   blueprint,
   userCharacterId,
   validCauses = [],
@@ -63,7 +66,8 @@ export function resolveCharacterPursuit({
     };
   }
 
-  const blueprintPursuits = blueprint?.horrorGrammar?.characterPursuits || [];
+  const blueprintPursuits =
+    authoringBaseline?.characterPursuits || blueprint?.horrorGrammar?.characterPursuits || [];
 
   for (const change of changes.slice(0, 2)) {
     const {

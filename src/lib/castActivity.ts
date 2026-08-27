@@ -137,7 +137,61 @@ export function resolveCastActivity({
     }
   }
 
-  // 5. Validate location consistency
+  // 5. Validate authority references
+  const registry = currentContext.horrorGrammar?.evidenceRegistry || [];
+  if (authorityReferences.length > 0 && registry.length > 0) {
+    let hasAuthorizingRef = false;
+    for (const ref of authorityReferences) {
+      const matchInRegistry = registry.find((e) => e.id === ref);
+      const isKnownPattern =
+        ref.startsWith('opp-') ||
+        ref.startsWith('pur-') ||
+        ref.startsWith('rule-') ||
+        ref.startsWith('expr-') ||
+        ref.startsWith('pres-') ||
+        ref.startsWith('val-') ||
+        ref.startsWith('prs-') ||
+        ref.startsWith('evt-') ||
+        (offscreenMatch && ref === offscreenMatch.pursuitId);
+
+      if (!matchInRegistry && !isKnownPattern) {
+        return {
+          version: 1,
+          outcome: 'REJECTED',
+          reasonCode: 'INVALID_AUTHORITY_REFERENCE',
+          preState: normalizedPreState,
+          postState: normalizedPreState,
+          admittedManifestation: false,
+          acceptedEventId: null,
+          proposalSnapshot,
+        };
+      }
+
+      if (
+        (matchInRegistry && (matchInRegistry.ownerRef === castMemberId || matchInRegistry.category === 'SCENARIO_RULE' || matchInRegistry.category === 'OPPORTUNITY')) ||
+        ref.includes(castMemberId) ||
+        (offscreenMatch && ref === offscreenMatch.pursuitId) ||
+        ref.startsWith('rule-')
+      ) {
+        hasAuthorizingRef = true;
+      }
+    }
+
+    if (!hasAuthorizingRef) {
+      return {
+        version: 1,
+        outcome: 'REJECTED',
+        reasonCode: 'UNAUTHORIZED_ACTIVITY_CLAIM',
+        preState: normalizedPreState,
+        postState: normalizedPreState,
+        admittedManifestation: false,
+        acceptedEventId: null,
+        proposalSnapshot,
+      };
+    }
+  }
+
+  // 6. Validate location consistency
   const playerNodeId = currentContext.topology.currentNodeId;
   if (presentMatch) {
     if (locationNodeId && locationNodeId !== playerNodeId) {
@@ -154,10 +208,10 @@ export function resolveCastActivity({
     }
   }
 
-  // 6. Validate perception path rules
+  // 7. Validate perception path rules
   if (perceptionPath === 'DIRECT') {
     // DIRECT requires actor to be present at player's node
-    if (!presentMatch && locationNodeId !== playerNodeId) {
+    if (!presentMatch || (locationNodeId && locationNodeId !== playerNodeId)) {
       return {
         version: 1,
         outcome: 'REJECTED',
@@ -172,7 +226,7 @@ export function resolveCastActivity({
   } else if (perceptionPath === 'MEDIATED') {
     // MEDIATED requires mediated communication mode support in expression profile
     const commModes = castMember.expressionProfile?.communicationModes || ['spoken'];
-    if (!commModes.includes('mediated') && !commModes.includes('spoken')) {
+    if (!commModes.includes('mediated')) {
       return {
         version: 1,
         outcome: 'REJECTED',
@@ -185,7 +239,7 @@ export function resolveCastActivity({
       };
     }
   } else if (perceptionPath === 'LOCAL_TRACE') {
-    // LOCAL_TRACE must concern the player's current node
+    // LOCAL_TRACE must concern the player's current node and cannot use dialogue
     if (locationNodeId && locationNodeId !== playerNodeId) {
       return {
         version: 1,
@@ -198,9 +252,21 @@ export function resolveCastActivity({
         proposalSnapshot,
       };
     }
+    if (manifestationBlock && manifestationBlock.type === 'dialogue') {
+      return {
+        version: 1,
+        outcome: 'REJECTED',
+        reasonCode: 'LOCAL_TRACE_CANNOT_USE_DIALOGUE',
+        preState: normalizedPreState,
+        postState: normalizedPreState,
+        admittedManifestation: false,
+        acceptedEventId: null,
+        proposalSnapshot,
+      };
+    }
   }
 
-  // 7. Validate manifestation block
+  // 8. Validate manifestation block
   if (manifestationBlock) {
     if (perceptionPath === 'UNOBSERVED') {
       return {
@@ -218,7 +284,12 @@ export function resolveCastActivity({
     if (manifestationBlock.type === 'dialogue') {
       const speakerName = manifestationBlock.speaker?.trim();
       const speakerCast = (currentContext.cast || []).find((c) => c.name === speakerName);
-      if (!speakerCast || speakerCast.isUserCharacter || speakerCast.id === playerCharId) {
+      if (
+        !speakerCast ||
+        speakerCast.isUserCharacter ||
+        speakerCast.id === playerCharId ||
+        speakerCast.id !== castMemberId
+      ) {
         return {
           version: 1,
           outcome: 'REJECTED',

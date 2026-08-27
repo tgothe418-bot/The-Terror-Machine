@@ -29,10 +29,19 @@ import { createCharacterRelationshipState } from './characterRelationships';
 import { createCharacterMemoryState } from './characterMemory';
 import { createWorldMemoryState, migrateLegacyLoreAndMemory } from './worldMemory';
 import { createInitialFictionalTimeLedger } from './fictionalTime';
+import { createInitialValueStateLedger } from './valueState';
+import { createInitialCharacterPursuitLedger } from './characterPursuits';
+import { createInitialCharacterDevelopmentLedger } from './characterDevelopment';
 import {
   selectCastActivityEligibility,
   getRelevantValueAnchorsForOpportunities,
 } from './castActivityEligibility';
+import {
+  CastActivityEvent,
+  SituatedPressureThread,
+  MAX_RECENT_ACTIVITY_EVENTS,
+  MAX_ACTIVE_PRESSURE_THREADS,
+} from '../types/horrorGrammar';
 
 export interface BuildEngineTurnContextOptions {
   blueprint: unknown;
@@ -49,6 +58,8 @@ export interface BuildEngineTurnContextOptions {
   worldMemory?: WorldMemoryState | null;
   fictionalTimeLedger?: FictionalTimeLedger | null;
   pursuitScheduleLedger?: PursuitScheduleLedger | null;
+  activityEvents?: CastActivityEvent[] | null;
+  pressureThreads?: SituatedPressureThread[] | null;
   characterPursuitLedger?: import('../types/horrorGrammar').CharacterPursuitLedger | null;
   valueStateLedger?: import('../types/horrorGrammar').ValueStateLedger | null;
   characterDevelopmentLedger?: import('../types/horrorGrammar').CharacterDevelopmentLedger | null;
@@ -71,6 +82,10 @@ export interface BuildEngineTurnContextOptions {
     fictional_time_ledger?: FictionalTimeLedger | null;
     pursuitScheduleLedger?: PursuitScheduleLedger | null;
     pursuit_schedule_ledger?: PursuitScheduleLedger | null;
+    activityEvents?: CastActivityEvent[] | null;
+    activity_events?: CastActivityEvent[] | null;
+    pressureThreads?: SituatedPressureThread[] | null;
+    pressure_threads?: SituatedPressureThread[] | null;
     characterPursuitLedger?: import('../types/horrorGrammar').CharacterPursuitLedger | null;
     character_pursuit_ledger?: import('../types/horrorGrammar').CharacterPursuitLedger | null;
     valueStateLedger?: import('../types/horrorGrammar').ValueStateLedger | null;
@@ -371,11 +386,35 @@ export function buildEngineTurnContext(
     opts.runtimeState?.pursuit_schedule_ledger ??
     {};
 
-  const characterPursuitLedger =
+  const activityEvents: CastActivityEvent[] =
+    opts.activityEvents ??
+    opts.runtimeState?.activityEvents ??
+    opts.runtimeState?.activity_events ??
+    [];
+
+  const pressureThreads: SituatedPressureThread[] =
+    opts.pressureThreads ??
+    opts.runtimeState?.pressureThreads ??
+    opts.runtimeState?.pressure_threads ??
+    [];
+
+  const valueState =
+    opts.valueStateLedger ??
+    opts.runtimeState?.valueStateLedger ??
+    opts.runtimeState?.value_state_ledger ??
+    createInitialValueStateLedger(normBp);
+
+  const characterPursuits =
     opts.characterPursuitLedger ??
     opts.runtimeState?.characterPursuitLedger ??
     opts.runtimeState?.character_pursuit_ledger ??
-    null;
+    createInitialCharacterPursuitLedger(normBp);
+
+  const characterDevelopment =
+    opts.characterDevelopmentLedger ??
+    opts.runtimeState?.characterDevelopmentLedger ??
+    opts.runtimeState?.character_development_ledger ??
+    createInitialCharacterDevelopmentLedger();
 
   const castPresenceMap: Record<string, string> = {};
   for (const [cId, rec] of Object.entries(presence)) {
@@ -387,7 +426,7 @@ export function buildEngineTurnContext(
     currentTopologyNode: currentNodeId,
     fictionalTime,
     pursuitSchedule,
-    characterPursuitLedger,
+    characterPursuitLedger: characterPursuits,
     userCharacterId: characterId,
     turnNumber,
     acceptedTriggerReferences: opts.acceptedTriggerReferences,
@@ -399,6 +438,101 @@ export function buildEngineTurnContext(
     normBp
   );
 
+  const evidenceRegistry: import('../types/horrorGrammar').EvidenceRegistryEntry[] = [];
+
+  for (const opp of eligibility.presentOpportunities) {
+    const oppId = (opp as any).opportunityId || `opp-present-${opp.castMemberId}`;
+    evidenceRegistry.push({
+      id: oppId,
+      category: 'OPPORTUNITY',
+      ownerRef: opp.castMemberId,
+      description: `Present opportunity for ${opp.castMemberId}: ${opp.objective} (${opp.presentApproach})`,
+    });
+    if (opp.pursuitId) {
+      evidenceRegistry.push({
+        id: opp.pursuitId,
+        category: 'OPPORTUNITY',
+        ownerRef: opp.castMemberId,
+        description: `Pursuit ${opp.pursuitId}: ${opp.objective}`,
+      });
+    }
+  }
+
+  for (const opp of eligibility.offscreenOpportunities) {
+    const oppId = (opp as any).opportunityId || `opp-offscreen-${opp.castMemberId}-${opp.pursuitId}`;
+    evidenceRegistry.push({
+      id: oppId,
+      category: 'OPPORTUNITY',
+      ownerRef: opp.castMemberId,
+      description: `Offscreen opportunity for ${opp.castMemberId}: ${opp.objective} (${opp.presentApproach})`,
+    });
+    if (opp.pursuitId) {
+      evidenceRegistry.push({
+        id: opp.pursuitId,
+        category: 'OPPORTUNITY',
+        ownerRef: opp.castMemberId,
+        description: `Offscreen pursuit ${opp.pursuitId}: ${opp.objective}`,
+      });
+    }
+  }
+
+  for (const c of normBp.cast || []) {
+    const modes = c.expressionProfile?.communicationModes || ['spoken'];
+    for (const mode of modes) {
+      evidenceRegistry.push({
+        id: `expr-${c.id}-${mode}`,
+        category: 'EXPRESSION_CAPABILITY',
+        ownerRef: c.id,
+        description: `${c.name || c.id} communication capability: ${mode}`,
+      });
+    }
+  }
+
+  for (const [cId, node] of Object.entries(castPresenceMap)) {
+    evidenceRegistry.push({
+      id: `pres-${cId}-${node}`,
+      category: 'TOPOLOGY_PRESENCE',
+      ownerRef: cId,
+      description: `Cast member ${cId} situated at node ${node}`,
+    });
+  }
+
+  worldRules.forEach((rule, idx) => {
+    evidenceRegistry.push({
+      id: `rule-${idx + 1}`,
+      category: 'SCENARIO_RULE',
+      ownerRef: normBp.id,
+      description: rule.slice(0, 300),
+    });
+  });
+
+  for (const anchor of normBp.horrorGrammar?.valueAnchors || []) {
+    evidenceRegistry.push({
+      id: anchor.id,
+      category: 'VALUE_ANCHOR',
+      ownerRef: anchor.id,
+      description: `${anchor.label}: ${anchor.description}`.slice(0, 300),
+    });
+  }
+
+  for (const thread of pressureThreads.filter((t) => t.status === 'OPEN')) {
+    evidenceRegistry.push({
+      id: thread.id,
+      category: 'PRESSURE_THREAD',
+      ownerRef: thread.id,
+      description: `Open thread on ${thread.valueAnchorId}: ${thread.adverseProspect}`.slice(0, 300),
+    });
+  }
+
+  for (const evt of activityEvents.slice(-MAX_RECENT_ACTIVITY_EVENTS)) {
+    evidenceRegistry.push({
+      id: evt.id,
+      category: 'ACTIVITY_EVENT',
+      ownerRef: evt.castMemberId,
+      description: `Committed activity: ${evt.activitySummary}`.slice(0, 300),
+    });
+  }
+
   const horrorGrammarContext: HorrorGrammarTurnContext = {
     fictionalTime,
     presentActorOpportunities: eligibility.presentOpportunities,
@@ -406,6 +540,24 @@ export function buildEngineTurnContext(
     relevantValueAnchors,
     authorityInstruction:
       'Only non-User characters listed under presentActorOpportunities and offscreenPursuitOpportunities are eligible for activity consideration on this turn. Do not generate independent actions for other cast members or the User character.',
+    runtimeState: {
+      fictionalTime,
+      pursuitSchedule,
+      recentActivityEvents: activityEvents.slice(-MAX_RECENT_ACTIVITY_EVENTS),
+      activePressureThreads: pressureThreads
+        .filter((t) => t.status === 'OPEN')
+        .slice(-MAX_ACTIVE_PRESSURE_THREADS),
+      valueState,
+      characterPursuits,
+      characterDevelopment,
+    },
+    authoringBaseline: {
+      valueBaselineReview: normBp.horrorGrammar?.valueBaselineReview || 'UNREVIEWED',
+      pursuitReviews: normBp.horrorGrammar?.pursuitReviews || {},
+      valueAnchors: normBp.horrorGrammar?.valueAnchors || [],
+      characterPursuits: normBp.horrorGrammar?.characterPursuits || [],
+    },
+    evidenceRegistry,
   };
 
   return {

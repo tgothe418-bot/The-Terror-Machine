@@ -48,6 +48,14 @@ describe('ExportReviewModal Component Snapshot Lifecycle', () => {
           isEntity: false,
         },
       ],
+      horrorGrammar: {
+        valueBaselineReview: 'REVIEWED_NONE',
+        pursuitReviews: {
+          c1: 'REVIEWED_NONE',
+        },
+        valueAnchors: [],
+        characterPursuits: [],
+      },
     });
 
     // Populate compliant depiction contract

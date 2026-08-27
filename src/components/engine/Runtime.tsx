@@ -259,8 +259,19 @@ export default function Runtime() {
   const { isHydrated, isCoherent } = useHydratedStores();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [isTelemetryOpen, setIsTelemetryOpen] = useState(false);
+  const [isHgForensicsOpen, setIsHgForensicsOpen] = useState(true);
   const [isTerminated, setIsTerminated] = useState(false);
   const [terminalResolution, setTerminalResolution] = useState<string | null>(null);
+
+  const latestForensicRecord = React.useMemo(() => {
+    for (let i = engineMessages.length - 1; i >= 0; i--) {
+      const msg = engineMessages[i];
+      if (msg.turnReceipt?.horrorGrammarForensics) {
+        return msg.turnReceipt.horrorGrammarForensics;
+      }
+    }
+    return null;
+  }, [engineMessages]);
 
   const systemFlags = useAppStore((state) => state.activeMemory.systemFlags);
 
@@ -563,6 +574,7 @@ export default function Runtime() {
         characterPursuitReceipt: response.characterPursuitReceipt,
         characterDevelopmentReceipt: response.characterDevelopmentReceipt,
         pressureThreadTransitionReceipt: response.pressureThreadTransitionReceipt,
+        horrorGrammarForensics: response.horrorGrammarForensics,
       };
 
       const committedTurnPayload: CommittedTurnPayload = {
@@ -1115,6 +1127,167 @@ export default function Runtime() {
               <div className="bg-[#020202] border border-zinc-800 p-6 rounded text-xs sm:text-sm text-zinc-300 leading-relaxed italic shadow-[inset_0_0_20px_rgba(0,0,0,0.8)] whitespace-pre-wrap font-mono">
                 {telemetry?.engineLogic || 'Awaiting structural system rationale...'}
               </div>
+            </div>
+
+            {/* Horror Grammar Forensics Section (Packet 1-8) */}
+            <div className="space-y-4 pb-4">
+              <div className="flex justify-between items-center border-b border-zinc-800 pb-2">
+                <h4 className="text-zinc-400 text-xs sm:text-sm tracking-widest uppercase font-semibold">
+                  Horror Grammar Forensics
+                </h4>
+                {latestForensicRecord && (
+                  <button
+                    onClick={() => setIsHgForensicsOpen(!isHgForensicsOpen)}
+                    className="text-[10px] uppercase tracking-wider text-zinc-500 hover:text-zinc-300 font-mono cursor-pointer"
+                    type="button"
+                  >
+                    {isHgForensicsOpen ? '[ COLLAPSE ]' : '[ EXPAND ]'}
+                  </button>
+                )}
+              </div>
+
+              {latestForensicRecord ? (
+                isHgForensicsOpen ? (
+                  <div className="space-y-4 text-xs font-mono">
+                    {/* Turn Identity & Fictional Time */}
+                    <div className="bg-zinc-950 border border-zinc-800 p-4 rounded space-y-2">
+                      <div className="text-zinc-400 text-xs uppercase tracking-wider font-bold">
+                        Turn Identity &amp; Selection
+                      </div>
+                      <div className="text-zinc-300">
+                        <span className="text-zinc-500">Turn:</span> {latestForensicRecord.turnNumber} |{' '}
+                        <span className="text-zinc-500">Fictional Time:</span> Moment{' '}
+                        {latestForensicRecord.preFictionalTime.moment_revision} →{' '}
+                        {latestForensicRecord.postFictionalTime?.moment_revision ?? latestForensicRecord.preFictionalTime.moment_revision}
+                      </div>
+                      <div className="text-zinc-300">
+                        <span className="text-zinc-500">Present Opportunities:</span>{' '}
+                        {latestForensicRecord.presentOpportunityIds.length > 0
+                          ? latestForensicRecord.presentOpportunityIds.join(', ')
+                          : 'None'}
+                      </div>
+                      <div className="text-zinc-300">
+                        <span className="text-zinc-500">Selected Offscreen:</span>{' '}
+                        {latestForensicRecord.selectedOffscreenPursuitIds.length > 0
+                          ? latestForensicRecord.selectedOffscreenPursuitIds.join(', ')
+                          : 'None'}
+                      </div>
+                    </div>
+
+                    {/* Activity Proposal Evidence */}
+                    <div className="bg-zinc-950 border border-zinc-800 p-4 rounded space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-zinc-400 text-xs uppercase tracking-wider font-bold">
+                          Cast Activity Proposal
+                        </span>
+                        <span
+                          className={`text-xs font-bold uppercase tracking-wider ${
+                            latestForensicRecord.activityEvidence.disposition === 'ACCEPTED'
+                              ? 'text-emerald-400'
+                              : latestForensicRecord.activityEvidence.disposition === 'REJECTED'
+                              ? 'text-red-400'
+                              : 'text-zinc-500'
+                          }`}
+                        >
+                          {latestForensicRecord.activityEvidence.disposition === 'REJECTED'
+                            ? '[ REJECTED — NONCANONICAL ]'
+                            : latestForensicRecord.activityEvidence.disposition === 'ACCEPTED'
+                            ? '[ ACCEPTED — ADMITTED ]'
+                            : '[ NO PROPOSAL — STABLE ]'}
+                        </span>
+                      </div>
+                      <div className="text-zinc-300">
+                        <span className="text-zinc-500">Reason Code:</span>{' '}
+                        {latestForensicRecord.activityEvidence.reasonCode}
+                      </div>
+                      {latestForensicRecord.activityEvidence.castMemberId && (
+                        <div className="text-zinc-300">
+                          <span className="text-zinc-500">Actor:</span>{' '}
+                          {latestForensicRecord.activityEvidence.castMemberId} |{' '}
+                          <span className="text-zinc-500">Perception:</span>{' '}
+                          {latestForensicRecord.activityEvidence.perceptionPath || 'UNSPECIFIED'}
+                        </div>
+                      )}
+                      {latestForensicRecord.activityEvidence.activitySummary && (
+                        <div className="text-zinc-300">
+                          <span className="text-zinc-500">Summary:</span>{' '}
+                          {latestForensicRecord.activityEvidence.activitySummary}
+                        </div>
+                      )}
+                      {latestForensicRecord.activityEvidence.manifestationBlock && (
+                        <div className="mt-2 bg-black border border-zinc-800/80 p-3 rounded text-zinc-300">
+                          <div className="text-[10px] uppercase tracking-wider text-zinc-500 font-bold mb-1">
+                            {latestForensicRecord.activityEvidence.disposition === 'REJECTED'
+                              ? 'REJECTED MANIFESTATION CONTENT'
+                              : 'ACCEPTED MANIFESTATION CONTENT'}
+                          </div>
+                          <div className="italic text-xs leading-relaxed">
+                            "{latestForensicRecord.activityEvidence.manifestationBlock.content}"
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Situated Pressure Evidence */}
+                    <div className="bg-zinc-950 border border-zinc-800 p-4 rounded space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-zinc-400 text-xs uppercase tracking-wider font-bold">
+                          Situated Pressure Proposal
+                        </span>
+                        <span
+                          className={`text-xs font-bold uppercase tracking-wider ${
+                            latestForensicRecord.pressureEvidence.disposition === 'ACCEPTED'
+                              ? 'text-emerald-400'
+                              : latestForensicRecord.pressureEvidence.disposition === 'REJECTED'
+                              ? 'text-red-400'
+                              : 'text-zinc-500'
+                          }`}
+                        >
+                          {latestForensicRecord.pressureEvidence.disposition === 'REJECTED'
+                            ? '[ REJECTED — NONCANONICAL ]'
+                            : latestForensicRecord.pressureEvidence.disposition === 'ACCEPTED'
+                            ? '[ ACCEPTED — ADMITTED ]'
+                            : '[ NO PROPOSAL — STABLE ]'}
+                        </span>
+                      </div>
+                      <div className="text-zinc-300">
+                        <span className="text-zinc-500">Reason Code:</span>{' '}
+                        {latestForensicRecord.pressureEvidence.reasonCode}
+                      </div>
+                      {latestForensicRecord.pressureEvidence.valueAnchorId && (
+                        <div className="text-zinc-300">
+                          <span className="text-zinc-500">Value Anchor:</span>{' '}
+                          {latestForensicRecord.pressureEvidence.valueAnchorId} |{' '}
+                          <span className="text-zinc-500">Operator:</span>{' '}
+                          {latestForensicRecord.pressureEvidence.operator || 'UNSPECIFIED'}
+                        </div>
+                      )}
+                      {latestForensicRecord.pressureEvidence.adverseProspect && (
+                        <div className="text-zinc-300">
+                          <span className="text-zinc-500">Prospect:</span>{' '}
+                          {latestForensicRecord.pressureEvidence.adverseProspect}
+                        </div>
+                      )}
+                      {latestForensicRecord.pressureEvidence.manifestationBlock && (
+                        <div className="mt-2 bg-black border border-zinc-800/80 p-3 rounded text-zinc-300">
+                          <div className="text-[10px] uppercase tracking-wider text-zinc-500 font-bold mb-1">
+                            {latestForensicRecord.pressureEvidence.disposition === 'REJECTED'
+                              ? 'REJECTED MANIFESTATION CONTENT'
+                              : 'ACCEPTED MANIFESTATION CONTENT'}
+                          </div>
+                          <div className="italic text-xs leading-relaxed">
+                            "{latestForensicRecord.pressureEvidence.manifestationBlock.content}"
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : null
+              ) : (
+                <div className="bg-[#020202] border border-zinc-800 p-4 rounded text-xs text-zinc-500 italic">
+                  Awaiting committed Horror Grammar turn telemetry...
+                </div>
+              )}
             </div>
           </div>
         </div>

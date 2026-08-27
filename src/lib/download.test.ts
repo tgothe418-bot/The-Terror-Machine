@@ -1508,6 +1508,124 @@ describe('Engine telemetry export', () => {
       expect(mdExport).toContain('valid.path[0]');
       expect(htmlExport).toContain('valid.path[0]');
     });
+
+    it('exports Horror Grammar 1 typed forensics and preserves rejected evidence containment', () => {
+      const REJECTED_ACT_SENTINEL = 'SENTINEL_ACT_REJECTED_987654321';
+      const REJECTED_PRESS_SENTINEL = 'SENTINEL_PRESS_REJECTED_123456789';
+      const SECRET_PROMPT_SENTINEL = 'SYSTEM_PROMPT_SUPER_SECRET_KEY';
+
+      const hgForensics = {
+        version: 1 as const,
+        turnNumber: 1,
+        preFictionalTime: {
+          moment_revision: 1,
+          scene_beat_revision: 0,
+          extended_revision: 0,
+          last_cost: null,
+        },
+        postFictionalTime: {
+          moment_revision: 2,
+          scene_beat_revision: 0,
+          extended_revision: 0,
+          last_cost: 'MOMENT' as const,
+        },
+        presentOpportunityIds: ['opp-present-char-npc1'],
+        selectedOffscreenPursuitIds: ['pursuit-offscreen-npc2'],
+        boundedOutPursuitIds: [],
+        dormantCount: 0,
+        notDueCount: 0,
+        activityEvidence: {
+          disposition: 'REJECTED' as const,
+          reasonCode: 'LOCAL_TRACE_CANNOT_USE_DIALOGUE',
+          admittedToNarrative: false,
+          proposalId: 'prop-act-01',
+          castMemberId: 'char-npc1',
+          locationNodeId: 'VAULT_01',
+          perceptionPath: 'LOCAL_TRACE' as const,
+          activitySummary: 'Taps on pipes',
+          authorityReferences: ['opp-present-char-npc1'],
+          manifestationBlock: {
+            type: 'dialogue' as const,
+            speaker: 'Mercer',
+            content: REJECTED_ACT_SENTINEL,
+          },
+          acceptedEventId: null,
+        },
+        pressureEvidence: {
+          disposition: 'REJECTED' as const,
+          reasonCode: 'INVALID_VALUE_ANCHOR_REFERENCE',
+          admittedToNarrative: false,
+          proposalId: 'prop-press-01',
+          valueAnchorId: 'val-nonexistent',
+          sourceReference: 'ACTIVITY',
+          operator: 'EXPOSE' as const,
+          affectedDimension: 'SAFETY' as const,
+          adverseProspect: 'Oxygen fails',
+          authorityReferences: [],
+          manifestationBlock: {
+            type: 'prose' as const,
+            content: REJECTED_PRESS_SENTINEL,
+          },
+          acceptedThreadId: null,
+        },
+        causalDecisions: {
+          valueDecisions: [],
+          pursuitDecisions: [],
+          developmentDecisions: [],
+          pressureTransitions: [],
+        },
+        composedNarrativeBlockCount: 1,
+      };
+
+      const messagesWithForensics = [
+        {
+          role: 'user' as const,
+          content: 'I search the wall for an access port.',
+          timestamp: 10,
+          userCharacterName: 'Field Operative',
+        },
+        {
+          role: 'assistant' as const,
+          content: 'You discover a rusted conduit.',
+          timestamp: 11,
+          blocks: [{ type: 'prose' as const, content: 'You discover a rusted conduit.' }],
+          turnReceipt: {
+            turnNumber: 1,
+            nodeBefore: 'VAULT_01',
+            requestedTarget: null,
+            accepted: true,
+            nodeAfter: 'VAULT_01',
+            activeVector: 'COGNITIVE' as const,
+            activeTier: 'LATENT' as const,
+            tension: 10,
+            horrorGrammarForensics: hgForensics,
+          },
+        },
+      ];
+
+      const rawJson = JSON.stringify(messagesWithForensics, null, 2);
+      const mdExport = buildEngineLogContent(messagesWithForensics, 'md')!.content;
+      const htmlExport = buildEngineLogContent(messagesWithForensics, 'html')!.content;
+
+      // Raw JSON contains the typed record
+      expect(rawJson).toContain(REJECTED_ACT_SENTINEL);
+      expect(rawJson).toContain(REJECTED_PRESS_SENTINEL);
+      expect(rawJson).not.toContain(SECRET_PROMPT_SENTINEL);
+
+      // Markdown export contains forensics section and labels rejected blocks
+      expect(mdExport).toContain('#### Horror Grammar 1 Forensics');
+      expect(mdExport).toContain('REJECTED — NONCANONICAL');
+      expect(mdExport).toContain(REJECTED_ACT_SENTINEL);
+      expect(mdExport).toContain(REJECTED_PRESS_SENTINEL);
+      expect(mdExport).not.toContain(SECRET_PROMPT_SENTINEL);
+
+      // HTML export contains forensics section, labels, and properly escaped blocks
+      expect(htmlExport).toContain('<h4>Horror Grammar 1 Forensics</h4>');
+      expect(htmlExport).toContain('REJECTED — NONCANONICAL');
+      expect(htmlExport).toContain(REJECTED_ACT_SENTINEL);
+      expect(htmlExport).toContain(REJECTED_PRESS_SENTINEL);
+      expect(htmlExport).not.toContain(SECRET_PROMPT_SENTINEL);
+    });
   });
 });
 

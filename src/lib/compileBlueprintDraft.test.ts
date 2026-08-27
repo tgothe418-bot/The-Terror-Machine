@@ -108,6 +108,14 @@ describe('compileBlueprintDraft and prepareBlueprintExport', () => {
       contentScale: 3,
       contentLevelDescription: 'Standard',
       environmentalRules: '',
+      horrorGrammar: {
+        valueBaselineReview: 'REVIEWED_NONE',
+        pursuitReviews: {
+          c1: 'REVIEWED_NONE',
+        },
+        valueAnchors: [],
+        characterPursuits: [],
+      },
     };
 
     const artifact = prepareBlueprintExport(validDraft, defaultContext);
@@ -157,6 +165,14 @@ describe('compileBlueprintDraft and prepareBlueprintExport', () => {
       contentScale: 3,
       contentLevelDescription: 'Standard',
       environmentalRules: '',
+      horrorGrammar: {
+        valueBaselineReview: 'REVIEWED_NONE',
+        pursuitReviews: {
+          c1: 'REVIEWED_NONE',
+        },
+        valueAnchors: [],
+        characterPursuits: [],
+      },
     };
 
     const artifact = prepareBlueprintExport(validDraftWithRefs, defaultContext);
@@ -231,6 +247,14 @@ describe('compileBlueprintDraft and prepareBlueprintExport', () => {
       contentScale: 3,
       contentLevelDescription: 'Standard',
       environmentalRules: '',
+      horrorGrammar: {
+        valueBaselineReview: 'REVIEWED_NONE',
+        pursuitReviews: {
+          c1: 'REVIEWED_NONE',
+        },
+        valueAnchors: [],
+        characterPursuits: [],
+      },
     };
 
     const snapshot = JSON.parse(JSON.stringify(validDraft));
@@ -283,6 +307,14 @@ describe('compileBlueprintDraft and prepareBlueprintExport', () => {
       contentScale: 3,
       contentLevelDescription: 'Standard',
       environmentalRules: '',
+      horrorGrammar: {
+        valueBaselineReview: 'REVIEWED_NONE',
+        pursuitReviews: {
+          c1: 'REVIEWED_NONE',
+        },
+        valueAnchors: [],
+        characterPursuits: [],
+      },
     };
 
     const artifact = prepareBlueprintExport(validDraft, defaultContext);
@@ -360,6 +392,14 @@ describe('compileBlueprintDraft and prepareBlueprintExport', () => {
       contentScale: 3,
       contentLevelDescription: 'Standard',
       environmentalRules: '',
+      horrorGrammar: {
+        valueBaselineReview: 'REVIEWED_NONE',
+        pursuitReviews: {
+          c1: 'REVIEWED_NONE',
+        },
+        valueAnchors: [],
+        characterPursuits: [],
+      },
     };
 
     const context = {

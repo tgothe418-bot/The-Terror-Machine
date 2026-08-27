@@ -237,4 +237,227 @@ describe('Ratification Pipeline: Horror Grammar 1 Initiative & Pressure (Packet 
     expect(ratifiedFrame.logic_state.activity_events).toHaveLength(1);
     expect(ratifiedFrame.logic_state.pressure_threads).toHaveLength(1);
   });
+
+  it('threads all 7 HG1 ledgers from gameState to /api/turn request payload', async () => {
+    const sentinelTime = {
+      moment_revision: 5,
+      scene_beat_revision: 2,
+      extended_revision: 1,
+      last_cost: 'MOMENT' as const,
+    };
+    const sentinelSchedule = {
+      'pursuit-tech': {
+        pursuitId: 'pursuit-tech',
+        castMemberId: 'char-tech',
+        lastConsideredMomentRevision: 5,
+        lastConsideredSceneBeatRevision: 2,
+        lastConsideredExtendedRevision: 1,
+        lastConsideredTurn: 2,
+        latestDisposition: 'PRESENT_OPPORTUNITY' as const,
+      },
+    };
+    const sentinelActivityEvents: import('../types/horrorGrammar').CastActivityEvent[] = [
+      {
+        id: 'act-evt-01',
+        castMemberId: 'char-tech',
+        pursuitId: 'pursuit-tech',
+        activitySummary: 'Mercer tested the relay.',
+        locationNodeId: 'NODE_CONTROL',
+        perceptionPath: 'DIRECT',
+        committedTurn: 2,
+        authorityReferences: [],
+        wasManifested: true,
+      },
+    ];
+    const sentinelPressureThreads: import('../types/horrorGrammar').SituatedPressureThread[] = [
+      {
+        id: 'prs-thread-01',
+        valueAnchorId: 'val-reactor',
+        holder: { kind: 'PLACE', nodeId: 'NODE_CONTROL' },
+        operator: 'CONSTRAIN_ACCESS',
+        affectedDimension: 'SAFETY',
+        adverseProspect: 'Coolant pressure dropping',
+        manifestationSummary: null,
+        persistenceTarget: 'PRESSURE_THREAD',
+        status: 'OPEN',
+        createdTurn: 2,
+        lastChangedTurn: 2,
+        sourceReference: 'act-evt-01',
+        authorityReferences: [],
+      },
+    ];
+    const sentinelValueLedger = {
+      'val-reactor': {
+        anchorId: 'val-reactor',
+        lifecycle: 'ACTIVE' as const,
+        condition: 'THREATENED' as const,
+        currentFormNote: 'Coolant dripping',
+        lastCauseReference: 'act-evt-01',
+        lastChangedTurn: 2,
+      },
+    };
+    const sentinelPursuitLedger = {
+      'pursuit-tech': {
+        pursuitId: 'pursuit-tech',
+        castMemberId: 'char-tech',
+        currentObjective: 'Maintain sub-relay voltage',
+        currentApproach: 'Checking breakers',
+        currentLocationNodeId: 'NODE_CONTROL',
+        status: 'ACTIVE' as const,
+        progressSummary: 'Breakers checked',
+        lastCauseReference: 'BASELINE',
+        lastActivityTurn: 2,
+        lastChangedTurn: 0,
+        reviewWindow: 'MOMENT' as const,
+      },
+    };
+    const sentinelDevelopmentLedger = {
+      'char-tech': [
+        {
+          id: 'dev-01',
+          castMemberId: 'char-tech',
+          dimension: 'BELIEF' as const,
+          statement: 'Suspects containment was sabotaged.',
+          lifecycle: 'ACTIVE' as const,
+          establishedTurn: 2,
+          lastChangedTurn: 2,
+          causeReference: 'act-evt-01',
+        },
+      ],
+    };
+
+    useEngineStore.setState({
+      activeBlueprint: mockBlueprint,
+      gameState: {
+        player_character_id: 'char-user',
+        player_role: 'protagonist',
+        fictional_time_ledger: sentinelTime,
+        pursuit_schedule_ledger: sentinelSchedule,
+        activity_events: sentinelActivityEvents,
+        pressure_threads: sentinelPressureThreads,
+        value_state_ledger: sentinelValueLedger,
+        character_pursuit_ledger: sentinelPursuitLedger,
+        character_development_ledger: sentinelDevelopmentLedger,
+      },
+    });
+
+    let sentPayload: {
+      context: {
+        horrorGrammar: {
+          runtimeState: {
+            fictionalTime: unknown;
+            pursuitSchedule: unknown;
+            recentActivityEvents: unknown;
+            activePressureThreads: unknown;
+            valueState: unknown;
+            characterPursuits: unknown;
+            characterDevelopment: unknown;
+          };
+        };
+      };
+    } | null = null;
+    globalThis.fetch = vi.fn().mockImplementation(async (_url, options) => {
+      sentPayload = JSON.parse(options.body);
+      return new Response(
+        JSON.stringify({
+          engine_thoughts: 'Observing.',
+          narrative_blocks: [{ type: 'prose', content: 'You wait.' }],
+          logic_state: { terminal_flags: [], cast_deltas: [], cast_ledger: [] },
+          canonicalConsequenceReceipt: {
+            version: 1,
+            pre_state: { inventory: [], player_injuries: [], psychological_status: 'STABLE' },
+            post_state: { inventory: [], player_injuries: [], psychological_status: 'STABLE' },
+            patch: {
+              inventory_added: [],
+              inventory_removed: [],
+              injuries_added: [],
+              injuries_removed: [],
+              psychological_status_change: null,
+            },
+            decisions: [],
+          },
+          characterStanceReceipt: { version: 1, pre_state: {}, post_state: {}, decisions: [] },
+          characterRelationshipReceipt: { version: 1, pre_state: [], post_state: [], decisions: [] },
+          characterMemoryReceipt: { version: 1, pre_state: {}, post_state: {}, decisions: [] },
+          worldMemoryReceipt: { version: 1, pre_state: [], post_state: [], decisions: [] },
+          intentReceipt: {
+            version: 1,
+            action_kind: 'WAIT',
+            action_subtype: null,
+            pressure_direction: 'MAINTAIN',
+            dramatic_tactic: 'NONE',
+            intent_synergy: 'SUCCESS',
+          },
+          narrativeReconciliationReceipt: {
+            version: 1,
+            mode: 'CANONICAL',
+            feasibility: 'SUPPORTED',
+            reason_code: 'NONE',
+            fictional_time_cost: 'MOMENT',
+            authority_alignment: 'WITHIN_CONTRACT',
+            memory_echo_candidate: null,
+            revision_increment: 0,
+          },
+          castActivityProposalReceipt: {
+            version: 1,
+            outcome: 'NO_PROPOSAL',
+            reasonCode: 'NO_OPPORTUNITY_CHOSEN',
+            preState: sentinelActivityEvents,
+            postState: sentinelActivityEvents,
+            admittedManifestation: false,
+            acceptedEventId: null,
+          },
+          situatedPressureReceipt: {
+            version: 1,
+            outcome: 'NO_PROPOSAL',
+            reasonCode: 'NO_PRESSURE_CHOSEN',
+            preState: sentinelPressureThreads,
+            postState: sentinelPressureThreads,
+            admittedManifestation: false,
+            acceptedThreadId: null,
+          },
+          valueStateReceipt: {
+            version: 1,
+            preState: sentinelValueLedger,
+            postState: sentinelValueLedger,
+            decisions: [],
+          },
+          characterPursuitReceipt: {
+            version: 1,
+            preState: sentinelPursuitLedger,
+            postState: sentinelPursuitLedger,
+            decisions: [],
+          },
+          characterDevelopmentReceipt: {
+            version: 1,
+            preState: sentinelDevelopmentLedger,
+            postState: sentinelDevelopmentLedger,
+            decisions: [],
+          },
+          pressureThreadTransitionReceipt: {
+            version: 1,
+            preState: sentinelPressureThreads,
+            postState: sentinelPressureThreads,
+            decisions: [],
+          },
+        }),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
+    });
+
+    await executeRatificationPipeline('Wait for Mercer');
+
+    expect(sentPayload).toBeDefined();
+    const hg = sentPayload.context.horrorGrammar;
+    expect(hg.runtimeState.fictionalTime).toEqual(sentinelTime);
+    expect(hg.runtimeState.pursuitSchedule).toEqual(sentinelSchedule);
+    expect(hg.runtimeState.recentActivityEvents).toEqual(sentinelActivityEvents);
+    expect(hg.runtimeState.activePressureThreads).toEqual(sentinelPressureThreads);
+    expect(hg.runtimeState.valueState).toEqual(sentinelValueLedger);
+    expect(hg.runtimeState.characterPursuits).toEqual(sentinelPursuitLedger);
+    expect(hg.runtimeState.characterDevelopment).toEqual(sentinelDevelopmentLedger);
+  });
 });

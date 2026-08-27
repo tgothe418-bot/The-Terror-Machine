@@ -277,22 +277,7 @@ export const CastActivityEligibilityReceiptSchema = z
   .strict();
 export type CastActivityEligibilityReceipt = z.infer<typeof CastActivityEligibilityReceiptSchema>;
 
-// ============================================================================
-// Packet 1-2: Bounded Horror Grammar Turn Context
-// ============================================================================
 
-export const HorrorGrammarTurnContextSchema = z
-  .object({
-    fictionalTime: FictionalTimeLedgerSchema,
-    presentActorOpportunities: z.array(ActivityOpportunityCandidateSchema).default([]),
-    offscreenPursuitOpportunities: z.array(ActivityOpportunityCandidateSchema).max(2).default([]),
-    relevantValueAnchors: z.array(ValueAnchorSchema).default([]),
-    authorityInstruction: z.string().default(
-      'Only non-User characters listed under presentActorOpportunities and offscreenPursuitOpportunities are eligible for activity consideration on this turn. Do not generate independent actions for other cast members or the User character.'
-    ),
-  })
-  .strict();
-export type HorrorGrammarTurnContext = z.infer<typeof HorrorGrammarTurnContextSchema>;
 
 // ============================================================================
 // Packet 1-3: Non-User Initiative, Situated Pressure, Events & Threads
@@ -465,6 +450,9 @@ export const SituatedPressureThreadSchema = z
     createdTurn: z.number().int().nonnegative(),
     lastChangedTurn: z.number().int().nonnegative(),
     persistenceTarget: PersistenceTargetSchema.default('PRESSURE_THREAD'),
+    authorityReferences: z.array(z.string()).default([]),
+    perceptionPath: PerceptionPathSchema.optional(),
+    locationNodeId: z.string().nullable().optional(),
   })
   .strict();
 export type SituatedPressureThread = z.infer<typeof SituatedPressureThreadSchema>;
@@ -802,5 +790,148 @@ export type PressureThreadTransitionReceipt = z.infer<
   typeof PressureThreadTransitionReceiptSchema
 >;
 
+// ============================================================================
+// Packet 1-6: Horror Grammar Runtime Snapshot & Turn Context
+// ============================================================================
 
+export const HorrorGrammarRuntimeStateSchema = z
+  .object({
+    fictionalTime: FictionalTimeLedgerSchema,
+    pursuitSchedule: PursuitScheduleLedgerSchema.default({}),
+    recentActivityEvents: z.array(CastActivityEventSchema).max(MAX_RECENT_ACTIVITY_EVENTS).default([]),
+    activePressureThreads: z.array(SituatedPressureThreadSchema).max(MAX_ACTIVE_PRESSURE_THREADS).default([]),
+    valueState: ValueStateLedgerSchema.default({}),
+    characterPursuits: CharacterPursuitLedgerSchema.default({}),
+    characterDevelopment: CharacterDevelopmentLedgerSchema.default({}),
+  })
+  .strict();
+export type HorrorGrammarRuntimeState = z.infer<typeof HorrorGrammarRuntimeStateSchema>;
 
+export const HorrorGrammarAuthoringBaselineSchema = z
+  .object({
+    valueBaselineReview: ValueBaselineReviewStateSchema.default('UNREVIEWED'),
+    pursuitReviews: z.record(z.string(), PursuitReviewStateSchema).default({}),
+    valueAnchors: z.array(ValueAnchorSchema).default([]),
+    characterPursuits: z.array(CharacterPursuitSchema).default([]),
+  })
+  .strict();
+export type HorrorGrammarAuthoringBaseline = z.infer<typeof HorrorGrammarAuthoringBaselineSchema>;
+
+// ============================================================================
+// Packet 1-7: Evidence Registry & Authority Evidence
+// ============================================================================
+
+export const EvidenceCategorySchema = z.enum([
+  'OPPORTUNITY',
+  'EXPRESSION_CAPABILITY',
+  'TOPOLOGY_PRESENCE',
+  'SCENARIO_RULE',
+  'AUTHORITY_CONTRACT',
+  'CANONICAL_CONDITION',
+  'WORLD_MEMORY',
+  'PRESSURE_THREAD',
+  'ACTIVITY_EVENT',
+  'CONSEQUENCE',
+  'VALUE_ANCHOR',
+]);
+export type EvidenceCategory = z.infer<typeof EvidenceCategorySchema>;
+
+export const EvidenceRegistryEntrySchema = z
+  .object({
+    id: z.string().min(1),
+    category: EvidenceCategorySchema,
+    ownerRef: z.string().min(1),
+    description: z.string().trim().min(1).max(300),
+  })
+  .strict();
+export type EvidenceRegistryEntry = z.infer<typeof EvidenceRegistryEntrySchema>;
+
+export const EvidenceRegistrySchema = z.array(EvidenceRegistryEntrySchema);
+export type EvidenceRegistry = z.infer<typeof EvidenceRegistrySchema>;
+
+export const HorrorGrammarTurnContextSchema = z
+  .object({
+    fictionalTime: FictionalTimeLedgerSchema,
+    presentActorOpportunities: z.array(ActivityOpportunityCandidateSchema).default([]),
+    offscreenPursuitOpportunities: z.array(ActivityOpportunityCandidateSchema).max(2).default([]),
+    relevantValueAnchors: z.array(ValueAnchorSchema).default([]),
+    authorityInstruction: z.string().default(
+      'Only non-User characters listed under presentActorOpportunities and offscreenPursuitOpportunities are eligible for activity consideration on this turn. Do not generate independent actions for other cast members or the User character.'
+    ),
+    runtimeState: HorrorGrammarRuntimeStateSchema,
+    authoringBaseline: HorrorGrammarAuthoringBaselineSchema.default({
+      valueBaselineReview: 'UNREVIEWED',
+      pursuitReviews: {},
+      valueAnchors: [],
+      characterPursuits: [],
+    }),
+    evidenceRegistry: EvidenceRegistrySchema.default([]),
+  })
+  .strict();
+export type HorrorGrammarTurnContext = z.infer<typeof HorrorGrammarTurnContextSchema>;
+
+// ============================================================================
+// Packet 1-8: Typed Forensics & Export Containment
+// ============================================================================
+
+export const ForensicActivityEvidenceSchema = z
+  .object({
+    disposition: z.enum(['NONE', 'ACCEPTED', 'REJECTED']),
+    reasonCode: z.string(),
+    admittedToNarrative: z.boolean(),
+    proposalId: z.string().nullable().optional(),
+    castMemberId: z.string().nullable().optional(),
+    pursuitId: z.string().nullable().optional(),
+    locationNodeId: z.string().nullable().optional(),
+    perceptionPath: PerceptionPathSchema.nullable().optional(),
+    activitySummary: z.string().nullable().optional(),
+    authorityReferences: z.array(z.string()).default([]),
+    manifestationBlock: ManifestationBlockSchema.nullable().optional(),
+    acceptedEventId: z.string().nullable().optional(),
+  })
+  .strict();
+export type ForensicActivityEvidence = z.infer<typeof ForensicActivityEvidenceSchema>;
+
+export const ForensicPressureEvidenceSchema = z
+  .object({
+    disposition: z.enum(['NONE', 'ACCEPTED', 'REJECTED']),
+    reasonCode: z.string(),
+    admittedToNarrative: z.boolean(),
+    proposalId: z.string().nullable().optional(),
+    valueAnchorId: z.string().nullable().optional(),
+    sourceReference: z.string().nullable().optional(),
+    operator: PressureOperatorSchema.nullable().optional(),
+    affectedDimension: AffectedDimensionSchema.nullable().optional(),
+    adverseProspect: z.string().nullable().optional(),
+    authorityReferences: z.array(z.string()).default([]),
+    manifestationBlock: ManifestationBlockSchema.nullable().optional(),
+    acceptedThreadId: z.string().nullable().optional(),
+  })
+  .strict();
+export type ForensicPressureEvidence = z.infer<typeof ForensicPressureEvidenceSchema>;
+
+export const HorrorGrammarForensicRecordSchema = z
+  .object({
+    version: z.literal(1).default(1),
+    turnNumber: z.number().int().nonnegative(),
+    preFictionalTime: FictionalTimeLedgerSchema,
+    postFictionalTime: FictionalTimeLedgerSchema.optional(),
+    presentOpportunityIds: z.array(z.string()).default([]),
+    selectedOffscreenPursuitIds: z.array(z.string()).default([]),
+    boundedOutPursuitIds: z.array(z.string()).default([]),
+    dormantCount: z.number().int().default(0),
+    notDueCount: z.number().int().default(0),
+    activityEvidence: ForensicActivityEvidenceSchema,
+    pressureEvidence: ForensicPressureEvidenceSchema,
+    causalDecisions: z
+      .object({
+        valueDecisions: z.array(z.unknown()).default([]),
+        pursuitDecisions: z.array(z.unknown()).default([]),
+        developmentDecisions: z.array(z.unknown()).default([]),
+        pressureTransitions: z.array(z.unknown()).default([]),
+      })
+      .strict(),
+    composedNarrativeBlockCount: z.number().int().nonnegative().default(0),
+  })
+  .strict();
+export type HorrorGrammarForensicRecord = z.infer<typeof HorrorGrammarForensicRecordSchema>;

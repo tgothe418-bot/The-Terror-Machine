@@ -6,6 +6,7 @@ import {
   ValueStateReceipt,
   ValueCondition,
   ValueLifecycle,
+  HorrorGrammarAuthoringBaseline,
 } from '../types/horrorGrammar';
 
 export function createInitialValueStateLedger(blueprint?: Blueprint | null): ValueStateLedger {
@@ -30,6 +31,7 @@ export interface ResolveValueStateInput {
   proposal?: ValueStateProposal | null;
   preState?: ValueStateLedger | null;
   currentTurn: number;
+  authoringBaseline?: HorrorGrammarAuthoringBaseline | null;
   blueprint?: Blueprint | null;
   userCharacterId?: string | null;
   validCauses?: string[];
@@ -39,6 +41,7 @@ export function resolveValueState({
   proposal,
   preState = {},
   currentTurn,
+  authoringBaseline,
   blueprint,
   userCharacterId,
   validCauses = [],
@@ -57,7 +60,8 @@ export function resolveValueState({
     };
   }
 
-  const blueprintAnchors = blueprint?.horrorGrammar?.valueAnchors || [];
+  const blueprintAnchors =
+    authoringBaseline?.valueAnchors || blueprint?.horrorGrammar?.valueAnchors || [];
 
   for (const change of changes.slice(0, 3)) {
     const {
