@@ -126,6 +126,7 @@ describe('Phase 3D-1: Forge Draft Contract, Review Validation, and Compiler Boun
           behaviorVector: 'ADAPTIVE',
           isEntity: false,
           traits: ['Cautious', 'Observant'],
+          presenceDisposition: { kind: 'AT_NODE', nodeId: 'AIRLOCK_01' },
         },
       ],
       perspectives: [
@@ -136,6 +137,7 @@ describe('Phase 3D-1: Forge Draft Contract, Review Validation, and Compiler Boun
         },
       ],
       topology: {
+        startingNodeId: 'AIRLOCK_01',
         nodes: ['AIRLOCK_01', 'SUB_LAB_B', 'DECON_CHAMBER'],
         connections: [
           'AIRLOCK_01 -> SUB_LAB_B',
@@ -239,10 +241,11 @@ describe('Phase 3D-1: Forge Draft Contract, Review Validation, and Compiler Boun
           role: 'Engineer',
           behaviorVector: 'ADAPTIVE',
           isEntity: false,
+          presenceDisposition: { kind: 'AT_NODE', nodeId: 'STATION_CORE' },
         },
       ],
       perspectives: [],
-      topology: { nodes: ['STATION_CORE'], connections: [] },
+      topology: { startingNodeId: 'STATION_CORE', nodes: ['STATION_CORE'], connections: [] },
       references: [],
       narrativeRules: {
         incitingIncident: '',
@@ -293,5 +296,71 @@ describe('Phase 3D-1: Forge Draft Contract, Review Validation, and Compiler Boun
     expect(() =>
       prepareBlueprintExport(partialRaw, { draftRevision: 1, sourceBaselineRevision: 1 })
     ).toThrow(ForgeCompilationError);
+  });
+
+  it('7. validates topology endpoints, startingNodeId, expandable anchors, and cast opening placement', () => {
+    const invalidTopologyDraft: ForgeDraft = {
+      id: 'draft-invalid-topo',
+      title: 'Test Facility',
+      premise: 'Valid premise statement for validation test.',
+      setting: { location: 'Underground Facility', atmosphere: 'Dark', timePeriod: '1999' },
+      startingVector: 'SOMATIC',
+      startingTier: 'GATEWAY',
+      depictionContract: {
+        dramaticRegister: 'Visceral',
+        directness: 'High directness',
+        aftermath: 'Grave aftermath',
+        ambiguityHandling: 'Explicit uncertainty',
+        specialBoundaries: 'None',
+      },
+      cast: [
+        {
+          id: 'char-1',
+          name: 'Tech Specialist',
+          role: 'Technician',
+          isEntity: false,
+          presenceDisposition: { kind: 'AT_NODE', nodeId: 'NODE_UNKNOWN_ROOM' },
+        },
+        {
+          id: 'char-2',
+          name: 'Dr. Mara',
+          role: 'Researcher',
+          isEntity: false,
+          // Missing presenceDisposition and starting_location
+        },
+      ],
+      topology: {
+        startingNodeId: 'INVALID_START_NODE',
+        nodes: ['NODE_A', 'NODE_B'],
+        connections: [
+          { from: 'NODE_A', to: 'NON_EXISTENT_TARGET', kind: 'PHYSICAL', userInitiated: true },
+        ],
+        anchors: [
+          {
+            id: 'anchor-bad',
+            parentNodeId: 'NON_EXISTENT_PARENT',
+            label: 'Floating Anchor',
+            description: 'Nowhere',
+          },
+        ],
+      },
+      horrorGrammar: {
+        valueBaselineReview: 'REVIEWED_NONE',
+        pursuitReviews: {
+          'char-1': 'REVIEWED_NONE',
+          'char-2': 'REVIEWED_NONE',
+        },
+        valueAnchors: [],
+        characterPursuits: [],
+      },
+    };
+
+    const validation = validateForgeDraft(invalidTopologyDraft);
+    expect(validation.valid).toBe(false);
+    expect(validation.errors).toHaveProperty('topology.startingNodeId');
+    expect(validation.errors).toHaveProperty('topology.connections[0].to');
+    expect(validation.errors).toHaveProperty('topology.anchors[0].parentNodeId');
+    expect(validation.errors).toHaveProperty('cast[0].presenceDisposition');
+    expect(validation.errors).toHaveProperty('cast[1].presenceDisposition');
   });
 });

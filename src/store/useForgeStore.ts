@@ -678,6 +678,12 @@ export const useForgeStoreInternal = create<ForgeStore>()(
                     ? { ...current.depictionContract, ...updates.depictionContract }
                     : updates.depictionContract)
                 : current.depictionContract,
+              userOpeningAim: updates.userOpeningAim !== undefined ? updates.userOpeningAim : current.userOpeningAim,
+              horrorGrammar: updates.horrorGrammar !== undefined
+                ? (typeof updates.horrorGrammar === 'object' && updates.horrorGrammar !== null
+                    ? { ...current.horrorGrammar, ...updates.horrorGrammar }
+                    : updates.horrorGrammar)
+                : current.horrorGrammar,
             };
 
             return {
@@ -2030,6 +2036,7 @@ export const useForgeState = ((selector?: (state: ForgeState) => unknown) => {
 
 useForgeState.persist = useForgeStoreInternal.persist;
 
+export const useForgeStore = useForgeStoreInternal;
 export const forgeActions: ForgeActions = useForgeStoreInternal.getState().actions;
 export const getForgeState = (): Readonly<ForgeState> => {
   return useForgeStoreInternal.getState() as Readonly<ForgeState>;

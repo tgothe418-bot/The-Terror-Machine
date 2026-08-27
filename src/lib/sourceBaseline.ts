@@ -319,6 +319,59 @@ export function buildSourceAnalysisFromBlueprint(
       applicationState: 'staged',
     });
 
+    // Opening placement disposition candidate
+    if (member.presenceDisposition) {
+      const dispEvId = `${sourceId}-ev-disp-${charId}`;
+      evidence.push({
+        id: dispEvId,
+        sourceId,
+        category: 'cast',
+        claim: `Opening placement for ${name}: ${member.presenceDisposition.kind}${
+          member.presenceDisposition.kind === 'AT_NODE' ? ` at ${member.presenceDisposition.nodeId}` : ''
+        }`,
+        excerpt: `${name} -> ${member.presenceDisposition.kind}`,
+      });
+      candidates.push({
+        id: `${sourceId}-cand-disp-${charId}`,
+        sourceId,
+        classification: 'evidence',
+        target: 'cast_opening_placement',
+        label: `Placement (${name}): ${member.presenceDisposition.kind}`,
+        explanation: `Opening placement disposition for ${name}.`,
+        evidenceIds: [dispEvId],
+        proposedValue: member.presenceDisposition,
+        targetCastMemberId: charId,
+        reviewDecision: 'accepted',
+        applicationState: 'staged',
+      });
+    } else if (member.starting_location && member.starting_location.trim().length > 0) {
+      const loc = member.starting_location.trim();
+      const dispEvId = `${sourceId}-ev-disp-${charId}`;
+      evidence.push({
+        id: dispEvId,
+        sourceId,
+        category: 'cast',
+        claim: `Opening placement for ${name}: AT_NODE at ${loc}`,
+        excerpt: loc,
+      });
+      candidates.push({
+        id: `${sourceId}-cand-disp-${charId}`,
+        sourceId,
+        classification: 'evidence',
+        target: 'cast_opening_placement',
+        label: `Placement (${name}): AT_NODE (${loc})`,
+        explanation: `Opening placement at node "${loc}" for ${name}.`,
+        evidenceIds: [dispEvId],
+        proposedValue: {
+          kind: 'AT_NODE',
+          nodeId: loc,
+        },
+        targetCastMemberId: charId,
+        reviewDecision: 'accepted',
+        applicationState: 'staged',
+      });
+    }
+
     // If member has expression profile, create a dedicated expression candidate
     if (member.expressionProfile) {
       const exprEvId = `${sourceId}-ev-expr-${charId}`;
@@ -346,34 +399,148 @@ export function buildSourceAnalysisFromBlueprint(
     }
   });
 
-  // 6. Topology Nodes
-  const nodes = normalized.topology?.nodes || [];
-  nodes.forEach((node, idx) => {
-    if (!node || node.trim().length === 0) return;
-    const cleanNode = node.trim();
-    const evId = `${sourceId}-ev-node-${idx}`;
+  // 6. Topology Nodes & Rich Definitions
+  const nodeDefs = normalized.topology?.nodeDefinitions || [];
+  const rawNodes = normalized.topology?.nodes || [];
+
+  if (nodeDefs.length > 0) {
+    nodeDefs.forEach((nodeDef, idx) => {
+      const evId = `${sourceId}-ev-node-${idx}`;
+      evidence.push({
+        id: evId,
+        sourceId,
+        category: 'topology',
+        claim: `Story map node: "${nodeDef.label}" (${nodeDef.id})`,
+        excerpt: nodeDef.description || nodeDef.label,
+      });
+      candidates.push({
+        id: `${sourceId}-cand-node-${idx}`,
+        sourceId,
+        classification: nodeDef.classification === 'inference' ? 'inference' : 'evidence',
+        target: 'topology_node',
+        label: `Map Node: ${nodeDef.label}`,
+        explanation: nodeDef.description || 'Extracted from native blueprint story map node definitions.',
+        evidenceIds: [evId],
+        proposedValue: nodeDef,
+        reviewDecision: 'accepted',
+        applicationState: 'staged',
+      });
+    });
+  } else {
+    rawNodes.forEach((node, idx) => {
+      if (!node || node.trim().length === 0) return;
+      const cleanNode = node.trim();
+      const evId = `${sourceId}-ev-node-${idx}`;
+      evidence.push({
+        id: evId,
+        sourceId,
+        category: 'topology',
+        claim: `Starting spatial node: "${cleanNode}"`,
+        excerpt: cleanNode,
+      });
+      candidates.push({
+        id: `${sourceId}-cand-node-${idx}`,
+        sourceId,
+        classification: 'evidence',
+        target: 'topology_node',
+        label: `Map Node: ${cleanNode}`,
+        explanation: 'Extracted from native blueprint topology nodes.',
+        evidenceIds: [evId],
+        proposedValue: {
+          id: cleanNode,
+          label: cleanNode.replace(/_/g, ' '),
+          description: '',
+        },
+        reviewDecision: 'accepted',
+        applicationState: 'staged',
+      });
+    });
+  }
+
+  // 7. Directed Connections
+  const connections = normalized.topology?.connections || [];
+  connections.forEach((conn, idx) => {
+    if (!conn || typeof conn !== 'object') return;
+    const evId = `${sourceId}-ev-conn-${idx}`;
     evidence.push({
       id: evId,
       sourceId,
       category: 'topology',
-      claim: `Starting spatial node: "${cleanNode}"`,
-      excerpt: cleanNode,
+      claim: `Directed Connection: ${conn.from} -> ${conn.to} (${conn.kind || 'PHYSICAL'})`,
+      excerpt: `${conn.from} -> ${conn.to}`,
     });
     candidates.push({
-      id: `${sourceId}-cand-node-${idx}`,
+      id: `${sourceId}-cand-conn-${idx}`,
       sourceId,
       classification: 'evidence',
-      target: 'initial_topology_node',
-      label: `Topology Node: ${cleanNode}`,
-      explanation: 'Extracted from native blueprint topology nodes.',
+      target: 'topology_connection',
+      label: `Connection: ${conn.from} -> ${conn.to}`,
+      explanation: `Directed edge of kind ${conn.kind || 'PHYSICAL'}.`,
       evidenceIds: [evId],
-      proposedValue: cleanNode,
+      proposedValue: {
+        from: conn.from,
+        to: conn.to,
+        kind: conn.kind || 'PHYSICAL',
+        requires: conn.requires,
+        userInitiated: conn.userInitiated !== false,
+      },
       reviewDecision: 'accepted',
       applicationState: 'staged',
     });
   });
 
-  // 7. Reference Attribution
+  // 8. Starting Node Selection
+  if (normalized.topology?.startingNodeId) {
+    const startId = normalized.topology.startingNodeId;
+    const evId = `${sourceId}-ev-start-node`;
+    evidence.push({
+      id: evId,
+      sourceId,
+      category: 'topology',
+      claim: `Authoritative starting node: "${startId}"`,
+      excerpt: startId,
+    });
+    candidates.push({
+      id: `${sourceId}-cand-start-node`,
+      sourceId,
+      classification: 'evidence',
+      target: 'starting_node_selection',
+      label: `Start Node: ${startId}`,
+      explanation: 'Authoritative opening node for scenario execution.',
+      evidenceIds: [evId],
+      proposedValue: startId,
+      reviewDecision: 'accepted',
+      applicationState: 'staged',
+    });
+  }
+
+  // 9. Expandable Space Anchors
+  const expAnchors = normalized.topology?.anchors || [];
+  expAnchors.forEach((anchor, idx) => {
+    const evId = `${sourceId}-ev-exp-anchor-${anchor.id || idx}`;
+    evidence.push({
+      id: evId,
+      sourceId,
+      category: 'topology',
+      claim: `Expandable space anchor: "${anchor.label}" attached to ${anchor.parentNodeId}`,
+      excerpt: anchor.description || anchor.label,
+    });
+    candidates.push({
+      id: `${sourceId}-cand-exp-anchor-${anchor.id || idx}`,
+      sourceId,
+      classification: anchor.classification === 'inference' ? 'inference' : 'evidence',
+      target: 'expandable_space_anchor',
+      label: `Expandable Anchor: ${anchor.label}`,
+      explanation: anchor.description || 'Secondary spatial region anchor.',
+      evidenceIds: [evId],
+      proposedValue: anchor,
+      parentNodeId: anchor.parentNodeId,
+      reviewDecision: 'accepted',
+      applicationState: 'staged',
+    });
+  });
+
+  // 10. Reference Attribution
   if (sourceRecord.fileName) {
     const evId = `${sourceId}-ev-ref`;
     evidence.push({
@@ -397,7 +564,7 @@ export function buildSourceAnalysisFromBlueprint(
     });
   }
 
-  // 8. Value Anchors
+  // 11. Value Anchors
   const anchors = normalized.horrorGrammar?.valueAnchors || [];
   anchors.forEach((anchor, idx) => {
     const evId = `${sourceId}-ev-anchor-${anchor.id || idx}`;
@@ -422,7 +589,7 @@ export function buildSourceAnalysisFromBlueprint(
     });
   });
 
-  // 9. Character Pursuits
+  // 12. Character Pursuits
   const pursuits = normalized.horrorGrammar?.characterPursuits || [];
   pursuits.forEach((pursuit, idx) => {
     const evId = `${sourceId}-ev-pursuit-${pursuit.id || idx}`;
@@ -447,6 +614,41 @@ export function buildSourceAnalysisFromBlueprint(
       applicationState: 'staged',
     });
   });
+
+  // 13. User Opening Aim Default
+  const userAim = normalized.userOpeningAim || normalized.horrorGrammar?.userOpeningAim;
+  if (userAim && userAim.castMemberId && userAim.aimText) {
+    const evId = `${sourceId}-ev-user-aim`;
+    evidence.push({
+      id: evId,
+      sourceId,
+      category: 'identity',
+      claim: `User character opening aim for ${userAim.castMemberId}: "${userAim.aimText}"`,
+      excerpt: userAim.aimText,
+    });
+    candidates.push({
+      id: `${sourceId}-cand-user-aim`,
+      sourceId,
+      classification: 'evidence',
+      target: 'user_opening_aim_default',
+      label: `Opening Aim: ${userAim.aimText.slice(0, 40)}`,
+      explanation: 'Extracted opening aim default for user-controlled character.',
+      evidenceIds: [evId],
+      targetCastMemberId: userAim.castMemberId,
+      proposedValue: {
+        castMemberId: userAim.castMemberId,
+        disposition: 'ACCEPTED_REFERENCE',
+        aimText: userAim.aimText,
+        provenance: userAim.provenance || {
+          kind: 'REVIEWED_SOURCE',
+          sourceId,
+          evidenceIds: [evId],
+        },
+      },
+      reviewDecision: 'accepted',
+      applicationState: 'staged',
+    });
+  }
 
   return {
     id: `${sourceId}-analysis`,
@@ -783,6 +985,172 @@ export function applyCandidateToDraft(
       break;
     }
 
+    case 'topology_node': {
+      const nodeDef = candidate.proposedValue;
+      if (!nodeDef || typeof nodeDef !== 'object' || !nodeDef.id || !nodeDef.label) {
+        return { success: false, draft, error: 'Topology node candidate must be a valid node object.' };
+      }
+      const currentNodes = cloned.topology?.nodes ? [...cloned.topology.nodes] : [];
+      if (!currentNodes.includes(nodeDef.id)) {
+        currentNodes.push(nodeDef.id);
+      }
+      const currentNodeDefs = cloned.topology?.nodeDefinitions ? [...cloned.topology.nodeDefinitions] : [];
+      const existingIdx = currentNodeDefs.findIndex((n) => n.id === nodeDef.id);
+      if (existingIdx >= 0) {
+        currentNodeDefs[existingIdx] = nodeDef;
+      } else {
+        currentNodeDefs.push(nodeDef);
+      }
+      cloned.topology = {
+        ...(cloned.topology || { connections: [] }),
+        nodes: currentNodes,
+        nodeDefinitions: currentNodeDefs,
+      };
+      break;
+    }
+
+    case 'topology_connection': {
+      const edge = candidate.proposedValue;
+      if (!edge || typeof edge !== 'object' || !edge.from || !edge.to) {
+        return { success: false, draft, error: 'Topology connection candidate must be a valid edge object.' };
+      }
+      const validNodeIds = new Set([
+        ...(cloned.topology?.nodes || []),
+        ...(cloned.topology?.nodeDefinitions?.map((n) => n.id) || []),
+      ]);
+      if (!validNodeIds.has(edge.from)) {
+        return {
+          success: false,
+          draft,
+          error: `Connection source node "${edge.from}" not found in active draft nodes.`,
+        };
+      }
+      if (!validNodeIds.has(edge.to)) {
+        return {
+          success: false,
+          draft,
+          error: `Connection target node "${edge.to}" not found in active draft nodes.`,
+        };
+      }
+      const currentConns = cloned.topology?.connections ? [...cloned.topology.connections] : [];
+      const isDuplicate = currentConns.some((c) => {
+        if (typeof c === 'string') {
+          return c === `${edge.from}->${edge.to}` || c === `${edge.from} -> ${edge.to}`;
+        }
+        return (
+          c.from === edge.from &&
+          c.to === edge.to &&
+          (c.kind || 'PHYSICAL') === (edge.kind || 'PHYSICAL')
+        );
+      });
+      if (!isDuplicate) {
+        currentConns.push(edge);
+      }
+      cloned.topology = {
+        ...(cloned.topology || { nodes: [] }),
+        connections: currentConns,
+      };
+      break;
+    }
+
+    case 'starting_node_selection': {
+      if (typeof candidate.proposedValue !== 'string' || !candidate.proposedValue.trim()) {
+        return { success: false, draft, error: 'Starting node selection must be a non-empty string.' };
+      }
+      const startNodeId = candidate.proposedValue.trim();
+      const validNodeIds = new Set([
+        ...(cloned.topology?.nodes || []),
+        ...(cloned.topology?.nodeDefinitions?.map((n) => n.id) || []),
+      ]);
+      if (!validNodeIds.has(startNodeId)) {
+        return {
+          success: false,
+          draft,
+          error: `Starting node "${startNodeId}" not found in active draft nodes.`,
+        };
+      }
+      cloned.topology = {
+        ...(cloned.topology || { nodes: [], connections: [] }),
+        startingNodeId: startNodeId,
+      };
+      break;
+    }
+
+    case 'expandable_space_anchor': {
+      const anchor = candidate.proposedValue;
+      if (!anchor || typeof anchor !== 'object' || !anchor.id || !anchor.parentNodeId || !anchor.label) {
+        return { success: false, draft, error: 'Expandable space anchor must be a valid anchor object.' };
+      }
+      const validNodeIds = new Set([
+        ...(cloned.topology?.nodes || []),
+        ...(cloned.topology?.nodeDefinitions?.map((n) => n.id) || []),
+      ]);
+      if (!validNodeIds.has(anchor.parentNodeId)) {
+        return {
+          success: false,
+          draft,
+          error: `Expansion anchor parent node "${anchor.parentNodeId}" not found in active draft nodes.`,
+        };
+      }
+      const currentAnchors = cloned.topology?.anchors ? [...cloned.topology.anchors] : [];
+      const existingIdx = currentAnchors.findIndex((a) => a.id === anchor.id);
+      if (existingIdx >= 0) {
+        currentAnchors[existingIdx] = anchor;
+      } else {
+        currentAnchors.push(anchor);
+      }
+      cloned.topology = {
+        ...(cloned.topology || { nodes: [], connections: [] }),
+        anchors: currentAnchors,
+      };
+      break;
+    }
+
+    case 'cast_opening_placement': {
+      const placement = candidate.proposedValue;
+      const targetId = candidate.targetCastMemberId;
+      if (!targetId || !cloned.cast || !cloned.cast.some((m) => m.id === targetId)) {
+        return {
+          success: false,
+          draft,
+          error: `Target cast member "${targetId || 'unspecified'}" not found in active draft. Apply cast seed first.`,
+        };
+      }
+      const targetMember = cloned.cast.find((m) => m.id === targetId);
+      if (placement.kind === 'AT_NODE') {
+        const validNodeIds = new Set([
+          ...(cloned.topology?.nodes || []),
+          ...(cloned.topology?.nodeDefinitions?.map((n) => n.id) || []),
+        ]);
+        if (!validNodeIds.has(placement.nodeId)) {
+          return {
+            success: false,
+            draft,
+            error: `Opening placement node "${placement.nodeId}" for cast member "${targetMember?.name || targetId}" not found in active draft nodes.`,
+          };
+        }
+      } else if (placement.kind === 'NONLOCAL') {
+        if (!targetMember?.isEntity) {
+          return {
+            success: false,
+            draft,
+            error: `NONLOCAL opening placement is only permitted for Entity cast members ("${targetMember?.name || targetId}" is not an entity).`,
+          };
+        }
+      }
+      cloned.cast = cloned.cast.map((member) => {
+        if (member.id === targetId) {
+          return {
+            ...member,
+            presenceDisposition: placement,
+            starting_location: placement.kind === 'AT_NODE' ? placement.nodeId : '',
+          };
+        }
+        return member;
+      });
+      break;
+    }
+
     case 'reference_attribution': {
       if (typeof candidate.proposedValue !== 'string' || !candidate.proposedValue.trim()) {
         return { success: false, draft, error: 'Reference attribution must be a non-empty string.' };
@@ -848,6 +1216,69 @@ export function applyCandidateToDraft(
       cloned.horrorGrammar.pursuitReviews[pursuit.castMemberId] = 'REVIEWED';
       break;
     }
+
+    case 'user_opening_aim_default': {
+      const targetId = candidate.targetCastMemberId;
+      if (!targetId || !cloned.cast || !cloned.cast.some((m) => m.id === targetId)) {
+        return {
+          success: false,
+          draft,
+          error: `Target cast member "${targetId || 'unspecified'}" not found in active draft. Apply cast seed first.`,
+        };
+      }
+      const member = cloned.cast.find((m) => m.id === targetId);
+      if (!member?.isUserCharacter) {
+        return {
+          success: false,
+          draft,
+          error: `Target cast member "${member?.name || targetId}" is not marked as user-controlled character.`,
+        };
+      }
+      const text =
+        typeof candidate.proposedValue === 'string'
+          ? candidate.proposedValue.trim()
+          : typeof candidate.proposedValue === 'object' &&
+            candidate.proposedValue !== null &&
+            'aimText' in candidate.proposedValue &&
+            typeof candidate.proposedValue.aimText === 'string'
+          ? candidate.proposedValue.aimText.trim()
+          : '';
+
+      if (!text) {
+        return { success: false, draft, error: 'User opening aim text must be a non-empty string.' };
+      }
+
+      const provenance =
+        typeof candidate.proposedValue === 'object' &&
+        candidate.proposedValue !== null &&
+        'provenance' in candidate.proposedValue &&
+        candidate.proposedValue.provenance
+          ? candidate.proposedValue.provenance
+          : candidate.sourceId
+          ? {
+              kind: 'REVIEWED_SOURCE' as const,
+              sourceId: candidate.sourceId,
+              evidenceIds:
+                candidate.evidenceIds && candidate.evidenceIds.length > 0
+                  ? candidate.evidenceIds
+                  : ['ev-extracted'],
+            }
+          : { kind: 'CREATOR_DEFINED' as const };
+
+      const aimRecord = {
+        castMemberId: targetId,
+        disposition: 'ACCEPTED_REFERENCE' as const,
+        aimText: text,
+        provenance,
+        reviewedAt: Date.now(),
+      };
+
+      cloned.userOpeningAim = aimRecord;
+      if (cloned.horrorGrammar) {
+        cloned.horrorGrammar.userOpeningAim = aimRecord;
+      }
+      break;
+    }
   }
 
   // Provenance: append sourceFileName to references if not already present
@@ -865,16 +1296,32 @@ export function applyCandidateToDraft(
 
 /**
  * Gets the execution priority for a candidate target.
- * cast_seed and initial_topology_node (1) run before regular fields (2), which run before dependencies (3).
+ * Dependency ordering:
+ * 1. cast_seed, topology_node, initial_topology_node
+ * 2. topology_connection, expandable_space_anchor, scenario/setting scalar fields
+ * 3. starting_node_selection, cast_opening_placement, cast_expression_guidance
+ * 4. value_anchor, character_pursuit, user_opening_aim_default
  */
 export function getCandidateApplicationPriority(target: ForgeSourceCandidate['target']): number {
-  if (target === 'cast_seed' || target === 'initial_topology_node') return 1;
+  if (target === 'cast_seed' || target === 'topology_node' || target === 'initial_topology_node') {
+    return 1;
+  }
+  if (target === 'topology_connection' || target === 'expandable_space_anchor') {
+    return 2;
+  }
   if (
-    target === 'cast_expression_guidance' ||
-    target === 'value_anchor' ||
-    target === 'character_pursuit'
+    target === 'starting_node_selection' ||
+    target === 'cast_opening_placement' ||
+    target === 'cast_expression_guidance'
   ) {
     return 3;
+  }
+  if (
+    target === 'value_anchor' ||
+    target === 'character_pursuit' ||
+    target === 'user_opening_aim_default'
+  ) {
+    return 4;
   }
   return 2;
 }

@@ -278,6 +278,47 @@ describe('castPresence', () => {
       expect(result['char-1']).not.toBe(persistedItem);
       expect(result['char-1']).toEqual({ nodeId: 'NODE_A' });
     });
+
+    it('respects explicit presence dispositions AT_NODE, OFFSTAGE, and NONLOCAL', () => {
+      const cast: CastPresenceSeed[] = [
+        {
+          id: 'char-scientist',
+          presenceDisposition: { kind: 'AT_NODE', nodeId: 'NODE_LAB' },
+        },
+        {
+          id: 'char-lurker',
+          presenceDisposition: { kind: 'OFFSTAGE' },
+        },
+        {
+          id: 'char-anomaly',
+          presenceDisposition: { kind: 'NONLOCAL' },
+        },
+        {
+          id: 'char-broken',
+          presenceDisposition: { kind: 'AT_NODE', nodeId: 'NON_EXISTENT_NODE' },
+        },
+      ];
+
+      const validNodes = ['NODE_START', 'NODE_LAB', 'NODE_HALL'];
+      const result = buildCharacterPresence(
+        cast,
+        null,
+        validNodes,
+        'NODE_START',
+      );
+
+      // AT_NODE with valid nodeId -> placed at NODE_LAB
+      expect(result['char-scientist']).toEqual({ nodeId: 'NODE_LAB' });
+
+      // OFFSTAGE -> absent, NOT placed at NODE_START
+      expect(result['char-lurker']).toBeUndefined();
+
+      // NONLOCAL -> absent, NOT placed at NODE_START
+      expect(result['char-anomaly']).toBeUndefined();
+
+      // AT_NODE with invalid nodeId -> absent, does NOT fall back to player NODE_START
+      expect(result['char-broken']).toBeUndefined();
+    });
   });
 
   describe('createCastPresenceReceipt', () => {

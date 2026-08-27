@@ -295,6 +295,7 @@ describe('sourceBaseline pure functions', () => {
           name: 'Diver Mercer',
           role: 'PROTAGONIST',
           description: 'Engineer',
+          presenceDisposition: { kind: 'AT_NODE', nodeId: 'SUB_LEVEL_1' },
           expressionProfile: {
             communicationModes: ['spoken', 'mediated'],
             expressionGuidance: 'Clipped radio transmissions.',
@@ -302,6 +303,11 @@ describe('sourceBaseline pure functions', () => {
           },
         },
       ],
+      topology: {
+        startingNodeId: 'SUB_LEVEL_1',
+        nodes: ['SUB_LEVEL_1'],
+        connections: [],
+      },
       horrorGrammar: {
         valueBaselineReview: 'REVIEWED_NONE',
         pursuitReviews: {
@@ -448,6 +454,11 @@ describe('sourceBaseline pure functions', () => {
           specialBoundaries: 'None',
         },
         cast: [],
+        topology: {
+          startingNodeId: 'ENGINE_ROOM',
+          nodes: ['ENGINE_ROOM'],
+          connections: [],
+        },
         horrorGrammar: {
           valueBaselineReview: 'REVIEWED_NONE',
           pursuitReviews: {
@@ -477,6 +488,7 @@ describe('sourceBaseline pure functions', () => {
           isUserCharacter: false,
           behaviorVector: 'ADAPTIVE',
           isEntity: false,
+          presenceDisposition: { kind: 'AT_NODE', nodeId: 'ENGINE_ROOM' },
         },
         reviewDecision: 'accepted',
         applicationState: 'staged',
@@ -780,9 +792,10 @@ describe('sourceBaseline pure functions', () => {
             name: 'Officer Petrov',
             role: 'Sentinel',
             isUserCharacter: false,
+            presenceDisposition: { kind: 'AT_NODE', nodeId: 'NODE_GATE' },
           },
         ],
-        topology: { nodes: ['NODE_GATE'], connections: [] },
+        topology: { startingNodeId: 'NODE_GATE', nodes: ['NODE_GATE'], connections: [] },
       };
 
       const anchorCandidate: ForgeSourceCandidate = {
@@ -846,6 +859,291 @@ describe('sourceBaseline pure functions', () => {
 
       const compileRes = compileForgeDraft(applyPursuitRes.draft);
       expect(compileRes.success).toBe(true);
+    });
+
+    it('normalizes, dependency-sorts, and applies topology_node, topology_connection, starting_node_selection, expandable_space_anchor, and cast_opening_placement', () => {
+      const sourceRecord: ForgeSourceRecord = {
+        id: 'src-story-map',
+        fileName: 'deep_trench_base.json',
+        mimeType: 'application/json',
+        kind: 'document',
+        receivedAt: 1000,
+      };
+
+      const rawPayload = {
+        summary: 'Deep trench underwater facility blueprint.',
+        evidence: [
+          { id: 'ev-1', category: 'topology', claim: 'Bridge and Airlock exist' },
+        ],
+        candidates: [
+          {
+            id: 'cand-node-bridge',
+            classification: 'evidence',
+            target: 'topology_node',
+            label: 'Command Bridge',
+            evidenceIds: ['ev-1'],
+            proposedValue: {
+              id: 'BRIDGE',
+              label: 'Command Bridge',
+              description: 'Central viewport overlooking trench.',
+            },
+          },
+          {
+            id: 'cand-node-airlock',
+            classification: 'evidence',
+            target: 'topology_node',
+            label: 'Airlock B',
+            evidenceIds: ['ev-1'],
+            proposedValue: {
+              id: 'AIRLOCK_B',
+              label: 'Airlock B',
+              description: 'Heavy hydraulic decompression portal.',
+            },
+          },
+          {
+            id: 'cand-edge-1',
+            classification: 'evidence',
+            target: 'topology_connection',
+            label: 'Bridge to Airlock B',
+            evidenceIds: ['ev-1'],
+            proposedValue: {
+              from: 'BRIDGE',
+              to: 'AIRLOCK_B',
+              kind: 'PHYSICAL',
+              userInitiated: true,
+            },
+          },
+          {
+            id: 'cand-start',
+            classification: 'evidence',
+            target: 'starting_node_selection',
+            label: 'Start at Bridge',
+            evidenceIds: ['ev-1'],
+            proposedValue: 'BRIDGE',
+          },
+          {
+            id: 'cand-anchor-vent',
+            classification: 'inference',
+            target: 'expandable_space_anchor',
+            label: 'Vent Shaft 3',
+            evidenceIds: ['ev-1'],
+            parentNodeId: 'BRIDGE',
+            proposedValue: {
+              id: 'vent-shaft-3',
+              parentNodeId: 'BRIDGE',
+              label: 'Ventilation Shaft 3',
+              description: 'Narrow maintenance conduit branching from bridge.',
+            },
+          },
+          {
+            id: 'cand-cast-1',
+            classification: 'evidence',
+            target: 'cast_seed',
+            label: 'Captain Haze',
+            evidenceIds: ['ev-1'],
+            proposedValue: {
+              id: 'char-haze',
+              name: 'Captain Haze',
+              role: 'PROTAGONIST',
+              isUserCharacter: true,
+            },
+          },
+          {
+            id: 'cand-cast-2',
+            classification: 'evidence',
+            target: 'cast_seed',
+            label: 'Entity Echo',
+            evidenceIds: ['ev-1'],
+            proposedValue: {
+              id: 'char-echo',
+              name: 'The Trench Phantom',
+              role: 'ANTAGONIST',
+              isEntity: true,
+            },
+          },
+          {
+            id: 'cand-disp-haze',
+            classification: 'evidence',
+            target: 'cast_opening_placement',
+            label: 'Haze at Bridge',
+            targetCastMemberId: 'char-haze',
+            evidenceIds: ['ev-1'],
+            proposedValue: {
+              kind: 'AT_NODE',
+              nodeId: 'BRIDGE',
+            },
+          },
+          {
+            id: 'cand-disp-echo',
+            classification: 'evidence',
+            target: 'cast_opening_placement',
+            label: 'Echo Nonlocal',
+            targetCastMemberId: 'char-echo',
+            evidenceIds: ['ev-1'],
+            proposedValue: {
+              kind: 'NONLOCAL',
+            },
+          },
+        ],
+        unknowns: [],
+      };
+
+      const analysis = validateAndNormalizeDocumentAnalysis(rawPayload, sourceRecord);
+      expect(analysis.status).toBe('completed');
+      expect(analysis.candidates).toHaveLength(9);
+
+      // Verify dependency sorting
+      const sorted = sortCandidatesForApplication(analysis.candidates);
+      const targets = sorted.map((c) => c.target);
+      // Priority 1: cast_seed and topology_node must precede topology_connection and expandable_space_anchor (2),
+      // which precede starting_node_selection and cast_opening_placement (3)
+      const firstPri2 = targets.findIndex((t) => t === 'topology_connection' || t === 'expandable_space_anchor');
+      const lastPri1 = targets.map((t, idx) => ((t === 'cast_seed' || t === 'topology_node') ? idx : -1)).reduce((a, b) => Math.max(a, b), -1);
+      expect(lastPri1).toBeLessThan(firstPri2);
+
+      const firstPri3 = targets.findIndex((t) => t === 'starting_node_selection' || t === 'cast_opening_placement');
+      expect(firstPri2).toBeLessThan(firstPri3);
+
+      // Apply in dependency sorted order onto an initial draft
+      let workingDraft: ForgeDraft = {
+        id: 'draft-story-test',
+        title: 'Deep Trench Base',
+        premise: 'Abyssal outpost under immense hydraulic pressure.',
+        setting: { location: 'Trench Outpost', atmosphere: 'Cold', timePeriod: '1979' },
+        startingVector: 'COGNITIVE',
+        startingTier: 'LATENT',
+        depictionContract: {
+          dramaticRegister: 'Cosmic existential dread',
+          directness: 'High directness',
+          aftermath: 'Irreversible damage',
+          ambiguityHandling: 'Deliberate void',
+          specialBoundaries: 'None',
+        },
+        cast: [],
+        topology: { nodes: [], nodeDefinitions: [], connections: [], anchors: [] },
+      };
+
+      for (const cand of sorted) {
+        const res = applyCandidateToDraft(workingDraft, cand, sourceRecord.fileName);
+        expect(res.success).toBe(true);
+        if (res.success) {
+          workingDraft = res.draft;
+        }
+      }
+
+      // Assert draft state
+      expect(workingDraft.topology?.nodes).toContain('BRIDGE');
+      expect(workingDraft.topology?.nodes).toContain('AIRLOCK_B');
+      expect(workingDraft.topology?.startingNodeId).toBe('BRIDGE');
+      expect(workingDraft.topology?.connections).toHaveLength(1);
+      expect(workingDraft.topology?.anchors).toHaveLength(1);
+      expect(workingDraft.topology?.anchors?.[0].id).toBe('vent-shaft-3');
+
+      expect(workingDraft.cast).toHaveLength(2);
+      const haze = workingDraft.cast?.find((c) => c.id === 'char-haze');
+      expect(haze?.presenceDisposition).toEqual({ kind: 'AT_NODE', nodeId: 'BRIDGE' });
+
+      const echo = workingDraft.cast?.find((c) => c.id === 'char-echo');
+      expect(echo?.presenceDisposition).toEqual({ kind: 'NONLOCAL' });
+    });
+
+    it('fails candidate application atomically with explicit error when referencing missing node or cast member', () => {
+      const draft: ForgeDraft = {
+        id: 'draft-broken-ref',
+        title: 'Outpost',
+        cast: [{ id: 'char-mortal', name: 'Mortal Crew', isEntity: false }],
+        topology: { nodes: ['ROOM_A'], connections: [] },
+      };
+
+      // 1. Connection with unknown destination node
+      const badEdgeCand: ForgeSourceCandidate = {
+        id: 'cand-bad-edge',
+        sourceId: 'src-1',
+        classification: 'evidence',
+        target: 'topology_connection',
+        label: 'Broken Edge',
+        explanation: 'Points to non-existent node',
+        evidenceIds: [],
+        proposedValue: {
+          from: 'ROOM_A',
+          to: 'ROOM_NONEXISTENT',
+          kind: 'PHYSICAL',
+          userInitiated: true,
+        },
+        reviewDecision: 'accepted',
+        applicationState: 'staged',
+      };
+      const edgeRes = applyCandidateToDraft(draft, badEdgeCand);
+      expect(edgeRes.success).toBe(false);
+      if (!edgeRes.success) {
+        expect((edgeRes as { error: string }).error).toContain('ROOM_NONEXISTENT');
+      }
+
+      // 2. Starting node with unknown node ID
+      const badStartCand: ForgeSourceCandidate = {
+        id: 'cand-bad-start',
+        sourceId: 'src-1',
+        classification: 'evidence',
+        target: 'starting_node_selection',
+        label: 'Broken Start',
+        explanation: 'Sets start to non-existent node',
+        evidenceIds: [],
+        proposedValue: 'ROOM_VOID',
+        reviewDecision: 'accepted',
+        applicationState: 'staged',
+      };
+      const startRes = applyCandidateToDraft(draft, badStartCand);
+      expect(startRes.success).toBe(false);
+      if (!startRes.success) {
+        expect((startRes as { error: string }).error).toContain('ROOM_VOID');
+      }
+
+      // 3. Anchor with unknown parent node ID
+      const badAnchorCand: ForgeSourceCandidate = {
+        id: 'cand-bad-anchor',
+        sourceId: 'src-1',
+        classification: 'evidence',
+        target: 'expandable_space_anchor',
+        label: 'Broken Anchor',
+        explanation: 'Attaches to non-existent node',
+        evidenceIds: [],
+        proposedValue: {
+          id: 'anchor-orphan',
+          parentNodeId: 'ROOM_GHOST',
+          label: 'Orphan Anchor',
+          description: 'No parent',
+          statement: 'Orphan statement',
+        },
+        reviewDecision: 'accepted',
+        applicationState: 'staged',
+      };
+      const anchorRes = applyCandidateToDraft(draft, badAnchorCand);
+      expect(anchorRes.success).toBe(false);
+      if (!anchorRes.success) {
+        expect((anchorRes as { error: string }).error).toContain('ROOM_GHOST');
+      }
+
+      // 4. NONLOCAL placement on non-entity cast member
+      const badPlacementCand: ForgeSourceCandidate = {
+        id: 'cand-bad-placement',
+        sourceId: 'src-1',
+        classification: 'evidence',
+        target: 'cast_opening_placement',
+        label: 'Bad Nonlocal Placement',
+        explanation: 'Assigns nonlocal to mortal',
+        evidenceIds: [],
+        targetCastMemberId: 'char-mortal',
+        proposedValue: {
+          kind: 'NONLOCAL',
+        },
+        reviewDecision: 'accepted',
+        applicationState: 'staged',
+      };
+      const placementRes = applyCandidateToDraft(draft, badPlacementCand);
+      expect(placementRes.success).toBe(false);
+      if (!placementRes.success) {
+        expect((placementRes as { error: string }).error).toContain('NONLOCAL');
+      }
     });
   });
 });

@@ -48,7 +48,12 @@ describe('Engine blueprint ingress', () => {
         expect.objectContaining({ name: 'Unknown', role: 'Subject' }),
       ])
     );
-    expect(activeBlueprint?.topology).toEqual({ nodes: [], connections: [] });
+    expect(activeBlueprint?.topology).toEqual({
+      nodes: [],
+      nodeDefinitions: [],
+      connections: [],
+      anchors: [],
+    });
   });
 
   it('binds explicit selectedCharacterId correctly on setBlueprint', () => {

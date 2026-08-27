@@ -11,6 +11,7 @@ import {
   CharacterPursuitSchema,
   ValueBaselineReviewStateSchema,
   PursuitReviewStateSchema,
+  UserOpeningAimSchema,
 } from './horrorGrammar';
 export * from './blueprintAuthoring';
 export * from './horrorGrammar';
@@ -47,6 +48,50 @@ export const ForgeDraftSettingSchema = z.object({
   timePeriod: z.string().optional().default(''),
 });
 
+export const PresenceDispositionKindSchema = z.enum(['AT_NODE', 'OFFSTAGE', 'NONLOCAL']);
+export type PresenceDispositionKind = z.infer<typeof PresenceDispositionKindSchema>;
+
+export const CharacterPresenceDispositionSchema = z.discriminatedUnion('kind', [
+  z
+    .object({
+      kind: z.literal('AT_NODE'),
+      nodeId: z.string().min(1),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal('OFFSTAGE'),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal('NONLOCAL'),
+    })
+    .strict(),
+]);
+export type CharacterPresenceDisposition = z.infer<typeof CharacterPresenceDispositionSchema>;
+
+export const ForgeTopologyNodeSchema = z.object({
+  id: z.string().min(1),
+  label: z.string().min(1),
+  description: z.string().optional(),
+  classification: z.enum(['evidence', 'inference', 'creator']).optional(),
+  evidenceIds: z.array(z.string()).optional(),
+  sensoryGuidance: z.string().optional(),
+});
+export type ForgeTopologyNode = z.infer<typeof ForgeTopologyNodeSchema>;
+
+export const ForgeExpandableAnchorSchema = z.object({
+  id: z.string().min(1),
+  parentNodeId: z.string().min(1),
+  label: z.string().min(1),
+  description: z.string().optional(),
+  classification: z.enum(['evidence', 'inference', 'creator']).optional(),
+  evidenceIds: z.array(z.string()).optional(),
+  statement: z.string().optional(),
+});
+export type ForgeExpandableAnchor = z.infer<typeof ForgeExpandableAnchorSchema>;
+
 export const ForgeDraftCastMemberSchema = z.object({
   id: z.string().default(() => `char-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`),
   name: z.string().default(''),
@@ -60,6 +105,7 @@ export const ForgeDraftCastMemberSchema = z.object({
   isEntity: z.boolean().optional().default(false),
   psychological_status: z.string().optional(),
   starting_location: z.string().optional(),
+  presenceDisposition: CharacterPresenceDispositionSchema.optional(),
   vulnerabilityBase: ForgeVulnerabilityIndexSchema.optional(),
   expressionProfile: CharacterExpressionProfileSchema.optional(),
 });
@@ -97,6 +143,7 @@ export const ForgeDraftTopologyEdgeObjectSchema = z.object({
   userInitiated: z.boolean().default(true),
   legacyUpgraded: z.boolean().optional(),
   authority: z.enum(['user', 'engine', 'system']).optional(),
+  evidenceIds: z.array(z.string()).optional(),
 });
 
 export const ForgeDraftTopologyEdgeSchema = z.union([
@@ -105,8 +152,11 @@ export const ForgeDraftTopologyEdgeSchema = z.union([
 ]);
 
 export const ForgeDraftTopologySchema = z.object({
+  startingNodeId: z.string().optional(),
   nodes: z.array(z.string()).optional().default([]),
+  nodeDefinitions: z.array(ForgeTopologyNodeSchema).optional().default([]),
   connections: z.array(ForgeDraftTopologyEdgeSchema).optional().default([]),
+  anchors: z.array(ForgeExpandableAnchorSchema).optional().default([]),
 });
 
 export const ForgeDraftNarrativeRulesSchema = z.object({
@@ -148,7 +198,12 @@ export const ForgeDraftSchema = z.object({
   contentLevelDescription: z.string().optional().default('Standard'),
   cast: z.array(ForgeDraftCastMemberSchema).optional().default([]),
   perspectives: z.array(ForgeDraftPerspectiveSchema).optional().default([]),
-  topology: ForgeDraftTopologySchema.optional().default({ nodes: [], connections: [] }),
+  topology: ForgeDraftTopologySchema.optional().default({
+    nodes: [],
+    nodeDefinitions: [],
+    connections: [],
+    anchors: [],
+  }),
   narrativeRules: ForgeDraftNarrativeRulesSchema.optional().default({
     incitingIncident: '',
     phaseDirectives: {},
@@ -161,6 +216,7 @@ export const ForgeDraftSchema = z.object({
   hauntedHouse: HauntedHouseProvenanceSchema.optional(),
   ambiguities: BlueprintAmbiguityDecisionsSchema.optional().default([]),
   depictionContract: DepictionContractSchema.optional(),
+  userOpeningAim: UserOpeningAimSchema.optional(),
   horrorGrammar: HorrorGrammarAuthoringSchema.optional().default(() => ({
     valueBaselineReview: 'UNREVIEWED' as const,
     pursuitReviews: {},
@@ -392,11 +448,68 @@ export const ValueAnchorCandidateSchema = z
   })
   .strict();
 
+export const TopologyNodeCandidateSchema = z
+  .object({
+    ...BaseCandidateProps,
+    target: z.literal('topology_node'),
+    proposedValue: ForgeTopologyNodeSchema,
+  })
+  .strict();
+
+export const TopologyConnectionCandidateSchema = z
+  .object({
+    ...BaseCandidateProps,
+    target: z.literal('topology_connection'),
+    proposedValue: ForgeDraftTopologyEdgeObjectSchema,
+  })
+  .strict();
+
+export const StartingNodeSelectionCandidateSchema = z
+  .object({
+    ...BaseCandidateProps,
+    target: z.literal('starting_node_selection'),
+    proposedValue: z.string().trim().min(1),
+  })
+  .strict();
+
+export const ExpandableSpaceAnchorCandidateSchema = z
+  .object({
+    ...BaseCandidateProps,
+    target: z.literal('expandable_space_anchor'),
+    proposedValue: ForgeExpandableAnchorSchema,
+    parentNodeId: z.string().min(1).optional(),
+  })
+  .strict();
+
+export const CastOpeningPlacementCandidateSchema = z
+  .object({
+    ...BaseCandidateProps,
+    target: z.literal('cast_opening_placement'),
+    targetCastMemberId: z.string().min(1, 'targetCastMemberId is required for cast opening placement'),
+    proposedValue: CharacterPresenceDispositionSchema,
+  })
+  .strict();
+
 export const CharacterPursuitCandidateSchema = z
   .object({
     ...BaseCandidateProps,
     target: z.literal('character_pursuit'),
     proposedValue: CharacterPursuitSchema,
+  })
+  .strict();
+
+export const UserOpeningAimCandidateSchema = z
+  .object({
+    ...BaseCandidateProps,
+    target: z.literal('user_opening_aim_default'),
+    targetCastMemberId: z.string().min(1, 'targetCastMemberId is required for user opening aim default'),
+    proposedValue: z.union([
+      z.string(),
+      UserOpeningAimSchema,
+      z.object({
+        aimText: z.string(),
+      }),
+    ]),
   })
   .strict();
 
@@ -411,18 +524,28 @@ export const ForgeSourceCandidateSchema = z.discriminatedUnion('target', [
   CastSeedCandidateSchema,
   CastExpressionCandidateSchema,
   InitialTopologyNodeCandidateSchema,
+  TopologyNodeCandidateSchema,
+  TopologyConnectionCandidateSchema,
+  StartingNodeSelectionCandidateSchema,
+  ExpandableSpaceAnchorCandidateSchema,
+  CastOpeningPlacementCandidateSchema,
   ReferenceAttributionCandidateSchema,
   ValueAnchorCandidateSchema,
   CharacterPursuitCandidateSchema,
+  UserOpeningAimCandidateSchema,
 ]);
 export type ForgeSourceCandidate = z.infer<typeof ForgeSourceCandidateSchema>;
 
 export const ForgeSourceUnknownStatusSchema = z.enum([
   'queued',
+  'submitting',
   'awaiting_response',
+  'follow_up_required',
   'awaiting_confirmation',
+  'recoverable_failure',
   'resolved',
   'contextual_discretion',
+  'terminal_binding_loss',
 ]);
 export type ForgeSourceUnknownStatus = z.infer<typeof ForgeSourceUnknownStatusSchema>;
 

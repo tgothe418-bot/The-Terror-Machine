@@ -83,6 +83,23 @@ export const ArchitectAppliedCandidateFactSchema = z
   })
   .strict();
 
+export const ArchitectDraftCastMemberSchema = z
+  .object({
+    id: z.string().max(200),
+    name: z.string().max(200),
+    description: z.string().max(2000).optional(),
+    role: z.string().max(100).optional(),
+    personality: z.string().max(2000).optional(),
+    goals: z.string().max(2000).optional(),
+    traits: z.union([z.array(z.string().max(200)), z.string().max(2000)]).optional(),
+    isUserCharacter: z.boolean().optional(),
+    isEntity: z.boolean().optional(),
+    behaviorVector: z.string().max(100).optional(),
+    starting_location: z.string().max(200).optional(),
+    startingLocation: z.string().max(200).optional(),
+  })
+  .strict();
+
 export const ArchitectDraftContextSchema = z
   .object({
     title: z.string().max(500).optional(),
@@ -95,20 +112,7 @@ export const ArchitectDraftContextSchema = z
       })
       .optional(),
     environmentalRules: z.union([z.string().max(1000), z.array(z.string().max(1000))]).optional(),
-    cast: z
-      .array(
-        z
-          .object({
-            id: z.string().max(200),
-            name: z.string().max(200),
-            description: z.string().max(2000).optional(),
-            role: z.string().max(100).optional(),
-            personality: z.string().max(2000).optional(),
-          })
-          .strict()
-      )
-      .max(100)
-      .optional(),
+    cast: z.array(ArchitectDraftCastMemberSchema).max(100).optional(),
     ambiguities: z.array(BlueprintAmbiguityDecisionSchema).max(100).optional().default([]),
     references: z.array(z.string().max(500)).max(50).optional(),
     draftRevision: z.number().int().nonnegative().default(1),
@@ -190,19 +194,7 @@ export const ArchitectDepictionDraftContextSchema = z
       z.string().trim().max(1000),
       z.array(z.string().trim().max(1000)).max(50),
     ]),
-    cast: z
-      .array(
-        z
-          .object({
-            id: z.string().trim().min(1).max(200),
-            name: z.string().trim().min(1).max(200),
-            description: z.string().trim().max(2000).optional(),
-            role: z.string().trim().max(100).optional(),
-            personality: z.string().trim().max(2000).optional(),
-          })
-          .strict()
-      )
-      .max(100),
+    cast: z.array(ArchitectDraftCastMemberSchema).max(100),
     ambiguities: z.array(BlueprintAmbiguityDecisionSchema).max(100),
     references: z.array(z.string().trim().min(1).max(500)).max(50),
     draftRevision: z.number().int().positive(),

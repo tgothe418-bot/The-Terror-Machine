@@ -590,4 +590,242 @@ describe('ArchitectChat Queue Ownership & Ambiguity Lifecycle', () => {
       });
     });
   });
+
+  it('submits successfully when draft contains rich cast with goals, traits, entity, and location', async () => {
+    forgeActions.initializeDraft({
+      title: 'Deep Station',
+      cast: [
+        {
+          id: 'char-101',
+          name: 'Chief Engineer Cole',
+          role: 'PROTAGONIST',
+          description: 'Submersible systems expert.',
+          personality: 'Stoic, analytical.',
+          goals: 'Restore primary atmospheric seals.',
+          traits: ['Disciplined', 'Claustrophobic'],
+          isUserCharacter: true,
+          isEntity: false,
+          behaviorVector: 'METICULOUS',
+          starting_location: 'AIRLOCK_B',
+        },
+      ],
+    });
+
+    const mockAnalysis: ForgeSourceAnalysis = {
+      id: 'analysis-rich',
+      sourceRecord: {
+        id: 'analysis-rich',
+        fileName: 'engineering_manual.pdf',
+        mimeType: 'application/pdf',
+        kind: 'document',
+        receivedAt: 1000,
+      },
+      evidence: [],
+      candidates: [],
+      unknowns: [
+        {
+          id: 'unk-rc',
+          sourceId: 'analysis-rich',
+          category: 'cast',
+          question: 'How do atmospheric seals operate?',
+          targetEffect: 'Determines seal override latency.',
+          status: 'queued',
+          followUps: [],
+        },
+      ],
+      status: 'completed',
+    };
+
+    forgeActions.registerSourceAnalysis(mockAnalysis, 'binding-rich-1');
+
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        type: 'RESOLUTION_PROPOSAL',
+        sourceId: 'analysis-rich',
+        unknownId: 'unk-rc',
+        message: 'Atmospheric seal resolution synthesized.',
+        proposal: {
+          resolution: 'Manual override wheel in Airlock B initiates immediate pressure normalization.',
+          targetEffect: 'Airlock B locks engage.',
+        },
+      }),
+    });
+    globalThis.fetch = fetchMock;
+
+    await act(async () => {
+      root?.render(React.createElement(ArchitectChat));
+    });
+
+    const input = container?.querySelector('input') as HTMLInputElement;
+    await act(async () => {
+      setInputValue(input, 'Manual override wheel inside Airlock B');
+    });
+
+    await act(async () => {
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.kind).toBe('AMBIGUITY_RESOLUTION');
+    expect(body.draftContext.cast).toHaveLength(1);
+    expect(body.draftContext.cast[0].goals).toBe('Restore primary atmospheric seals.');
+    expect(body.draftContext.cast[0].traits).toEqual(['Disciplined', 'Claustrophobic']);
+
+    const state = getForgeState();
+    const unk = state.sourceAnalyses['analysis-rich']?.unknowns[0];
+    expect(unk.status).toBe('awaiting_confirmation');
+  });
+
+  it('displays explicit Reattach source required when source binding is missing or expired', async () => {
+    forgeActions.initializeDraft({ title: 'Test Scenario' });
+
+    const mockAnalysis: ForgeSourceAnalysis = {
+      id: 'analysis-nobinding',
+      sourceRecord: {
+        id: 'analysis-nobinding',
+        fileName: 'station_manifest.pdf',
+        mimeType: 'application/pdf',
+        kind: 'document',
+        receivedAt: 1000,
+      },
+      evidence: [],
+      candidates: [],
+      unknowns: [
+        {
+          id: 'unk-nb-1',
+          sourceId: 'analysis-nobinding',
+          category: 'identity',
+          question: 'What is the primary containment protocol?',
+          targetEffect: 'Determines bulkhead security level.',
+          status: 'queued',
+          followUps: [],
+        },
+      ],
+      status: 'completed',
+    };
+
+    // Register with binding, then remove binding from runtime map to simulate expired/lost binding
+    forgeActions.registerSourceAnalysis(mockAnalysis, 'binding-to-expire');
+    // delete from runtime map
+    const { removeRuntimeSourceBinding } = await import('../../store/useForgeStore');
+    removeRuntimeSourceBinding('analysis-nobinding');
+
+    const fetchMock = vi.fn();
+    globalThis.fetch = fetchMock;
+
+    await act(async () => {
+      root?.render(React.createElement(ArchitectChat));
+    });
+
+    const input = container?.querySelector('input') as HTMLInputElement;
+    await act(async () => {
+      setInputValue(input, 'Emergency purge protocol');
+    });
+
+    await act(async () => {
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    });
+
+    // Must NOT call fetch since client caught missing binding fail-closed
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    // Must display Reattach source required
+    expect(container?.textContent).toContain('Reattach source required');
+  });
+
+  it('functional retry sends the retained attempt and succeeds upon subsequent success', async () => {
+    forgeActions.initializeDraft({ title: 'Retry Scenario' });
+
+    const mockAnalysis: ForgeSourceAnalysis = {
+      id: 'analysis-retry',
+      sourceRecord: {
+        id: 'analysis-retry',
+        fileName: 'sub_schematic.pdf',
+        mimeType: 'application/pdf',
+        kind: 'document',
+        receivedAt: 1000,
+      },
+      evidence: [],
+      candidates: [],
+      unknowns: [
+        {
+          id: 'unk-retry-1',
+          sourceId: 'analysis-retry',
+          category: 'setting',
+          question: 'How is auxiliary power rerouted?',
+          targetEffect: 'Determines power failure mode.',
+          status: 'queued',
+          followUps: [],
+        },
+      ],
+      status: 'completed',
+    };
+
+    forgeActions.registerSourceAnalysis(mockAnalysis, 'binding-retry-1');
+
+    // First call fails with 500
+    let callCount = 0;
+    const fetchMock = vi.fn().mockImplementation(async () => {
+      callCount++;
+      if (callCount === 1) {
+        return {
+          ok: false,
+          status: 500,
+          json: async () => ({ error: 'Transient network failure' }),
+        };
+      }
+      return {
+        ok: true,
+        json: async () => ({
+          type: 'RESOLUTION_PROPOSAL',
+          sourceId: 'analysis-retry',
+          unknownId: 'unk-retry-1',
+          message: 'Auxiliary power proposal synthesized.',
+          proposal: {
+            resolution: 'Auxiliary generator switches automatically via breaker panel 3.',
+            targetEffect: 'Breaker panel 3 operates.',
+          },
+        }),
+      };
+    });
+    globalThis.fetch = fetchMock;
+
+    await act(async () => {
+      root?.render(React.createElement(ArchitectChat));
+    });
+
+    const input = container?.querySelector('input') as HTMLInputElement;
+    await act(async () => {
+      setInputValue(input, 'Automatic breaker panel 3 switch');
+    });
+
+    await act(async () => {
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(container?.textContent).toContain('Transient network failure');
+
+    // Click Retry button
+    const buttons = Array.from(container?.querySelectorAll('button') || []);
+    const retryBtn = buttons.find((b) => /retry/i.test(b.textContent || ''));
+    expect(retryBtn).toBeDefined();
+
+    await act(async () => {
+      retryBtn?.click();
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const secondCallBody = JSON.parse(fetchMock.mock.calls[1][1].body);
+    expect(secondCallBody.userMessage).toBe('Automatic breaker panel 3 switch');
+
+    const state = getForgeState();
+    const unk = state.sourceAnalyses['analysis-retry']?.unknowns[0];
+    expect(unk.status).toBe('awaiting_confirmation');
+    expect(unk.resolutionProposal?.resolution).toBe(
+      'Auxiliary generator switches automatically via breaker panel 3.'
+    );
+  });
 });

@@ -8,9 +8,10 @@ import {
   getRuntimeSourceBinding,
 } from '../../store/useForgeStore';
 import {
-  ForgeResolutionDraftPatch,
-  ForgeResolutionDraftPatchSchema,
-} from '../../types/forge';
+  buildArchitectAmbiguityResolutionRequest,
+  buildArchitectGeneralMessageRequest,
+  validateAmbiguityResponse,
+} from '../../lib/architectProtocol';
 import {
   HelpCircle,
   Sparkles,
@@ -25,121 +26,6 @@ import {
   Layers,
 } from 'lucide-react';
 
-interface ValidatedFollowUpResponse {
-  kind: 'VALID_FOLLOW_UP';
-  sourceId: string;
-  unknownId: string;
-  followUpQuestion: string;
-}
-
-interface ValidatedProposalResponse {
-  kind: 'VALID_PROPOSAL';
-  sourceId: string;
-  unknownId: string;
-  proposal: {
-    resolution: string;
-    targetEffect: string;
-    draftPatch?: ForgeResolutionDraftPatch;
-  };
-  message?: string;
-}
-
-type AmbiguityValidationResult =
-  | ValidatedFollowUpResponse
-  | ValidatedProposalResponse
-  | { kind: 'INVALID'; reason: string };
-
-function validateAmbiguityResponse(
-  data: unknown,
-  expectedSourceId: string,
-  expectedUnknownId: string
-): AmbiguityValidationResult {
-  if (!data || typeof data !== 'object' || Array.isArray(data)) {
-    return { kind: 'INVALID', reason: 'Response is not a valid JSON object.' };
-  }
-
-  const obj = data as Record<string, unknown>;
-  const { type, sourceId, unknownId } = obj;
-
-  if (typeof sourceId !== 'string' || !sourceId.trim() || sourceId !== expectedSourceId) {
-    return {
-      kind: 'INVALID',
-      reason: `Identity mismatch: sourceId "${String(sourceId)}" does not match expected "${expectedSourceId}"`,
-    };
-  }
-
-  if (typeof unknownId !== 'string' || !unknownId.trim() || unknownId !== expectedUnknownId) {
-    return {
-      kind: 'INVALID',
-      reason: `Identity mismatch: unknownId "${String(unknownId)}" does not match expected "${expectedUnknownId}"`,
-    };
-  }
-
-  if (type === 'FOLLOW_UP') {
-    const rawQuestion =
-      typeof obj.followUpQuestion === 'string' && obj.followUpQuestion.trim()
-        ? obj.followUpQuestion.trim()
-        : typeof obj.message === 'string' && obj.message.trim()
-        ? obj.message.trim()
-        : '';
-
-    if (!rawQuestion) {
-      return { kind: 'INVALID', reason: 'FOLLOW_UP response missing non-empty followUpQuestion.' };
-    }
-
-    return {
-      kind: 'VALID_FOLLOW_UP',
-      sourceId,
-      unknownId,
-      followUpQuestion: rawQuestion,
-    };
-  }
-
-  if (type === 'RESOLUTION_PROPOSAL') {
-    const proposal = obj.proposal;
-    if (!proposal || typeof proposal !== 'object' || Array.isArray(proposal)) {
-      return { kind: 'INVALID', reason: 'RESOLUTION_PROPOSAL response missing proposal object.' };
-    }
-
-    const propObj = proposal as Record<string, unknown>;
-    const resolution = typeof propObj.resolution === 'string' ? propObj.resolution.trim() : '';
-    const targetEffect = typeof propObj.targetEffect === 'string' ? propObj.targetEffect.trim() : '';
-
-    if (!resolution || !targetEffect) {
-      return {
-        kind: 'INVALID',
-        reason: 'RESOLUTION_PROPOSAL proposal missing non-empty resolution or targetEffect.',
-      };
-    }
-
-    let parsedDraftPatch: ForgeResolutionDraftPatch | undefined = undefined;
-    if (propObj.draftPatch !== undefined && propObj.draftPatch !== null) {
-      const patchValidation = ForgeResolutionDraftPatchSchema.safeParse(propObj.draftPatch);
-      if (!patchValidation.success) {
-        return {
-          kind: 'INVALID',
-          reason: `Invalid draftPatch in proposal: ${patchValidation.error.issues.map((i) => i.message).join(', ')}`,
-        };
-      }
-      parsedDraftPatch = patchValidation.data;
-    }
-
-    return {
-      kind: 'VALID_PROPOSAL',
-      sourceId,
-      unknownId,
-      proposal: {
-        resolution,
-        targetEffect,
-        draftPatch: parsedDraftPatch,
-      },
-      message: typeof obj.message === 'string' ? obj.message : undefined,
-    };
-  }
-
-  return { kind: 'INVALID', reason: `Unrecognized response type: "${String(type)}"` };
-}
-
 export const ArchitectChat: React.FC = () => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -151,6 +37,7 @@ export const ArchitectChat: React.FC = () => {
     userText: string;
     sourceId: string;
     unknownId: string;
+    isTerminalBindingLoss?: boolean;
   } | null>(null);
 
   const inputRef = useRef<HTMLInputElement>(null);
@@ -242,73 +129,79 @@ export const ArchitectChat: React.FC = () => {
 
     const historyPayload = messages.slice(-12).map((m) => ({ role: m.role, content: m.content }));
 
-    const draftContext = {
-      title: draft?.identity?.title || draft?.title || '',
-      premise: draft?.globalPremise || draft?.premise || '',
-      setting: draft?.setting || {},
-      cast: draft?.cast || [],
-      environmentalRules: draft?.environmentalRules || [],
-      ambiguities: draft?.ambiguities || [],
-      draftRevision: draftRevision || 1,
-    };
-
     const matchingAnalysis = sourceAnalyses
       ? Object.values(sourceAnalyses).find(
           (a) => a.id === targetSourceId || a.sourceRecord?.id === targetSourceId
         )
       : undefined;
-    const sourceFileName =
-      matchingAnalysis?.sourceRecord?.fileName || activeUnknownContext?.sourceFileName || '';
-    const sourceSummary = matchingAnalysis?.summary || '';
-    const relevantEvidence = (matchingAnalysis?.evidence || [])
-      .slice(0, 12)
-      .map((e) => ({
-        id: e.id,
-        category: e.category,
-        claim: e.claim,
-        excerpt: e.excerpt,
-      }));
 
-    const sourceContext = {
-      sourceFileName,
-      sourceSummary,
-      evidence: relevantEvidence,
-      canonicalAmbiguities: draft?.ambiguities || [],
-    };
+    const sourceBinding = getRuntimeSourceBinding(targetSourceId);
+
+    const buildResult = buildArchitectAmbiguityResolutionRequest({
+      userMessage: userText,
+      activeUnknown: {
+        sourceBinding,
+        sourceId: targetSourceId,
+        unknownId: targetUnknownId,
+        category: activeUnk?.category,
+        question: activeUnk?.question,
+        targetEffect: activeUnk?.targetEffect,
+        submittedAnswer: userText,
+        followUps: activeUnk?.followUps || [],
+      },
+      draft,
+      draftRevision: draftRevision || 1,
+      sourceAnalysis: matchingAnalysis,
+      history: historyPayload,
+    });
+
+    if (!buildResult.success) {
+      const failure = buildResult as { error: string; code: string };
+      const isTerminal = failure.code === 'MISSING_SOURCE_BINDING';
+      setLocalResolutionError(failure.error);
+      setFailedResolutionAttempt({
+        userText,
+        sourceId: targetSourceId,
+        unknownId: targetUnknownId,
+        isTerminalBindingLoss: isTerminal,
+      });
+      addArchitectMessage({
+        role: 'architect',
+        content: `Architect protocol failure: ${failure.error}`,
+      });
+      setIsLoading(false);
+      return;
+    }
 
     try {
       const response = await fetch('/api/architect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          kind: 'AMBIGUITY_RESOLUTION',
-          userMessage: userText,
-          activeUnknown: {
-            sourceBinding: getRuntimeSourceBinding(targetSourceId),
-            sourceId: targetSourceId,
-            unknownId: targetUnknownId,
-            category: activeUnk?.category,
-            question: activeUnk?.question,
-            targetEffect: activeUnk?.targetEffect,
-            submittedAnswer: userText,
-            followUps: activeUnk?.followUps || [],
-          },
-          draftContext,
-          sourceContext,
-          history: historyPayload,
-        }),
+        body: JSON.stringify(buildResult.request),
       });
 
       if (!response.ok) {
         let serverError = `Architect resolution failed with status ${response.status}`;
+        let isTerminal = false;
         try {
           const errBody = await response.json();
-          if (errBody && typeof errBody === 'object' && 'error' in errBody && typeof errBody.error === 'string') {
-            serverError = errBody.error;
+          if (errBody && typeof errBody === 'object') {
+            if ('error' in errBody && typeof errBody.error === 'string') {
+              serverError = errBody.error;
+            }
+            if ('code' in errBody && errBody.code === 'SOURCE_BINDING_EXPIRED') {
+              isTerminal = true;
+            }
           }
         } catch {
           // ignore non-json error
         }
+        setFailedResolutionAttempt({
+          userText,
+          sourceId: targetSourceId,
+          unknownId: targetUnknownId,
+          isTerminalBindingLoss: isTerminal,
+        });
         throw new Error(serverError);
       }
 
@@ -359,7 +252,7 @@ export const ArchitectChat: React.FC = () => {
     } catch (error) {
       const errStr = error instanceof Error ? error.message : 'Architect communication error.';
       setLocalResolutionError(errStr);
-      setFailedResolutionAttempt({
+      setFailedResolutionAttempt((prev) => prev || {
         userText,
         sourceId: targetSourceId,
         unknownId: targetUnknownId,
@@ -389,26 +282,33 @@ export const ArchitectChat: React.FC = () => {
       setIsLoading(true);
       const historyPayload = messages.slice(-12).map((m) => ({ role: m.role, content: m.content }));
 
-      const draftContext = {
-        title: draft?.identity?.title || draft?.title || '',
-        premise: draft?.globalPremise || draft?.premise || '',
-        setting: draft?.setting || {},
-        cast: draft?.cast || [],
-        environmentalRules: draft?.environmentalRules || [],
+      const buildResult = buildArchitectGeneralMessageRequest({
+        userMessage: userText,
+        draft,
         draftRevision: draftRevision || 1,
-      };
+        history: historyPayload,
+      });
+
+      if (!buildResult.success) {
+        const failure = buildResult as { error: string; code: string };
+        addArchitectMessage({
+          role: 'architect',
+          content: `Architect protocol error: ${failure.error}`,
+        });
+        setIsLoading(false);
+        return;
+      }
 
       try {
         const response = await fetch('/api/architect', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            kind: 'GENERAL_MESSAGE',
-            userMessage: userText,
-            draftContext,
-            history: historyPayload,
-          }),
+          body: JSON.stringify(buildResult.request),
         });
+
+        if (!response.ok) {
+          throw new Error(`Architect request failed with status ${response.status}`);
+        }
 
         const data = await response.json();
 
@@ -509,14 +409,20 @@ export const ArchitectChat: React.FC = () => {
                 <AlertTriangle className="w-3.5 h-3.5 text-red-400 shrink-0" />
                 <span className="truncate">{localResolutionError}</span>
               </div>
-              <button
-                type="button"
-                onClick={handleRetryResolution}
-                className="px-2 py-0.5 bg-red-900/60 hover:bg-red-800 border border-red-700 text-red-100 rounded text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 shrink-0 cursor-pointer"
-              >
-                <RotateCcw className="w-2.5 h-2.5" />
-                Retry
-              </button>
+              {failedResolutionAttempt?.isTerminalBindingLoss ? (
+                <span className="px-2 py-0.5 bg-amber-900/60 border border-amber-700 text-amber-200 rounded text-[10px] font-bold uppercase tracking-wider shrink-0">
+                  Reattach source required
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleRetryResolution}
+                  className="px-2 py-0.5 bg-red-900/60 hover:bg-red-800 border border-red-700 text-red-100 rounded text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 shrink-0 cursor-pointer"
+                >
+                  <RotateCcw className="w-2.5 h-2.5" />
+                  Retry
+                </button>
+              )}
             </div>
           )}
 

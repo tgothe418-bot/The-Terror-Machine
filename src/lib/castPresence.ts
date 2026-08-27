@@ -7,6 +7,14 @@ export interface CastPresenceSeed {
   id?: string | null;
   isUserCharacter?: boolean | null;
   starting_location?: string | null;
+  presenceDisposition?:
+    | { kind: 'AT_NODE'; nodeId: string }
+    | { kind: 'OFFSTAGE' }
+    | { kind: 'NONLOCAL' }
+    | 'AT_NODE'
+    | 'OFFSTAGE'
+    | 'NONLOCAL'
+    | null;
 }
 
 export function buildCharacterPresence(
@@ -72,6 +80,30 @@ export function buildCharacterPresence(
       continue;
     }
 
+    // Explicit Presence Disposition (Forge 1C Contract)
+    const disposition = member.presenceDisposition;
+    if (disposition) {
+      const dispKind = typeof disposition === 'object' ? disposition.kind : disposition;
+      if (dispKind === 'OFFSTAGE' || dispKind === 'NONLOCAL') {
+        // Deliberately offstage or nonlocal; do not seed a local node or fall back to player room
+        continue;
+      }
+      if (dispKind === 'AT_NODE') {
+        const targetNode =
+          typeof disposition === 'object' && 'nodeId' in disposition && disposition.nodeId
+            ? disposition.nodeId.trim()
+            : member.starting_location?.trim();
+        if (targetNode && validNodesSet.has(targetNode)) {
+          result[charId] = {
+            nodeId: targetNode,
+          };
+        }
+        // If targetNode is missing or invalid, do not silently co-locate with player
+        continue;
+      }
+    }
+
+    // Legacy Blueprint Fallback Path (when presenceDisposition is absent)
     const authoredLoc = member.starting_location;
     if (
       typeof authoredLoc === 'string' &&

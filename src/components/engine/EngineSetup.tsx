@@ -151,7 +151,8 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
       previewBlueprint.topology.nodes &&
       previewBlueprint.topology.nodes.length > 0
     ) {
-      const startNodeId = previewBlueprint.topology.nodes[0];
+      const startNodeId =
+        previewBlueprint.topology.startingNodeId || previewBlueprint.topology.nodes[0];
       compileTopology(previewBlueprint.topology, startNodeId);
     }
 

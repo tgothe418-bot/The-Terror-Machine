@@ -95,6 +95,8 @@ export const EngineTurnContextSchema = z.object({
     name: z.string().default('Protagonist'),
     description: z.string().default(''),
     isEntity: z.boolean().default(false),
+    openingAim: z.string().optional(),
+    sovereigntyInstruction: z.string().optional(),
   }),
   cast: z
     .array(

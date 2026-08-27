@@ -12,7 +12,6 @@ import {
   ShieldAlert,
   Layers,
   MapPin,
-  Users,
   HelpCircle,
   RefreshCw,
   AlertTriangle,
@@ -170,7 +169,27 @@ export const ExportReviewModal: React.FC<ExportReviewModalProps> = ({ isOpen, on
   const effectiveLocation = displayBlueprint?.setting?.location || '';
   const castCount = displayBlueprint?.cast?.length || 0;
   const topologyNodeCount =
-    displayBlueprint?.topology?.nodes?.length || Object.keys(displayBlueprint?.topology || {}).length;
+    displayBlueprint?.topology?.nodeDefinitions?.length ||
+    displayBlueprint?.topology?.nodes?.length ||
+    0;
+  const connectionCount = displayBlueprint?.topology?.connections?.length || 0;
+  const startingNodeId =
+    displayBlueprint?.topology?.startingNodeId ||
+    displayBlueprint?.topology?.nodes?.[0] ||
+    'Unset';
+  const expansionAnchorCount = displayBlueprint?.topology?.anchors?.length || 0;
+  const castList = displayBlueprint?.cast || [];
+  const atNodeCount = castList.filter(
+    (c) =>
+      c.presenceDisposition?.kind === 'AT_NODE' ||
+      (c.starting_location && !c.presenceDisposition)
+  ).length;
+  const offstageCount = castList.filter(
+    (c) => c.presenceDisposition?.kind === 'OFFSTAGE'
+  ).length;
+  const nonlocalCount = castList.filter(
+    (c) => c.presenceDisposition?.kind === 'NONLOCAL'
+  ).length;
   const contract = displayBlueprint?.depictionContract;
   const ambiguitiesCount = displayBlueprint?.ambiguities?.length || 0;
   const sourceSummary = validation.sourceSummary;
@@ -376,16 +395,20 @@ export const ExportReviewModal: React.FC<ExportReviewModalProps> = ({ isOpen, on
               </div>
               <div className="bg-zinc-900/40 border border-zinc-800/80 p-3 rounded">
                 <span className="text-zinc-500 uppercase text-[10px] block mb-1">
-                  Cast & Spatial Manifest
+                  Cast & Story Map Manifest
                 </span>
-                <span className="font-bold text-zinc-200 flex items-center gap-3">
-                  <span className="flex items-center gap-1">
-                    <Users className="w-3.5 h-3.5 text-zinc-500" />
-                    {castCount} {castCount === 1 ? 'member' : 'members'}
-                  </span>
-                  <span className="text-zinc-600">|</span>
-                  <span>{topologyNodeCount} spatial nodes</span>
-                </span>
+                <div className="space-y-1">
+                  <div className="font-bold text-zinc-200 flex items-center justify-between text-[11px]">
+                    <span>{topologyNodeCount} nodes · {connectionCount} connections</span>
+                    <span className="text-cyan-400 font-mono text-[10px]">Start: {startingNodeId}</span>
+                  </div>
+                  <div className="text-[10px] text-zinc-400 flex items-center justify-between">
+                    <span>{castCount} cast ({atNodeCount} at node · {offstageCount} off · {nonlocalCount} non-local)</span>
+                    {expansionAnchorCount > 0 && (
+                      <span className="text-purple-300">+{expansionAnchorCount} anchors</span>
+                    )}
+                  </div>
+                </div>
               </div>
               <div className="bg-zinc-900/40 border border-zinc-800/80 p-3 rounded sm:col-span-2">
                 <span className="text-zinc-500 uppercase text-[10px] block mb-1">

@@ -867,12 +867,12 @@ router.post("/extract-blueprint", async (req, res) => {
           {
             "id": "cand-1",
             "classification": "evidence or inference",
-            "target": "one of: scenario_title, premise, setting_location, setting_atmosphere, setting_time_period, environmental_rule, narrative_rule, cast_seed, cast_expression_guidance, initial_topology_node, reference_attribution, value_anchor, character_pursuit",
+            "target": "one of: scenario_title, premise, setting_location, setting_atmosphere, setting_time_period, environmental_rule, narrative_rule, cast_seed, cast_expression_guidance, initial_topology_node, topology_node, topology_connection, starting_node_selection, expandable_space_anchor, cast_opening_placement, reference_attribution, value_anchor, character_pursuit, user_opening_aim_default",
             "label": "Short human-readable label",
             "explanation": "Why this candidate was extracted from the evidence",
             "evidenceIds": ["ev-1"],
-            "proposedValue": "value matching the target (string for title/premise/setting/rule/node/reference; full cast member object for cast_seed; expression profile object for cast_expression_guidance; value anchor object for value_anchor; character pursuit object for character_pursuit)",
-            "targetCastMemberId": "optional cast member id (required if target is cast_expression_guidance or character_pursuit)"
+            "proposedValue": "value matching the target (string for title/premise/setting/rule/start_node/reference; full cast member object for cast_seed; expression profile for cast_expression_guidance; node object for topology_node; connection object for topology_connection; anchor object for expandable_space_anchor; placement object for cast_opening_placement; value anchor object for value_anchor; character pursuit object for character_pursuit; user opening aim object or string for user_opening_aim_default)",
+            "targetCastMemberId": "optional cast member id (required if target is cast_expression_guidance, cast_opening_placement, character_pursuit, or user_opening_aim_default)"
           }
         ],
         "unknowns": [
@@ -894,15 +894,25 @@ router.post("/extract-blueprint", async (req, res) => {
          - 'setting_time_period': String time era/period.
          - 'environmental_rule': Discrete environmental or physical law string.
          - 'narrative_rule': Discrete plot element or dramatic rule string.
-         - 'cast_seed': Object with { name, role, description, isEntity, behaviorVector, vulnerabilityBase: { resilience, skepticism, baggage } }.
+         - 'cast_seed': Object with { id?, name, role, description, isEntity, behaviorVector, vulnerabilityBase: { resilience, skepticism, baggage } }.
          - 'cast_expression_guidance': Object with { communicationModes: string[], expressionGuidance: string, silenceGuidance?: string } and matching targetCastMemberId.
+         - 'topology_node': Object with { id, label, description, sensoryGuidance? } for compact, story-important main opening spaces.
+         - 'topology_connection': Object with { from, to, kind, requires?: string[], userInitiated: boolean } for directed paths between main nodes.
+         - 'starting_node_selection': String node ID of the authoritative opening node.
+         - 'expandable_space_anchor': Object with { id, parentNodeId, label, description, statement } for secondary spatial regions not instantiated as opening nodes.
+         - 'cast_opening_placement': Object with { kind: 'AT_NODE', nodeId: string } | { kind: 'OFFSTAGE' } | { kind: 'NONLOCAL' } with targetCastMemberId.
          - 'value_anchor': Object with { id, holder: { kind, ... }, label, description, basisSummary, provenance: { kind: 'REVIEWED_SOURCE', sourceId, evidenceIds } }.
          - 'character_pursuit': Object with { id, castMemberId, objective, presentApproach, locationNodeId?, status: 'ACTIVE'|'DORMANT', reviewWindow: 'MOMENT'|'SCENE_BEAT'|'EXTENDED'|'EVENT_DRIVEN', triggerReferences: string[], basisSummary, provenance: { kind: 'REVIEWED_SOURCE', sourceId, evidenceIds } }.
+         - 'user_opening_aim_default': Object with { castMemberId, disposition: 'ACCEPTED_REFERENCE', aimText: string, provenance: { kind: 'REVIEWED_SOURCE', sourceId, evidenceIds } } for user-controlled protagonist.
          - 'initial_topology_node': String spatial node name.
          - 'reference_attribution': The document file name "${fileName}".
-      2. Comprehensive Casting: Extract all primary characters and entities/monsters found in the document.
-      3. Values and Pursuits: Extract fictional states characters strive to preserve/attain, and what non-User characters are currently pursuing.
-      4. Evidence backing: Link candidate evidenceIds to corresponding entries in the evidence list.
+      2. Compact Story Map Policy: Extract only story-important opening spaces and directed connections. Represent secondary spaces as expandable_space_anchors attached to parent nodes.
+      3. Cast Opening Placement: Provide explicit placement (AT_NODE, OFFSTAGE, or NONLOCAL) for extracted cast members.
+      4. Comprehensive Casting: Extract all primary characters and entities/monsters found in the document.
+      5. User Sovereignty & Motives:
+         - For user-controlled characters: extract 'user_opening_aim_default' as historical context only (never an HG1 pursuit).
+         - For non-user characters: extract 'character_pursuit' with concrete objective and present approach. When intent is unknown or unavailable in the reference, do not fabricate goals.
+      6. Evidence backing: Link candidate evidenceIds to corresponding entries in the evidence list.
     `;
 
     const aiClient = getAiClient();

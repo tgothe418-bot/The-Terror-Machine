@@ -44,6 +44,7 @@ import {
   CharacterDevelopmentReceipt,
   PressureThreadTransitionReceipt,
   HorrorGrammarForensicRecord,
+  UserOpeningAimSchema,
 } from './horrorGrammar';
 export * from './engineContract';
 export * from './participation';
@@ -90,6 +91,29 @@ export const TopologyEdgeSchema = z.object({
   legacyUpgraded: z.boolean().optional(),
 });
 
+export const ForgeTopologyNodeSchema = z.object({
+  id: z.string().min(1),
+  label: z.string().min(1),
+  description: z.string().optional(),
+  classification: z.enum(['evidence', 'inference', 'creator']).optional(),
+  evidenceIds: z.array(z.string()).optional(),
+  sensoryGuidance: z.string().optional(),
+});
+
+export type ForgeTopologyNode = z.infer<typeof ForgeTopologyNodeSchema>;
+
+export const ForgeExpandableAnchorSchema = z.object({
+  id: z.string().min(1),
+  parentNodeId: z.string().min(1),
+  label: z.string().min(1),
+  description: z.string().optional(),
+  classification: z.enum(['evidence', 'inference', 'creator']).optional(),
+  evidenceIds: z.array(z.string()).optional(),
+  statement: z.string().optional(),
+});
+
+export type ForgeExpandableAnchor = z.infer<typeof ForgeExpandableAnchorSchema>;
+
 export const VulnerabilityIndexSchema = z.object({
   resilience: z.number().min(0).max(1).default(0.5),
   skepticism: z.number().min(0).max(1).default(0.5),
@@ -97,6 +121,24 @@ export const VulnerabilityIndexSchema = z.object({
 });
 
 export type VulnerabilityIndex = z.infer<typeof VulnerabilityIndexSchema>;
+
+export const PresenceDispositionKindSchema = z.enum(['AT_NODE', 'OFFSTAGE', 'NONLOCAL']);
+export type PresenceDispositionKind = z.infer<typeof PresenceDispositionKindSchema>;
+
+export const CharacterPresenceDispositionSchema = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('AT_NODE'),
+    nodeId: z.string().min(1),
+  }),
+  z.object({
+    kind: z.literal('OFFSTAGE'),
+  }),
+  z.object({
+    kind: z.literal('NONLOCAL'),
+  }),
+]);
+
+export type CharacterPresenceDisposition = z.infer<typeof CharacterPresenceDispositionSchema>;
 
 export const CastMemberSchema = z.object({
   id: z.string().default(() => `char-${Date.now()}`),
@@ -110,6 +152,7 @@ export const CastMemberSchema = z.object({
   behaviorVector: z.string().optional().default('ADAPTIVE'),
   isEntity: z.boolean().optional().default(false),
   starting_location: z.string().optional().default(''),
+  presenceDisposition: CharacterPresenceDispositionSchema.optional(),
   vulnerabilityBase: VulnerabilityIndexSchema.optional(),
   expressionProfile: CharacterExpressionProfileSchema.optional(),
 });
@@ -140,11 +183,14 @@ export const BlueprintSchema = z.object({
 
   topology: z
     .object({
+      startingNodeId: z.string().optional(),
       nodes: z.array(z.string()).optional().default([]),
+      nodeDefinitions: z.array(ForgeTopologyNodeSchema).optional().default([]),
       connections: z.array(TopologyEdgeSchema).optional().default([]),
+      anchors: z.array(ForgeExpandableAnchorSchema).optional().default([]),
     })
     .optional()
-    .default({ nodes: [], connections: [] }),
+    .default({ nodes: [], nodeDefinitions: [], connections: [], anchors: [] }),
   userCharacterId: z.string().optional(),
 
   setting: z
@@ -201,6 +247,7 @@ export const BlueprintSchema = z.object({
   hauntedHouse: HauntedHouseProvenanceSchema.optional(),
   ambiguities: BlueprintAmbiguityDecisionsSchema.optional().default([]),
   depictionContract: DepictionContractSchema.optional(),
+  userOpeningAim: UserOpeningAimSchema.optional(),
   horrorGrammar: HorrorGrammarAuthoringSchema.optional().default(() => ({
     valueBaselineReview: 'UNREVIEWED' as const,
     pursuitReviews: {},

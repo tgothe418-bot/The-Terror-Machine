@@ -90,8 +90,26 @@ function normalizeLegacyBlueprintShape(raw: unknown): unknown {
         }
       }
 
+      let startingNodeIdNormalized: unknown = topoRecord.startingNodeId;
+      if (!startingNodeIdNormalized && Array.isArray(topoRecord.nodes) && topoRecord.nodes.length > 0) {
+        startingNodeIdNormalized = topoRecord.nodes[0];
+      }
+
+      let nodesNormalized: unknown = topoRecord.nodes;
+      if (
+        (!Array.isArray(nodesNormalized) || nodesNormalized.length === 0) &&
+        Array.isArray(topoRecord.nodeDefinitions) &&
+        topoRecord.nodeDefinitions.length > 0
+      ) {
+        nodesNormalized = topoRecord.nodeDefinitions
+          .map((d: unknown) => (isRecord(d) && typeof d.id === 'string' ? d.id : null))
+          .filter((id: string | null): id is string => id !== null);
+      }
+
       topologyNormalized = {
         ...topoRecord,
+        ...(startingNodeIdNormalized !== undefined ? { startingNodeId: startingNodeIdNormalized } : {}),
+        ...(nodesNormalized !== undefined ? { nodes: nodesNormalized } : {}),
         ...(connectionsNormalized !== undefined ? { connections: connectionsNormalized } : {}),
       };
     }
@@ -160,6 +178,11 @@ function normalizeLegacyBlueprintShape(raw: unknown): unknown {
     globalPremiseNormalized = rawRecord.premise;
   }
 
+  let userOpeningAimNormalized: unknown = rawRecord.userOpeningAim;
+  if (!userOpeningAimNormalized && isRecord(rawRecord.horrorGrammar) && rawRecord.horrorGrammar.userOpeningAim) {
+    userOpeningAimNormalized = rawRecord.horrorGrammar.userOpeningAim;
+  }
+
   return {
     ...rawRecord,
     ...(topologyNormalized !== undefined ? { topology: topologyNormalized } : {}),
@@ -168,6 +191,7 @@ function normalizeLegacyBlueprintShape(raw: unknown): unknown {
     ...(topPremiseNormalized !== undefined ? { premise: topPremiseNormalized } : {}),
     ...(globalPremiseNormalized !== undefined ? { globalPremise: globalPremiseNormalized } : {}),
     ...(protagonistId !== undefined ? { userCharacterId: protagonistId } : {}),
+    ...(userOpeningAimNormalized !== undefined ? { userOpeningAim: userOpeningAimNormalized } : {}),
   };
 }
 

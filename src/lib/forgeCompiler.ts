@@ -144,10 +144,134 @@ export function validateForgeDraft(rawDraft: unknown): ForgeValidationResult {
     }
   }
 
-  // 7. Horror Grammar Foundations (Values & Pursuits)
+  // 7. Topology Story Map & Opening Placement Validation
+  const nodeDefs = draft.topology?.nodeDefinitions || [];
+  const rawNodes = draft.topology?.nodes || [];
+  const allNodeIds = new Set<string>();
+  const seenNodeIds = new Set<string>();
+
+  nodeDefs.forEach((def, idx) => {
+    if (!def.id || !def.id.trim()) {
+      errors[`topology.nodeDefinitions[${idx}].id`] = ['Node definition ID cannot be empty'];
+    } else {
+      if (seenNodeIds.has(def.id)) {
+        errors[`topology.nodeDefinitions[${idx}].id`] = [`Duplicate node ID: "${def.id}"`];
+      }
+      seenNodeIds.add(def.id);
+      allNodeIds.add(def.id);
+    }
+  });
+
+  rawNodes.forEach((n, idx) => {
+    if (n && n.trim()) {
+      const clean = n.trim();
+      if (!seenNodeIds.has(clean)) {
+        seenNodeIds.add(clean);
+        allNodeIds.add(clean);
+      }
+    } else {
+      errors[`topology.nodes[${idx}]`] = ['Topology node ID cannot be empty'];
+    }
+  });
+
+  if (allNodeIds.size === 0) {
+    errors['topology.nodes'] = ['At least one main-map node is required to compile a scenario'];
+  }
+
+  // Validate starting node ID
+  if (draft.topology?.startingNodeId) {
+    if (!allNodeIds.has(draft.topology.startingNodeId)) {
+      errors['topology.startingNodeId'] = [
+        `Starting node ID references unknown topology node: "${draft.topology.startingNodeId}"`,
+      ];
+    }
+  }
+
+  // Validate directed connections
+  const connections = draft.topology?.connections || [];
+  const seenDirectedEdges = new Set<string>();
+  connections.forEach((conn, idx) => {
+    if (!conn) return;
+    const from = typeof conn === 'string' ? conn.split('->')[0]?.trim() : conn.from;
+    const to = typeof conn === 'string' ? conn.split('->')[1]?.trim() : conn.to;
+    const fieldPrefix = `topology.connections[${idx}]`;
+
+    if (!from || (allNodeIds.size > 0 && !allNodeIds.has(from))) {
+      errors[`${fieldPrefix}.from`] = [
+        `Connection source endpoint references unknown node ID: "${from || 'unspecified'}"`,
+      ];
+    }
+    if (!to || (allNodeIds.size > 0 && !allNodeIds.has(to))) {
+      errors[`${fieldPrefix}.to`] = [
+        `Connection target endpoint references unknown node ID: "${to || 'unspecified'}"`,
+      ];
+    }
+
+    if (from && to) {
+      const edgeKey = `${from}->${to}`;
+      if (seenDirectedEdges.has(edgeKey)) {
+        errors[fieldPrefix] = [`Duplicate directed connection: "${edgeKey}"`];
+      }
+      seenDirectedEdges.add(edgeKey);
+    }
+  });
+
+  // Validate expandable space anchors
+  const expAnchors = draft.topology?.anchors || [];
+  const seenExpAnchorIds = new Set<string>();
+  expAnchors.forEach((anchor, idx) => {
+    const fieldPrefix = `topology.anchors[${idx}]`;
+    if (seenExpAnchorIds.has(anchor.id)) {
+      errors[`${fieldPrefix}.id`] = [`Duplicate expandable anchor ID: "${anchor.id}"`];
+    }
+    seenExpAnchorIds.add(anchor.id);
+
+    if (allNodeIds.size > 0 && !allNodeIds.has(anchor.parentNodeId)) {
+      errors[`${fieldPrefix}.parentNodeId`] = [
+        `Expansion anchor parent node references unknown node ID: "${anchor.parentNodeId}"`,
+      ];
+    }
+  });
+
+  // Validate cast opening placements
+  if (draft.cast && draft.cast.length > 0) {
+    draft.cast.forEach((member, idx) => {
+      const fieldKey = `cast[${idx}].presenceDisposition`;
+      const memberName = member.name || member.id;
+      if (member.presenceDisposition) {
+        if (member.presenceDisposition.kind === 'AT_NODE') {
+          const targetNode = member.presenceDisposition.nodeId;
+          if (allNodeIds.size > 0 && !allNodeIds.has(targetNode)) {
+            errors[fieldKey] = [
+              `AT_NODE placement for "${memberName}" references unknown node ID: "${targetNode}"`,
+            ];
+          }
+        } else if (member.presenceDisposition.kind === 'NONLOCAL') {
+          if (!member.isEntity) {
+            errors[fieldKey] = [
+              `NONLOCAL placement is only permitted for Entity cast members ("${memberName}" is not marked as an entity)`,
+            ];
+          }
+        }
+      } else if (member.starting_location && member.starting_location.trim().length > 0) {
+        const targetNode = member.starting_location.trim();
+        if (allNodeIds.size > 0 && !allNodeIds.has(targetNode)) {
+          errors[fieldKey] = [
+            `Opening placement location for "${memberName}" references unknown node ID: "${targetNode}"`,
+          ];
+        }
+      } else {
+        errors[fieldKey] = [
+          `Opening placement disposition is required for cast member "${memberName}"`,
+        ];
+      }
+    });
+  }
+
+  // 8. Horror Grammar Foundations (Values & Pursuits)
   const hg = draft.horrorGrammar;
   const validCastIds = new Set(draft.cast?.map((c) => c.id).filter(Boolean) || []);
-  const validNodeIds = new Set(draft.topology?.nodes?.filter(Boolean) || []);
+  const validNodeIds = allNodeIds;
   const userCastIds = new Set(
     draft.cast?.filter((c) => c.isUserCharacter).map((c) => c.id).filter(Boolean) || []
   );
@@ -273,6 +397,66 @@ export function validateForgeDraft(rawDraft: unknown): ForgeValidationResult {
         ];
       }
     });
+  }
+
+  // 9. User-Controlled Character Opening Aim Validation
+  const userMembers = draft.cast?.filter((c) => c.isUserCharacter) || [];
+  for (const userChar of userMembers) {
+    if (hg?.pursuitReviews && hg.pursuitReviews[userChar.id]) {
+      errors[`horrorGrammar.pursuitReviews.${userChar.id}`] = [
+        'User-controlled characters cannot be registered in non-user pursuit reviews',
+      ];
+    }
+  }
+
+  if (userMembers.length > 0) {
+    const userChar = userMembers[0];
+    const userCharName = userChar.name || userChar.id;
+    const userAim = draft.userOpeningAim || hg?.userOpeningAim;
+
+    if (!userAim || userAim.disposition === 'UNREVIEWED') {
+      errors['userOpeningAim'] = [
+        `User-controlled character opening aim review disposition is required for "${userCharName}" (Accept reference default, Use my own aim, or None declared)`,
+      ];
+    } else {
+      if (userAim.castMemberId !== userChar.id) {
+        errors['userOpeningAim.castMemberId'] = [
+          `User opening aim cast member ID "${userAim.castMemberId}" does not match user character ID "${userChar.id}"`,
+        ];
+      }
+
+      if (userAim.disposition === 'ACCEPTED_REFERENCE') {
+        if (!userAim.aimText || !userAim.aimText.trim()) {
+          errors['userOpeningAim.aimText'] = [
+            'Accepted reference opening aim requires non-empty aim text',
+          ];
+        }
+        if (!userAim.provenance || userAim.provenance.kind !== 'REVIEWED_SOURCE') {
+          errors['userOpeningAim.provenance'] = [
+            'Accepted reference opening aim requires reviewed source provenance',
+          ];
+        } else if (
+          !userAim.provenance.sourceId ||
+          !userAim.provenance.evidenceIds ||
+          userAim.provenance.evidenceIds.length === 0
+        ) {
+          errors['userOpeningAim.provenance'] = [
+            'Accepted reference opening aim requires valid sourceId and at least one evidence ID',
+          ];
+        }
+      } else if (userAim.disposition === 'CREATOR_OVERRIDE') {
+        if (!userAim.aimText || !userAim.aimText.trim()) {
+          errors['userOpeningAim.aimText'] = [
+            'Custom creator-defined opening aim requires non-empty aim text',
+          ];
+        }
+        if (userAim.provenance && userAim.provenance.kind === 'REVIEWED_SOURCE') {
+          errors['userOpeningAim.provenance'] = [
+            'Creator-defined opening aim must not retain false source-evidence attribution',
+          ];
+        }
+      }
+    }
   }
 
   return {

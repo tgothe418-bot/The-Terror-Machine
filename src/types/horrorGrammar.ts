@@ -170,12 +170,34 @@ export const PursuitReviewStateSchema = z.enum([
 ]);
 export type PursuitReviewState = z.infer<typeof PursuitReviewStateSchema>;
 
+export const UserOpeningAimReviewDispositionSchema = z.enum([
+  'UNREVIEWED',
+  'ACCEPTED_REFERENCE',
+  'CREATOR_OVERRIDE',
+  'NONE_DECLARED',
+]);
+export type UserOpeningAimReviewDisposition = z.infer<typeof UserOpeningAimReviewDispositionSchema>;
+
+export const UserOpeningAimSchema = z
+  .object({
+    castMemberId: z.string().min(1, 'Cast member ID is required for user opening aim'),
+    disposition: UserOpeningAimReviewDispositionSchema.default('UNREVIEWED'),
+    aimText: z.string().trim().default(''),
+    provenance: ReviewedProvenanceSchema.optional(),
+    reviewedAt: z.number().optional(),
+    sourceDraftRevision: z.number().optional(),
+    sourceBaselineRevision: z.number().optional(),
+  })
+  .strict();
+export type UserOpeningAim = z.infer<typeof UserOpeningAimSchema>;
+
 export const HorrorGrammarAuthoringSchema = z
   .object({
     valueBaselineReview: ValueBaselineReviewStateSchema.default('UNREVIEWED'),
     pursuitReviews: z.record(z.string(), PursuitReviewStateSchema).default({}),
     valueAnchors: z.array(ValueAnchorSchema).default([]),
     characterPursuits: z.array(CharacterPursuitSchema).default([]),
+    userOpeningAim: UserOpeningAimSchema.optional(),
   })
   .strict();
 export type HorrorGrammarAuthoring = z.infer<typeof HorrorGrammarAuthoringSchema>;

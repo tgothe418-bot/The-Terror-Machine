@@ -1457,5 +1457,109 @@ describe('Forge Routes: /api/extract-blueprint', () => {
       const resJson = await res.json();
       expect(resJson.code).toBe('SOURCE_BINDING_EXPIRED');
     });
+
+    it('accepts AMBIGUITY_RESOLUTION request with rich cast properties without returning HTTP 400', async () => {
+      clearServerSourceRegistry();
+
+      const binding = registerServerSource({
+        id: 'src-rich-cast',
+        sourceRecord: {
+          id: 'src-rich-cast',
+          fileName: 'station_manifest.pdf',
+          mimeType: 'application/pdf',
+          kind: 'document',
+          receivedAt: Date.now(),
+        },
+        summary: 'Rich cast summary',
+        evidence: [],
+        candidates: [],
+        unknowns: [
+          {
+            id: 'unk-rc-1',
+            sourceId: 'src-rich-cast',
+            category: 'cast',
+            question: 'What is the subject containment routine?',
+            targetEffect: 'Defines protocol',
+            status: 'queued',
+            followUps: [],
+          },
+        ],
+        status: 'completed',
+      });
+
+      mockGenerateContent.mockResolvedValueOnce({
+        text: JSON.stringify({
+          type: 'RESOLUTION_PROPOSAL',
+          sourceId: 'src-rich-cast',
+          unknownId: 'unk-rc-1',
+          message: 'Proposal synthesized with rich cast context.',
+          proposal: {
+            resolution: 'Strict airlock containment protocol.',
+            targetEffect: 'Automated locks engage.',
+          },
+        }),
+      });
+
+      const res = await fetch(`${baseUrl}/api/architect`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          kind: 'AMBIGUITY_RESOLUTION',
+          userMessage: 'Strict vacuum airlock protocol',
+          activeUnknown: {
+            sourceBinding: binding,
+            sourceId: 'src-rich-cast',
+            unknownId: 'unk-rc-1',
+            followUps: [],
+          },
+          draftContext: {
+            title: 'Station Benthos',
+            premise: 'A research facility deep in the abyss.',
+            setting: {
+              location: 'Mariana Trench',
+              atmosphere: 'Claustrophobic, damp',
+              timePeriod: '1982',
+            },
+            cast: [
+              {
+                id: 'char-1',
+                name: 'Dr. Aris Calder',
+                role: 'PROTAGONIST',
+                description: 'Senior oceanographic researcher.',
+                personality: 'Methodical and analytical.',
+                goals: 'Survive and secure sample containers.',
+                traits: ['Stoic', 'Exhausted'],
+                isUserCharacter: true,
+                isEntity: false,
+                behaviorVector: 'CAUTIOUS',
+                starting_location: 'SECTOR_LAB',
+              },
+              {
+                id: 'char-2',
+                name: 'The Abyssal Echo',
+                role: 'ENTITY',
+                description: 'An acoustic entity.',
+                personality: 'Alien, predatory.',
+                goals: 'Lure crew into flood chambers.',
+                traits: ['Resonant', 'Incorporeal'],
+                isUserCharacter: false,
+                isEntity: true,
+                behaviorVector: 'PREDATORY',
+                starting_location: 'FLOOD_CHAMBER',
+              },
+            ],
+            environmentalRules: ['Bulkheads lock automatically on breach'],
+            ambiguities: [],
+            draftRevision: 2,
+          },
+          history: [],
+        }),
+      });
+
+      expect(res.status).toBe(200);
+      const resJson = await res.json();
+      expect(resJson.type).toBe('RESOLUTION_PROPOSAL');
+      expect(resJson.proposal.resolution).toBe('Strict airlock containment protocol.');
+    });
   });
 });

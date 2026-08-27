@@ -28,17 +28,26 @@ describe('Forge Readiness & Compilation (Packet 1-1)', () => {
         name: 'Technician Ray',
         isUserCharacter: true,
         role: 'Protagonist',
+        presenceDisposition: { kind: 'AT_NODE', nodeId: 'NODE_AIRLOCK' },
       },
       {
         id: 'char-npc-1',
         name: 'Dr. Aris',
         isUserCharacter: false,
         role: 'Chief Researcher',
+        presenceDisposition: { kind: 'AT_NODE', nodeId: 'NODE_LAB' },
       },
     ],
     topology: {
+      startingNodeId: 'NODE_AIRLOCK',
       nodes: ['NODE_AIRLOCK', 'NODE_LAB'],
       connections: [],
+    },
+    userOpeningAim: {
+      castMemberId: 'char-user',
+      disposition: 'NONE_DECLARED',
+      aimText: '',
+      reviewedAt: Date.now(),
     },
     depictionContract: {
       dramaticRegister: 'Clinical realism',

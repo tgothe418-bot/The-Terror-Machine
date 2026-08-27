@@ -1,4 +1,5 @@
 import { SpatialNode, TopologyEdge } from '../types';
+import { ForgeTopologyNode, ForgeExpandableAnchor } from '../types/forge';
 
 export interface CompiledTopologyResult {
   spatialGraph: SpatialNode[];
@@ -7,8 +8,11 @@ export interface CompiledTopologyResult {
 
 export interface CompileRuntimeTopologyOptions {
   topology?: {
+    startingNodeId?: string;
     nodes?: string[];
+    nodeDefinitions?: ForgeTopologyNode[];
     connections?: TopologyEdge[];
+    anchors?: ForgeExpandableAnchor[];
   };
   fallbackSetting?: {
     location?: string;
@@ -19,14 +23,36 @@ export interface CompileRuntimeTopologyOptions {
 /**
  * Pure, typed runtime topology compiler.
  * Transforms authored Blueprint topology into the SpatialNode[] graph required by the runtime.
+ * Preserves authored node labels, descriptions, and explicit startingNodeId.
+ * Expandable anchors remain absent from initial runtime nodes and exits.
  */
 export function compileRuntimeTopology(
   options: CompileRuntimeTopologyOptions = {}
 ): CompiledTopologyResult {
-  const nodes = options.topology?.nodes || [];
+  const nodeDefs = options.topology?.nodeDefinitions || [];
+  const rawNodes = options.topology?.nodes || [];
+
+  // Union of node IDs preserving order: nodeDefinitions first, then any extra raw nodes
+  const nodeIds: string[] = [];
+  const seenIds = new Set<string>();
+
+  for (const def of nodeDefs) {
+    if (def?.id && !seenIds.has(def.id)) {
+      seenIds.add(def.id);
+      nodeIds.push(def.id);
+    }
+  }
+
+  for (const n of rawNodes) {
+    if (n && !seenIds.has(n)) {
+      seenIds.add(n);
+      nodeIds.push(n);
+    }
+  }
+
   const connections = options.topology?.connections || [];
 
-  if (nodes.length === 0) {
+  if (nodeIds.length === 0) {
     const rawLoc = options.fallbackSetting?.location || 'ORIGIN';
     const fallbackId = rawLoc.trim().replace(/\s+/g, '_').toUpperCase() || 'ORIGIN';
     const fallbackName = options.fallbackSetting?.location || 'Origin';
@@ -46,7 +72,7 @@ export function compileRuntimeTopology(
     };
   }
 
-  const spatialGraph: SpatialNode[] = nodes.map((nodeId) => {
+  const spatialGraph: SpatialNode[] = nodeIds.map((nodeId) => {
     // Exits are derived strictly from outgoing connections where `conn.from === nodeId`
     const outgoing = connections.filter((conn) => conn.from === nodeId);
     const connectedNodes = Array.from(new Set(outgoing.map((conn) => conn.to)));
@@ -60,17 +86,23 @@ export function compileRuntimeTopology(
       userInitiated: conn.userInitiated !== false,
     }));
 
+    const def = nodeDefs.find((d) => d.id === nodeId);
+
     return {
       id: nodeId,
-      name: nodeId.replace(/_/g, ' '),
-      description: '',
+      name: def?.label || nodeId.replace(/_/g, ' '),
+      description: def?.description || '',
       connectedNodes,
       exits,
     };
   });
 
+  const explicitStart = options.topology?.startingNodeId;
+  const startNodeId =
+    explicitStart && nodeIds.includes(explicitStart) ? explicitStart : nodeIds[0];
+
   return {
     spatialGraph,
-    startNodeId: nodes[0],
+    startNodeId,
   };
 }

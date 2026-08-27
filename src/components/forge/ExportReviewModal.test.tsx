@@ -46,8 +46,14 @@ describe('ExportReviewModal Component Snapshot Lifecycle', () => {
           role: 'Specialist',
           behaviorVector: 'ADAPTIVE',
           isEntity: false,
+          presenceDisposition: { kind: 'AT_NODE', nodeId: 'NODE_01' },
         },
       ],
+      topology: {
+        startingNodeId: 'NODE_01',
+        nodes: ['NODE_01'],
+        connections: [],
+      },
       horrorGrammar: {
         valueBaselineReview: 'REVIEWED_NONE',
         pursuitReviews: {
