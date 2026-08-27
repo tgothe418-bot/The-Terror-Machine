@@ -15,6 +15,8 @@ import {
   ForgeSourceUnknownSchema,
   ForgeResolutionDraftPatch,
   ForgeResolutionDraftPatchSchema,
+  ForgeTopologyNode,
+  ForgeExpandableAnchor,
 } from '../types/forge';
 import { normalizeBlueprint } from './normalizeBlueprint';
 
@@ -297,7 +299,9 @@ export function buildSourceAnalysisFromBlueprint(
       personality: member.personality || '',
       goals: member.goals || '',
       traits: member.traits || [],
-      isUserCharacter: member.isUserCharacter ?? false,
+      isUserCharacter:
+        member.isUserCharacter === true ||
+        (Boolean(normalized.userCharacterId) && normalized.userCharacterId === charId),
       behaviorVector: member.behaviorVector || 'ADAPTIVE',
       isEntity: member.isEntity ?? false,
       psychological_status: member.psychological_status,
@@ -637,13 +641,7 @@ export function buildSourceAnalysisFromBlueprint(
       targetCastMemberId: userAim.castMemberId,
       proposedValue: {
         castMemberId: userAim.castMemberId,
-        disposition: 'ACCEPTED_REFERENCE',
         aimText: userAim.aimText,
-        provenance: userAim.provenance || {
-          kind: 'REVIEWED_SOURCE',
-          sourceId,
-          evidenceIds: [evId],
-        },
       },
       reviewDecision: 'accepted',
       applicationState: 'staged',
@@ -724,9 +722,41 @@ export function validateAndNormalizeDocumentAnalysis(
           castObj.id = `${sourceId}-cast-${idx}`;
         }
         proposedValue = castObj;
+      } else if (item.target === 'user_opening_aim_default') {
+        let aimText = '';
+        let castMemberId =
+          typeof item.targetCastMemberId === 'string' ? item.targetCastMemberId.trim() : '';
+        if (typeof proposedValue === 'string') {
+          aimText = proposedValue.trim();
+        } else if (proposedValue && typeof proposedValue === 'object' && !Array.isArray(proposedValue)) {
+          const aimObj = proposedValue as Record<string, unknown>;
+          if (typeof aimObj.aimText === 'string') {
+            aimText = aimObj.aimText.trim();
+          } else if (typeof aimObj.text === 'string') {
+            aimText = aimObj.text.trim();
+          }
+          if (!castMemberId && typeof aimObj.castMemberId === 'string') {
+            castMemberId = aimObj.castMemberId.trim();
+          }
+        }
+        proposedValue = {
+          castMemberId: castMemberId || undefined,
+          aimText,
+        };
+        if (!item.targetCastMemberId && castMemberId) {
+          item.targetCastMemberId = castMemberId;
+        }
       } else if (typeof proposedValue === 'string') {
         proposedValue = proposedValue.trim();
       }
+
+      const validEvidenceIds = new Set(evidence.map((e) => e.id));
+      const resolvedCandidateEvIds = Array.isArray(item.evidenceIds)
+        ? item.evidenceIds
+            .filter((id: unknown): id is string => typeof id === 'string' && id.trim().length > 0)
+            .map((id: string) => id.trim())
+            .filter((id: string) => validEvidenceIds.has(id))
+        : [];
 
       const rawCandidate = {
         id: typeof item.id === 'string' && item.id.trim() ? item.id.trim() : `${sourceId}-cand-${idx}`,
@@ -738,9 +768,7 @@ export function validateAndNormalizeDocumentAnalysis(
           typeof item.explanation === 'string' && item.explanation.trim()
             ? item.explanation.trim()
             : 'Extracted from source document.',
-        evidenceIds: Array.isArray(item.evidenceIds)
-          ? item.evidenceIds.filter((id: unknown): id is string => typeof id === 'string' && id.trim().length > 0)
-          : [],
+        evidenceIds: resolvedCandidateEvIds,
         proposedValue,
         targetCastMemberId:
           typeof item.targetCastMemberId === 'string' && item.targetCastMemberId.trim()
@@ -943,7 +971,19 @@ export function applyCandidateToDraft(
       } else {
         currentCast.push(proposedCast);
       }
-      cloned.cast = currentCast;
+
+      if (proposedCast.isUserCharacter) {
+        cloned.userCharacterId = proposedCast.id;
+        cloned.cast = currentCast.map((c) => ({
+          ...c,
+          isUserCharacter: c.id === proposedCast.id,
+        }));
+      } else {
+        cloned.cast = currentCast;
+        if (cloned.userCharacterId === proposedCast.id) {
+          cloned.userCharacterId = undefined;
+        }
+      }
       break;
     }
 
@@ -990,16 +1030,22 @@ export function applyCandidateToDraft(
       if (!nodeDef || typeof nodeDef !== 'object' || !nodeDef.id || !nodeDef.label) {
         return { success: false, draft, error: 'Topology node candidate must be a valid node object.' };
       }
+      const nodeDefWithProv: ForgeTopologyNode = {
+        ...nodeDef,
+        sourceId: candidate.sourceId || nodeDef.sourceId,
+        evidenceIds: candidate.evidenceIds || nodeDef.evidenceIds || [],
+        classification: candidate.classification || nodeDef.classification || 'evidence',
+      };
       const currentNodes = cloned.topology?.nodes ? [...cloned.topology.nodes] : [];
-      if (!currentNodes.includes(nodeDef.id)) {
-        currentNodes.push(nodeDef.id);
+      if (!currentNodes.includes(nodeDefWithProv.id)) {
+        currentNodes.push(nodeDefWithProv.id);
       }
       const currentNodeDefs = cloned.topology?.nodeDefinitions ? [...cloned.topology.nodeDefinitions] : [];
-      const existingIdx = currentNodeDefs.findIndex((n) => n.id === nodeDef.id);
+      const existingIdx = currentNodeDefs.findIndex((n) => n.id === nodeDefWithProv.id);
       if (existingIdx >= 0) {
-        currentNodeDefs[existingIdx] = nodeDef;
+        currentNodeDefs[existingIdx] = nodeDefWithProv;
       } else {
-        currentNodeDefs.push(nodeDef);
+        currentNodeDefs.push(nodeDefWithProv);
       }
       cloned.topology = {
         ...(cloned.topology || { connections: [] }),
@@ -1014,6 +1060,12 @@ export function applyCandidateToDraft(
       if (!edge || typeof edge !== 'object' || !edge.from || !edge.to) {
         return { success: false, draft, error: 'Topology connection candidate must be a valid edge object.' };
       }
+      const edgeWithProv = {
+        ...edge,
+        sourceId: candidate.sourceId || (typeof edge === 'object' ? edge.sourceId : undefined),
+        evidenceIds: candidate.evidenceIds || (typeof edge === 'object' ? edge.evidenceIds : []) || [],
+        classification: candidate.classification || (typeof edge === 'object' ? edge.classification : undefined) || 'evidence',
+      };
       const validNodeIds = new Set([
         ...(cloned.topology?.nodes || []),
         ...(cloned.topology?.nodeDefinitions?.map((n) => n.id) || []),
@@ -1044,7 +1096,7 @@ export function applyCandidateToDraft(
         );
       });
       if (!isDuplicate) {
-        currentConns.push(edge);
+        currentConns.push(edgeWithProv);
       }
       cloned.topology = {
         ...(cloned.topology || { nodes: [] }),
@@ -1072,6 +1124,11 @@ export function applyCandidateToDraft(
       cloned.topology = {
         ...(cloned.topology || { nodes: [], connections: [] }),
         startingNodeId: startNodeId,
+        startingNodeProvenance: {
+          sourceId: candidate.sourceId,
+          evidenceIds: candidate.evidenceIds || [],
+          classification: candidate.classification || 'evidence',
+        },
       };
       break;
     }
@@ -1092,12 +1149,18 @@ export function applyCandidateToDraft(
           error: `Expansion anchor parent node "${anchor.parentNodeId}" not found in active draft nodes.`,
         };
       }
+      const anchorWithProv: ForgeExpandableAnchor = {
+        ...anchor,
+        sourceId: candidate.sourceId || anchor.sourceId,
+        evidenceIds: candidate.evidenceIds || anchor.evidenceIds || [],
+        classification: candidate.classification || anchor.classification || 'evidence',
+      };
       const currentAnchors = cloned.topology?.anchors ? [...cloned.topology.anchors] : [];
       const existingIdx = currentAnchors.findIndex((a) => a.id === anchor.id);
       if (existingIdx >= 0) {
-        currentAnchors[existingIdx] = anchor;
+        currentAnchors[existingIdx] = anchorWithProv;
       } else {
-        currentAnchors.push(anchor);
+        currentAnchors.push(anchorWithProv);
       }
       cloned.topology = {
         ...(cloned.topology || { nodes: [], connections: [] }),
@@ -1138,11 +1201,16 @@ export function applyCandidateToDraft(
           };
         }
       }
+      const placementWithProv = {
+        ...placement,
+        sourceId: candidate.sourceId,
+        evidenceIds: candidate.evidenceIds || [],
+      };
       cloned.cast = cloned.cast.map((member) => {
         if (member.id === targetId) {
           return {
             ...member,
-            presenceDisposition: placement,
+            presenceDisposition: placementWithProv,
             starting_location: placement.kind === 'AT_NODE' ? placement.nodeId : '',
           };
         }
@@ -1248,34 +1316,33 @@ export function applyCandidateToDraft(
         return { success: false, draft, error: 'User opening aim text must be a non-empty string.' };
       }
 
-      const provenance =
-        typeof candidate.proposedValue === 'object' &&
-        candidate.proposedValue !== null &&
-        'provenance' in candidate.proposedValue &&
-        candidate.proposedValue.provenance
-          ? candidate.proposedValue.provenance
-          : candidate.sourceId
-          ? {
-              kind: 'REVIEWED_SOURCE' as const,
-              sourceId: candidate.sourceId,
-              evidenceIds:
-                candidate.evidenceIds && candidate.evidenceIds.length > 0
-                  ? candidate.evidenceIds
-                  : ['ev-extracted'],
-            }
-          : { kind: 'CREATOR_DEFINED' as const };
+      const resolvedEvidenceIds =
+        candidate.evidenceIds && Array.isArray(candidate.evidenceIds)
+          ? candidate.evidenceIds.filter((id) => typeof id === 'string' && id.trim().length > 0)
+          : [];
+
+      const provenance = candidate.sourceId
+        ? {
+            kind: 'REVIEWED_SOURCE' as const,
+            sourceId: candidate.sourceId,
+            evidenceIds: resolvedEvidenceIds,
+          }
+        : undefined;
 
       const aimRecord = {
         castMemberId: targetId,
-        disposition: 'ACCEPTED_REFERENCE' as const,
+        disposition: 'UNREVIEWED' as const,
         aimText: text,
         provenance,
-        reviewedAt: Date.now(),
+        reviewedAt: undefined,
       };
 
       cloned.userOpeningAim = aimRecord;
       if (cloned.horrorGrammar) {
-        cloned.horrorGrammar.userOpeningAim = aimRecord;
+        cloned.horrorGrammar = {
+          ...cloned.horrorGrammar,
+          userOpeningAim: aimRecord,
+        };
       }
       break;
     }
@@ -1756,4 +1823,107 @@ export function applyResolutionDraftPatch(
   };
 }
 
+export interface ProvenanceValidationResult {
+  valid: boolean;
+  errors: string[];
+}
+
+/**
+ * Pure, deterministic source-evidence resolver shared across candidate application,
+ * Forge export readiness, and compilation.
+ */
+export function resolveSourceEvidenceProvenance({
+  provenance,
+  sourceAnalyses,
+  expectedText,
+  expectedCastMemberId,
+}: {
+  provenance: unknown;
+  sourceAnalyses?: Record<string, ForgeSourceAnalysis> | null;
+  expectedText?: string;
+  expectedCastMemberId?: string;
+}): ProvenanceValidationResult {
+  const errors: string[] = [];
+
+  if (!provenance || typeof provenance !== 'object' || Array.isArray(provenance)) {
+    return { valid: false, errors: ['Provenance must be a valid object.'] };
+  }
+
+  const p = provenance as { kind?: string; sourceId?: string; evidenceIds?: string[] };
+  if (p.kind !== 'REVIEWED_SOURCE') {
+    return { valid: false, errors: [`Expected REVIEWED_SOURCE provenance kind, received "${p.kind}".`] };
+  }
+
+  if (!p.sourceId || typeof p.sourceId !== 'string' || !p.sourceId.trim()) {
+    errors.push('Missing or empty sourceId in reviewed source provenance.');
+  } else if (p.sourceId === 'src-default' || p.sourceId.startsWith('placeholder-')) {
+    errors.push(`Prohibited placeholder sourceId: "${p.sourceId}".`);
+  }
+
+  if (!Array.isArray(p.evidenceIds) || p.evidenceIds.length === 0) {
+    errors.push('At least one evidence ID is required in reviewed source provenance.');
+  } else {
+    for (const evId of p.evidenceIds) {
+      if (typeof evId !== 'string' || !evId.trim()) {
+        errors.push('Evidence IDs must be non-empty strings.');
+      } else if (evId === 'ev-extracted' || evId.startsWith('placeholder-')) {
+        errors.push(`Prohibited placeholder evidenceId: "${evId}".`);
+      }
+    }
+  }
+
+  if (errors.length > 0) {
+    return { valid: false, errors };
+  }
+
+  // If sourceAnalyses is supplied, resolve exact matching records
+  if (sourceAnalyses && Object.keys(sourceAnalyses).length > 0) {
+    const sourceId = p.sourceId!;
+    const analysis =
+      sourceAnalyses[sourceId] ||
+      Object.values(sourceAnalyses).find(
+        (a) => a.id === sourceId || a.sourceRecord?.id === sourceId
+      );
+    if (!analysis) {
+      errors.push(`Source ID "${sourceId}" is not registered in active source analyses.`);
+    } else {
+      const validEvidenceIds = new Set((analysis.evidence || []).map((e) => e.id));
+      for (const evId of p.evidenceIds!) {
+        if (!validEvidenceIds.has(evId)) {
+          errors.push(`Evidence ID "${evId}" does not resolve within registered source "${sourceId}".`);
+        }
+      }
+
+      if (expectedText !== undefined) {
+        const trimmedExpected = expectedText.trim();
+        const matchingCand = (analysis.candidates || []).find(
+          (c) =>
+            c.target === 'user_opening_aim_default' &&
+            (c.targetCastMemberId === expectedCastMemberId || !expectedCastMemberId)
+        );
+        if (matchingCand) {
+          const candText =
+            typeof matchingCand.proposedValue === 'string'
+              ? matchingCand.proposedValue.trim()
+              : typeof matchingCand.proposedValue === 'object' &&
+                matchingCand.proposedValue !== null &&
+                'aimText' in matchingCand.proposedValue &&
+                typeof matchingCand.proposedValue.aimText === 'string'
+              ? matchingCand.proposedValue.aimText.trim()
+              : '';
+          if (candText && candText !== trimmedExpected) {
+            errors.push(
+              `Accepted opening aim text "${trimmedExpected}" does not match proposal text "${candText}".`
+            );
+          }
+        }
+      }
+    }
+  }
+
+  return {
+    valid: errors.length === 0,
+    errors,
+  };
+}
 

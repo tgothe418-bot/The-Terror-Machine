@@ -287,5 +287,48 @@ describe('playerCharacterBinding', () => {
         perspectiveMode: 'witness',
       });
     });
+
+    it('Forge 1C-6: resolves blueprint.userCharacterId strictly for protagonist', () => {
+      const blueprintWithUserChar = normalizeBlueprint({
+        ...genericBlueprint,
+        userCharacterId: 'char-2',
+      });
+
+      const binding = resolvePerspectiveBinding(blueprintWithUserChar, 'protagonist');
+      expect(binding).toEqual({
+        playerRole: 'protagonist',
+        characterId: 'char-2',
+        perspectiveMode: 'embodied',
+      });
+    });
+
+    it('Forge 1C-6: blocks explicit selection when it mismatches reviewed blueprint.userCharacterId', () => {
+      const blueprintWithUserChar = normalizeBlueprint({
+        ...genericBlueprint,
+        userCharacterId: 'char-1',
+      });
+
+      expect(() => {
+        resolvePerspectiveBinding(blueprintWithUserChar, 'protagonist', 'char-2');
+      }).toThrowError(PlayerCharacterBindingError);
+
+      try {
+        resolvePerspectiveBinding(blueprintWithUserChar, 'protagonist', 'char-2');
+      } catch (err) {
+        expect((err as PlayerCharacterBindingError).code).toBe('ROLE_CHARACTER_MISMATCH');
+        expect((err as Error).message).toContain('does not match the reviewed user character ID');
+      }
+    });
+
+    it('Forge 1C-6: throws UNKNOWN_CHARACTER_ID if blueprint.userCharacterId is not in cast', () => {
+      const invalidBlueprint = normalizeBlueprint({
+        ...genericBlueprint,
+        userCharacterId: 'char-nonexistent',
+      });
+
+      expect(() => {
+        resolvePerspectiveBinding(invalidBlueprint, 'protagonist');
+      }).toThrow(PlayerCharacterBindingError);
+    });
   });
 });

@@ -751,8 +751,17 @@ describe('buildEngineTurnContext & buildContextReceipt', () => {
     });
 
     it('binds explicit selectedCharacterId authoritatively and aligns cast isUserCharacter flags', () => {
+      const blueprintWithOrderly = {
+        ...mockBlueprint,
+        userCharacterId: 'char-orderly',
+        cast: mockBlueprint.cast.map((c) => ({
+          ...c,
+          isUserCharacter: c.id === 'char-orderly',
+        })),
+      };
+
       const context = buildEngineTurnContext({
-        blueprint: mockBlueprint,
+        blueprint: blueprintWithOrderly,
         selectedRole: 'protagonist',
         selectedCharacterId: 'char-orderly',
         runtimeState: {
@@ -778,7 +787,7 @@ describe('buildEngineTurnContext & buildContextReceipt', () => {
       const context = buildEngineTurnContext({
         blueprint: mockBlueprint,
         selectedRole: 'protagonist',
-        selectedCharacterId: 'char-orderly',
+        selectedCharacterId: 'char-clara',
         runtimeState: {
           currentNodeId: 'WARD_4B',
           // Pass failure metadata attempting to leak into turn context

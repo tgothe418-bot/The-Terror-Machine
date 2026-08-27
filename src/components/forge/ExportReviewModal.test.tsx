@@ -46,9 +46,17 @@ describe('ExportReviewModal Component Snapshot Lifecycle', () => {
           role: 'Specialist',
           behaviorVector: 'ADAPTIVE',
           isEntity: false,
+          isUserCharacter: true,
           presenceDisposition: { kind: 'AT_NODE', nodeId: 'NODE_01' },
         },
       ],
+      userCharacterId: 'c1',
+      userOpeningAim: {
+        castMemberId: 'c1',
+        disposition: 'NONE_DECLARED',
+        aimText: '',
+        reviewedAt: Date.now(),
+      },
       topology: {
         startingNodeId: 'NODE_01',
         nodes: ['NODE_01'],
@@ -56,9 +64,7 @@ describe('ExportReviewModal Component Snapshot Lifecycle', () => {
       },
       horrorGrammar: {
         valueBaselineReview: 'REVIEWED_NONE',
-        pursuitReviews: {
-          c1: 'REVIEWED_NONE',
-        },
+        pursuitReviews: {},
         valueAnchors: [],
         characterPursuits: [],
       },

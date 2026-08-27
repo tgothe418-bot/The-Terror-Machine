@@ -585,7 +585,10 @@ Agency Directives:
         let seatDetails = `Mode: PROTAGONIST\nSeat: ${pc.seat?.name || 'Protagonist'} (${pc.seat?.kind || 'protagonist'})\nDescription: ${pc.seat?.description || 'N/A'}`;
         if (pc.seat?.ability) seatDetails += `\nAptitude/Vector: ${pc.seat.ability}`;
         if (pc.seat?.limitation) seatDetails += `\nLimitation/Boundary: ${pc.seat.limitation}`;
-        seatDetails += `\nInitial Core Goal: ${pc.initialGoal}`;
+        if (!context.player.openingAimDisposition) {
+          // Legacy participation path only
+          seatDetails += `\nInitial Core Goal: ${pc.initialGoal}`;
+        }
 
         participationSection = `\n[PARTICIPATION CONTRACT & AGENCY BOUNDARIES]
 ${seatDetails}
@@ -720,6 +723,19 @@ ${hg.authorityInstruction}
 `;
     }
 
+    let playerStartingOrientationBlock = '';
+    if (
+      context.player.openingAimDisposition === 'ACCEPTED_REFERENCE' ||
+      context.player.openingAimDisposition === 'CREATOR_OVERRIDE'
+    ) {
+      playerStartingOrientationBlock = `\n[PLAYER STARTING ORIENTATION]
+${context.player.openingAim || 'Investigate surroundings.'}
+${context.player.sovereigntyInstruction ? `Note: ${context.player.sovereigntyInstruction}` : ''}`;
+    } else if (context.player.openingAimDisposition === 'NONE_DECLARED') {
+      playerStartingOrientationBlock = `\n[PLAYER STARTING ORIENTATION]
+None declared. Note: ${context.player.sovereigntyInstruction || 'The Engine must not infer, fabricate, or supply an unchosen starting goal or quest.'}`;
+    }
+
     // Construct the dense, authoritative contract prompt
     const prompt = `[SCENARIO CONTRACT]
 Title: ${context.scenario.title}
@@ -734,7 +750,7 @@ ${participationSection}
 [PLAYABLE PERSPECTIVE]
 Role: ${context.player.role}
 Character: ${context.player.name} (ID: ${context.player.characterId || 'N/A'}) - ${context.player.description || 'Standard operative'}
-Entity Status: ${context.player.isEntity ? 'Entity' : 'Mortal'}
+Entity Status: ${context.player.isEntity ? 'Entity' : 'Mortal'}${playerStartingOrientationBlock}
 
 [CAST LEDGER]
 ${castLedgerFormatted}

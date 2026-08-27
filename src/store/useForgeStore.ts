@@ -27,6 +27,7 @@ import {
   DepictionContractProposalSchema,
   ForgeUnknownResolutionProposal,
   ForgeResolutionDraftPatch,
+  UserOpeningAim,
 } from '../types/forge';
 import { idbStorage } from '../lib/idbStorage';
 import {
@@ -36,6 +37,7 @@ import {
   setCandidateReviewDecisionPure,
   sortCandidatesForApplication,
   applyResolutionDraftPatch,
+  resolveSourceEvidenceProvenance,
 } from '../lib/sourceBaseline';
 
 export const defaultStyleVector: ProseStyleVector = {
@@ -384,6 +386,12 @@ export interface ForgeActions {
   editPendingCandidate: (sourceId: string, candidateId: string, editedValue: unknown) => void;
   rejectCandidate: (sourceId: string, candidateId: string) => void;
 
+  // --- USER CHARACTER & OPENING AIM ACTIONS (Packet 1C-5 & 1C-6) ---
+  setUserCharacter: (characterId: string) => { success: boolean; error?: string };
+  acceptReferenceOpeningAim: (sourceId?: string) => { success: boolean; error?: string };
+  setCreatorOverrideOpeningAim: (aimText: string) => { success: boolean; error?: string };
+  setNoneDeclaredOpeningAim: () => { success: boolean; error?: string };
+
   // --- AMBIGUITY RESOLUTION ACTIONS ---
   submitUnknownAnswer: (sourceId: string, unknownId: string, answer: string) => void;
   receiveUnknownFollowUp: (sourceId: string, unknownId: string, followUpQuestion: string) => void;
@@ -522,11 +530,19 @@ const createInitialDraft = (initial?: ForgeDraftPatch): ForgeDraft => ({
     atmosphere: initial?.setting?.atmosphere || '',
     timePeriod: initial?.setting?.timePeriod || '',
   },
+  userCharacterId: initial?.userCharacterId || undefined,
+  userOpeningAim: initial?.userOpeningAim ? { ...initial.userOpeningAim } : undefined,
   cast: initial?.cast ? [...initial.cast] : [],
   perspectives: initial?.perspectives ? [...initial.perspectives] : [],
   topology: {
+    startingNodeId: initial?.topology?.startingNodeId || undefined,
+    startingNodeProvenance: initial?.topology?.startingNodeProvenance
+      ? { ...initial.topology.startingNodeProvenance }
+      : undefined,
     nodes: initial?.topology?.nodes ? [...initial.topology.nodes] : [],
+    nodeDefinitions: initial?.topology?.nodeDefinitions ? [...initial.topology.nodeDefinitions] : [],
     connections: initial?.topology?.connections ? [...initial.topology.connections] : [],
+    anchors: initial?.topology?.anchors ? [...initial.topology.anchors] : [],
   },
   narrativeRules: {
     incitingIncident: initial?.narrativeRules?.incitingIncident || '',
@@ -1086,6 +1102,312 @@ export const useForgeStoreInternal = create<ForgeStore>()(
           });
         },
 
+        // --- USER CHARACTER & OPENING AIM ACTIONS (Packet 1C-5 & 1C-6) ---
+        setUserCharacter: (characterId: string) => {
+          let outcome: { success: boolean; error?: string } = { success: true };
+          set((state: ForgeState) => {
+            const currentDraft = state.forgeDraft || createInitialDraft();
+            const cast = currentDraft.cast || [];
+            const targetMember = cast.find((c) => c.id === characterId);
+
+            if (!targetMember) {
+              outcome = {
+                success: false,
+                error: `Cast member ID "${characterId}" not found in draft.`,
+              };
+              return state;
+            }
+
+            if (targetMember.isEntity) {
+              outcome = {
+                success: false,
+                error: `Entity cast member "${targetMember.name || characterId}" cannot be selected as the user-controlled protagonist.`,
+              };
+              return state;
+            }
+
+            const formerUserCharId =
+              currentDraft.userCharacterId || cast.find((c) => c.isUserCharacter)?.id;
+
+            // Reconcile cast members
+            const startNode =
+              currentDraft.topology?.startingNodeId || currentDraft.topology?.nodes?.[0] || 'ORIGIN';
+            const updatedCast = cast.map((member) => {
+              if (member.id === characterId) {
+                return {
+                  ...member,
+                  isUserCharacter: true,
+                  presenceDisposition: {
+                    kind: 'AT_NODE' as const,
+                    nodeId: startNode,
+                  },
+                  starting_location: startNode,
+                };
+              }
+              return {
+                ...member,
+                isUserCharacter: false,
+              };
+            });
+
+            // Reconcile userOpeningAim
+            let nextOpeningAim = currentDraft.userOpeningAim;
+            if (!nextOpeningAim || nextOpeningAim.castMemberId !== characterId) {
+              nextOpeningAim = {
+                castMemberId: characterId,
+                disposition: 'UNREVIEWED' as const,
+                aimText: '',
+                reviewedAt: undefined,
+              };
+            }
+
+            // Reconcile horrorGrammar
+            const currentHg = currentDraft.horrorGrammar || {
+              valueBaselineReview: 'UNREVIEWED' as const,
+              pursuitReviews: {},
+              valueAnchors: [],
+              characterPursuits: [],
+            };
+
+            const updatedPursuits = (currentHg.characterPursuits || []).filter(
+              (p) => p.castMemberId !== characterId
+            );
+
+            const updatedPursuitReviews = { ...currentHg.pursuitReviews };
+            delete updatedPursuitReviews[characterId];
+            if (formerUserCharId && formerUserCharId !== characterId) {
+              updatedPursuitReviews[formerUserCharId] = 'UNREVIEWED';
+            }
+
+            const updatedDraft: ForgeDraft = {
+              ...currentDraft,
+              userCharacterId: characterId,
+              cast: updatedCast,
+              userOpeningAim: nextOpeningAim,
+              horrorGrammar: {
+                ...currentHg,
+                characterPursuits: updatedPursuits,
+                pursuitReviews: updatedPursuitReviews,
+                userOpeningAim: nextOpeningAim,
+              },
+            };
+
+            outcome = { success: true };
+            return {
+              forgeDraft: updatedDraft,
+              draftBlueprint: updatedDraft,
+              draftRevision: (state.draftRevision || 0) + 1,
+              castLedger: deriveCastLedger(updatedDraft),
+            };
+          });
+          return outcome;
+        },
+
+        acceptReferenceOpeningAim: (sourceId?: string) => {
+          let outcome: { success: boolean; error?: string } = { success: true };
+          set((state: ForgeState) => {
+            const currentDraft = state.forgeDraft || createInitialDraft();
+            const userChar = currentDraft.cast?.find((c) => c.isUserCharacter);
+            if (!userChar) {
+              outcome = { success: false, error: 'No user-controlled character found in draft.' };
+              return state;
+            }
+
+            // Look for existing unreviewed aim on draft or proposal from sourceAnalyses
+            let proposalText = currentDraft.userOpeningAim?.aimText || '';
+            const provSourceId =
+              currentDraft.userOpeningAim?.provenance?.kind === 'REVIEWED_SOURCE'
+                ? currentDraft.userOpeningAim.provenance.sourceId
+                : undefined;
+            const provEvidenceIds =
+              currentDraft.userOpeningAim?.provenance?.kind === 'REVIEWED_SOURCE'
+                ? currentDraft.userOpeningAim.provenance.evidenceIds
+                : [];
+            let resolvedSourceId = provSourceId || sourceId || '';
+            let resolvedEvidenceIds = provEvidenceIds;
+
+            if (!proposalText || !resolvedSourceId) {
+              const analyses = Object.values(state.sourceAnalyses);
+              for (const a of analyses) {
+                const cand = a.candidates.find(
+                  (c) =>
+                    c.target === 'user_opening_aim_default' &&
+                    (c.targetCastMemberId === userChar.id || !c.targetCastMemberId)
+                );
+                if (cand) {
+                  const text =
+                    typeof cand.proposedValue === 'string'
+                      ? cand.proposedValue.trim()
+                      : typeof cand.proposedValue === 'object' &&
+                        cand.proposedValue !== null &&
+                        'aimText' in cand.proposedValue &&
+                        typeof cand.proposedValue.aimText === 'string'
+                      ? cand.proposedValue.aimText.trim()
+                      : '';
+                  if (text) {
+                    proposalText = text;
+                    resolvedSourceId = a.id;
+                    resolvedEvidenceIds = cand.evidenceIds || [];
+                    break;
+                  }
+                }
+              }
+            }
+
+            if (!proposalText.trim()) {
+              outcome = { success: false, error: 'No reference opening aim proposal available to accept.' };
+              return state;
+            }
+
+            if (!resolvedSourceId || resolvedEvidenceIds.length === 0) {
+              outcome = {
+                success: false,
+                error: 'Cannot accept reference opening aim: missing resolving source or evidence references.',
+              };
+              return state;
+            }
+
+            const provCheck = resolveSourceEvidenceProvenance({
+              provenance: {
+                kind: 'REVIEWED_SOURCE',
+                sourceId: resolvedSourceId,
+                evidenceIds: resolvedEvidenceIds,
+              },
+              sourceAnalyses: state.sourceAnalyses,
+              expectedText: proposalText,
+              expectedCastMemberId: userChar.id,
+            });
+
+            if (!provCheck.valid) {
+              outcome = {
+                success: false,
+                error: `Cannot accept reference opening aim: ${provCheck.errors.join('; ')}`,
+              };
+              return state;
+            }
+
+            const aimRecord: UserOpeningAim = {
+              castMemberId: userChar.id,
+              disposition: 'ACCEPTED_REFERENCE',
+              aimText: proposalText.trim(),
+              provenance: {
+                kind: 'REVIEWED_SOURCE',
+                sourceId: resolvedSourceId,
+                evidenceIds: resolvedEvidenceIds,
+              },
+              reviewedAt: Date.now(),
+            };
+
+            const updatedDraft: ForgeDraft = {
+              ...currentDraft,
+              userOpeningAim: aimRecord,
+              horrorGrammar: {
+                ...(currentDraft.horrorGrammar || {
+                  valueBaselineReview: 'UNREVIEWED',
+                  pursuitReviews: {},
+                  valueAnchors: [],
+                  characterPursuits: [],
+                }),
+                userOpeningAim: aimRecord,
+              },
+            };
+
+            outcome = { success: true };
+            return {
+              forgeDraft: updatedDraft,
+              draftBlueprint: updatedDraft,
+              draftRevision: (state.draftRevision || 0) + 1,
+            };
+          });
+          return outcome;
+        },
+
+        setCreatorOverrideOpeningAim: (aimText: string) => {
+          let outcome: { success: boolean; error?: string } = { success: true };
+          set((state: ForgeState) => {
+            const currentDraft = state.forgeDraft || createInitialDraft();
+            const userChar = currentDraft.cast?.find((c) => c.isUserCharacter);
+            if (!userChar) {
+              outcome = { success: false, error: 'No user-controlled character found in draft.' };
+              return state;
+            }
+
+            const cleanText = aimText.trim();
+            if (!cleanText) {
+              outcome = { success: false, error: 'Opening aim text cannot be empty for creator override.' };
+              return state;
+            }
+
+            const aimRecord: UserOpeningAim = {
+              castMemberId: userChar.id,
+              disposition: 'CREATOR_OVERRIDE',
+              aimText: cleanText,
+              provenance: { kind: 'CREATOR_DEFINED' },
+              reviewedAt: Date.now(),
+            };
+
+            const updatedDraft: ForgeDraft = {
+              ...currentDraft,
+              userOpeningAim: aimRecord,
+              horrorGrammar: {
+                ...(currentDraft.horrorGrammar || {
+                  valueBaselineReview: 'UNREVIEWED',
+                  pursuitReviews: {},
+                  valueAnchors: [],
+                  characterPursuits: [],
+                }),
+                userOpeningAim: aimRecord,
+              },
+            };
+
+            outcome = { success: true };
+            return {
+              forgeDraft: updatedDraft,
+              draftBlueprint: updatedDraft,
+              draftRevision: (state.draftRevision || 0) + 1,
+            };
+          });
+          return outcome;
+        },
+
+        setNoneDeclaredOpeningAim: () => {
+          let outcome: { success: boolean; error?: string } = { success: true };
+          set((state: ForgeState) => {
+            const currentDraft = state.forgeDraft || createInitialDraft();
+            const userChar = currentDraft.cast?.find((c) => c.isUserCharacter);
+
+            const aimRecord: UserOpeningAim = {
+              castMemberId: userChar?.id || '',
+              disposition: 'NONE_DECLARED',
+              aimText: '',
+              provenance: undefined,
+              reviewedAt: Date.now(),
+            };
+
+            const updatedDraft: ForgeDraft = {
+              ...currentDraft,
+              userOpeningAim: aimRecord,
+              horrorGrammar: {
+                ...(currentDraft.horrorGrammar || {
+                  valueBaselineReview: 'UNREVIEWED',
+                  pursuitReviews: {},
+                  valueAnchors: [],
+                  characterPursuits: [],
+                }),
+                userOpeningAim: aimRecord,
+              },
+            };
+
+            outcome = { success: true };
+            return {
+              forgeDraft: updatedDraft,
+              draftBlueprint: updatedDraft,
+              draftRevision: (state.draftRevision || 0) + 1,
+            };
+          });
+          return outcome;
+        },
+
         // --- AMBIGUITY RESOLUTION ACTIONS ---
         submitUnknownAnswer: (sourceId: string, unknownId: string, answer: string) =>
           set((state: ForgeState) => {
@@ -1262,12 +1584,18 @@ export const useForgeStoreInternal = create<ForgeStore>()(
               return state;
             }
 
-            const finalResolution = (
-              resolutionOverride ||
-              unk.resolutionProposal?.resolution ||
-              unk.submittedAnswer ||
-              ''
-            ).trim();
+            const resText =
+              typeof resolutionOverride === 'string'
+                ? resolutionOverride
+                : typeof resolutionOverride === 'object' &&
+                  resolutionOverride !== null &&
+                  'resolution' in resolutionOverride &&
+                  typeof (resolutionOverride as { resolution: unknown }).resolution === 'string'
+                ? (resolutionOverride as { resolution: string }).resolution
+                : unk.resolutionProposal?.resolution ||
+                  unk.submittedAnswer ||
+                  '';
+            const finalResolution = (resText || '').trim();
 
             if (!finalResolution) {
               outcome = { success: false, error: 'Resolution text cannot be empty.' };

@@ -295,6 +295,7 @@ describe('sourceBaseline pure functions', () => {
           name: 'Diver Mercer',
           role: 'PROTAGONIST',
           description: 'Engineer',
+          isUserCharacter: true,
           presenceDisposition: { kind: 'AT_NODE', nodeId: 'SUB_LEVEL_1' },
           expressionProfile: {
             communicationModes: ['spoken', 'mediated'],
@@ -303,6 +304,13 @@ describe('sourceBaseline pure functions', () => {
           },
         },
       ],
+      userCharacterId: 'char-mercer',
+      userOpeningAim: {
+        castMemberId: 'char-mercer',
+        disposition: 'NONE_DECLARED',
+        aimText: '',
+        reviewedAt: Date.now(),
+      },
       topology: {
         startingNodeId: 'SUB_LEVEL_1',
         nodes: ['SUB_LEVEL_1'],
@@ -310,9 +318,7 @@ describe('sourceBaseline pure functions', () => {
       },
       horrorGrammar: {
         valueBaselineReview: 'REVIEWED_NONE',
-        pursuitReviews: {
-          'char-mercer': 'REVIEWED_NONE',
-        },
+        pursuitReviews: {},
         valueAnchors: [],
         characterPursuits: [],
       },
@@ -459,11 +465,16 @@ describe('sourceBaseline pure functions', () => {
           nodes: ['ENGINE_ROOM'],
           connections: [],
         },
+        userCharacterId: 'char-corvus',
+        userOpeningAim: {
+          castMemberId: 'char-corvus',
+          disposition: 'NONE_DECLARED',
+          aimText: '',
+          reviewedAt: Date.now(),
+        },
         horrorGrammar: {
           valueBaselineReview: 'REVIEWED_NONE',
-          pursuitReviews: {
-            'char-corvus': 'REVIEWED_NONE',
-          },
+          pursuitReviews: {},
           valueAnchors: [],
           characterPursuits: [],
         },
@@ -485,7 +496,7 @@ describe('sourceBaseline pure functions', () => {
           personality: 'Cautious and methodical.',
           goals: 'Restore primary life support.',
           traits: ['Engine Technician', 'Cold Under Pressure'],
-          isUserCharacter: false,
+          isUserCharacter: true,
           behaviorVector: 'ADAPTIVE',
           isEntity: false,
           presenceDisposition: { kind: 'AT_NODE', nodeId: 'ENGINE_ROOM' },
@@ -754,6 +765,7 @@ describe('sourceBaseline pure functions', () => {
               name: 'Engineer Mercer',
               role: 'PROTAGONIST',
               description: 'Chief maintenance specialist.',
+              isUserCharacter: true,
               isEntity: false,
               behaviorVector: 'ADAPTIVE',
             },
@@ -794,7 +806,21 @@ describe('sourceBaseline pure functions', () => {
             isUserCharacter: false,
             presenceDisposition: { kind: 'AT_NODE', nodeId: 'NODE_GATE' },
           },
+          {
+            id: 'char-commander',
+            name: 'Commander Yuri',
+            role: 'PROTAGONIST',
+            isUserCharacter: true,
+            presenceDisposition: { kind: 'AT_NODE', nodeId: 'NODE_GATE' },
+          },
         ],
+        userCharacterId: 'char-commander',
+        userOpeningAim: {
+          castMemberId: 'char-commander',
+          disposition: 'NONE_DECLARED',
+          aimText: '',
+          reviewedAt: Date.now(),
+        },
         topology: { startingNodeId: 'NODE_GATE', nodes: ['NODE_GATE'], connections: [] },
       };
 
@@ -958,6 +984,7 @@ describe('sourceBaseline pure functions', () => {
               id: 'char-echo',
               name: 'The Trench Phantom',
               role: 'ANTAGONIST',
+              isUserCharacter: false,
               isEntity: true,
             },
           },
@@ -1041,10 +1068,19 @@ describe('sourceBaseline pure functions', () => {
 
       expect(workingDraft.cast).toHaveLength(2);
       const haze = workingDraft.cast?.find((c) => c.id === 'char-haze');
-      expect(haze?.presenceDisposition).toEqual({ kind: 'AT_NODE', nodeId: 'BRIDGE' });
+      expect(haze?.presenceDisposition).toEqual({
+        kind: 'AT_NODE',
+        nodeId: 'BRIDGE',
+        sourceId: 'src-story-map',
+        evidenceIds: ['ev-1'],
+      });
 
       const echo = workingDraft.cast?.find((c) => c.id === 'char-echo');
-      expect(echo?.presenceDisposition).toEqual({ kind: 'NONLOCAL' });
+      expect(echo?.presenceDisposition).toEqual({
+        kind: 'NONLOCAL',
+        sourceId: 'src-story-map',
+        evidenceIds: ['ev-1'],
+      });
     });
 
     it('fails candidate application atomically with explicit error when referencing missing node or cast member', () => {

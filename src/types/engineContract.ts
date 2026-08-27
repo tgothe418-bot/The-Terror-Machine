@@ -44,6 +44,7 @@ import {
   PressureThreadTransitionProposalSchema,
   PressureThreadTransitionReceiptSchema,
   HorrorGrammarForensicRecordSchema,
+  UserOpeningAimReviewDispositionSchema,
 } from './horrorGrammar';
 export * from './adLib';
 export * from './consequence';
@@ -96,6 +97,7 @@ export const EngineTurnContextSchema = z.object({
     description: z.string().default(''),
     isEntity: z.boolean().default(false),
     openingAim: z.string().optional(),
+    openingAimDisposition: UserOpeningAimReviewDispositionSchema.optional(),
     sovereigntyInstruction: z.string().optional(),
   }),
   cast: z

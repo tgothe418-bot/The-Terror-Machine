@@ -77,6 +77,7 @@ export const ForgeTopologyNodeSchema = z.object({
   description: z.string().optional(),
   classification: z.enum(['evidence', 'inference', 'creator']).optional(),
   evidenceIds: z.array(z.string()).optional(),
+  sourceId: z.string().optional(),
   sensoryGuidance: z.string().optional(),
 });
 export type ForgeTopologyNode = z.infer<typeof ForgeTopologyNodeSchema>;
@@ -88,6 +89,7 @@ export const ForgeExpandableAnchorSchema = z.object({
   description: z.string().optional(),
   classification: z.enum(['evidence', 'inference', 'creator']).optional(),
   evidenceIds: z.array(z.string()).optional(),
+  sourceId: z.string().optional(),
   statement: z.string().optional(),
 });
 export type ForgeExpandableAnchor = z.infer<typeof ForgeExpandableAnchorSchema>;
@@ -143,7 +145,9 @@ export const ForgeDraftTopologyEdgeObjectSchema = z.object({
   userInitiated: z.boolean().default(true),
   legacyUpgraded: z.boolean().optional(),
   authority: z.enum(['user', 'engine', 'system']).optional(),
+  classification: z.enum(['evidence', 'inference', 'creator']).optional(),
   evidenceIds: z.array(z.string()).optional(),
+  sourceId: z.string().optional(),
 });
 
 export const ForgeDraftTopologyEdgeSchema = z.union([
@@ -153,6 +157,13 @@ export const ForgeDraftTopologyEdgeSchema = z.union([
 
 export const ForgeDraftTopologySchema = z.object({
   startingNodeId: z.string().optional(),
+  startingNodeProvenance: z
+    .object({
+      sourceId: z.string().optional(),
+      evidenceIds: z.array(z.string()).optional(),
+      classification: z.enum(['evidence', 'inference', 'creator']).optional(),
+    })
+    .optional(),
   nodes: z.array(z.string()).optional().default([]),
   nodeDefinitions: z.array(ForgeTopologyNodeSchema).optional().default([]),
   connections: z.array(ForgeDraftTopologyEdgeSchema).optional().default([]),
@@ -196,6 +207,7 @@ export const ForgeDraftSchema = z.object({
   constraints: z.array(z.string()).optional().default([]),
   contentScale: z.number().optional().default(3),
   contentLevelDescription: z.string().optional().default('Standard'),
+  userCharacterId: z.string().optional(),
   cast: z.array(ForgeDraftCastMemberSchema).optional().default([]),
   perspectives: z.array(ForgeDraftPerspectiveSchema).optional().default([]),
   topology: ForgeDraftTopologySchema.optional().default({
@@ -243,6 +255,7 @@ export interface ForgeValidationResult {
 export interface ForgeCompilationContext {
   draftRevision: number;
   sourceBaselineRevision: number;
+  sourceAnalyses?: Record<string, ForgeSourceAnalysis> | null;
 }
 
 export interface ForgeReviewArtifact {
@@ -427,7 +440,9 @@ export const CastSeedCandidateSchema = z
   .object({
     ...BaseCandidateProps,
     target: z.literal('cast_seed'),
-    proposedValue: ForgeDraftCastMemberSchema,
+    proposedValue: ForgeDraftCastMemberSchema.extend({
+      isUserCharacter: z.boolean(),
+    }),
   })
   .strict();
 
@@ -504,11 +519,15 @@ export const UserOpeningAimCandidateSchema = z
     target: z.literal('user_opening_aim_default'),
     targetCastMemberId: z.string().min(1, 'targetCastMemberId is required for user opening aim default'),
     proposedValue: z.union([
-      z.string(),
-      UserOpeningAimSchema,
+      z.string().trim().min(1).max(2000),
       z.object({
-        aimText: z.string(),
+        castMemberId: z.string().optional(),
+        aimText: z.string().trim().min(1).max(2000),
+        evidenceIds: z.array(z.string()).optional(),
+        disposition: z.string().optional(),
+        provenance: z.unknown().optional(),
       }),
+      UserOpeningAimSchema,
     ]),
   })
   .strict();

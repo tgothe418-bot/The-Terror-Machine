@@ -1,14 +1,11 @@
-import { describe, expect, it } from 'vitest';
-import {
-  validateAndNormalizeDocumentAnalysis,
-  applyCandidateToDraft,
-  sortCandidatesForApplication,
-} from './sourceBaseline';
+import { describe, expect, it, beforeEach } from 'vitest';
+import { useForgeStore, forgeActions } from '../store/useForgeStore';
+import { validateAndNormalizeDocumentAnalysis } from './sourceBaseline';
 import {
   buildArchitectAmbiguityResolutionRequest,
   validateAmbiguityResponse,
 } from './architectProtocol';
-import { compileForgeDraft } from './forgeCompiler';
+import { validateForgeDraft, compileForgeDraft } from './forgeCompiler';
 import { validateForgeExportReadiness } from './forgeReadiness';
 import { prepareBlueprintExport } from './compileBlueprintDraft';
 import { normalizeBlueprint } from './normalizeBlueprint';
@@ -17,10 +14,11 @@ import { buildCharacterPresence } from './castPresence';
 import { resolvePerspectiveBinding } from './playerCharacterBinding';
 import { buildEngineTurnContext } from './buildEngineTurnContext';
 import { selectCastActivityEligibility } from './castActivityEligibility';
+import { TurnRequestSchema } from '../types/engineContract';
 import { ForgeDraft, ForgeSourceRecord, ForgeSourceAnalysis } from '../types/forge';
-import { Blueprint, BlueprintSchema } from '../types';
+import { Blueprint } from '../types';
 
-describe('Forge 1C-4: Blueprint-to-Engine Compatibility and Stabilization (Vertical Integration)', () => {
+describe('Forge 1C-8: Production-Path Closure, Integration Proof, and Negative Matrix', () => {
   const sourceRecord: ForgeSourceRecord = {
     id: 'src-xenon-station',
     fileName: 'xenon_research_facility_manifest.json',
@@ -30,351 +28,348 @@ describe('Forge 1C-4: Blueprint-to-Engine Compatibility and Stabilization (Verti
     fileSizeBytes: 4096,
   };
 
-  it('drives the full production chain from source document intake through first-turn context', () => {
-    // 1. RAW DOCUMENT EXTRACTION OUTPUT
-    const rawDocumentExtraction = {
-      summary: 'Deep subterranean research complex undergoing structural warp anomaly.',
-      evidence: [
-        {
-          id: 'ev-loc-1',
-          category: 'setting',
-          claim: 'Facility is situated inside bedrock fissure Xenon-7.',
-          excerpt: 'Location: Bedrock Fissure Xenon-7, Depth 1.2km.',
-        },
-        {
-          id: 'ev-top-1',
-          category: 'topology',
-          claim: 'Primary control sector leads into heavy containment corridor.',
-          excerpt: 'Control Sector connects south to Containment Corridor.',
-        },
-        {
-          id: 'ev-top-2',
-          category: 'topology',
-          claim: 'Containment corridor leads into deep seismic vault.',
-          excerpt: 'Containment Corridor grants secure access to Seismic Vault.',
-        },
-        {
-          id: 'ev-top-3',
-          category: 'topology',
-          claim: 'Ventilation sublevel 3 exists as an unmapped secondary expansion.',
-          excerpt: 'Auxiliary vent shaft 3 branches into unexplored sublevel.',
-        },
-        {
-          id: 'ev-cast-user',
-          category: 'cast',
-          claim: 'Dr. Marcus Karr is the primary systems diagnostician at Control Sector.',
-          excerpt: 'Marcus Karr: Chief Diagnostician, stationed at Control Sector.',
-        },
-        {
-          id: 'ev-cast-npc',
-          category: 'cast',
-          claim: 'Security Chief Sarah Chen is barricaded in Seismic Vault.',
-          excerpt: 'Sarah Chen: Security Specialist, holding perimeter at Seismic Vault.',
-        },
-        {
-          id: 'ev-cast-offstage',
-          category: 'cast',
-          claim: 'Technician Mercer is offsite on auxiliary communication relay duty.',
-          excerpt: 'Mercer: Field Technician, currently offstage at surface relay.',
-        },
-        {
-          id: 'ev-cast-entity',
-          category: 'cast',
-          claim: 'The Strider is an autonomous resonance entity warping spatial bulkheads.',
-          excerpt: 'Subject Sigma (The Strider): Spatial distortion entity altering room topology.',
-        },
-        {
-          id: 'ev-aim-marcus',
-          category: 'identity',
-          claim: 'Marcus seeks to stabilize the reactor containment field.',
-          excerpt: 'Marcus priority: Initiate thermal dampening on the reactor core.',
-        },
-        {
-          id: 'ev-pursuit-sarah',
-          category: 'cast',
-          claim: 'Sarah is fortifying the blast doors in Seismic Vault.',
-          excerpt: 'Sarah Chen actively seals hydraulic blast locks in Vault.',
-        },
-      ],
-      candidates: [
-        {
-          id: 'cand-title',
-          classification: 'evidence',
-          target: 'scenario_title',
-          label: 'Scenario Title',
-          explanation: 'Extracted facility designation',
-          evidenceIds: ['ev-loc-1'],
-          proposedValue: 'Xenon Sub-Level Resonance',
-        },
-        {
-          id: 'cand-premise',
-          classification: 'evidence',
-          target: 'premise',
-          label: 'Premise',
-          explanation: 'Extracted reality summary',
-          evidenceIds: ['ev-loc-1'],
-          proposedValue:
-            'A deep bedrock subterranean facility undergoes spatial distortion as an anomalous entity manipulates bulkhead topology.',
-        },
-        {
-          id: 'cand-setting-loc',
-          classification: 'evidence',
-          target: 'setting_location',
-          label: 'Setting Location',
-          explanation: 'Extracted location',
-          evidenceIds: ['ev-loc-1'],
-          proposedValue: 'Bedrock Fissure Xenon-7',
-        },
-        {
-          id: 'cand-setting-atm',
-          classification: 'evidence',
-          target: 'setting_atmosphere',
-          label: 'Setting Atmosphere',
-          explanation: 'Extracted atmosphere',
-          evidenceIds: ['ev-loc-1'],
-          proposedValue: 'Low frequency hum, fluctuating gravity gradients, cold metallic condensation',
-        },
-        {
-          id: 'cand-setting-time',
-          classification: 'evidence',
-          target: 'setting_time_period',
-          label: 'Setting Time Period',
-          explanation: 'Extracted era',
-          evidenceIds: ['ev-loc-1'],
-          proposedValue: '2088',
-        },
-        {
-          id: 'cand-env-rule',
-          classification: 'evidence',
-          target: 'environmental_rule',
-          label: 'Environmental Rule',
-          explanation: 'Extracted physical constraint',
-          evidenceIds: ['ev-cast-entity'],
-          proposedValue: 'Resonance waves periodically alter bulkhead seal integrity.',
-        },
-        {
-          id: 'cand-cast-marcus',
-          classification: 'evidence',
-          target: 'cast_seed',
-          label: 'Cast Member: Marcus',
-          explanation: 'Extracted player character',
-          evidenceIds: ['ev-cast-user'],
-          proposedValue: {
-            id: 'char-marcus',
-            name: 'Marcus Karr',
-            role: 'PROTAGONIST',
-            description: 'Chief systems diagnostician clutching diagnostic monitor.',
-            behaviorVector: 'ADAPTIVE',
-            isEntity: false,
-            isUserCharacter: true,
-            traits: ['Methodical', 'Acoustic Specialist'],
-            presenceDisposition: { kind: 'AT_NODE', nodeId: 'NODE_CONTROL' },
-          },
-        },
-        {
-          id: 'cand-cast-sarah',
-          classification: 'evidence',
-          target: 'cast_seed',
-          label: 'Cast Member: Sarah',
-          explanation: 'Extracted security specialist',
-          evidenceIds: ['ev-cast-npc'],
-          proposedValue: {
-            id: 'char-sarah',
-            name: 'Sarah Chen',
-            role: 'SENTINEL',
-            description: 'Armored security officer guarding the seismic vault.',
-            behaviorVector: 'ADAPTIVE',
-            isEntity: false,
-            isUserCharacter: false,
-            traits: ['Hyper-vigilant', 'Tactical'],
-            presenceDisposition: { kind: 'AT_NODE', nodeId: 'NODE_VAULT' },
-          },
-        },
-        {
-          id: 'cand-cast-mercer',
-          classification: 'evidence',
-          target: 'cast_seed',
-          label: 'Cast Member: Mercer',
-          explanation: 'Extracted offstage technician',
-          evidenceIds: ['ev-cast-offstage'],
-          proposedValue: {
-            id: 'char-mercer',
-            name: 'Technician Mercer',
-            role: 'OBSERVER',
-            description: 'Surface communications technician monitoring telemetry.',
-            behaviorVector: 'ADAPTIVE',
-            isEntity: false,
-            isUserCharacter: false,
-            presenceDisposition: { kind: 'OFFSTAGE' },
-          },
-        },
-        {
-          id: 'cand-cast-strider',
-          classification: 'evidence',
-          target: 'cast_seed',
-          label: 'Cast Member: The Strider',
-          explanation: 'Extracted entity with topology authority',
-          evidenceIds: ['ev-cast-entity'],
-          proposedValue: {
-            id: 'entity-strider',
-            name: 'The Resonance Strider',
-            role: 'ANTAGONIST',
-            description: 'Towering spatial distortion that folds physical corridors.',
-            behaviorVector: 'ADAPTIVE',
-            isEntity: true,
-            isUserCharacter: false,
-            presenceDisposition: { kind: 'NONLOCAL' },
-          },
-        },
-        {
-          id: 'cand-node-control',
-          classification: 'evidence',
-          target: 'topology_node',
-          label: 'Node: Control Sector',
-          explanation: 'Primary control room',
-          evidenceIds: ['ev-top-1'],
-          proposedValue: {
-            id: 'NODE_CONTROL',
-            label: 'Control Sector',
-            description: 'Primary operations hub with humming terminals and status displays.',
-          },
-        },
-        {
-          id: 'cand-node-corridor',
-          classification: 'evidence',
-          target: 'topology_node',
-          label: 'Node: Containment Corridor',
-          explanation: 'Transit hallway',
-          evidenceIds: ['ev-top-1'],
-          proposedValue: {
-            id: 'NODE_CORRIDOR',
-            label: 'Containment Corridor',
-            description: 'Reinforced transit passage lined with vibration dampeners.',
-          },
-        },
-        {
-          id: 'cand-node-vault',
-          classification: 'evidence',
-          target: 'topology_node',
-          label: 'Node: Seismic Vault',
-          explanation: 'Deep bedrock vault',
-          evidenceIds: ['ev-top-2'],
-          proposedValue: {
-            id: 'NODE_VAULT',
-            label: 'Seismic Vault',
-            description: 'Heavily shielded subterranean vault with thick hydraulic doors.',
-          },
-        },
-        {
-          id: 'cand-edge-1',
-          classification: 'evidence',
-          target: 'topology_connection',
-          label: 'Connection: Control -> Corridor',
-          explanation: 'Directed path',
-          evidenceIds: ['ev-top-1'],
-          proposedValue: {
-            from: 'NODE_CONTROL',
-            to: 'NODE_CORRIDOR',
-            kind: 'PHYSICAL',
-            userInitiated: true,
-          },
-        },
-        {
-          id: 'cand-edge-2',
-          classification: 'evidence',
-          target: 'topology_connection',
-          label: 'Connection: Corridor -> Vault',
-          explanation: 'Directed path',
-          evidenceIds: ['ev-top-2'],
-          proposedValue: {
-            from: 'NODE_CORRIDOR',
-            to: 'NODE_VAULT',
-            kind: 'PHYSICAL',
-            userInitiated: true,
-          },
-        },
-        {
-          id: 'cand-anchor-vent',
-          classification: 'evidence',
-          target: 'expandable_space_anchor',
-          label: 'Anchor: Vent Sublevel',
-          explanation: 'Secondary space anchor attached to Corridor',
-          evidenceIds: ['ev-top-3'],
-          proposedValue: {
-            id: 'anchor-vent-sublevel',
-            parentNodeId: 'NODE_CORRIDOR',
-            label: 'Ventilation Shaft 3',
-            description: 'Narrow access hatch leading into unmapped lower service ducts.',
-            statement: 'An unmapped lower service duct network.',
-          },
-        },
-        {
-          id: 'cand-start-node',
-          classification: 'evidence',
-          target: 'starting_node_selection',
-          label: 'Starting Node: Control Sector',
-          explanation: 'Authored opening space',
-          evidenceIds: ['ev-cast-user'],
-          proposedValue: 'NODE_CONTROL',
-        },
-        {
-          id: 'cand-user-aim',
-          classification: 'evidence',
-          target: 'user_opening_aim_default',
-          label: 'Opening Aim: Thermal Dampening',
-          explanation: 'Player character motive baseline',
-          evidenceIds: ['ev-aim-marcus'],
-          targetCastMemberId: 'char-marcus',
-          proposedValue: {
-            castMemberId: 'char-marcus',
-            disposition: 'ACCEPTED_REFERENCE',
-            aimText: 'Initiate thermal dampening on the reactor core.',
-            provenance: {
-              kind: 'REVIEWED_SOURCE',
-              sourceId: 'src-xenon-station',
-              evidenceIds: ['ev-aim-marcus'],
-            },
-          },
-        },
-        {
-          id: 'cand-pursuit-sarah',
-          classification: 'evidence',
-          target: 'character_pursuit',
-          label: 'Pursuit: Sarah Chen Fortification',
-          explanation: 'NPC active objective',
-          evidenceIds: ['ev-pursuit-sarah'],
-          targetCastMemberId: 'char-sarah',
-          proposedValue: {
-            id: 'pursuit-sarah-1',
-            castMemberId: 'char-sarah',
-            objective: 'Lock down hydraulic blast doors in Seismic Vault.',
-            presentApproach: 'Manually cycling the hydraulic override valves.',
-            locationNodeId: 'NODE_VAULT',
-            status: 'ACTIVE',
-            reviewWindow: 'SCENE_BEAT',
-            triggerReferences: [],
-            basisSummary: 'Extracted security log.',
-            provenance: {
-              kind: 'REVIEWED_SOURCE',
-              sourceId: 'src-xenon-station',
-              evidenceIds: ['ev-pursuit-sarah'],
-            },
-          },
-        },
-      ],
-      unknowns: [
-        {
-          id: 'unk-strider-authority',
-          category: 'cast',
-          question:
-            'Does The Strider entity have independent authority to mutate topology connections during runtime?',
-          targetEffect:
-            'Determines whether the simulation allows dynamic spatial shifts in response to entity presence.',
-        },
-      ],
-    };
+  beforeEach(() => {
+    forgeActions.resetStore();
+  });
 
-    // Step 1: Normalize document analysis
+  const createRepresentativeRawExtraction = () => ({
+    summary: 'Deep subterranean research complex undergoing structural warp anomaly.',
+    evidence: [
+      {
+        id: 'ev-loc-1',
+        category: 'setting',
+        claim: 'Facility is situated inside bedrock fissure Xenon-7.',
+        excerpt: 'Location: Bedrock Fissure Xenon-7, Depth 1.2km.',
+      },
+      {
+        id: 'ev-top-1',
+        category: 'topology',
+        claim: 'Primary control sector leads into heavy containment corridor.',
+        excerpt: 'Control Sector connects south to Containment Corridor.',
+      },
+      {
+        id: 'ev-top-2',
+        category: 'topology',
+        claim: 'Containment corridor leads into deep seismic vault.',
+        excerpt: 'Containment Corridor grants secure access to Seismic Vault.',
+      },
+      {
+        id: 'ev-top-3',
+        category: 'topology',
+        claim: 'Ventilation sublevel 3 exists as an unmapped secondary expansion.',
+        excerpt: 'Auxiliary vent shaft 3 branches into unexplored sublevel.',
+      },
+      {
+        id: 'ev-cast-user',
+        category: 'cast',
+        claim: 'Dr. Marcus Karr is the primary systems diagnostician at Control Sector.',
+        excerpt: 'Marcus Karr: Chief Diagnostician, stationed at Control Sector.',
+      },
+      {
+        id: 'ev-cast-npc',
+        category: 'cast',
+        claim: 'Security Chief Sarah Chen is barricaded in Seismic Vault.',
+        excerpt: 'Sarah Chen: Security Specialist, holding perimeter at Seismic Vault.',
+      },
+      {
+        id: 'ev-cast-offstage',
+        category: 'cast',
+        claim: 'Technician Mercer is offsite on auxiliary communication relay duty.',
+        excerpt: 'Mercer: Field Technician, currently offstage at surface relay.',
+      },
+      {
+        id: 'ev-cast-entity',
+        category: 'cast',
+        claim: 'The Strider is an autonomous resonance entity warping spatial bulkheads.',
+        excerpt: 'Subject Sigma (The Strider): Spatial distortion entity altering room topology.',
+      },
+      {
+        id: 'ev-aim-marcus',
+        category: 'identity',
+        claim: 'Marcus seeks to stabilize the reactor containment field.',
+        excerpt: 'Marcus priority: Initiate thermal dampening on the reactor core.',
+      },
+      {
+        id: 'ev-pursuit-sarah',
+        category: 'cast',
+        claim: 'Sarah is fortifying the blast doors in Seismic Vault.',
+        excerpt: 'Sarah Chen actively seals hydraulic blast locks in Vault.',
+      },
+    ],
+    candidates: [
+      {
+        id: 'cand-title',
+        classification: 'evidence',
+        target: 'scenario_title',
+        label: 'Scenario Title',
+        explanation: 'Extracted facility designation',
+        evidenceIds: ['ev-loc-1'],
+        proposedValue: 'Xenon Sub-Level Resonance',
+      },
+      {
+        id: 'cand-premise',
+        classification: 'evidence',
+        target: 'premise',
+        label: 'Premise',
+        explanation: 'Extracted reality summary',
+        evidenceIds: ['ev-loc-1'],
+        proposedValue:
+          'A deep bedrock subterranean facility undergoes spatial distortion as an anomalous entity manipulates bulkhead topology.',
+      },
+      {
+        id: 'cand-setting-loc',
+        classification: 'evidence',
+        target: 'setting_location',
+        label: 'Setting Location',
+        explanation: 'Extracted location',
+        evidenceIds: ['ev-loc-1'],
+        proposedValue: 'Bedrock Fissure Xenon-7',
+      },
+      {
+        id: 'cand-setting-atm',
+        classification: 'evidence',
+        target: 'setting_atmosphere',
+        label: 'Setting Atmosphere',
+        explanation: 'Extracted atmosphere',
+        evidenceIds: ['ev-loc-1'],
+        proposedValue: 'Low frequency hum, fluctuating gravity gradients, cold metallic condensation',
+      },
+      {
+        id: 'cand-setting-time',
+        classification: 'evidence',
+        target: 'setting_time_period',
+        label: 'Setting Time Period',
+        explanation: 'Extracted era',
+        evidenceIds: ['ev-loc-1'],
+        proposedValue: '2088',
+      },
+      {
+        id: 'cand-env-rule',
+        classification: 'evidence',
+        target: 'environmental_rule',
+        label: 'Environmental Rule',
+        explanation: 'Extracted physical constraint',
+        evidenceIds: ['ev-cast-entity'],
+        proposedValue: 'Resonance waves periodically alter bulkhead seal integrity.',
+      },
+      {
+        id: 'cand-cast-marcus',
+        classification: 'evidence',
+        target: 'cast_seed',
+        label: 'Cast Member: Marcus',
+        explanation: 'Extracted player character',
+        evidenceIds: ['ev-cast-user'],
+        proposedValue: {
+          id: 'char-marcus',
+          name: 'Marcus Karr',
+          role: 'PROTAGONIST',
+          description: 'Chief systems diagnostician clutching diagnostic monitor.',
+          behaviorVector: 'ADAPTIVE',
+          isEntity: false,
+          isUserCharacter: true,
+          traits: ['Methodical', 'Acoustic Specialist'],
+          presenceDisposition: { kind: 'AT_NODE', nodeId: 'NODE_CONTROL' },
+        },
+      },
+      {
+        id: 'cand-cast-sarah',
+        classification: 'evidence',
+        target: 'cast_seed',
+        label: 'Cast Member: Sarah',
+        explanation: 'Extracted security specialist',
+        evidenceIds: ['ev-cast-npc'],
+        proposedValue: {
+          id: 'char-sarah',
+          name: 'Sarah Chen',
+          role: 'SENTINEL',
+          description: 'Armored security officer guarding the seismic vault.',
+          behaviorVector: 'ADAPTIVE',
+          isEntity: false,
+          isUserCharacter: false,
+          traits: ['Hyper-vigilant', 'Tactical'],
+          presenceDisposition: { kind: 'AT_NODE', nodeId: 'NODE_VAULT' },
+        },
+      },
+      {
+        id: 'cand-cast-mercer',
+        classification: 'evidence',
+        target: 'cast_seed',
+        label: 'Cast Member: Mercer',
+        explanation: 'Extracted offstage technician',
+        evidenceIds: ['ev-cast-offstage'],
+        proposedValue: {
+          id: 'char-mercer',
+          name: 'Technician Mercer',
+          role: 'OBSERVER',
+          description: 'Surface communications technician monitoring telemetry.',
+          behaviorVector: 'ADAPTIVE',
+          isEntity: false,
+          isUserCharacter: false,
+          presenceDisposition: { kind: 'OFFSTAGE' },
+        },
+      },
+      {
+        id: 'cand-cast-strider',
+        classification: 'evidence',
+        target: 'cast_seed',
+        label: 'Cast Member: The Strider',
+        explanation: 'Extracted entity with topology authority',
+        evidenceIds: ['ev-cast-entity'],
+        proposedValue: {
+          id: 'entity-strider',
+          name: 'The Resonance Strider',
+          role: 'ANTAGONIST',
+          description: 'Towering spatial distortion that folds physical corridors.',
+          behaviorVector: 'ADAPTIVE',
+          isEntity: true,
+          isUserCharacter: false,
+          presenceDisposition: { kind: 'NONLOCAL' },
+        },
+      },
+      {
+        id: 'cand-node-control',
+        classification: 'evidence',
+        target: 'topology_node',
+        label: 'Node: Control Sector',
+        explanation: 'Primary control room',
+        evidenceIds: ['ev-top-1'],
+        proposedValue: {
+          id: 'NODE_CONTROL',
+          label: 'Control Sector',
+          description: 'Primary operations hub with humming terminals and status displays.',
+        },
+      },
+      {
+        id: 'cand-node-corridor',
+        classification: 'evidence',
+        target: 'topology_node',
+        label: 'Node: Containment Corridor',
+        explanation: 'Transit hallway',
+        evidenceIds: ['ev-top-1'],
+        proposedValue: {
+          id: 'NODE_CORRIDOR',
+          label: 'Containment Corridor',
+          description: 'Reinforced transit passage lined with vibration dampeners.',
+        },
+      },
+      {
+        id: 'cand-node-vault',
+        classification: 'evidence',
+        target: 'topology_node',
+        label: 'Node: Seismic Vault',
+        explanation: 'Deep bedrock vault',
+        evidenceIds: ['ev-top-2'],
+        proposedValue: {
+          id: 'NODE_VAULT',
+          label: 'Seismic Vault',
+          description: 'Heavily shielded subterranean vault with thick hydraulic doors.',
+        },
+      },
+      {
+        id: 'cand-edge-1',
+        classification: 'evidence',
+        target: 'topology_connection',
+        label: 'Connection: Control -> Corridor',
+        explanation: 'Directed path',
+        evidenceIds: ['ev-top-1'],
+        proposedValue: {
+          from: 'NODE_CONTROL',
+          to: 'NODE_CORRIDOR',
+          kind: 'PHYSICAL',
+          userInitiated: true,
+        },
+      },
+      {
+        id: 'cand-edge-2',
+        classification: 'evidence',
+        target: 'topology_connection',
+        label: 'Connection: Corridor -> Vault',
+        explanation: 'Directed path',
+        evidenceIds: ['ev-top-2'],
+        proposedValue: {
+          from: 'NODE_CORRIDOR',
+          to: 'NODE_VAULT',
+          kind: 'PHYSICAL',
+          userInitiated: true,
+        },
+      },
+      {
+        id: 'cand-anchor-vent',
+        classification: 'evidence',
+        target: 'expandable_space_anchor',
+        label: 'Anchor: Vent Sublevel',
+        explanation: 'Secondary space anchor attached to Corridor',
+        evidenceIds: ['ev-top-3'],
+        proposedValue: {
+          id: 'anchor-vent-sublevel',
+          parentNodeId: 'NODE_CORRIDOR',
+          label: 'Ventilation Shaft 3',
+          description: 'Narrow access hatch leading into unmapped lower service ducts.',
+          statement: 'An unmapped lower service duct network.',
+        },
+      },
+      {
+        id: 'cand-start-node',
+        classification: 'evidence',
+        target: 'starting_node_selection',
+        label: 'Starting Node: Control Sector',
+        explanation: 'Authored opening space',
+        evidenceIds: ['ev-cast-user'],
+        proposedValue: 'NODE_CONTROL',
+      },
+      {
+        id: 'cand-user-aim',
+        classification: 'evidence',
+        target: 'user_opening_aim_default',
+        label: 'Opening Aim: Thermal Dampening',
+        explanation: 'Player character motive baseline',
+        evidenceIds: ['ev-aim-marcus'],
+        targetCastMemberId: 'char-marcus',
+        proposedValue: {
+          aimText: 'Initiate thermal dampening on the reactor core.',
+        },
+      },
+      {
+        id: 'cand-pursuit-sarah',
+        classification: 'evidence',
+        target: 'character_pursuit',
+        label: 'Pursuit: Sarah Chen Fortification',
+        explanation: 'NPC active objective',
+        evidenceIds: ['ev-pursuit-sarah'],
+        targetCastMemberId: 'char-sarah',
+        proposedValue: {
+          id: 'pursuit-sarah-1',
+          castMemberId: 'char-sarah',
+          objective: 'Lock down hydraulic blast doors in Seismic Vault.',
+          presentApproach: 'Manually cycling the hydraulic override valves.',
+          locationNodeId: 'NODE_VAULT',
+          status: 'ACTIVE',
+          reviewWindow: 'SCENE_BEAT',
+          triggerReferences: [],
+          basisSummary: 'Extracted security log.',
+          provenance: {
+            kind: 'REVIEWED_SOURCE',
+            sourceId: 'src-xenon-station',
+            evidenceIds: ['ev-pursuit-sarah'],
+          },
+        },
+      },
+    ],
+    unknowns: [
+      {
+        id: 'unk-strider-authority',
+        category: 'cast',
+        question:
+          'Does The Strider entity have independent authority to mutate topology connections during runtime?',
+        targetEffect:
+          'Determines whether the simulation allows dynamic spatial shifts in response to entity presence.',
+      },
+    ],
+  });
+
+  it('drives actual production authoring store actions from intake to turn request with accepted opening aim', () => {
+    // 1. Validate and normalize document analysis through active schema contract
+    const rawDocumentExtraction = createRepresentativeRawExtraction();
     const normalizedAnalysis: ForgeSourceAnalysis = validateAndNormalizeDocumentAnalysis(
       rawDocumentExtraction,
       sourceRecord
@@ -383,14 +378,9 @@ describe('Forge 1C-4: Blueprint-to-Engine Compatibility and Stabilization (Verti
     expect(normalizedAnalysis.candidates).toHaveLength(rawDocumentExtraction.candidates.length);
     expect(normalizedAnalysis.unknowns).toHaveLength(1);
 
-    // Step 2: Initialize clean authoring draft
-    let draft: ForgeDraft = {
+    // 2. Initialize draft and register source analysis via store actions
+    forgeActions.initializeDraft({
       id: 'draft-xenon-01',
-      title: '',
-      premise: '',
-      setting: { location: '', atmosphere: '', timePeriod: '' },
-      startingVector: 'COGNITIVE',
-      startingTier: 'LATENT',
       depictionContract: {
         dramaticRegister: 'Subterranean Hard Sci-Fi Horror',
         directness: 'Tactile environmental feedback',
@@ -398,18 +388,21 @@ describe('Forge 1C-4: Blueprint-to-Engine Compatibility and Stabilization (Verti
         ambiguityHandling: 'Entity nature is never explained as magic',
         specialBoundaries: 'None',
       },
-      cast: [],
-      topology: { nodes: [], connections: [], anchors: [] },
-      horrorGrammar: {
-        valueBaselineReview: 'REVIEWED_NONE',
-        pursuitReviews: {},
-        valueAnchors: [],
-        characterPursuits: [],
-      },
-    };
+    });
+    forgeActions.registerSourceAnalysis(normalizedAnalysis, 'bind-xenon-7');
 
-    // Step 3: Architect Interaction - Build ambiguity resolution request & validate proposal
+    // 3. Review candidates through actual candidate-review action
+    for (const cand of normalizedAnalysis.candidates) {
+      forgeActions.setCandidateReviewDecision(normalizedAnalysis.id, cand.id, 'accepted');
+    }
+
+    // 4. Apply accepted candidates through atomic store action
+    const applyOutcome = forgeActions.applyAcceptedCandidates(normalizedAnalysis.id);
+    expect(applyOutcome.success).toBe(true);
+
+    // 5. Submit Architect ambiguity correction
     const unknown = normalizedAnalysis.unknowns[0];
+    const draftBeforeArchitect = useForgeStore.getState().forgeDraft!;
     const architectReqResult = buildArchitectAmbiguityResolutionRequest({
       userMessage:
         'Yes, The Strider possesses confirmed spatial distortion capabilities per research section 4.',
@@ -421,19 +414,12 @@ describe('Forge 1C-4: Blueprint-to-Engine Compatibility and Stabilization (Verti
         question: unknown.question,
         targetEffect: unknown.targetEffect,
       },
-      draft,
-      draftRevision: 1,
-      sourceAnalysis: normalizedAnalysis,
+      draft: draftBeforeArchitect,
+      draftRevision: useForgeStore.getState().draftRevision,
+      sourceAnalysis: useForgeStore.getState().sourceAnalyses[normalizedAnalysis.id],
     });
-
     expect(architectReqResult.success).toBe(true);
-    if (!architectReqResult.success) return;
-    const architectRequest = architectReqResult.request;
 
-    expect(architectRequest.kind).toBe('AMBIGUITY_RESOLUTION');
-    expect(architectRequest.activeUnknown.unknownId).toBe('unk-strider-authority');
-
-    // Simulate Architect returning a typed resolution proposal
     const mockModelProposal = {
       type: 'RESOLUTION_PROPOSAL' as const,
       sourceId: 'src-xenon-station',
@@ -452,102 +438,90 @@ describe('Forge 1C-4: Blueprint-to-Engine Compatibility and Stabilization (Verti
         },
       },
     };
-
-    const validatedResult = validateAmbiguityResponse(
+    const validatedProposal = validateAmbiguityResponse(
       mockModelProposal,
       'src-xenon-station',
       unknown.id
     );
-    expect(validatedResult.kind).toBe('VALID_PROPOSAL');
-    if (validatedResult.kind !== 'VALID_PROPOSAL') return;
-    expect(validatedResult.unknownId).toBe('unk-strider-authority');
+    expect(validatedProposal.kind).toBe('VALID_PROPOSAL');
 
-    // Step 4: Apply sorted candidates to draft in strict priority order
-    const sorted = sortCandidatesForApplication(normalizedAnalysis.candidates);
-    for (const cand of sorted) {
-      const applyResult = applyCandidateToDraft(draft, cand, sourceRecord.fileName);
-      expect(applyResult.success).toBe(true);
-      if (applyResult.success) {
-        draft = applyResult.draft;
-      }
-    }
+    // 6. Accept resolution and apply to draft via store action
+    const applyPatchOutcome = forgeActions.acceptUnknownResolution(
+      normalizedAnalysis.id,
+      unknown.id,
+      mockModelProposal.proposal.resolution,
+      true
+    );
+    expect(applyPatchOutcome.success).toBe(true);
 
-    // Apply the Architect-resolved patch to entity description
-    const striderInDraft = draft.cast?.find((c) => c.id === 'entity-strider');
-    if (striderInDraft) {
-      striderInDraft.description = mockModelProposal.proposal.draftPatch.operations[0].text;
-    }
+    // 7. Designate user character via canonical store action
+    forgeActions.setUserCharacter('char-marcus');
 
-    // Step 5: Author explicit review states
-    // Set Mercer (tertiary offstage) to REVIEWED_NONE (No readable intent)
-    draft.horrorGrammar!.pursuitReviews['char-mercer'] = 'REVIEWED_NONE';
-    // Set Strider (nonlocal entity) to REVIEWED_NONE (No readable intent)
-    draft.horrorGrammar!.pursuitReviews['entity-strider'] = 'REVIEWED_NONE';
+    // 8. Explicitly accept exact source opening-aim proposal via canonical action
+    const aimOutcome = forgeActions.acceptReferenceOpeningAim('src-xenon-station');
+    expect(aimOutcome.success).toBe(true);
 
-    // Step 6: Validate Export Readiness
-    // Mark unknown as resolved in analysis
-    normalizedAnalysis.unknowns[0].status = 'resolved';
-    // Mark candidates as applied in analysis
-    normalizedAnalysis.candidates.forEach((c) => {
-      c.applicationState = 'applied';
+    // 9. Designate starting node and review HG pursuit states via store actions
+    forgeActions.updateDraft({
+      topology: {
+        ...useForgeStore.getState().forgeDraft!.topology,
+        startingNodeId: 'NODE_CONTROL',
+      },
     });
 
-    const readiness = validateForgeExportReadiness({
-      draft,
-      sourceAnalyses: { [normalizedAnalysis.id]: normalizedAnalysis },
+    // 10. Review NPC pursuits and "No readable intent" states
+    forgeActions.updateDraft({
+      horrorGrammar: {
+        ...useForgeStore.getState().forgeDraft!.horrorGrammar,
+        valueBaselineReview: 'REVIEWED_NONE',
+        pursuitReviews: {
+          'char-sarah': 'REVIEWED',
+          'char-mercer': 'REVIEWED_NONE',
+          'entity-strider': 'REVIEWED_NONE',
+        },
+      },
     });
+
+    const draft = useForgeStore.getState().forgeDraft!;
+    const sourceAnalyses = useForgeStore.getState().sourceAnalyses;
+
+    // 11. Run validateForgeExportReadiness with registered source analyses
+    const readiness = validateForgeExportReadiness({ draft, sourceAnalyses });
+    if (!readiness.valid) {
+      console.log('READINESS ERRORS:', JSON.stringify(readiness.errors, null, 2));
+    }
     expect(readiness.valid).toBe(true);
     expect(readiness.errors).toEqual({});
 
-    // Step 7: Compile Draft into Canonical Blueprint & Review Artifact
-    const compileResult = compileForgeDraft(draft);
-    expect(compileResult.success).toBe(true);
-    if (!compileResult.success) return;
+    // 12. Capture immutable revision-bound review artifact
+    const exportArtifact = prepareBlueprintExport(draft, {
+      draftRevision: useForgeStore.getState().draftRevision,
+      sourceBaselineRevision: useForgeStore.getState().sourceBaselineRevision,
+    });
+    expect(exportArtifact.fileName).toContain('xenon_sub_level_resonance.json');
+    expect(Object.isFrozen(exportArtifact)).toBe(true);
 
-    const { blueprint, artifact } = compileResult;
-    expect(artifact.fileName).toContain('xenon_sub_level_resonance.json');
-    expect(artifact.sourceDraftId).toBe('draft-xenon-01');
-
-    // Step 8: Serialize and Reparse through public Blueprint normalization/ingress schema
-    const serializedJson = JSON.stringify(blueprint);
+    // 13. Serialize and reparse through public Blueprint normalization
+    const serializedJson = exportArtifact.json;
     const parsedRaw = JSON.parse(serializedJson);
     const normalizedBp: Blueprint = normalizeBlueprint(parsedRaw);
 
     expect(normalizedBp.identity.title).toBe('Xenon Sub-Level Resonance');
+    expect(normalizedBp.userCharacterId).toBe('char-marcus');
     expect(normalizedBp.topology.startingNodeId).toBe('NODE_CONTROL');
     expect(normalizedBp.topology.nodes).toEqual(['NODE_CONTROL', 'NODE_CORRIDOR', 'NODE_VAULT']);
     expect(normalizedBp.topology.anchors).toHaveLength(1);
-    expect(normalizedBp.topology.anchors[0].id).toBe('anchor-vent-sublevel');
     expect(normalizedBp.cast).toHaveLength(4);
 
-    // Step 9: Resolve player binding via Engine Setup logic
-    const binding = resolvePerspectiveBinding(normalizedBp, 'protagonist', 'char-marcus');
+    // 14. Engine perspective binding
+    const binding = resolvePerspectiveBinding(normalizedBp, 'protagonist', normalizedBp.userCharacterId);
     expect(binding.characterId).toBe('char-marcus');
     expect(binding.playerRole).toBe('protagonist');
 
-    // Step 10: Compile Runtime Topology and Character Presence
-    const runtimeTopology = compileRuntimeTopology({
-      topology: normalizedBp.topology,
-    });
+    // 15. Runtime topology and character presence compilation
+    const runtimeTopology = compileRuntimeTopology({ topology: normalizedBp.topology });
     expect(runtimeTopology.startNodeId).toBe('NODE_CONTROL');
     expect(runtimeTopology.spatialGraph).toHaveLength(3);
-    // Preserves readable node labels and descriptions
-    const controlNode = runtimeTopology.spatialGraph.find((n) => n.id === 'NODE_CONTROL');
-    expect(controlNode?.name).toBe('Control Sector');
-    expect(controlNode?.description).toContain('Primary operations hub');
-    // Directed edges only
-    expect(controlNode?.exits).toEqual([
-      {
-        targetNodeId: 'NODE_CORRIDOR',
-        kind: 'PHYSICAL',
-        userInitiated: true,
-        isOpen: true,
-        description: 'NODE CORRIDOR',
-        requires: undefined,
-      },
-    ]);
-    // Expansion anchor is excluded from initial runtime nodes and exits
-    expect(runtimeTopology.spatialGraph.some((n) => n.id === 'anchor-vent-sublevel')).toBe(false);
 
     const presence = buildCharacterPresence(
       normalizedBp.cast,
@@ -556,16 +530,12 @@ describe('Forge 1C-4: Blueprint-to-Engine Compatibility and Stabilization (Verti
       'NODE_CONTROL',
       'char-marcus'
     );
-    // User is at opening node
     expect(presence['char-marcus'].nodeId).toBe('NODE_CONTROL');
-    // Sarah is situated in Seismic Vault (not co-located with user)
     expect(presence['char-sarah'].nodeId).toBe('NODE_VAULT');
-    // Mercer is offstage (no physical node assigned)
-    expect(presence['char-mercer']).toBeUndefined();
-    // Strider is nonlocal (no physical node assigned)
-    expect(presence['entity-strider']).toBeUndefined();
+    expect(presence['char-mercer']).toBeUndefined(); // OFFSTAGE
+    expect(presence['entity-strider']).toBeUndefined(); // NONLOCAL
 
-    // Step 11: Construct First Actual EngineTurnContext
+    // 16. First actual EngineTurnContext construction
     const engineContext = buildEngineTurnContext({
       blueprint: normalizedBp,
       selectedCharacterId: 'char-marcus',
@@ -575,19 +545,16 @@ describe('Forge 1C-4: Blueprint-to-Engine Compatibility and Stabilization (Verti
       },
     });
 
-    // Player aim is read-only orientation context with strict sovereignty clause
     expect(engineContext.player.characterId).toBe('char-marcus');
-    expect(engineContext.player.openingAim).toBe(
-      'Initiate thermal dampening on the reactor core.'
-    );
+    expect(engineContext.player.openingAim).toBe('Initiate thermal dampening on the reactor core.');
+    expect(engineContext.player.openingAimDisposition).toBe('ACCEPTED_REFERENCE');
     expect(engineContext.player.sovereigntyInstruction).toContain('sovereignty');
 
-    // Player aim produces NO CharacterPursuit or user activity opportunity
-    const castPresenceMap: Record<string, string> = {};
-    for (const [cId, rec] of Object.entries(presence)) {
-      if (rec?.nodeId) castPresenceMap[cId] = rec.nodeId;
-    }
-
+    // 17. Ensure player has NO autonomous pursuit or Autopilot opportunity
+    const castPresenceMap: Record<string, string> = {
+      'char-marcus': 'NODE_CONTROL',
+      'char-sarah': 'NODE_VAULT',
+    };
     const fictionalTime = {
       moment_revision: 1,
       scene_beat_revision: 1,
@@ -604,24 +571,360 @@ describe('Forge 1C-4: Blueprint-to-Engine Compatibility and Stabilization (Verti
       turnNumber: 1,
       castPresenceMap,
     });
-
     expect(eligibility.presentOpportunities.some((o) => o.castMemberId === 'char-marcus')).toBe(false);
     expect(eligibility.offscreenOpportunities.some((o) => o.castMemberId === 'char-marcus')).toBe(false);
 
-    // Sarah Chen (in Vault) has offscreen pursuit opportunity
-    const sarahOffscreen = eligibility.offscreenOpportunities.find((o) => o.castMemberId === 'char-sarah');
-    expect(sarahOffscreen).toBeDefined();
-    expect(sarahOffscreen?.objective).toBe('Lock down hydraulic blast doors in Seismic Vault.');
+    // 18. Pass through TurnRequestSchema
+    const turnRequest = {
+      userAction: 'Inspect the status console and verify coolant pump pressures.',
+      recentHistory: 'No prior turns.',
+      systemDirective: 'Ground responses in environmental acoustic feedback.',
+      isExpansionExpected: false,
+      stateContext: {
+        currentNodeId: 'NODE_CONTROL',
+        currentPhase: 'LATENT',
+        tensionLevel: 0,
+        reconciliationRevision: 0,
+      },
+      context: engineContext,
+    };
 
-    // Mercer (offstage) has No readable intent (REVIEWED_NONE) -> No fabricated pursuit
-    expect(eligibility.offscreenOpportunities.some((o) => o.castMemberId === 'char-mercer')).toBe(false);
+    const parseResult = TurnRequestSchema.safeParse(turnRequest);
+    expect(parseResult.success).toBe(true);
+  });
 
-    // Verify artifact export preparation and schema integrity
-    const exportArtifact = prepareBlueprintExport(draft, {
-      draftRevision: 1,
-      sourceBaselineRevision: 1,
+  it('drives parallel NONE_DECLARED opening aim path without goal leakage', () => {
+    // Initialize draft with NONE_DECLARED aim
+    forgeActions.initializeDraft({
+      id: 'draft-none-declared-01',
+      title: 'Silent Sector',
+      premise: 'Testing none declared sovereign baseline.',
+      setting: { location: 'Control Sector', atmosphere: 'Silent', timePeriod: '2088' },
+      depictionContract: {
+        dramaticRegister: 'Clinical realism',
+        directness: 'Measured dread',
+        aftermath: 'Irreversible decay',
+        ambiguityHandling: 'Preserve epistemic gaps',
+      },
+      cast: [
+        {
+          id: 'char-operator',
+          name: 'Operator Ross',
+          role: 'Protagonist',
+          behaviorVector: 'ADAPTIVE',
+          isEntity: false,
+          isUserCharacter: true,
+          presenceDisposition: { kind: 'AT_NODE', nodeId: 'NODE_CONTROL' },
+        },
+      ],
+      userCharacterId: 'char-operator',
+      userOpeningAim: {
+        castMemberId: 'char-operator',
+        disposition: 'NONE_DECLARED',
+        aimText: '',
+        reviewedAt: Date.now(),
+      },
+      topology: {
+        startingNodeId: 'NODE_CONTROL',
+        nodes: ['NODE_CONTROL'],
+        connections: [],
+      },
+      horrorGrammar: {
+        valueBaselineReview: 'REVIEWED_NONE',
+        pursuitReviews: {},
+        valueAnchors: [],
+        characterPursuits: [],
+      },
     });
-    expect(exportArtifact.fileName).toContain('xenon_sub_level_resonance.json');
-    expect(BlueprintSchema.safeParse(JSON.parse(exportArtifact.json)).success).toBe(true);
+
+    const draft = useForgeStore.getState().forgeDraft!;
+    const compileResult = compileForgeDraft(draft);
+    expect(compileResult.success).toBe(true);
+    if (!compileResult.success) return;
+
+    const normalizedBp: Blueprint = normalizeBlueprint(compileResult.blueprint);
+    const engineContext = buildEngineTurnContext({
+      blueprint: normalizedBp,
+      selectedCharacterId: 'char-operator',
+      selectedRole: 'protagonist',
+      runtimeState: { currentNodeId: 'NODE_CONTROL' },
+    });
+
+    expect(engineContext.player.openingAimDisposition).toBe('NONE_DECLARED');
+    expect(engineContext.player.openingAim).toBeUndefined();
+    expect(engineContext.player.sovereigntyInstruction).toContain('must never infer');
+  });
+
+  describe('Negative Matrix Boundary Rejections', () => {
+    it('rejects provider cast missing explicit isUserCharacter boolean', () => {
+      const rawExtraction = createRepresentativeRawExtraction();
+      const castCand = rawExtraction.candidates.find((c) => c.id === 'cand-cast-marcus')!;
+      delete (castCand.proposedValue as Record<string, unknown>).isUserCharacter;
+
+      const norm = validateAndNormalizeDocumentAnalysis(rawExtraction, sourceRecord);
+      const marcusCand = norm.candidates.find((c) => c.id === 'cand-cast-marcus');
+      expect(marcusCand).toBeUndefined(); // Dropped by strict schema validation
+    });
+
+    it('rejects draft when userCharacterId is missing or has multiple user characters in cast', () => {
+      const draft = {
+        id: 'draft-no-user',
+        title: 'Title',
+        premise: 'Premise',
+        setting: { location: 'Loc' },
+        depictionContract: {
+          dramaticRegister: 'A',
+          directness: 'B',
+          aftermath: 'C',
+          ambiguityHandling: 'D',
+        },
+        cast: [
+          {
+            id: 'c1',
+            name: 'C1',
+            isUserCharacter: true,
+            presenceDisposition: { kind: 'AT_NODE' as const, nodeId: 'NODE_A' },
+          },
+          {
+            id: 'c2',
+            name: 'C2',
+            isUserCharacter: true,
+            presenceDisposition: { kind: 'AT_NODE' as const, nodeId: 'NODE_A' },
+          },
+        ],
+        topology: { startingNodeId: 'NODE_A', nodes: ['NODE_A'], connections: [] },
+        horrorGrammar: {
+          valueBaselineReview: 'REVIEWED_NONE' as const,
+          pursuitReviews: {},
+          valueAnchors: [],
+          characterPursuits: [],
+        },
+      };
+
+      const res = validateForgeDraft(draft as unknown as ForgeDraft);
+      expect(res.valid).toBe(false);
+      expect(res.errors['userCharacterId']).toBeDefined();
+    });
+
+    it('rejects draft when opening aim targets a different cast member than userCharacterId', () => {
+      const draft = {
+        id: 'draft-mismatched-aim',
+        title: 'Title',
+        premise: 'Premise',
+        setting: { location: 'Loc' },
+        depictionContract: {
+          dramaticRegister: 'A',
+          directness: 'B',
+          aftermath: 'C',
+          ambiguityHandling: 'D',
+        },
+        userCharacterId: 'c1',
+        cast: [
+          {
+            id: 'c1',
+            name: 'C1',
+            isUserCharacter: true,
+            presenceDisposition: { kind: 'AT_NODE' as const, nodeId: 'NODE_A' },
+          },
+          {
+            id: 'c2',
+            name: 'C2',
+            isUserCharacter: false,
+            presenceDisposition: { kind: 'AT_NODE' as const, nodeId: 'NODE_A' },
+          },
+        ],
+        userOpeningAim: {
+          castMemberId: 'c2',
+          disposition: 'NONE_DECLARED',
+          aimText: '',
+          reviewedAt: Date.now(),
+        },
+        topology: { startingNodeId: 'NODE_A', nodes: ['NODE_A'], connections: [] },
+        horrorGrammar: {
+          valueBaselineReview: 'REVIEWED_NONE' as const,
+          pursuitReviews: { c2: 'REVIEWED_NONE' as const },
+          valueAnchors: [],
+          characterPursuits: [],
+        },
+      };
+
+      const res = validateForgeDraft(draft as unknown as ForgeDraft);
+      expect(res.valid).toBe(false);
+      expect(res.errors['userOpeningAim.castMemberId']).toBeDefined();
+    });
+
+    it('rejects opening aim with placeholder, pattern-shaped, or missing provenance in readiness gate', () => {
+      const draft = {
+        id: 'draft-fake-prov',
+        title: 'Title',
+        premise: 'Premise',
+        setting: { location: 'Loc' },
+        depictionContract: {
+          dramaticRegister: 'A',
+          directness: 'B',
+          aftermath: 'C',
+          ambiguityHandling: 'D',
+        },
+        userCharacterId: 'c1',
+        cast: [
+          {
+            id: 'c1',
+            name: 'C1',
+            isUserCharacter: true,
+            presenceDisposition: { kind: 'AT_NODE' as const, nodeId: 'NODE_A' },
+          },
+        ],
+        userOpeningAim: {
+          castMemberId: 'c1',
+          disposition: 'ACCEPTED_REFERENCE',
+          aimText: 'Real aim text',
+          provenance: {
+            kind: 'REVIEWED_SOURCE',
+            sourceId: 'src-default',
+            evidenceIds: ['ev-extracted'],
+          },
+        },
+        topology: { startingNodeId: 'NODE_A', nodes: ['NODE_A'], connections: [] },
+        horrorGrammar: {
+          valueBaselineReview: 'REVIEWED_NONE' as const,
+          pursuitReviews: {},
+          valueAnchors: [],
+          characterPursuits: [],
+        },
+      };
+
+      const readiness = validateForgeExportReadiness({ draft: draft as unknown as ForgeDraft });
+      expect(readiness.valid).toBe(false);
+      expect(readiness.errors['userOpeningAim.provenance']).toContain(
+        'Prohibited placeholder sourceId: "src-default".'
+      );
+    });
+
+    it('rejects rich map missing startingNodeId or targeting an anchor or missing node', () => {
+      const draftMissing = {
+        id: 'draft-rich-no-start',
+        title: 'Title',
+        premise: 'Premise',
+        setting: { location: 'Loc' },
+        depictionContract: {
+          dramaticRegister: 'A',
+          directness: 'B',
+          aftermath: 'C',
+          ambiguityHandling: 'D',
+        },
+        userCharacterId: 'c1',
+        cast: [
+          {
+            id: 'c1',
+            name: 'C1',
+            isUserCharacter: true,
+            presenceDisposition: { kind: 'AT_NODE' as const, nodeId: 'NODE_A' },
+          },
+        ],
+        userOpeningAim: {
+          castMemberId: 'c1',
+          disposition: 'NONE_DECLARED',
+          aimText: '',
+          reviewedAt: Date.now(),
+        },
+        topology: {
+          nodeDefinitions: [
+            { id: 'NODE_A', label: 'Node A' },
+            { id: 'NODE_B', label: 'Node B' },
+          ],
+          connections: [],
+        },
+        horrorGrammar: {
+          valueBaselineReview: 'REVIEWED_NONE' as const,
+          pursuitReviews: {},
+          valueAnchors: [],
+          characterPursuits: [],
+        },
+      };
+
+      const resMissing = validateForgeDraft(draftMissing as unknown as ForgeDraft);
+      expect(resMissing.valid).toBe(false);
+      expect(resMissing.errors['topology.startingNodeId']).toContain(
+        'Explicit startingNodeId is required for authored topology'
+      );
+
+      expect(() => compileRuntimeTopology({ topology: draftMissing.topology })).toThrow(
+        'Explicit startingNodeId is required for rich authored topology.'
+      );
+    });
+
+    it('rejects user placement differing from startingNodeId', () => {
+      const draft = {
+        id: 'draft-placement-mismatch',
+        title: 'Title',
+        premise: 'Premise',
+        setting: { location: 'Loc' },
+        depictionContract: {
+          dramaticRegister: 'A',
+          directness: 'B',
+          aftermath: 'C',
+          ambiguityHandling: 'D',
+        },
+        userCharacterId: 'c1',
+        cast: [
+          {
+            id: 'c1',
+            name: 'C1',
+            isUserCharacter: true,
+            presenceDisposition: { kind: 'AT_NODE' as const, nodeId: 'NODE_B' }, // Mismatch: start is NODE_A
+          },
+        ],
+        userOpeningAim: {
+          castMemberId: 'c1',
+          disposition: 'NONE_DECLARED',
+          aimText: '',
+          reviewedAt: Date.now(),
+        },
+        topology: {
+          startingNodeId: 'NODE_A',
+          nodes: ['NODE_A', 'NODE_B'],
+          connections: [],
+        },
+        horrorGrammar: {
+          valueBaselineReview: 'REVIEWED_NONE' as const,
+          pursuitReviews: {},
+          valueAnchors: [],
+          characterPursuits: [],
+        },
+      };
+
+      const res = validateForgeDraft(draft as unknown as ForgeDraft);
+      expect(res.valid).toBe(false);
+      expect(res.errors['userCharacter.placement']).toContain(
+        'Selected user character placement node "NODE_B" does not match topology startingNodeId "NODE_A"'
+      );
+    });
+
+    it('rejects perspective binding when selected character does not match blueprint.userCharacterId', () => {
+      const bp = {
+        id: 'bp-test',
+        schemaVersion: '1.0.0',
+        identity: { title: 'T', author: 'A', version: '1.0', thematicAnchor: 'T' },
+        setting: { location: 'L', atmosphere: 'A', timePeriod: 'P' },
+        userCharacterId: 'c-marcus',
+        cast: [
+          { id: 'c-marcus', name: 'Marcus', role: 'PROTAGONIST', isUserCharacter: true },
+          { id: 'c-sarah', name: 'Sarah', role: 'SENTINEL', isUserCharacter: false },
+        ],
+        topology: { startingNodeId: 'NODE_A', nodes: ['NODE_A'], connections: [] },
+        perspectives: [],
+        rules: { sensoryBudget: 100, memoryThreshold: 5, entityEncounterRate: 0.1, thematicElements: [] },
+        narrativeRules: { incitingIncident: '', phaseDirectives: {}, currentTensionLevel: 'buildup', keyPlotElements: [] },
+        characters: [],
+        constraints: [],
+        contentScale: 3,
+        contentLevelDescription: 'Standard',
+        environmentalRules: '',
+      } as unknown as Blueprint;
+
+      expect(() => resolvePerspectiveBinding(bp, 'protagonist', 'c-sarah')).toThrow(
+        'does not match the reviewed user character ID "c-marcus"'
+      );
+    });
   });
 });

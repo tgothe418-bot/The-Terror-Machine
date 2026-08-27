@@ -4963,5 +4963,166 @@ describe('Turn schemas validation', () => {
       expect(emptyJson.code).toBe('PROVIDER_FAILURE');
       expect(emptyJson.code).not.toBe('MODEL_CONTRACT_MISMATCH');
     });
+
+    it('Packet 1C-5: renders PLAYER STARTING ORIENTATION and suppresses Initial Core Goal when openingAimDisposition is present', async () => {
+      let capturedPrompt = '';
+      const dummyValidResult: TurnResult = {
+        narrative_blocks: [
+          { type: 'prose', content: 'Elena stays motionless, surveying the bulkhead.' },
+        ],
+        intent_proposal: {
+          action_kind: 'OBSERVE',
+          action_subtype: null,
+          pressure_direction: 'MAINTAIN',
+          dramatic_tactic: 'EXPOSURE',
+          intent_synergy: 'SUCCESS',
+        },
+        reconciliation_proposal: {
+          mode: 'CANONICAL',
+          feasibility: 'SUPPORTED',
+          reason_code: 'NONE',
+          fictional_time_cost: 'MOMENT',
+          authority_alignment: 'WITHIN_CONTRACT',
+          memory_echo_candidate: null,
+        },
+        consequence_proposal: { mutations: [] },
+        character_stance_proposal: { changes: [] },
+        character_relationship_proposal: { changes: [] },
+        character_memory_proposal: { candidates: [] },
+        world_memory_proposal: { candidates: [] },
+        cast_activity_proposal: { kind: 'NONE', reason: 'NO_OPPORTUNITY_CHOSEN' },
+        situated_pressure_proposal: { kind: 'NONE', reason: 'NO_PRESSURE_CHOSEN' },
+        value_state_proposal: { changes: [] },
+        character_pursuit_proposal: { changes: [] },
+        character_development_proposal: { changes: [] },
+        pressure_transition_proposal: { transitions: [] },
+        logic_state: {
+          current_phase: 'MANIFEST',
+          suggested_tension: 20,
+          requested_transition: null,
+          terminal_flags: [],
+          cast_deltas: [],
+          cast_ledger: [],
+        },
+        topologyDelta: { isExpansion: false, newNodeDef: null },
+      };
+
+      mockGenerateStructuredResponse.mockReset();
+      mockGenerateStructuredResponse.mockImplementation((prompt: string) => {
+        capturedPrompt = prompt;
+        return Promise.resolve(dummyValidResult);
+      });
+
+      const baseTurnPayload = {
+        userAction: 'Where is the emergency conduit?',
+        recentHistory: 'You stand before the bulkhead.',
+        systemDirective: 'Keep prose clinical.',
+        isExpansionExpected: false,
+        stateContext: {
+          currentNodeId: 'CHAMBER_01',
+          currentPhase: 'LATENT',
+          tensionLevel: 1,
+          reconciliationRevision: 0,
+        },
+        context: {
+          version: 1,
+          scenario: {
+            title: 'Diagnostic Test Enclosure',
+            premise: 'Testing failure contract boundaries.',
+            worldRules: [],
+            setting: { location: 'Chamber 01', atmosphere: 'Cold', timePeriod: 'Present' },
+            startingVector: 'COGNITIVE',
+            startingTier: 'LATENT',
+            incitingIncident: 'Init.',
+            pacingDirective: 'Direct.',
+            keyPlotElements: [],
+          },
+          player: {
+            role: 'protagonist',
+            characterId: 'char-1',
+            name: 'Subject One',
+            description: 'Test subject',
+            isEntity: false,
+          },
+          cast: [
+            {
+              id: 'char-1',
+              name: 'Subject One',
+              role: 'Protagonist',
+              description: '',
+              isUserCharacter: true,
+              isPresent: true,
+            },
+          ],
+          topology: {
+            currentNodeId: 'CHAMBER_01',
+            readableNodeLabel: 'Chamber 01',
+            allowedOutgoingExits: [],
+          },
+          runtime: {
+            turnNumber: 1,
+            phase: 'LATENT',
+            tension: 1,
+            coherence: 1.0,
+            reconciliationRevision: 0,
+            activeVector: 'COGNITIVE',
+            activeTier: 'LATENT',
+          },
+        },
+      };
+
+      // 1. ACCEPTED_REFERENCE test
+      const payloadWithAcceptedAim = {
+        ...baseTurnPayload,
+        context: {
+          ...baseTurnPayload.context,
+          player: {
+            ...baseTurnPayload.context.player,
+            openingAim: 'Investigate acoustic vibrations in Trench 4.',
+            openingAimDisposition: 'ACCEPTED_REFERENCE',
+            sovereigntyInstruction:
+              'This opening aim represents historical starting orientation only. The user retains complete sovereignty over whether, when, and how to pursue it. The Engine must never assert unchosen user actions, internal decisions, or mandatory quests based on this aim.',
+          },
+        },
+      };
+
+      const res1 = await fetch(`${baseUrl}/api/turn`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payloadWithAcceptedAim),
+      });
+      expect(res1.status).toBe(200);
+      expect(capturedPrompt).toContain('[PLAYER STARTING ORIENTATION]');
+      expect(capturedPrompt).toContain('Investigate acoustic vibrations in Trench 4.');
+      expect(capturedPrompt).toContain('sovereignty');
+      // Must NOT contain the legacy Initial Core Goal line in participationSection
+      expect(capturedPrompt).not.toContain('Initial Core Goal:');
+
+      // 2. NONE_DECLARED test
+      const payloadWithNoneDeclared = {
+        ...baseTurnPayload,
+        context: {
+          ...baseTurnPayload.context,
+          player: {
+            ...baseTurnPayload.context.player,
+            openingAim: undefined,
+            openingAimDisposition: 'NONE_DECLARED',
+            sovereigntyInstruction:
+              'No opening aim was declared for this character. The Engine must never infer, fabricate, or supply an unchosen starting goal or quest.',
+          },
+        },
+      };
+
+      const res2 = await fetch(`${baseUrl}/api/turn`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payloadWithNoneDeclared),
+      });
+      expect(res2.status).toBe(200);
+      expect(capturedPrompt).toContain('[PLAYER STARTING ORIENTATION]');
+      expect(capturedPrompt).toContain('None declared. Note:');
+      expect(capturedPrompt).toContain('never infer, fabricate, or supply');
+      expect(capturedPrompt).not.toContain('Initial Core Goal:');
+    });
   });
 });

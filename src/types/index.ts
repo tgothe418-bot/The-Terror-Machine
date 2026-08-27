@@ -89,6 +89,10 @@ export const TopologyEdgeSchema = z.object({
   requires: z.array(z.string()).optional(),
   userInitiated: z.boolean(),
   legacyUpgraded: z.boolean().optional(),
+  classification: z.enum(['evidence', 'inference', 'creator']).optional(),
+  evidenceIds: z.array(z.string()).optional(),
+  sourceId: z.string().optional(),
+  authority: z.enum(['user', 'engine', 'system']).optional(),
 });
 
 export const ForgeTopologyNodeSchema = z.object({
@@ -97,6 +101,7 @@ export const ForgeTopologyNodeSchema = z.object({
   description: z.string().optional(),
   classification: z.enum(['evidence', 'inference', 'creator']).optional(),
   evidenceIds: z.array(z.string()).optional(),
+  sourceId: z.string().optional(),
   sensoryGuidance: z.string().optional(),
 });
 
@@ -109,6 +114,7 @@ export const ForgeExpandableAnchorSchema = z.object({
   description: z.string().optional(),
   classification: z.enum(['evidence', 'inference', 'creator']).optional(),
   evidenceIds: z.array(z.string()).optional(),
+  sourceId: z.string().optional(),
   statement: z.string().optional(),
 });
 

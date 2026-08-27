@@ -125,10 +125,18 @@ describe('Phase 3D-1: Forge Draft Contract, Review Validation, and Compiler Boun
           description: 'Obsessive researcher clutching specimen logs.',
           behaviorVector: 'ADAPTIVE',
           isEntity: false,
+          isUserCharacter: true,
           traits: ['Cautious', 'Observant'],
           presenceDisposition: { kind: 'AT_NODE', nodeId: 'AIRLOCK_01' },
         },
       ],
+      userCharacterId: 'c-aris',
+      userOpeningAim: {
+        castMemberId: 'c-aris',
+        disposition: 'NONE_DECLARED',
+        aimText: '',
+        reviewedAt: Date.now(),
+      },
       perspectives: [
         {
           role: 'PROTAGONIST',
@@ -163,9 +171,7 @@ describe('Phase 3D-1: Forge Draft Contract, Review Validation, and Compiler Boun
       characters: [],
       horrorGrammar: {
         valueBaselineReview: 'REVIEWED_NONE',
-        pursuitReviews: {
-          'c-aris': 'REVIEWED_NONE',
-        },
+        pursuitReviews: {},
         valueAnchors: [],
         characterPursuits: [],
       },
@@ -199,6 +205,7 @@ describe('Phase 3D-1: Forge Draft Contract, Review Validation, and Compiler Boun
           kind: 'PHYSICAL',
           userInitiated: true,
           legacyUpgraded: true,
+          authority: 'user',
         },
       ]);
 
@@ -241,9 +248,17 @@ describe('Phase 3D-1: Forge Draft Contract, Review Validation, and Compiler Boun
           role: 'Engineer',
           behaviorVector: 'ADAPTIVE',
           isEntity: false,
+          isUserCharacter: true,
           presenceDisposition: { kind: 'AT_NODE', nodeId: 'STATION_CORE' },
         },
       ],
+      userCharacterId: 'c1',
+      userOpeningAim: {
+        castMemberId: 'c1',
+        disposition: 'NONE_DECLARED',
+        aimText: '',
+        reviewedAt: Date.now(),
+      },
       perspectives: [],
       topology: { startingNodeId: 'STATION_CORE', nodes: ['STATION_CORE'], connections: [] },
       references: [],
@@ -260,9 +275,7 @@ describe('Phase 3D-1: Forge Draft Contract, Review Validation, and Compiler Boun
       environmentalRules: '',
       horrorGrammar: {
         valueBaselineReview: 'REVIEWED_NONE',
-        pursuitReviews: {
-          c1: 'REVIEWED_NONE',
-        },
+        pursuitReviews: {},
         valueAnchors: [],
         characterPursuits: [],
       },

@@ -125,4 +125,57 @@ describe('compileRuntimeTopology', () => {
     expect(result.spatialGraph[0].description).toBe('Dusty and quiet');
     expect(result.spatialGraph[0].exits).toEqual([]);
   });
+
+  it('fails closed for rich authored topology when explicit startingNodeId is missing', () => {
+    expect(() =>
+      compileRuntimeTopology({
+        topology: {
+          nodeDefinitions: [
+            { id: 'ROOM_A', label: 'Room A', description: 'Desc A' },
+            { id: 'ROOM_B', label: 'Room B', description: 'Desc B' },
+          ],
+          connections: [],
+        },
+      })
+    ).toThrow('Explicit startingNodeId is required for rich authored topology.');
+  });
+
+  it('fails closed for rich authored topology when startingNodeId is an expandable space anchor', () => {
+    expect(() =>
+      compileRuntimeTopology({
+        topology: {
+          startingNodeId: 'anchor-vent',
+          nodeDefinitions: [{ id: 'ROOM_A', label: 'Room A', description: 'Desc A' }],
+          anchors: [
+            { id: 'anchor-vent', parentNodeId: 'ROOM_A', label: 'Vent Line' },
+          ],
+          connections: [],
+        },
+      })
+    ).toThrow('Starting node ID "anchor-vent" cannot be an expandable space anchor.');
+  });
+
+  it('fails closed for rich authored topology when startingNodeId is not in node definitions', () => {
+    expect(() =>
+      compileRuntimeTopology({
+        topology: {
+          startingNodeId: 'NONEXISTENT_NODE',
+          nodeDefinitions: [{ id: 'ROOM_A', label: 'Room A', description: 'Desc A' }],
+          connections: [],
+        },
+      })
+    ).toThrow('Explicit startingNodeId "NONEXISTENT_NODE" not found in topology node definitions.');
+  });
+
+  it('allows first-node fallback exclusively for legacy flat topology compatibility', () => {
+    const legacyResult = compileRuntimeTopology({
+      topology: {
+        nodes: ['LEGACY_ROOM_1', 'LEGACY_ROOM_2'],
+        connections: [],
+      },
+    });
+
+    expect(legacyResult.startNodeId).toBe('LEGACY_ROOM_1');
+    expect(legacyResult.spatialGraph).toHaveLength(2);
+  });
 });

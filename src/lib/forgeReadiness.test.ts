@@ -215,4 +215,150 @@ describe('Forge Readiness & Compilation (Packet 1-1)', () => {
     expect(readiness.valid).toBe(false);
     expect(readiness.errors['source.src-1.stagedCandidates']).toBeDefined();
   });
+
+  it('rejects draft when topology nodes exist but explicit startingNodeId is missing or invalid', () => {
+    const draft = createValidBaseDraft();
+    draft.topology = {
+      nodes: ['NODE_A', 'NODE_B'],
+      connections: [],
+    };
+    const resMissing = validateForgeDraft(draft);
+    expect(resMissing.valid).toBe(false);
+    expect(resMissing.errors['topology.startingNodeId']).toContain(
+      'Explicit startingNodeId is required for authored topology'
+    );
+
+    draft.topology.startingNodeId = 'UNKNOWN_NODE';
+    const resUnknown = validateForgeDraft(draft);
+    expect(resUnknown.valid).toBe(false);
+    expect(resUnknown.errors['topology.startingNodeId']).toContain(
+      'Starting node ID references unknown topology node: "UNKNOWN_NODE"'
+    );
+  });
+
+  it('rejects expandable anchor when used as startingNodeId or colliding with main node ID', () => {
+    const draft = createValidBaseDraft();
+    draft.topology = {
+      startingNodeId: 'anchor-vent',
+      nodes: ['NODE_AIRLOCK', 'NODE_LAB'],
+      connections: [],
+      anchors: [
+        {
+          id: 'anchor-vent',
+          parentNodeId: 'NODE_AIRLOCK',
+          label: 'Vent Line',
+        },
+        {
+          id: 'NODE_LAB', // Collision with main node
+          parentNodeId: 'NODE_AIRLOCK',
+          label: 'Colliding Anchor',
+        },
+      ],
+    };
+    const res = validateForgeDraft(draft);
+    expect(res.valid).toBe(false);
+    expect(res.errors['topology.startingNodeId']).toContain(
+      'Starting node ID "anchor-vent" cannot be an expandable space anchor'
+    );
+    expect(res.errors['topology.anchors[1].id']).toContain(
+      'Expandable space anchor ID "NODE_LAB" cannot match a main node ID'
+    );
+  });
+
+  it('rejects connections with unknown endpoints or duplicate directed edges', () => {
+    const draft = createValidBaseDraft();
+    draft.topology = {
+      startingNodeId: 'NODE_AIRLOCK',
+      nodes: ['NODE_AIRLOCK', 'NODE_LAB'],
+      connections: [
+        { from: 'NODE_AIRLOCK', to: 'UNKNOWN_TARGET', kind: 'PHYSICAL', userInitiated: true },
+        { from: 'NODE_AIRLOCK', to: 'NODE_LAB', kind: 'PHYSICAL', userInitiated: true },
+        { from: 'NODE_AIRLOCK', to: 'NODE_LAB', kind: 'PHYSICAL', userInitiated: true },
+      ],
+    };
+    const res = validateForgeDraft(draft);
+    expect(res.valid).toBe(false);
+    expect(res.errors['topology.connections[0].to']).toBeDefined();
+    expect(res.errors['topology.connections[2]']).toContain(
+      'Duplicate directed connection: "NODE_AIRLOCK->NODE_LAB"'
+    );
+  });
+
+  it('validates topology provenance against registered source analyses during export readiness and compilation', () => {
+    const draft = createValidBaseDraft();
+    draft.topology = {
+      startingNodeId: 'NODE_AIRLOCK',
+      startingNodeProvenance: {
+        sourceId: 'src-1',
+        evidenceIds: ['ev-topo-1'],
+        classification: 'evidence',
+      },
+      nodeDefinitions: [
+        {
+          id: 'NODE_AIRLOCK',
+          label: 'Airlock 01',
+          sourceId: 'src-1',
+          evidenceIds: ['ev-nonexistent'],
+        },
+      ],
+      connections: [
+        {
+          from: 'NODE_AIRLOCK',
+          to: 'NODE_LAB',
+          kind: 'PHYSICAL',
+          userInitiated: true,
+          sourceId: 'src-unknown',
+          evidenceIds: ['ev-topo-1'],
+        },
+      ],
+      anchors: [
+        {
+          id: 'anchor-vent',
+          parentNodeId: 'NODE_AIRLOCK',
+          label: 'Vent',
+          sourceId: 'src-1',
+          evidenceIds: ['placeholder-1'],
+        },
+      ],
+    };
+
+    const sourceAnalyses = {
+      'src-1': {
+        id: 'src-1',
+        sourceRecord: {
+          id: 'src-1',
+          fileName: 'station.json',
+          mimeType: 'application/json',
+          kind: 'native_blueprint' as const,
+          receivedAt: Date.now(),
+        },
+        evidence: [
+          {
+            id: 'ev-topo-1',
+            sourceId: 'src-1',
+            category: 'topology' as const,
+            claim: 'Airlock access hatch',
+          },
+        ],
+        candidates: [],
+        unknowns: [],
+        status: 'completed' as const,
+      },
+    };
+
+    const readiness = validateForgeExportReadiness({ draft, sourceAnalyses });
+    expect(readiness.valid).toBe(false);
+    expect(readiness.errors['topology.nodeDefinitions[0].provenance']).toContain(
+      'Evidence ID "ev-nonexistent" does not resolve within registered source "src-1".'
+    );
+    expect(readiness.errors['topology.connections[0].provenance']).toContain(
+      'Source ID "src-unknown" is not registered in active source analyses.'
+    );
+    expect(readiness.errors['topology.anchors[0].provenance']).toContain(
+      'Prohibited placeholder evidenceId: "placeholder-1".'
+    );
+
+    const compiled = compileForgeDraft(draft, { draftRevision: 1, sourceBaselineRevision: 1, sourceAnalyses });
+    expect(compiled.success).toBe(false);
+  });
 });

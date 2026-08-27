@@ -89,9 +89,17 @@ describe('compileBlueprintDraft and prepareBlueprintExport', () => {
           role: 'Subject',
           behaviorVector: 'ADAPTIVE',
           isEntity: false,
+          isUserCharacter: true,
           presenceDisposition: { kind: 'AT_NODE', nodeId: 'A' },
         },
       ],
+      userCharacterId: 'c1',
+      userOpeningAim: {
+        castMemberId: 'c1',
+        disposition: 'NONE_DECLARED',
+        aimText: '',
+        reviewedAt: Date.now(),
+      },
       topology: {
         startingNodeId: 'A',
         nodes: ['A', 'B'],
@@ -112,9 +120,7 @@ describe('compileBlueprintDraft and prepareBlueprintExport', () => {
       environmentalRules: '',
       horrorGrammar: {
         valueBaselineReview: 'REVIEWED_NONE',
-        pursuitReviews: {
-          c1: 'REVIEWED_NONE',
-        },
+        pursuitReviews: {},
         valueAnchors: [],
         characterPursuits: [],
       },
@@ -151,9 +157,17 @@ describe('compileBlueprintDraft and prepareBlueprintExport', () => {
           role: 'Keeper',
           behaviorVector: 'ADAPTIVE',
           isEntity: false,
+          isUserCharacter: true,
           presenceDisposition: { kind: 'AT_NODE', nodeId: 'BELL_TOWER' },
         },
       ],
+      userCharacterId: 'c1',
+      userOpeningAim: {
+        castMemberId: 'c1',
+        disposition: 'NONE_DECLARED',
+        aimText: '',
+        reviewedAt: Date.now(),
+      },
       perspectives: [],
       topology: {
         startingNodeId: 'BELL_TOWER',
@@ -174,9 +188,7 @@ describe('compileBlueprintDraft and prepareBlueprintExport', () => {
       environmentalRules: '',
       horrorGrammar: {
         valueBaselineReview: 'REVIEWED_NONE',
-        pursuitReviews: {
-          c1: 'REVIEWED_NONE',
-        },
+        pursuitReviews: {},
         valueAnchors: [],
         characterPursuits: [],
       },
@@ -235,9 +247,17 @@ describe('compileBlueprintDraft and prepareBlueprintExport', () => {
           role: 'Officer',
           behaviorVector: 'ADAPTIVE',
           isEntity: false,
+          isUserCharacter: true,
           presenceDisposition: { kind: 'AT_NODE', nodeId: 'ROOM_A' },
         },
       ],
+      userCharacterId: 'c1',
+      userOpeningAim: {
+        castMemberId: 'c1',
+        disposition: 'NONE_DECLARED',
+        aimText: '',
+        reviewedAt: Date.now(),
+      },
       topology: {
         startingNodeId: 'ROOM_A',
         nodes: ['ROOM_A', 'ROOM_B'],
@@ -258,9 +278,7 @@ describe('compileBlueprintDraft and prepareBlueprintExport', () => {
       environmentalRules: '',
       horrorGrammar: {
         valueBaselineReview: 'REVIEWED_NONE',
-        pursuitReviews: {
-          c1: 'REVIEWED_NONE',
-        },
+        pursuitReviews: {},
         valueAnchors: [],
         characterPursuits: [],
       },
@@ -297,9 +315,17 @@ describe('compileBlueprintDraft and prepareBlueprintExport', () => {
           role: 'Observer',
           behaviorVector: 'ADAPTIVE',
           isEntity: false,
+          isUserCharacter: true,
           presenceDisposition: { kind: 'AT_NODE', nodeId: 'NODE_A' },
         },
       ],
+      userCharacterId: 'c1',
+      userOpeningAim: {
+        castMemberId: 'c1',
+        disposition: 'NONE_DECLARED',
+        aimText: '',
+        reviewedAt: Date.now(),
+      },
       topology: {
         startingNodeId: 'NODE_A',
         nodes: ['NODE_A', 'NODE_B'],
@@ -320,9 +346,7 @@ describe('compileBlueprintDraft and prepareBlueprintExport', () => {
       environmentalRules: '',
       horrorGrammar: {
         valueBaselineReview: 'REVIEWED_NONE',
-        pursuitReviews: {
-          c1: 'REVIEWED_NONE',
-        },
+        pursuitReviews: {},
         valueAnchors: [],
         characterPursuits: [],
       },
@@ -384,9 +408,17 @@ describe('compileBlueprintDraft and prepareBlueprintExport', () => {
           role: 'Specialist',
           behaviorVector: 'ADAPTIVE',
           isEntity: false,
+          isUserCharacter: true,
           presenceDisposition: { kind: 'AT_NODE', nodeId: 'A' },
         },
       ],
+      userCharacterId: 'c1',
+      userOpeningAim: {
+        castMemberId: 'c1',
+        disposition: 'NONE_DECLARED',
+        aimText: '',
+        reviewedAt: Date.now(),
+      },
       topology: {
         startingNodeId: 'A',
         nodes: ['A', 'B'],
@@ -407,9 +439,7 @@ describe('compileBlueprintDraft and prepareBlueprintExport', () => {
       environmentalRules: '',
       horrorGrammar: {
         valueBaselineReview: 'REVIEWED_NONE',
-        pursuitReviews: {
-          c1: 'REVIEWED_NONE',
-        },
+        pursuitReviews: {},
         valueAnchors: [],
         characterPursuits: [],
       },

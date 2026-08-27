@@ -111,6 +111,17 @@ export function resolvePerspectiveBinding(
       );
     }
 
+    if (
+      role === 'protagonist' &&
+      blueprint.userCharacterId &&
+      matchedChar.id !== blueprint.userCharacterId
+    ) {
+      throw new PlayerCharacterBindingError(
+        'ROLE_CHARACTER_MISMATCH',
+        `Selected character "${matchedChar.id}" does not match the reviewed user character ID "${blueprint.userCharacterId}" in this blueprint.`
+      );
+    }
+
     return {
       playerRole: role,
       characterId: matchedChar.id,
@@ -195,6 +206,27 @@ export function resolvePerspectiveBinding(
   }
 
   if (role === 'protagonist') {
+    if (blueprint.userCharacterId) {
+      const charMatches = cast.filter((c) => c.id === blueprint.userCharacterId);
+      if (charMatches.length === 0) {
+        throw new PlayerCharacterBindingError(
+          'UNKNOWN_CHARACTER_ID',
+          `User character ID "${blueprint.userCharacterId}" does not exist in blueprint cast.`
+        );
+      }
+      if (!isCharacterEligibleForRole(charMatches[0], 'protagonist')) {
+        throw new PlayerCharacterBindingError(
+          'ROLE_CHARACTER_MISMATCH',
+          `User character "${blueprint.userCharacterId}" is not eligible for role "protagonist".`
+        );
+      }
+      return {
+        playerRole: 'protagonist',
+        characterId: charMatches[0].id,
+        perspectiveMode: 'embodied',
+      };
+    }
+
     const protagonistPersp = findPerspective('PROTAGONIST');
     if (
       protagonistPersp &&
@@ -211,6 +243,15 @@ export function resolvePerspectiveBinding(
             : 'embodied',
         };
       }
+    }
+
+    const userMarked = cast.find((c) => c.isUserCharacter && isCharacterEligibleForRole(c, 'protagonist'));
+    if (userMarked) {
+      return {
+        playerRole: 'protagonist',
+        characterId: userMarked.id,
+        perspectiveMode: 'embodied',
+      };
     }
 
     const firstMortal = cast.find((c) => isCharacterEligibleForRole(c, 'protagonist'));

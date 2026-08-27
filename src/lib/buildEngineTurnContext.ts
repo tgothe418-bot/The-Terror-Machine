@@ -263,19 +263,26 @@ export function buildEngineTurnContext(
 
   let playerOpeningAim: string | undefined = undefined;
   let sovereigntyInstruction: string | undefined = undefined;
+  let openingAimDisposition:
+    | import('../types/horrorGrammar').UserOpeningAimReviewDisposition
+    | undefined = undefined;
 
   const userAim = normBp.userOpeningAim || normBp.horrorGrammar?.userOpeningAim;
-  if (
-    characterId &&
-    userAim &&
-    userAim.castMemberId === characterId &&
-    (userAim.disposition === 'ACCEPTED_REFERENCE' || userAim.disposition === 'CREATOR_OVERRIDE') &&
-    userAim.aimText &&
-    userAim.aimText.trim().length > 0
-  ) {
-    playerOpeningAim = userAim.aimText.trim();
-    sovereigntyInstruction =
-      'This opening aim represents historical starting orientation only. The user retains complete sovereignty over whether, when, and how to pursue it. The Engine must never assert unchosen user actions, internal decisions, or mandatory quests based on this aim.';
+  if (characterId && userAim && userAim.castMemberId === characterId) {
+    openingAimDisposition = userAim.disposition;
+    if (
+      (userAim.disposition === 'ACCEPTED_REFERENCE' || userAim.disposition === 'CREATOR_OVERRIDE') &&
+      userAim.aimText &&
+      userAim.aimText.trim().length > 0
+    ) {
+      playerOpeningAim = userAim.aimText.trim();
+      sovereigntyInstruction =
+        'This opening aim represents historical starting orientation only. The user retains complete sovereignty over whether, when, and how to pursue it. The Engine must never assert unchosen user actions, internal decisions, or mandatory quests based on this aim.';
+    } else if (userAim.disposition === 'NONE_DECLARED') {
+      playerOpeningAim = undefined;
+      sovereigntyInstruction =
+        'No opening aim was declared for this character. The Engine must never infer, fabricate, or supply an unchosen starting goal or quest.';
+    }
   }
 
   // 3. Topology boundary (resolved early for presence calculations)
@@ -614,6 +621,7 @@ export function buildEngineTurnContext(
       description: playerDescription,
       isEntity: playerIsEntity,
       openingAim: playerOpeningAim,
+      openingAimDisposition,
       sovereigntyInstruction,
     },
     cast,

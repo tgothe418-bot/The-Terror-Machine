@@ -87,7 +87,11 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
         try {
           const validated = normalizeBlueprint(parsed);
           setPreviewBlueprint(validated);
-          forgeActions.setActiveCharacterId(null);
+          if (validated.userCharacterId) {
+            forgeActions.setActiveCharacterId(validated.userCharacterId);
+          } else {
+            forgeActions.setActiveCharacterId(null);
+          }
 
           const availabilities = resolveSeatAvailabilities(validated);
           if (validated.hauntedHouse) {

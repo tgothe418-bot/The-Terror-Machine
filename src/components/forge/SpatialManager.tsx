@@ -19,6 +19,7 @@ import {
 
 export const SpatialManager: React.FC = () => {
   const blueprint = useForgeState((state) => state.draftBlueprint);
+  const sourceAnalyses = useForgeState((state) => state.sourceAnalyses);
   const topology = blueprint?.topology;
   const cast = blueprint?.cast || [];
   const { updateDraft } = forgeActions;
@@ -76,11 +77,25 @@ export const SpatialManager: React.FC = () => {
 
   const handleSetStartingNode = (nodeId: string) => {
     if (!topology) return;
+    const userChar = cast.find((c) => c.isUserCharacter) || (blueprint?.userCharacterId ? cast.find((c) => c.id === blueprint.userCharacterId) : undefined);
+    const updatedCast = userChar
+      ? cast.map((m) =>
+          m.id === userChar.id
+            ? {
+                ...m,
+                presenceDisposition: { kind: 'AT_NODE' as const, nodeId },
+                starting_location: nodeId,
+              }
+            : m
+        )
+      : cast;
+
     updateDraft({
       topology: {
         ...topology,
         startingNodeId: nodeId,
       },
+      cast: updatedCast,
     });
   };
 
@@ -865,10 +880,70 @@ export const SpatialManager: React.FC = () => {
 
         {/* 1. PLAYER OPENING AIM SECTION */}
         {(() => {
-          const userMember = cast.find((c) => c.isUserCharacter);
-          if (!userMember) return null;
+          const eligibleMembers = cast.filter((c) => !c.isEntity);
+          const userMember = cast.find((c) => c.isUserCharacter) || (blueprint?.userCharacterId ? cast.find((c) => c.id === blueprint.userCharacterId) : undefined);
+
+          if (!userMember) {
+            return (
+              <div className="bg-zinc-900/40 border border-amber-800/60 rounded p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-amber-300 text-xs uppercase tracking-wider">
+                    Select User Character (Protagonist)
+                  </span>
+                  <span className="text-[10px] text-zinc-500">Exactly 1 required</span>
+                </div>
+                <p className="text-xs text-zinc-400">
+                  No cast member is currently designated as the player-controlled character. Select an eligible mortal character below:
+                </p>
+                <div className="flex items-center gap-2 flex-wrap pt-1">
+                  {eligibleMembers.map((m) => (
+                    <button
+                      key={m.id}
+                      onClick={() => {
+                        const res = forgeActions.setUserCharacter(m.id);
+                        if (!res.success && res.error) window.alert(res.error);
+                      }}
+                      className="px-2.5 py-1 bg-cyan-950 hover:bg-cyan-900 border border-cyan-800 text-cyan-300 rounded text-xs font-bold uppercase cursor-pointer"
+                    >
+                      Set {m.name || m.id} as Player
+                    </button>
+                  ))}
+                </div>
+              </div>
+            );
+          }
+
           const userAim = blueprint?.userOpeningAim || blueprint?.horrorGrammar?.userOpeningAim;
           const disp = userAim?.disposition || 'UNREVIEWED';
+
+          // Resolve proposed aim text and provenance from draft or sourceAnalyses
+          let proposalText = userAim?.aimText || '';
+          let hasValidProposal = Boolean(proposalText.trim());
+          if (!hasValidProposal && sourceAnalyses) {
+            for (const a of Object.values(sourceAnalyses)) {
+              const cand = a.candidates?.find(
+                (c) =>
+                  c.target === 'user_opening_aim_default' &&
+                  (c.targetCastMemberId === userMember.id || !c.targetCastMemberId)
+              );
+              if (cand) {
+                const text =
+                  typeof cand.proposedValue === 'string'
+                    ? cand.proposedValue.trim()
+                    : typeof cand.proposedValue === 'object' &&
+                      cand.proposedValue !== null &&
+                      'aimText' in cand.proposedValue &&
+                      typeof cand.proposedValue.aimText === 'string'
+                    ? cand.proposedValue.aimText.trim()
+                    : '';
+                if (text) {
+                  proposalText = text;
+                  hasValidProposal = true;
+                  break;
+                }
+              }
+            }
+          }
 
           return (
             <div className="bg-zinc-900/40 border border-zinc-800 rounded p-3 space-y-2.5">
@@ -877,14 +952,24 @@ export const SpatialManager: React.FC = () => {
                   <span className="font-bold text-cyan-300 text-xs">
                     Player Character: {userMember.name || 'Protagonist'}
                   </span>
-                  <span className="text-[9px] px-1.5 py-0.5 rounded uppercase font-bold bg-zinc-800 text-zinc-400">
+                  <span
+                    className={`text-[9px] px-1.5 py-0.5 rounded uppercase font-bold ${
+                      disp === 'ACCEPTED_REFERENCE'
+                        ? 'bg-emerald-950/60 border border-emerald-800 text-emerald-300'
+                        : disp === 'CREATOR_OVERRIDE'
+                        ? 'bg-blue-950/60 border border-blue-800 text-blue-300'
+                        : disp === 'NONE_DECLARED'
+                        ? 'bg-zinc-800 text-zinc-400'
+                        : 'bg-amber-950/60 border border-amber-800 text-amber-300'
+                    }`}
+                  >
                     {disp === 'ACCEPTED_REFERENCE'
                       ? 'Accepted Reference'
                       : disp === 'CREATOR_OVERRIDE'
                       ? 'Creator Override'
                       : disp === 'NONE_DECLARED'
                       ? 'None Declared'
-                      : 'Unreviewed'}
+                      : 'Unreviewed Proposal'}
                   </span>
                 </div>
                 <span className="text-[10px] text-zinc-500">Sovereignty: Player Discretion Only</span>
@@ -892,7 +977,20 @@ export const SpatialManager: React.FC = () => {
 
               {disp === 'NONE_DECLARED' ? (
                 <div className="text-[11px] text-zinc-400 italic bg-black/40 p-2 rounded border border-zinc-800">
-                  No opening aim declared. (Engine will not fabricate a player quest or goal).
+                  No opening aim declared. (Engine will not infer or fabricate a player quest or goal).
+                </div>
+              ) : disp === 'UNREVIEWED' ? (
+                <div className="text-xs bg-black/40 p-2 rounded border border-amber-900/50 space-y-1">
+                  <span className="text-amber-400/80 text-[10px] uppercase font-bold block">
+                    Unreviewed Source Proposal:
+                  </span>
+                  <div className="text-zinc-200">
+                    {proposalText ? (
+                      `"${proposalText}"`
+                    ) : (
+                      <span className="text-zinc-500 italic">No reference proposal available.</span>
+                    )}
+                  </div>
                 </div>
               ) : (
                 <div className="text-xs text-zinc-200 bg-black/40 p-2 rounded border border-zinc-800">
@@ -904,34 +1002,19 @@ export const SpatialManager: React.FC = () => {
 
               <div className="flex items-center gap-2 flex-wrap pt-1">
                 <button
+                  disabled={!hasValidProposal}
                   onClick={() => {
-                    const defaultAim =
-                      userMember.goals || 'Investigate the anomalous containment sector.';
-                    const aimRecord = {
-                      castMemberId: userMember.id,
-                      disposition: 'ACCEPTED_REFERENCE' as const,
-                      aimText: defaultAim,
-                      provenance: {
-                        kind: 'REVIEWED_SOURCE' as const,
-                        sourceId: 'src-default',
-                        evidenceIds: ['ev-extracted'],
-                      },
-                      reviewedAt: Date.now(),
-                    };
-                    updateDraft({
-                      userOpeningAim: aimRecord,
-                      horrorGrammar: {
-                        ...(blueprint?.horrorGrammar || {
-                          valueBaselineReview: 'UNREVIEWED',
-                          pursuitReviews: {},
-                          valueAnchors: [],
-                          characterPursuits: [],
-                        }),
-                        userOpeningAim: aimRecord,
-                      },
-                    });
+                    const res = forgeActions.acceptReferenceOpeningAim();
+                    if (!res.success && res.error) {
+                      window.alert(res.error);
+                    }
                   }}
-                  className="px-2 py-1 bg-cyan-950 hover:bg-cyan-900 border border-cyan-800 text-cyan-300 rounded text-[10px] font-bold uppercase cursor-pointer"
+                  className={`px-2 py-1 rounded text-[10px] font-bold uppercase transition-colors ${
+                    hasValidProposal
+                      ? 'bg-cyan-950 hover:bg-cyan-900 border border-cyan-800 text-cyan-300 cursor-pointer'
+                      : 'bg-zinc-900 border border-zinc-800 text-zinc-600 cursor-not-allowed'
+                  }`}
+                  title={hasValidProposal ? 'Accept reference opening aim default' : 'No valid proposal to accept'}
                 >
                   Accept Reference Default
                 </button>
@@ -940,28 +1023,10 @@ export const SpatialManager: React.FC = () => {
                   onClick={() => {
                     const customText = window.prompt(
                       'Enter your custom opening aim for ' + (userMember.name || 'player') + ':',
-                      userAim?.aimText || ''
+                      userAim?.aimText || proposalText || ''
                     );
                     if (customText !== null && customText.trim().length > 0) {
-                      const aimRecord = {
-                        castMemberId: userMember.id,
-                        disposition: 'CREATOR_OVERRIDE' as const,
-                        aimText: customText.trim(),
-                        provenance: { kind: 'CREATOR_DEFINED' as const },
-                        reviewedAt: Date.now(),
-                      };
-                      updateDraft({
-                        userOpeningAim: aimRecord,
-                        horrorGrammar: {
-                          ...(blueprint?.horrorGrammar || {
-                            valueBaselineReview: 'UNREVIEWED',
-                            pursuitReviews: {},
-                            valueAnchors: [],
-                            characterPursuits: [],
-                          }),
-                          userOpeningAim: aimRecord,
-                        },
-                      });
+                      forgeActions.setCreatorOverrideOpeningAim(customText.trim());
                     }
                   }}
                   className="px-2 py-1 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-200 rounded text-[10px] font-bold uppercase cursor-pointer"
@@ -971,24 +1036,7 @@ export const SpatialManager: React.FC = () => {
 
                 <button
                   onClick={() => {
-                    const aimRecord = {
-                      castMemberId: userMember.id,
-                      disposition: 'NONE_DECLARED' as const,
-                      aimText: '',
-                      reviewedAt: Date.now(),
-                    };
-                    updateDraft({
-                      userOpeningAim: aimRecord,
-                      horrorGrammar: {
-                        ...(blueprint?.horrorGrammar || {
-                          valueBaselineReview: 'UNREVIEWED',
-                          pursuitReviews: {},
-                          valueAnchors: [],
-                          characterPursuits: [],
-                        }),
-                        userOpeningAim: aimRecord,
-                      },
-                    });
+                    forgeActions.setNoneDeclaredOpeningAim();
                   }}
                   className="px-2 py-1 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-400 hover:text-zinc-200 rounded text-[10px] uppercase cursor-pointer"
                 >

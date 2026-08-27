@@ -894,7 +894,7 @@ router.post("/extract-blueprint", async (req, res) => {
          - 'setting_time_period': String time era/period.
          - 'environmental_rule': Discrete environmental or physical law string.
          - 'narrative_rule': Discrete plot element or dramatic rule string.
-         - 'cast_seed': Object with { id?, name, role, description, isEntity, behaviorVector, vulnerabilityBase: { resilience, skepticism, baggage } }.
+         - 'cast_seed': Object with { id?, name, role, description, isEntity: boolean, isUserCharacter: boolean, behaviorVector, vulnerabilityBase: { resilience, skepticism, baggage } }. Explicit isUserCharacter boolean is strictly required.
          - 'cast_expression_guidance': Object with { communicationModes: string[], expressionGuidance: string, silenceGuidance?: string } and matching targetCastMemberId.
          - 'topology_node': Object with { id, label, description, sensoryGuidance? } for compact, story-important main opening spaces.
          - 'topology_connection': Object with { from, to, kind, requires?: string[], userInitiated: boolean } for directed paths between main nodes.
@@ -903,7 +903,7 @@ router.post("/extract-blueprint", async (req, res) => {
          - 'cast_opening_placement': Object with { kind: 'AT_NODE', nodeId: string } | { kind: 'OFFSTAGE' } | { kind: 'NONLOCAL' } with targetCastMemberId.
          - 'value_anchor': Object with { id, holder: { kind, ... }, label, description, basisSummary, provenance: { kind: 'REVIEWED_SOURCE', sourceId, evidenceIds } }.
          - 'character_pursuit': Object with { id, castMemberId, objective, presentApproach, locationNodeId?, status: 'ACTIVE'|'DORMANT', reviewWindow: 'MOMENT'|'SCENE_BEAT'|'EXTENDED'|'EVENT_DRIVEN', triggerReferences: string[], basisSummary, provenance: { kind: 'REVIEWED_SOURCE', sourceId, evidenceIds } }.
-         - 'user_opening_aim_default': Object with { castMemberId, disposition: 'ACCEPTED_REFERENCE', aimText: string, provenance: { kind: 'REVIEWED_SOURCE', sourceId, evidenceIds } } for user-controlled protagonist.
+         - 'user_opening_aim_default': Object with { castMemberId, aimText } proposed opening aim for user-controlled protagonist.
          - 'initial_topology_node': String spatial node name.
          - 'reference_attribution': The document file name "${fileName}".
       2. Compact Story Map Policy: Extract only story-important opening spaces and directed connections. Represent secondary spaces as expandable_space_anchors attached to parent nodes.

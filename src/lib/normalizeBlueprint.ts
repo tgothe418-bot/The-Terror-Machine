@@ -16,15 +16,34 @@ function normalizeLegacyBlueprintShape(raw: unknown): unknown {
 
   const rawRecord = raw;
 
-  // Extract protagonist ID if present in legacy perspectives only when userCharacterId is absent or undefined
+  // Extract protagonist ID: prefer userCharacterId, then cast.isUserCharacter, then perspectives
   let protagonistId: unknown = undefined;
   if (hasOwn(rawRecord, 'userCharacterId') && rawRecord.userCharacterId !== undefined) {
     protagonistId = rawRecord.userCharacterId;
+  } else if (Array.isArray(rawRecord.cast)) {
+    const userMember = rawRecord.cast.find((c) => isRecord(c) && c.isUserCharacter);
+    if (isRecord(userMember) && typeof userMember.id === 'string') {
+      protagonistId = userMember.id;
+    }
   } else if (Array.isArray(rawRecord.perspectives)) {
     const found = rawRecord.perspectives.find((p) => isRecord(p) && p.role === 'PROTAGONIST');
     if (isRecord(found) && typeof found.subjectCharacterId === 'string') {
       protagonistId = found.subjectCharacterId;
     }
+  }
+
+  // Normalize cast isUserCharacter if protagonistId is known
+  let castNormalized: unknown = rawRecord.cast;
+  if (typeof protagonistId === 'string' && Array.isArray(rawRecord.cast)) {
+    castNormalized = rawRecord.cast.map((c) => {
+      if (isRecord(c)) {
+        return {
+          ...c,
+          isUserCharacter: c.id === protagonistId,
+        };
+      }
+      return c;
+    });
   }
 
   // Normalize topology and topology.connections
@@ -191,6 +210,7 @@ function normalizeLegacyBlueprintShape(raw: unknown): unknown {
     ...(topPremiseNormalized !== undefined ? { premise: topPremiseNormalized } : {}),
     ...(globalPremiseNormalized !== undefined ? { globalPremise: globalPremiseNormalized } : {}),
     ...(protagonistId !== undefined ? { userCharacterId: protagonistId } : {}),
+    ...(castNormalized !== undefined ? { cast: castNormalized } : {}),
     ...(userOpeningAimNormalized !== undefined ? { userOpeningAim: userOpeningAimNormalized } : {}),
   };
 }

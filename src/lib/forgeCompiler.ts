@@ -1,12 +1,14 @@
 import { Blueprint, BlueprintSchema } from '../types';
 import {
   ForgeDraft,
+  ForgeDraftCastMember,
   ForgeDraftSchema,
   ForgeValidationResult,
   ForgeReviewArtifact,
   ForgeCompileResult,
 } from '../types/forge';
 import { normalizeBlueprint } from './normalizeBlueprint';
+import { resolveSourceEvidenceProvenance } from './sourceBaseline';
 
 /**
  * Recursively freezes plain objects and arrays to ensure deep immutability.
@@ -179,11 +181,22 @@ export function validateForgeDraft(rawDraft: unknown): ForgeValidationResult {
   }
 
   // Validate starting node ID
-  if (draft.topology?.startingNodeId) {
-    if (!allNodeIds.has(draft.topology.startingNodeId)) {
+  if (allNodeIds.size > 0) {
+    if (!draft.topology?.startingNodeId || !draft.topology.startingNodeId.trim()) {
       errors['topology.startingNodeId'] = [
-        `Starting node ID references unknown topology node: "${draft.topology.startingNodeId}"`,
+        'Explicit startingNodeId is required for authored topology',
       ];
+    } else {
+      const startId = draft.topology.startingNodeId.trim();
+      if (draft.topology?.anchors?.some((a) => a.id === startId)) {
+        errors['topology.startingNodeId'] = [
+          `Starting node ID "${startId}" cannot be an expandable space anchor`,
+        ];
+      } else if (!allNodeIds.has(startId)) {
+        errors['topology.startingNodeId'] = [
+          `Starting node ID references unknown topology node: "${startId}"`,
+        ];
+      }
     }
   }
 
@@ -225,6 +238,12 @@ export function validateForgeDraft(rawDraft: unknown): ForgeValidationResult {
       errors[`${fieldPrefix}.id`] = [`Duplicate expandable anchor ID: "${anchor.id}"`];
     }
     seenExpAnchorIds.add(anchor.id);
+
+    if (allNodeIds.has(anchor.id)) {
+      errors[`${fieldPrefix}.id`] = [
+        `Expandable space anchor ID "${anchor.id}" cannot match a main node ID`,
+      ];
+    }
 
     if (allNodeIds.size > 0 && !allNodeIds.has(anchor.parentNodeId)) {
       errors[`${fieldPrefix}.parentNodeId`] = [
@@ -399,18 +418,77 @@ export function validateForgeDraft(rawDraft: unknown): ForgeValidationResult {
     });
   }
 
-  // 9. User-Controlled Character Opening Aim Validation
-  const userMembers = draft.cast?.filter((c) => c.isUserCharacter) || [];
-  for (const userChar of userMembers) {
+  // 9. User-Controlled Character Identity & Opening Aim Validation
+  const castList = draft.cast || [];
+  let userChar: ForgeDraftCastMember | undefined = undefined;
+
+  if (castList.length > 0) {
+    if (draft.userCharacterId) {
+      const found = castList.find((c) => c.id === draft.userCharacterId);
+      if (!found) {
+        errors['userCharacterId'] = [
+          `Selected userCharacterId "${draft.userCharacterId}" does not exist in draft cast`,
+        ];
+      } else if (found.isEntity) {
+        errors['userCharacterId'] = [
+          `Entity cast member "${found.name || found.id}" is not eligible for protagonist user character control`,
+        ];
+      } else {
+        userChar = found;
+      }
+
+      const conflicting = castList.filter((c) => c.isUserCharacter && c.id !== draft.userCharacterId);
+      if (conflicting.length > 0) {
+        errors['userCharacterId.conflict'] = [
+          `Cast members [${conflicting.map((c) => c.id).join(', ')}] marked as user character conflict with selected userCharacterId "${draft.userCharacterId}"`,
+        ];
+      }
+    } else {
+      const marked = castList.filter((c) => c.isUserCharacter);
+      if (marked.length === 0) {
+        errors['userCharacterId'] = ['No user character selected in draft'];
+      } else if (marked.length > 1) {
+        errors['userCharacterId'] = [
+          `Multiple cast members [${marked.map((c) => c.id).join(', ')}] are marked as user character; exactly one is required`,
+        ];
+      } else if (marked[0].isEntity) {
+        errors['userCharacterId'] = [
+          `Entity cast member "${marked[0].name || marked[0].id}" is not eligible for protagonist user character control`,
+        ];
+      } else {
+        userChar = marked[0];
+      }
+    }
+  }
+
+  // Ensure user character is excluded from non-user pursuit reviews
+  if (userChar) {
     if (hg?.pursuitReviews && hg.pursuitReviews[userChar.id]) {
       errors[`horrorGrammar.pursuitReviews.${userChar.id}`] = [
         'User-controlled characters cannot be registered in non-user pursuit reviews',
       ];
     }
-  }
 
-  if (userMembers.length > 0) {
-    const userChar = userMembers[0];
+    // Verify user character placement resolves to startingNodeId
+    const startingNodeId = draft.topology?.startingNodeId;
+    if (startingNodeId) {
+      if (userChar.presenceDisposition) {
+        if (userChar.presenceDisposition.kind !== 'AT_NODE') {
+          errors['userCharacter.placement'] = [
+            `Selected user character "${userChar.name || userChar.id}" must have opening placement AT_NODE at startingNodeId "${startingNodeId}"`,
+          ];
+        } else if (userChar.presenceDisposition.nodeId !== startingNodeId) {
+          errors['userCharacter.placement'] = [
+            `Selected user character placement node "${userChar.presenceDisposition.nodeId}" does not match topology startingNodeId "${startingNodeId}"`,
+          ];
+        }
+      } else if (userChar.starting_location && userChar.starting_location !== startingNodeId) {
+        errors['userCharacter.placement'] = [
+          `Selected user character starting location "${userChar.starting_location}" does not match topology startingNodeId "${startingNodeId}"`,
+        ];
+      }
+    }
+
     const userCharName = userChar.name || userChar.id;
     const userAim = draft.userOpeningAim || hg?.userOpeningAim;
 
@@ -443,6 +521,21 @@ export function validateForgeDraft(rawDraft: unknown): ForgeValidationResult {
           errors['userOpeningAim.provenance'] = [
             'Accepted reference opening aim requires valid sourceId and at least one evidence ID',
           ];
+        } else if (
+          userAim.provenance.sourceId === 'src-default' ||
+          userAim.provenance.sourceId.startsWith('placeholder-')
+        ) {
+          errors['userOpeningAim.provenance'] = [
+            `Prohibited placeholder sourceId in opening aim provenance: "${userAim.provenance.sourceId}"`,
+          ];
+        } else if (
+          userAim.provenance.evidenceIds.some(
+            (id: string) => id === 'ev-extracted' || id.startsWith('placeholder-')
+          )
+        ) {
+          errors['userOpeningAim.provenance'] = [
+            'Prohibited placeholder evidence ID in opening aim provenance',
+          ];
         }
       } else if (userAim.disposition === 'CREATOR_OVERRIDE') {
         if (!userAim.aimText || !userAim.aimText.trim()) {
@@ -453,6 +546,17 @@ export function validateForgeDraft(rawDraft: unknown): ForgeValidationResult {
         if (userAim.provenance && userAim.provenance.kind === 'REVIEWED_SOURCE') {
           errors['userOpeningAim.provenance'] = [
             'Creator-defined opening aim must not retain false source-evidence attribution',
+          ];
+        }
+      } else if (userAim.disposition === 'NONE_DECLARED') {
+        if (userAim.aimText && userAim.aimText.trim().length > 0) {
+          errors['userOpeningAim.aimText'] = [
+            'None declared opening aim must have empty aim text',
+          ];
+        }
+        if (userAim.provenance && userAim.provenance.kind === 'REVIEWED_SOURCE') {
+          errors['userOpeningAim.provenance'] = [
+            'None declared opening aim must not retain reviewed source provenance',
           ];
         }
       }
@@ -492,12 +596,130 @@ export function compileForgeDraft(
 
   const draft = parseResult.data;
 
+  const sourceAnalyses =
+    typeof context === 'object' && context !== null && 'sourceAnalyses' in context
+      ? context.sourceAnalyses
+      : null;
+
+  // Validate exact provenance when compiling ACCEPTED_REFERENCE opening aim
+  if (draft.userOpeningAim?.disposition === 'ACCEPTED_REFERENCE') {
+    if (sourceAnalyses && Object.keys(sourceAnalyses).length > 0) {
+      const provRes = resolveSourceEvidenceProvenance({
+        provenance: draft.userOpeningAim.provenance,
+        sourceAnalyses,
+        expectedText: draft.userOpeningAim.aimText,
+        expectedCastMemberId: draft.userOpeningAim.castMemberId,
+      });
+      if (!provRes.valid) {
+        return {
+          success: false,
+          errors: { 'userOpeningAim.provenance': provRes.errors },
+        };
+      }
+    }
+  }
+
+  // Validate exact provenance for topology elements
+  if (sourceAnalyses && Object.keys(sourceAnalyses).length > 0 && draft.topology) {
+    const topo = draft.topology;
+    if (topo.startingNodeProvenance?.sourceId) {
+      const provRes = resolveSourceEvidenceProvenance({
+        provenance: {
+          kind: 'REVIEWED_SOURCE',
+          sourceId: topo.startingNodeProvenance.sourceId,
+          evidenceIds: topo.startingNodeProvenance.evidenceIds || [],
+        },
+        sourceAnalyses,
+      });
+      if (!provRes.valid) {
+        return {
+          success: false,
+          errors: { 'topology.startingNodeProvenance': provRes.errors },
+        };
+      }
+    }
+
+    if (Array.isArray(topo.nodeDefinitions)) {
+      for (let idx = 0; idx < topo.nodeDefinitions.length; idx++) {
+        const nodeDef = topo.nodeDefinitions[idx];
+        if (nodeDef.sourceId) {
+          const provRes = resolveSourceEvidenceProvenance({
+            provenance: {
+              kind: 'REVIEWED_SOURCE',
+              sourceId: nodeDef.sourceId,
+              evidenceIds: nodeDef.evidenceIds || [],
+            },
+            sourceAnalyses,
+          });
+          if (!provRes.valid) {
+            return {
+              success: false,
+              errors: { [`topology.nodeDefinitions[${idx}].provenance`]: provRes.errors },
+            };
+          }
+        }
+      }
+    }
+
+    if (Array.isArray(topo.connections)) {
+      for (let idx = 0; idx < topo.connections.length; idx++) {
+        const conn = topo.connections[idx];
+        if (typeof conn === 'object' && conn !== null && 'sourceId' in conn && conn.sourceId) {
+          const provRes = resolveSourceEvidenceProvenance({
+            provenance: {
+              kind: 'REVIEWED_SOURCE',
+              sourceId: conn.sourceId,
+              evidenceIds: conn.evidenceIds || [],
+            },
+            sourceAnalyses,
+          });
+          if (!provRes.valid) {
+            return {
+              success: false,
+              errors: { [`topology.connections[${idx}].provenance`]: provRes.errors },
+            };
+          }
+        }
+      }
+    }
+
+    if (Array.isArray(topo.anchors)) {
+      for (let idx = 0; idx < topo.anchors.length; idx++) {
+        const anchor = topo.anchors[idx];
+        if (anchor.sourceId) {
+          const provRes = resolveSourceEvidenceProvenance({
+            provenance: {
+              kind: 'REVIEWED_SOURCE',
+              sourceId: anchor.sourceId,
+              evidenceIds: anchor.evidenceIds || [],
+            },
+            sourceAnalyses,
+          });
+          if (!provRes.valid) {
+            return {
+              success: false,
+              errors: { [`topology.anchors[${idx}].provenance`]: provRes.errors },
+            };
+          }
+        }
+      }
+    }
+  }
+
+  const userCharId = draft.userCharacterId || draft.cast?.find((c) => c.isUserCharacter)?.id;
+  const synchronizedCast = (draft.cast || []).map((c) => ({
+    ...c,
+    isUserCharacter: c.id === userCharId,
+  }));
+
   // Transform into canonical Blueprint shape through single normalization boundary
   const normalized: Blueprint = normalizeBlueprint({
     ...draft,
     title: draft.identity?.title || draft.title,
     globalPremise: draft.globalPremise || draft.premise,
     premise: draft.premise || draft.globalPremise,
+    userCharacterId: userCharId,
+    cast: synchronizedCast,
   });
 
   // Verify full canonical Blueprint compliance
