@@ -201,7 +201,7 @@ describe('FileDropzone & Architect Binding Lifecycle UI', () => {
     });
 
     // Verify error is rendered to user
-    expect(container?.textContent).toContain('missing, expired, or invalid');
+    expect(container?.textContent).toContain('Source intake session expired');
 
     // Verify draft remains uncorrupted
     const draft = getForgeState().forgeDraft;

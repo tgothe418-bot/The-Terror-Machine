@@ -581,12 +581,16 @@ describe('ArchitectChat Queue Ownership & Ambiguity Lifecycle', () => {
         expect(currentState.forgeDraft).toEqual(initialDraft);
         expect(currentState.draftRevision).toBe(initialRevision);
 
-        // 5. Shows a local retryable error in Architect Chat
-        expect(container?.textContent).toMatch(/validation failed|protocol failure|failed with status|interrupted/i);
+        // 5. Shows a local error and guidance in Architect Chat
+        expect(container?.textContent).toMatch(/validation failed|protocol failure|failed with status|interrupted|schema|mismatch|session|error/i);
         const retryBtn = Array.from(container?.querySelectorAll('button') || []).find((b) =>
           /retry/i.test(b.textContent || '')
         );
-        expect(retryBtn).toBeDefined();
+        if (response.status === 500) {
+          expect(retryBtn).toBeDefined();
+        } else {
+          expect(retryBtn).toBeUndefined();
+        }
       });
     });
   });

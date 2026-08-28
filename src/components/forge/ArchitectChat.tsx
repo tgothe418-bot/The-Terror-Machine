@@ -25,6 +25,10 @@ import {
   ArrowRight,
   Layers,
 } from 'lucide-react';
+import {
+  classifyArchitectError,
+  ClassifiedArchitectError,
+} from '../../lib/architectErrorClassifier';
 
 export const ArchitectChat: React.FC = () => {
   const [input, setInput] = useState('');
@@ -33,11 +37,13 @@ export const ArchitectChat: React.FC = () => {
   const [editedResolution, setEditedResolution] = useState('');
   const [editedTargetEffect, setEditedTargetEffect] = useState('');
   const [localResolutionError, setLocalResolutionError] = useState<string | null>(null);
+  const [classifiedError, setClassifiedError] = useState<ClassifiedArchitectError | null>(null);
   const [failedResolutionAttempt, setFailedResolutionAttempt] = useState<{
     userText: string;
     sourceId: string;
     unknownId: string;
-    isTerminalBindingLoss?: boolean;
+    isRetryable?: boolean;
+    guidance?: string;
   } | null>(null);
 
   const inputRef = useRef<HTMLInputElement>(null);
@@ -86,6 +92,7 @@ export const ArchitectChat: React.FC = () => {
   const handleApplyResolution = () => {
     if (!sourceId || !activeUnk) return;
     setLocalResolutionError(null);
+    setClassifiedError(null);
     const outcome = acceptUnknownResolution(sourceId, activeUnk.id);
     if (!outcome.success) {
       setLocalResolutionError(`Failed to apply draft patch: ${(outcome as { success: false; error: string }).error}`);
@@ -95,6 +102,7 @@ export const ArchitectChat: React.FC = () => {
   const handleLeaveUncertain = () => {
     if (!sourceId || !activeUnk) return;
     setLocalResolutionError(null);
+    setClassifiedError(null);
     leaveUnknownUncertain(
       sourceId,
       activeUnk.id,
@@ -105,12 +113,14 @@ export const ArchitectChat: React.FC = () => {
   const handleRetry = () => {
     if (!sourceId || !activeUnk) return;
     setLocalResolutionError(null);
+    setClassifiedError(null);
     retryUnknown(sourceId, activeUnk.id);
   };
 
   const handleRetryResolution = () => {
-    if (failedResolutionAttempt) {
+    if (failedResolutionAttempt && failedResolutionAttempt.isRetryable) {
       setLocalResolutionError(null);
+      setClassifiedError(null);
       sendResolutionRequest(
         failedResolutionAttempt.userText,
         failedResolutionAttempt.sourceId,
@@ -125,6 +135,7 @@ export const ArchitectChat: React.FC = () => {
     targetUnknownId: string
   ) => {
     setLocalResolutionError(null);
+    setClassifiedError(null);
     setIsLoading(true);
 
     const historyPayload = messages.slice(-12).map((m) => ({ role: m.role, content: m.content }));
@@ -157,17 +168,25 @@ export const ArchitectChat: React.FC = () => {
 
     if (!buildResult.success) {
       const failure = buildResult as { error: string; code: string };
-      const isTerminal = failure.code === 'MISSING_SOURCE_BINDING';
-      setLocalResolutionError(failure.error);
+      const classified = classifyArchitectError({
+        clientErrorCode: failure.code,
+        serverMessage: failure.error,
+      });
+      setLocalResolutionError(classified.userFacingMessage);
+      setClassifiedError(classified);
       setFailedResolutionAttempt({
         userText,
         sourceId: targetSourceId,
         unknownId: targetUnknownId,
-        isTerminalBindingLoss: isTerminal,
+        isRetryable: classified.isRetryable,
+        guidance: classified.recoveryGuidance,
       });
+      if (!classified.isRetryable) {
+        setInput(userText);
+      }
       addArchitectMessage({
         role: 'architect',
-        content: `Architect protocol failure: ${failure.error}`,
+        content: `Architect protocol failure: ${classified.userFacingMessage} ${classified.recoveryGuidance}`,
       });
       setIsLoading(false);
       return;
@@ -182,27 +201,42 @@ export const ArchitectChat: React.FC = () => {
 
       if (!response.ok) {
         let serverError = `Architect resolution failed with status ${response.status}`;
-        let isTerminal = false;
+        let serverCode: string | undefined;
         try {
           const errBody = await response.json();
           if (errBody && typeof errBody === 'object') {
             if ('error' in errBody && typeof errBody.error === 'string') {
               serverError = errBody.error;
             }
-            if ('code' in errBody && errBody.code === 'SOURCE_BINDING_EXPIRED') {
-              isTerminal = true;
+            if ('code' in errBody && typeof errBody.code === 'string') {
+              serverCode = errBody.code;
             }
           }
         } catch {
           // ignore non-json error
         }
+
+        const classified = classifyArchitectError({
+          status: response.status,
+          code: serverCode,
+          serverMessage: serverError,
+        });
+
+        setLocalResolutionError(classified.userFacingMessage);
+        setClassifiedError(classified);
         setFailedResolutionAttempt({
           userText,
           sourceId: targetSourceId,
           unknownId: targetUnknownId,
-          isTerminalBindingLoss: isTerminal,
+          isRetryable: classified.isRetryable,
+          guidance: classified.recoveryGuidance,
         });
-        throw new Error(serverError);
+
+        if (!classified.isRetryable) {
+          setInput(userText);
+        }
+
+        throw new Error(classified.userFacingMessage);
       }
 
       let data: unknown;
@@ -216,12 +250,20 @@ export const ArchitectChat: React.FC = () => {
 
       if (validation.kind === 'INVALID') {
         const errorMsg = `Architect resolution protocol failure: ${validation.reason}`;
-        setLocalResolutionError(errorMsg);
+        const classified = classifyArchitectError({
+          serverMessage: errorMsg,
+          code: 'INVALID_RESPONSE_SCHEMA',
+        });
+        setLocalResolutionError(classified.userFacingMessage);
+        setClassifiedError(classified);
         setFailedResolutionAttempt({
           userText,
           sourceId: targetSourceId,
           unknownId: targetUnknownId,
+          isRetryable: false,
+          guidance: classified.recoveryGuidance,
         });
+        setInput(userText);
         addArchitectMessage({
           role: 'architect',
           content: `Architect response validation failed: ${validation.reason}`,
@@ -232,6 +274,7 @@ export const ArchitectChat: React.FC = () => {
       // Validated successfully: clear failed attempts and apply changes
       setFailedResolutionAttempt(null);
       setLocalResolutionError(null);
+      setClassifiedError(null);
 
       // Submit creator input answer to store
       submitUnknownAnswer(targetSourceId, targetUnknownId, userText);
@@ -251,12 +294,24 @@ export const ArchitectChat: React.FC = () => {
       }
     } catch (error) {
       const errStr = error instanceof Error ? error.message : 'Architect communication error.';
-      setLocalResolutionError(errStr);
-      setFailedResolutionAttempt((prev) => prev || {
-        userText,
-        sourceId: targetSourceId,
-        unknownId: targetUnknownId,
-      });
+      if (!classifiedError) {
+        const classified = classifyArchitectError({
+          rawError: error,
+          serverMessage: errStr,
+        });
+        setLocalResolutionError(classified.userFacingMessage);
+        setClassifiedError(classified);
+        setFailedResolutionAttempt({
+          userText,
+          sourceId: targetSourceId,
+          unknownId: targetUnknownId,
+          isRetryable: classified.isRetryable,
+          guidance: classified.recoveryGuidance,
+        });
+        if (!classified.isRetryable) {
+          setInput(userText);
+        }
+      }
       addArchitectMessage({
         role: 'architect',
         content: `Neural link interrupted during ambiguity resolution: ${errStr}`,
@@ -404,24 +459,27 @@ export const ArchitectChat: React.FC = () => {
 
           {/* Local Protocol Error / Retry State */}
           {localResolutionError && (
-            <div className="p-2 bg-red-950/40 border border-red-900/60 rounded text-red-200 text-[11px] font-mono flex items-center justify-between gap-2">
-              <div className="flex items-center gap-1.5 min-w-0">
-                <AlertTriangle className="w-3.5 h-3.5 text-red-400 shrink-0" />
-                <span className="truncate">{localResolutionError}</span>
+            <div className="p-2.5 bg-red-950/40 border border-red-900/60 rounded text-red-200 text-[11px] font-mono space-y-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <AlertTriangle className="w-3.5 h-3.5 text-red-400 shrink-0" />
+                  <span className="font-semibold text-red-300 truncate">{localResolutionError}</span>
+                </div>
+                {failedResolutionAttempt?.isRetryable && (
+                  <button
+                    type="button"
+                    onClick={handleRetryResolution}
+                    className="px-2 py-0.5 bg-red-900/60 hover:bg-red-800 border border-red-700 text-red-100 rounded text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 shrink-0 cursor-pointer"
+                  >
+                    <RotateCcw className="w-2.5 h-2.5" />
+                    Retry
+                  </button>
+                )}
               </div>
-              {failedResolutionAttempt?.isTerminalBindingLoss ? (
-                <span className="px-2 py-0.5 bg-amber-900/60 border border-amber-700 text-amber-200 rounded text-[10px] font-bold uppercase tracking-wider shrink-0">
-                  Reattach source required
-                </span>
-              ) : (
-                <button
-                  type="button"
-                  onClick={handleRetryResolution}
-                  className="px-2 py-0.5 bg-red-900/60 hover:bg-red-800 border border-red-700 text-red-100 rounded text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 shrink-0 cursor-pointer"
-                >
-                  <RotateCcw className="w-2.5 h-2.5" />
-                  Retry
-                </button>
+              {failedResolutionAttempt?.guidance && (
+                <div className="text-[10px] text-zinc-400 pl-5">
+                  {failedResolutionAttempt.guidance}
+                </div>
               )}
             </div>
           )}

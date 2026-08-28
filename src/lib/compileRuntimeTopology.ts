@@ -31,22 +31,24 @@ export function compileRuntimeTopology(
 ): CompiledTopologyResult {
   const nodeDefs = options.topology?.nodeDefinitions || [];
   const rawNodes = options.topology?.nodes || [];
+  const isRichTopology = nodeDefs.length > 0;
 
-  // Union of node IDs preserving order: nodeDefinitions first, then any extra raw nodes
   const nodeIds: string[] = [];
   const seenIds = new Set<string>();
 
-  for (const def of nodeDefs) {
-    if (def?.id && !seenIds.has(def.id)) {
-      seenIds.add(def.id);
-      nodeIds.push(def.id);
+  if (isRichTopology) {
+    for (const def of nodeDefs) {
+      if (def?.id && !seenIds.has(def.id)) {
+        seenIds.add(def.id);
+        nodeIds.push(def.id);
+      }
     }
-  }
-
-  for (const n of rawNodes) {
-    if (n && !seenIds.has(n)) {
-      seenIds.add(n);
-      nodeIds.push(n);
+  } else {
+    for (const n of rawNodes) {
+      if (n && !seenIds.has(n)) {
+        seenIds.add(n);
+        nodeIds.push(n);
+      }
     }
   }
 
@@ -86,19 +88,30 @@ export function compileRuntimeTopology(
       userInitiated: conn.userInitiated !== false,
     }));
 
-    const def = nodeDefs.find((d) => d.id === nodeId);
+    if (isRichTopology) {
+      const def = nodeDefs.find((d) => d.id === nodeId);
+      if (!def || !def.label?.trim() || !def.description?.trim()) {
+        throw new Error(`Rich topology node "${nodeId}" requires a complete definition with non-empty label and description.`);
+      }
+      return {
+        id: nodeId,
+        name: def.label.trim(),
+        description: def.description.trim(),
+        connectedNodes,
+        exits,
+      };
+    }
 
     return {
       id: nodeId,
-      name: def?.label || nodeId.replace(/_/g, ' '),
-      description: def?.description || '',
+      name: nodeId.replace(/_/g, ' '),
+      description: '',
       connectedNodes,
       exits,
     };
   });
 
   const explicitStart = options.topology?.startingNodeId;
-  const isRichTopology = nodeDefs.length > 0;
 
   let startNodeId: string;
   if (isRichTopology) {

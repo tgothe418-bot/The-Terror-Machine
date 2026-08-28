@@ -267,7 +267,31 @@ describe('Forge 1C-3: Opening Aims, Goals, and Pursuit Convergence', () => {
       reviewedAt: Date.now(),
     };
 
-    const compiled = compileForgeDraft(draft);
+    const mockAnalysis = {
+      id: 'src-delta',
+      sourceRecord: { id: 'src-delta', fileName: 'delta.txt', mimeType: 'text/plain', kind: 'document' as const, receivedAt: Date.now() },
+      summary: 'Delta source log',
+      evidence: [{ id: 'ev-1', sourceId: 'src-delta', category: 'identity' as const, claim: 'Power generator offline.' }],
+      candidates: [
+        {
+          id: 'c-delta-1',
+          sourceId: 'src-delta',
+          classification: 'evidence' as const,
+          target: 'user_opening_aim_default' as const,
+          label: 'Aim',
+          explanation: 'Restore backup power',
+          evidenceIds: ['ev-1'],
+          targetCastMemberId: 'char-elena',
+          proposedValue: { castMemberId: 'char-elena', aimText: 'Restore backup power generator.' },
+          reviewDecision: 'accepted' as const,
+          applicationState: 'applied' as const,
+        },
+      ],
+      unknowns: [],
+      status: 'completed' as const,
+    };
+
+    const compiled = compileForgeDraft(draft, { sourceAnalyses: { 'src-delta': mockAnalysis } });
     expect(compiled.success).toBe(true);
     if (!compiled.success) return;
 
@@ -712,7 +736,7 @@ describe('Forge 1C-3: Opening Aims, Goals, and Pursuit Convergence', () => {
               targetCastMemberId: 'char-elena',
               proposedValue: { castMemberId: 'char-elena', aimText: 'Original proposal text.' },
               reviewDecision: 'accepted',
-              applicationState: 'staged',
+              applicationState: 'applied',
             },
           ],
           unknowns: [],
@@ -724,7 +748,7 @@ describe('Forge 1C-3: Opening Aims, Goals, and Pursuit Convergence', () => {
     });
 
     expect(provRes.valid).toBe(false);
-    expect(provRes.errors[0]).toContain('does not match proposal text');
+    expect(provRes.errors[0]).toContain('does not match candidate proposal text');
   });
 
   it('19. buildEngineTurnContext sets openingAimDisposition and sovereignty instruction for NONE_DECLARED', () => {
@@ -808,11 +832,12 @@ describe('Forge 1C-3: Opening Aims, Goals, and Pursuit Convergence', () => {
     expect(updated?.horrorGrammar?.pursuitReviews['char-elena']).toBe('UNREVIEWED');
   });
 
-  it('21. setUserCharacter rejects selecting entity cast members as player character', () => {
+  it('21. setUserCharacter prohibits designating entity characters as protagonist', () => {
     const draft = createBaseDraft();
     draft.cast?.push({
       id: 'entity-phantom',
-      name: 'Phantom',
+      name: 'The Phantom',
+      description: 'Hostile apparition',
       role: 'ANTAGONIST',
       isEntity: true,
       isUserCharacter: false,
@@ -857,5 +882,152 @@ describe('Forge 1C-3: Opening Aims, Goals, and Pursuit Convergence', () => {
     const valRes = validateForgeDraft(draft);
     expect(valRes.valid).toBe(false);
     expect(valRes.errors['userCharacterId'][0]).toContain('Multiple cast members');
+  });
+
+  it('24. rejected and staged opening-aim candidates cannot be accepted via provenance resolver', () => {
+    const rejectedCandAnalysis = {
+      id: 'src-rejected',
+      sourceRecord: { id: 'src-rejected', fileName: 'rejected.txt', mimeType: 'text/plain', kind: 'document' as const, receivedAt: Date.now() },
+      summary: 'Rejected aim test',
+      evidence: [{ id: 'ev-1', sourceId: 'src-rejected', category: 'identity' as const, claim: 'Claim' }],
+      candidates: [
+        {
+          id: 'cand-rej',
+          sourceId: 'src-rejected',
+          classification: 'evidence' as const,
+          target: 'user_opening_aim_default' as const,
+          label: 'Aim',
+          explanation: 'Rejected',
+          evidenceIds: ['ev-1'],
+          targetCastMemberId: 'char-elena',
+          proposedValue: { castMemberId: 'char-elena', aimText: 'Fix engine' },
+          reviewDecision: 'rejected' as const,
+          applicationState: 'staged' as const,
+        },
+      ],
+      unknowns: [],
+      status: 'completed' as const,
+    };
+
+    const res = resolveSourceEvidenceProvenance({
+      provenance: { kind: 'REVIEWED_SOURCE', sourceId: 'src-rejected', evidenceIds: ['ev-1'] },
+      sourceAnalyses: { 'src-rejected': rejectedCandAnalysis },
+      expectedText: 'Fix engine',
+      expectedCastMemberId: 'char-elena',
+    });
+    expect(res.valid).toBe(false);
+    expect(res.errors[0]).toContain('has not been accepted and applied');
+  });
+
+  it('25. readiness and compilation agree on reviewed-source validity matrix', () => {
+    const draft = createBaseDraft();
+    draft.userOpeningAim = {
+      castMemberId: 'char-elena',
+      disposition: 'ACCEPTED_REFERENCE',
+      aimText: 'Restore life support',
+      provenance: {
+        kind: 'REVIEWED_SOURCE',
+        sourceId: 'src-exact',
+        evidenceIds: ['ev-exact-1'],
+      },
+      reviewedAt: Date.now(),
+    };
+
+    const exactAnalysis = {
+      id: 'src-exact',
+      sourceRecord: { id: 'src-exact', fileName: 'exact.txt', mimeType: 'text/plain', kind: 'document' as const, receivedAt: Date.now() },
+      summary: 'Exact test',
+      evidence: [{ id: 'ev-exact-1', sourceId: 'src-exact', category: 'identity' as const, claim: 'Life support failure' }],
+      candidates: [
+        {
+          id: 'cand-exact-1',
+          sourceId: 'src-exact',
+          classification: 'evidence' as const,
+          target: 'user_opening_aim_default' as const,
+          label: 'Life Support Aim',
+          explanation: 'Exact applied candidate',
+          evidenceIds: ['ev-exact-1'],
+          targetCastMemberId: 'char-elena',
+          proposedValue: { castMemberId: 'char-elena', aimText: 'Restore life support' },
+          reviewDecision: 'accepted' as const,
+          applicationState: 'applied' as const,
+        },
+      ],
+      unknowns: [],
+      status: 'completed' as const,
+    };
+
+    // Case 1: Accepted reference aim + missing registry -> both fail
+    const readFail1 = validateForgeExportReadiness({ draft, sourceAnalyses: null });
+    const compFail1 = compileForgeDraft(draft, { sourceAnalyses: null });
+    expect(readFail1.valid).toBe(false);
+    expect(compFail1.success).toBe(false);
+    expect(readFail1.errors['userOpeningAim.provenance']).toBeDefined();
+    if (!compFail1.success) {
+      expect(compFail1.errors['userOpeningAim.provenance']).toBeDefined();
+    }
+
+    // Case 2: Plausible fake source/evidence strings -> both fail
+    const fakeDraft = {
+      ...draft,
+      userOpeningAim: {
+        ...draft.userOpeningAim!,
+        provenance: { kind: 'REVIEWED_SOURCE' as const, sourceId: 'fake-src', evidenceIds: ['fake-ev'] },
+      },
+    };
+    const readFail2 = validateForgeExportReadiness({ draft: fakeDraft, sourceAnalyses: { 'src-exact': exactAnalysis } });
+    const compFail2 = compileForgeDraft(fakeDraft, { sourceAnalyses: { 'src-exact': exactAnalysis } });
+    expect(readFail2.valid).toBe(false);
+    expect(compFail2.success).toBe(false);
+
+    // Case 3: Exact current accepted/applied candidate -> both pass
+    const readPass = validateForgeExportReadiness({ draft, sourceAnalyses: { 'src-exact': exactAnalysis } });
+    const compPass = compileForgeDraft(draft, { sourceAnalyses: { 'src-exact': exactAnalysis } });
+    expect(readPass.valid).toBe(true);
+    expect(compPass.success).toBe(true);
+
+    // Case 4: Creator override -> both pass without sourceAnalyses lookup
+    const overrideDraft = {
+      ...draft,
+      userOpeningAim: {
+        castMemberId: 'char-elena',
+        disposition: 'CREATOR_OVERRIDE' as const,
+        aimText: 'My personal custom mission objective',
+        reviewedAt: Date.now(),
+      },
+    };
+    const readOverride = validateForgeExportReadiness({ draft: overrideDraft, sourceAnalyses: null });
+    const compOverride = compileForgeDraft(overrideDraft, { sourceAnalyses: null });
+    expect(readOverride.valid).toBe(true);
+    expect(compOverride.success).toBe(true);
+
+    // Case 5: None declared -> both pass without sourceAnalyses lookup
+    const noneDraft = {
+      ...draft,
+      userOpeningAim: {
+        castMemberId: 'char-elena',
+        disposition: 'NONE_DECLARED' as const,
+        aimText: '',
+        reviewedAt: Date.now(),
+      },
+    };
+    const readNone = validateForgeExportReadiness({ draft: noneDraft, sourceAnalyses: null });
+    const compNone = compileForgeDraft(noneDraft, { sourceAnalyses: null });
+    expect(readNone.valid).toBe(true);
+    expect(compNone.success).toBe(true);
+
+    // Case 6: Unreviewed aim -> both fail
+    const unreviewedDraft = {
+      ...draft,
+      userOpeningAim: {
+        castMemberId: 'char-elena',
+        disposition: 'UNREVIEWED' as const,
+        aimText: 'Unreviewed aim text',
+      },
+    };
+    const readUnrev = validateForgeExportReadiness({ draft: unreviewedDraft, sourceAnalyses: { 'src-exact': exactAnalysis } });
+    const compUnrev = compileForgeDraft(unreviewedDraft, { sourceAnalyses: { 'src-exact': exactAnalysis } });
+    expect(readUnrev.valid).toBe(false);
+    expect(compUnrev.success).toBe(false);
   });
 });

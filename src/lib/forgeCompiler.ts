@@ -43,6 +43,16 @@ export class ForgeCompilationError extends Error {
   }
 }
 
+function formatZodPath(path: (string | number | symbol)[]): string {
+  return path.reduce<string>((acc, segment) => {
+    if (typeof segment === 'number') {
+      return `${acc}[${segment}]`;
+    }
+    const str = String(segment);
+    return acc ? `${acc}.${str}` : str;
+  }, '');
+}
+
 /**
  * Validates a Forge authoring draft for review and compilation.
  * Rejects incomplete drafts with structured, field-addressable error messages.
@@ -61,9 +71,14 @@ export function validateForgeDraft(rawDraft: unknown): ForgeValidationResult {
   const parseResult = ForgeDraftSchema.safeParse(rawDraft);
   if (!parseResult.success) {
     for (const issue of parseResult.error.issues) {
-      const path = issue.path.join('.') || 'draft';
-      if (!errors[path]) errors[path] = [];
-      errors[path].push(issue.message);
+      const formattedPath = formatZodPath(issue.path) || 'draft';
+      const dotPath = issue.path.join('.') || 'draft';
+      if (!errors[formattedPath]) errors[formattedPath] = [];
+      errors[formattedPath].push(issue.message);
+      if (dotPath !== formattedPath) {
+        if (!errors[dotPath]) errors[dotPath] = [];
+        errors[dotPath].push(issue.message);
+      }
     }
     return { valid: false, errors };
   }
@@ -149,32 +164,60 @@ export function validateForgeDraft(rawDraft: unknown): ForgeValidationResult {
   // 7. Topology Story Map & Opening Placement Validation
   const nodeDefs = draft.topology?.nodeDefinitions || [];
   const rawNodes = draft.topology?.nodes || [];
+  const isRichTopology = nodeDefs.length > 0;
   const allNodeIds = new Set<string>();
   const seenNodeIds = new Set<string>();
 
   nodeDefs.forEach((def, idx) => {
+    const fieldPrefix = `topology.nodeDefinitions[${idx}]`;
     if (!def.id || !def.id.trim()) {
-      errors[`topology.nodeDefinitions[${idx}].id`] = ['Node definition ID cannot be empty'];
+      errors[`${fieldPrefix}.id`] = ['Node definition ID cannot be empty'];
     } else {
-      if (seenNodeIds.has(def.id)) {
-        errors[`topology.nodeDefinitions[${idx}].id`] = [`Duplicate node ID: "${def.id}"`];
+      const cleanId = def.id.trim();
+      if (seenNodeIds.has(cleanId)) {
+        errors[`${fieldPrefix}.id`] = [`Duplicate node ID: "${cleanId}"`];
       }
-      seenNodeIds.add(def.id);
-      allNodeIds.add(def.id);
+      seenNodeIds.add(cleanId);
+      allNodeIds.add(cleanId);
+    }
+
+    if (!def.label || !def.label.trim()) {
+      errors[`${fieldPrefix}.label`] = ['Node definition label cannot be empty'];
+    }
+
+    if (!def.description || !def.description.trim()) {
+      errors[`${fieldPrefix}.description`] = ['Node opening description cannot be empty'];
     }
   });
 
-  rawNodes.forEach((n, idx) => {
-    if (n && n.trim()) {
-      const clean = n.trim();
-      if (!seenNodeIds.has(clean)) {
-        seenNodeIds.add(clean);
-        allNodeIds.add(clean);
+  if (isRichTopology) {
+    // In rich topology, raw nodes must match nodeDefinitions 1-to-1
+    rawNodes.forEach((n, idx) => {
+      if (!n || !n.trim()) {
+        errors[`topology.nodes[${idx}]`] = ['Topology node ID cannot be empty'];
+      } else {
+        const clean = n.trim();
+        if (!allNodeIds.has(clean)) {
+          errors[`topology.nodes[${idx}]`] = [
+            `Raw node ID "${clean}" has no matching definition in nodeDefinitions`,
+          ];
+        }
       }
-    } else {
-      errors[`topology.nodes[${idx}]`] = ['Topology node ID cannot be empty'];
-    }
-  });
+    });
+  } else {
+    // Legacy flat topology path
+    rawNodes.forEach((n, idx) => {
+      if (n && n.trim()) {
+        const clean = n.trim();
+        if (!seenNodeIds.has(clean)) {
+          seenNodeIds.add(clean);
+          allNodeIds.add(clean);
+        }
+      } else {
+        errors[`topology.nodes[${idx}]`] = ['Topology node ID cannot be empty'];
+      }
+    });
+  }
 
   if (allNodeIds.size === 0) {
     errors['topology.nodes'] = ['At least one main-map node is required to compile a scenario'];
@@ -217,6 +260,12 @@ export function validateForgeDraft(rawDraft: unknown): ForgeValidationResult {
     if (!to || (allNodeIds.size > 0 && !allNodeIds.has(to))) {
       errors[`${fieldPrefix}.to`] = [
         `Connection target endpoint references unknown node ID: "${to || 'unspecified'}"`,
+      ];
+    }
+
+    if (draft.topology?.anchors?.some((a) => a.id === from || a.id === to)) {
+      errors[fieldPrefix] = [
+        'Connections cannot link to or from expandable space anchors',
       ];
     }
 
@@ -603,24 +652,22 @@ export function compileForgeDraft(
 
   // Validate exact provenance when compiling ACCEPTED_REFERENCE opening aim
   if (draft.userOpeningAim?.disposition === 'ACCEPTED_REFERENCE') {
-    if (sourceAnalyses && Object.keys(sourceAnalyses).length > 0) {
-      const provRes = resolveSourceEvidenceProvenance({
-        provenance: draft.userOpeningAim.provenance,
-        sourceAnalyses,
-        expectedText: draft.userOpeningAim.aimText,
-        expectedCastMemberId: draft.userOpeningAim.castMemberId,
-      });
-      if (!provRes.valid) {
-        return {
-          success: false,
-          errors: { 'userOpeningAim.provenance': provRes.errors },
-        };
-      }
+    const provRes = resolveSourceEvidenceProvenance({
+      provenance: draft.userOpeningAim.provenance,
+      sourceAnalyses,
+      expectedText: draft.userOpeningAim.aimText,
+      expectedCastMemberId: draft.userOpeningAim.castMemberId,
+    });
+    if (!provRes.valid) {
+      return {
+        success: false,
+        errors: { 'userOpeningAim.provenance': provRes.errors },
+      };
     }
   }
 
   // Validate exact provenance for topology elements
-  if (sourceAnalyses && Object.keys(sourceAnalyses).length > 0 && draft.topology) {
+  if (draft.topology) {
     const topo = draft.topology;
     if (topo.startingNodeProvenance?.sourceId) {
       const provRes = resolveSourceEvidenceProvenance({

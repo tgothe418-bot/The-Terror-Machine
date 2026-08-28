@@ -164,4 +164,26 @@ describe('SpatialManager Component', () => {
     const updatedDraft = useForgeStore.getState().draftBlueprint;
     expect(updatedDraft?.cast?.[1].presenceDisposition).toEqual({ kind: 'OFFSTAGE' });
   });
+
+  it('renders starting node required warning banner when startingNodeId is missing', async () => {
+    const draftWithoutStart = {
+      ...useForgeStore.getState().draftBlueprint!,
+      topology: {
+        ...useForgeStore.getState().draftBlueprint!.topology!,
+        startingNodeId: undefined,
+      },
+    };
+
+    useForgeStore.setState({
+      forgeDraft: draftWithoutStart,
+      draftBlueprint: draftWithoutStart,
+    });
+
+    await act(async () => {
+      root?.render(<SpatialManager />);
+    });
+
+    expect(container?.textContent).toContain('Starting node required');
+    expect(container?.querySelector('#spatial-starting-node-warning')).not.toBeNull();
+  });
 });

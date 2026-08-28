@@ -3,10 +3,9 @@ import { useForgeState, forgeActions, useForgeStoreInternal } from '../../store/
 import { useAppStore } from '../../store/useAppStore';
 import { ArchitectChat } from './ArchitectChat';
 import { FileDropzone } from './FileDropzone';
-import { MatrixSelector } from './MatrixSelector';
+import { CharacterAuthoringPanel } from './CharacterAuthoringPanel';
 import { SpatialManager } from './SpatialManager';
 import { ArrowLeft, Trash2 } from 'lucide-react';
-import { AutopilotVector } from '../../types';
 
 import { CampaignTopologyPanel } from './CampaignTopologyPanel';
 import { ScenarioBaselinePanel } from './ScenarioBaselinePanel';
@@ -241,9 +240,6 @@ export default function Forge() {
                 </div>
               </div>
 
-              {/* Matrix Coordinates */}
-              <MatrixSelector />
-
               {/* Spatial Topology Matrix */}
               <SpatialManager />
 
@@ -295,141 +291,8 @@ export default function Forge() {
                 <ArchitectChat />
               </div>
 
-              {/* Cast Authoring Card */}
-              <div className="flex-1 min-h-0 bg-zinc-950 border border-zinc-800 focus-within:border-zinc-700 p-5 rounded flex flex-col shadow-lg transition-colors overflow-hidden">
-                {/* Header & Add Button */}
-                <div className="flex justify-between items-center mb-3 shrink-0">
-                  <label className="text-zinc-400 font-mono text-xs uppercase tracking-wider font-bold">
-                    CAST
-                  </label>
-                  <button
-                    onClick={() => {
-                      const currentCast = draftBlueprint?.cast || [];
-                      updateDraft({
-                        cast: [
-                          ...currentCast,
-                          {
-                            id: `char-${Date.now()}`,
-                            name: 'New Entity',
-                            description: '',
-                            behaviorVector: 'ADAPTIVE',
-                          },
-                        ],
-                      });
-                    }}
-                    className="text-xs bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white px-2.5 py-1 rounded border border-zinc-700 transition-colors shadow-sm cursor-pointer"
-                  >
-                    [+ ADD CAST MEMBER]
-                  </button>
-                </div>
-
-                {/* Dynamic Roster List */}
-                <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3 pr-2 min-h-0">
-                  {draftBlueprint?.cast?.map((char, index) => (
-                    <div
-                      key={char.id}
-                      className="p-3.5 bg-[#050505] border border-zinc-800/80 rounded flex flex-col gap-2.5 relative group shadow-inner"
-                    >
-                      {/* Delete Button (Appears on Hover) */}
-                      <button
-                        onClick={() => {
-                          const updatedCast = (draftBlueprint.cast || []).filter(
-                            (c) => c.id !== char.id
-                          );
-                          updateDraft({ cast: updatedCast });
-                        }}
-                        className="absolute top-2.5 right-2.5 text-zinc-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity z-10 bg-black/70 rounded px-1.5 py-0.5 cursor-pointer"
-                        title="Remove Cast Member"
-                      >
-                        ✕
-                      </button>
-
-                      <div className="flex gap-3">
-                        <input
-                          type="text"
-                          value={char.name}
-                          onChange={(e) => {
-                            const updatedCast = (draftBlueprint.cast || []).map((c, i) =>
-                              i === index ? { ...c, name: e.target.value } : c
-                            );
-                            updateDraft({ cast: updatedCast });
-                          }}
-                          className="bg-transparent border-b border-zinc-800 text-zinc-200 font-bold text-xs sm:text-sm focus:outline-none w-1/2 focus:border-zinc-500 pb-1"
-                          placeholder="Entity Name"
-                        />
-                        <select
-                          value={char.behaviorVector || 'ADAPTIVE'}
-                          onChange={(e) => {
-                            const updatedCast = (draftBlueprint.cast || []).map((c, i) =>
-                              i === index
-                                ? { ...c, behaviorVector: e.target.value as AutopilotVector }
-                                : c
-                            );
-                            updateDraft({ cast: updatedCast });
-                          }}
-                          className="bg-zinc-900 border border-zinc-800 text-zinc-300 text-xs uppercase tracking-wider p-1.5 rounded focus:outline-none w-1/2 cursor-pointer font-mono"
-                        >
-                          <option value="ADAPTIVE">Vector: ADAPTIVE</option>
-                          <option value="INSURGENT">Vector: INSURGENT</option>
-                          <option value="PANIC">Vector: PANIC</option>
-                        </select>
-                      </div>
-
-                      <textarea
-                        value={char.description || ''}
-                        onChange={(e) => {
-                          const updatedCast = (draftBlueprint.cast || []).map((c, i) =>
-                            i === index ? { ...c, description: e.target.value } : c
-                          );
-                          updateDraft({ cast: updatedCast });
-                        }}
-                        className="w-full bg-transparent text-zinc-300 font-mono text-xs resize-none focus:outline-none custom-scrollbar min-h-[44px] leading-relaxed mt-1"
-                        placeholder="Psychological profile, inventory, or narrative vulnerability..."
-                      />
-
-                      {/* Cast Expression Profile Guidance (if present) */}
-                      {char.expressionProfile && (
-                        <div className="mt-1 pt-2 border-t border-zinc-900 flex flex-col gap-1.5 text-[11px] font-mono text-zinc-400">
-                          <div className="flex items-center justify-between gap-2 flex-wrap">
-                            <span className="text-[10px] uppercase font-bold text-cyan-400">
-                              Expression Guidance
-                            </span>
-                            {char.expressionProfile.communicationModes &&
-                              char.expressionProfile.communicationModes.length > 0 && (
-                                <div className="flex items-center gap-1">
-                                  {char.expressionProfile.communicationModes.map((mode, mi) => (
-                                    <span
-                                      key={mi}
-                                      className="text-[9px] px-1.5 py-0.2 bg-cyan-950/40 border border-cyan-800/50 text-cyan-300 rounded uppercase"
-                                    >
-                                      {mode}
-                                    </span>
-                                  ))}
-                                </div>
-                              )}
-                          </div>
-                          {char.expressionProfile.expressionGuidance && (
-                            <p className="text-[10px] text-zinc-300 leading-snug">
-                              {char.expressionProfile.expressionGuidance}
-                            </p>
-                          )}
-                          {char.expressionProfile.silenceGuidance && (
-                            <p className="text-[10px] text-zinc-500 italic leading-snug">
-                              Silence: {char.expressionProfile.silenceGuidance}
-                            </p>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-
-                  {(!draftBlueprint?.cast || draftBlueprint.cast.length === 0) && (
-                    <div className="flex items-center justify-center h-full text-zinc-500 text-xs italic font-mono border border-dashed border-zinc-800 rounded p-6">
-                      No cast members have been added yet.
-                    </div>
-                  )}
-                </div>
-              </div>
+              {/* Unified Character Authoring Panel (Packet 1C-9) */}
+              <CharacterAuthoringPanel />
             </div>
           </>
         )}

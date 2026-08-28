@@ -232,25 +232,39 @@ describe('normalizeBlueprint', () => {
       expect(result.topology.connections).toEqual([]);
     });
 
-    it('retains Phase 2A canonical inference when connection kind and/or userInitiated are undefined', () => {
+    it('derives nodes array strictly from nodeDefinitions in rich topology without falling back startingNodeId to nodes[0]', () => {
       const raw = {
-        identity: { title: 'Intent Inference' },
+        title: 'Subglacial Research Base',
+        premise: 'Permafrost core extraction.',
         topology: {
-          nodes: ['N1', 'N2', 'N3', 'N4'],
-          connections: [
-            { from: 'N1', to: 'N2', kind: undefined, userInitiated: undefined },
-            { from: 'N2', to: 'N3', kind: 'FORCED_EVENT', userInitiated: undefined },
-            { from: 'N3', to: 'N4', kind: undefined, userInitiated: false },
+          nodeDefinitions: [
+            { id: 'SURFACE_DOCK', label: 'Surface Dock', description: 'Wind-swept snow landing pad.' },
+            { id: 'ICE_TUNNEL', label: 'Ice Tunnel', description: 'Narrow excavated corridor.' },
           ],
+          // startingNodeId is omitted in rich topology
+          connections: [{ from: 'SURFACE_DOCK', to: 'ICE_TUNNEL', kind: 'PHYSICAL' }],
         },
       };
+
       const result: Blueprint = normalizeBlueprint(raw);
-      expect(result.topology.connections[0].kind).toBe('PHYSICAL');
-      expect(result.topology.connections[0].userInitiated).toBe(true);
-      expect(result.topology.connections[1].kind).toBe('FORCED_EVENT');
-      expect(result.topology.connections[1].userInitiated).toBe(false);
-      expect(result.topology.connections[2].kind).toBe('PHYSICAL');
-      expect(result.topology.connections[2].userInitiated).toBe(false);
+      expect(result.topology.nodes).toEqual(['SURFACE_DOCK', 'ICE_TUNNEL']);
+      expect(result.topology.nodeDefinitions).toHaveLength(2);
+      expect(result.topology.startingNodeId).toBeUndefined();
+    });
+
+    it('falls back startingNodeId to nodes[0] for legacy flat topology with no nodeDefinitions', () => {
+      const raw = {
+        title: 'Old Bunker',
+        premise: 'Survival test.',
+        topology: {
+          nodes: ['BUNKER_ENTRY', 'AIRLOCK'],
+          connections: [{ from: 'BUNKER_ENTRY', to: 'AIRLOCK', kind: 'PHYSICAL' }],
+        },
+      };
+
+      const result: Blueprint = normalizeBlueprint(raw);
+      expect(result.topology.nodes).toEqual(['BUNKER_ENTRY', 'AIRLOCK']);
+      expect(result.topology.startingNodeId).toBe('BUNKER_ENTRY');
     });
   });
 });

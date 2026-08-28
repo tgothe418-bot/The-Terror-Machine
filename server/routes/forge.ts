@@ -948,7 +948,7 @@ router.post("/extract-blueprint", async (req, res) => {
       if (analysis.status === 'error') {
         console.error("Source analysis normalization failed:", analysis.errorMessage);
         return res.status(500).json({
-          error: "Failed to validate source analysis schema.",
+          error: analysis.errorMessage || "Failed to validate source analysis schema.",
           details: analysis.errorMessage ? [analysis.errorMessage] : [],
         });
       }

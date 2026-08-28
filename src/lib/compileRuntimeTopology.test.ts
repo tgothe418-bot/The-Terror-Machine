@@ -178,4 +178,35 @@ describe('compileRuntimeTopology', () => {
     expect(legacyResult.startNodeId).toBe('LEGACY_ROOM_1');
     expect(legacyResult.spatialGraph).toHaveLength(2);
   });
+
+  it('fails closed when a rich topology node definition has empty description or label', () => {
+    expect(() =>
+      compileRuntimeTopology({
+        topology: {
+          startingNodeId: 'ROOM_A',
+          nodeDefinitions: [
+            { id: 'ROOM_A', label: 'Room A', description: '   ' },
+          ],
+          connections: [],
+        },
+      })
+    ).toThrow('Rich topology node "ROOM_A" requires a complete definition with non-empty label and description.');
+  });
+
+  it('derives graph nodes strictly from nodeDefinitions in rich topology without unioning rogue raw strings', () => {
+    const result = compileRuntimeTopology({
+      topology: {
+        startingNodeId: 'ROOM_A',
+        nodes: ['ROOM_A', 'ROGUE_RAW_NODE'],
+        nodeDefinitions: [
+          { id: 'ROOM_A', label: 'Room A', description: 'Description of Room A' },
+        ],
+        connections: [],
+      },
+    });
+
+    expect(result.spatialGraph).toHaveLength(1);
+    expect(result.spatialGraph[0].id).toBe('ROOM_A');
+    expect(result.spatialGraph.find((n) => n.id === 'ROGUE_RAW_NODE')).toBeUndefined();
+  });
 });

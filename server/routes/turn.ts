@@ -728,12 +728,16 @@ ${hg.authorityInstruction}
       context.player.openingAimDisposition === 'ACCEPTED_REFERENCE' ||
       context.player.openingAimDisposition === 'CREATOR_OVERRIDE'
     ) {
-      playerStartingOrientationBlock = `\n[PLAYER STARTING ORIENTATION]
-${context.player.openingAim || 'Investigate surroundings.'}
-${context.player.sovereigntyInstruction ? `Note: ${context.player.sovereigntyInstruction}` : ''}`;
+      if (context.player.openingAim && context.player.openingAim.trim()) {
+        playerStartingOrientationBlock = `\n[PLAYER STARTING ORIENTATION]\n${context.player.openingAim.trim()}${
+          context.player.sovereigntyInstruction ? `\nNote: ${context.player.sovereigntyInstruction}` : ''
+        }`;
+      }
     } else if (context.player.openingAimDisposition === 'NONE_DECLARED') {
-      playerStartingOrientationBlock = `\n[PLAYER STARTING ORIENTATION]
-None declared. Note: ${context.player.sovereigntyInstruction || 'The Engine must not infer, fabricate, or supply an unchosen starting goal or quest.'}`;
+      playerStartingOrientationBlock = `\n[PLAYER STARTING ORIENTATION]\nNone declared. Note: ${
+        context.player.sovereigntyInstruction ||
+        'No opening aim was declared for this character. The Engine must never infer, fabricate, or supply an unchosen starting goal or quest.'
+      }`;
     }
 
     // Construct the dense, authoritative contract prompt

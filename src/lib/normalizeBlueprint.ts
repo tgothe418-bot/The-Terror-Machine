@@ -109,13 +109,25 @@ function normalizeLegacyBlueprintShape(raw: unknown): unknown {
         }
       }
 
+      const isRichTopology =
+        hasOwn(topoRecord, 'nodeDefinitions') &&
+        Array.isArray(topoRecord.nodeDefinitions) &&
+        topoRecord.nodeDefinitions.length > 0;
+
       let startingNodeIdNormalized: unknown = topoRecord.startingNodeId;
-      if (!startingNodeIdNormalized && Array.isArray(topoRecord.nodes) && topoRecord.nodes.length > 0) {
-        startingNodeIdNormalized = topoRecord.nodes[0];
+      if (!isRichTopology) {
+        // Legacy flat topology compatibility fallback
+        if (!startingNodeIdNormalized && Array.isArray(topoRecord.nodes) && topoRecord.nodes.length > 0) {
+          startingNodeIdNormalized = topoRecord.nodes[0];
+        }
       }
 
       let nodesNormalized: unknown = topoRecord.nodes;
-      if (
+      if (isRichTopology && Array.isArray(topoRecord.nodeDefinitions)) {
+        nodesNormalized = topoRecord.nodeDefinitions
+          .map((d: unknown) => (isRecord(d) && typeof d.id === 'string' ? d.id : null))
+          .filter((id: string | null): id is string => id !== null);
+      } else if (
         (!Array.isArray(nodesNormalized) || nodesNormalized.length === 0) &&
         Array.isArray(topoRecord.nodeDefinitions) &&
         topoRecord.nodeDefinitions.length > 0

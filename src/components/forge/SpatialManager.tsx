@@ -4,7 +4,6 @@ import { EdgeKind } from '../../types';
 import {
   ForgeTopologyNode,
   ForgeExpandableAnchor,
-  CharacterPresenceDisposition,
 } from '../../types/forge';
 import {
   Compass,
@@ -19,7 +18,6 @@ import {
 
 export const SpatialManager: React.FC = () => {
   const blueprint = useForgeState((state) => state.draftBlueprint);
-  const sourceAnalyses = useForgeState((state) => state.sourceAnalyses);
   const topology = blueprint?.topology;
   const cast = blueprint?.cast || [];
   const { updateDraft } = forgeActions;
@@ -67,7 +65,7 @@ export const SpatialManager: React.FC = () => {
 
   const allNodes = Array.from(nodesMap.values());
   const validNodeIds = allNodes.map((n) => n.id);
-  const startingNodeId = topology?.startingNodeId || validNodeIds[0] || '';
+  const startingNodeId = topology?.startingNodeId || '';
   const connections = topology?.connections || [];
   const anchors: ForgeExpandableAnchor[] = topology?.anchors || [];
 
@@ -77,26 +75,7 @@ export const SpatialManager: React.FC = () => {
 
   const handleSetStartingNode = (nodeId: string) => {
     if (!topology) return;
-    const userChar = cast.find((c) => c.isUserCharacter) || (blueprint?.userCharacterId ? cast.find((c) => c.id === blueprint.userCharacterId) : undefined);
-    const updatedCast = userChar
-      ? cast.map((m) =>
-          m.id === userChar.id
-            ? {
-                ...m,
-                presenceDisposition: { kind: 'AT_NODE' as const, nodeId },
-                starting_location: nodeId,
-              }
-            : m
-        )
-      : cast;
-
-    updateDraft({
-      topology: {
-        ...topology,
-        startingNodeId: nodeId,
-      },
-      cast: updatedCast,
-    });
+    forgeActions.setStartingNode(nodeId);
   };
 
   const handleAddNode = () => {
@@ -110,17 +89,7 @@ export const SpatialManager: React.FC = () => {
       description: newNodeDesc.trim(),
     };
 
-    const nextDefs = [...nodeDefs, newDef];
-    const nextNodes = Array.from(new Set([...rawNodes, cleanId]));
-
-    updateDraft({
-      topology: {
-        ...(topology || { connections: [] }),
-        nodes: nextNodes,
-        nodeDefinitions: nextDefs,
-        startingNodeId: startingNodeId || cleanId,
-      },
-    });
+    forgeActions.addTopologyNode(newDef);
 
     setNewNodeId('');
     setNewNodeLabel('');
@@ -130,34 +99,14 @@ export const SpatialManager: React.FC = () => {
 
   const handleRemoveNode = (nodeId: string) => {
     if (!topology) return;
-    const nextDefs = nodeDefs.filter((d) => d.id !== nodeId);
-    const nextNodes = rawNodes.filter((n) => n !== nodeId);
-    const nextConns = connections.filter((c) => {
-      const from = typeof c === 'string' ? c.split('->')[0]?.trim() : c.from;
-      const to = typeof c === 'string' ? c.split('->')[1]?.trim() : c.to;
-      return from !== nodeId && to !== nodeId;
-    });
-    const nextAnchors = anchors.filter((a) => a.parentNodeId !== nodeId);
-
-    let nextStart = startingNodeId;
-    if (nextStart === nodeId) {
-      nextStart = nextNodes[0] || (nextDefs[0] ? nextDefs[0].id : '');
-    }
-
-    updateDraft({
-      topology: {
-        ...topology,
-        nodes: nextNodes,
-        nodeDefinitions: nextDefs,
-        connections: nextConns,
-        anchors: nextAnchors,
-        startingNodeId: nextStart,
-      },
-    });
+    forgeActions.removeTopologyNode(nodeId);
   };
 
   const handleAddEdge = () => {
     if (!newEdgeFrom || !newEdgeTo || newEdgeFrom === newEdgeTo) return;
+    if (!validNodeIds.includes(newEdgeFrom) || !validNodeIds.includes(newEdgeTo)) return;
+    if (anchors.some((a) => a.id === newEdgeFrom || a.id === newEdgeTo)) return;
+
     const exists = connections.some((c) => {
       const f = typeof c === 'string' ? c.split('->')[0]?.trim() : c.from;
       const t = typeof c === 'string' ? c.split('->')[1]?.trim() : c.to;
@@ -231,23 +180,6 @@ export const SpatialManager: React.FC = () => {
     });
   };
 
-  const handleUpdateCastPlacement = (
-    castMemberId: string,
-    disposition: CharacterPresenceDisposition
-  ) => {
-    const updatedCast = cast.map((m) => {
-      if (m.id === castMemberId) {
-        return {
-          ...m,
-          presenceDisposition: disposition,
-          starting_location: disposition.kind === 'AT_NODE' ? disposition.nodeId : '',
-        };
-      }
-      return m;
-    });
-    updateDraft({ cast: updatedCast });
-  };
-
   if (allNodes.length === 0) {
     return (
       <div className="border border-zinc-800 p-6 text-center text-zinc-600 font-mono text-xs space-y-3">
@@ -272,14 +204,25 @@ export const SpatialManager: React.FC = () => {
     });
   };
 
-  const unplacedCast = cast.filter(
-    (c) =>
-      !c.presenceDisposition &&
-      (!c.starting_location || !validNodeIds.includes(c.starting_location))
-  );
-
   return (
     <div id="spatial-manager" className="space-y-4 font-mono text-xs text-zinc-300">
+      {/* STARTING NODE REQUIRED WARNING BANNER */}
+      {!startingNodeId && (
+        <div
+          id="spatial-starting-node-warning"
+          className="p-2.5 bg-amber-950/40 border border-amber-800/60 rounded flex items-center justify-between text-amber-300 text-xs"
+        >
+          <div className="flex items-center gap-2">
+            <span className="px-1.5 py-0.5 bg-amber-500/20 border border-amber-500/40 text-amber-300 rounded text-[9px] uppercase font-bold tracking-wider">
+              Required
+            </span>
+            <span>
+              <strong>Starting node required:</strong> Select an opening start node for the scenario map.
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* HEADER & CONTROLS */}
       <div className="flex items-center justify-between border-b border-zinc-800 pb-2.5 flex-wrap gap-2">
         <div className="flex items-center gap-2">
@@ -767,440 +710,6 @@ export const SpatialManager: React.FC = () => {
           </div>
         </div>
       )}
-
-      {/* CAST OPENING PLACEMENT MANIFEST */}
-      <div className="border border-zinc-800 rounded bg-black/60 p-4 space-y-3">
-        <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
-          <div className="flex items-center gap-2">
-            <Users className="w-3.5 h-3.5 text-cyan-400" />
-            <span className="font-bold text-zinc-200 uppercase text-[11px]">
-              Cast Opening Placement Manifest
-            </span>
-          </div>
-          <span className="text-[10px] text-zinc-500">
-            Every character requires reviewed placement before simulation start
-          </span>
-        </div>
-
-        {unplacedCast.length > 0 && (
-          <div className="p-2.5 bg-amber-950/40 border border-amber-900/60 rounded text-amber-200 text-[11px]">
-            ⚠️ {unplacedCast.length} cast member(s) have unassigned placement. Assign node or disposition to resolve export preflight.
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-          {cast.map((member) => {
-            const currentDisp = member.presenceDisposition?.kind || (member.starting_location ? 'AT_NODE' : 'UNASSIGNED');
-            const currentNodeId = member.presenceDisposition?.kind === 'AT_NODE' ? member.presenceDisposition.nodeId : member.starting_location || '';
-
-            return (
-              <div
-                key={member.id}
-                className="p-2.5 bg-zinc-900/40 border border-zinc-800 rounded flex items-center justify-between gap-2"
-              >
-                <div className="min-w-0">
-                  <div className="font-bold text-zinc-200 truncate flex items-center gap-1.5">
-                    <span>{member.name || 'Unknown'}</span>
-                    {member.isUserCharacter && (
-                      <span className="text-[9px] px-1 bg-cyan-900 text-cyan-200 rounded">
-                        Player
-                      </span>
-                    )}
-                    {member.isEntity && (
-                      <span className="text-[9px] px-1 bg-purple-900 text-purple-200 rounded">
-                        Entity
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-[10px] text-zinc-500">Role: {member.role || 'Subject'}</div>
-                </div>
-
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <select
-                    value={currentDisp}
-                    onChange={(e) => {
-                      const newKind = e.target.value;
-                      if (newKind === 'AT_NODE') {
-                        handleUpdateCastPlacement(member.id, {
-                          kind: 'AT_NODE',
-                          nodeId: currentNodeId || startingNodeId,
-                        });
-                      } else if (newKind === 'OFFSTAGE') {
-                        handleUpdateCastPlacement(member.id, { kind: 'OFFSTAGE' });
-                      } else if (newKind === 'NONLOCAL') {
-                        handleUpdateCastPlacement(member.id, { kind: 'NONLOCAL' });
-                      }
-                    }}
-                    className="bg-black border border-zinc-800 text-[10px] text-zinc-300 rounded p-1"
-                  >
-                    <option value="UNASSIGNED">Unassigned</option>
-                    <option value="AT_NODE">At Node</option>
-                    <option value="OFFSTAGE">Offstage</option>
-                    {member.isEntity && <option value="NONLOCAL">Non-Local</option>}
-                  </select>
-
-                  {currentDisp === 'AT_NODE' && (
-                    <select
-                      value={currentNodeId}
-                      onChange={(e) =>
-                        handleUpdateCastPlacement(member.id, {
-                          kind: 'AT_NODE',
-                          nodeId: e.target.value,
-                        })
-                      }
-                      className="bg-black border border-zinc-800 text-[10px] text-cyan-300 rounded p-1 max-w-[120px] truncate"
-                    >
-                      {allNodes.map((n) => (
-                        <option key={n.id} value={n.id}>
-                          {n.label}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* OPENING BASELINE (AIMS & PURSUITS) REVIEW */}
-      <div className="border border-zinc-800 rounded bg-black/60 p-4 space-y-4">
-        <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
-          <div className="flex items-center gap-2">
-            <Compass className="w-3.5 h-3.5 text-cyan-400" />
-            <span className="font-bold text-zinc-200 uppercase text-[11px]">
-              Opening Motive Baseline & Intent Review
-            </span>
-          </div>
-          <span className="text-[10px] text-zinc-500">
-            Player Opening Aim & HG1 NPC Pursuits
-          </span>
-        </div>
-
-        {/* 1. PLAYER OPENING AIM SECTION */}
-        {(() => {
-          const eligibleMembers = cast.filter((c) => !c.isEntity);
-          const userMember = cast.find((c) => c.isUserCharacter) || (blueprint?.userCharacterId ? cast.find((c) => c.id === blueprint.userCharacterId) : undefined);
-
-          if (!userMember) {
-            return (
-              <div className="bg-zinc-900/40 border border-amber-800/60 rounded p-3 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-amber-300 text-xs uppercase tracking-wider">
-                    Select User Character (Protagonist)
-                  </span>
-                  <span className="text-[10px] text-zinc-500">Exactly 1 required</span>
-                </div>
-                <p className="text-xs text-zinc-400">
-                  No cast member is currently designated as the player-controlled character. Select an eligible mortal character below:
-                </p>
-                <div className="flex items-center gap-2 flex-wrap pt-1">
-                  {eligibleMembers.map((m) => (
-                    <button
-                      key={m.id}
-                      onClick={() => {
-                        const res = forgeActions.setUserCharacter(m.id);
-                        if (!res.success && res.error) window.alert(res.error);
-                      }}
-                      className="px-2.5 py-1 bg-cyan-950 hover:bg-cyan-900 border border-cyan-800 text-cyan-300 rounded text-xs font-bold uppercase cursor-pointer"
-                    >
-                      Set {m.name || m.id} as Player
-                    </button>
-                  ))}
-                </div>
-              </div>
-            );
-          }
-
-          const userAim = blueprint?.userOpeningAim || blueprint?.horrorGrammar?.userOpeningAim;
-          const disp = userAim?.disposition || 'UNREVIEWED';
-
-          // Resolve proposed aim text and provenance from draft or sourceAnalyses
-          let proposalText = userAim?.aimText || '';
-          let hasValidProposal = Boolean(proposalText.trim());
-          if (!hasValidProposal && sourceAnalyses) {
-            for (const a of Object.values(sourceAnalyses)) {
-              const cand = a.candidates?.find(
-                (c) =>
-                  c.target === 'user_opening_aim_default' &&
-                  (c.targetCastMemberId === userMember.id || !c.targetCastMemberId)
-              );
-              if (cand) {
-                const text =
-                  typeof cand.proposedValue === 'string'
-                    ? cand.proposedValue.trim()
-                    : typeof cand.proposedValue === 'object' &&
-                      cand.proposedValue !== null &&
-                      'aimText' in cand.proposedValue &&
-                      typeof cand.proposedValue.aimText === 'string'
-                    ? cand.proposedValue.aimText.trim()
-                    : '';
-                if (text) {
-                  proposalText = text;
-                  hasValidProposal = true;
-                  break;
-                }
-              }
-            }
-          }
-
-          return (
-            <div className="bg-zinc-900/40 border border-zinc-800 rounded p-3 space-y-2.5">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="font-bold text-cyan-300 text-xs">
-                    Player Character: {userMember.name || 'Protagonist'}
-                  </span>
-                  <span
-                    className={`text-[9px] px-1.5 py-0.5 rounded uppercase font-bold ${
-                      disp === 'ACCEPTED_REFERENCE'
-                        ? 'bg-emerald-950/60 border border-emerald-800 text-emerald-300'
-                        : disp === 'CREATOR_OVERRIDE'
-                        ? 'bg-blue-950/60 border border-blue-800 text-blue-300'
-                        : disp === 'NONE_DECLARED'
-                        ? 'bg-zinc-800 text-zinc-400'
-                        : 'bg-amber-950/60 border border-amber-800 text-amber-300'
-                    }`}
-                  >
-                    {disp === 'ACCEPTED_REFERENCE'
-                      ? 'Accepted Reference'
-                      : disp === 'CREATOR_OVERRIDE'
-                      ? 'Creator Override'
-                      : disp === 'NONE_DECLARED'
-                      ? 'None Declared'
-                      : 'Unreviewed Proposal'}
-                  </span>
-                </div>
-                <span className="text-[10px] text-zinc-500">Sovereignty: Player Discretion Only</span>
-              </div>
-
-              {disp === 'NONE_DECLARED' ? (
-                <div className="text-[11px] text-zinc-400 italic bg-black/40 p-2 rounded border border-zinc-800">
-                  No opening aim declared. (Engine will not infer or fabricate a player quest or goal).
-                </div>
-              ) : disp === 'UNREVIEWED' ? (
-                <div className="text-xs bg-black/40 p-2 rounded border border-amber-900/50 space-y-1">
-                  <span className="text-amber-400/80 text-[10px] uppercase font-bold block">
-                    Unreviewed Source Proposal:
-                  </span>
-                  <div className="text-zinc-200">
-                    {proposalText ? (
-                      `"${proposalText}"`
-                    ) : (
-                      <span className="text-zinc-500 italic">No reference proposal available.</span>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <div className="text-xs text-zinc-200 bg-black/40 p-2 rounded border border-zinc-800">
-                  {userAim?.aimText || (
-                    <span className="text-amber-400 italic">No aim text specified yet.</span>
-                  )}
-                </div>
-              )}
-
-              <div className="flex items-center gap-2 flex-wrap pt-1">
-                <button
-                  disabled={!hasValidProposal}
-                  onClick={() => {
-                    const res = forgeActions.acceptReferenceOpeningAim();
-                    if (!res.success && res.error) {
-                      window.alert(res.error);
-                    }
-                  }}
-                  className={`px-2 py-1 rounded text-[10px] font-bold uppercase transition-colors ${
-                    hasValidProposal
-                      ? 'bg-cyan-950 hover:bg-cyan-900 border border-cyan-800 text-cyan-300 cursor-pointer'
-                      : 'bg-zinc-900 border border-zinc-800 text-zinc-600 cursor-not-allowed'
-                  }`}
-                  title={hasValidProposal ? 'Accept reference opening aim default' : 'No valid proposal to accept'}
-                >
-                  Accept Reference Default
-                </button>
-
-                <button
-                  onClick={() => {
-                    const customText = window.prompt(
-                      'Enter your custom opening aim for ' + (userMember.name || 'player') + ':',
-                      userAim?.aimText || proposalText || ''
-                    );
-                    if (customText !== null && customText.trim().length > 0) {
-                      forgeActions.setCreatorOverrideOpeningAim(customText.trim());
-                    }
-                  }}
-                  className="px-2 py-1 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-200 rounded text-[10px] font-bold uppercase cursor-pointer"
-                >
-                  Use My Own Aim
-                </button>
-
-                <button
-                  onClick={() => {
-                    forgeActions.setNoneDeclaredOpeningAim();
-                  }}
-                  className="px-2 py-1 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-400 hover:text-zinc-200 rounded text-[10px] uppercase cursor-pointer"
-                >
-                  None Declared
-                </button>
-              </div>
-            </div>
-          );
-        })()}
-
-        {/* 2. NON-USER CAST PURSUITS SECTION */}
-        <div className="space-y-2">
-          <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
-            Non-User Character Pursuits (HG1 Machine Initiative)
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            {cast
-              .filter((c) => !c.isUserCharacter)
-              .map((member) => {
-                const pReview = blueprint?.horrorGrammar?.pursuitReviews?.[member.id] || 'UNREVIEWED';
-                const memberPursuits = (blueprint?.horrorGrammar?.characterPursuits || []).filter(
-                  (p) => p.castMemberId === member.id
-                );
-
-                return (
-                  <div
-                    key={member.id}
-                    className="p-3 bg-zinc-900/40 border border-zinc-800 rounded space-y-2"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <span className="font-bold text-zinc-200 text-xs">
-                          {member.name || 'Unknown'}
-                        </span>
-                        <span className="text-[10px] text-zinc-500 ml-1.5">[{member.role}]</span>
-                      </div>
-                      <span
-                        className={`text-[9px] px-1.5 py-0.5 rounded uppercase font-bold ${
-                          pReview === 'REVIEWED'
-                            ? 'bg-emerald-950/60 border border-emerald-800 text-emerald-300'
-                            : pReview === 'REVIEWED_NONE'
-                            ? 'bg-zinc-800 text-zinc-400'
-                            : 'bg-amber-950/60 border border-amber-800 text-amber-300'
-                        }`}
-                      >
-                        {pReview === 'REVIEWED'
-                          ? `${memberPursuits.length} Pursuit(s)`
-                          : pReview === 'REVIEWED_NONE'
-                          ? 'No Readable Intent'
-                          : 'Unreviewed'}
-                      </span>
-                    </div>
-
-                    {memberPursuits.length > 0 ? (
-                      <div className="space-y-1 text-[11px] bg-black/40 p-2 rounded border border-zinc-800">
-                        {memberPursuits.map((p) => (
-                          <div key={p.id} className="space-y-0.5">
-                            <div className="font-bold text-zinc-300">Obj: {p.objective}</div>
-                            <div className="text-zinc-500 text-[10px]">
-                              App: {p.presentApproach} · [{p.reviewWindow}]
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="text-[10px] text-zinc-500 italic">
-                        {pReview === 'REVIEWED_NONE'
-                          ? 'No opening intent in reference. Reacts situationally without independent pursuit.'
-                          : 'Awaiting intent review.'}
-                      </div>
-                    )}
-
-                    <div className="flex items-center gap-1.5 pt-1">
-                      <button
-                        onClick={() => {
-                          const currentHg = blueprint?.horrorGrammar || {
-                            valueBaselineReview: 'UNREVIEWED',
-                            pursuitReviews: {},
-                            valueAnchors: [],
-                            characterPursuits: [],
-                          };
-                          const updatedReviews = {
-                            ...currentHg.pursuitReviews,
-                            [member.id]: 'REVIEWED_NONE' as const,
-                          };
-                          const updatedPursuits = (currentHg.characterPursuits || []).filter(
-                            (p) => p.castMemberId !== member.id
-                          );
-                          updateDraft({
-                            horrorGrammar: {
-                              ...currentHg,
-                              pursuitReviews: updatedReviews,
-                              characterPursuits: updatedPursuits,
-                            },
-                          });
-                        }}
-                        className="px-2 py-0.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 rounded text-[10px] cursor-pointer"
-                      >
-                        No Readable Intent
-                      </button>
-
-                      <button
-                        onClick={() => {
-                          const obj = window.prompt(
-                            'Enter objective for ' + (member.name || member.id) + ':',
-                            member.goals || 'Maintain security perimeter'
-                          );
-                          if (!obj || !obj.trim()) return;
-
-                          const app = window.prompt(
-                            'Enter present approach for ' + (member.name || member.id) + ':',
-                            'Patrolling immediate zone and checking seals'
-                          );
-                          if (!app || !app.trim()) return;
-
-                          const newPursuit = {
-                            id: `pursuit-${member.id}-${Date.now()}`,
-                            castMemberId: member.id,
-                            objective: obj.trim(),
-                            presentApproach: app.trim(),
-                            locationNodeId:
-                              member.presenceDisposition?.kind === 'AT_NODE'
-                                ? member.presenceDisposition.nodeId
-                                : member.starting_location || startingNodeId,
-                            status: 'ACTIVE' as const,
-                            reviewWindow: 'SCENE_BEAT' as const,
-                            triggerReferences: [],
-                            basisSummary: 'Authored opening initiative.',
-                            provenance: { kind: 'CREATOR_DEFINED' as const },
-                          };
-
-                          const currentHg = blueprint?.horrorGrammar || {
-                            valueBaselineReview: 'UNREVIEWED',
-                            pursuitReviews: {},
-                            valueAnchors: [],
-                            characterPursuits: [],
-                          };
-                          const updatedReviews = {
-                            ...currentHg.pursuitReviews,
-                            [member.id]: 'REVIEWED' as const,
-                          };
-                          const otherPursuits = (currentHg.characterPursuits || []).filter(
-                            (p) => p.castMemberId !== member.id
-                          );
-                          updateDraft({
-                            horrorGrammar: {
-                              ...currentHg,
-                              pursuitReviews: updatedReviews,
-                              characterPursuits: [...otherPursuits, newPursuit],
-                            },
-                          });
-                        }}
-                        className="px-2 py-0.5 bg-cyan-950 hover:bg-cyan-900 border border-cyan-800 text-cyan-300 rounded text-[10px] font-bold cursor-pointer"
-                      >
-                        + Set Pursuit
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-          </div>
-        </div>
-      </div>
     </div>
   );
 };

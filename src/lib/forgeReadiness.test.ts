@@ -361,4 +361,114 @@ describe('Forge Readiness & Compilation (Packet 1-1)', () => {
     const compiled = compileForgeDraft(draft, { draftRevision: 1, sourceBaselineRevision: 1, sourceAnalyses });
     expect(compiled.success).toBe(false);
   });
+
+  it('fails readiness when explicit startingNodeId is missing in rich authored topology', () => {
+    const draft = createValidBaseDraft();
+    draft.topology = {
+      startingNodeId: '',
+      nodeDefinitions: [
+        { id: 'NODE_AIRLOCK', label: 'Airlock', description: 'Decontamination chamber.' },
+        { id: 'NODE_LAB', label: 'Laboratory', description: 'Cold storage room.' },
+      ],
+      nodes: ['NODE_AIRLOCK', 'NODE_LAB'],
+      connections: [],
+    };
+
+    const readiness = validateForgeExportReadiness({ draft });
+    expect(readiness.valid).toBe(false);
+    expect(readiness.errors['topology.startingNodeId']).toContain(
+      'Explicit startingNodeId is required for authored topology'
+    );
+  });
+
+  it('fails readiness when a rich topology node definition has missing label', () => {
+    const draft = createValidBaseDraft();
+    draft.topology = {
+      startingNodeId: 'NODE_AIRLOCK',
+      nodeDefinitions: [
+        { id: 'NODE_AIRLOCK', label: '', description: 'Decontamination chamber.' },
+        { id: 'NODE_LAB', label: 'Laboratory', description: 'Cold storage room.' },
+      ],
+      nodes: ['NODE_AIRLOCK', 'NODE_LAB'],
+      connections: [],
+    };
+
+    const readiness = validateForgeExportReadiness({ draft });
+    expect(readiness.valid).toBe(false);
+    expect(readiness.errors['topology.nodeDefinitions[0].label']).toContain(
+      'Node definition label cannot be empty'
+    );
+  });
+
+  it('fails readiness when a rich topology node definition has missing description', () => {
+    const draft = createValidBaseDraft();
+    draft.topology = {
+      startingNodeId: 'NODE_AIRLOCK',
+      nodeDefinitions: [
+        { id: 'NODE_AIRLOCK', label: 'Airlock', description: 'Decontamination chamber.' },
+        { id: 'NODE_LAB', label: 'Laboratory', description: '   ' },
+      ],
+      nodes: ['NODE_AIRLOCK', 'NODE_LAB'],
+      connections: [],
+    };
+
+    const readiness = validateForgeExportReadiness({ draft });
+    expect(readiness.valid).toBe(false);
+    expect(readiness.errors['topology.nodeDefinitions[1].description']).toContain(
+      'Node opening description cannot be empty'
+    );
+  });
+
+  it('fails readiness when raw nodes do not match nodeDefinitions 1-to-1 in rich topology', () => {
+    const draft = createValidBaseDraft();
+    draft.topology = {
+      startingNodeId: 'NODE_AIRLOCK',
+      nodeDefinitions: [
+        { id: 'NODE_AIRLOCK', label: 'Airlock', description: 'Decontamination chamber.' },
+      ],
+      nodes: ['NODE_AIRLOCK', 'UNDEFINED_EXTRA_NODE'],
+      connections: [],
+    };
+
+    const readiness = validateForgeExportReadiness({ draft });
+    expect(readiness.valid).toBe(false);
+    expect(readiness.errors['topology.nodes[1]']).toContain(
+      'Raw node ID "UNDEFINED_EXTRA_NODE" has no matching definition in nodeDefinitions'
+    );
+  });
+
+  it('fails readiness when directed connections link to or from expandable anchors or duplicate edges exist', () => {
+    const draft = createValidBaseDraft();
+    draft.topology = {
+      startingNodeId: 'NODE_AIRLOCK',
+      nodeDefinitions: [
+        { id: 'NODE_AIRLOCK', label: 'Airlock', description: 'Decontamination chamber.' },
+        { id: 'NODE_LAB', label: 'Laboratory', description: 'Cold storage room.' },
+      ],
+      nodes: ['NODE_AIRLOCK', 'NODE_LAB'],
+      anchors: [
+        {
+          id: 'anchor-vent',
+          parentNodeId: 'NODE_AIRLOCK',
+          label: 'Vent Shaft',
+          description: 'Narrow vent.',
+          statement: 'Not a runtime node yet',
+        },
+      ],
+      connections: [
+        { from: 'NODE_AIRLOCK', to: 'anchor-vent', kind: 'PHYSICAL', userInitiated: true },
+        { from: 'NODE_AIRLOCK', to: 'NODE_LAB', kind: 'PHYSICAL', userInitiated: true },
+        { from: 'NODE_AIRLOCK', to: 'NODE_LAB', kind: 'PHYSICAL', userInitiated: true },
+      ],
+    };
+
+    const readiness = validateForgeExportReadiness({ draft });
+    expect(readiness.valid).toBe(false);
+    expect(readiness.errors['topology.connections[0]']).toContain(
+      'Connections cannot link to or from expandable space anchors'
+    );
+    expect(readiness.errors['topology.connections[2]']).toContain(
+      'Duplicate directed connection: "NODE_AIRLOCK->NODE_LAB"'
+    );
+  });
 });

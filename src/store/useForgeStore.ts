@@ -8,6 +8,7 @@ import {
   ProseStyleVector,
   Blueprint,
   ScenarioBlueprint,
+  CharacterPursuit,
 } from '../types';
 import {
   ForgeDraft,
@@ -28,6 +29,8 @@ import {
   ForgeUnknownResolutionProposal,
   ForgeResolutionDraftPatch,
   UserOpeningAim,
+  CharacterPresenceDisposition,
+  ForgeTopologyNode,
 } from '../types/forge';
 import { idbStorage } from '../lib/idbStorage';
 import {
@@ -277,6 +280,47 @@ export function selectActiveUnknown(state: ForgeState): ActiveUnknownContext | n
   };
 }
 
+export function sanitizeCastPresenceDispositions(
+  cast: ForgeDraftCastMember[] | undefined
+): ForgeDraftCastMember[] | undefined {
+  if (!cast || !Array.isArray(cast)) return cast;
+  return cast.map((member) => {
+    if (!member.presenceDisposition || typeof member.presenceDisposition !== 'object') {
+      return member;
+    }
+    const disp = member.presenceDisposition as Record<string, unknown>;
+    const kind = disp.kind;
+    if (kind === 'AT_NODE' && typeof disp.nodeId === 'string' && disp.nodeId.trim().length > 0) {
+      return {
+        ...member,
+        presenceDisposition: {
+          kind: 'AT_NODE',
+          nodeId: disp.nodeId.trim(),
+        },
+      };
+    } else if (kind === 'OFFSTAGE') {
+      return {
+        ...member,
+        presenceDisposition: {
+          kind: 'OFFSTAGE',
+        },
+      };
+    } else if (kind === 'NONLOCAL') {
+      return {
+        ...member,
+        presenceDisposition: {
+          kind: 'NONLOCAL',
+        },
+      };
+    } else {
+      // Invalid disposition shape -> clear rather than inventing a fake location
+      const rest = { ...member };
+      delete rest.presenceDisposition;
+      return rest;
+    }
+  });
+}
+
 // ============================================================================
 // DERIVED COMPATIBILITY ADAPTERS (Phase 3D-1 Single Source of Truth)
 // forgeDraft is the sole mutable authoring authority. The helpers below
@@ -386,11 +430,28 @@ export interface ForgeActions {
   editPendingCandidate: (sourceId: string, candidateId: string, editedValue: unknown) => void;
   rejectCandidate: (sourceId: string, candidateId: string) => void;
 
-  // --- USER CHARACTER & OPENING AIM ACTIONS (Packet 1C-5 & 1C-6) ---
+  // --- USER CHARACTER, PLACEMENT & OPENING AIM ACTIONS (Packet 1C-5, 1C-6, 1C-9) ---
+  addCastMember: (member?: Partial<ForgeDraftCastMember>) => { success: boolean; characterId?: string; error?: string };
+  updateCastMember: (id: string, updates: Partial<ForgeDraftCastMember>) => { success: boolean; error?: string };
+  removeCastMember: (id: string) => { success: boolean; error?: string };
+  setCastOpeningPlacement: (
+    characterId: string,
+    disposition: CharacterPresenceDisposition
+  ) => { success: boolean; error?: string };
   setUserCharacter: (characterId: string) => { success: boolean; error?: string };
   acceptReferenceOpeningAim: (sourceId?: string) => { success: boolean; error?: string };
   setCreatorOverrideOpeningAim: (aimText: string) => { success: boolean; error?: string };
   setNoneDeclaredOpeningAim: () => { success: boolean; error?: string };
+  setPursuitReview: (
+    characterId: string,
+    state: 'REVIEWED' | 'REVIEWED_NONE' | 'UNREVIEWED',
+    pursuitData?: Partial<CharacterPursuit>
+  ) => { success: boolean; error?: string };
+
+  // --- TOPOLOGY & STORY MAP ACTIONS (Packet 1C-11) ---
+  setStartingNode: (nodeId: string) => { success: boolean; error?: string };
+  addTopologyNode: (node: ForgeTopologyNode) => { success: boolean; error?: string };
+  removeTopologyNode: (nodeId: string) => { success: boolean; error?: string };
 
   // --- AMBIGUITY RESOLUTION ACTIONS ---
   submitUnknownAnswer: (sourceId: string, unknownId: string, answer: string) => void;
@@ -432,9 +493,6 @@ export interface ForgeActions {
   clearArchitectChat: () => void;
 
   // --- QUARANTINED LEGACY FORGE ACTIONS (Retained for temporary UI bridging) ---
-  addCastMember: (member: Omit<CastMember, 'id'>) => void;
-  updateCastMember: (id: string, updates: Partial<CastMember>) => void;
-  removeCastMember: (id: string) => void;
   addSpatialNode: (nodeId: string) => void;
   removeSpatialNode: (nodeId: string) => void;
   toggleSpatialEdge: (nodeA: string, nodeB: string) => void;
@@ -1095,8 +1153,38 @@ export const useForgeStoreInternal = create<ForgeStore>()(
             if (!state.sourceAnalyses[sourceId]) return state;
             const remaining = { ...state.sourceAnalyses };
             delete remaining[sourceId];
+
+            let nextDraft = state.forgeDraft;
+            if (
+              nextDraft?.userOpeningAim?.provenance?.kind === 'REVIEWED_SOURCE' &&
+              nextDraft.userOpeningAim.provenance.sourceId === sourceId
+            ) {
+              const invalidatedAim = {
+                castMemberId: nextDraft.userOpeningAim.castMemberId,
+                disposition: 'UNREVIEWED' as const,
+                aimText: '',
+                reviewedAt: undefined,
+              };
+              nextDraft = {
+                ...nextDraft,
+                userOpeningAim: invalidatedAim,
+                horrorGrammar: {
+                  ...(nextDraft.horrorGrammar || {
+                    valueBaselineReview: 'UNREVIEWED' as const,
+                    pursuitReviews: {},
+                    valueAnchors: [],
+                    characterPursuits: [],
+                  }),
+                  userOpeningAim: invalidatedAim,
+                },
+              };
+            }
+
             return {
               sourceAnalyses: remaining,
+              forgeDraft: nextDraft,
+              draftBlueprint: nextDraft,
+              draftRevision: nextDraft !== state.forgeDraft ? (state.draftRevision || 0) + 1 : state.draftRevision,
               sourceBaselineRevision: (state.sourceBaselineRevision || 0) + 1,
             };
           });
@@ -1129,19 +1217,17 @@ export const useForgeStoreInternal = create<ForgeStore>()(
             const formerUserCharId =
               currentDraft.userCharacterId || cast.find((c) => c.isUserCharacter)?.id;
 
-            // Reconcile cast members
-            const startNode =
-              currentDraft.topology?.startingNodeId || currentDraft.topology?.nodes?.[0] || 'ORIGIN';
+            // Reconcile cast members with explicit startingNodeId (no ORIGIN or nodes[0] fallback)
+            const explicitStartNode = currentDraft.topology?.startingNodeId;
             const updatedCast = cast.map((member) => {
               if (member.id === characterId) {
                 return {
                   ...member,
                   isUserCharacter: true,
-                  presenceDisposition: {
-                    kind: 'AT_NODE' as const,
-                    nodeId: startNode,
-                  },
-                  starting_location: startNode,
+                  presenceDisposition: explicitStartNode
+                    ? { kind: 'AT_NODE' as const, nodeId: explicitStartNode }
+                    : member.presenceDisposition || { kind: 'OFFSTAGE' as const },
+                  starting_location: explicitStartNode || member.starting_location || '',
                 };
               }
               return {
@@ -1213,68 +1299,98 @@ export const useForgeStoreInternal = create<ForgeStore>()(
               return state;
             }
 
-            // Look for existing unreviewed aim on draft or proposal from sourceAnalyses
-            let proposalText = currentDraft.userOpeningAim?.aimText || '';
             const provSourceId =
               currentDraft.userOpeningAim?.provenance?.kind === 'REVIEWED_SOURCE'
                 ? currentDraft.userOpeningAim.provenance.sourceId
                 : undefined;
-            const provEvidenceIds =
-              currentDraft.userOpeningAim?.provenance?.kind === 'REVIEWED_SOURCE'
-                ? currentDraft.userOpeningAim.provenance.evidenceIds
-                : [];
-            let resolvedSourceId = provSourceId || sourceId || '';
-            let resolvedEvidenceIds = provEvidenceIds;
+            const resolvedSourceId = provSourceId || sourceId || '';
+            const analysis =
+              (resolvedSourceId ? state.sourceAnalyses[resolvedSourceId] : undefined) ||
+              Object.values(state.sourceAnalyses).find(
+                (a) =>
+                  !resolvedSourceId ||
+                  a.id === resolvedSourceId ||
+                  a.sourceRecord?.id === resolvedSourceId
+              );
 
-            if (!proposalText || !resolvedSourceId) {
-              const analyses = Object.values(state.sourceAnalyses);
-              for (const a of analyses) {
-                const cand = a.candidates.find(
-                  (c) =>
-                    c.target === 'user_opening_aim_default' &&
-                    (c.targetCastMemberId === userChar.id || !c.targetCastMemberId)
-                );
-                if (cand) {
-                  const text =
-                    typeof cand.proposedValue === 'string'
-                      ? cand.proposedValue.trim()
-                      : typeof cand.proposedValue === 'object' &&
-                        cand.proposedValue !== null &&
-                        'aimText' in cand.proposedValue &&
-                        typeof cand.proposedValue.aimText === 'string'
-                      ? cand.proposedValue.aimText.trim()
-                      : '';
-                  if (text) {
-                    proposalText = text;
-                    resolvedSourceId = a.id;
-                    resolvedEvidenceIds = cand.evidenceIds || [];
-                    break;
-                  }
-                }
-              }
-            }
-
-            if (!proposalText.trim()) {
-              outcome = { success: false, error: 'No reference opening aim proposal available to accept.' };
-              return state;
-            }
-
-            if (!resolvedSourceId || resolvedEvidenceIds.length === 0) {
+            if (!analysis) {
               outcome = {
                 success: false,
-                error: 'Cannot accept reference opening aim: missing resolving source or evidence references.',
+                error: `No registered source analysis found for source ID "${resolvedSourceId}".`,
               };
               return state;
             }
 
+            const candidate = (analysis.candidates || []).find(
+              (c) =>
+                c.target === 'user_opening_aim_default' &&
+                (c.targetCastMemberId === userChar.id || !c.targetCastMemberId)
+            );
+
+            if (!candidate) {
+              outcome = {
+                success: false,
+                error: `No opening aim candidate found in source "${resolvedSourceId}" for player character "${userChar.name || userChar.id}".`,
+              };
+              return state;
+            }
+
+            if (candidate.reviewDecision === 'rejected') {
+              outcome = {
+                success: false,
+                error: 'Cannot accept rejected opening aim candidate.',
+              };
+              return state;
+            }
+
+            if (candidate.applicationState !== 'applied') {
+              outcome = {
+                success: false,
+                error: 'Cannot accept staged opening aim candidate before it has been applied to baseline.',
+              };
+              return state;
+            }
+
+            const candText =
+              typeof candidate.proposedValue === 'string'
+                ? candidate.proposedValue.trim()
+                : typeof candidate.proposedValue === 'object' &&
+                  candidate.proposedValue !== null &&
+                  'aimText' in candidate.proposedValue &&
+                  typeof candidate.proposedValue.aimText === 'string'
+                ? candidate.proposedValue.aimText.trim()
+                : '';
+
+            if (!candText) {
+              outcome = {
+                success: false,
+                error: 'Opening aim candidate proposed value is empty.',
+              };
+              return state;
+            }
+
+            // Check if draft's unreviewed proposal text matches candidate text
+            if (currentDraft.userOpeningAim?.aimText) {
+              const draftAimText = currentDraft.userOpeningAim.aimText.trim();
+              if (draftAimText && draftAimText !== candText) {
+                outcome = {
+                  success: false,
+                  error: `Displayed draft aim text "${draftAimText}" does not match applied candidate proposal text "${candText}".`,
+                };
+                return state;
+              }
+            }
+
+            const actualSourceId = analysis.sourceRecord?.id || analysis.id;
+
             const provCheck = resolveSourceEvidenceProvenance({
               provenance: {
                 kind: 'REVIEWED_SOURCE',
-                sourceId: resolvedSourceId,
-                evidenceIds: resolvedEvidenceIds,
+                sourceId: actualSourceId,
+                evidenceIds: candidate.evidenceIds || [],
               },
               sourceAnalyses: state.sourceAnalyses,
-              expectedText: proposalText,
+              expectedText: candText,
               expectedCastMemberId: userChar.id,
             });
 
@@ -1289,11 +1405,11 @@ export const useForgeStoreInternal = create<ForgeStore>()(
             const aimRecord: UserOpeningAim = {
               castMemberId: userChar.id,
               disposition: 'ACCEPTED_REFERENCE',
-              aimText: proposalText.trim(),
+              aimText: candText,
               provenance: {
                 kind: 'REVIEWED_SOURCE',
-                sourceId: resolvedSourceId,
-                evidenceIds: resolvedEvidenceIds,
+                sourceId: actualSourceId,
+                evidenceIds: candidate.evidenceIds || [],
               },
               reviewedAt: Date.now(),
             };
@@ -1403,6 +1519,294 @@ export const useForgeStoreInternal = create<ForgeStore>()(
               forgeDraft: updatedDraft,
               draftBlueprint: updatedDraft,
               draftRevision: (state.draftRevision || 0) + 1,
+            };
+          });
+          return outcome;
+        },
+
+        addCastMember: (member?: Partial<ForgeDraftCastMember>) => {
+          let createdId = '';
+          set((state: ForgeState) => {
+            const draft = state.forgeDraft || createInitialDraft();
+            const newId = member?.id || `char-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+            createdId = newId;
+            const isEntity = member?.isEntity ?? false;
+            const isUserCharacter = isEntity
+              ? false
+              : member?.isUserCharacter !== undefined
+              ? member.isUserCharacter
+              : member?.role === 'PROTAGONIST';
+
+            const newCastMember: ForgeDraftCastMember = {
+              id: newId,
+              name: member?.name || '',
+              role: member?.role || (isUserCharacter ? 'PROTAGONIST' : 'Subject'),
+              description: member?.description || '',
+              psychological_status: member?.psychological_status || '',
+              starting_location: member?.starting_location || '',
+              isEntity,
+              isUserCharacter,
+              behaviorVector: member?.behaviorVector || 'ADAPTIVE',
+              presenceDisposition: member?.presenceDisposition || { kind: 'OFFSTAGE' },
+              expressionProfile: member?.expressionProfile,
+              traits: member?.traits || [],
+              goals: member?.goals || '',
+              personality: member?.personality || '',
+            };
+            const updatedCast = [...(draft.cast || []), newCastMember];
+            let nextUserCharId = draft.userCharacterId;
+            if (isUserCharacter && !nextUserCharId) {
+              nextUserCharId = newId;
+            }
+            const updatedDraft: ForgeDraft = {
+              ...draft,
+              userCharacterId: nextUserCharId,
+              cast: updatedCast,
+            };
+            return {
+              forgeDraft: updatedDraft,
+              draftBlueprint: updatedDraft,
+              draftRevision: (state.draftRevision || 0) + 1,
+              castLedger: deriveCastLedger(updatedDraft),
+              topology: deriveTopology(updatedDraft),
+            };
+          });
+          return { success: true, characterId: createdId };
+        },
+
+        updateCastMember: (id: string, updates: Partial<ForgeDraftCastMember>) => {
+          let outcome: { success: boolean; error?: string } = { success: true };
+          set((state: ForgeState) => {
+            const draft = state.forgeDraft || createInitialDraft();
+            const exists = (draft.cast || []).some((m) => m.id === id);
+            if (!exists) {
+              outcome = { success: false, error: `Cast member ID "${id}" not found in draft.` };
+              return state;
+            }
+
+            const updatedCast = (draft.cast || []).map((m) => {
+              if (m.id !== id) return m;
+              const nextEntity = updates.isEntity !== undefined ? updates.isEntity : m.isEntity;
+              const nextIsUser = nextEntity
+                ? false
+                : updates.isUserCharacter !== undefined
+                ? updates.isUserCharacter
+                : updates.role !== undefined
+                ? updates.role === 'PROTAGONIST'
+                : m.isUserCharacter;
+
+              return {
+                ...m,
+                ...updates,
+                isEntity: nextEntity,
+                isUserCharacter: nextIsUser,
+              };
+            });
+
+            // If entity toggle cleared user character or role/isUserCharacter changed
+            let nextUserCharId = draft.userCharacterId;
+            const updatedTarget = updatedCast.find((m) => m.id === id);
+            if (updatedTarget?.isUserCharacter) {
+              nextUserCharId = id;
+            } else if (nextUserCharId === id && !updatedTarget?.isUserCharacter) {
+              nextUserCharId = undefined;
+            }
+
+            const updatedDraft: ForgeDraft = {
+              ...draft,
+              userCharacterId: nextUserCharId,
+              cast: updatedCast,
+            };
+
+            outcome = { success: true };
+            return {
+              forgeDraft: updatedDraft,
+              draftBlueprint: updatedDraft,
+              draftRevision: (state.draftRevision || 0) + 1,
+              castLedger: deriveCastLedger(updatedDraft),
+              topology: deriveTopology(updatedDraft),
+            };
+          });
+          return outcome;
+        },
+
+        removeCastMember: (id: string) => {
+          let outcome: { success: boolean; error?: string } = { success: true };
+          set((state: ForgeState) => {
+            const draft = state.forgeDraft || createInitialDraft();
+            const updatedCast = (draft.cast || []).filter((m) => m.id !== id);
+
+            let nextUserCharId = draft.userCharacterId;
+            let nextUserOpeningAim = draft.userOpeningAim;
+            if (nextUserCharId === id) {
+              nextUserCharId = undefined;
+              nextUserOpeningAim = undefined;
+            }
+
+            const currentHg = draft.horrorGrammar;
+            let nextHg = currentHg;
+            if (currentHg) {
+              const updatedPursuits = (currentHg.characterPursuits || []).filter((p) => p.castMemberId !== id);
+              const updatedReviews = { ...(currentHg.pursuitReviews || {}) };
+              delete updatedReviews[id];
+              nextHg = {
+                ...currentHg,
+                characterPursuits: updatedPursuits,
+                pursuitReviews: updatedReviews,
+                userOpeningAim: nextUserOpeningAim,
+              };
+            }
+
+            const updatedDraft: ForgeDraft = {
+              ...draft,
+              userCharacterId: nextUserCharId,
+              userOpeningAim: nextUserOpeningAim,
+              cast: updatedCast,
+              horrorGrammar: nextHg,
+            };
+
+            outcome = { success: true };
+            return {
+              forgeDraft: updatedDraft,
+              draftBlueprint: updatedDraft,
+              draftRevision: (state.draftRevision || 0) + 1,
+              castLedger: deriveCastLedger(updatedDraft),
+              topology: deriveTopology(updatedDraft),
+            };
+          });
+          return outcome;
+        },
+
+        setCastOpeningPlacement: (
+          characterId: string,
+          disposition: CharacterPresenceDisposition
+        ) => {
+          let outcome: { success: boolean; error?: string } = { success: true };
+          set((state: ForgeState) => {
+            const currentDraft = state.forgeDraft || createInitialDraft();
+            const cast = currentDraft.cast || [];
+            const target = cast.find((c) => c.id === characterId);
+            if (!target) {
+              outcome = { success: false, error: `Cast member ID "${characterId}" not found in draft.` };
+              return state;
+            }
+
+            if (disposition.kind === 'NONLOCAL' && !target.isEntity) {
+              outcome = {
+                success: false,
+                error: `NONLOCAL opening placement is only permitted for Entity cast members ("${target.name || characterId}" is not an entity).`,
+              };
+              return state;
+            }
+
+            if (disposition.kind === 'AT_NODE') {
+              const validNodeIds = new Set([
+                ...(currentDraft.topology?.nodes || []),
+                ...(currentDraft.topology?.nodeDefinitions?.map((n) => n.id) || []),
+              ]);
+              if (validNodeIds.size > 0 && !validNodeIds.has(disposition.nodeId)) {
+                outcome = {
+                  success: false,
+                  error: `Opening placement node "${disposition.nodeId}" not found in active draft topology.`,
+                };
+                return state;
+              }
+            }
+
+            const cleanDisposition: CharacterPresenceDisposition =
+              disposition.kind === 'AT_NODE'
+                ? { kind: 'AT_NODE', nodeId: disposition.nodeId }
+                : disposition.kind === 'OFFSTAGE'
+                ? { kind: 'OFFSTAGE' }
+                : { kind: 'NONLOCAL' };
+
+            const updatedCast = cast.map((m) => {
+              if (m.id === characterId) {
+                return {
+                  ...m,
+                  presenceDisposition: cleanDisposition,
+                  starting_location: cleanDisposition.kind === 'AT_NODE' ? cleanDisposition.nodeId : '',
+                };
+              }
+              return m;
+            });
+
+            const updatedDraft: ForgeDraft = {
+              ...currentDraft,
+              cast: updatedCast,
+            };
+
+            outcome = { success: true };
+            return {
+              forgeDraft: updatedDraft,
+              draftBlueprint: updatedDraft,
+              draftRevision: (state.draftRevision || 0) + 1,
+              castLedger: deriveCastLedger(updatedDraft),
+            };
+          });
+          return outcome;
+        },
+
+        setPursuitReview: (
+          characterId: string,
+          state: 'REVIEWED' | 'REVIEWED_NONE' | 'UNREVIEWED',
+          pursuitData?: Partial<CharacterPursuit>
+        ) => {
+          let outcome: { success: boolean; error?: string } = { success: true };
+          set((fState: ForgeState) => {
+            const currentDraft = fState.forgeDraft || createInitialDraft();
+            const currentHg = currentDraft.horrorGrammar || {
+              valueBaselineReview: 'UNREVIEWED' as const,
+              pursuitReviews: {},
+              valueAnchors: [],
+              characterPursuits: [],
+            };
+
+            const updatedReviews = {
+              ...currentHg.pursuitReviews,
+              [characterId]: state,
+            };
+
+            let updatedPursuits = (currentHg.characterPursuits || []).filter(
+              (p) => p.castMemberId !== characterId
+            );
+
+            if (state === 'REVIEWED' && pursuitData) {
+              const targetMember = currentDraft.cast?.find((c) => c.id === characterId);
+              const defaultLoc =
+                targetMember?.presenceDisposition?.kind === 'AT_NODE'
+                  ? targetMember.presenceDisposition.nodeId
+                  : targetMember?.starting_location || currentDraft.topology?.startingNodeId || '';
+
+              const newPursuit: CharacterPursuit = {
+                id: pursuitData.id || `pursuit-${characterId}-${Date.now()}`,
+                castMemberId: characterId,
+                objective: pursuitData.objective || 'Maintain operational perimeter',
+                presentApproach: pursuitData.presentApproach || 'Surveying local sector',
+                locationNodeId: pursuitData.locationNodeId || defaultLoc,
+                status: pursuitData.status || 'ACTIVE',
+                reviewWindow: pursuitData.reviewWindow || 'SCENE_BEAT',
+                triggerReferences: pursuitData.triggerReferences || [],
+                basisSummary: pursuitData.basisSummary || 'Creator-defined character initiative.',
+                provenance: pursuitData.provenance || { kind: 'CREATOR_DEFINED' },
+              };
+              updatedPursuits = [...updatedPursuits, newPursuit];
+            }
+
+            const updatedDraft: ForgeDraft = {
+              ...currentDraft,
+              horrorGrammar: {
+                ...currentHg,
+                pursuitReviews: updatedReviews,
+                characterPursuits: updatedPursuits,
+              },
+            };
+
+            outcome = { success: true };
+            return {
+              forgeDraft: updatedDraft,
+              draftBlueprint: updatedDraft,
+              draftRevision: (fState.draftRevision || 0) + 1,
             };
           });
           return outcome;
@@ -1947,81 +2351,164 @@ export const useForgeStoreInternal = create<ForgeStore>()(
           }),
 
         // --- LEGACY-COMPATIBLE ADAPTER ACTIONS (Read/Write through forgeDraft) ---
-        addCastMember: (member: Omit<CastMember, 'id'>) =>
+        setStartingNode: (nodeId: string) => {
+          let outcome: { success: boolean; error?: string } = { success: true };
           set((state: ForgeState) => {
-            const draft = state.forgeDraft || createInitialDraft();
-            const newId = crypto.randomUUID();
-            const newCastMember: ForgeDraftCastMember = {
-              id: newId,
-              name: member.name,
-              role: member.role,
-              psychological_status: member.psychological_status,
-              starting_location: member.starting_location,
-              isEntity: member.isEntity ?? false,
-              isUserCharacter: member.role === 'PROTAGONIST',
-              behaviorVector: 'ADAPTIVE',
-            };
-            const updatedCast = [...(draft.cast || []), newCastMember];
-            const updatedDraft: ForgeDraft = {
-              ...draft,
-              cast: updatedCast,
-            };
-            return {
-              forgeDraft: updatedDraft,
-              draftBlueprint: updatedDraft,
-              castLedger: deriveCastLedger(updatedDraft),
-              topology: deriveTopology(updatedDraft),
-            };
-          }),
+            const draft = state.forgeDraft || state.draftBlueprint || createInitialDraft();
+            const topo = draft.topology || { nodes: [], connections: [] };
+            const nodeDefs = topo.nodeDefinitions || [];
+            const rawNodes = topo.nodes || [];
+            const isRich = nodeDefs.length > 0;
+            const validIds = isRich ? nodeDefs.map((d) => d.id) : rawNodes;
 
-        updateCastMember: (id: string, updates: Partial<CastMember>) =>
-          set((state: ForgeState) => {
-            const draft = state.forgeDraft || createInitialDraft();
+            if (!validIds.includes(nodeId)) {
+              outcome = { success: false, error: `Node ID "${nodeId}" not found in topology.` };
+              return state;
+            }
+
+            if (topo.anchors?.some((a) => a.id === nodeId)) {
+              outcome = { success: false, error: `Node ID "${nodeId}" is an expandable space anchor, not a main node.` };
+              return state;
+            }
+
+            // Sync user character's placement
+            const userChar = draft.cast?.find((c) => c.isUserCharacter) || (draft.userCharacterId ? draft.cast?.find((c) => c.id === draft.userCharacterId) : undefined);
             const updatedCast = (draft.cast || []).map((m) => {
-              if (m.id !== id) return m;
-              return {
-                ...m,
-                ...(updates.name !== undefined ? { name: updates.name } : {}),
-                ...(updates.role !== undefined
-                  ? { role: updates.role, isUserCharacter: updates.role === 'PROTAGONIST' }
-                  : {}),
-                ...(updates.psychological_status !== undefined
-                  ? { psychological_status: updates.psychological_status }
-                  : {}),
-                ...(updates.starting_location !== undefined
-                  ? { starting_location: updates.starting_location }
-                  : {}),
-                ...(updates.isEntity !== undefined ? { isEntity: updates.isEntity } : {}),
-              };
+              if (userChar && m.id === userChar.id) {
+                return {
+                  ...m,
+                  presenceDisposition: { kind: 'AT_NODE' as const, nodeId },
+                  starting_location: nodeId,
+                };
+              }
+              return m;
             });
+
             const updatedDraft: ForgeDraft = {
               ...draft,
               cast: updatedCast,
+              topology: {
+                ...topo,
+                startingNodeId: nodeId,
+                startingNodeProvenance: undefined, // Clear old source provenance upon manual change
+              },
             };
+
+            outcome = { success: true };
             return {
               forgeDraft: updatedDraft,
               draftBlueprint: updatedDraft,
+              draftRevision: (state.draftRevision || 0) + 1,
               castLedger: deriveCastLedger(updatedDraft),
               topology: deriveTopology(updatedDraft),
             };
-          }),
+          });
+          return outcome;
+        },
 
-        removeCastMember: (id: string) =>
+        addTopologyNode: (node: ForgeTopologyNode) => {
+          let outcome: { success: boolean; error?: string } = { success: true };
           set((state: ForgeState) => {
-            if (!state.forgeDraft) return state;
-            const updatedCast = (state.forgeDraft.cast || []).filter((m) => m.id !== id);
-            const updatedDraft: ForgeDraft = {
-              ...state.forgeDraft,
-              cast: updatedCast,
+            const draft = state.forgeDraft || state.draftBlueprint || createInitialDraft();
+            const topo = draft.topology || { nodes: [], connections: [] };
+            const nodeDefs = topo.nodeDefinitions || [];
+            const rawNodes = topo.nodes || [];
+
+            if (!node.id || !node.id.trim()) {
+              outcome = { success: false, error: 'Node ID cannot be empty.' };
+              return state;
+            }
+            const cleanId = node.id.trim().toUpperCase().replace(/\s+/g, '_');
+            if (nodeDefs.some((d) => d.id === cleanId) || rawNodes.includes(cleanId)) {
+              outcome = { success: false, error: `Node ID "${cleanId}" already exists.` };
+              return state;
+            }
+
+            const newDef: ForgeTopologyNode = {
+              id: cleanId,
+              label: node.label?.trim() || cleanId.replace(/_/g, ' '),
+              description: node.description?.trim() || '',
+              sensoryGuidance: node.sensoryGuidance,
             };
+
+            const nextDefs = [...nodeDefs, newDef];
+            const nextNodes = Array.from(new Set([...rawNodes, cleanId]));
+
+            const updatedDraft: ForgeDraft = {
+              ...draft,
+              topology: {
+                ...topo,
+                nodes: nextNodes,
+                nodeDefinitions: nextDefs,
+                // Do NOT automatically set startingNodeId on adding first node!
+                startingNodeId: topo.startingNodeId,
+              },
+            };
+
+            outcome = { success: true };
             return {
               forgeDraft: updatedDraft,
               draftBlueprint: updatedDraft,
+              draftRevision: (state.draftRevision || 0) + 1,
               castLedger: deriveCastLedger(updatedDraft),
               topology: deriveTopology(updatedDraft),
             };
-          }),
+          });
+          return outcome;
+        },
 
+        removeTopologyNode: (nodeId: string) => {
+          let outcome: { success: boolean; error?: string } = { success: true };
+          set((state: ForgeState) => {
+            const draft = state.forgeDraft || state.draftBlueprint;
+            if (!draft) return state;
+            const topo = draft.topology || { nodes: [], connections: [] };
+            const nextDefs = (topo.nodeDefinitions || []).filter((d) => d.id !== nodeId);
+            const nextNodes = (topo.nodes || []).filter((n) => n !== nodeId);
+            const nextConns = (topo.connections || []).filter((conn) => {
+              if (typeof conn === 'string') {
+                const parts = conn.split('->').map((s) => s.trim());
+                return parts[0] !== nodeId && parts[1] !== nodeId;
+              } else if (conn && typeof conn === 'object') {
+                return conn.from !== nodeId && conn.to !== nodeId;
+              }
+              return true;
+            });
+            const nextAnchors = (topo.anchors || []).filter((a) => a.parentNodeId !== nodeId);
+
+            let nextStart = topo.startingNodeId;
+            let nextProv = topo.startingNodeProvenance;
+            if (nextStart === nodeId) {
+              nextStart = undefined;
+              nextProv = undefined;
+            }
+
+            const updatedDraft: ForgeDraft = {
+              ...draft,
+              topology: {
+                ...topo,
+                nodes: nextNodes,
+                nodeDefinitions: nextDefs,
+                connections: nextConns,
+                anchors: nextAnchors,
+                startingNodeId: nextStart,
+                startingNodeProvenance: nextProv,
+              },
+            };
+
+            outcome = { success: true };
+            return {
+              forgeDraft: updatedDraft,
+              draftBlueprint: updatedDraft,
+              draftRevision: (state.draftRevision || 0) + 1,
+              castLedger: deriveCastLedger(updatedDraft),
+              topology: deriveTopology(updatedDraft),
+            };
+          });
+          return outcome;
+        },
+
+        // --- LEGACY-COMPATIBLE ADAPTER ACTIONS (Read/Write through forgeDraft) ---
         addSpatialNode: (nodeId: string) =>
           set((state: ForgeState) => {
             const draft = state.forgeDraft || createInitialDraft();
@@ -2299,6 +2786,9 @@ export const useForgeStoreInternal = create<ForgeStore>()(
             state.forgeDraft = stateRecord.draftBlueprint as ForgeDraft;
           }
           if (state.forgeDraft) {
+            if (state.forgeDraft.cast) {
+              state.forgeDraft.cast = sanitizeCastPresenceDispositions(state.forgeDraft.cast) || [];
+            }
             if (!state.forgeDraft.ambiguities || !Array.isArray(state.forgeDraft.ambiguities)) {
               state.forgeDraft.ambiguities = [];
             }

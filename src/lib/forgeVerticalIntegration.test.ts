@@ -459,6 +459,9 @@ describe('Forge 1C-8: Production-Path Closure, Integration Proof, and Negative M
 
     // 8. Explicitly accept exact source opening-aim proposal via canonical action
     const aimOutcome = forgeActions.acceptReferenceOpeningAim('src-xenon-station');
+    if (!aimOutcome.success) {
+      console.error('aimOutcome failed:', aimOutcome);
+    }
     expect(aimOutcome.success).toBe(true);
 
     // 9. Designate starting node and review HG pursuit states via store actions
@@ -497,6 +500,7 @@ describe('Forge 1C-8: Production-Path Closure, Integration Proof, and Negative M
     const exportArtifact = prepareBlueprintExport(draft, {
       draftRevision: useForgeStore.getState().draftRevision,
       sourceBaselineRevision: useForgeStore.getState().sourceBaselineRevision,
+      sourceAnalyses,
     });
     expect(exportArtifact.fileName).toContain('xenon_sub_level_resonance.json');
     expect(Object.isFrozen(exportArtifact)).toBe(true);
@@ -829,8 +833,8 @@ describe('Forge 1C-8: Production-Path Closure, Integration Proof, and Negative M
         },
         topology: {
           nodeDefinitions: [
-            { id: 'NODE_A', label: 'Node A' },
-            { id: 'NODE_B', label: 'Node B' },
+            { id: 'NODE_A', label: 'Node A', description: 'Desc A' },
+            { id: 'NODE_B', label: 'Node B', description: 'Desc B' },
           ],
           connections: [],
         },

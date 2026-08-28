@@ -725,25 +725,49 @@ describe('sourceBaseline pure functions', () => {
       };
 
       const analysis = validateAndNormalizeDocumentAnalysis(payload, sourceRecord);
-      expect(analysis.status).toBe('completed');
-      expect(analysis.id).toBe('src-test-recovery-1-analysis');
-      expect(analysis.errorMessage).toBeUndefined();
+      expect(analysis.status).toBe('error');
+      expect(analysis.errorMessage).toContain('Extraction validation failed');
+      expect(analysis.errorMessage).toContain('Candidate 2');
+      expect(analysis.errorMessage).toContain('Candidate 3');
+    });
 
-      // Only valid evidence kept
-      expect(analysis.evidence).toHaveLength(1);
-      expect(analysis.evidence[0].id).toBe('ev-valid-1');
-      expect(analysis.evidence[0].category).toBe('setting');
+    it('fails visibly when a cast_seed candidate is missing explicit isUserCharacter boolean', () => {
+      const sourceRecord: ForgeSourceRecord = {
+        id: 'src-test-cast-user-flag',
+        fileName: 'cast_log.txt',
+        mimeType: 'text/plain',
+        kind: 'document',
+        receivedAt: Date.now(),
+      };
 
-      // Only valid candidates kept
-      expect(analysis.candidates).toHaveLength(1);
-      expect(analysis.candidates[0].target).toBe('setting_location');
-      expect(analysis.candidates[0].proposedValue).toBe('Marianas Trench Station Sector 9');
-      expect(analysis.candidates[0].reviewDecision).toBe('accepted');
-      expect(analysis.candidates[0].applicationState).toBe('staged');
+      const payload = {
+        evidence: [
+          {
+            id: 'ev-cast-1',
+            category: 'cast',
+            claim: 'Dr. Evans is the lead biologist.',
+          },
+        ],
+        candidates: [
+          {
+            id: 'cand-cast-1',
+            classification: 'evidence',
+            target: 'cast_seed',
+            label: 'Cast: Dr. Evans',
+            explanation: 'Lead biologist.',
+            evidenceIds: ['ev-cast-1'],
+            proposedValue: {
+              name: 'Dr. Evans',
+              role: 'Biologist',
+              // missing explicit isUserCharacter: boolean
+            },
+          },
+        ],
+      };
 
-      // Only valid unknowns kept
-      expect(analysis.unknowns).toHaveLength(1);
-      expect(analysis.unknowns[0].id).toBe('unk-valid-1');
+      const analysis = validateAndNormalizeDocumentAnalysis(payload, sourceRecord);
+      expect(analysis.status).toBe('error');
+      expect(analysis.errorMessage).toContain('is missing explicit isUserCharacter boolean');
     });
 
     it('supplies stable fallback id for cast_seed without id and sets default reviewDecision and applicationState', () => {
@@ -1071,15 +1095,11 @@ describe('sourceBaseline pure functions', () => {
       expect(haze?.presenceDisposition).toEqual({
         kind: 'AT_NODE',
         nodeId: 'BRIDGE',
-        sourceId: 'src-story-map',
-        evidenceIds: ['ev-1'],
       });
 
       const echo = workingDraft.cast?.find((c) => c.id === 'char-echo');
       expect(echo?.presenceDisposition).toEqual({
         kind: 'NONLOCAL',
-        sourceId: 'src-story-map',
-        evidenceIds: ['ev-1'],
       });
     });
 

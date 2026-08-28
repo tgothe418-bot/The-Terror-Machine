@@ -90,16 +90,39 @@ export const EngineTurnContextSchema = z.object({
     pacingDirective: z.string().default(''),
     keyPlotElements: z.array(z.string()).default([]),
   }),
-  player: z.object({
-    role: z.enum(['protagonist', 'antagonist', 'director', 'witness', 'possessed']),
-    characterId: z.string().nullable().optional(),
-    name: z.string().default('Protagonist'),
-    description: z.string().default(''),
-    isEntity: z.boolean().default(false),
-    openingAim: z.string().optional(),
-    openingAimDisposition: UserOpeningAimReviewDispositionSchema.optional(),
-    sovereigntyInstruction: z.string().optional(),
-  }),
+  player: z
+    .object({
+      role: z.enum(['protagonist', 'antagonist', 'director', 'witness', 'possessed']),
+      characterId: z.string().nullable().optional(),
+      name: z.string().default('Protagonist'),
+      description: z.string().default(''),
+      isEntity: z.boolean().default(false),
+      openingAim: z.string().optional(),
+      openingAimDisposition: UserOpeningAimReviewDispositionSchema.optional(),
+      sovereigntyInstruction: z.string().optional(),
+    })
+    .superRefine((val, ctx) => {
+      if (
+        val.openingAimDisposition === 'ACCEPTED_REFERENCE' ||
+        val.openingAimDisposition === 'CREATOR_OVERRIDE'
+      ) {
+        if (!val.openingAim || !val.openingAim.trim()) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: `Reviewed opening aim disposition "${val.openingAimDisposition}" requires non-empty openingAim text.`,
+            path: ['openingAim'],
+          });
+        }
+      } else if (val.openingAimDisposition === 'NONE_DECLARED') {
+        if (val.openingAim && val.openingAim.trim().length > 0) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'NONE_DECLARED opening aim disposition must have no openingAim text.',
+            path: ['openingAim'],
+          });
+        }
+      }
+    }),
   cast: z
     .array(
       z.object({

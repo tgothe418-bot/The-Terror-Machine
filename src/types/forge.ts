@@ -72,8 +72,8 @@ export const CharacterPresenceDispositionSchema = z.discriminatedUnion('kind', [
 export type CharacterPresenceDisposition = z.infer<typeof CharacterPresenceDispositionSchema>;
 
 export const ForgeTopologyNodeSchema = z.object({
-  id: z.string().min(1),
-  label: z.string().min(1),
+  id: z.string().min(1, 'Node definition ID cannot be empty'),
+  label: z.string().min(1, 'Node definition label cannot be empty'),
   description: z.string().optional(),
   classification: z.enum(['evidence', 'inference', 'creator']).optional(),
   evidenceIds: z.array(z.string()).optional(),
@@ -253,8 +253,8 @@ export interface ForgeValidationResult {
 }
 
 export interface ForgeCompilationContext {
-  draftRevision: number;
-  sourceBaselineRevision: number;
+  draftRevision?: number;
+  sourceBaselineRevision?: number;
   sourceAnalyses?: Record<string, ForgeSourceAnalysis> | null;
 }
 

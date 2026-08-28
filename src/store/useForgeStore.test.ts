@@ -1798,6 +1798,96 @@ describe('useForgeStore - draft state and actions', () => {
       expect(getForgeState().forgeDraft!.depictionContract).toEqual(initialContract);
       expect(getForgeState().draftRevision).toBe(initialDraftRev);
     });
+
+    it('proves addTopologyNode does not silently assign the first node as startingNodeId', () => {
+      forgeActions.initializeDraft({ title: 'Sub-Level Outpost' });
+      expect(getForgeState().forgeDraft?.topology?.startingNodeId).toBeUndefined();
+
+      forgeActions.addTopologyNode({
+        id: 'AIRLOCK_DECK',
+        label: 'Airlock Deck',
+        description: 'Atmospheric decompression chamber.',
+      });
+
+      const draft = getForgeState().forgeDraft;
+      expect(draft?.topology?.nodeDefinitions).toHaveLength(1);
+      expect(draft?.topology?.nodes).toEqual(['AIRLOCK_DECK']);
+      // Must NOT silently become starting node
+      expect(draft?.topology?.startingNodeId).toBeUndefined();
+    });
+
+    it('proves removeTopologyNode clears startingNodeId and startingNodeProvenance when active start is deleted', () => {
+      forgeActions.initializeDraft({ title: 'Sub-Level Outpost' });
+
+      forgeActions.addTopologyNode({
+        id: 'NODE_A',
+        label: 'Node A',
+        description: 'First room.',
+      });
+      forgeActions.addTopologyNode({
+        id: 'NODE_B',
+        label: 'Node B',
+        description: 'Second room.',
+      });
+
+      forgeActions.setStartingNode('NODE_A');
+      expect(getForgeState().forgeDraft?.topology?.startingNodeId).toBe('NODE_A');
+
+      forgeActions.removeTopologyNode('NODE_A');
+      const draft = getForgeState().forgeDraft;
+      expect(draft?.topology?.nodeDefinitions).toHaveLength(1);
+      expect(draft?.topology?.startingNodeId).toBeUndefined();
+      expect(draft?.topology?.startingNodeProvenance).toBeUndefined();
+    });
+
+    it('proves setStartingNode updates explicit start and coordinates user character placement', () => {
+      forgeActions.initializeDraft({ title: 'Sub-Level Outpost' });
+
+      forgeActions.addCastMember({
+        id: 'char-hero',
+        name: 'Hero',
+        role: 'PROTAGONIST',
+        isUserCharacter: true,
+      });
+
+      forgeActions.addTopologyNode({
+        id: 'NODE_START',
+        label: 'Start Room',
+        description: 'Opening location.',
+      });
+
+      forgeActions.setStartingNode('NODE_START');
+      const draft = getForgeState().forgeDraft;
+      expect(draft?.topology?.startingNodeId).toBe('NODE_START');
+      const hero = draft?.cast?.find((c) => c.id === 'char-hero');
+      expect(hero?.presenceDisposition).toEqual({ kind: 'AT_NODE', nodeId: 'NODE_START' });
+      expect(hero?.starting_location).toBe('NODE_START');
+    });
+
+    it('proves setUserCharacter does not fall back to ORIGIN or nodes[0] when startingNodeId is absent', () => {
+      forgeActions.initializeDraft({
+        title: 'No Start Scenario',
+        topology: {
+          nodes: ['SOME_NODE'],
+          nodeDefinitions: [{ id: 'SOME_NODE', label: 'Some Node', description: 'Desc' }],
+        },
+      });
+
+      forgeActions.addCastMember({
+        id: 'char-cand',
+        name: 'Candidate',
+        role: 'Subject',
+        isUserCharacter: false,
+        presenceDisposition: { kind: 'OFFSTAGE' },
+      });
+
+      forgeActions.setUserCharacter('char-cand');
+      const draft = getForgeState().forgeDraft;
+      const userChar = draft?.cast?.find((c) => c.id === 'char-cand');
+      expect(userChar?.isUserCharacter).toBe(true);
+      expect(userChar?.presenceDisposition).toEqual({ kind: 'OFFSTAGE' });
+      expect(userChar?.starting_location).toBe('');
+    });
   });
 });
 

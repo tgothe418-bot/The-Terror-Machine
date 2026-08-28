@@ -8,6 +8,7 @@ import {
 } from '../../lib/referenceImportPolicy';
 import { readSafeResponseError } from '../../lib/responseErrorReader';
 import { validateAndNormalizeDocumentAnalysis } from '../../lib/sourceBaseline';
+import { triggerInitialDepictionProposalIfEligible } from '../../lib/depictionProposalOrchestrator';
 import { ForgeSourceRecord } from '../../types/forge';
 
 export const FileDropzone = () => {
@@ -58,6 +59,11 @@ export const FileDropzone = () => {
 
         setRuntimeSourceBinding(data.analysis.id, data.sourceBinding);
         registerSourceAnalysis(data.analysis, data.sourceBinding);
+
+        // Automatically stage initial Depiction Contract proposal if eligible
+        triggerInitialDepictionProposalIfEligible().catch((e) =>
+          console.warn('[FORGE DEPICTION] Auto-proposal error:', e)
+        );
 
         addArchitectMessage({
           role: 'architect',
@@ -115,6 +121,11 @@ export const FileDropzone = () => {
       const normalizedAnalysis = validateAndNormalizeDocumentAnalysis(data.analysis, sourceRecord);
       setRuntimeSourceBinding(normalizedAnalysis.id, data.sourceBinding);
       registerSourceAnalysis(normalizedAnalysis, data.sourceBinding);
+
+      // Automatically stage initial Depiction Contract proposal if eligible
+      triggerInitialDepictionProposalIfEligible().catch((e) =>
+        console.warn('[FORGE DEPICTION] Auto-proposal error:', e)
+      );
 
       addArchitectMessage({
         role: 'architect',

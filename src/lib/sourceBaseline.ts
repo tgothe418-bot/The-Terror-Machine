@@ -704,11 +704,20 @@ export function validateAndNormalizeDocumentAnalysis(
 
   // 2. Normalize and filter candidates entries
   const candidates: ForgeSourceCandidate[] = [];
+  const candidateErrors: string[] = [];
+  const validEvidenceIds = new Set(evidence.map((e) => e.id));
+
   if (Array.isArray(rawObj.candidates)) {
     rawObj.candidates.forEach((c: unknown, idx: number) => {
-      if (!c || typeof c !== 'object' || Array.isArray(c)) return;
+      if (!c || typeof c !== 'object' || Array.isArray(c)) {
+        candidateErrors.push(`Candidate ${idx + 1} is not a valid candidate object.`);
+        return;
+      }
       const item = c as Record<string, unknown>;
-      if (item.proposedValue === undefined || item.proposedValue === null) return;
+      if (item.proposedValue === undefined || item.proposedValue === null) {
+        candidateErrors.push(`Candidate ${idx + 1} (${item.target || 'unknown'}) is missing proposedValue.`);
+        return;
+      }
 
       let proposedValue = item.proposedValue;
       if (
@@ -720,6 +729,10 @@ export function validateAndNormalizeDocumentAnalysis(
         const castObj = { ...(proposedValue as Record<string, unknown>) };
         if (!castObj.id || typeof castObj.id !== 'string' || !castObj.id.trim()) {
           castObj.id = `${sourceId}-cast-${idx}`;
+        }
+        if (typeof castObj.isUserCharacter !== 'boolean') {
+          candidateErrors.push(`Candidate ${idx + 1} (cast_seed) is missing explicit isUserCharacter boolean.`);
+          return;
         }
         proposedValue = castObj;
       } else if (item.target === 'user_opening_aim_default') {
@@ -739,6 +752,10 @@ export function validateAndNormalizeDocumentAnalysis(
             castMemberId = aimObj.castMemberId.trim();
           }
         }
+        if (!aimText) {
+          candidateErrors.push(`Candidate ${idx + 1} (user_opening_aim_default) has empty aimText.`);
+          return;
+        }
         proposedValue = {
           castMemberId: castMemberId || undefined,
           aimText,
@@ -750,13 +767,19 @@ export function validateAndNormalizeDocumentAnalysis(
         proposedValue = proposedValue.trim();
       }
 
-      const validEvidenceIds = new Set(evidence.map((e) => e.id));
-      const resolvedCandidateEvIds = Array.isArray(item.evidenceIds)
+      const rawEvIds = Array.isArray(item.evidenceIds)
         ? item.evidenceIds
             .filter((id: unknown): id is string => typeof id === 'string' && id.trim().length > 0)
             .map((id: string) => id.trim())
-            .filter((id: string) => validEvidenceIds.has(id))
         : [];
+
+      const unresolvedEvIds = rawEvIds.filter((id) => !validEvidenceIds.has(id));
+      if (unresolvedEvIds.length > 0) {
+        candidateErrors.push(
+          `Candidate ${idx + 1} (${item.target || 'unknown'}) references unresolved evidence IDs: [${unresolvedEvIds.join(', ')}].`
+        );
+        return;
+      }
 
       const rawCandidate = {
         id: typeof item.id === 'string' && item.id.trim() ? item.id.trim() : `${sourceId}-cand-${idx}`,
@@ -768,7 +791,7 @@ export function validateAndNormalizeDocumentAnalysis(
           typeof item.explanation === 'string' && item.explanation.trim()
             ? item.explanation.trim()
             : 'Extracted from source document.',
-        evidenceIds: resolvedCandidateEvIds,
+        evidenceIds: rawEvIds,
         proposedValue,
         targetCastMemberId:
           typeof item.targetCastMemberId === 'string' && item.targetCastMemberId.trim()
@@ -781,8 +804,25 @@ export function validateAndNormalizeDocumentAnalysis(
       const parseRes = ForgeSourceCandidateSchema.safeParse(rawCandidate);
       if (parseRes.success) {
         candidates.push(parseRes.data);
+      } else {
+        candidateErrors.push(
+          `Candidate ${idx + 1} (${item.target || 'unknown'}) failed schema validation: ${parseRes.error.issues.map((i) => i.message).join(', ')}`
+        );
       }
     });
+  }
+
+  if (candidateErrors.length > 0) {
+    return {
+      id: typeof rawObj.id === 'string' && rawObj.id.trim() ? rawObj.id.trim() : `${sourceId}-analysis-err`,
+      sourceRecord,
+      summary: `Extraction failed for ${sourceRecord.fileName} due to malformed candidate records.`,
+      evidence,
+      candidates: [],
+      unknowns: [],
+      status: 'error',
+      errorMessage: `Extraction validation failed: ${candidateErrors.join('; ')}`,
+    };
   }
 
   // 3. Normalize and filter unknowns entries
@@ -1201,16 +1241,17 @@ export function applyCandidateToDraft(
           };
         }
       }
-      const placementWithProv = {
-        ...placement,
-        sourceId: candidate.sourceId,
-        evidenceIds: candidate.evidenceIds || [],
-      };
       cloned.cast = cloned.cast.map((member) => {
         if (member.id === targetId) {
+          const strictDisposition =
+            placement.kind === 'AT_NODE'
+              ? { kind: 'AT_NODE' as const, nodeId: placement.nodeId }
+              : placement.kind === 'OFFSTAGE'
+              ? { kind: 'OFFSTAGE' as const }
+              : { kind: 'NONLOCAL' as const };
           return {
             ...member,
-            presenceDisposition: placementWithProv,
+            presenceDisposition: strictDisposition,
             starting_location: placement.kind === 'AT_NODE' ? placement.nodeId : '',
           };
         }
@@ -1837,11 +1878,13 @@ export function resolveSourceEvidenceProvenance({
   sourceAnalyses,
   expectedText,
   expectedCastMemberId,
+  expectedTarget,
 }: {
   provenance: unknown;
   sourceAnalyses?: Record<string, ForgeSourceAnalysis> | null;
   expectedText?: string;
   expectedCastMemberId?: string;
+  expectedTarget?: string;
 }): ProvenanceValidationResult {
   const errors: string[] = [];
 
@@ -1872,48 +1915,84 @@ export function resolveSourceEvidenceProvenance({
     }
   }
 
+  // An omitted, null, or empty sourceAnalyses registry is an error for REVIEWED_SOURCE
+  if (!sourceAnalyses || Object.keys(sourceAnalyses).length === 0) {
+    errors.push('No registered source analyses available to resolve REVIEWED_SOURCE provenance.');
+    return { valid: false, errors };
+  }
+
   if (errors.length > 0) {
     return { valid: false, errors };
   }
 
-  // If sourceAnalyses is supplied, resolve exact matching records
-  if (sourceAnalyses && Object.keys(sourceAnalyses).length > 0) {
-    const sourceId = p.sourceId!;
-    const analysis =
-      sourceAnalyses[sourceId] ||
-      Object.values(sourceAnalyses).find(
-        (a) => a.id === sourceId || a.sourceRecord?.id === sourceId
-      );
-    if (!analysis) {
-      errors.push(`Source ID "${sourceId}" is not registered in active source analyses.`);
-    } else {
-      const validEvidenceIds = new Set((analysis.evidence || []).map((e) => e.id));
-      for (const evId of p.evidenceIds!) {
-        if (!validEvidenceIds.has(evId)) {
-          errors.push(`Evidence ID "${evId}" does not resolve within registered source "${sourceId}".`);
-        }
-      }
+  const sourceId = p.sourceId!;
+  const analysis =
+    sourceAnalyses[sourceId] ||
+    Object.values(sourceAnalyses).find(
+      (a) => a.id === sourceId || a.sourceRecord?.id === sourceId
+    );
 
-      if (expectedText !== undefined) {
-        const trimmedExpected = expectedText.trim();
-        const matchingCand = (analysis.candidates || []).find(
-          (c) =>
-            c.target === 'user_opening_aim_default' &&
-            (c.targetCastMemberId === expectedCastMemberId || !expectedCastMemberId)
-        );
-        if (matchingCand) {
+  if (!analysis) {
+    errors.push(`Source ID "${sourceId}" is not registered in active source analyses.`);
+    return { valid: false, errors };
+  }
+
+  const validEvidenceIds = new Set((analysis.evidence || []).map((e) => e.id));
+  for (const evId of p.evidenceIds!) {
+    if (!validEvidenceIds.has(evId)) {
+      errors.push(`Evidence ID "${evId}" does not resolve within registered source "${sourceId}".`);
+    }
+  }
+
+  // Candidate/evidence linkage and candidate status verification
+  const targetToMatch = expectedTarget || (expectedText !== undefined ? 'user_opening_aim_default' : undefined);
+  if (targetToMatch) {
+    const candidates = (analysis.candidates || []).filter((c) => {
+      if (c.target !== targetToMatch) return false;
+      if (expectedCastMemberId && c.targetCastMemberId && c.targetCastMemberId !== expectedCastMemberId) {
+        return false;
+      }
+      return true;
+    });
+
+    if (candidates.length === 0) {
+      errors.push(`No candidate for target "${targetToMatch}" found in registered source "${sourceId}".`);
+    } else {
+      const claimedEvSet = new Set(p.evidenceIds!);
+      const matchingCandidate = candidates.find((c) => {
+        if (c.reviewDecision !== 'accepted' || c.applicationState !== 'applied') {
+          return false;
+        }
+        const candEvIds = c.evidenceIds || [];
+        return candEvIds.some((id) => claimedEvSet.has(id));
+      });
+
+      if (!matchingCandidate) {
+        const anyAccepted = candidates.some((c) => c.reviewDecision === 'accepted' && c.applicationState === 'applied');
+        if (!anyAccepted) {
+          errors.push(
+            `Candidate for target "${targetToMatch}" in source "${sourceId}" has not been accepted and applied.`
+          );
+        } else {
+          errors.push(
+            `Claimed evidence [${p.evidenceIds!.join(', ')}] does not link to any accepted and applied candidate for "${targetToMatch}".`
+          );
+        }
+      } else {
+        if (expectedText !== undefined) {
+          const trimmedExpected = expectedText.trim();
           const candText =
-            typeof matchingCand.proposedValue === 'string'
-              ? matchingCand.proposedValue.trim()
-              : typeof matchingCand.proposedValue === 'object' &&
-                matchingCand.proposedValue !== null &&
-                'aimText' in matchingCand.proposedValue &&
-                typeof matchingCand.proposedValue.aimText === 'string'
-              ? matchingCand.proposedValue.aimText.trim()
+            typeof matchingCandidate.proposedValue === 'string'
+              ? matchingCandidate.proposedValue.trim()
+              : typeof matchingCandidate.proposedValue === 'object' &&
+                matchingCandidate.proposedValue !== null &&
+                'aimText' in matchingCandidate.proposedValue &&
+                typeof matchingCandidate.proposedValue.aimText === 'string'
+              ? matchingCandidate.proposedValue.aimText.trim()
               : '';
-          if (candText && candText !== trimmedExpected) {
+          if (candText !== trimmedExpected) {
             errors.push(
-              `Accepted opening aim text "${trimmedExpected}" does not match proposal text "${candText}".`
+              `Accepted opening aim text "${trimmedExpected}" does not match candidate proposal text "${candText}".`
             );
           }
         }

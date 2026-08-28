@@ -1,10 +1,8 @@
 import React, { useState } from 'react';
 import { useForgeState, forgeActions } from '../../store/useForgeStore';
-import { DepictionContract, DepictionContractProposalSchema } from '../../types/forge';
-import {
-  checkDepictionGenerationReadiness,
-  buildDepictionContractProposalRequest,
-} from '../../lib/depictionContractContext';
+import { DepictionContract } from '../../types/forge';
+import { checkDepictionGenerationReadiness } from '../../lib/depictionContractContext';
+import { requestDepictionContractProposal } from '../../lib/depictionProposalOrchestrator';
 import {
   ShieldAlert,
   CheckCircle2,
@@ -46,22 +44,31 @@ export const DepictionContractPanel: React.FC = () => {
   const currentDraftRev = draftRevision || 1;
   const currentBaseRev = sourceBaselineRevision || 1;
 
-  const contract: DepictionContract = {
-    dramaticRegister: currentDraft?.depictionContract?.dramaticRegister || '',
-    directness: currentDraft?.depictionContract?.directness || '',
-    aftermath: currentDraft?.depictionContract?.aftermath || '',
-    ambiguityHandling: currentDraft?.depictionContract?.ambiguityHandling || '',
-    specialBoundaries: currentDraft?.depictionContract?.specialBoundaries || '',
+  // If a proposal is pending, display staged proposal values in fields; otherwise display canonical contract
+  const staged = pendingDepictionContractProposal?.contract;
+  const canonical = currentDraft?.depictionContract;
+
+  const displayedContract: DepictionContract = {
+    dramaticRegister: staged?.dramaticRegister !== undefined ? staged.dramaticRegister : canonical?.dramaticRegister || '',
+    directness: staged?.directness !== undefined ? staged.directness : canonical?.directness || '',
+    aftermath: staged?.aftermath !== undefined ? staged.aftermath : canonical?.aftermath || '',
+    ambiguityHandling: staged?.ambiguityHandling !== undefined ? staged.ambiguityHandling : canonical?.ambiguityHandling || '',
+    specialBoundaries: staged?.specialBoundaries !== undefined ? staged.specialBoundaries : canonical?.specialBoundaries || '',
   };
 
-  const isDramaticValid = !isInvalidContractValue(contract.dramaticRegister);
-  const isDirectnessValid = !isInvalidContractValue(contract.directness);
-  const isAftermathValid = !isInvalidContractValue(contract.aftermath);
-  const isAmbiguityValid = !isInvalidContractValue(contract.ambiguityHandling);
+  const isDramaticValid = !isInvalidContractValue(displayedContract.dramaticRegister);
+  const isDirectnessValid = !isInvalidContractValue(displayedContract.directness);
+  const isAftermathValid = !isInvalidContractValue(displayedContract.aftermath);
+  const isAmbiguityValid = !isInvalidContractValue(displayedContract.ambiguityHandling);
   const isContractComplete =
     isDramaticValid && isDirectnessValid && isAftermathValid && isAmbiguityValid;
 
   const readiness = checkDepictionGenerationReadiness({ sourceAnalyses });
+
+  const hasExistingContractOrProposal = Boolean(
+    pendingDepictionContractProposal ||
+      (canonical?.dramaticRegister && canonical?.directness && canonical?.aftermath && canonical?.ambiguityHandling)
+  );
 
   const isProposalStale =
     !!pendingDepictionContractProposal &&
@@ -74,39 +81,10 @@ export const DepictionContractPanel: React.FC = () => {
     setErrorMessage(null);
 
     try {
-      const requestPayload = buildDepictionContractProposalRequest({
-        draft: currentDraft,
-        sourceAnalyses,
-        draftRevision: currentDraftRev,
-        sourceBaselineRevision: currentBaseRev,
-      });
-
-      const response = await fetch('/api/architect', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestPayload),
-      });
-
-      const data = (await response.json().catch(() => null)) as {
-        type?: string;
-        proposal?: unknown;
-        error?: string;
-      } | null;
-
-      if (!response.ok) {
-        throw new Error(data?.error || `Generation failed with status ${response.status}`);
+      const outcome = await requestDepictionContractProposal({ force: true });
+      if (!outcome.success) {
+        throw new Error(outcome.error || 'Failed to generate depiction contract proposal.');
       }
-
-      if (data?.type !== 'DEPICTION_CONTRACT_PROPOSAL' || !data.proposal) {
-        throw new Error('Server returned invalid response format.');
-      }
-
-      const parseResult = DepictionContractProposalSchema.safeParse(data.proposal);
-      if (!parseResult.success) {
-        throw new Error('Server returned malformed proposal schema.');
-      }
-
-      setPendingDepictionContractProposal(parseResult.data);
     } catch (err: unknown) {
       setErrorMessage(
         err instanceof Error ? err.message : 'Failed to generate depiction contract proposal.'
@@ -120,6 +98,22 @@ export const DepictionContractPanel: React.FC = () => {
     const outcome = applyPendingDepictionContractProposal();
     if (!outcome.success) {
       setErrorMessage((outcome as { success: false; error: string; stale?: boolean }).error);
+    }
+  };
+
+  const handleFieldChange = (field: keyof DepictionContract, value: string) => {
+    if (pendingDepictionContractProposal) {
+      // If editing while proposal is pending, update the staged proposal contract
+      setPendingDepictionContractProposal({
+        ...pendingDepictionContractProposal,
+        contract: {
+          ...pendingDepictionContractProposal.contract,
+          [field]: value,
+        },
+      });
+    } else {
+      // Otherwise update canonical contract field
+      updateDepictionContractField(field, value);
     }
   };
 
@@ -192,7 +186,7 @@ export const DepictionContractPanel: React.FC = () => {
               ) : (
                 <>
                   <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>Generate Proposal</span>
+                  <span>{hasExistingContractOrProposal ? 'Regenerate Proposal' : 'Generate Proposal'}</span>
                 </>
               )}
             </button>
@@ -376,7 +370,7 @@ export const DepictionContractPanel: React.FC = () => {
                 </span>
               )}
               <span className="text-[10px] font-mono text-zinc-500">
-                {(contract.dramaticRegister || '').length}/1000
+                {(displayedContract.dramaticRegister || '').length}/1000
               </span>
             </div>
           </div>
@@ -384,8 +378,8 @@ export const DepictionContractPanel: React.FC = () => {
             id="contract-dramatic-register"
             rows={2}
             maxLength={1000}
-            value={contract.dramaticRegister || ''}
-            onChange={(e) => updateDepictionContractField('dramaticRegister', e.target.value)}
+            value={displayedContract.dramaticRegister || ''}
+            onChange={(e) => handleFieldChange('dramaticRegister', e.target.value)}
             placeholder="e.g. Grounded clinical dread; objective observational detachment without melodrama"
             className="w-full bg-transparent text-zinc-200 font-mono text-xs focus:outline-none border-b border-zinc-800/80 focus:border-cyan-500/80 pb-1 placeholder:text-zinc-600 resize-none"
           />
@@ -407,7 +401,7 @@ export const DepictionContractPanel: React.FC = () => {
                 </span>
               )}
               <span className="text-[10px] font-mono text-zinc-500">
-                {(contract.directness || '').length}/1000
+                {(displayedContract.directness || '').length}/1000
               </span>
             </div>
           </div>
@@ -415,8 +409,8 @@ export const DepictionContractPanel: React.FC = () => {
             id="contract-directness"
             rows={2}
             maxLength={1000}
-            value={contract.directness || ''}
-            onChange={(e) => updateDepictionContractField('directness', e.target.value)}
+            value={displayedContract.directness || ''}
+            onChange={(e) => handleFieldChange('directness', e.target.value)}
             placeholder="e.g. Explicit mechanical reality; somatic degradation is observed rather than euphemized"
             className="w-full bg-transparent text-zinc-200 font-mono text-xs focus:outline-none border-b border-zinc-800/80 focus:border-cyan-500/80 pb-1 placeholder:text-zinc-600 resize-none"
           />
@@ -438,7 +432,7 @@ export const DepictionContractPanel: React.FC = () => {
                 </span>
               )}
               <span className="text-[10px] font-mono text-zinc-500">
-                {(contract.aftermath || '').length}/1000
+                {(displayedContract.aftermath || '').length}/1000
               </span>
             </div>
           </div>
@@ -446,8 +440,8 @@ export const DepictionContractPanel: React.FC = () => {
             id="contract-aftermath"
             rows={2}
             maxLength={1000}
-            value={contract.aftermath || ''}
-            onChange={(e) => updateDepictionContractField('aftermath', e.target.value)}
+            value={displayedContract.aftermath || ''}
+            onChange={(e) => handleFieldChange('aftermath', e.target.value)}
             placeholder="e.g. Irreversible somatic consequences; no cinematic reset or magical restoration"
             className="w-full bg-transparent text-zinc-200 font-mono text-xs focus:outline-none border-b border-zinc-800/80 focus:border-cyan-500/80 pb-1 placeholder:text-zinc-600 resize-none"
           />
@@ -469,7 +463,7 @@ export const DepictionContractPanel: React.FC = () => {
                 </span>
               )}
               <span className="text-[10px] font-mono text-zinc-500">
-                {(contract.ambiguityHandling || '').length}/1000
+                {(displayedContract.ambiguityHandling || '').length}/1000
               </span>
             </div>
           </div>
@@ -477,8 +471,8 @@ export const DepictionContractPanel: React.FC = () => {
             id="contract-ambiguity"
             rows={2}
             maxLength={1000}
-            value={contract.ambiguityHandling || ''}
-            onChange={(e) => updateDepictionContractField('ambiguityHandling', e.target.value)}
+            value={displayedContract.ambiguityHandling || ''}
+            onChange={(e) => handleFieldChange('ambiguityHandling', e.target.value)}
             placeholder="e.g. Preserve cognitive blind spots; system never reveals entity origin or motives"
             className="w-full bg-transparent text-zinc-200 font-mono text-xs focus:outline-none border-b border-zinc-800/80 focus:border-cyan-500/80 pb-1 placeholder:text-zinc-600 resize-none"
           />
@@ -494,15 +488,15 @@ export const DepictionContractPanel: React.FC = () => {
               5. Special Boundaries & Prohibitions (Optional)
             </label>
             <span className="text-[10px] font-mono text-zinc-500">
-              {(contract.specialBoundaries || '').length}/1000
+              {(displayedContract.specialBoundaries || '').length}/1000
             </span>
           </div>
           <textarea
             id="contract-special-boundaries"
             rows={2}
             maxLength={1000}
-            value={contract.specialBoundaries || ''}
-            onChange={(e) => updateDepictionContractField('specialBoundaries', e.target.value)}
+            value={displayedContract.specialBoundaries || ''}
+            onChange={(e) => handleFieldChange('specialBoundaries', e.target.value)}
             placeholder="e.g. Strict environmental containment; no deus ex machina rescue events"
             className="w-full bg-transparent text-zinc-200 font-mono text-xs focus:outline-none border-b border-zinc-800/80 focus:border-cyan-500/80 pb-1 placeholder:text-zinc-600 resize-none"
           />

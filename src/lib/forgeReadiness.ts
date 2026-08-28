@@ -54,7 +54,7 @@ export function validateForgeExportReadiness({
   }
 
   // 1c. Validate exact source/evidence provenance for Topology elements
-  if (sourceAnalyses && Object.keys(sourceAnalyses).length > 0 && draft?.topology) {
+  if (draft?.topology) {
     const topo = draft.topology;
 
     if (topo.startingNodeProvenance?.sourceId) {
