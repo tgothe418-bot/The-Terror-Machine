@@ -19,9 +19,42 @@ The central rule is simple:
 
 Everything else follows from that.
 
+Jump to: [Run it](#running-the-machine) · [The House is Free](#the-house-is-free) · [The Three Nodes](#the-three-nodes) · [The Laws of the House](#the-laws-of-the-house) · [Live status →](./ROADMAP.md)
+
+## RUNNING THE MACHINE
+
+Before the tour, the doorknob.
+
+The application uses React, TypeScript, Vite, Express, Zustand, Zod, Tailwind CSS, Vitest, IndexedDB utilities, and Google Gemini through `@google/genai`.
+
+```bash
+npm install
+cp .env.example .env
+npm run dev
+```
+
+Add a personal Gemini API key to `.env`.
+
+For a production-style compilation:
+
+```bash
+npm run build
+npm start
+```
+
+For the automated test suite:
+
+```bash
+npm test
+```
+
+Never commit `.env`, expose an API key in source code, or paste a key into a public issue.
+
+The machine is currently being built and tested in Antigravity. Gemini supplies the model runtime, but the Engine sits behind explicit contracts. Workshops change. The house should survive its builders.
+
 ## THE HOUSE IS FREE
 
-“Free Haunted House” does not mean an empty demo hallway waiting for a prewritten monster.
+"Free Haunted House" does not mean an empty demo hallway waiting for a prewritten monster.
 
 It means the house is yours to furnish.
 
@@ -43,21 +76,16 @@ Once the house is built, the Engine takes over the night shift.
 
 TTM is a literary horror simulator with a mechanical spine.
 
-The language model supplies improvisation: voices, images, dialogue, discoveries, threats, hesitations, and the terrible sentence that arrives one line too late.
+The language model supplies improvisation: voices, dialogue, discoveries, threats, hesitations, and the terrible sentence that arrives one line too late.
 
-The application supplies continuity.
-
-It owns the things that make an event matter:
+The application supplies continuity. It owns the things that make an event matter:
 
 - where everyone is;
-- what places connect to what other places;
-- who exists in the scenario;
-- who the player is actually inhabiting;
-- what each character has learned;
-- what they remember, believe, fear, or misunderstand;
+- what places connect to what;
+- who the player is inhabiting;
+- what each character has learned, and what they misremember;
 - which relationships have changed;
 - which consequences have become part of the world;
-- what the active scenario permits;
 - what the machine has already agreed to make true.
 
 The model may describe a staircase. The Engine asks whether the staircase has somewhere to go.
@@ -78,9 +106,9 @@ The machine has three principal chambers. They are not merely screens in an inte
 
 The Voice is the window in the wall.
 
-It can discuss an idea, examine a session, explain a receipt, compare evidence, help with research, or point toward a contradiction. It can talk about the machine without pretending to be the machine.
+It can discuss an idea, examine a session, explain a receipt, compare evidence, help with research, or surface a contradiction. It can talk about the machine without pretending to be the machine.
 
-The Voice is deliberately read-only. It cannot reach through the glass and move the furniture. It does not become a secret second Engine just because it can describe what the Engine did.
+The Voice is deliberately read-only. It cannot reach through the glass and move the furniture. It does not become a secret second Engine just because it can describe what the Engine did. It is the part of the house that can be honest about the house.
 
 Use it when you want an observer, a witness, or someone in the next room who has been taking notes.
 
@@ -94,23 +122,17 @@ Here you can also feed the machine source material and let it perform **Haunted 
 
 The Forge is a review chamber. A confident paragraph is not canon. An inference is not evidence. A proposal is not a commit.
 
-It also remembers when the table has moved.
+The Source Baseline has its own revision. Architect responses remain attached to the exact source and question that produced them. Accepted resolutions update the Blueprint as a single transaction. A proposal made for an earlier draft cannot quietly overwrite the house after the walls have changed.
 
-The Source Baseline has its own revision. Architect responses remain attached to the exact source and question that produced them. Accepted resolutions update the Blueprint as one transaction. A proposal made for an earlier draft cannot quietly overwrite the house after the walls have changed.
-
-The Forge can now stage a source-grounded **Depiction Contract** describing how a particular nightmare should be shown: its dramatic register, its directness, its aftermath, the uncertainty it must preserve, and any special boundaries that belong to this house alone.
+The Forge can stage a source-grounded **Depiction Contract** describing how a particular nightmare should be shown: its dramatic register, its directness, its aftermath, the uncertainty it must preserve, and any special boundaries that belong to this house alone.
 
 When Export Review opens, the machine places one revision-bound Blueprint artifact under glass. Copy and Download receive the artifact that was reviewed—not whatever the draft happened to become five seconds later.
-
-This is progress.
-
-It is not the same thing as saying the Forge has learned to finish every room.
 
 ### `[ THE ENGINE ]`
 
 The Engine is the room after the lights go out.
 
-It receives an action, consults the current state, asks the model for a bounded proposal, and decides what—if anything—actually changes.
+It receives an action, consults the current state, asks the model for a bounded proposal, and decides what—if anything—actually changes. A beautiful sentence is welcome. It still has to earn its place in the house.
 
 The Engine is not a narrator wearing a lab coat. It is the part of the project responsible for refusing impossible continuity.
 
@@ -145,6 +167,8 @@ The machine can support an intimate human antagonist, a predatory intelligence, 
 You remain outside the fiction.
 
 The Director can shape pressure, attention, framing, and circumstance without becoming another person waiting in the hallway. This is the seat for arranging the nightmare rather than pretending to be one of its residents.
+
+A Director does not need a body in the house. They need a hand on the thermostat.
 
 These roles are not cosmetic labels. They are part of the simulation contract.
 
@@ -195,7 +219,7 @@ These rules matter more than any individual model, prompt, or attractive paragra
 
 ### Canon belongs to the application
 
-The language model may propose a new state. It does not own the state.
+The language model may propose a new state. It does not own the state. The application does not ask for permission to disagree.
 
 ### A proposal is not a commit
 
@@ -207,7 +231,7 @@ If a proposal is impossible, malformed, or outside the active contract, the cano
 
 ### Topology is not decoration
 
-A room is not a mood. A doorway is not a metaphor. Spatial change requires an authorized path through the topology contract.
+A room is not a mood. A doorway is not a metaphor. Spatial change requires an authorized path through the topology contract. If the hallway does not connect to the basement, then the character cannot walk there—no matter how well the model describes the stairs.
 
 ### Knowledge is situated
 
@@ -220,6 +244,10 @@ The machine is not obligated to reset a relationship, erase a discovery, or rest
 ### The machine may be hostile to the character
 
 It should never be hostile to the person using it. Retake, exit, recovery, and diagnostic controls exist outside the fiction for a reason.
+
+### Zero gamification
+
+There is no pursuit clock, no horror score, no hidden meter nudging the story toward a prepared ending. The ledgers exist so the machine can carry consequence without asking the person at the controls to become its bookkeeper.
 
 ## WHAT YOU CAN BRING INSIDE
 
@@ -256,9 +284,10 @@ It is interested in:
 - characters who know different versions of the same room;
 - places that become more dangerous because they have been understood;
 - consequences that are mechanical, emotional, and spatial at the same time;
+- silence that is not a loading screen;
 - agency that can fail without becoming meaningless;
 - ambiguity that remains deliberate rather than accidental;
-- the strange authority of a machine that can say, “No. That did not happen.”
+- the strange authority of a machine that can say, "No. That did not happen."
 
 The target is not a perfect story.
 
@@ -266,66 +295,17 @@ The target is a story that has become a place—and a place that remembers being
 
 ## CURRENT EDITION
 
-The Terror Machine is a private-first solo project in active development.
+The Terror Machine is an open-source solo project in active development.
 
-The current line includes the atomic turn path, canonical topology, role-aware participation, Blueprint and Induction entry paths, retake, telemetry, bounded character and World Memory, a revision-bound Forge source-review path, and a repaired human-turn response contract.
+The first Horror Grammar has been fitted to the Engine. Fictional time now has a pulse: a glance, a conversation, and a long search need not cost the same amount of night. Characters who are not being played can still have somewhere to be and something to do. While the player studies one door, someone else may be testing a lock; while the player follows a sound, a value may begin to stand in danger. The machine can place that pressure in the room without choosing the player's answer.
 
-The Forge has learned to ask a more dangerous question than “what exists?” It asks what matters. A value may belong to a body, a relationship, a room, or the shape of the story itself. A character may enter the house already pursuing something, even when the User is looking elsewhere. Those foundations come from reviewed evidence or deliberate authorship. They are not a score, a leash, or a hidden instruction to force the plot toward a prepared ending.
-
-The first Horror Grammar has been fitted to the Engine. Fictional time now has a pulse: a glance, a conversation, and a long search need not cost the same amount of night. People who are not being played can still have somewhere to be and something to do. While the User studies one door, someone else may be testing a lock; while the User follows a sound, a value may begin to stand in danger. The machine can place that pressure in the room without choosing the User's answer.
-
-There is no pursuit clock for the operator to manage and no horror score hiding behind the walls. The ledgers exist so the machine can carry consequence without asking the person at the controls to become its bookkeeper.
-
-The new wing is not yet fully wired. Activity, pressure, value, pursuit, and character-development records have been installed, but their complete turn-to-turn continuity, authority checks, and forensic presentation are still under integration review. The house is learning to show not only what happened, but what it considered, what it refused, and why.
-
-Until that work is closed, Horror Grammar 1 is an occupied construction site: part of the current build, not a promise that every new thread already survives every room change.
-
-Sometimes the outside oracle refuses to answer. That refusal is filed as a technical event. It does not become something the player said, an action the character took, or a sentence smuggled into the story.
-
-The machine has learned how to keep more of its paperwork in order.
-
-It is still learning which papers belong in the room.
-
-Some doors are still being hung. Some rooms contain development diagnostics. Some boundaries are stricter than the interface around them. This is not a promise that the haunted house is finished; it is a warning that the house is already interesting enough to get lost in.
-
-For the honest implementation record—what is landed, what is under review, what is planned, and how acceptance is decided—read the [Technical (Public) Roadmap](./ROADMAP.md). The [Development Roadmap](./DEVELOPMENT-ROADMAP.md) contains the more detailed engineering ledger.
+For the honest implementation record—what is landed, what is under review, what is planned, and how acceptance is decided—read the [Technical (Public) Roadmap](./ROADMAP.md). The [Development Roadmap](./DEVELOPMENT-ROADMAP.md) holds the more detailed engineering ledger. Both change far more often than this page does, and both are the better source once you want specifics.
 
 The front door is for visitors.
 
 The roadmap is where the sausage gets made.
 
-## RUNNING THE MACHINE
-
-The application uses React, TypeScript, Vite, Express, Zustand, Zod, Tailwind CSS, Vitest, IndexedDB utilities, and Google Gemini through `@google/genai`.
-
-The machine is currently being built and tested in Antigravity. Gemini still supplies the application's model runtime, but the Engine sits behind explicit contracts.
-
-Workshops change.
-
-The house should survive its builders.
-
-```bash
-npm install
-cp .env.example .env
-npm run dev
-```
-
-Add a personal Gemini API key to `.env`.
-
-For a production-style compilation:
-
-```bash
-npm run build
-npm start
-```
-
-For the automated test suite:
-
-```bash
-npm test
-```
-
-Never commit `.env`, expose an API key in source code, or paste a key into a public issue.
+Two commitments hold regardless of which packet is currently in flight: a refusal or an empty response from the model is never allowed to pass itself off as something the player did or said, and any consequence the machine records traces back to reviewed evidence or deliberate authorship—never a hidden score nudging the story toward a prepared ending.
 
 ## FINAL NOTICE TO OPERATORS
 
@@ -337,6 +317,8 @@ Do not confuse a room described by the model with a room the machine has agreed 
 
 Do not assume that the person who knows the truth is the character who knows the truth.
 
+Do not mistake silence for safety.
+
 Do not open a door merely because the prose has begun to describe what is behind it.
 
 The Terror Machine is an attempt to make language walk through a world that remembers where it has been.
@@ -345,7 +327,7 @@ Please leave the door open.
 
 The house may not be finished.
 
-That is not the same thing as saying it is empty.
+An unfinished house can still remember you were in it.
 
 ## LICENSE
 
