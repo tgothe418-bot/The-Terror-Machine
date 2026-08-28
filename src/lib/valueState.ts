@@ -9,6 +9,8 @@ import {
   HorrorGrammarAuthoringBaseline,
 } from '../types/horrorGrammar';
 
+import { isHorrorGrammarCauseReferenceValid } from './horrorGrammarCauseReferences';
+
 export function createInitialValueStateLedger(blueprint?: Blueprint | null): ValueStateLedger {
   const ledger: ValueStateLedger = {};
   const anchors = blueprint?.horrorGrammar?.valueAnchors || [];
@@ -34,7 +36,7 @@ export interface ResolveValueStateInput {
   authoringBaseline?: HorrorGrammarAuthoringBaseline | null;
   blueprint?: Blueprint | null;
   userCharacterId?: string | null;
-  validCauses?: string[];
+  validCauses: readonly string[];
 }
 
 export function resolveValueState({
@@ -44,7 +46,7 @@ export function resolveValueState({
   authoringBaseline,
   blueprint,
   userCharacterId,
-  validCauses = [],
+  validCauses,
 }: ResolveValueStateInput): ValueStateReceipt {
   const normalizedPreState: ValueStateLedger = { ...(preState || {}) };
   const postState: ValueStateLedger = { ...normalizedPreState };
@@ -141,14 +143,10 @@ export function resolveValueState({
     }
 
     // 4. Validate cause reference
-    const isCauseValid =
-      validCauses.length === 0 ||
-      validCauses.includes(causeReference) ||
-      causeReference === 'USER_ACTION' ||
-      causeReference === 'ACTIVITY' ||
-      causeReference.startsWith('act-') ||
-      causeReference.startsWith('thr-') ||
-      causeReference.startsWith('csq-');
+    const isCauseValid = isHorrorGrammarCauseReferenceValid(
+      causeReference,
+      validCauses
+    );
 
     if (!isCauseValid) {
       decisions.push({

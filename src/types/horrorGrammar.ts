@@ -308,15 +308,17 @@ export type CastActivityEligibilityReceipt = z.infer<typeof CastActivityEligibil
 export const MAX_RECENT_ACTIVITY_EVENTS = 10;
 export const MAX_ACTIVE_PRESSURE_THREADS = 5;
 
-export const PerceptionPathSchema = z.enum([
+export const PERCEPTION_PATHS = [
   'DIRECT',
   'MEDIATED',
   'LOCAL_TRACE',
   'UNOBSERVED',
-]);
+] as const;
+
+export const PerceptionPathSchema = z.enum(PERCEPTION_PATHS);
 export type PerceptionPath = z.infer<typeof PerceptionPathSchema>;
 
-export const PressureOperatorSchema = z.enum([
+export const PRESSURE_OPERATORS = [
   'EXPOSE',
   'CONSTRAIN_ACCESS',
   'ACCELERATE',
@@ -327,10 +329,12 @@ export const PressureOperatorSchema = z.enum([
   'VIOLATE_EXPECTATION',
   'IMPOSE_COST',
   'OTHER',
-]);
+] as const;
+
+export const PressureOperatorSchema = z.enum(PRESSURE_OPERATORS);
 export type PressureOperator = z.infer<typeof PressureOperatorSchema>;
 
-export const AffectedDimensionSchema = z.enum([
+export const AFFECTED_DIMENSIONS = [
   'ACCESS',
   'KNOWLEDGE',
   'TIME',
@@ -342,15 +346,19 @@ export const AffectedDimensionSchema = z.enum([
   'FREEDOM',
   'IDENTITY',
   'OTHER',
-]);
+] as const;
+
+export const AffectedDimensionSchema = z.enum(AFFECTED_DIMENSIONS);
 export type AffectedDimension = z.infer<typeof AffectedDimensionSchema>;
 
-export const PersistenceTargetSchema = z.enum([
+export const PERSISTENCE_TARGETS = [
   'CANONICAL_CONDITION',
   'WORLD_MEMORY',
   'PRESSURE_THREAD',
   'SCENARIO_STATE',
-]);
+] as const;
+
+export const PersistenceTargetSchema = z.enum(PERSISTENCE_TARGETS);
 export type PersistenceTarget = z.infer<typeof PersistenceTargetSchema>;
 
 export const ManifestationBlockSchema = z.discriminatedUnion('type', [
@@ -384,8 +392,8 @@ export const CastActivityProposalActiveSchema = z
     kind: z.literal('ACTIVITY'),
     proposalId: z.string().min(1),
     castMemberId: z.string().min(1),
-    pursuitId: z.string().nullable().optional(),
-    locationNodeId: z.string().nullable().optional(),
+    pursuitId: z.string().min(1).nullable().optional(),
+    locationNodeId: z.string().min(1).nullable().optional(),
     activitySummary: z.string().trim().min(1).max(500),
     authorityReferences: z.array(z.string().trim().min(1)).optional(),
     perceptionPath: PerceptionPathSchema,
@@ -521,25 +529,31 @@ export type SituatedPressureReceipt = z.infer<typeof SituatedPressureReceiptSche
 
 // --- Value Condition & Lifecycle ---
 
-export const ValueLifecycleSchema = z.enum(['ACTIVE', 'REVISED', 'RETIRED']);
-export type ValueLifecycle = z.infer<typeof ValueLifecycleSchema>;
+export const VALUE_LIFECYCLES = ['ACTIVE', 'REVISED', 'RETIRED'] as const;
 
-export const ValueConditionSchema = z.enum([
+export const VALUE_CONDITIONS = [
   'ESTABLISHED',
   'THREATENED',
   'COMPROMISED',
   'SECURED',
   'LOST',
   'TRANSFORMED',
-]);
-export type ValueCondition = z.infer<typeof ValueConditionSchema>;
+] as const;
 
-export const ValueOperationSchema = z.enum([
+export const VALUE_OPERATIONS = [
   'SET_CONDITION',
   'REVISE',
   'RETIRE',
   'RESTORE',
-]);
+] as const;
+
+export const ValueLifecycleSchema = z.enum(VALUE_LIFECYCLES);
+export type ValueLifecycle = z.infer<typeof ValueLifecycleSchema>;
+
+export const ValueConditionSchema = z.enum(VALUE_CONDITIONS);
+export type ValueCondition = z.infer<typeof ValueConditionSchema>;
+
+export const ValueOperationSchema = z.enum(VALUE_OPERATIONS);
 export type ValueOperation = z.infer<typeof ValueOperationSchema>;
 
 export const ValueStateRecordSchema = z
@@ -566,7 +580,7 @@ export const ValueStateProposalEntrySchema = z
     proposedCondition: ValueConditionSchema,
     proposedLifecycle: ValueLifecycleSchema.optional().default('ACTIVE'),
     proposedFormNote: z.string().trim().max(300).nullable().optional().default(null),
-    causeReference: z.string().trim().min(1),
+    causeReference: z.string().trim().min(1).max(300),
     rationale: z.string().trim().min(1).max(300),
   })
   .strict();
@@ -574,7 +588,7 @@ export type ValueStateProposalEntry = z.infer<typeof ValueStateProposalEntrySche
 
 export const ValueStateProposalSchema = z
   .object({
-    changes: z.array(ValueStateProposalEntrySchema).max(3).default([]),
+    changes: z.array(ValueStateProposalEntrySchema).max(3),
   })
   .strict();
 export type ValueStateProposal = z.infer<typeof ValueStateProposalSchema>;
@@ -601,16 +615,15 @@ export type ValueStateReceipt = z.infer<typeof ValueStateReceiptSchema>;
 
 // --- Character Pursuit Runtime Overlays ---
 
-export const PursuitStatusSchema = z.enum([
+export const PURSUIT_STATUSES = [
   'ACTIVE',
   'DORMANT',
   'BLOCKED',
   'COMPLETED',
   'ABANDONED',
-]);
-export type PursuitStatus = z.infer<typeof PursuitStatusSchema>;
+] as const;
 
-export const PursuitOperationSchema = z.enum([
+export const PURSUIT_OPERATIONS = [
   'ADVANCE',
   'SETBACK',
   'REDIRECT',
@@ -619,7 +632,12 @@ export const PursuitOperationSchema = z.enum([
   'ABANDON',
   'PAUSE',
   'RESUME',
-]);
+] as const;
+
+export const PursuitStatusSchema = z.enum(PURSUIT_STATUSES);
+export type PursuitStatus = z.infer<typeof PursuitStatusSchema>;
+
+export const PursuitOperationSchema = z.enum(PURSUIT_OPERATIONS);
 export type PursuitOperation = z.infer<typeof PursuitOperationSchema>;
 
 export const CharacterPursuitRecordSchema = z
@@ -649,10 +667,10 @@ export const CharacterPursuitProposalEntrySchema = z
     expectedStatus: PursuitStatusSchema.optional(),
     proposedObjective: z.string().trim().min(1).max(300).optional(),
     proposedApproach: z.string().trim().min(1).max(300).optional(),
-    proposedLocationNodeId: z.string().nullable().optional(),
+    proposedLocationNodeId: z.string().min(1).nullable().optional(),
     proposedStatus: PursuitStatusSchema.optional(),
     progressSummary: z.string().trim().min(1).max(300),
-    causeReference: z.string().trim().min(1),
+    causeReference: z.string().trim().min(1).max(300),
     rationale: z.string().trim().min(1).max(300),
   })
   .strict();
@@ -660,7 +678,7 @@ export type CharacterPursuitProposalEntry = z.infer<typeof CharacterPursuitPropo
 
 export const CharacterPursuitProposalSchema = z
   .object({
-    changes: z.array(CharacterPursuitProposalEntrySchema).max(2).default([]),
+    changes: z.array(CharacterPursuitProposalEntrySchema).max(2),
   })
   .strict();
 export type CharacterPursuitProposal = z.infer<typeof CharacterPursuitProposalSchema>;
@@ -687,20 +705,24 @@ export type CharacterPursuitReceipt = z.infer<typeof CharacterPursuitReceiptSche
 
 // --- Non-User Character Development Facts ---
 
-export const DevelopmentDimensionSchema = z.enum([
+export const DEVELOPMENT_DIMENSIONS = [
   'GOAL',
   'BELIEF',
   'IDENTITY',
   'ATTACHMENT',
   'DISPOSITION',
   'OTHER',
-]);
+] as const;
+
+export const DEVELOPMENT_OPERATIONS = ['ESTABLISH', 'REVISE', 'RETIRE'] as const;
+
+export const DevelopmentDimensionSchema = z.enum(DEVELOPMENT_DIMENSIONS);
 export type DevelopmentDimension = z.infer<typeof DevelopmentDimensionSchema>;
 
 export const DevelopmentLifecycleSchema = z.enum(['ACTIVE', 'SUPERSEDED', 'RETIRED']);
 export type DevelopmentLifecycle = z.infer<typeof DevelopmentLifecycleSchema>;
 
-export const DevelopmentOperationSchema = z.enum(['ESTABLISH', 'REVISE', 'RETIRE']);
+export const DevelopmentOperationSchema = z.enum(DEVELOPMENT_OPERATIONS);
 export type DevelopmentOperation = z.infer<typeof DevelopmentOperationSchema>;
 
 export const CharacterDevelopmentFactSchema = z
@@ -727,10 +749,10 @@ export const CharacterDevelopmentProposalEntrySchema = z
   .object({
     castMemberId: z.string().min(1),
     operation: DevelopmentOperationSchema,
-    targetFactId: z.string().nullable().optional(),
+    targetFactId: z.string().min(1).nullable().optional(),
     dimension: DevelopmentDimensionSchema,
     statement: z.string().trim().min(1).max(300),
-    causeReference: z.string().trim().min(1),
+    causeReference: z.string().trim().min(1).max(300),
     rationale: z.string().trim().min(1).max(300),
   })
   .strict();
@@ -740,7 +762,7 @@ export type CharacterDevelopmentProposalEntry = z.infer<
 
 export const CharacterDevelopmentProposalSchema = z
   .object({
-    changes: z.array(CharacterDevelopmentProposalEntrySchema).max(2).default([]),
+    changes: z.array(CharacterDevelopmentProposalEntrySchema).max(2),
   })
   .strict();
 export type CharacterDevelopmentProposal = z.infer<typeof CharacterDevelopmentProposalSchema>;
@@ -768,11 +790,18 @@ export type CharacterDevelopmentReceipt = z.infer<typeof CharacterDevelopmentRec
 
 // --- Pressure Thread Lifecycle Transitions ---
 
+export const PRESSURE_THREAD_TERMINAL_STATUSES = [
+  'RESOLVED',
+  'REALIZED',
+  'RELEASED',
+  'TRANSFORMED',
+] as const;
+
 export const PressureThreadTransitionProposalEntrySchema = z
   .object({
     threadId: z.string().min(1),
-    proposedStatus: z.enum(['RESOLVED', 'REALIZED', 'RELEASED', 'TRANSFORMED']),
-    causeReference: z.string().trim().min(1),
+    proposedStatus: z.enum(PRESSURE_THREAD_TERMINAL_STATUSES),
+    causeReference: z.string().trim().min(1).max(300),
     replacementAdverseProspect: z.string().trim().min(1).max(500).optional(),
     rationale: z.string().trim().min(1).max(300),
   })
@@ -783,7 +812,7 @@ export type PressureThreadTransitionProposalEntry = z.infer<
 
 export const PressureThreadTransitionProposalSchema = z
   .object({
-    transitions: z.array(PressureThreadTransitionProposalEntrySchema).max(2).default([]),
+    transitions: z.array(PressureThreadTransitionProposalEntrySchema).max(2),
   })
   .strict();
 export type PressureThreadTransitionProposal = z.infer<

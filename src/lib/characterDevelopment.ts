@@ -4,6 +4,7 @@ import {
   CharacterDevelopmentProposal,
   CharacterDevelopmentReceipt,
 } from '../types/horrorGrammar';
+import { isHorrorGrammarCauseReferenceValid } from './horrorGrammarCauseReferences';
 
 export function createInitialCharacterDevelopmentLedger(): CharacterDevelopmentLedger {
   return {};
@@ -14,7 +15,7 @@ export interface ResolveCharacterDevelopmentInput {
   preState?: CharacterDevelopmentLedger | null;
   currentTurn: number;
   userCharacterId?: string | null;
-  validCauses?: string[];
+  validCauses: readonly string[];
 }
 
 export const MAX_DEVELOPMENT_FACTS_PER_CHARACTER = 6;
@@ -24,7 +25,7 @@ export function resolveCharacterDevelopment({
   preState = {},
   currentTurn,
   userCharacterId,
-  validCauses = [],
+  validCauses,
 }: ResolveCharacterDevelopmentInput): CharacterDevelopmentReceipt {
   const normalizedPreState: CharacterDevelopmentLedger = {};
   for (const [cId, facts] of Object.entries(preState || {})) {
@@ -72,13 +73,10 @@ export function resolveCharacterDevelopment({
     }
 
     // 2. Validate cause reference
-    const isCauseValid =
-      validCauses.length === 0 ||
-      validCauses.includes(causeReference) ||
-      causeReference === 'USER_ACTION' ||
-      causeReference === 'ACTIVITY' ||
-      causeReference.startsWith('act-') ||
-      causeReference.startsWith('thr-');
+    const isCauseValid = isHorrorGrammarCauseReferenceValid(
+      causeReference,
+      validCauses
+    );
 
     if (!isCauseValid) {
       decisions.push({

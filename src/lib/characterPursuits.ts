@@ -8,6 +8,8 @@ import {
   HorrorGrammarAuthoringBaseline,
 } from '../types/horrorGrammar';
 
+import { isHorrorGrammarCauseReferenceValid } from './horrorGrammarCauseReferences';
+
 export function createInitialCharacterPursuitLedger(
   blueprint?: Blueprint | null
 ): CharacterPursuitLedger {
@@ -21,7 +23,7 @@ export function createInitialCharacterPursuitLedger(
       currentObjective: pursuit.objective,
       currentApproach: pursuit.presentApproach,
       currentLocationNodeId: pursuit.locationNodeId || null,
-      status: pursuit.status,
+      status: pursuit.status || 'ACTIVE',
       progressSummary: 'Baseline pursuit initiated',
       lastCauseReference: 'BASELINE',
       lastActivityTurn: null,
@@ -40,7 +42,7 @@ export interface ResolveCharacterPursuitInput {
   authoringBaseline?: HorrorGrammarAuthoringBaseline | null;
   blueprint?: Blueprint | null;
   userCharacterId?: string | null;
-  validCauses?: string[];
+  validCauses: readonly string[];
 }
 
 export function resolveCharacterPursuit({
@@ -50,7 +52,7 @@ export function resolveCharacterPursuit({
   authoringBaseline,
   blueprint,
   userCharacterId,
-  validCauses = [],
+  validCauses,
 }: ResolveCharacterPursuitInput): CharacterPursuitReceipt {
   const normalizedPreState: CharacterPursuitLedger = { ...(preState || {}) };
   const postState: CharacterPursuitLedger = { ...normalizedPreState };
@@ -135,13 +137,10 @@ export function resolveCharacterPursuit({
     }
 
     // Cause validation
-    const isCauseValid =
-      validCauses.length === 0 ||
-      validCauses.includes(causeReference) ||
-      causeReference === 'USER_ACTION' ||
-      causeReference === 'ACTIVITY' ||
-      causeReference.startsWith('act-') ||
-      causeReference.startsWith('thr-');
+    const isCauseValid = isHorrorGrammarCauseReferenceValid(
+      causeReference,
+      validCauses
+    );
 
     if (!isCauseValid) {
       decisions.push({

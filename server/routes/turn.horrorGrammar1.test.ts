@@ -1,7 +1,22 @@
 // @vitest-environment node
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
+import { describe, expect, it, vi, beforeEach, afterEach, afterAll } from 'vitest';
 import http from 'http';
 import { createApp } from '../app';
+import { EngineTurnStructuredResponseContract } from '../utils/aiClient';
+
+const { originalGeminiKey } = vi.hoisted(() => {
+  const originalGeminiKey = process.env.GEMINI_API_KEY;
+  process.env.GEMINI_API_KEY = 'ttm-hg1-test-only-key';
+  return { originalGeminiKey };
+});
+
+afterAll(() => {
+  if (originalGeminiKey === undefined) {
+    delete process.env.GEMINI_API_KEY;
+  } else {
+    process.env.GEMINI_API_KEY = originalGeminiKey;
+  }
+});
 
 const mockGenerateContent = vi.fn();
 vi.mock('@google/genai', async (importOriginal) => {
@@ -262,6 +277,7 @@ describe('Horror Grammar Turn Route (Packet 1-10 HG1 Provider Contract Restorati
 
     expect(mockGenerateContent).toHaveBeenCalledTimes(1);
     const generateCall = mockGenerateContent.mock.calls[0][0];
+    expect(generateCall.config?.responseSchema).toBe(EngineTurnStructuredResponseContract.responseSchema);
     const promptArg = generateCall.contents[0].parts[0].text;
 
     expect(promptArg).toContain('[CAST ACTIVITY OPPORTUNITY POOL (OBSERVATIONAL)]');
@@ -272,9 +288,10 @@ describe('Horror Grammar Turn Route (Packet 1-10 HG1 Provider Contract Restorati
     expect(promptArg).toContain('[CHARACTER PURSUIT PROPOSAL CONTRACT]');
     expect(promptArg).toContain('[CHARACTER DEVELOPMENT PROPOSAL CONTRACT]');
     expect(promptArg).toContain('[PRESSURE THREAD TRANSITION CONTRACT]');
+    expect(promptArg).toContain('[HG1 CAUSE REFERENCE CONTRACT]');
   });
 
-  it('production-shaped provider output carries accepted HG1 activity and pressure through their real ratifiers', async () => {
+  it('valid active activity and pressure proposals succeed through the live provider contract seam', async () => {
     mockGenerateContent.mockResolvedValueOnce({
       text: JSON.stringify({
         narrative_blocks: [
@@ -354,6 +371,10 @@ describe('Horror Grammar Turn Route (Packet 1-10 HG1 Provider Contract Restorati
 
     expect(res.status).toBe(200);
     const data = await res.json();
+
+    expect(mockGenerateContent.mock.calls[0][0].config?.responseSchema).toBe(
+      EngineTurnStructuredResponseContract.responseSchema
+    );
 
     // Narrative composition contains base + activity + pressure (3 blocks in order)
     expect(data.narrative_blocks).toHaveLength(3);
@@ -450,6 +471,10 @@ describe('Horror Grammar Turn Route (Packet 1-10 HG1 Provider Contract Restorati
     expect(res.status).toBe(200);
     const data = await res.json();
 
+    expect(mockGenerateContent.mock.calls[0][0].config?.responseSchema).toBe(
+      EngineTurnStructuredResponseContract.responseSchema
+    );
+
     // Value anchor resolution succeeds because authoringBaseline.valueAnchors contains 'val-1'
     expect(data.valueStateReceipt.decisions[0].outcome).toBe('APPLIED');
     expect(data.valueStateReceipt.postState['val-1'].condition).toBe('SECURED');
@@ -468,7 +493,7 @@ describe('Horror Grammar Turn Route (Packet 1-10 HG1 Provider Contract Restorati
     );
   });
 
-  it('explicit HG1 neutral envelopes preserve existing canonical state without implying provider omission', async () => {
+  it('explicit neutral proposals succeed with pre-state preservation through the live provider contract seam', async () => {
     const sentinelValueLedger = {
       'val-1': {
         anchorId: 'val-1',
@@ -611,6 +636,10 @@ describe('Horror Grammar Turn Route (Packet 1-10 HG1 Provider Contract Restorati
     expect(res.status).toBe(200);
     const data = await res.json();
 
+    expect(mockGenerateContent.mock.calls[0][0].config?.responseSchema).toBe(
+      EngineTurnStructuredResponseContract.responseSchema
+    );
+
     // Receipts must retain the sentinel pre-state and produce identical post-state (no empty fallback)
     expect(data.valueStateReceipt.preState).toEqual(sentinelValueLedger);
     expect(data.valueStateReceipt.postState).toEqual(sentinelValueLedger);
@@ -625,7 +654,215 @@ describe('Horror Grammar Turn Route (Packet 1-10 HG1 Provider Contract Restorati
     expect(data.situatedPressureReceipt.postState).toEqual(sentinelPressureThreads);
   });
 
-  it('rejected HG1 manifestation text remains outside fiction memory prompts and canonical state', async () => {
+  it('rejected HG1 proposals preserve canonical pre-state through the live provider contract seam', async () => {
+    const sentinelValueLedger = {
+      'val-1': {
+        anchorId: 'val-1',
+        lifecycle: 'ACTIVE' as const,
+        condition: 'ESTABLISHED' as const,
+        currentFormNote: null,
+        lastCauseReference: 'BASELINE',
+        lastChangedTurn: 0,
+      },
+    };
+    const sentinelPursuitLedger = {
+      'pursuit-npc1': {
+        pursuitId: 'pursuit-npc1',
+        castMemberId: 'char-npc1',
+        currentObjective: 'Fix wiring',
+        currentApproach: 'Testing cables with voltmeter',
+        currentLocationNodeId: 'NODE_CORRIDOR',
+        status: 'ACTIVE' as const,
+        progressSummary: 'Testing primary conduit',
+        lastCauseReference: 'BASELINE',
+        lastActivityTurn: 0,
+        lastChangedTurn: 0,
+        reviewWindow: 'MOMENT' as const,
+      },
+    };
+    const sentinelDevelopmentLedger = {
+      'char-npc1': [
+        {
+          id: 'dev-fact-01',
+          castMemberId: 'char-npc1',
+          dimension: 'ATTACHMENT' as const,
+          statement: 'Committed to keeping the sub-basement alive.',
+          lifecycle: 'ACTIVE' as const,
+          establishedTurn: 0,
+          lastChangedTurn: 0,
+          causeReference: 'BASELINE',
+        },
+      ],
+    };
+    const sentinelPressureThreads = [
+      {
+        id: 'prs-thread-01',
+        valueAnchorId: 'val-1',
+        holder: { kind: 'CHARACTER' as const, castMemberId: 'char-npc1' },
+        sourceReference: 'BASELINE',
+        operator: 'CONSTRAIN_ACCESS' as const,
+        affectedDimension: 'SAFETY' as const,
+        adverseProspect: 'Grid overload imminent',
+        manifestationSummary: null,
+        persistenceTarget: 'PRESSURE_THREAD' as const,
+        status: 'OPEN' as const,
+        createdTurn: 0,
+        lastChangedTurn: 0,
+        authorityReferences: [],
+      },
+    ];
+
+    const payloadWithState = {
+      ...baseTurnPayload,
+      context: {
+        ...baseTurnPayload.context,
+        horrorGrammar: {
+          ...baseTurnPayload.context.horrorGrammar,
+          runtimeState: {
+            fictionalTime: baseTurnPayload.context.horrorGrammar.fictionalTime,
+            pursuitSchedule: {},
+            recentActivityEvents: [],
+            activePressureThreads: sentinelPressureThreads,
+            valueState: sentinelValueLedger,
+            characterPursuits: sentinelPursuitLedger,
+            characterDevelopment: sentinelDevelopmentLedger,
+          },
+        },
+      },
+    };
+
+    mockGenerateContent.mockResolvedValueOnce({
+      text: JSON.stringify({
+        narrative_blocks: [
+          {
+            type: 'prose',
+            content: 'You watch the flickering gauges.',
+          },
+        ],
+        engine_thoughts: 'Emitting unratified proposals with fabricated causes and invalid targets.',
+        intent_proposal: {
+          action_kind: 'OBSERVE',
+          action_subtype: null,
+          pressure_direction: 'MAINTAIN',
+          dramatic_tactic: 'NONE',
+          intent_synergy: 'SUCCESS',
+        },
+        reconciliation_proposal: {
+          mode: 'CANONICAL',
+          feasibility: 'SUPPORTED',
+          reason_code: 'NONE',
+          fictional_time_cost: 'MOMENT',
+          authority_alignment: 'WITHIN_CONTRACT',
+          memory_echo_candidate: null,
+        },
+        consequence_proposal: { mutations: [] },
+        character_stance_proposal: { changes: [] },
+        character_relationship_proposal: { changes: [] },
+        character_memory_proposal: { candidates: [] },
+        world_memory_proposal: { candidates: [] },
+        cast_activity_proposal: {
+          kind: 'ACTIVITY',
+          proposalId: 'act-invalid-user',
+          castMemberId: 'char-user', // User character forbidden
+          activitySummary: 'User acts',
+          perceptionPath: 'DIRECT',
+          manifestationBlock: null,
+        },
+        situated_pressure_proposal: {
+          kind: 'PRESSURE',
+          proposalId: 'press-invalid-anchor',
+          valueAnchorId: 'val-nonexistent',
+          sourceReference: 'BASELINE',
+          operator: 'EXPOSE',
+          affectedDimension: 'SAFETY',
+          adverseProspect: 'Disaster',
+          authorityReferences: [],
+          persistenceTarget: 'PRESSURE_THREAD',
+          responseWindowOpen: true,
+          manifestationBlock: null,
+        },
+        value_state_proposal: {
+          changes: [
+            {
+              anchorId: 'val-1',
+              operation: 'SET_CONDITION',
+              proposedCondition: 'LOST',
+              causeReference: 'fabricated-cause-ref', // Unsupported cause
+              rationale: 'Invalid cause',
+            },
+          ],
+        },
+        character_pursuit_proposal: {
+          changes: [
+            {
+              pursuitId: 'pursuit-npc1',
+              operation: 'BLOCK',
+              progressSummary: 'Blocked',
+              causeReference: 'fabricated-cause-ref', // Unsupported cause
+              rationale: 'Invalid cause',
+            },
+          ],
+        },
+        character_development_proposal: {
+          changes: [
+            {
+              castMemberId: 'char-user', // User character forbidden
+              operation: 'ESTABLISH',
+              dimension: 'BELIEF',
+              statement: 'Player belief changed',
+              causeReference: 'USER_ACTION',
+              rationale: 'Invalid character',
+            },
+          ],
+        },
+        pressure_transition_proposal: {
+          transitions: [
+            {
+              threadId: 'prs-thread-01',
+              proposedStatus: 'RESOLVED',
+              causeReference: 'fabricated-cause-ref', // Unsupported cause
+              rationale: 'Invalid cause',
+            },
+          ],
+        },
+        logic_state: {
+          terminal_flags: [],
+          cast_deltas: [],
+          cast_ledger: [],
+        },
+        topologyDelta: { isExpansion: false, newNodeDef: null },
+      }),
+    });
+
+    const res = await fetch(`${baseUrl}/api/turn`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payloadWithState),
+    });
+
+    expect(res.status).toBe(200);
+    const data = await res.json();
+
+    expect(mockGenerateContent.mock.calls[0][0].config?.responseSchema).toBe(
+      EngineTurnStructuredResponseContract.responseSchema
+    );
+
+    // All invalid proposals are rejected and receipts reflect rejection
+    expect(data.castActivityProposalReceipt.outcome).toBe('REJECTED');
+    expect(data.situatedPressureReceipt.outcome).toBe('REJECTED');
+    expect(data.valueStateReceipt.decisions[0].outcome).toBe('REJECTED');
+    expect(data.characterPursuitReceipt.decisions[0].outcome).toBe('REJECTED');
+    expect(data.characterDevelopmentReceipt.decisions[0].outcome).toBe('REJECTED');
+    expect(data.pressureThreadTransitionReceipt.decisions[0].outcome).toBe('REJECTED');
+
+    // Canonical pre-state is preserved without corruption
+    expect(data.valueStateReceipt.postState).toEqual(sentinelValueLedger);
+    expect(data.characterPursuitReceipt.postState).toEqual(sentinelPursuitLedger);
+    expect(data.characterDevelopmentReceipt.postState).toEqual(sentinelDevelopmentLedger);
+    expect(data.situatedPressureReceipt.postState).toEqual(sentinelPressureThreads);
+  });
+
+  it('rejected manifestation text is excluded from fiction and diagnostics through the live provider contract seam', async () => {
     const ACTIVITY_SENTINEL = 'REJECTED_ACTIVITY_SENTINEL_FORBIDDEN_TEXT';
     const PRESSURE_SENTINEL = 'REJECTED_PRESSURE_SENTINEL_FORBIDDEN_TEXT';
 
@@ -707,6 +944,10 @@ describe('Horror Grammar Turn Route (Packet 1-10 HG1 Provider Contract Restorati
     expect(res.status).toBe(200);
     const data = await res.json();
 
+    expect(mockGenerateContent.mock.calls[0][0].config?.responseSchema).toBe(
+      EngineTurnStructuredResponseContract.responseSchema
+    );
+
     // Narrative contains ONLY the base block
     expect(data.narrative_blocks).toHaveLength(1);
     expect(data.narrative_blocks[0].content).toBe('Base prose continues safely.');
@@ -762,7 +1003,7 @@ describe('Horror Grammar Turn Route (Packet 1-10 HG1 Provider Contract Restorati
     expect(dataEmpty.code).toBe('PROVIDER_FAILURE');
   });
 
-  it('accepted HG1 provider output becomes the exact bounded pre-state of the next turn', async () => {
+  it('two consecutive valid turns demonstrate complete HG1 state transition continuity', async () => {
     // -------------------------------------------------------------
     // TURN 1: Accepted activity and pressure creation
     // -------------------------------------------------------------
@@ -875,6 +1116,10 @@ describe('Horror Grammar Turn Route (Packet 1-10 HG1 Provider Contract Restorati
 
     expect(resTurn1.status).toBe(200);
     const dataTurn1 = await resTurn1.json();
+
+    expect(mockGenerateContent.mock.calls[0][0].config?.responseSchema).toBe(
+      EngineTurnStructuredResponseContract.responseSchema
+    );
 
     // Verify Turn 1 receipts & state
     expect(dataTurn1.castActivityProposalReceipt.outcome).toBe('ACCEPTED');
@@ -1002,6 +1247,10 @@ describe('Horror Grammar Turn Route (Packet 1-10 HG1 Provider Contract Restorati
     expect(resTurn2.status).toBe(200);
     const dataTurn2 = await resTurn2.json();
 
+    expect(mockGenerateContent.mock.calls[1][0].config?.responseSchema).toBe(
+      EngineTurnStructuredResponseContract.responseSchema
+    );
+
     // Verify Turn 2 receipts & resolved thread
     expect(dataTurn2.pressureThreadTransitionReceipt.decisions).toHaveLength(1);
     expect(dataTurn2.pressureThreadTransitionReceipt.decisions[0].outcome).toBe('APPLIED');
@@ -1021,5 +1270,176 @@ describe('Horror Grammar Turn Route (Packet 1-10 HG1 Provider Contract Restorati
     expect(dataTurn2.horrorGrammarForensics.pressureEvidence.disposition).toBe('NONE');
     expect(dataTurn2.horrorGrammarForensics.causalDecisions.pressureTransitions).toHaveLength(1);
     expect(dataTurn2.horrorGrammarForensics.causalDecisions.valueDecisions).toHaveLength(1);
+  });
+
+  it('consecutive turn prompt excludes rejected manifestation sentinels', async () => {
+    const REJECTED_ACT_SENTINEL = 'REJECTED_ACT_SENTINEL_PROMPT_ISOLATION';
+    const REJECTED_PRESS_SENTINEL = 'REJECTED_PRESS_SENTINEL_PROMPT_ISOLATION';
+
+    // Turn 1: Provider returns rejected activity and pressure proposals containing sentinels
+    mockGenerateContent.mockResolvedValueOnce({
+      text: JSON.stringify({
+        narrative_blocks: [
+          { type: 'prose', content: 'Turn 1 canonical narration.' },
+        ],
+        engine_thoughts: 'Attempting invalid actions.',
+        intent_proposal: {
+          action_kind: 'OBSERVE',
+          action_subtype: null,
+          pressure_direction: 'MAINTAIN',
+          dramatic_tactic: 'NONE',
+          intent_synergy: 'SUCCESS',
+        },
+        reconciliation_proposal: {
+          mode: 'CANONICAL',
+          feasibility: 'SUPPORTED',
+          reason_code: 'NONE',
+          fictional_time_cost: 'MOMENT',
+          authority_alignment: 'WITHIN_CONTRACT',
+          memory_echo_candidate: null,
+        },
+        consequence_proposal: { mutations: [] },
+        character_stance_proposal: { changes: [] },
+        character_relationship_proposal: { changes: [] },
+        character_memory_proposal: { candidates: [] },
+        world_memory_proposal: { candidates: [] },
+        cast_activity_proposal: {
+          kind: 'ACTIVITY',
+          proposalId: 'act-rejected-1',
+          castMemberId: 'char-user', // Forbidden user target
+          activitySummary: 'User rogue activity',
+          perceptionPath: 'DIRECT',
+          manifestationBlock: {
+            type: 'prose',
+            content: REJECTED_ACT_SENTINEL,
+          },
+        },
+        situated_pressure_proposal: {
+          kind: 'PRESSURE',
+          proposalId: 'press-rejected-1',
+          valueAnchorId: 'val-nonexistent',
+          sourceReference: 'BASELINE',
+          operator: 'EXPOSE',
+          affectedDimension: 'SAFETY',
+          adverseProspect: 'Bad outcome',
+          authorityReferences: [],
+          persistenceTarget: 'PRESSURE_THREAD',
+          responseWindowOpen: true,
+          manifestationBlock: {
+            type: 'prose',
+            content: REJECTED_PRESS_SENTINEL,
+          },
+        },
+        value_state_proposal: { changes: [] },
+        character_pursuit_proposal: { changes: [] },
+        character_development_proposal: { changes: [] },
+        pressure_transition_proposal: { transitions: [] },
+        logic_state: {
+          terminal_flags: [],
+          cast_deltas: [],
+          cast_ledger: [],
+        },
+        topologyDelta: { isExpansion: false, newNodeDef: null },
+      }),
+    });
+
+    const res1 = await fetch(`${baseUrl}/api/turn`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(baseTurnPayload),
+    });
+
+    expect(res1.status).toBe(200);
+    const data1 = await res1.json();
+    expect(data1.castActivityProposalReceipt.outcome).toBe('REJECTED');
+    expect(data1.situatedPressureReceipt.outcome).toBe('REJECTED');
+
+    // Turn 2: Client advances turn with pre-state from turn 1
+    const turn2Payload = {
+      ...baseTurnPayload,
+      recentHistory: 'Turn 1 canonical narration.',
+      context: {
+        ...baseTurnPayload.context,
+        runtime: {
+          ...baseTurnPayload.context.runtime,
+          turnNumber: 2,
+        },
+        horrorGrammar: {
+          ...baseTurnPayload.context.horrorGrammar,
+          runtimeState: {
+            fictionalTime: {
+              moment_revision: 1,
+              scene_beat_revision: 0,
+              extended_revision: 0,
+              last_cost: 'MOMENT' as const,
+            },
+            pursuitSchedule: {},
+            recentActivityEvents: data1.castActivityProposalReceipt.postState,
+            activePressureThreads: data1.situatedPressureReceipt.postState,
+            valueState: data1.valueStateReceipt.postState,
+            characterPursuits: data1.characterPursuitReceipt.postState,
+            characterDevelopment: data1.characterDevelopmentReceipt.postState,
+          },
+        },
+      },
+    };
+
+    mockGenerateContent.mockResolvedValueOnce({
+      text: JSON.stringify({
+        narrative_blocks: [
+          { type: 'prose', content: 'Turn 2 narration continues.' },
+        ],
+        engine_thoughts: 'Turn 2 execution.',
+        intent_proposal: {
+          action_kind: 'OBSERVE',
+          action_subtype: null,
+          pressure_direction: 'MAINTAIN',
+          dramatic_tactic: 'NONE',
+          intent_synergy: 'SUCCESS',
+        },
+        reconciliation_proposal: {
+          mode: 'CANONICAL',
+          feasibility: 'SUPPORTED',
+          reason_code: 'NONE',
+          fictional_time_cost: 'MOMENT',
+          authority_alignment: 'WITHIN_CONTRACT',
+          memory_echo_candidate: null,
+        },
+        consequence_proposal: { mutations: [] },
+        character_stance_proposal: { changes: [] },
+        character_relationship_proposal: { changes: [] },
+        character_memory_proposal: { candidates: [] },
+        world_memory_proposal: { candidates: [] },
+        cast_activity_proposal: { kind: 'NONE', reason: 'NO_OPPORTUNITY_CHOSEN' },
+        situated_pressure_proposal: { kind: 'NONE', reason: 'NO_PRESSURE_CHOSEN' },
+        value_state_proposal: { changes: [] },
+        character_pursuit_proposal: { changes: [] },
+        character_development_proposal: { changes: [] },
+        pressure_transition_proposal: { transitions: [] },
+        logic_state: {
+          terminal_flags: [],
+          cast_deltas: [],
+          cast_ledger: [],
+        },
+        topologyDelta: { isExpansion: false, newNodeDef: null },
+      }),
+    });
+
+    const res2 = await fetch(`${baseUrl}/api/turn`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(turn2Payload),
+    });
+
+    expect(res2.status).toBe(200);
+
+    // Verify Turn 2 prompt sent to SDK strictly excludes the rejected sentinels
+    expect(mockGenerateContent).toHaveBeenCalledTimes(2);
+    const turn2SdkCall = mockGenerateContent.mock.calls[1][0];
+    expect(turn2SdkCall.config?.responseSchema).toBe(EngineTurnStructuredResponseContract.responseSchema);
+
+    const turn2Prompt = turn2SdkCall.contents[0].parts[0].text;
+    expect(turn2Prompt).not.toContain(REJECTED_ACT_SENTINEL);
+    expect(turn2Prompt).not.toContain(REJECTED_PRESS_SENTINEL);
   });
 });

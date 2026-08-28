@@ -20,6 +20,7 @@ import {
 interface ExportReviewModalProps {
   isOpen: boolean;
   onClose: () => void;
+  sourceAnalyses?: Record<string, import('../../types/forge').ForgeSourceAnalysis> | null;
 }
 
 interface ReviewSnapshot {
@@ -29,8 +30,19 @@ interface ReviewSnapshot {
   sourceBaselineRevision: number;
 }
 
-export const ExportReviewModal: React.FC<ExportReviewModalProps> = ({ isOpen, onClose }) => {
-  const { draftBlueprint, draftRevision, sourceBaselineRevision, sourceAnalyses } = useForgeState();
+export const ExportReviewModal: React.FC<ExportReviewModalProps> = ({
+  isOpen,
+  onClose,
+  sourceAnalyses: propSourceAnalyses,
+}) => {
+  const {
+    draftBlueprint,
+    draftRevision,
+    sourceBaselineRevision,
+    sourceAnalyses: storeSourceAnalyses,
+  } = useForgeState();
+  const sourceAnalyses =
+    propSourceAnalyses !== undefined ? propSourceAnalyses : storeSourceAnalyses;
   const [copied, setCopied] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
 
@@ -47,6 +59,7 @@ export const ExportReviewModal: React.FC<ExportReviewModalProps> = ({ isOpen, on
     return prepareBlueprintExport(draft, {
       draftRevision: dRev,
       sourceBaselineRevision: bRev,
+      sourceAnalyses: sourceAnalyses || undefined,
     });
   };
 
@@ -75,10 +88,18 @@ export const ExportReviewModal: React.FC<ExportReviewModalProps> = ({ isOpen, on
         draftRevision: currentDraftRev,
         sourceBaselineRevision: currentBaseRev,
       };
-    } catch {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Blueprint compilation failed';
       return {
         artifact: null,
-        validation: readiness,
+        validation: {
+          valid: false,
+          errors: {
+            ...readiness.errors,
+            compilation: [message],
+          },
+          sourceSummary: readiness.sourceSummary,
+        },
         draftRevision: currentDraftRev,
         sourceBaselineRevision: currentBaseRev,
       };

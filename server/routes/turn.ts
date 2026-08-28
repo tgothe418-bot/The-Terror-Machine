@@ -41,6 +41,10 @@ import { resolveValueState } from '../../src/lib/valueState';
 import { resolveCharacterPursuit } from '../../src/lib/characterPursuits';
 import { resolveCharacterDevelopment } from '../../src/lib/characterDevelopment';
 import {
+  buildHorrorGrammarValidCauses,
+  HG1_CAUSE_REFERENCE_PROMPT,
+} from '../../src/lib/horrorGrammarCauseReferences';
+import {
   generateStructuredResponse,
   EngineTurnStructuredResponseContract,
   ProviderRefusalError,
@@ -682,31 +686,99 @@ The user acts as an external scene director. A direction is a proposal for focus
             .join('\n')
         : '• No durable world memories recorded.';
 
+    const HG1_PROMPT_CAPS = Object.freeze({
+      presentOpportunities: 6,
+      offscreenOpportunities: 2,
+      valueAnchors: 8,
+      pursuitOverlays: 8,
+      developmentFacts: 12,
+      pressureThreads: 5,
+      evidenceEntries: 12,
+      textCharacters: 500,
+    });
+
+    const clipPromptText = (value: string | null | undefined): string => {
+      const normalized = (value || '').trim();
+      return normalized.length <= HG1_PROMPT_CAPS.textCharacters
+        ? normalized
+        : `${normalized.slice(0, HG1_PROMPT_CAPS.textCharacters - 1)}…`;
+    };
+
     let horrorGrammarSection = '';
     if (context.horrorGrammar) {
       const hg = context.horrorGrammar;
+
+      const presentOpps = [...hg.presentActorOpportunities]
+        .sort(
+          (a, b) =>
+            a.castMemberId.localeCompare(b.castMemberId) ||
+            (a.pursuitId || '').localeCompare(b.pursuitId || '')
+        )
+        .slice(0, HG1_PROMPT_CAPS.presentOpportunities);
+
       const presentOppsFormatted =
-        hg.presentActorOpportunities.length > 0
-          ? hg.presentActorOpportunities
+        presentOpps.length > 0
+          ? presentOpps
               .map(
                 (o) =>
-                  `• [PRESENT] Cast ID: ${o.castMemberId}${o.objective ? ` | Objective: "${o.objective}"` : ''}${o.presentApproach ? ` | Approach: "${o.presentApproach}"` : ''}`
+                  `• [PRESENT] Cast ID: ${o.castMemberId}${
+                    o.objective ? ` | Objective: "${clipPromptText(o.objective)}"` : ''
+                  }${
+                    o.presentApproach
+                      ? ` | Approach: "${clipPromptText(o.presentApproach)}"`
+                      : ''
+                  }`
               )
               .join('\n')
           : '• None';
+
+      const offscreenOpps = [...hg.offscreenPursuitOpportunities]
+        .sort(
+          (a, b) =>
+            a.castMemberId.localeCompare(b.castMemberId) ||
+            (a.pursuitId || '').localeCompare(b.pursuitId || '')
+        )
+        .slice(0, HG1_PROMPT_CAPS.offscreenOpportunities);
+
       const offscreenOppsFormatted =
-        hg.offscreenPursuitOpportunities.length > 0
-          ? hg.offscreenPursuitOpportunities
+        offscreenOpps.length > 0
+          ? offscreenOpps
               .map(
                 (o) =>
-                  `• [OFFSCREEN] Cast ID: ${o.castMemberId}${o.objective ? ` | Objective: "${o.objective}"` : ''}${o.presentApproach ? ` | Approach: "${o.presentApproach}"` : ''}${o.reviewWindow ? ` | Window: ${o.reviewWindow}` : ''}`
+                  `• [OFFSCREEN] Cast ID: ${o.castMemberId}${
+                    o.objective ? ` | Objective: "${clipPromptText(o.objective)}"` : ''
+                  }${
+                    o.presentApproach
+                      ? ` | Approach: "${clipPromptText(o.presentApproach)}"`
+                      : ''
+                  }${o.reviewWindow ? ` | Window: ${o.reviewWindow}` : ''}`
               )
               .join('\n')
           : '• None';
+
+      const cappedOpps = [...presentOpps, ...offscreenOpps];
+      const relevantNonUserDataCastIds = new Set(
+        cappedOpps
+          .map((o) => o.castMemberId)
+          .filter((id) => id !== context.player.characterId)
+      );
+      const relevantPursuitIds = new Set(
+        cappedOpps.map((o) => o.pursuitId).filter((id): id is string => !!id)
+      );
+
+      const relevantAnchors = [...hg.relevantValueAnchors]
+        .sort((a, b) => a.id.localeCompare(b.id))
+        .slice(0, HG1_PROMPT_CAPS.valueAnchors);
+
       const valueAnchorsFormatted =
-        hg.relevantValueAnchors.length > 0
-          ? hg.relevantValueAnchors
-              .map((v) => `• [${v.id}] ${v.label}: "${v.description}" (Holder: ${v.holder.kind})`)
+        relevantAnchors.length > 0
+          ? relevantAnchors
+              .map(
+                (v) =>
+                  `• [${v.id}] ${clipPromptText(v.label)}: "${clipPromptText(
+                    v.description
+                  )}" (Holder: ${v.holder.kind})`
+              )
               .join('\n')
           : '• None';
 
@@ -715,13 +787,15 @@ The user acts as an external scene director. A direction is a proposal for focus
         import('../../src/types/horrorGrammar').ValueStateRecord
       >;
       const valueStatesFormatted =
-        hg.relevantValueAnchors.length > 0
-          ? hg.relevantValueAnchors
+        relevantAnchors.length > 0
+          ? relevantAnchors
               .map((v) => {
                 const s = valueState[v.id];
                 const cond = s?.condition || 'ESTABLISHED';
                 const life = s?.lifecycle || 'ACTIVE';
-                const note = s?.currentFormNote ? ` | Form: "${s.currentFormNote}"` : '';
+                const note = s?.currentFormNote
+                  ? ` | Form: "${clipPromptText(s.currentFormNote)}"`
+                  : '';
                 return `• [${v.id}] Condition: ${cond} | Lifecycle: ${life}${note}`;
               })
               .join('\n')
@@ -731,15 +805,30 @@ The user acts as an external scene director. A direction is a proposal for focus
         string,
         import('../../src/types/horrorGrammar').CharacterPursuitRecord
       >;
-      const activePursuitEntries = Object.values(pursuitState).filter(
-        (p) => p.castMemberId !== context.player.characterId
-      );
+      const relevantPursuits = Object.values(pursuitState)
+        .filter(
+          (p) =>
+            p.castMemberId !== context.player.characterId &&
+            (relevantNonUserDataCastIds.has(p.castMemberId) ||
+              relevantPursuitIds.has(p.pursuitId))
+        )
+        .sort((a, b) => a.pursuitId.localeCompare(b.pursuitId))
+        .slice(0, HG1_PROMPT_CAPS.pursuitOverlays);
+
       const pursuitOverlaysFormatted =
-        activePursuitEntries.length > 0
-          ? activePursuitEntries
+        relevantPursuits.length > 0
+          ? relevantPursuits
               .map(
                 (p) =>
-                  `• [${p.pursuitId}] Cast ID: ${p.castMemberId} | Status: ${p.status} | Progress: "${p.progressSummary}"`
+                  `• [${p.pursuitId}] Cast ID: ${p.castMemberId} | Status: ${
+                    p.status
+                  } | Objective: "${clipPromptText(
+                    p.currentObjective
+                  )}" | Approach: "${clipPromptText(
+                    p.currentApproach
+                  )}" | Location: ${
+                    p.currentLocationNodeId || 'NONE'
+                  } | Progress: "${clipPromptText(p.progressSummary)}"`
               )
               .join('\n')
           : '• None';
@@ -748,31 +837,76 @@ The user acts as an external scene director. A direction is a proposal for focus
         string,
         import('../../src/types/horrorGrammar').CharacterDevelopmentFact[]
       >;
-      const devFactList: string[] = [];
+      const devFactList: import('../../src/types/horrorGrammar').CharacterDevelopmentFact[] =
+        [];
       for (const [castId, facts] of Object.entries(devState)) {
-        if (castId === context.player.characterId || !Array.isArray(facts)) continue;
+        if (
+          castId === context.player.characterId ||
+          !relevantNonUserDataCastIds.has(castId) ||
+          !Array.isArray(facts)
+        )
+          continue;
         for (const f of facts) {
           if (f.lifecycle === 'ACTIVE') {
-            devFactList.push(`• [${f.id}] Cast ID: ${f.castMemberId} | ${f.dimension}: "${f.statement}"`);
+            devFactList.push(f);
           }
         }
       }
-      const devFactsFormatted = devFactList.length > 0 ? devFactList.join('\n') : '• None';
-
-      const activeThreads = (hg.runtimeState?.activePressureThreads || []).filter(
-        (t) => t.status === 'OPEN'
+      devFactList.sort(
+        (a, b) =>
+          a.castMemberId.localeCompare(b.castMemberId) ||
+          a.id.localeCompare(b.id)
       );
+      const cappedDevFacts = devFactList.slice(
+        0,
+        HG1_PROMPT_CAPS.developmentFacts
+      );
+      const devFactsFormatted =
+        cappedDevFacts.length > 0
+          ? cappedDevFacts
+              .map(
+                (f) =>
+                  `• [${f.id}] Cast ID: ${f.castMemberId} | ${
+                    f.dimension
+                  }: "${clipPromptText(f.statement)}"`
+              )
+              .join('\n')
+          : '• None';
+
+      const activeThreads = [...(hg.runtimeState?.activePressureThreads || [])]
+        .filter((t) => t.status === 'OPEN')
+        .sort((a, b) => a.id.localeCompare(b.id))
+        .slice(0, HG1_PROMPT_CAPS.pressureThreads);
+
       const activeThreadsFormatted =
         activeThreads.length > 0
           ? activeThreads
               .map(
                 (t) =>
-                  `• [${t.id}] Anchor: ${t.valueAnchorId} | Status: ${t.status} | Operator: ${t.operator} | Dimension: ${t.affectedDimension} | Adverse Prospect: "${t.adverseProspect}"`
+                  `• [${t.id}] Anchor: ${t.valueAnchorId} | Status: ${
+                    t.status
+                  } | Operator: ${t.operator} | Dimension: ${
+                    t.affectedDimension
+                  } | Adverse Prospect: "${clipPromptText(t.adverseProspect)}"`
               )
               .join('\n')
           : '• None';
 
-      const availableCauses = ['USER_ACTION', 'ACTIVITY', 'BASELINE', 'CANONICAL_CONDITION'];
+      const evidenceEntries = [...(hg.evidenceRegistry || [])]
+        .sort((a, b) => a.id.localeCompare(b.id))
+        .slice(0, HG1_PROMPT_CAPS.evidenceEntries);
+
+      const evidenceFormatted =
+        evidenceEntries.length > 0
+          ? evidenceEntries
+              .map(
+                (e) =>
+                  `• [${e.id}] ${e.category} | Owner: ${
+                    e.ownerRef
+                  } | "${clipPromptText(e.description)}"`
+              )
+              .join('\n')
+          : '• None';
 
       horrorGrammarSection = `\n[CAST ACTIVITY OPPORTUNITY POOL (OBSERVATIONAL)]
 Fictional Time Revisions: Moment ${hg.fictionalTime.moment_revision} | Scene Beat ${hg.fictionalTime.scene_beat_revision} | Extended ${hg.fictionalTime.extended_revision} (Last Cost: ${hg.fictionalTime.last_cost || 'None'})
@@ -790,8 +924,9 @@ Current Character Development Facts:
 ${devFactsFormatted}
 Active Pressure Threads (Eligible for Transition):
 ${activeThreadsFormatted}
-Valid Cause References:
-${availableCauses.map((c) => `• ${c}`).join('\n')}
+Available Authority Evidence:
+${evidenceFormatted}
+${HG1_CAUSE_REFERENCE_PROMPT}
 Authority Directive:
 ${hg.authorityInstruction}
 `;
@@ -1181,17 +1316,16 @@ ${recentHistory}
       currentTurn: context.runtime.turnNumber,
     });
 
-    const validCauses: string[] = [
-      'USER_ACTION',
-      'BASELINE',
-      intentReceipt.action_kind,
-      ...(castActivityProposalReceipt.acceptedEventId
-        ? [castActivityProposalReceipt.acceptedEventId, 'ACTIVITY']
-        : []),
-      ...(canonicalConsequenceReceipt.decisions || [])
-        .filter((d) => d.outcome === 'APPLIED')
-        .map((d) => `csq-${d.mutation.domain}-${d.mutation.operation}`),
-    ];
+    const validCauses = buildHorrorGrammarValidCauses({
+      actionKind: intentReceipt.action_kind,
+      acceptedActivityEventId: castActivityProposalReceipt.acceptedEventId,
+      appliedConsequenceReferences: (canonicalConsequenceReceipt.decisions || [])
+        .filter((decision) => decision.outcome === 'APPLIED')
+        .map(
+          (decision) =>
+            `csq-${decision.mutation.domain}-${decision.mutation.operation}`
+        ),
+    });
 
     const valueStateReceipt = resolveValueState({
       proposal: engineResponse.value_state_proposal,

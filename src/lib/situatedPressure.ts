@@ -9,6 +9,7 @@ import {
   CastActivityReceipt,
   MAX_ACTIVE_PRESSURE_THREADS,
 } from '../types/horrorGrammar';
+import { isHorrorGrammarCauseReferenceValid } from './horrorGrammarCauseReferences';
 
 export interface ResolveSituatedPressureInput {
   proposal?: SituatedPressureProposal | null;
@@ -298,14 +299,14 @@ export interface ResolvePressureThreadTransitionsInput {
   proposal?: import('../types/horrorGrammar').PressureThreadTransitionProposal | null;
   preThreads?: SituatedPressureThread[] | null;
   currentTurn: number;
-  validCauses?: string[];
+  validCauses: readonly string[];
 }
 
 export function resolvePressureThreadTransitions({
   proposal,
   preThreads = [],
   currentTurn,
-  validCauses = [],
+  validCauses,
 }: ResolvePressureThreadTransitionsInput): import('../types/horrorGrammar').PressureThreadTransitionReceipt {
   const normalizedPreState = Array.isArray(preThreads) ? [...preThreads] : [];
   const postState = [...normalizedPreState];
@@ -348,14 +349,10 @@ export function resolvePressureThreadTransitions({
       continue;
     }
 
-    const isCauseValid =
-      validCauses.length === 0 ||
-      validCauses.includes(causeReference) ||
-      causeReference === 'USER_ACTION' ||
-      causeReference === 'ACTIVITY' ||
-      causeReference.startsWith('act-') ||
-      causeReference.startsWith('thr-') ||
-      causeReference.startsWith('csq-');
+    const isCauseValid = isHorrorGrammarCauseReferenceValid(
+      causeReference,
+      validCauses
+    );
 
     if (!isCauseValid) {
       decisions.push({

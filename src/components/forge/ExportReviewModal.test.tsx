@@ -275,4 +275,188 @@ describe('ExportReviewModal Component Snapshot Lifecycle', () => {
     expect(invalidCopyBtn.disabled).toBe(true);
     expect(invalidDownloadBtn.disabled).toBe(true);
   });
+
+  it('source-backed compliant Blueprint compiles and enables both export actions', async () => {
+    forgeActions.resetStore();
+
+    const sourceEvidence = {
+      id: 'ev-loc-1',
+      sourceId: 'rec-1',
+      category: 'topology' as const,
+      excerpt: 'Sub-Level 3 Control Hub',
+      claim: 'Initial starting room',
+    };
+
+    const validAnalysis: ForgeSourceAnalysis = {
+      id: 'src-analysis-1',
+      sourceRecord: {
+        id: 'rec-1',
+        fileName: 'facility_map.json',
+        mimeType: 'application/json',
+        kind: 'native_blueprint',
+        receivedAt: Date.now(),
+      },
+      summary: 'Facility map extract',
+      evidence: [sourceEvidence],
+      candidates: [],
+      unknowns: [],
+      status: 'completed',
+    };
+    forgeActions.registerSourceAnalysis(validAnalysis, 'binding-1');
+
+    forgeActions.initializeDraft({
+      title: 'Facility Omega',
+      premise: 'Underground containment failure.',
+      startingVector: 'SOMATIC',
+      startingTier: 'MANIFEST',
+      setting: { location: 'Sub-Level 3' },
+      cast: [
+        {
+          id: 'c1',
+          name: 'Dr. Vane',
+          role: 'Specialist',
+          behaviorVector: 'ADAPTIVE',
+          isEntity: false,
+          isUserCharacter: true,
+          presenceDisposition: { kind: 'AT_NODE', nodeId: 'NODE_01' },
+        },
+      ],
+      userCharacterId: 'c1',
+      userOpeningAim: {
+        castMemberId: 'c1',
+        disposition: 'NONE_DECLARED',
+        aimText: '',
+        reviewedAt: Date.now(),
+      },
+      topology: {
+        startingNodeId: 'NODE_01',
+        startingNodeProvenance: {
+          sourceId: 'rec-1',
+          evidenceIds: ['ev-loc-1'],
+        },
+        nodes: ['NODE_01'],
+        connections: [],
+      },
+      horrorGrammar: {
+        valueBaselineReview: 'REVIEWED_NONE',
+        pursuitReviews: {
+          c1: 'REVIEWED_NONE',
+        },
+        valueAnchors: [],
+        characterPursuits: [],
+      },
+    });
+
+    forgeActions.updateDepictionContractField('dramaticRegister', 'Clinical dread');
+    forgeActions.updateDepictionContractField('directness', 'Visceral mechanics');
+    forgeActions.updateDepictionContractField('aftermath', 'Irreversible consequences');
+    forgeActions.updateDepictionContractField('ambiguityHandling', 'Preserve epistemic gaps');
+
+    const mockOnClose = vi.fn();
+    await act(async () => {
+      root?.render(React.createElement(ExportReviewModal, { isOpen: true, onClose: mockOnClose }));
+    });
+
+    expect(container?.textContent).toContain('COMPLIANT');
+    expect(container?.textContent).toContain('All Pre-Flight Contracts Satisfied');
+
+    const copyBtn = container?.querySelector('#export-review-copy-json-btn') as HTMLButtonElement;
+    const downloadBtn = container?.querySelector('#export-review-download-btn') as HTMLButtonElement;
+    expect(copyBtn.disabled).toBe(false);
+    expect(downloadBtn.disabled).toBe(false);
+  });
+
+  it('compilation failure cannot display a compliant export banner', async () => {
+    forgeActions.resetStore();
+
+    const validAnalysis: ForgeSourceAnalysis = {
+      id: 'src-analysis-1',
+      sourceRecord: {
+        id: 'rec-1',
+        fileName: 'facility_map.json',
+        mimeType: 'application/json',
+        kind: 'native_blueprint',
+        receivedAt: Date.now(),
+      },
+      summary: 'Facility map extract',
+      evidence: [
+        {
+          id: 'ev-loc-valid',
+          sourceId: 'rec-1',
+          category: 'topology',
+          excerpt: 'Real room',
+          claim: 'Real room claim',
+        },
+      ],
+      candidates: [],
+      unknowns: [],
+      status: 'completed',
+    };
+    forgeActions.registerSourceAnalysis(validAnalysis, 'binding-1');
+
+    // Create a draft that is readiness-valid but uses a non-existent evidenceId in startingNodeProvenance.
+    // This makes readiness pass while compiler throws ForgeCompilationError.
+    forgeActions.initializeDraft({
+      title: 'Facility Omega',
+      premise: 'Underground containment failure.',
+      startingVector: 'SOMATIC',
+      startingTier: 'MANIFEST',
+      setting: { location: 'Sub-Level 3' },
+      cast: [
+        {
+          id: 'c1',
+          name: 'Dr. Vane',
+          role: 'Specialist',
+          behaviorVector: 'ADAPTIVE',
+          isEntity: false,
+          isUserCharacter: true,
+          presenceDisposition: { kind: 'AT_NODE', nodeId: 'NODE_01' },
+        },
+      ],
+      userCharacterId: 'c1',
+      userOpeningAim: {
+        castMemberId: 'c1',
+        disposition: 'NONE_DECLARED',
+        aimText: '',
+        reviewedAt: Date.now(),
+      },
+      topology: {
+        startingNodeId: 'NODE_01',
+        startingNodeProvenance: {
+          sourceId: 'rec-1',
+          evidenceIds: ['ev-loc-nonexistent'], // Evidence does not exist in rec-1!
+        },
+        nodes: ['NODE_01'],
+        connections: [],
+      },
+      horrorGrammar: {
+        valueBaselineReview: 'REVIEWED_NONE',
+        pursuitReviews: {
+          c1: 'REVIEWED_NONE',
+        },
+        valueAnchors: [],
+        characterPursuits: [],
+      },
+    });
+
+    forgeActions.updateDepictionContractField('dramaticRegister', 'Clinical dread');
+    forgeActions.updateDepictionContractField('directness', 'Visceral mechanics');
+    forgeActions.updateDepictionContractField('aftermath', 'Irreversible consequences');
+    forgeActions.updateDepictionContractField('ambiguityHandling', 'Preserve epistemic gaps');
+
+    const mockOnClose = vi.fn();
+    await act(async () => {
+      root?.render(React.createElement(ExportReviewModal, { isOpen: true, onClose: mockOnClose }));
+    });
+
+    // COMPLIANT banner MUST NOT be present
+    expect(container?.textContent).not.toContain('COMPLIANT');
+    expect(container?.textContent).toContain('ACTION REQUIRED');
+    expect(container?.textContent).toContain('compilation:');
+
+    const copyBtn = container?.querySelector('#export-review-copy-json-btn') as HTMLButtonElement;
+    const downloadBtn = container?.querySelector('#export-review-download-btn') as HTMLButtonElement;
+    expect(copyBtn.disabled).toBe(true);
+    expect(downloadBtn.disabled).toBe(true);
+  });
 });
