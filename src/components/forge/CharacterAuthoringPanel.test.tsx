@@ -143,7 +143,8 @@ describe('CharacterAuthoringPanel Component', () => {
 
     expect(container?.textContent).toContain('Arthur Pym');
     expect(container?.textContent).toContain('Dirk Peters');
-    expect(container?.textContent).toContain('Player Character');
+    expect(container?.textContent).toContain('Opening Placement');
+    expect(container?.textContent).toContain('Opening Objective');
   });
 
   it('adds a new cast member on "+ ADD CAST MEMBER" click', async () => {
@@ -163,25 +164,7 @@ describe('CharacterAuthoringPanel Component', () => {
     expect(draft?.cast?.[2].name).toBe('New Cast Member');
   });
 
-  it('designates another character as player character', async () => {
-    await act(async () => {
-      root?.render(<CharacterAuthoringPanel />);
-    });
-
-    const designateBtn = container?.querySelector('#designate-player-btn-char-2') as HTMLButtonElement;
-    expect(designateBtn).toBeDefined();
-
-    await act(async () => {
-      designateBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    });
-
-    const draft = useForgeStoreInternal.getState().forgeDraft;
-    expect(draft?.userCharacterId).toBe('char-2');
-    expect(draft?.cast?.find((c) => c.id === 'char-2')?.isUserCharacter).toBe(true);
-    expect(draft?.cast?.find((c) => c.id === 'char-1')?.isUserCharacter).toBe(false);
-  });
-
-  it('toggles entity status and clears player designation if toggled on player', async () => {
+  it('toggles entity status on a character', async () => {
     await act(async () => {
       root?.render(<CharacterAuthoringPanel />);
     });
@@ -195,8 +178,6 @@ describe('CharacterAuthoringPanel Component', () => {
 
     const draft = useForgeStoreInternal.getState().forgeDraft;
     expect(draft?.cast?.find((c) => c.id === 'char-1')?.isEntity).toBe(true);
-    expect(draft?.cast?.find((c) => c.id === 'char-1')?.isUserCharacter).toBe(false);
-    expect(draft?.userCharacterId).toBeUndefined();
   });
 
   it('updates opening placement to OFFSTAGE and AT_NODE without extra metadata', async () => {
@@ -219,83 +200,7 @@ describe('CharacterAuthoringPanel Component', () => {
     expect((member?.presenceDisposition as unknown as Record<string, unknown>).sourceId).toBeUndefined();
   });
 
-  it('accepts reference default opening aim for player character', async () => {
-    await act(async () => {
-      root?.render(<CharacterAuthoringPanel />);
-    });
-
-    const acceptBtn = container?.querySelector('#accept-aim-btn') as HTMLButtonElement;
-    expect(acceptBtn).toBeDefined();
-
-    await act(async () => {
-      acceptBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    });
-
-    const draft = useForgeStoreInternal.getState().forgeDraft;
-    expect(draft?.userOpeningAim?.disposition).toBe('ACCEPTED_REFERENCE');
-    expect(draft?.userOpeningAim?.aimText).toBe('Investigate the southern horizon');
-  });
-
-  it('sets custom player opening aim using inline form without window.prompt', async () => {
-    const promptSpy = vi.spyOn(window, 'prompt');
-    await act(async () => {
-      root?.render(<CharacterAuthoringPanel />);
-    });
-
-    const customBtn = container?.querySelector('#use-own-aim-btn') as HTMLButtonElement;
-    expect(customBtn).toBeDefined();
-
-    await act(async () => {
-      customBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    });
-
-    expect(promptSpy).not.toHaveBeenCalled();
-
-    const textarea = container?.querySelector('#custom-aim-textarea') as HTMLTextAreaElement;
-    expect(textarea).toBeDefined();
-
-    await act(async () => {
-      const nativeSetter = Object.getOwnPropertyDescriptor(
-        window.HTMLTextAreaElement.prototype,
-        'value'
-      )?.set;
-      nativeSetter?.call(textarea, 'Chart the unexplored channels');
-      textarea.dispatchEvent(new Event('input', { bubbles: true }));
-      textarea.dispatchEvent(new Event('change', { bubbles: true }));
-    });
-
-    const saveBtn = container?.querySelector('#save-aim-btn') as HTMLButtonElement;
-    expect(saveBtn).toBeDefined();
-
-    await act(async () => {
-      saveBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    });
-
-    const draft = useForgeStoreInternal.getState().forgeDraft;
-    expect(draft?.userOpeningAim?.disposition).toBe('CREATOR_OVERRIDE');
-    expect(draft?.userOpeningAim?.aimText).toBe('Chart the unexplored channels');
-
-    promptSpy.mockRestore();
-  });
-
-  it('sets None Declared opening aim for player character', async () => {
-    await act(async () => {
-      root?.render(<CharacterAuthoringPanel />);
-    });
-
-    const noneBtn = container?.querySelector('#none-aim-btn') as HTMLButtonElement;
-    expect(noneBtn).toBeDefined();
-
-    await act(async () => {
-      noneBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    });
-
-    const draft = useForgeStoreInternal.getState().forgeDraft;
-    expect(draft?.userOpeningAim?.disposition).toBe('NONE_DECLARED');
-    expect(draft?.userOpeningAim?.aimText).toBe('');
-  });
-
-  it('reviews non-user pursuit with "No Readable Intent" and "+ Set Pursuit"', async () => {
+  it('reviews character opening objective with "No Readable Intent" and "+ Add Opening Objective"', async () => {
     await act(async () => {
       root?.render(<CharacterAuthoringPanel />);
     });
@@ -309,15 +214,15 @@ describe('CharacterAuthoringPanel Component', () => {
     });
 
     let draft = useForgeStoreInternal.getState().forgeDraft;
-    expect(draft?.horrorGrammar?.pursuitReviews?.['char-2']).toBe('REVIEWED_NONE');
+    expect(draft?.horrorGrammar?.pursuitReviews?.['char-1']).toBe('REVIEWED_NONE');
 
-    // Now set a pursuit via inline form
+    // Now set an objective via inline form
     const updatedButtons = Array.from(container?.querySelectorAll('button') || []);
-    const setPursuitBtn = updatedButtons.find((b) => b.textContent?.includes('+ Set Pursuit'));
-    expect(setPursuitBtn).toBeDefined();
+    const addObjBtn = updatedButtons.find((b) => b.textContent?.includes('+ Add Opening Objective'));
+    expect(addObjBtn).toBeDefined();
 
     await act(async () => {
-      setPursuitBtn?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      addObjBtn?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
 
     const objInput = container?.querySelector('input[placeholder*="Inspect reactor telemetry"]') as HTMLInputElement;
@@ -330,29 +235,29 @@ describe('CharacterAuthoringPanel Component', () => {
         window.HTMLInputElement.prototype,
         'value'
       )?.set;
-      nativeSetter?.call(objInput, 'Guard the forward hatch');
+      nativeSetter?.call(objInput, 'Investigate the southern horizon');
       objInput.dispatchEvent(new Event('input', { bubbles: true }));
       objInput.dispatchEvent(new Event('change', { bubbles: true }));
 
-      nativeSetter?.call(appInput, 'Standing watch with harpoon');
+      nativeSetter?.call(appInput, 'Observing through the spyglass');
       appInput.dispatchEvent(new Event('input', { bubbles: true }));
       appInput.dispatchEvent(new Event('change', { bubbles: true }));
     });
 
-    const savePursuitBtn = Array.from(container?.querySelectorAll('button') || []).find((b) =>
-      b.textContent?.includes('Save Pursuit')
+    const saveObjectiveBtn = Array.from(container?.querySelectorAll('button') || []).find((b) =>
+      b.textContent?.includes('Save Objective')
     );
-    expect(savePursuitBtn).toBeDefined();
+    expect(saveObjectiveBtn).toBeDefined();
 
     await act(async () => {
-      savePursuitBtn?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      saveObjectiveBtn?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
 
     draft = useForgeStoreInternal.getState().forgeDraft;
-    expect(draft?.horrorGrammar?.pursuitReviews?.['char-2']).toBe('REVIEWED');
+    expect(draft?.horrorGrammar?.pursuitReviews?.['char-1']).toBe('REVIEWED');
     const pursuits = draft?.horrorGrammar?.characterPursuits || [];
     expect(pursuits.length).toBe(1);
-    expect(pursuits[0].objective).toBe('Guard the forward hatch');
-    expect(pursuits[0].presentApproach).toBe('Standing watch with harpoon');
+    expect(pursuits[0].objective).toBe('Investigate the southern horizon');
+    expect(pursuits[0].presentApproach).toBe('Observing through the spyglass');
   });
 });

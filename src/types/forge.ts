@@ -733,6 +733,7 @@ export const ForgeValidationIssueSchema = z
   })
   .strict();
 export type ForgeValidationIssue = z.infer<typeof ForgeValidationIssueSchema>;
+export const MAX_VALIDATION_ISSUES = 50;
 
 export const ForgeSourceAnalysisSchema = z
   .object({
@@ -742,7 +743,8 @@ export const ForgeSourceAnalysisSchema = z
     evidence: z.array(ForgeSourceEvidenceSchema).default([]),
     candidates: z.array(ForgeSourceCandidateSchema).default([]),
     unknowns: z.array(ForgeSourceUnknownSchema).default([]),
-    validationIssues: z.array(ForgeValidationIssueSchema).max(50).default([]).optional(),
+    validationIssues: z.array(ForgeValidationIssueSchema).max(MAX_VALIDATION_ISSUES).default([]).optional(),
+    omittedValidationIssueCount: z.number().int().nonnegative().optional(),
     status: z.enum(['completed', 'completed_with_issues', 'error']).default('completed'),
     errorMessage: z.string().optional(),
   })

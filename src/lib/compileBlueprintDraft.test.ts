@@ -120,7 +120,7 @@ describe('compileBlueprintDraft and prepareBlueprintExport', () => {
       environmentalRules: '',
       horrorGrammar: {
         valueBaselineReview: 'REVIEWED_NONE',
-        pursuitReviews: {},
+        pursuitReviews: { c1: 'REVIEWED_NONE' },
         valueAnchors: [],
         characterPursuits: [],
       },
@@ -188,7 +188,7 @@ describe('compileBlueprintDraft and prepareBlueprintExport', () => {
       environmentalRules: '',
       horrorGrammar: {
         valueBaselineReview: 'REVIEWED_NONE',
-        pursuitReviews: {},
+        pursuitReviews: { c1: 'REVIEWED_NONE' },
         valueAnchors: [],
         characterPursuits: [],
       },
@@ -278,7 +278,7 @@ describe('compileBlueprintDraft and prepareBlueprintExport', () => {
       environmentalRules: '',
       horrorGrammar: {
         valueBaselineReview: 'REVIEWED_NONE',
-        pursuitReviews: {},
+        pursuitReviews: { c1: 'REVIEWED_NONE' },
         valueAnchors: [],
         characterPursuits: [],
       },
@@ -346,7 +346,7 @@ describe('compileBlueprintDraft and prepareBlueprintExport', () => {
       environmentalRules: '',
       horrorGrammar: {
         valueBaselineReview: 'REVIEWED_NONE',
-        pursuitReviews: {},
+        pursuitReviews: { c1: 'REVIEWED_NONE' },
         valueAnchors: [],
         characterPursuits: [],
       },
@@ -439,7 +439,7 @@ describe('compileBlueprintDraft and prepareBlueprintExport', () => {
       environmentalRules: '',
       horrorGrammar: {
         valueBaselineReview: 'REVIEWED_NONE',
-        pursuitReviews: {},
+        pursuitReviews: { c1: 'REVIEWED_NONE' },
         valueAnchors: [],
         characterPursuits: [],
       },

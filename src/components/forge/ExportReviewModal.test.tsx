@@ -64,7 +64,9 @@ describe('ExportReviewModal Component Snapshot Lifecycle', () => {
       },
       horrorGrammar: {
         valueBaselineReview: 'REVIEWED_NONE',
-        pursuitReviews: {},
+        pursuitReviews: {
+          c1: 'REVIEWED_NONE',
+        },
         valueAnchors: [],
         characterPursuits: [],
       },

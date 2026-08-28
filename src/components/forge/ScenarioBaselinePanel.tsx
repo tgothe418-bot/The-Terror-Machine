@@ -320,7 +320,7 @@ export const ScenarioBaselinePanel: React.FC = () => {
                     )}
 
                     {/* QUARANTINE SUMMARY & EXTRACTION ISSUES */}
-                    {analysis.validationIssues && analysis.validationIssues.length > 0 && (
+                    {((analysis.validationIssues && analysis.validationIssues.length > 0) || (analysis.omittedValidationIssueCount && analysis.omittedValidationIssueCount > 0)) && (
                       <div
                         id={`quarantine-summary-${analysis.id}`}
                         className="bg-amber-950/30 border border-amber-800/60 p-3 rounded text-xs font-mono text-amber-200 flex flex-col space-y-2.5"
@@ -329,7 +329,7 @@ export const ScenarioBaselinePanel: React.FC = () => {
                           <div className="flex items-center gap-2">
                             <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
                             <span>
-                              Imported with {analysis.candidates.length} reviewable candidate{analysis.candidates.length === 1 ? '' : 's'}; {analysis.validationIssues.length} malformed candidate{analysis.validationIssues.length === 1 ? ' was' : 's were'} quarantined and cannot affect the Blueprint.
+                              Imported with {analysis.candidates.length} reviewable candidate{analysis.candidates.length === 1 ? '' : 's'}; {(analysis.validationIssues?.length || 0) + (analysis.omittedValidationIssueCount || 0)} malformed candidate{(analysis.validationIssues?.length || 0) + (analysis.omittedValidationIssueCount || 0) === 1 ? ' was' : 's were'} quarantined and cannot affect the Blueprint.
                             </span>
                           </div>
                           <button
@@ -355,9 +355,9 @@ export const ScenarioBaselinePanel: React.FC = () => {
                         {expandedIssues[analysis.id] && (
                           <div className="space-y-2 pt-2 border-t border-amber-900/40">
                             <div className="text-[10px] uppercase font-bold text-amber-400 tracking-wider">
-                              Quarantined Noncanonical Candidates ({analysis.validationIssues.length})
+                              Quarantined Noncanonical Candidates ({(analysis.validationIssues?.length || 0) + (analysis.omittedValidationIssueCount || 0)})
                             </div>
-                            {analysis.validationIssues.map((issue) => (
+                            {analysis.validationIssues?.map((issue) => (
                               <div
                                 key={issue.id}
                                 id={`quarantine-issue-${issue.id}`}
@@ -385,6 +385,11 @@ export const ScenarioBaselinePanel: React.FC = () => {
                                 )}
                               </div>
                             ))}
+                            {analysis.omittedValidationIssueCount && analysis.omittedValidationIssueCount > 0 && (
+                              <div className="text-[10px] text-amber-400/80 font-mono italic p-2 bg-zinc-950/50 rounded border border-amber-900/30">
+                                + {analysis.omittedValidationIssueCount} additional malformed issue{analysis.omittedValidationIssueCount === 1 ? '' : 's'} omitted from diagnostic view.
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>

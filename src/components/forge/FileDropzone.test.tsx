@@ -209,11 +209,21 @@ describe('FileDropzone & Architect Binding Lifecycle UI', () => {
   });
 
   it('4. handles document extraction with completed_with_issues by registering valid candidates and reporting quarantined issues', async () => {
-    const rawAnalysis = {
+    const serverNormalizedAnalysis: ForgeSourceAnalysis = {
+      id: 'src-12345-analysis',
+      sourceRecord: {
+        id: 'src-12345',
+        fileName: 'tartarus_notes.txt',
+        mimeType: 'text/plain',
+        kind: 'document',
+        receivedAt: Date.now(),
+        fileSizeBytes: 100,
+      },
       summary: 'Research notes on Station Tartarus.',
       evidence: [
         {
           id: 'ev-1',
+          sourceId: 'src-12345',
           category: 'setting',
           claim: 'Station Tartarus is deep underwater.',
           excerpt: 'Station Tartarus underwater.',
@@ -222,28 +232,33 @@ describe('FileDropzone & Architect Binding Lifecycle UI', () => {
       candidates: [
         {
           id: 'cand-valid-loc',
+          sourceId: 'src-12345',
           classification: 'evidence',
           target: 'setting_location',
           label: 'Setting Location',
           explanation: 'Station Tartarus underwater.',
           evidenceIds: ['ev-1'],
           proposedValue: 'Station Tartarus Underwater Facility',
-        },
-        {
-          id: 'cand-invalid-enum',
-          classification: 'evidence',
-          target: 'cast_expression_guidance',
-          targetCastMemberId: 'char-1',
-          label: 'Invalid Expression Guidance',
-          explanation: 'Telepathic transmission',
-          evidenceIds: ['ev-1'],
-          proposedValue: {
-            communicationModes: ['telepathy'],
-            expressionGuidance: 'Telepathic thoughts',
-          },
+          reviewDecision: 'accepted',
+          applicationState: 'staged',
         },
       ],
       unknowns: [],
+      validationIssues: [
+        {
+          id: 'src-12345-issue-2',
+          sourceId: 'src-12345',
+          candidateIndex: 2,
+          candidateTarget: 'cast_expression_guidance',
+          label: 'Invalid Expression Guidance',
+          fieldPath: 'proposedValue.communicationModes',
+          code: 'INVALID_ENUM',
+          message: 'Invalid communication mode',
+          disposition: 'QUARANTINED',
+        },
+      ],
+      omittedValidationIssueCount: 0,
+      status: 'completed_with_issues',
     };
 
     globalThis.fetch = vi.fn().mockResolvedValue({
@@ -252,7 +267,7 @@ describe('FileDropzone & Architect Binding Lifecycle UI', () => {
       json: async () => ({
         success: true,
         sourceBinding: 'binding-issues-999',
-        analysis: rawAnalysis,
+        analysis: serverNormalizedAnalysis,
       }),
     } as Response);
 
@@ -283,27 +298,30 @@ describe('FileDropzone & Architect Binding Lifecycle UI', () => {
     expect(analyses[0].candidates).toHaveLength(1);
     expect(analyses[0].candidates[0].target).toBe('setting_location');
     expect(analyses[0].validationIssues).toHaveLength(1);
-    expect(analyses[0].validationIssues[0].disposition).toBe('QUARANTINED');
+    expect(analyses[0].validationIssues![0].disposition).toBe('QUARANTINED');
 
     expect(getRuntimeSourceBinding(analyses[0].id)).toBe('binding-issues-999');
   });
 
   it('5. handles document extraction fatal error without registering source analysis or binding', async () => {
-    const rawAnalysis = {
-      summary: '',
+    const errorAnalysis: ForgeSourceAnalysis = {
+      id: 'src-fatal-analysis',
+      sourceRecord: {
+        id: 'src-fatal',
+        fileName: 'unusable.txt',
+        mimeType: 'text/plain',
+        kind: 'document',
+        receivedAt: Date.now(),
+        fileSizeBytes: 50,
+      },
+      summary: 'Extraction failed.',
       evidence: [],
-      candidates: [
-        {
-          id: 'cand-bad',
-          classification: 'evidence',
-          target: 'completely_unsupported_target',
-          label: 'Bad Target',
-          explanation: 'Malformed',
-          evidenceIds: [],
-          proposedValue: 'bad',
-        },
-      ],
+      candidates: [],
       unknowns: [],
+      validationIssues: [],
+      omittedValidationIssueCount: 0,
+      status: 'error',
+      errorMessage: 'Extraction produced no usable baseline: unparseable content.',
     };
 
     const fetchSpy = vi.fn().mockResolvedValue({
@@ -312,7 +330,7 @@ describe('FileDropzone & Architect Binding Lifecycle UI', () => {
       json: async () => ({
         success: true,
         sourceBinding: 'binding-fatal-000',
-        analysis: rawAnalysis,
+        analysis: errorAnalysis,
       }),
     } as Response);
     globalThis.fetch = fetchSpy;

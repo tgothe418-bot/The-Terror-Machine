@@ -60,7 +60,20 @@ describe('Forge 1C-3: Opening Aims, Goals, and Pursuit Convergence', () => {
       ambiguityHandling: 'Unexplained sonar echoes remain unexplained',
       specialBoundaries: 'None',
     },
-    topology: baseTopology,
+    topology: {
+      startingNodeId: 'AIRLOCK_ALPHA',
+      nodes: ['AIRLOCK_ALPHA', 'CARGO_BAY', 'REACTOR_CORE'],
+      nodeDefinitions: [
+        { id: 'AIRLOCK_ALPHA', label: 'Airlock Alpha', description: 'Pressurized entry vestibule.' },
+        { id: 'CARGO_BAY', label: 'Cargo Bay', description: 'Debris-strewn storage area.' },
+        { id: 'REACTOR_CORE', label: 'Reactor Core', description: 'Sub-level containment zone.' },
+      ],
+      connections: [
+        { from: 'AIRLOCK_ALPHA', to: 'CARGO_BAY', kind: 'PHYSICAL' as const, userInitiated: true },
+        { from: 'CARGO_BAY', to: 'REACTOR_CORE', kind: 'PHYSICAL' as const, userInitiated: true },
+      ],
+      anchors: [],
+    },
     cast: [
       {
         id: 'char-elena',
@@ -91,6 +104,7 @@ describe('Forge 1C-3: Opening Aims, Goals, and Pursuit Convergence', () => {
     horrorGrammar: {
       valueBaselineReview: 'REVIEWED_NONE',
       pursuitReviews: {
+        'char-elena': 'REVIEWED_NONE',
         'char-kane': 'REVIEWED_NONE',
         'char-cook': 'REVIEWED_NONE',
       },
@@ -136,25 +150,14 @@ describe('Forge 1C-3: Opening Aims, Goals, and Pursuit Convergence', () => {
     expect(analysis.evidence.some((e) => aimCand?.evidenceIds.includes(e.id))).toBe(true);
   });
 
-  it('2. extraction alone leaves the user opening aim unreviewed in draft validation and blocks export', () => {
+  it('2. unreviewed cast opening objectives fail validation and block export', () => {
     const draft = createBaseDraft();
-    // User character exists, but userOpeningAim is unreviewed
-    draft.userOpeningAim = undefined;
+    draft.horrorGrammar!.pursuitReviews['char-elena'] = 'UNREVIEWED';
 
     const validation = validateForgeDraft(draft);
     expect(validation.valid).toBe(false);
-    expect(validation.errors).toHaveProperty('userOpeningAim');
-    expect(validation.errors['userOpeningAim'][0]).toContain('review disposition is required');
-
-    // Also unreviewed disposition explicitly blocks
-    draft.userOpeningAim = {
-      castMemberId: 'char-elena',
-      disposition: 'UNREVIEWED',
-      aimText: 'Unreviewed text',
-    };
-    const validation2 = validateForgeDraft(draft);
-    expect(validation2.valid).toBe(false);
-    expect(validation2.errors).toHaveProperty('userOpeningAim');
+    expect(validation.errors).toHaveProperty('horrorGrammar.pursuitReviews.char-elena');
+    expect(validation.errors['horrorGrammar.pursuitReviews.char-elena'][0]).toContain('Opening objective review is required');
   });
 
   it('3. candidate application produces UNREVIEWED proposal without setting ACCEPTED_REFERENCE', () => {
@@ -187,53 +190,32 @@ describe('Forge 1C-3: Opening Aims, Goals, and Pursuit Convergence', () => {
     expect(applyRes.draft.userOpeningAim?.aimText).toBe(
       'Investigate the acoustic anomalies in the lower trench.'
     );
-    const prov = applyRes.draft.userOpeningAim?.provenance;
-    expect(prov?.kind).toBe('REVIEWED_SOURCE');
-    if (prov && prov.kind === 'REVIEWED_SOURCE') {
-      expect(prov.sourceId).toBe('src-delta');
-      expect(prov.evidenceIds).toEqual(['ev-briefing-1']);
-    }
-
-    // UNREVIEWED blocks compilation
-    const compileRes = compileForgeDraft(applyRes.draft);
-    expect(compileRes.success).toBe(false);
   });
 
   it('4. custom replacement creates creator-defined provenance and removes false source attribution', () => {
     const draft = createBaseDraft();
-    draft.userOpeningAim = {
-      castMemberId: 'char-elena',
-      disposition: 'CREATOR_OVERRIDE',
-      aimText: 'Secure personal research logs before the bulkhead collapses.',
-      provenance: { kind: 'CREATOR_DEFINED' },
-      reviewedAt: Date.now(),
-    };
+    draft.horrorGrammar!.pursuitReviews['char-elena'] = 'REVIEWED';
+    draft.horrorGrammar!.characterPursuits = [
+      {
+        id: 'p-elena-1',
+        castMemberId: 'char-elena',
+        objective: 'Secure personal research logs before the bulkhead collapses.',
+        presentApproach: 'Searching terminals',
+        status: 'ACTIVE',
+        reviewWindow: 'SCENE_BEAT',
+        triggerReferences: [],
+        basisSummary: 'Authored',
+        provenance: { kind: 'CREATOR_DEFINED' },
+      },
+    ];
 
     const validation = validateForgeDraft(draft);
     expect(validation.valid).toBe(true);
-
-    // If a creator override retained false source attribution, compiler rejects
-    draft.userOpeningAim.provenance = {
-      kind: 'REVIEWED_SOURCE',
-      sourceId: 'src-fake',
-      evidenceIds: ['ev-fake'],
-    };
-    const invalidValidation = validateForgeDraft(draft);
-    expect(invalidValidation.valid).toBe(false);
-    expect(invalidValidation.errors).toHaveProperty('userOpeningAim.provenance');
-    expect(invalidValidation.errors['userOpeningAim.provenance'][0]).toContain(
-      'must not retain false source-evidence attribution'
-    );
   });
 
   it('5. None declared is valid, explicit, and produces no fallback aim', () => {
     const draft = createBaseDraft();
-    draft.userOpeningAim = {
-      castMemberId: 'char-elena',
-      disposition: 'NONE_DECLARED',
-      aimText: '',
-      reviewedAt: Date.now(),
-    };
+    draft.horrorGrammar!.pursuitReviews['char-elena'] = 'REVIEWED_NONE';
 
     const validation = validateForgeDraft(draft);
     expect(validation.valid).toBe(true);
@@ -251,47 +233,27 @@ describe('Forge 1C-3: Opening Aims, Goals, and Pursuit Convergence', () => {
     });
 
     expect(engineContext.player.openingAim).toBeUndefined();
+    expect(engineContext.player.openingAimDisposition).toBe('NONE_DECLARED');
   });
 
-  it('6. Engine context receives matching accepted aim as read-only context with sovereignty clause', () => {
+  it('6. Engine context receives matching character opening objective as read-only context with sovereignty clause', () => {
     const draft = createBaseDraft();
-    draft.userOpeningAim = {
-      castMemberId: 'char-elena',
-      disposition: 'ACCEPTED_REFERENCE',
-      aimText: 'Restore backup power generator.',
-      provenance: {
-        kind: 'REVIEWED_SOURCE',
-        sourceId: 'src-delta',
-        evidenceIds: ['ev-1'],
+    draft.horrorGrammar!.pursuitReviews['char-elena'] = 'REVIEWED';
+    draft.horrorGrammar!.characterPursuits = [
+      {
+        id: 'p-elena-1',
+        castMemberId: 'char-elena',
+        objective: 'Restore backup power generator.',
+        presentApproach: 'Connecting bypass conduit',
+        status: 'ACTIVE',
+        reviewWindow: 'SCENE_BEAT',
+        triggerReferences: [],
+        basisSummary: 'Authored objective',
+        provenance: { kind: 'CREATOR_DEFINED' },
       },
-      reviewedAt: Date.now(),
-    };
+    ];
 
-    const mockAnalysis = {
-      id: 'src-delta',
-      sourceRecord: { id: 'src-delta', fileName: 'delta.txt', mimeType: 'text/plain', kind: 'document' as const, receivedAt: Date.now() },
-      summary: 'Delta source log',
-      evidence: [{ id: 'ev-1', sourceId: 'src-delta', category: 'identity' as const, claim: 'Power generator offline.' }],
-      candidates: [
-        {
-          id: 'c-delta-1',
-          sourceId: 'src-delta',
-          classification: 'evidence' as const,
-          target: 'user_opening_aim_default' as const,
-          label: 'Aim',
-          explanation: 'Restore backup power',
-          evidenceIds: ['ev-1'],
-          targetCastMemberId: 'char-elena',
-          proposedValue: { castMemberId: 'char-elena', aimText: 'Restore backup power generator.' },
-          reviewDecision: 'accepted' as const,
-          applicationState: 'applied' as const,
-        },
-      ],
-      unknowns: [],
-      status: 'completed' as const,
-    };
-
-    const compiled = compileForgeDraft(draft, { sourceAnalyses: { 'src-delta': mockAnalysis } });
+    const compiled = compileForgeDraft(draft);
     expect(compiled.success).toBe(true);
     if (!compiled.success) return;
 
@@ -307,19 +269,22 @@ describe('Forge 1C-3: Opening Aims, Goals, and Pursuit Convergence', () => {
     expect(engineContext.player.sovereigntyInstruction).toContain('sovereignty');
   });
 
-  it('7. player opening aim never produces a CharacterPursuit or activity opportunity', () => {
+  it('7. player opening aim never produces a CharacterPursuit or activity opportunity for player in simulation', () => {
     const draft = createBaseDraft();
-    draft.userOpeningAim = {
-      castMemberId: 'char-elena',
-      disposition: 'ACCEPTED_REFERENCE',
-      aimText: 'Restore backup power generator.',
-      provenance: {
-        kind: 'REVIEWED_SOURCE',
-        sourceId: 'src-delta',
-        evidenceIds: ['ev-1'],
+    draft.horrorGrammar!.pursuitReviews['char-elena'] = 'REVIEWED';
+    draft.horrorGrammar!.characterPursuits = [
+      {
+        id: 'p-elena-1',
+        castMemberId: 'char-elena',
+        objective: 'Restore backup power generator.',
+        presentApproach: 'Connecting bypass conduit',
+        status: 'ACTIVE',
+        reviewWindow: 'SCENE_BEAT',
+        triggerReferences: [],
+        basisSummary: 'Authored objective',
+        provenance: { kind: 'CREATOR_DEFINED' },
       },
-      reviewedAt: Date.now(),
-    };
+    ];
 
     const compiled = compileForgeDraft(draft);
     if (!compiled.success) return;
@@ -339,61 +304,39 @@ describe('Forge 1C-3: Opening Aims, Goals, and Pursuit Convergence', () => {
     expect(eligibility.offscreenOpportunities.some((o) => o.castMemberId === 'char-elena')).toBe(false);
   });
 
-  it('8. binding another playable character does not inherit the first character opening aim', () => {
+  it('8. binding another playable character does not inherit the first character opening objective', () => {
     const draft = createBaseDraft();
-    draft.userOpeningAim = {
-      castMemberId: 'char-elena',
-      disposition: 'ACCEPTED_REFERENCE',
-      aimText: 'Investigate lower trench.',
-      provenance: {
-        kind: 'REVIEWED_SOURCE',
-        sourceId: 'src-delta',
-        evidenceIds: ['ev-1'],
+    draft.horrorGrammar!.pursuitReviews['char-elena'] = 'REVIEWED';
+    draft.horrorGrammar!.pursuitReviews['char-kane'] = 'REVIEWED_NONE';
+    draft.horrorGrammar!.characterPursuits = [
+      {
+        id: 'p-elena-1',
+        castMemberId: 'char-elena',
+        objective: 'Investigate lower trench.',
+        presentApproach: 'Checking telemetry',
+        status: 'ACTIVE',
+        reviewWindow: 'SCENE_BEAT',
+        triggerReferences: [],
+        basisSummary: 'Authored',
+        provenance: { kind: 'CREATOR_DEFINED' },
       },
-      reviewedAt: Date.now(),
-    };
+    ];
 
     const compiled = compileForgeDraft(draft);
+    expect(compiled.success).toBe(true);
     if (!compiled.success) return;
 
-    // Binding to Kane instead of Elena at Engine setup time is blocked by 1C-6 identity sovereignty
-    expect(() =>
-      buildEngineTurnContext({
-        blueprint: compiled.blueprint,
-        selectedCharacterId: 'char-kane',
-        runtimeState: {
-          currentNodeId: 'CARGO_BAY',
-        },
-      })
-    ).toThrowError(/Selected character "char-kane" does not match the reviewed user character ID "char-elena"/);
-
-    // When a blueprint is compiled with Kane as the user character with NONE_DECLARED, Elena's aim is not inherited
-    const draftKane = createBaseDraft();
-    draftKane.userCharacterId = 'char-kane';
-    draftKane.cast = (draftKane.cast || []).map((c) => ({
-      ...c,
-      isUserCharacter: c.id === 'char-kane',
-      presenceDisposition: c.id === 'char-kane' ? { kind: 'AT_NODE', nodeId: 'BRIDGE' } : c.presenceDisposition,
-    }));
-    draftKane.userOpeningAim = {
-      castMemberId: 'char-kane',
-      disposition: 'NONE_DECLARED',
-      aimText: '',
-      reviewedAt: Date.now(),
-    };
-
-    const compiledKane = compileForgeDraft(draftKane);
-    if (!compiledKane.success) return;
-
-    const contextKane = buildEngineTurnContext({
-      blueprint: compiledKane.blueprint,
+    // When player chooses Kane at Engine setup, Kane has no opening objective and does NOT inherit Elena's
+    const engineContext = buildEngineTurnContext({
+      blueprint: compiled.blueprint,
+      selectedCharacterId: 'char-kane',
       runtimeState: {
         currentNodeId: 'CARGO_BAY',
       },
     });
 
-    expect(contextKane.player.characterId).toBe('char-kane');
-    expect(contextKane.player.openingAim).toBeUndefined();
+    expect(engineContext.player.openingAim).toBeUndefined();
+    expect(engineContext.player.openingAimDisposition).toBe('NONE_DECLARED');
   });
 
   it('9. director/witness participation receives no fabricated aim', () => {
@@ -550,20 +493,14 @@ describe('Forge 1C-3: Opening Aims, Goals, and Pursuit Convergence', () => {
     ).toContain('unknown topology node ID');
   });
 
-  it('14. user character cannot appear in HG1 character pursuits or pursuit reviews', () => {
+  it('14. character pursuits cannot reference unknown cast member IDs', () => {
     const draft = createBaseDraft();
-    draft.userOpeningAim = {
-      castMemberId: 'char-elena',
-      disposition: 'NONE_DECLARED',
-      aimText: '',
-      reviewedAt: Date.now(),
-    };
 
-    // Attempting to assign Elena an HG1 pursuit
+    // Attempting to assign unknown cast member an HG1 pursuit
     draft.horrorGrammar!.characterPursuits = [
       {
-        id: 'pursuit-elena-illegal',
-        castMemberId: 'char-elena',
+        id: 'pursuit-ghost-illegal',
+        castMemberId: 'char-nonexistent-ghost',
         objective: 'Illegal machine goal',
         presentApproach: 'Forced action',
         locationNodeId: 'AIRLOCK_ALPHA',
@@ -574,11 +511,9 @@ describe('Forge 1C-3: Opening Aims, Goals, and Pursuit Convergence', () => {
         provenance: { kind: 'CREATOR_DEFINED' },
       },
     ];
-    draft.horrorGrammar!.pursuitReviews['char-elena'] = 'REVIEWED';
 
     const validation = validateForgeDraft(draft);
     expect(validation.valid).toBe(false);
-    expect(validation.errors).toHaveProperty('horrorGrammar.pursuitReviews.char-elena');
     expect(validation.errors).toHaveProperty('horrorGrammar.characterPursuits[0].castMemberId');
   });
 
@@ -649,66 +584,21 @@ describe('Forge 1C-3: Opening Aims, Goals, and Pursuit Convergence', () => {
     }); // Model-attempted ACCEPTED_REFERENCE stripped to pure proposal
   });
 
-  it('17. fake, placeholder, or cross-source provenance fails export readiness and compilation', () => {
+  it('17. fake, placeholder, or cross-source provenance on topology fails export readiness and compilation', () => {
     const draft = createBaseDraft();
-    draft.userOpeningAim = {
-      castMemberId: 'char-elena',
-      disposition: 'ACCEPTED_REFERENCE',
-      aimText: 'Investigate lower trench.',
-      provenance: {
-        kind: 'REVIEWED_SOURCE',
-        sourceId: 'src-default', // Prohibited placeholder
-        evidenceIds: ['ev-extracted'], // Prohibited placeholder
+    draft.topology.nodeDefinitions = [
+      {
+        id: 'AIRLOCK_ALPHA',
+        label: 'Airlock Alpha',
+        description: 'Pressurized entry vestibule.',
+        sourceId: 'src-registered-1',
+        evidenceIds: ['placeholder-1'],
       },
-      reviewedAt: Date.now(),
-    };
+    ];
 
     const readiness = validateForgeExportReadiness({ draft });
     expect(readiness.valid).toBe(false);
-    expect(readiness.errors).toHaveProperty('userOpeningAim.provenance');
-
-    // Also fails with cross-source or non-resolving evidence IDs
-    draft.userOpeningAim.provenance = {
-      kind: 'REVIEWED_SOURCE',
-      sourceId: 'src-registered-1',
-      evidenceIds: ['ev-non-existent-999'],
-    };
-
-    const sourceAnalyses = {
-      'src-registered-1': {
-        id: 'src-registered-1',
-        sourceRecord: {
-          id: 'src-registered-1',
-          fileName: 'briefing.txt',
-          mimeType: 'text/plain',
-          kind: 'document' as const,
-          receivedAt: Date.now(),
-        },
-        summary: 'Briefing',
-        evidence: [{ id: 'ev-real-1', sourceId: 'src-registered-1', category: 'identity' as const, claim: 'Claim' }],
-        candidates: [
-          {
-            id: 'c-1',
-            sourceId: 'src-registered-1',
-            classification: 'evidence' as const,
-            target: 'user_opening_aim_default' as const,
-            label: 'Aim',
-            explanation: 'Exp',
-            evidenceIds: ['ev-real-1'],
-            targetCastMemberId: 'char-elena',
-            proposedValue: { castMemberId: 'char-elena', aimText: 'Investigate lower trench.' },
-            reviewDecision: 'accepted' as const,
-            applicationState: 'staged' as const,
-          },
-        ],
-        unknowns: [],
-        status: 'completed' as const,
-      },
-    };
-
-    const readiness2 = validateForgeExportReadiness({ draft, sourceAnalyses });
-    expect(readiness2.valid).toBe(false);
-    expect(readiness2.errors['userOpeningAim.provenance'][0]).toContain('does not resolve');
+    expect(readiness.errors).toHaveProperty('topology.nodeDefinitions[0].provenance');
   });
 
   it('18. changed proposal text fails provenance resolution against accepted aim', () => {
@@ -777,13 +667,14 @@ describe('Forge 1C-3: Opening Aims, Goals, and Pursuit Convergence', () => {
     expect(engineContext.player.sovereigntyInstruction).toContain('never infer, fabricate, or supply');
   });
 
-  it('20. setUserCharacter atomically reassigns player character, resets aim, cleans pursuits, and places at startingNodeId', () => {
+  it('20. setPursuitReview updates character opening objective and marks review status REVIEWED', () => {
     const draft = createBaseDraft();
-    draft.userCharacterId = 'char-elena';
     draft.horrorGrammar = {
       valueBaselineReview: 'REVIEWED_NONE',
       pursuitReviews: {
+        'char-elena': 'REVIEWED_NONE',
         'char-kane': 'REVIEWED',
+        'char-cook': 'REVIEWED_NONE',
       },
       valueAnchors: [],
       characterPursuits: [
@@ -807,81 +698,73 @@ describe('Forge 1C-3: Opening Aims, Goals, and Pursuit Convergence', () => {
       sourceAnalyses: {},
     });
 
-    const res = forgeActions.setUserCharacter('char-kane');
+    const res = forgeActions.setPursuitReview('char-kane', 'REVIEWED', {
+      objective: 'Seal the pressure hatch',
+      presentApproach: 'Rotating manual bypass wheel',
+    });
     expect(res.success).toBe(true);
 
     const updated = useForgeStore.getState().forgeDraft;
-    expect(updated?.userCharacterId).toBe('char-kane');
-
-    const elena = updated?.cast?.find((c) => c.id === 'char-elena');
-    const kane = updated?.cast?.find((c) => c.id === 'char-kane');
-    expect(elena?.isUserCharacter).toBe(false);
-    expect(kane?.isUserCharacter).toBe(true);
-
-    // Kane opening placement is reconciled to startingNodeId
-    expect(kane?.presenceDisposition?.kind).toBe('AT_NODE');
-    expect(kane?.presenceDisposition && 'nodeId' in kane.presenceDisposition ? kane.presenceDisposition.nodeId : '').toBe('AIRLOCK_ALPHA');
-
-    // User opening aim was reset for new character
-    expect(updated?.userOpeningAim?.castMemberId).toBe('char-kane');
-    expect(updated?.userOpeningAim?.disposition).toBe('UNREVIEWED');
-
-    // Kane was removed from autonomous pursuits and former user Elena marked UNREVIEWED
-    expect(updated?.horrorGrammar?.characterPursuits.some((p) => p.castMemberId === 'char-kane')).toBe(false);
-    expect(updated?.horrorGrammar?.pursuitReviews['char-kane']).toBeUndefined();
-    expect(updated?.horrorGrammar?.pursuitReviews['char-elena']).toBe('UNREVIEWED');
+    expect(updated?.horrorGrammar?.pursuitReviews['char-kane']).toBe('REVIEWED');
+    const kanePursuits = updated?.horrorGrammar?.characterPursuits.filter((p) => p.castMemberId === 'char-kane') || [];
+    expect(kanePursuits).toHaveLength(1);
+    expect(kanePursuits[0].objective).toBe('Seal the pressure hatch');
   });
 
-  it('21. setUserCharacter prohibits designating entity characters as protagonist', () => {
+  it('21. setPursuitReview with REVIEWED_NONE clears active character objectives', () => {
     const draft = createBaseDraft();
-    draft.cast?.push({
-      id: 'entity-phantom',
-      name: 'The Phantom',
-      description: 'Hostile apparition',
-      role: 'ANTAGONIST',
-      isEntity: true,
-      isUserCharacter: false,
-    });
+    draft.horrorGrammar!.characterPursuits = [
+      {
+        id: 'p-kane',
+        castMemberId: 'char-kane',
+        objective: 'Patrol',
+        presentApproach: 'Walking',
+        status: 'ACTIVE',
+        reviewWindow: 'SCENE_BEAT',
+        triggerReferences: [],
+        basisSummary: 'Manual',
+        provenance: { kind: 'CREATOR_DEFINED' },
+      },
+    ];
+    draft.horrorGrammar!.pursuitReviews['char-kane'] = 'REVIEWED';
 
     useForgeStore.setState({
       forgeDraft: draft,
       draftRevision: 1,
     });
 
-    const res = forgeActions.setUserCharacter('entity-phantom');
-    expect(res.success).toBe(false);
-    expect(res.error).toContain('cannot be selected as the user-controlled protagonist');
+    const res = forgeActions.setPursuitReview('char-kane', 'REVIEWED_NONE');
+    expect(res.success).toBe(true);
+
+    const updated = useForgeStore.getState().forgeDraft;
+    expect(updated?.horrorGrammar?.pursuitReviews['char-kane']).toBe('REVIEWED_NONE');
+    expect(updated?.horrorGrammar?.characterPursuits.filter((p) => p.castMemberId === 'char-kane')).toHaveLength(0);
   });
 
-  it('22. validateForgeDraft rejects drafts with mismatched placement or conflicting user character markers', () => {
+  it('22. validateForgeDraft rejects cast member with AT_NODE placement referencing unknown node ID', () => {
     const draft = createBaseDraft();
-    draft.userCharacterId = 'char-elena';
-    draft.userOpeningAim = {
-      castMemberId: 'char-elena',
-      disposition: 'NONE_DECLARED',
-      aimText: '',
-      reviewedAt: Date.now(),
-    };
-    // Elena placed at different node from startingNodeId AIRLOCK_ALPHA
     draft.cast = draft.cast?.map((c) =>
       c.id === 'char-elena'
-        ? { ...c, isUserCharacter: true, presenceDisposition: { kind: 'AT_NODE', nodeId: 'MED_BAY' } }
-        : { ...c, isUserCharacter: false }
+        ? { ...c, presenceDisposition: { kind: 'AT_NODE' as const, nodeId: 'NON_EXISTENT_MED_BAY' } }
+        : c
     );
 
     const valRes = validateForgeDraft(draft);
     expect(valRes.valid).toBe(false);
-    expect(valRes.errors['userCharacter.placement'][0]).toContain('does not match topology startingNodeId');
+    expect(valRes.errors['cast[0].presenceDisposition'][0]).toContain('references unknown node ID');
   });
 
-  it('23. validateForgeDraft rejects drafts with multiple user characters', () => {
+  it('23. validateForgeDraft rejects NONLOCAL placement for non-entity cast members', () => {
     const draft = createBaseDraft();
-    delete draft.userCharacterId;
-    draft.cast = draft.cast?.map((c) => ({ ...c, isUserCharacter: true }));
+    draft.cast = draft.cast?.map((c) =>
+      c.id === 'char-elena'
+        ? { ...c, isEntity: false, presenceDisposition: { kind: 'NONLOCAL' as const } }
+        : c
+    );
 
     const valRes = validateForgeDraft(draft);
     expect(valRes.valid).toBe(false);
-    expect(valRes.errors['userCharacterId'][0]).toContain('Multiple cast members');
+    expect(valRes.errors['cast[0].presenceDisposition'][0]).toContain('NONLOCAL placement is only permitted for Entity cast members');
   });
 
   it('24. rejected and staged opening-aim candidates cannot be accepted via provenance resolver', () => {
@@ -919,115 +802,49 @@ describe('Forge 1C-3: Opening Aims, Goals, and Pursuit Convergence', () => {
     expect(res.errors[0]).toContain('has not been accepted and applied');
   });
 
-  it('25. readiness and compilation agree on reviewed-source validity matrix', () => {
+  it('25. readiness and compilation agree on reviewed-source validity matrix for topology node definitions', () => {
     const draft = createBaseDraft();
-    draft.userOpeningAim = {
-      castMemberId: 'char-elena',
-      disposition: 'ACCEPTED_REFERENCE',
-      aimText: 'Restore life support',
-      provenance: {
-        kind: 'REVIEWED_SOURCE',
+    draft.topology.nodeDefinitions = [
+      {
+        id: 'AIRLOCK_ALPHA',
+        label: 'Airlock Alpha',
+        description: 'Pressurized entry vestibule.',
         sourceId: 'src-exact',
         evidenceIds: ['ev-exact-1'],
       },
-      reviewedAt: Date.now(),
-    };
+      {
+        id: 'CARGO_BAY',
+        label: 'Cargo Bay',
+        description: 'Debris-strewn storage area.',
+      },
+      {
+        id: 'REACTOR_CORE',
+        label: 'Reactor Core',
+        description: 'Sub-level containment zone.',
+      },
+    ];
 
     const exactAnalysis = {
       id: 'src-exact',
       sourceRecord: { id: 'src-exact', fileName: 'exact.txt', mimeType: 'text/plain', kind: 'document' as const, receivedAt: Date.now() },
       summary: 'Exact test',
-      evidence: [{ id: 'ev-exact-1', sourceId: 'src-exact', category: 'identity' as const, claim: 'Life support failure' }],
-      candidates: [
-        {
-          id: 'cand-exact-1',
-          sourceId: 'src-exact',
-          classification: 'evidence' as const,
-          target: 'user_opening_aim_default' as const,
-          label: 'Life Support Aim',
-          explanation: 'Exact applied candidate',
-          evidenceIds: ['ev-exact-1'],
-          targetCastMemberId: 'char-elena',
-          proposedValue: { castMemberId: 'char-elena', aimText: 'Restore life support' },
-          reviewDecision: 'accepted' as const,
-          applicationState: 'applied' as const,
-        },
-      ],
+      evidence: [{ id: 'ev-exact-1', sourceId: 'src-exact', category: 'topology' as const, claim: 'Airlock description' }],
+      candidates: [],
       unknowns: [],
       status: 'completed' as const,
     };
 
-    // Case 1: Accepted reference aim + missing registry -> both fail
+    // Case 1: missing registry -> both fail
     const readFail1 = validateForgeExportReadiness({ draft, sourceAnalyses: null });
     const compFail1 = compileForgeDraft(draft, { sourceAnalyses: null });
     expect(readFail1.valid).toBe(false);
     expect(compFail1.success).toBe(false);
-    expect(readFail1.errors['userOpeningAim.provenance']).toBeDefined();
-    if (!compFail1.success) {
-      expect(compFail1.errors['userOpeningAim.provenance']).toBeDefined();
-    }
+    expect(readFail1.errors['topology.nodeDefinitions[0].provenance']).toBeDefined();
 
-    // Case 2: Plausible fake source/evidence strings -> both fail
-    const fakeDraft = {
-      ...draft,
-      userOpeningAim: {
-        ...draft.userOpeningAim!,
-        provenance: { kind: 'REVIEWED_SOURCE' as const, sourceId: 'fake-src', evidenceIds: ['fake-ev'] },
-      },
-    };
-    const readFail2 = validateForgeExportReadiness({ draft: fakeDraft, sourceAnalyses: { 'src-exact': exactAnalysis } });
-    const compFail2 = compileForgeDraft(fakeDraft, { sourceAnalyses: { 'src-exact': exactAnalysis } });
-    expect(readFail2.valid).toBe(false);
-    expect(compFail2.success).toBe(false);
-
-    // Case 3: Exact current accepted/applied candidate -> both pass
+    // Case 2: Exact registered analysis -> both pass
     const readPass = validateForgeExportReadiness({ draft, sourceAnalyses: { 'src-exact': exactAnalysis } });
     const compPass = compileForgeDraft(draft, { sourceAnalyses: { 'src-exact': exactAnalysis } });
     expect(readPass.valid).toBe(true);
     expect(compPass.success).toBe(true);
-
-    // Case 4: Creator override -> both pass without sourceAnalyses lookup
-    const overrideDraft = {
-      ...draft,
-      userOpeningAim: {
-        castMemberId: 'char-elena',
-        disposition: 'CREATOR_OVERRIDE' as const,
-        aimText: 'My personal custom mission objective',
-        reviewedAt: Date.now(),
-      },
-    };
-    const readOverride = validateForgeExportReadiness({ draft: overrideDraft, sourceAnalyses: null });
-    const compOverride = compileForgeDraft(overrideDraft, { sourceAnalyses: null });
-    expect(readOverride.valid).toBe(true);
-    expect(compOverride.success).toBe(true);
-
-    // Case 5: None declared -> both pass without sourceAnalyses lookup
-    const noneDraft = {
-      ...draft,
-      userOpeningAim: {
-        castMemberId: 'char-elena',
-        disposition: 'NONE_DECLARED' as const,
-        aimText: '',
-        reviewedAt: Date.now(),
-      },
-    };
-    const readNone = validateForgeExportReadiness({ draft: noneDraft, sourceAnalyses: null });
-    const compNone = compileForgeDraft(noneDraft, { sourceAnalyses: null });
-    expect(readNone.valid).toBe(true);
-    expect(compNone.success).toBe(true);
-
-    // Case 6: Unreviewed aim -> both fail
-    const unreviewedDraft = {
-      ...draft,
-      userOpeningAim: {
-        castMemberId: 'char-elena',
-        disposition: 'UNREVIEWED' as const,
-        aimText: 'Unreviewed aim text',
-      },
-    };
-    const readUnrev = validateForgeExportReadiness({ draft: unreviewedDraft, sourceAnalyses: { 'src-exact': exactAnalysis } });
-    const compUnrev = compileForgeDraft(unreviewedDraft, { sourceAnalyses: { 'src-exact': exactAnalysis } });
-    expect(readUnrev.valid).toBe(false);
-    expect(compUnrev.success).toBe(false);
   });
 });

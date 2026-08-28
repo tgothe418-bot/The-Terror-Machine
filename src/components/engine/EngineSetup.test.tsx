@@ -148,7 +148,7 @@ describe('EngineSetup explicit cast binding', () => {
 
     expect(firstMortalBtn.disabled).toBe(false);
     expect(secondMortalBtn.disabled).toBe(false);
-    expect(entityBtn.disabled).toBe(true); // Entity disabled for protagonist
+    expect(entityBtn.disabled).toBe(false); // Universal cast eligibility
 
     // Select the non-first eligible mortal.
     await act(async () => {
@@ -171,7 +171,7 @@ describe('EngineSetup explicit cast binding', () => {
     expect(gameState?.perspective_mode).toBe('embodied');
   });
 
-  it('filters cast card eligibility when switching between roles', async () => {
+  it('handles cast card selection when switching between roles', async () => {
     await act(async () => {
       root?.render(<EngineSetup />);
     });
@@ -190,7 +190,7 @@ describe('EngineSetup explicit cast binding', () => {
     const firstMortalBtn = refreshedButtons.find((b) => b.textContent?.includes('Mortal One')) as HTMLButtonElement;
     const entityBtn = refreshedButtons.find((b) => b.textContent?.includes('Entity One')) as HTMLButtonElement;
 
-    expect(firstMortalBtn.disabled).toBe(true);
+    expect(firstMortalBtn.disabled).toBe(false);
     expect(entityBtn.disabled).toBe(false);
 
     // Select the entity.

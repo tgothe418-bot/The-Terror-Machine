@@ -478,6 +478,7 @@ describe('Forge 1C-8: Production-Path Closure, Integration Proof, and Negative M
         ...useForgeStore.getState().forgeDraft!.horrorGrammar,
         valueBaselineReview: 'REVIEWED_NONE',
         pursuitReviews: {
+          ...useForgeStore.getState().forgeDraft!.horrorGrammar?.pursuitReviews,
           'char-sarah': 'REVIEWED',
           'char-mercer': 'REVIEWED_NONE',
           'entity-strider': 'REVIEWED_NONE',
@@ -511,14 +512,14 @@ describe('Forge 1C-8: Production-Path Closure, Integration Proof, and Negative M
     const normalizedBp: Blueprint = normalizeBlueprint(parsedRaw);
 
     expect(normalizedBp.identity.title).toBe('Xenon Sub-Level Resonance');
-    expect(normalizedBp.userCharacterId).toBe('char-marcus');
-    expect(normalizedBp.topology.startingNodeId).toBe('NODE_CONTROL');
+    expect(normalizedBp.userCharacterId).toBeUndefined();
+    expect(normalizedBp.topology.startingNodeId).toBeUndefined();
     expect(normalizedBp.topology.nodes).toEqual(['NODE_CONTROL', 'NODE_CORRIDOR', 'NODE_VAULT']);
     expect(normalizedBp.topology.anchors).toHaveLength(1);
     expect(normalizedBp.cast).toHaveLength(4);
 
     // 14. Engine perspective binding
-    const binding = resolvePerspectiveBinding(normalizedBp, 'protagonist', normalizedBp.userCharacterId);
+    const binding = resolvePerspectiveBinding(normalizedBp, 'protagonist', 'char-marcus');
     expect(binding.characterId).toBe('char-marcus');
     expect(binding.playerRole).toBe('protagonist');
 
@@ -635,7 +636,9 @@ describe('Forge 1C-8: Production-Path Closure, Integration Proof, and Negative M
       },
       horrorGrammar: {
         valueBaselineReview: 'REVIEWED_NONE',
-        pursuitReviews: {},
+        pursuitReviews: {
+          'char-operator': 'REVIEWED_NONE',
+        },
         valueAnchors: [],
         characterPursuits: [],
       },
@@ -670,9 +673,9 @@ describe('Forge 1C-8: Production-Path Closure, Integration Proof, and Negative M
       expect(marcusCand).toBeUndefined(); // Dropped by strict schema validation
     });
 
-    it('rejects draft when userCharacterId is missing or has multiple user characters in cast', () => {
+    it('rejects draft when cast opening placement is missing', () => {
       const draft = {
-        id: 'draft-no-user',
+        id: 'draft-no-placement',
         title: 'Title',
         premise: 'Premise',
         setting: { location: 'Loc' },
@@ -686,13 +689,40 @@ describe('Forge 1C-8: Production-Path Closure, Integration Proof, and Negative M
           {
             id: 'c1',
             name: 'C1',
-            isUserCharacter: true,
-            presenceDisposition: { kind: 'AT_NODE' as const, nodeId: 'NODE_A' },
+            isUserCharacter: false,
           },
+        ],
+        topology: { startingNodeId: 'NODE_A', nodes: ['NODE_A'], connections: [] },
+        horrorGrammar: {
+          valueBaselineReview: 'REVIEWED_NONE' as const,
+          pursuitReviews: { c1: 'REVIEWED_NONE' as const },
+          valueAnchors: [],
+          characterPursuits: [],
+        },
+      };
+
+      const res = validateForgeDraft(draft as unknown as ForgeDraft);
+      expect(res.valid).toBe(false);
+      expect(res.errors['cast[0].presenceDisposition']).toBeDefined();
+    });
+
+    it('rejects draft when cast member has no pursuit review', () => {
+      const draft = {
+        id: 'draft-unreviewed-aim',
+        title: 'Title',
+        premise: 'Premise',
+        setting: { location: 'Loc' },
+        depictionContract: {
+          dramaticRegister: 'A',
+          directness: 'B',
+          aftermath: 'C',
+          ambiguityHandling: 'D',
+        },
+        cast: [
           {
-            id: 'c2',
-            name: 'C2',
-            isUserCharacter: true,
+            id: 'c1',
+            name: 'C1',
+            isUserCharacter: false,
             presenceDisposition: { kind: 'AT_NODE' as const, nodeId: 'NODE_A' },
           },
         ],
@@ -707,57 +737,10 @@ describe('Forge 1C-8: Production-Path Closure, Integration Proof, and Negative M
 
       const res = validateForgeDraft(draft as unknown as ForgeDraft);
       expect(res.valid).toBe(false);
-      expect(res.errors['userCharacterId']).toBeDefined();
+      expect(res.errors['horrorGrammar.pursuitReviews.c1']).toBeDefined();
     });
 
-    it('rejects draft when opening aim targets a different cast member than userCharacterId', () => {
-      const draft = {
-        id: 'draft-mismatched-aim',
-        title: 'Title',
-        premise: 'Premise',
-        setting: { location: 'Loc' },
-        depictionContract: {
-          dramaticRegister: 'A',
-          directness: 'B',
-          aftermath: 'C',
-          ambiguityHandling: 'D',
-        },
-        userCharacterId: 'c1',
-        cast: [
-          {
-            id: 'c1',
-            name: 'C1',
-            isUserCharacter: true,
-            presenceDisposition: { kind: 'AT_NODE' as const, nodeId: 'NODE_A' },
-          },
-          {
-            id: 'c2',
-            name: 'C2',
-            isUserCharacter: false,
-            presenceDisposition: { kind: 'AT_NODE' as const, nodeId: 'NODE_A' },
-          },
-        ],
-        userOpeningAim: {
-          castMemberId: 'c2',
-          disposition: 'NONE_DECLARED',
-          aimText: '',
-          reviewedAt: Date.now(),
-        },
-        topology: { startingNodeId: 'NODE_A', nodes: ['NODE_A'], connections: [] },
-        horrorGrammar: {
-          valueBaselineReview: 'REVIEWED_NONE' as const,
-          pursuitReviews: { c2: 'REVIEWED_NONE' as const },
-          valueAnchors: [],
-          characterPursuits: [],
-        },
-      };
-
-      const res = validateForgeDraft(draft as unknown as ForgeDraft);
-      expect(res.valid).toBe(false);
-      expect(res.errors['userOpeningAim.castMemberId']).toBeDefined();
-    });
-
-    it('rejects opening aim with placeholder, pattern-shaped, or missing provenance in readiness gate', () => {
+    it('rejects character pursuit with placeholder provenance in readiness gate', () => {
       const draft = {
         id: 'draft-fake-prov',
         title: 'Title',
@@ -769,44 +752,70 @@ describe('Forge 1C-8: Production-Path Closure, Integration Proof, and Negative M
           aftermath: 'C',
           ambiguityHandling: 'D',
         },
-        userCharacterId: 'c1',
         cast: [
           {
             id: 'c1',
             name: 'C1',
-            isUserCharacter: true,
+            isUserCharacter: false,
             presenceDisposition: { kind: 'AT_NODE' as const, nodeId: 'NODE_A' },
           },
         ],
-        userOpeningAim: {
-          castMemberId: 'c1',
-          disposition: 'ACCEPTED_REFERENCE',
-          aimText: 'Real aim text',
-          provenance: {
-            kind: 'REVIEWED_SOURCE',
-            sourceId: 'src-default',
-            evidenceIds: ['ev-extracted'],
-          },
-        },
         topology: { startingNodeId: 'NODE_A', nodes: ['NODE_A'], connections: [] },
         horrorGrammar: {
           valueBaselineReview: 'REVIEWED_NONE' as const,
-          pursuitReviews: {},
+          pursuitReviews: { c1: 'REVIEWED' as const },
           valueAnchors: [],
-          characterPursuits: [],
+          characterPursuits: [
+            {
+              id: 'p-1',
+              castMemberId: 'c1',
+              objective: 'Real aim text',
+              presentApproach: 'Patrolling',
+              status: 'ACTIVE' as const,
+              reviewWindow: 'SCENE_BEAT' as const,
+              triggerReferences: [],
+              basisSummary: 'Basis',
+              provenance: {
+                kind: 'REVIEWED_SOURCE' as const,
+                sourceId: 'src-default',
+                evidenceIds: ['ev-extracted'],
+              },
+            },
+          ],
         },
       };
 
-      const readiness = validateForgeExportReadiness({ draft: draft as unknown as ForgeDraft });
+      const readiness = validateForgeExportReadiness({
+        draft: draft as unknown as ForgeDraft,
+        sourceAnalyses: {
+          'src-real': {
+            id: 'src-real',
+            sourceRecord: {
+              id: 'src-real',
+              fileName: 'real.txt',
+              mimeType: 'text/plain',
+              kind: 'document' as const,
+              receivedAt: Date.now(),
+            },
+            evidence: [],
+            candidates: [],
+            unknowns: [],
+            status: 'completed' as const,
+          },
+        },
+      });
       expect(readiness.valid).toBe(false);
-      expect(readiness.errors['userOpeningAim.provenance']).toContain(
-        'Prohibited placeholder sourceId: "src-default".'
-      );
+      expect(readiness.errors['horrorGrammar.characterPursuits[0].provenance']).toBeDefined();
+      expect(
+        readiness.errors['horrorGrammar.characterPursuits[0].provenance'].some((msg) =>
+          msg.includes('src-default')
+        )
+      ).toBe(true);
     });
 
-    it('rejects rich map missing startingNodeId or targeting an anchor or missing node', () => {
-      const draftMissing = {
-        id: 'draft-rich-no-start',
+    it('rejects rich map when startingNodeId is an anchor or missing node', () => {
+      const draftAnchor = {
+        id: 'draft-rich-anchor-start',
         title: 'Title',
         premise: 'Premise',
         setting: { location: 'Loc' },
@@ -816,50 +825,44 @@ describe('Forge 1C-8: Production-Path Closure, Integration Proof, and Negative M
           aftermath: 'C',
           ambiguityHandling: 'D',
         },
-        userCharacterId: 'c1',
         cast: [
           {
             id: 'c1',
             name: 'C1',
-            isUserCharacter: true,
+            isUserCharacter: false,
             presenceDisposition: { kind: 'AT_NODE' as const, nodeId: 'NODE_A' },
           },
         ],
-        userOpeningAim: {
-          castMemberId: 'c1',
-          disposition: 'NONE_DECLARED',
-          aimText: '',
-          reviewedAt: Date.now(),
-        },
         topology: {
+          startingNodeId: 'anchor-vent',
           nodeDefinitions: [
             { id: 'NODE_A', label: 'Node A', description: 'Desc A' },
             { id: 'NODE_B', label: 'Node B', description: 'Desc B' },
+          ],
+          nodes: ['NODE_A', 'NODE_B'],
+          anchors: [
+            { id: 'anchor-vent', parentNodeId: 'NODE_A', label: 'Vent' },
           ],
           connections: [],
         },
         horrorGrammar: {
           valueBaselineReview: 'REVIEWED_NONE' as const,
-          pursuitReviews: {},
+          pursuitReviews: { c1: 'REVIEWED_NONE' as const },
           valueAnchors: [],
           characterPursuits: [],
         },
       };
 
-      const resMissing = validateForgeDraft(draftMissing as unknown as ForgeDraft);
-      expect(resMissing.valid).toBe(false);
-      expect(resMissing.errors['topology.startingNodeId']).toContain(
-        'Explicit startingNodeId is required for authored topology'
-      );
-
-      expect(() => compileRuntimeTopology({ topology: draftMissing.topology })).toThrow(
-        'Explicit startingNodeId is required for rich authored topology.'
+      const res = validateForgeDraft(draftAnchor as unknown as ForgeDraft);
+      expect(res.valid).toBe(false);
+      expect(res.errors['topology.startingNodeId']).toContain(
+        'Starting node ID "anchor-vent" cannot be an expandable space anchor'
       );
     });
 
-    it('rejects user placement differing from startingNodeId', () => {
+    it('rejects character placement referencing an unknown node', () => {
       const draft = {
-        id: 'draft-placement-mismatch',
+        id: 'draft-placement-unknown',
         title: 'Title',
         premise: 'Premise',
         setting: { location: 'Loc' },
@@ -869,21 +872,14 @@ describe('Forge 1C-8: Production-Path Closure, Integration Proof, and Negative M
           aftermath: 'C',
           ambiguityHandling: 'D',
         },
-        userCharacterId: 'c1',
         cast: [
           {
             id: 'c1',
             name: 'C1',
-            isUserCharacter: true,
-            presenceDisposition: { kind: 'AT_NODE' as const, nodeId: 'NODE_B' }, // Mismatch: start is NODE_A
+            isUserCharacter: false,
+            presenceDisposition: { kind: 'AT_NODE' as const, nodeId: 'NONEXISTENT_NODE' },
           },
         ],
-        userOpeningAim: {
-          castMemberId: 'c1',
-          disposition: 'NONE_DECLARED',
-          aimText: '',
-          reviewedAt: Date.now(),
-        },
         topology: {
           startingNodeId: 'NODE_A',
           nodes: ['NODE_A', 'NODE_B'],
@@ -891,7 +887,7 @@ describe('Forge 1C-8: Production-Path Closure, Integration Proof, and Negative M
         },
         horrorGrammar: {
           valueBaselineReview: 'REVIEWED_NONE' as const,
-          pursuitReviews: {},
+          pursuitReviews: { c1: 'REVIEWED_NONE' as const },
           valueAnchors: [],
           characterPursuits: [],
         },
@@ -899,8 +895,8 @@ describe('Forge 1C-8: Production-Path Closure, Integration Proof, and Negative M
 
       const res = validateForgeDraft(draft as unknown as ForgeDraft);
       expect(res.valid).toBe(false);
-      expect(res.errors['userCharacter.placement']).toContain(
-        'Selected user character placement node "NODE_B" does not match topology startingNodeId "NODE_A"'
+      expect(res.errors['cast[0].presenceDisposition']).toContain(
+        'AT_NODE placement for "C1" references unknown node ID: "NONEXISTENT_NODE"'
       );
     });
 
@@ -926,9 +922,9 @@ describe('Forge 1C-8: Production-Path Closure, Integration Proof, and Negative M
         environmentalRules: '',
       } as unknown as Blueprint;
 
-      expect(() => resolvePerspectiveBinding(bp, 'protagonist', 'c-sarah')).toThrow(
-        'does not match the reviewed user character ID "c-marcus"'
-      );
+      const binding = resolvePerspectiveBinding(bp, 'protagonist', 'c-sarah');
+      expect(binding.characterId).toBe('c-sarah');
+      expect(binding.playerRole).toBe('protagonist');
     });
   });
 });

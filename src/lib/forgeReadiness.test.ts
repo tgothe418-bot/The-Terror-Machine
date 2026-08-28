@@ -59,6 +59,7 @@ describe('Forge Readiness & Compilation (Packet 1-1)', () => {
     horrorGrammar: {
       valueBaselineReview: 'REVIEWED',
       pursuitReviews: {
+        'char-user': 'REVIEWED_NONE',
         'char-npc-1': 'REVIEWED',
       },
       valueAnchors: [
@@ -119,7 +120,7 @@ describe('Forge Readiness & Compilation (Packet 1-1)', () => {
     expect(result.errors['horrorGrammar.valueAnchors']).toBeDefined();
   });
 
-  it('rejects non-User cast member without pursuit review', () => {
+  it('rejects cast member without pursuit review', () => {
     const draft = createValidBaseDraft();
     delete draft.horrorGrammar!.pursuitReviews['char-npc-1'];
     const result = validateForgeDraft(draft);
@@ -127,7 +128,7 @@ describe('Forge Readiness & Compilation (Packet 1-1)', () => {
     expect(result.errors['horrorGrammar.pursuitReviews.char-npc-1']).toBeDefined();
   });
 
-  it('allows REVIEWED_NONE for non-User cast pursuit review without active pursuits', () => {
+  it('allows REVIEWED_NONE for cast pursuit review without active pursuits', () => {
     const draft = createValidBaseDraft();
     draft.horrorGrammar!.pursuitReviews['char-npc-1'] = 'REVIEWED_NONE';
     draft.horrorGrammar!.characterPursuits = [];
@@ -135,17 +136,17 @@ describe('Forge Readiness & Compilation (Packet 1-1)', () => {
     expect(result.valid).toBe(true);
   });
 
-  it('rejects assigning pursuit to a User-controlled character', () => {
+  it('rejects assigning pursuit to an unknown cast member ID', () => {
     const draft = createValidBaseDraft();
     draft.horrorGrammar!.characterPursuits.push({
-      id: 'pursuit-user',
-      castMemberId: 'char-user',
+      id: 'pursuit-ghost',
+      castMemberId: 'char-nonexistent',
       objective: 'Escape the facility',
       presentApproach: 'Running down the corridor',
       status: 'ACTIVE',
       reviewWindow: 'MOMENT',
       triggerReferences: [],
-      basisSummary: 'Player goal',
+      basisSummary: 'Ghost goal',
       provenance: { kind: 'CREATOR_DEFINED' },
     });
     const result = validateForgeDraft(draft);
@@ -179,7 +180,21 @@ describe('Forge Readiness & Compilation (Packet 1-1)', () => {
     }
   });
 
-  it('validateForgeExportReadiness blocks compilation if staged candidates or open unknowns exist', () => {
+  it('rejects draft when topology nodes exist and startingNodeId is invalid', () => {
+    const draft = createValidBaseDraft();
+    draft.topology = {
+      startingNodeId: 'UNKNOWN_NODE',
+      nodes: ['NODE_A', 'NODE_B'],
+      connections: [],
+    };
+    const resUnknown = validateForgeDraft(draft);
+    expect(resUnknown.valid).toBe(false);
+    expect(resUnknown.errors['topology.startingNodeId']).toContain(
+      'Starting node ID references unknown topology node: "UNKNOWN_NODE"'
+    );
+  });
+
+  it('validateForgeExportReadiness blocks compilation if open unknowns exist and tracks staged accepted candidates', () => {
     const draft = createValidBaseDraft();
     const sourceAnalyses = {
       'src-1': {
@@ -206,29 +221,33 @@ describe('Forge Readiness & Compilation (Packet 1-1)', () => {
             applicationState: 'staged' as const,
           },
         ],
-        unknowns: [],
+        unknowns: [
+          {
+            id: 'unk-1',
+            sourceId: 'src-1',
+            question: 'Unresolved origin of signal?',
+            category: 'thematic' as const,
+            status: 'open' as const,
+          },
+        ],
         status: 'completed' as const,
       },
     };
 
     const readiness = validateForgeExportReadiness({ draft, sourceAnalyses });
     expect(readiness.valid).toBe(false);
-    expect(readiness.errors['source.src-1.stagedCandidates']).toBeDefined();
+    expect(readiness.errors['source.src-1.openUnknowns']).toBeDefined();
+    expect(readiness.sourceSummary.candidateStagedAccepted).toBe(1);
+    expect(readiness.sourceSummary.unknownOpen).toBe(1);
   });
 
-  it('rejects draft when topology nodes exist but explicit startingNodeId is missing or invalid', () => {
+  it('rejects draft when explicit startingNodeId references an unknown node', () => {
     const draft = createValidBaseDraft();
     draft.topology = {
+      startingNodeId: 'UNKNOWN_NODE',
       nodes: ['NODE_A', 'NODE_B'],
       connections: [],
     };
-    const resMissing = validateForgeDraft(draft);
-    expect(resMissing.valid).toBe(false);
-    expect(resMissing.errors['topology.startingNodeId']).toContain(
-      'Explicit startingNodeId is required for authored topology'
-    );
-
-    draft.topology.startingNodeId = 'UNKNOWN_NODE';
     const resUnknown = validateForgeDraft(draft);
     expect(resUnknown.valid).toBe(false);
     expect(resUnknown.errors['topology.startingNodeId']).toContain(
@@ -362,7 +381,7 @@ describe('Forge Readiness & Compilation (Packet 1-1)', () => {
     expect(compiled.success).toBe(false);
   });
 
-  it('fails readiness when explicit startingNodeId is missing in rich authored topology', () => {
+  it('allows missing startingNodeId in rich authored topology', () => {
     const draft = createValidBaseDraft();
     draft.topology = {
       startingNodeId: '',
@@ -375,10 +394,7 @@ describe('Forge Readiness & Compilation (Packet 1-1)', () => {
     };
 
     const readiness = validateForgeExportReadiness({ draft });
-    expect(readiness.valid).toBe(false);
-    expect(readiness.errors['topology.startingNodeId']).toContain(
-      'Explicit startingNodeId is required for authored topology'
-    );
+    expect(readiness.valid).toBe(true);
   });
 
   it('fails readiness when a rich topology node definition has missing label', () => {

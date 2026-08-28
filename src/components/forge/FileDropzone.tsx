@@ -7,9 +7,8 @@ import {
   REFERENCE_IMPORT_HUMAN_MAX_SIZE,
 } from '../../lib/referenceImportPolicy';
 import { readSafeResponseError } from '../../lib/responseErrorReader';
-import { validateAndNormalizeDocumentAnalysis } from '../../lib/sourceBaseline';
 import { triggerInitialDepictionProposalIfEligible } from '../../lib/depictionProposalOrchestrator';
-import { ForgeSourceRecord } from '../../types/forge';
+import { ForgeSourceAnalysisSchema } from '../../types/forge';
 
 export const FileDropzone = () => {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -30,8 +29,6 @@ export const FileDropzone = () => {
     );
 
     try {
-      const sourceId = `src-${crypto.randomUUID()}`;
-
       // 1. JSON Blueprint Native Load (Local parsing + server normalization & binding)
       if (file.type === 'application/json' || file.name.endsWith('.json')) {
         const rawJson = await parseBlueprintFile(file);
@@ -108,19 +105,8 @@ export const FileDropzone = () => {
       if (!data.sourceBinding) {
         throw new Error('Server response did not include a valid source binding.');
       }
-
-      const sourceRecord: ForgeSourceRecord = {
-        id: data.analysis?.sourceRecord?.id || sourceId,
-        fileName: file.name,
-        mimeType: file.type || 'application/octet-stream',
-        kind: 'document',
-        receivedAt: Date.now(),
-        fileSizeBytes: file.size,
-      };
-
-      const normalizedAnalysis = validateAndNormalizeDocumentAnalysis(data.analysis, sourceRecord);
-
-      if (normalizedAnalysis.status === 'error') {
+      const parseRes = ForgeSourceAnalysisSchema.safeParse(data.analysis);
+      if (!parseRes.success) {
         if (data.sourceBinding) {
           fetch('/api/revoke-source-binding', {
             method: 'POST',
@@ -128,27 +114,42 @@ export const FileDropzone = () => {
             body: JSON.stringify({ sourceBinding: data.sourceBinding }),
           }).catch((e) => console.warn('[FORGE INTAKE] Binding revocation error:', e));
         }
-        setError(normalizedAnalysis.errorMessage || 'Extraction failed to produce a valid source baseline.');
+        setError(`Server returned an invalid source analysis payload: ${parseRes.error.issues.map((i) => i.message).join('; ')}`);
         return;
       }
 
-      setRuntimeSourceBinding(normalizedAnalysis.id, data.sourceBinding);
-      registerSourceAnalysis(normalizedAnalysis, data.sourceBinding);
+      const analysis = parseRes.data;
+
+      if (analysis.status === 'error') {
+        if (data.sourceBinding) {
+          fetch('/api/revoke-source-binding', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sourceBinding: data.sourceBinding }),
+          }).catch((e) => console.warn('[FORGE INTAKE] Binding revocation error:', e));
+        }
+        setError(analysis.errorMessage || 'Extraction failed to produce a valid source baseline.');
+        return;
+      }
+
+      setRuntimeSourceBinding(analysis.id, data.sourceBinding);
+      registerSourceAnalysis(analysis, data.sourceBinding);
 
       // Automatically stage initial Depiction Contract proposal if eligible
       triggerInitialDepictionProposalIfEligible().catch((e) =>
         console.warn('[FORGE DEPICTION] Auto-proposal error:', e)
       );
 
-      if (normalizedAnalysis.status === 'completed_with_issues') {
+      const issueCount = (analysis.validationIssues?.length || 0) + (analysis.omittedValidationIssueCount || 0);
+      if (analysis.status === 'completed_with_issues') {
         addArchitectMessage({
           role: 'architect',
-          content: `[SOURCE MATERIAL EXTRACTED: ${file.name}]\nExtracted ${normalizedAnalysis.candidates.length} valid baseline candidates for review (${normalizedAnalysis.validationIssues.length} malformed candidates were quarantined and cannot affect the Blueprint). Inspect and accept candidates to apply them to your active draft.`,
+          content: `[SOURCE MATERIAL EXTRACTED: ${file.name}]\nExtracted ${analysis.candidates.length} valid baseline candidates for review (${issueCount} malformed candidates were quarantined and cannot affect the Blueprint). Inspect and accept candidates to apply them to your active draft.`,
         });
       } else {
         addArchitectMessage({
           role: 'architect',
-          content: `[SOURCE MATERIAL EXTRACTED: ${file.name}]\nExtracted ${normalizedAnalysis.candidates.length} baseline candidates for review. Inspect and accept candidates to apply them to your active draft.`,
+          content: `[SOURCE MATERIAL EXTRACTED: ${file.name}]\nExtracted ${analysis.candidates.length} baseline candidates for review. Inspect and accept candidates to apply them to your active draft.`,
         });
       }
     } catch (err: unknown) {

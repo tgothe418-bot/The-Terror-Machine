@@ -171,7 +171,7 @@ describe('Phase 3D-1: Forge Draft Contract, Review Validation, and Compiler Boun
       characters: [],
       horrorGrammar: {
         valueBaselineReview: 'REVIEWED_NONE',
-        pursuitReviews: {},
+        pursuitReviews: { 'c-aris': 'REVIEWED_NONE' },
         valueAnchors: [],
         characterPursuits: [],
       },
@@ -275,7 +275,7 @@ describe('Phase 3D-1: Forge Draft Contract, Review Validation, and Compiler Boun
       environmentalRules: '',
       horrorGrammar: {
         valueBaselineReview: 'REVIEWED_NONE',
-        pursuitReviews: {},
+        pursuitReviews: { c1: 'REVIEWED_NONE' },
         valueAnchors: [],
         characterPursuits: [],
       },

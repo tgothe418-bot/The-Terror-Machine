@@ -1,14 +1,111 @@
 import { Blueprint, BlueprintSchema } from '../types';
 import {
   ForgeDraft,
-  ForgeDraftCastMember,
   ForgeDraftSchema,
   ForgeValidationResult,
   ForgeReviewArtifact,
   ForgeCompileResult,
+  ForgeSourceCandidate,
+  ForgeSourceAnalysis,
 } from '../types/forge';
 import { normalizeBlueprint } from './normalizeBlueprint';
-import { resolveSourceEvidenceProvenance } from './sourceBaseline';
+import {
+  resolveSourceEvidenceProvenance,
+  applyCandidateToDraft,
+  getCandidateApplicationPriority,
+} from './sourceBaseline';
+
+/**
+ * Pure helper that deterministically derives default Depiction Contract fields
+ * from thematic anchors, atmosphere, and setting if not authored.
+ */
+export function deriveDefaultDepictionContract(draft?: Partial<ForgeDraft> | null): {
+  dramaticRegister: string;
+  directness: string;
+  aftermath: string;
+  ambiguityHandling: string;
+  specialBoundaries?: string;
+} {
+  const existing = draft?.depictionContract;
+  const thematic = draft?.identity?.thematicAnchor || draft?.setting?.atmosphere || draft?.premise || '';
+  const location = draft?.setting?.location || 'the immediate environment';
+
+  const isInvalidField = (val?: string) => {
+    if (!val) return true;
+    const t = val.trim().toLowerCase();
+    return !t || t === 'unknown' || t === 'none' || t === 'n/a';
+  };
+
+  const dramaticRegister = !isInvalidField(existing?.dramaticRegister)
+    ? existing!.dramaticRegister!.trim()
+    : thematic
+    ? `Psychological dread grounded in ${thematic}`
+    : 'Measured psychological dread and tension';
+
+  const directness = !isInvalidField(existing?.directness)
+    ? existing!.directness!.trim()
+    : `Visceral situational directness within ${location}`;
+
+  const aftermath = !isInvalidField(existing?.aftermath)
+    ? existing!.aftermath!.trim()
+    : 'Irreversible physiological and psychological consequences';
+
+  const ambiguityHandling = !isInvalidField(existing?.ambiguityHandling)
+    ? existing!.ambiguityHandling!.trim()
+    : 'Preserve epistemic gaps and ontological uncertainty';
+
+  return {
+    dramaticRegister,
+    directness,
+    aftermath,
+    ambiguityHandling,
+    specialBoundaries: existing?.specialBoundaries || 'None',
+  };
+}
+
+/**
+ * Atomically projects all accepted candidates from source baseline into the working draft.
+ * Prevents invisible staged state or manual repair steps before compilation.
+ */
+export function projectAcceptedStagedCandidates(
+  draft: ForgeDraft,
+  sourceAnalyses?: Record<string, ForgeSourceAnalysis> | null
+): ForgeDraft {
+  if (!sourceAnalyses || typeof sourceAnalyses !== 'object') {
+    return draft;
+  }
+
+  const stagedAccepted: Array<{ cand: ForgeSourceCandidate; fileName: string }> = [];
+
+  for (const analysis of Object.values(sourceAnalyses)) {
+    const fileName = analysis.sourceRecord?.fileName || analysis.id;
+    for (const cand of analysis.candidates || []) {
+      if (cand.reviewDecision === 'accepted' && cand.applicationState === 'staged') {
+        stagedAccepted.push({ cand, fileName });
+      }
+    }
+  }
+
+  if (stagedAccepted.length === 0) {
+    return draft;
+  }
+
+  stagedAccepted.sort(
+    (a, b) =>
+      getCandidateApplicationPriority(a.cand.target) -
+      getCandidateApplicationPriority(b.cand.target)
+  );
+
+  let workingDraft = draft;
+  for (const { cand, fileName } of stagedAccepted) {
+    const result = applyCandidateToDraft(workingDraft, cand, fileName);
+    if (result.success) {
+      workingDraft = result.draft;
+    }
+  }
+
+  return workingDraft;
+}
 
 /**
  * Recursively freezes plain objects and arrays to ensure deep immutability.
@@ -128,35 +225,33 @@ export function validateForgeDraft(rawDraft: unknown): ForgeValidationResult {
     errors['startingTier'] = [`Starting tier must be one of: ${validTiers.join(', ')}`];
   }
 
-  // 6. Depiction Contract Validation
+  // 6. Depiction Contract Validation / Auto-derivation
   const contract = draft.depictionContract;
-  if (!contract) {
-    errors['depictionContract'] = ['Depiction contract is required to compile a scenario'];
-  } else {
-    const isInvalidContractField = (txt?: string) => {
-      if (!txt) return true;
+  if (contract) {
+    const isExplicitPlaceholder = (txt?: string) => {
+      if (!txt) return false;
       const t = txt.trim().toLowerCase();
-      return !t || t === 'unknown' || t === 'none' || t === 'n/a';
+      return t === 'unknown' || t === 'none' || t === 'n/a';
     };
 
-    if (isInvalidContractField(contract.dramaticRegister)) {
+    if (isExplicitPlaceholder(contract.dramaticRegister)) {
       errors['depictionContract.dramaticRegister'] = [
-        'Dramatic register is required in the Depiction Contract and cannot be empty or a placeholder',
+        'Dramatic register cannot be an unreviewed placeholder',
       ];
     }
-    if (isInvalidContractField(contract.directness)) {
+    if (isExplicitPlaceholder(contract.directness)) {
       errors['depictionContract.directness'] = [
-        'Directness is required in the Depiction Contract and cannot be empty or a placeholder',
+        'Directness cannot be an unreviewed placeholder',
       ];
     }
-    if (isInvalidContractField(contract.aftermath)) {
+    if (isExplicitPlaceholder(contract.aftermath)) {
       errors['depictionContract.aftermath'] = [
-        'Aftermath is required in the Depiction Contract and cannot be empty or a placeholder',
+        'Aftermath cannot be an unreviewed placeholder',
       ];
     }
-    if (isInvalidContractField(contract.ambiguityHandling)) {
+    if (isExplicitPlaceholder(contract.ambiguityHandling)) {
       errors['depictionContract.ambiguityHandling'] = [
-        'Ambiguity handling is required in the Depiction Contract and cannot be empty or a placeholder',
+        'Ambiguity handling cannot be an unreviewed placeholder',
       ];
     }
   }
@@ -223,23 +318,17 @@ export function validateForgeDraft(rawDraft: unknown): ForgeValidationResult {
     errors['topology.nodes'] = ['At least one main-map node is required to compile a scenario'];
   }
 
-  // Validate starting node ID
-  if (allNodeIds.size > 0) {
-    if (!draft.topology?.startingNodeId || !draft.topology.startingNodeId.trim()) {
+  // Validate starting node ID if present (not required for perspective-neutral blueprint)
+  if (draft.topology?.startingNodeId && draft.topology.startingNodeId.trim()) {
+    const startId = draft.topology.startingNodeId.trim();
+    if (draft.topology?.anchors?.some((a) => a.id === startId)) {
       errors['topology.startingNodeId'] = [
-        'Explicit startingNodeId is required for authored topology',
+        `Starting node ID "${startId}" cannot be an expandable space anchor`,
       ];
-    } else {
-      const startId = draft.topology.startingNodeId.trim();
-      if (draft.topology?.anchors?.some((a) => a.id === startId)) {
-        errors['topology.startingNodeId'] = [
-          `Starting node ID "${startId}" cannot be an expandable space anchor`,
-        ];
-      } else if (!allNodeIds.has(startId)) {
-        errors['topology.startingNodeId'] = [
-          `Starting node ID references unknown topology node: "${startId}"`,
-        ];
-      }
+    } else if (allNodeIds.size > 0 && !allNodeIds.has(startId)) {
+      errors['topology.startingNodeId'] = [
+        `Starting node ID references unknown topology node: "${startId}"`,
+      ];
     }
   }
 
@@ -336,13 +425,10 @@ export function validateForgeDraft(rawDraft: unknown): ForgeValidationResult {
     });
   }
 
-  // 8. Horror Grammar Foundations (Values & Pursuits)
+  // 8. Horror Grammar Foundations (Values & Character Opening Objectives)
   const hg = draft.horrorGrammar;
   const validCastIds = new Set(draft.cast?.map((c) => c.id).filter(Boolean) || []);
   const validNodeIds = allNodeIds;
-  const userCastIds = new Set(
-    draft.cast?.filter((c) => c.isUserCharacter).map((c) => c.id).filter(Boolean) || []
-  );
 
   if (!hg || hg.valueBaselineReview === 'UNREVIEWED') {
     errors['horrorGrammar.valueBaselineReview'] = [
@@ -400,14 +486,13 @@ export function validateForgeDraft(rawDraft: unknown): ForgeValidationResult {
     });
   }
 
-  // Validate non-User cast pursuit reviews
-  const nonUserCast = draft.cast?.filter((c) => !c.isUserCharacter) || [];
-  for (const member of nonUserCast) {
+  // Validate cast opening objective reviews across ALL cast members (perspective-neutral)
+  for (const member of draft.cast || []) {
     const pReview = hg?.pursuitReviews?.[member.id];
     const memberName = member.name || member.id;
     if (!pReview || pReview === 'UNREVIEWED') {
       errors[`horrorGrammar.pursuitReviews.${member.id}`] = [
-        `Pursuit baseline review is required for non-User character "${memberName}"`,
+        `Opening objective review is required for character "${memberName}"`,
       ];
     } else if (pReview === 'REVIEWED') {
       const matchingPursuits = (hg?.characterPursuits || []).filter(
@@ -415,7 +500,7 @@ export function validateForgeDraft(rawDraft: unknown): ForgeValidationResult {
       );
       if (matchingPursuits.length === 0) {
         errors[`horrorGrammar.pursuitReviews.${member.id}`] = [
-          `Pursuit review is marked as reviewed for "${memberName}", but no pursuits are accepted`,
+          `Opening objective review is marked as reviewed for "${memberName}", but no objective is set`,
         ];
       }
     } else if (pReview === 'REVIEWED_NONE') {
@@ -424,13 +509,13 @@ export function validateForgeDraft(rawDraft: unknown): ForgeValidationResult {
       );
       if (matchingPursuits.length > 0) {
         errors[`horrorGrammar.pursuitReviews.${member.id}`] = [
-          `Pursuit review is marked as reviewed none for "${memberName}", but pursuits are present`,
+          `Opening objective review is marked as No Readable Intent for "${memberName}", but an objective is present`,
         ];
       }
     }
   }
 
-  // Validate character pursuits references and sovereignty
+  // Validate character pursuits references
   if (hg?.characterPursuits && Array.isArray(hg.characterPursuits)) {
     const seenPursuitIds = new Set<string>();
     hg.characterPursuits.forEach((pursuit, idx) => {
@@ -440,11 +525,7 @@ export function validateForgeDraft(rawDraft: unknown): ForgeValidationResult {
       }
       seenPursuitIds.add(pursuit.id);
 
-      if (userCastIds.has(pursuit.castMemberId)) {
-        errors[`${fieldPrefix}.castMemberId`] = [
-          'Character pursuits cannot be assigned to User-controlled characters',
-        ];
-      } else if (!validCastIds.has(pursuit.castMemberId)) {
+      if (!validCastIds.has(pursuit.castMemberId)) {
         errors[`${fieldPrefix}.castMemberId`] = [
           `Character pursuit references unknown cast member ID: "${pursuit.castMemberId}"`,
         ];
@@ -467,151 +548,6 @@ export function validateForgeDraft(rawDraft: unknown): ForgeValidationResult {
     });
   }
 
-  // 9. User-Controlled Character Identity & Opening Aim Validation
-  const castList = draft.cast || [];
-  let userChar: ForgeDraftCastMember | undefined = undefined;
-
-  if (castList.length > 0) {
-    if (draft.userCharacterId) {
-      const found = castList.find((c) => c.id === draft.userCharacterId);
-      if (!found) {
-        errors['userCharacterId'] = [
-          `Selected userCharacterId "${draft.userCharacterId}" does not exist in draft cast`,
-        ];
-      } else if (found.isEntity) {
-        errors['userCharacterId'] = [
-          `Entity cast member "${found.name || found.id}" is not eligible for protagonist user character control`,
-        ];
-      } else {
-        userChar = found;
-      }
-
-      const conflicting = castList.filter((c) => c.isUserCharacter && c.id !== draft.userCharacterId);
-      if (conflicting.length > 0) {
-        errors['userCharacterId.conflict'] = [
-          `Cast members [${conflicting.map((c) => c.id).join(', ')}] marked as user character conflict with selected userCharacterId "${draft.userCharacterId}"`,
-        ];
-      }
-    } else {
-      const marked = castList.filter((c) => c.isUserCharacter);
-      if (marked.length === 0) {
-        errors['userCharacterId'] = ['No user character selected in draft'];
-      } else if (marked.length > 1) {
-        errors['userCharacterId'] = [
-          `Multiple cast members [${marked.map((c) => c.id).join(', ')}] are marked as user character; exactly one is required`,
-        ];
-      } else if (marked[0].isEntity) {
-        errors['userCharacterId'] = [
-          `Entity cast member "${marked[0].name || marked[0].id}" is not eligible for protagonist user character control`,
-        ];
-      } else {
-        userChar = marked[0];
-      }
-    }
-  }
-
-  // Ensure user character is excluded from non-user pursuit reviews
-  if (userChar) {
-    if (hg?.pursuitReviews && hg.pursuitReviews[userChar.id]) {
-      errors[`horrorGrammar.pursuitReviews.${userChar.id}`] = [
-        'User-controlled characters cannot be registered in non-user pursuit reviews',
-      ];
-    }
-
-    // Verify user character placement resolves to startingNodeId
-    const startingNodeId = draft.topology?.startingNodeId;
-    if (startingNodeId) {
-      if (userChar.presenceDisposition) {
-        if (userChar.presenceDisposition.kind !== 'AT_NODE') {
-          errors['userCharacter.placement'] = [
-            `Selected user character "${userChar.name || userChar.id}" must have opening placement AT_NODE at startingNodeId "${startingNodeId}"`,
-          ];
-        } else if (userChar.presenceDisposition.nodeId !== startingNodeId) {
-          errors['userCharacter.placement'] = [
-            `Selected user character placement node "${userChar.presenceDisposition.nodeId}" does not match topology startingNodeId "${startingNodeId}"`,
-          ];
-        }
-      } else if (userChar.starting_location && userChar.starting_location !== startingNodeId) {
-        errors['userCharacter.placement'] = [
-          `Selected user character starting location "${userChar.starting_location}" does not match topology startingNodeId "${startingNodeId}"`,
-        ];
-      }
-    }
-
-    const userCharName = userChar.name || userChar.id;
-    const userAim = draft.userOpeningAim || hg?.userOpeningAim;
-
-    if (!userAim || userAim.disposition === 'UNREVIEWED') {
-      errors['userOpeningAim'] = [
-        `User-controlled character opening aim review disposition is required for "${userCharName}" (Accept reference default, Use my own aim, or None declared)`,
-      ];
-    } else {
-      if (userAim.castMemberId !== userChar.id) {
-        errors['userOpeningAim.castMemberId'] = [
-          `User opening aim cast member ID "${userAim.castMemberId}" does not match user character ID "${userChar.id}"`,
-        ];
-      }
-
-      if (userAim.disposition === 'ACCEPTED_REFERENCE') {
-        if (!userAim.aimText || !userAim.aimText.trim()) {
-          errors['userOpeningAim.aimText'] = [
-            'Accepted reference opening aim requires non-empty aim text',
-          ];
-        }
-        if (!userAim.provenance || userAim.provenance.kind !== 'REVIEWED_SOURCE') {
-          errors['userOpeningAim.provenance'] = [
-            'Accepted reference opening aim requires reviewed source provenance',
-          ];
-        } else if (
-          !userAim.provenance.sourceId ||
-          !userAim.provenance.evidenceIds ||
-          userAim.provenance.evidenceIds.length === 0
-        ) {
-          errors['userOpeningAim.provenance'] = [
-            'Accepted reference opening aim requires valid sourceId and at least one evidence ID',
-          ];
-        } else if (
-          userAim.provenance.sourceId === 'src-default' ||
-          userAim.provenance.sourceId.startsWith('placeholder-')
-        ) {
-          errors['userOpeningAim.provenance'] = [
-            `Prohibited placeholder sourceId in opening aim provenance: "${userAim.provenance.sourceId}"`,
-          ];
-        } else if (
-          userAim.provenance.evidenceIds.some(
-            (id: string) => id === 'ev-extracted' || id.startsWith('placeholder-')
-          )
-        ) {
-          errors['userOpeningAim.provenance'] = [
-            'Prohibited placeholder evidence ID in opening aim provenance',
-          ];
-        }
-      } else if (userAim.disposition === 'CREATOR_OVERRIDE') {
-        if (!userAim.aimText || !userAim.aimText.trim()) {
-          errors['userOpeningAim.aimText'] = [
-            'Custom creator-defined opening aim requires non-empty aim text',
-          ];
-        }
-        if (userAim.provenance && userAim.provenance.kind === 'REVIEWED_SOURCE') {
-          errors['userOpeningAim.provenance'] = [
-            'Creator-defined opening aim must not retain false source-evidence attribution',
-          ];
-        }
-      } else if (userAim.disposition === 'NONE_DECLARED') {
-        if (userAim.aimText && userAim.aimText.trim().length > 0) {
-          errors['userOpeningAim.aimText'] = [
-            'None declared opening aim must have empty aim text',
-          ];
-        }
-        if (userAim.provenance && userAim.provenance.kind === 'REVIEWED_SOURCE') {
-          errors['userOpeningAim.provenance'] = [
-            'None declared opening aim must not retain reviewed source provenance',
-          ];
-        }
-      }
-    }
-  }
-
   return {
     valid: Object.keys(errors).length === 0,
     errors,
@@ -627,7 +563,17 @@ export function compileForgeDraft(
   rawDraft: unknown,
   context?: import('../types/forge').ForgeCompilationContext | number
 ): ForgeCompileResult {
-  const validation = validateForgeDraft(rawDraft);
+  const sourceAnalyses =
+    typeof context === 'object' && context !== null && 'sourceAnalyses' in context
+      ? context.sourceAnalyses
+      : null;
+
+  // 1. Atomically project all accepted candidates from source baseline
+  const projectedRawDraft = rawDraft && typeof rawDraft === 'object'
+    ? projectAcceptedStagedCandidates(rawDraft as ForgeDraft, sourceAnalyses)
+    : rawDraft;
+
+  const validation = validateForgeDraft(projectedRawDraft);
   if (!validation.valid) {
     return {
       success: false,
@@ -635,7 +581,7 @@ export function compileForgeDraft(
     };
   }
 
-  const parseResult = ForgeDraftSchema.safeParse(rawDraft);
+  const parseResult = ForgeDraftSchema.safeParse(projectedRawDraft);
   if (!parseResult.success) {
     return {
       success: false,
@@ -644,27 +590,6 @@ export function compileForgeDraft(
   }
 
   const draft = parseResult.data;
-
-  const sourceAnalyses =
-    typeof context === 'object' && context !== null && 'sourceAnalyses' in context
-      ? context.sourceAnalyses
-      : null;
-
-  // Validate exact provenance when compiling ACCEPTED_REFERENCE opening aim
-  if (draft.userOpeningAim?.disposition === 'ACCEPTED_REFERENCE') {
-    const provRes = resolveSourceEvidenceProvenance({
-      provenance: draft.userOpeningAim.provenance,
-      sourceAnalyses,
-      expectedText: draft.userOpeningAim.aimText,
-      expectedCastMemberId: draft.userOpeningAim.castMemberId,
-    });
-    if (!provRes.valid) {
-      return {
-        success: false,
-        errors: { 'userOpeningAim.provenance': provRes.errors },
-      };
-    }
-  }
 
   // Validate exact provenance for topology elements
   if (draft.topology) {
@@ -753,20 +678,37 @@ export function compileForgeDraft(
     }
   }
 
-  const userCharId = draft.userCharacterId || draft.cast?.find((c) => c.isUserCharacter)?.id;
   const synchronizedCast = (draft.cast || []).map((c) => ({
     ...c,
-    isUserCharacter: c.id === userCharId,
+    isUserCharacter: false,
   }));
+
+  const resolvedDepiction = deriveDefaultDepictionContract(draft);
+
+  const draftCopy = { ...draft };
+  delete (draftCopy as Record<string, unknown>).userCharacterId;
+  delete (draftCopy as Record<string, unknown>).userOpeningAim;
+  if (draftCopy.horrorGrammar) {
+    const hgCopy = { ...draftCopy.horrorGrammar };
+    delete (hgCopy as Record<string, unknown>).userOpeningAim;
+    draftCopy.horrorGrammar = hgCopy;
+  }
+  if (draftCopy.topology) {
+    const topoCopy = { ...draftCopy.topology };
+    delete (topoCopy as Record<string, unknown>).startingNodeId;
+    delete (topoCopy as Record<string, unknown>).startingNodeProvenance;
+    draftCopy.topology = topoCopy;
+  }
 
   // Transform into canonical Blueprint shape through single normalization boundary
   const normalized: Blueprint = normalizeBlueprint({
-    ...draft,
+    ...draftCopy,
     title: draft.identity?.title || draft.title,
     globalPremise: draft.globalPremise || draft.premise,
     premise: draft.premise || draft.globalPremise,
-    userCharacterId: userCharId,
+    userCharacterId: undefined,
     cast: synchronizedCast,
+    depictionContract: resolvedDepiction,
   });
 
   // Verify full canonical Blueprint compliance

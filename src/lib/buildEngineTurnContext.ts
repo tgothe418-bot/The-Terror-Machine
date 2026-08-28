@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { normalizeBlueprint } from './normalizeBlueprint';
 import { resolvePerspectiveBinding } from './playerCharacterBinding';
+import { resolveCharacterEntryPlacement } from './resolveCharacterEntryPlacement';
 import {
   Blueprint,
   EdgeKind,
@@ -267,27 +268,52 @@ export function buildEngineTurnContext(
     | import('../types/horrorGrammar').UserOpeningAimReviewDisposition
     | undefined = undefined;
 
-  const userAim = normBp.userOpeningAim || normBp.horrorGrammar?.userOpeningAim;
-  if (characterId && userAim && userAim.castMemberId === characterId) {
-    openingAimDisposition = userAim.disposition;
-    if (
-      (userAim.disposition === 'ACCEPTED_REFERENCE' || userAim.disposition === 'CREATOR_OVERRIDE') &&
-      userAim.aimText &&
-      userAim.aimText.trim().length > 0
-    ) {
-      playerOpeningAim = userAim.aimText.trim();
+  if (characterId) {
+    const charPursuit = normBp.horrorGrammar?.characterPursuits?.find(
+      (p) => p.castMemberId === characterId
+    );
+    const reviewStatus = normBp.horrorGrammar?.pursuitReviews?.[characterId];
+
+    if (charPursuit && charPursuit.objective && charPursuit.objective.trim().length > 0) {
+      playerOpeningAim = charPursuit.objective.trim();
+      openingAimDisposition = 'ACCEPTED_REFERENCE';
       sovereigntyInstruction =
         'This opening aim represents historical starting orientation only. The user retains complete sovereignty over whether, when, and how to pursue it. The Engine must never assert unchosen user actions, internal decisions, or mandatory quests based on this aim.';
-    } else if (userAim.disposition === 'NONE_DECLARED') {
+    } else if (reviewStatus === 'REVIEWED_NONE') {
       playerOpeningAim = undefined;
+      openingAimDisposition = 'NONE_DECLARED';
       sovereigntyInstruction =
         'No opening aim was declared for this character. The Engine must never infer, fabricate, or supply an unchosen starting goal or quest.';
+    } else {
+      // Legacy fallback: check top-level userOpeningAim
+      const userAim = normBp.userOpeningAim || normBp.horrorGrammar?.userOpeningAim;
+      if (userAim && userAim.castMemberId === characterId) {
+        openingAimDisposition = userAim.disposition;
+        if (
+          (userAim.disposition === 'ACCEPTED_REFERENCE' || userAim.disposition === 'CREATOR_OVERRIDE') &&
+          userAim.aimText &&
+          userAim.aimText.trim().length > 0
+        ) {
+          playerOpeningAim = userAim.aimText.trim();
+          sovereigntyInstruction =
+            'This opening aim represents historical starting orientation only. The user retains complete sovereignty over whether, when, and how to pursue it. The Engine must never assert unchosen user actions, internal decisions, or mandatory quests based on this aim.';
+        } else if (userAim.disposition === 'NONE_DECLARED') {
+          playerOpeningAim = undefined;
+          sovereigntyInstruction =
+            'No opening aim was declared for this character. The Engine must never infer, fabricate, or supply an unchosen starting goal or quest.';
+        }
+      }
     }
   }
 
   // 3. Topology boundary (resolved early for presence calculations)
   const nodes = normBp.topology?.nodes || [];
-  const currentNodeId = runtimeState.currentNodeId || normBp.topology?.startingNodeId || nodes[0] || 'ORIGIN';
+  const currentNodeId =
+    runtimeState.currentNodeId ||
+    resolveCharacterEntryPlacement({
+      blueprint: normBp,
+      characterId,
+    });
   const connections = normBp.topology?.connections || [];
 
   const runtimeNodeIds = (spatialGraph ?? [])

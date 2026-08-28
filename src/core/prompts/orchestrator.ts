@@ -120,7 +120,7 @@ If the subject is not moving, or attempts to move to an invalid/locked location,
 
   return `
 <system_directive>
-  <role>Nightmare Machine Orchestrator Engine</role>
+  <role>The Terror Machine Orchestrator Engine</role>
 
   <critical_behavioral_rule>
     CRITICAL BEHAVIORAL RULE: You are a ruthless, deterministic horror simulation engine. 

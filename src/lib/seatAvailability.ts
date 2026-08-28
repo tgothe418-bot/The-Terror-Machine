@@ -1,5 +1,4 @@
 import { Blueprint, ParticipationContext, ParticipationMode, normalizeParticipationContext } from '../types';
-import { isCharacterEligibleForRole } from './playerCharacterBinding';
 
 export interface SeatAvailability {
   role: ParticipationMode;
@@ -19,11 +18,13 @@ export function resolveSeatAvailabilities(
   const cast = blueprint.cast || [];
 
   // Protagonist: Requires a viable mortal cast member (isEntity !== true)
-  const mortalMember = cast.find((c) => isCharacterEligibleForRole(c, 'protagonist'));
+  const mortalMember = cast.find((c) => !c.isEntity);
   const protagonistAvailable = Boolean(mortalMember);
 
   // Antagonist: Requires an entity cast member, explicit antagonist perspective, or antagonist haunted house provenance
-  const entityMember = cast.find((c) => isCharacterEligibleForRole(c, 'antagonist'));
+  const entityMember = cast.find(
+    (c) => c.isEntity === true || String(c.role).toUpperCase() === 'ANTAGONIST'
+  );
   const hasAntagonistPerspective = blueprint.perspectives?.some(
     (p) => String(p.role).toUpperCase() === 'ANTAGONIST'
   );
@@ -122,7 +123,7 @@ export function buildActiveParticipationContext(
 
   if (selectedRole === 'protagonist') {
     if (boundMember === undefined) {
-      boundMember = cast.find((c) => isCharacterEligibleForRole(c, 'protagonist'));
+      boundMember = cast.find((c) => !c.isEntity);
     }
 
     const name = boundMember?.name || 'Protagonist';
@@ -164,7 +165,9 @@ export function buildActiveParticipationContext(
 
   if (selectedRole === 'antagonist') {
     if (boundMember === undefined) {
-      boundMember = cast.find((c) => isCharacterEligibleForRole(c, 'antagonist'));
+      boundMember = cast.find(
+        (c) => c.isEntity === true || String(c.role).toUpperCase() === 'ANTAGONIST'
+      );
     }
 
     const existing =

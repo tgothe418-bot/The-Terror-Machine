@@ -318,7 +318,9 @@ describe('sourceBaseline pure functions', () => {
       },
       horrorGrammar: {
         valueBaselineReview: 'REVIEWED_NONE',
-        pursuitReviews: {},
+        pursuitReviews: {
+          'char-mercer': 'REVIEWED_NONE',
+        },
         valueAnchors: [],
         characterPursuits: [],
       },
@@ -943,6 +945,15 @@ describe('sourceBaseline pure functions', () => {
           reviewedAt: Date.now(),
         },
         topology: { startingNodeId: 'NODE_GATE', nodes: ['NODE_GATE'], connections: [] },
+        horrorGrammar: {
+          valueBaselineReview: 'UNREVIEWED',
+          pursuitReviews: {
+            'char-guard': 'UNREVIEWED',
+            'char-commander': 'REVIEWED_NONE',
+          },
+          valueAnchors: [],
+          characterPursuits: [],
+        },
       };
 
       const anchorCandidate: ForgeSourceCandidate = {
@@ -1297,6 +1308,173 @@ describe('sourceBaseline pure functions', () => {
       if (!placementRes.success) {
         expect((placementRes as { error: string }).error).toContain('NONLOCAL');
       }
+    });
+  });
+
+  describe('Packet 1D-1: Bounded Issue Ledger and Server Provenance Reconstruction', () => {
+    const sourceRecord: ForgeSourceRecord = {
+      id: 'src-bound-test',
+      fileName: 'noisy_import.txt',
+      mimeType: 'text/plain',
+      kind: 'document',
+      receivedAt: Date.now(),
+    };
+
+    it('collects exactly 49 issues with 0 omitted issues', () => {
+      const candidates = Array.from({ length: 49 }, (_, i) => ({
+        id: `bad-${i}`,
+        target: 'cast_seed',
+        proposedValue: { id: `c-${i}` }, // missing isUserCharacter
+      }));
+      candidates.push({
+        id: 'valid-cand',
+        target: 'setting_location' as const,
+        proposedValue: 'The Abandoned Mine',
+      });
+
+      const analysis = validateAndNormalizeDocumentAnalysis({ candidates }, sourceRecord);
+      expect(analysis.status).toBe('completed_with_issues');
+      expect(analysis.validationIssues).toHaveLength(49);
+      expect(analysis.omittedValidationIssueCount).toBe(0);
+      expect(analysis.candidates).toHaveLength(1);
+    });
+
+    it('collects exactly 50 issues with 0 omitted issues at MAX_VALIDATION_ISSUES boundary', () => {
+      const candidates = Array.from({ length: 50 }, (_, i) => ({
+        id: `bad-${i}`,
+        target: 'cast_seed',
+        proposedValue: { id: `c-${i}` }, // missing isUserCharacter
+      }));
+      candidates.push({
+        id: 'valid-cand',
+        target: 'setting_location' as const,
+        proposedValue: 'The Abandoned Mine',
+      });
+
+      const analysis = validateAndNormalizeDocumentAnalysis({ candidates }, sourceRecord);
+      expect(analysis.status).toBe('completed_with_issues');
+      expect(analysis.validationIssues).toHaveLength(50);
+      expect(analysis.omittedValidationIssueCount).toBe(0);
+      expect(analysis.candidates).toHaveLength(1);
+    });
+
+    it('collects 50 issues and records 1 omitted issue when 51 malformed candidates exist', () => {
+      const candidates = Array.from({ length: 51 }, (_, i) => ({
+        id: `bad-${i}`,
+        target: 'cast_seed',
+        proposedValue: { id: `c-${i}` }, // missing isUserCharacter
+      }));
+      candidates.push({
+        id: 'valid-cand',
+        target: 'setting_location' as const,
+        proposedValue: 'The Abandoned Mine',
+      });
+
+      const analysis = validateAndNormalizeDocumentAnalysis({ candidates }, sourceRecord);
+      expect(analysis.status).toBe('completed_with_issues');
+      expect(analysis.validationIssues).toHaveLength(50);
+      expect(analysis.omittedValidationIssueCount).toBe(1);
+      expect(analysis.candidates).toHaveLength(1);
+    });
+
+    it('handles noisy document with 80 malformed candidates without exceeding schema limits', () => {
+      const candidates = Array.from({ length: 80 }, (_, i) => ({
+        id: `bad-${i}`,
+        target: 'cast_seed',
+        proposedValue: { id: `c-${i}` }, // missing isUserCharacter
+      }));
+      candidates.push({
+        id: 'valid-cand',
+        target: 'setting_location' as const,
+        proposedValue: 'The Abandoned Mine',
+      });
+
+      const analysis = validateAndNormalizeDocumentAnalysis({ candidates }, sourceRecord);
+      expect(analysis.status).toBe('completed_with_issues');
+      expect(analysis.validationIssues).toHaveLength(50);
+      expect(analysis.omittedValidationIssueCount).toBe(30);
+      expect(analysis.candidates).toHaveLength(1);
+    });
+
+    it('reconstructs server provenance authoritatively for value_anchor and character_pursuit', () => {
+      const payload = {
+        evidence: [
+          {
+            id: 'ev-1',
+            category: 'setting',
+            claim: 'Sanctuary contains the relic.',
+          },
+        ],
+        candidates: [
+          {
+            id: 'cand-va',
+            target: 'value_anchor',
+            evidenceIds: ['ev-1'],
+            proposedValue: {
+              id: 'va-relic',
+              holder: { kind: 'PLACE', nodeId: 'node-sanctuary' },
+              label: 'The Ancient Relic',
+              description: 'Sacred artifact',
+              basisSummary: 'Protected artifact',
+              provenance: { kind: 'UNTRUSTED_MODEL_AUTHOR', sourceId: 'fake-id', evidenceIds: ['fake-ev'] },
+            },
+          },
+          {
+            id: 'cand-va-no-ev',
+            target: 'value_anchor',
+            evidenceIds: [],
+            proposedValue: {
+              id: 'va-unsupported',
+              holder: { kind: 'PLACE', nodeId: 'node-sanctuary' },
+              label: 'Unsupported Value',
+              description: 'No evidence',
+              basisSummary: 'None',
+            },
+          },
+          {
+            id: 'cand-pursuit',
+            target: 'character_pursuit',
+            evidenceIds: ['ev-1'],
+            proposedValue: {
+              id: 'pursuit-1',
+              castMemberId: 'char-priest',
+              objective: 'Protect the relic',
+              presentApproach: 'Barricade the door',
+              status: 'active',
+              urgency: 'high',
+              reviewWindow: 'every_turn',
+              provenance: { kind: 'UNTRUSTED_MODEL_AUTHOR', sourceId: 'fake-id' },
+            },
+          },
+        ],
+      };
+
+      const analysis = validateAndNormalizeDocumentAnalysis(payload, sourceRecord);
+      expect(analysis.status).toBe('completed_with_issues');
+      expect(analysis.candidates).toHaveLength(2); // cand-va and cand-pursuit valid; cand-va-no-ev quarantined
+
+      const vaCand = analysis.candidates.find((c) => c.target === 'value_anchor');
+      expect(vaCand).toBeDefined();
+      const vaValue = vaCand!.proposedValue as Record<string, unknown>;
+      expect(vaValue.provenance).toEqual({
+        kind: 'REVIEWED_SOURCE',
+        sourceId: 'src-bound-test',
+        evidenceIds: ['ev-1'],
+      });
+
+      const pCand = analysis.candidates.find((c) => c.target === 'character_pursuit');
+      expect(pCand).toBeDefined();
+      const pValue = pCand!.proposedValue as Record<string, unknown>;
+      expect(pValue.provenance).toEqual({
+        kind: 'REVIEWED_SOURCE',
+        sourceId: 'src-bound-test',
+        evidenceIds: ['ev-1'],
+      });
+
+      const quarantinedVa = analysis.validationIssues?.find((i) => i.candidateIndex === 2);
+      expect(quarantinedVa).toBeDefined();
+      expect(quarantinedVa!.disposition).toBe('QUARANTINED');
+      expect(quarantinedVa!.fieldPath).toBe('evidenceIds');
     });
   });
 });

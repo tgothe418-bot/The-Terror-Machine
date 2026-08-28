@@ -26,6 +26,7 @@ import {
   isCharacterEligibleForRole,
   resolvePerspectiveBinding,
 } from '../../lib/playerCharacterBinding';
+import { resolveCharacterEntryPlacement } from '../../lib/resolveCharacterEntryPlacement';
 import { motion, AnimatePresence } from 'motion/react';
 import AdLibInductionModal from './AdLibInductionModal';
 
@@ -155,8 +156,10 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
       previewBlueprint.topology.nodes &&
       previewBlueprint.topology.nodes.length > 0
     ) {
-      const startNodeId =
-        previewBlueprint.topology.startingNodeId || previewBlueprint.topology.nodes[0];
+      const startNodeId = resolveCharacterEntryPlacement({
+        blueprint: previewBlueprint,
+        characterId: binding.characterId,
+      });
       compileTopology(previewBlueprint.topology, startNodeId);
     }
 
@@ -403,6 +406,28 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
                                   {char.description}
                                 </p>
                               )}
+                              {(() => {
+                                const charPursuit = previewBlueprint.horrorGrammar?.characterPursuits?.find(
+                                  (p) => p.castMemberId === char.id
+                                );
+                                const reviewStatus = previewBlueprint.horrorGrammar?.pursuitReviews?.[char.id];
+                                if (charPursuit && charPursuit.objective) {
+                                  return (
+                                    <div className="text-[11px] text-cyan-300 font-mono bg-cyan-950/20 border border-cyan-900/40 px-2 py-1 rounded">
+                                      <span className="text-zinc-500 font-bold uppercase mr-1.5">Opening Objective:</span>
+                                      {charPursuit.objective}
+                                    </div>
+                                  );
+                                }
+                                if (reviewStatus === 'REVIEWED_NONE') {
+                                  return (
+                                    <div className="text-[10px] text-zinc-500 font-mono italic">
+                                      No Readable Intent
+                                    </div>
+                                  );
+                                }
+                                return null;
+                              })()}
                             </button>
                           );
                         })}

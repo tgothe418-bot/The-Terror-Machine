@@ -3,7 +3,6 @@ import { useForgeState, forgeActions } from '../../store/useForgeStore';
 import { AutopilotVector } from '../../types';
 import {
   User,
-  UserCheck,
   MapPin,
   Compass,
   Plus,
@@ -15,31 +14,21 @@ import {
 
 export const CharacterAuthoringPanel: React.FC = () => {
   const blueprint = useForgeState((state) => state.draftBlueprint);
-  const sourceAnalyses = useForgeState((state) => state.sourceAnalyses);
   const cast = blueprint?.cast || [];
   const topology = blueprint?.topology;
-  const userCharacterId = blueprint?.userCharacterId || cast.find((c) => c.isUserCharacter)?.id;
-  const userAim = blueprint?.userOpeningAim;
 
   const {
     addCastMember,
     updateCastMember,
     removeCastMember,
-    setUserCharacter,
     setCastOpeningPlacement,
-    acceptReferenceOpeningAim,
-    setCreatorOverrideOpeningAim,
-    setNoneDeclaredOpeningAim,
     setPursuitReview,
   } = forgeActions;
 
   // UI State
   const [expandedCards, setExpandedCards] = useState<Record<string, boolean>>({});
-  const [aimEditMode, setAimEditMode] = useState(false);
-  const [customAimText, setCustomAimText] = useState('');
-  const [aimError, setAimError] = useState<string | null>(null);
 
-  // Non-user pursuit inline editing state: characterId -> form state
+  // Pursuit inline editing state: characterId -> form state
   const [pursuitForms, setPursuitForms] = useState<
     Record<
       string,
@@ -87,59 +76,12 @@ export const CharacterAuthoringPanel: React.FC = () => {
     }
   };
 
-  // Resolve reference opening aim proposal for the user character
-  const userMember = cast.find((c) => c.id === userCharacterId);
-  let proposalText = userAim?.aimText || '';
-  let hasValidProposal = Boolean(proposalText.trim());
-  let proposalSourceId = '';
-
-  if (userMember && sourceAnalyses) {
-    for (const a of Object.values(sourceAnalyses)) {
-      const cand = a.candidates?.find(
-        (c) =>
-          c.target === 'user_opening_aim_default' &&
-          (c.targetCastMemberId === userMember.id || !c.targetCastMemberId)
-      );
-      if (cand) {
-        const text =
-          typeof cand.proposedValue === 'string'
-            ? cand.proposedValue.trim()
-            : typeof cand.proposedValue === 'object' &&
-              cand.proposedValue !== null &&
-              'aimText' in cand.proposedValue &&
-              typeof cand.proposedValue.aimText === 'string'
-            ? cand.proposedValue.aimText.trim()
-            : '';
-        if (text) {
-          proposalText = text;
-          hasValidProposal = true;
-          proposalSourceId = a.id;
-          break;
-        }
-      }
-    }
-  }
-
-  const handleSaveCustomAim = () => {
-    if (!customAimText.trim()) {
-      setAimError('Opening aim text cannot be empty.');
-      return;
-    }
-    const outcome = setCreatorOverrideOpeningAim(customAimText.trim());
-    if (!outcome.success) {
-      setAimError(outcome.error || 'Failed to save creator aim.');
-      return;
-    }
-    setAimError(null);
-    setAimEditMode(false);
-  };
-
   const handleSavePursuit = (charId: string) => {
     const form = pursuitForms[charId];
     if (!form || !form.objective.trim() || !form.presentApproach.trim()) {
       setPursuitForms((prev) => ({
         ...prev,
-        [charId]: { ...prev[charId], error: 'Objective and present approach are required.' },
+        [charId]: { ...prev[charId], error: 'Opening objective and current approach are required.' },
       }));
       return;
     }
@@ -152,7 +94,7 @@ export const CharacterAuthoringPanel: React.FC = () => {
     if (!outcome.success) {
       setPursuitForms((prev) => ({
         ...prev,
-        [charId]: { ...prev[charId], error: outcome.error || 'Failed to save pursuit.' },
+        [charId]: { ...prev[charId], error: outcome.error || 'Failed to save opening objective.' },
       }));
       return;
     }
@@ -189,7 +131,6 @@ export const CharacterAuthoringPanel: React.FC = () => {
       {/* Roster List */}
       <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3 pr-2 min-h-0">
         {cast.map((char) => {
-          const isUser = char.id === userCharacterId || char.isUserCharacter;
           const isExpanded = expandedCards[char.id] ?? true;
           const dispKind = char.presenceDisposition?.kind || (char.starting_location ? 'AT_NODE' : 'UNASSIGNED');
           const currentNodeId = char.presenceDisposition?.kind === 'AT_NODE' ? char.presenceDisposition.nodeId : char.starting_location || '';
@@ -206,19 +147,13 @@ export const CharacterAuthoringPanel: React.FC = () => {
               (char.presenceDisposition?.kind === 'NONLOCAL' && char.isEntity) ||
               (char.presenceDisposition?.kind === 'AT_NODE' && char.presenceDisposition.nodeId)
           );
-          const hasValidIntent = isUser
-            ? userAim?.disposition && userAim.disposition !== 'UNREVIEWED'
-            : pReview === 'REVIEWED' || pReview === 'REVIEWED_NONE';
+          const hasValidIntent = pReview === 'REVIEWED' || pReview === 'REVIEWED_NONE';
 
           return (
             <div
               key={char.id}
               id={`character-card-${char.id}`}
-              className={`p-3.5 bg-[#050505] border rounded flex flex-col gap-3 relative shadow-inner transition-colors ${
-                isUser
-                  ? 'border-cyan-800/80 bg-cyan-950/10'
-                  : 'border-zinc-800/80 hover:border-zinc-700'
-              }`}
+              className="p-3.5 bg-[#050505] border border-zinc-800/80 hover:border-zinc-700 rounded flex flex-col gap-3 relative shadow-inner transition-colors"
             >
               {/* Card Header Bar */}
               <div className="flex items-center justify-between gap-2 border-b border-zinc-900 pb-2">
@@ -237,11 +172,6 @@ export const CharacterAuthoringPanel: React.FC = () => {
                   <span className="font-bold text-zinc-200 text-xs sm:text-sm truncate">
                     {char.name || 'Unnamed Character'}
                   </span>
-                  {isUser && (
-                    <span className="text-[9px] px-1.5 py-0.2 bg-cyan-900/60 border border-cyan-700 text-cyan-200 rounded font-bold uppercase shrink-0">
-                      Player Character
-                    </span>
-                  )}
                   {char.isEntity && (
                     <span className="text-[9px] px-1.5 py-0.2 bg-purple-900/60 border border-purple-700 text-purple-200 rounded font-bold uppercase shrink-0">
                       Entity
@@ -393,38 +323,12 @@ export const CharacterAuthoringPanel: React.FC = () => {
                     </div>
                   )}
 
-                  {/* 2. Player Designation & Opening Placement Section */}
+                  {/* 2. Opening Placement Section */}
                   <div className="p-2.5 bg-zinc-950 border border-zinc-800/80 rounded space-y-2">
                     <div className="flex items-center justify-between flex-wrap gap-2">
-                      {/* Player Designation Button */}
-                      {!char.isEntity ? (
-                        <button
-                          type="button"
-                          id={`designate-player-btn-${char.id}`}
-                          onClick={() => {
-                            if (!isUser) {
-                              const res = setUserCharacter(char.id);
-                              if (!res.success && res.error) {
-                                setAimError(res.error);
-                              }
-                            }
-                          }}
-                          className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-bold uppercase transition-colors cursor-pointer ${
-                            isUser
-                              ? 'bg-cyan-950 border border-cyan-700 text-cyan-300'
-                              : 'bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-400 hover:text-zinc-200'
-                          }`}
-                        >
-                          <UserCheck className="w-3.5 h-3.5" />
-                          <span>{isUser ? 'Player Controlled' : 'Designate as Player'}</span>
-                        </button>
-                      ) : (
-                        <span className="text-[10px] text-zinc-500 italic">
-                          Entity cannot be designated as player.
-                        </span>
-                      )}
-
-                      {/* Opening Placement Control */}
+                      <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">
+                        Opening Placement
+                      </span>
                       <div className="flex items-center gap-1.5 shrink-0">
                         <MapPin className="w-3.5 h-3.5 text-zinc-500" />
                         <select
@@ -474,287 +378,144 @@ export const CharacterAuthoringPanel: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* 3. Opening Intent Section */}
-                  {isUser ? (
-                    /* PLAYER OPENING AIM SECTION */
-                    <div className="p-3 bg-zinc-950 border border-cyan-900/60 rounded space-y-2.5">
-                      <div className="flex items-center justify-between border-b border-zinc-900 pb-1.5">
-                        <div className="flex items-center gap-1.5">
-                          <Compass className="w-3.5 h-3.5 text-cyan-400" />
-                          <span className="font-bold text-cyan-300 text-xs uppercase">
-                            Player Opening Aim
-                          </span>
-                        </div>
-                        <span
-                          className={`text-[9px] px-1.5 py-0.2 rounded uppercase font-bold ${
-                            userAim?.disposition === 'ACCEPTED_REFERENCE'
-                              ? 'bg-emerald-950/60 border border-emerald-800 text-emerald-300'
-                              : userAim?.disposition === 'CREATOR_OVERRIDE'
-                              ? 'bg-blue-950/60 border border-blue-800 text-blue-300'
-                              : userAim?.disposition === 'NONE_DECLARED'
-                              ? 'bg-zinc-800 text-zinc-400'
-                              : 'bg-amber-950/60 border border-amber-800 text-amber-300'
-                          }`}
-                        >
-                          {userAim?.disposition === 'ACCEPTED_REFERENCE'
-                            ? 'Accepted Reference'
-                            : userAim?.disposition === 'CREATOR_OVERRIDE'
-                            ? 'Creator Override'
-                            : userAim?.disposition === 'NONE_DECLARED'
-                            ? 'None Declared'
-                            : 'Unreviewed Proposal'}
+                  {/* 3. Opening Objective Section */}
+                  <div className="p-3 bg-zinc-950 border border-zinc-800 rounded space-y-2">
+                    <div className="flex items-center justify-between border-b border-zinc-900 pb-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <Compass className="w-3.5 h-3.5 text-cyan-400" />
+                        <span className="font-bold text-zinc-300 text-xs uppercase tracking-wider">
+                          Opening Objective
                         </span>
                       </div>
-
-                      {aimError && (
-                        <div className="text-[10px] text-rose-300 bg-rose-950/40 border border-rose-900 p-1.5 rounded">
-                          {aimError}
-                        </div>
-                      )}
-
-                      {/* Display Aim Content or Form */}
-                      {aimEditMode ? (
-                        <div className="space-y-2 pt-1">
-                          <textarea
-                            id="custom-aim-textarea"
-                            value={customAimText}
-                            onChange={(e) => {
-                              setCustomAimText(e.target.value);
-                              setAimError(null);
-                            }}
-                            rows={2}
-                            className="w-full bg-zinc-900 border border-zinc-700 text-zinc-200 text-xs p-2 rounded focus:outline-none focus:border-cyan-500"
-                            placeholder="Enter custom historical opening orientation..."
-                          />
-                          <div className="flex items-center gap-2">
-                            <button
-                              id="save-aim-btn"
-                              onClick={handleSaveCustomAim}
-                              className="px-2.5 py-1 bg-cyan-950 hover:bg-cyan-900 border border-cyan-700 text-cyan-200 rounded text-[10px] font-bold uppercase cursor-pointer"
-                            >
-                              Save Aim
-                            </button>
-                            <button
-                              id="cancel-aim-btn"
-                              onClick={() => {
-                                setAimEditMode(false);
-                                setAimError(null);
-                              }}
-                              className="px-2 py-1 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-400 rounded text-[10px] uppercase cursor-pointer"
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        </div>
-                      ) : userAim?.disposition === 'NONE_DECLARED' ? (
-                        <div className="text-[11px] text-zinc-400 italic bg-black/40 p-2 rounded border border-zinc-900">
-                          No opening aim declared. (Engine will not infer or fabricate a player goal).
-                        </div>
-                      ) : userAim?.disposition === 'UNREVIEWED' ? (
-                        <div className="text-xs bg-black/40 p-2 rounded border border-amber-900/50 space-y-1">
-                          <span className="text-amber-400/80 text-[10px] uppercase font-bold block">
-                            Unreviewed Source Proposal:
-                          </span>
-                          <div className="text-zinc-200">
-                            {proposalText ? (
-                              `"${proposalText}"`
-                            ) : (
-                              <span className="text-zinc-500 italic">No reference proposal available.</span>
-                            )}
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="text-xs text-zinc-200 bg-black/40 p-2 rounded border border-zinc-900">
-                          &quot;{userAim?.aimText || ''}&quot;
-                        </div>
-                      )}
-
-                      {/* Aim Action Buttons */}
-                      {!aimEditMode && (
-                        <div className="flex items-center gap-1.5 flex-wrap pt-1">
-                          <button
-                            id="accept-aim-btn"
-                            disabled={!hasValidProposal}
-                            onClick={() => {
-                              const res = acceptReferenceOpeningAim(proposalSourceId || undefined);
-                              if (!res.success && res.error) {
-                                setAimError(res.error);
-                              } else {
-                                setAimError(null);
-                              }
-                            }}
-                            className={`px-2 py-1 rounded text-[10px] font-bold uppercase transition-colors ${
-                              hasValidProposal
-                                ? 'bg-cyan-950 hover:bg-cyan-900 border border-cyan-800 text-cyan-300 cursor-pointer'
-                                : 'bg-zinc-900 border border-zinc-800 text-zinc-600 cursor-not-allowed'
-                            }`}
-                            title={
-                              hasValidProposal
-                                ? 'Accept reference opening aim default'
-                                : 'No valid reference proposal to accept'
-                            }
-                          >
-                            Accept Reference Default
-                          </button>
-
-                          <button
-                            id="use-own-aim-btn"
-                            onClick={() => {
-                              setCustomAimText(userAim?.aimText || proposalText || '');
-                              setAimEditMode(true);
-                              setAimError(null);
-                            }}
-                            className="px-2 py-1 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-200 rounded text-[10px] font-bold uppercase cursor-pointer"
-                          >
-                            Use My Own Aim
-                          </button>
-
-                          <button
-                            id="none-aim-btn"
-                            onClick={() => {
-                              setNoneDeclaredOpeningAim();
-                              setAimError(null);
-                            }}
-                            className="px-2 py-1 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-400 hover:text-zinc-200 rounded text-[10px] uppercase cursor-pointer"
-                          >
-                            None Declared
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    /* NON-USER PURSUIT REVIEW SECTION */
-                    <div className="p-3 bg-zinc-950 border border-zinc-800 rounded space-y-2">
-                      <div className="flex items-center justify-between border-b border-zinc-900 pb-1.5">
-                        <span className="font-bold text-zinc-300 text-xs uppercase">
-                          Non-User Opening Intent
-                        </span>
-                        <span
-                          className={`text-[9px] px-1.5 py-0.2 rounded uppercase font-bold ${
-                            pReview === 'REVIEWED'
-                              ? 'bg-emerald-950/60 border border-emerald-800 text-emerald-300'
-                              : pReview === 'REVIEWED_NONE'
-                              ? 'bg-zinc-800 text-zinc-400'
-                              : 'bg-amber-950/60 border border-amber-800 text-amber-300'
-                          }`}
-                        >
-                          {pReview === 'REVIEWED'
-                            ? `${memberPursuits.length} Pursuit(s)`
+                      <span
+                        className={`text-[9px] px-1.5 py-0.5 rounded uppercase font-bold ${
+                          pReview === 'REVIEWED'
+                            ? 'bg-emerald-950/60 border border-emerald-800 text-emerald-300'
                             : pReview === 'REVIEWED_NONE'
-                            ? 'No Readable Intent'
-                            : 'Unreviewed'}
-                        </span>
-                      </div>
+                            ? 'bg-zinc-800 text-zinc-400'
+                            : 'bg-amber-950/60 border border-amber-800 text-amber-300'
+                        }`}
+                      >
+                        {pReview === 'REVIEWED'
+                          ? `${memberPursuits.length} Objective(s)`
+                          : pReview === 'REVIEWED_NONE'
+                          ? 'No Readable Intent'
+                          : 'Unreviewed'}
+                      </span>
+                    </div>
 
-                      {/* Display pursuits or empty notice */}
-                      {memberPursuits.length > 0 ? (
-                        <div className="space-y-1.5 text-[11px] bg-black/40 p-2 rounded border border-zinc-900">
-                          {memberPursuits.map((p) => (
-                            <div key={p.id} className="space-y-0.5">
-                              <div className="font-bold text-zinc-200">Obj: {p.objective}</div>
-                              <div className="text-zinc-500 text-[10px]">
-                                Approach: {p.presentApproach}
-                              </div>
+                    <p className="text-[10px] text-zinc-500 italic">
+                      Every authored cast member can carry an opening objective from source or creator intent. At runtime, the player&apos;s inhabited character is freed for player agency.
+                    </p>
+
+                    {/* Display pursuits or empty notice */}
+                    {memberPursuits.length > 0 ? (
+                      <div className="space-y-1.5 text-[11px] bg-black/40 p-2 rounded border border-zinc-900">
+                        {memberPursuits.map((p) => (
+                          <div key={p.id} className="space-y-0.5">
+                            <div className="font-bold text-zinc-200">Opening Objective: {p.objective}</div>
+                            <div className="text-zinc-500 text-[10px]">
+                              Current Approach: {p.presentApproach}
                             </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="text-[10px] text-zinc-500 italic">
-                          {pReview === 'REVIEWED_NONE'
-                            ? 'No opening intent in reference. Reacts situationally.'
-                            : 'Awaiting intent review before simulation start.'}
-                        </div>
-                      )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-[10px] text-zinc-500 italic bg-black/40 p-2 rounded border border-zinc-900">
+                        {pReview === 'REVIEWED_NONE'
+                          ? 'Source establishes no active goal for this character at the opening threshold. The Engine will treat them as reactive to player and environmental intrusion.'
+                          : 'Awaiting opening objective review before simulation start.'}
+                      </div>
+                    )}
 
-                      {/* Inline Pursuit Edit Form */}
-                      {pursuitForm.isOpen ? (
-                        <div className="space-y-2 pt-1 border-t border-zinc-900">
-                          {pursuitForm.error && (
-                            <span className="text-[10px] text-rose-400 block">
-                              {pursuitForm.error}
-                            </span>
-                          )}
-                          <div>
-                            <label className="text-[10px] text-zinc-500 uppercase font-bold block mb-0.5">
-                              Objective *
-                            </label>
-                            <input
-                              type="text"
-                              value={pursuitForm.objective}
-                              onChange={(e) =>
-                                setPursuitForms((prev) => ({
-                                  ...prev,
-                                  [char.id]: { ...prev[char.id], objective: e.target.value },
-                                }))
-                              }
-                              className="w-full bg-zinc-900 border border-zinc-700 text-xs text-zinc-200 p-1.5 rounded focus:outline-none"
-                              placeholder="e.g. Inspect reactor telemetry"
-                            />
-                          </div>
-                          <div>
-                            <label className="text-[10px] text-zinc-500 uppercase font-bold block mb-0.5">
-                              Present Approach *
-                            </label>
-                            <input
-                              type="text"
-                              value={pursuitForm.presentApproach}
-                              onChange={(e) =>
-                                setPursuitForms((prev) => ({
-                                  ...prev,
-                                  [char.id]: { ...prev[char.id], presentApproach: e.target.value },
-                                }))
-                              }
-                              className="w-full bg-zinc-900 border border-zinc-700 text-xs text-zinc-200 p-1.5 rounded focus:outline-none"
-                              placeholder="e.g. Accessing terminal console"
-                            />
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => handleSavePursuit(char.id)}
-                              className="px-2.5 py-1 bg-cyan-950 hover:bg-cyan-900 border border-cyan-700 text-cyan-200 rounded text-[10px] font-bold uppercase cursor-pointer"
-                            >
-                              Save Pursuit
-                            </button>
-                            <button
-                              onClick={() =>
-                                setPursuitForms((prev) => ({
-                                  ...prev,
-                                  [char.id]: { isOpen: false, objective: '', presentApproach: '' },
-                                }))
-                              }
-                              className="px-2 py-1 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-400 rounded text-[10px] uppercase cursor-pointer"
-                            >
-                              Cancel
-                            </button>
-                          </div>
+                    {/* Inline Objective Edit Form */}
+                    {pursuitForm.isOpen ? (
+                      <div className="space-y-2 pt-1 border-t border-zinc-900">
+                        {pursuitForm.error && (
+                          <span className="text-[10px] text-rose-400 block">
+                            {pursuitForm.error}
+                          </span>
+                        )}
+                        <div>
+                          <label className="text-[10px] text-zinc-500 uppercase font-bold block mb-0.5">
+                            Opening Objective *
+                          </label>
+                          <input
+                            type="text"
+                            value={pursuitForm.objective}
+                            onChange={(e) =>
+                              setPursuitForms((prev) => ({
+                                ...prev,
+                                [char.id]: { ...prev[char.id], objective: e.target.value },
+                              }))
+                            }
+                            className="w-full bg-zinc-900 border border-zinc-700 text-xs text-zinc-200 p-1.5 rounded focus:outline-none"
+                            placeholder="e.g. Inspect reactor telemetry"
+                          />
                         </div>
-                      ) : (
-                        <div className="flex items-center gap-1.5 pt-1">
+                        <div>
+                          <label className="text-[10px] text-zinc-500 uppercase font-bold block mb-0.5">
+                            Current Approach *
+                          </label>
+                          <input
+                            type="text"
+                            value={pursuitForm.presentApproach}
+                            onChange={(e) =>
+                              setPursuitForms((prev) => ({
+                                ...prev,
+                                [char.id]: { ...prev[char.id], presentApproach: e.target.value },
+                              }))
+                            }
+                            className="w-full bg-zinc-900 border border-zinc-700 text-xs text-zinc-200 p-1.5 rounded focus:outline-none"
+                            placeholder="e.g. Accessing terminal console"
+                          />
+                        </div>
+                        <div className="flex items-center gap-2">
                           <button
-                            onClick={() => setPursuitReview(char.id, 'REVIEWED_NONE')}
-                            className="px-2 py-0.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 rounded text-[10px] cursor-pointer"
+                            onClick={() => handleSavePursuit(char.id)}
+                            className="px-2.5 py-1 bg-cyan-950 hover:bg-cyan-900 border border-cyan-700 text-cyan-200 rounded text-[10px] font-bold uppercase cursor-pointer"
                           >
-                            No Readable Intent
+                            Save Objective
                           </button>
                           <button
                             onClick={() =>
                               setPursuitForms((prev) => ({
                                 ...prev,
-                                [char.id]: {
-                                  isOpen: true,
-                                  objective: memberPursuits[0]?.objective || '',
-                                  presentApproach: memberPursuits[0]?.presentApproach || '',
-                                },
+                                [char.id]: { isOpen: false, objective: '', presentApproach: '' },
                               }))
                             }
-                            className="px-2 py-0.5 bg-cyan-950 hover:bg-cyan-900 border border-cyan-800 text-cyan-300 rounded text-[10px] font-bold cursor-pointer"
+                            className="px-2 py-1 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-400 rounded text-[10px] uppercase cursor-pointer"
                           >
-                            + Set Pursuit
+                            Cancel
                           </button>
                         </div>
-                      )}
-                    </div>
-                  )}
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1.5 pt-1">
+                        <button
+                          onClick={() => setPursuitReview(char.id, 'REVIEWED_NONE')}
+                          className="px-2 py-0.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 rounded text-[10px] cursor-pointer"
+                        >
+                          No Readable Intent
+                        </button>
+                        <button
+                          onClick={() =>
+                            setPursuitForms((prev) => ({
+                              ...prev,
+                              [char.id]: {
+                                isOpen: true,
+                                objective: memberPursuits[0]?.objective || '',
+                                presentApproach: memberPursuits[0]?.presentApproach || '',
+                              },
+                            }))
+                          }
+                          className="px-2 py-0.5 bg-cyan-950 hover:bg-cyan-900 border border-cyan-800 text-cyan-300 rounded text-[10px] font-bold cursor-pointer"
+                        >
+                          {memberPursuits.length > 0 ? 'Edit Objective' : '+ Add Opening Objective'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </div>

@@ -60,16 +60,13 @@ describe('playerCharacterBinding', () => {
   });
 
   describe('isCharacterEligibleForRole', () => {
-    it('identifies mortal characters as eligible for protagonist only', () => {
+    it('identifies all cast members as eligible for embodied roles', () => {
       const mortal = genericBlueprint.cast[0];
-      expect(isCharacterEligibleForRole(mortal, 'protagonist')).toBe(true);
-      expect(isCharacterEligibleForRole(mortal, 'antagonist')).toBe(false);
-      expect(isCharacterEligibleForRole(mortal, 'possessed')).toBe(true);
-    });
-
-    it('identifies entity characters as eligible for antagonist only', () => {
       const entity = genericBlueprint.cast[2];
-      expect(isCharacterEligibleForRole(entity, 'protagonist')).toBe(false);
+      expect(isCharacterEligibleForRole(mortal, 'protagonist')).toBe(true);
+      expect(isCharacterEligibleForRole(mortal, 'antagonist')).toBe(true);
+      expect(isCharacterEligibleForRole(mortal, 'possessed')).toBe(true);
+      expect(isCharacterEligibleForRole(entity, 'protagonist')).toBe(true);
       expect(isCharacterEligibleForRole(entity, 'antagonist')).toBe(true);
       expect(isCharacterEligibleForRole(entity, 'possessed')).toBe(true);
     });
@@ -94,77 +91,22 @@ describe('playerCharacterBinding', () => {
       });
     });
 
-    it('throws INVALID_CHARACTER_ID when selecting an empty string', () => {
-      expect(() => {
-        resolvePerspectiveBinding(genericBlueprint, 'protagonist', '   ');
-      }).toThrow(PlayerCharacterBindingError);
-
-      try {
-        resolvePerspectiveBinding(genericBlueprint, 'protagonist', '   ');
-      } catch (err) {
-        expect((err as PlayerCharacterBindingError).code).toBe('INVALID_CHARACTER_ID');
-      }
-    });
-
-    it('throws UNKNOWN_CHARACTER_ID when selecting an unknown character ID', () => {
-      expect(() => {
-        resolvePerspectiveBinding(genericBlueprint, 'protagonist', 'char-unknown');
-      }).toThrow(PlayerCharacterBindingError);
-
-      try {
-        resolvePerspectiveBinding(genericBlueprint, 'protagonist', 'char-unknown');
-      } catch (err) {
-        expect((err as PlayerCharacterBindingError).code).toBe('UNKNOWN_CHARACTER_ID');
-      }
-    });
-
-    it('throws AMBIGUOUS_CHARACTER_ID when selecting a duplicated character ID in cast', () => {
-      const duplicateBlueprint = normalizeBlueprint({
-        ...genericBlueprint,
-        cast: [
-          ...genericBlueprint.cast,
-          {
-            id: 'char-1',
-            name: 'Duplicate Mortal',
-            description: 'Duplicate',
-            isEntity: false,
-          },
-        ],
+    it('binds explicitly to entity for protagonist (universal cast eligibility)', () => {
+      const binding = resolvePerspectiveBinding(genericBlueprint, 'protagonist', 'entity-1');
+      expect(binding).toEqual({
+        playerRole: 'protagonist',
+        characterId: 'entity-1',
+        perspectiveMode: 'embodied',
       });
-
-      expect(() => {
-        resolvePerspectiveBinding(duplicateBlueprint, 'protagonist', 'char-1');
-      }).toThrow(PlayerCharacterBindingError);
-
-      try {
-        resolvePerspectiveBinding(duplicateBlueprint, 'protagonist', 'char-1');
-      } catch (err) {
-        expect((err as PlayerCharacterBindingError).code).toBe('AMBIGUOUS_CHARACTER_ID');
-      }
     });
 
-    it('throws ROLE_CHARACTER_MISMATCH when selecting an entity for protagonist role', () => {
-      expect(() => {
-        resolvePerspectiveBinding(genericBlueprint, 'protagonist', 'entity-1');
-      }).toThrow(PlayerCharacterBindingError);
-
-      try {
-        resolvePerspectiveBinding(genericBlueprint, 'protagonist', 'entity-1');
-      } catch (err) {
-        expect((err as PlayerCharacterBindingError).code).toBe('ROLE_CHARACTER_MISMATCH');
-      }
-    });
-
-    it('throws ROLE_CHARACTER_MISMATCH when selecting a mortal for antagonist role', () => {
-      expect(() => {
-        resolvePerspectiveBinding(genericBlueprint, 'antagonist', 'char-1');
-      }).toThrow(PlayerCharacterBindingError);
-
-      try {
-        resolvePerspectiveBinding(genericBlueprint, 'antagonist', 'char-1');
-      } catch (err) {
-        expect((err as PlayerCharacterBindingError).code).toBe('ROLE_CHARACTER_MISMATCH');
-      }
+    it('binds explicitly to mortal for antagonist (universal cast eligibility)', () => {
+      const binding = resolvePerspectiveBinding(genericBlueprint, 'antagonist', 'char-1');
+      expect(binding).toEqual({
+        playerRole: 'antagonist',
+        characterId: 'char-1',
+        perspectiveMode: 'entity_embodied',
+      });
     });
 
     it('throws NON_EMBODIED_ROLE when attempting explicit character binding for director or witness', () => {
@@ -302,22 +244,18 @@ describe('playerCharacterBinding', () => {
       });
     });
 
-    it('Forge 1C-6: blocks explicit selection when it mismatches reviewed blueprint.userCharacterId', () => {
+    it('honors explicit selection over legacy blueprint.userCharacterId', () => {
       const blueprintWithUserChar = normalizeBlueprint({
         ...genericBlueprint,
         userCharacterId: 'char-1',
       });
 
-      expect(() => {
-        resolvePerspectiveBinding(blueprintWithUserChar, 'protagonist', 'char-2');
-      }).toThrowError(PlayerCharacterBindingError);
-
-      try {
-        resolvePerspectiveBinding(blueprintWithUserChar, 'protagonist', 'char-2');
-      } catch (err) {
-        expect((err as PlayerCharacterBindingError).code).toBe('ROLE_CHARACTER_MISMATCH');
-        expect((err as Error).message).toContain('does not match the reviewed user character ID');
-      }
+      const binding = resolvePerspectiveBinding(blueprintWithUserChar, 'protagonist', 'char-2');
+      expect(binding).toEqual({
+        playerRole: 'protagonist',
+        characterId: 'char-2',
+        perspectiveMode: 'embodied',
+      });
     });
 
     it('Forge 1C-6: throws UNKNOWN_CHARACTER_ID if blueprint.userCharacterId is not in cast', () => {

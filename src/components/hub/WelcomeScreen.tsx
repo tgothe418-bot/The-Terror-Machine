@@ -37,8 +37,8 @@ export default function WelcomeScreen() {
           </div>
 
           <div className="space-y-3">
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-[0.4em] uppercase text-white">
-              NIGHTMARE <span className="text-zinc-500 font-light">MACHINE</span>
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-[0.35em] uppercase text-white">
+              THE TERROR <span className="text-red-500 font-extrabold">MACHINE</span>
             </h1>
             <div className="flex items-center justify-center gap-3 text-zinc-500 font-mono text-xs sm:text-sm tracking-[0.25em] uppercase">
               <Activity className="w-4 h-4 text-red-500" />

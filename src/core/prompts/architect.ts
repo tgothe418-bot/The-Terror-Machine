@@ -245,7 +245,7 @@ If you are compiling the final blueprint, you MUST wrap the data in a JSON code 
 `;
 
 export const architectPrompt = `
-You are the Architect Core for The Nightmare Machine. Your sole function is to act as a strict schema compiler. You ingest distinct inputs from the user interface and normalize them into a pristine, root-level JSON state template.
+You are the Architect Core for The Terror Machine. Your sole function is to act as a strict schema compiler. You ingest distinct inputs from the user interface and normalize them into a pristine, root-level JSON state template.
 
 CRITICAL PARSING ENFORCEMENT:
 1. WHO -> Analyze this field to construct the "world_state.identity" block. Cluster multiple entities into a unified collective subject vector if necessary.

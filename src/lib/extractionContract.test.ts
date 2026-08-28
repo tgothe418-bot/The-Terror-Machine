@@ -99,16 +99,23 @@ describe('extractionContract — Deterministic Alias Normalization', () => {
       expect(normalizeEdgeKind('hallway')).toBe('PHYSICAL');
       expect(normalizeEdgeKind('passage')).toBe('PHYSICAL');
       expect(normalizeEdgeKind('physical-path')).toBe('PHYSICAL');
-      expect(normalizeEdgeKind('trap')).toBe('FORCED_EVENT');
       expect(normalizeEdgeKind('forced-event')).toBe('FORCED_EVENT');
+      expect(normalizeEdgeKind('forced-transition')).toBe('FORCED_EVENT');
       expect(normalizeEdgeKind('memory-reconstruction')).toBe('MEMORY_RECONSTRUCTION');
-      expect(normalizeEdgeKind('flashback')).toBe('MEMORY_RECONSTRUCTION');
-      expect(normalizeEdgeKind('history')).toBe('HISTORICAL_REFERENCE');
-      expect(normalizeEdgeKind('exit')).toBe('TERMINAL_EJECTION');
+      expect(normalizeEdgeKind('memory-transition')).toBe('MEMORY_RECONSTRUCTION');
+      expect(normalizeEdgeKind('historical-reference')).toBe('HISTORICAL_REFERENCE');
+      expect(normalizeEdgeKind('terminal-ejection')).toBe('TERMINAL_EJECTION');
       expect(normalizeEdgeKind('paradox')).toBe('AUTHORED_PARADOX');
+      expect(normalizeEdgeKind('non-euclidean')).toBe('AUTHORED_PARADOX');
     });
 
-    it('returns undefined for unknown connection kinds and NEVER defaults to PHYSICAL', () => {
+    it('returns undefined for ambiguous connection tokens and NEVER defaults to PHYSICAL', () => {
+      expect(normalizeEdgeKind('exit')).toBeUndefined();
+      expect(normalizeEdgeKind('event')).toBeUndefined();
+      expect(normalizeEdgeKind('trap')).toBeUndefined();
+      expect(normalizeEdgeKind('collapse')).toBeUndefined();
+      expect(normalizeEdgeKind('flashback')).toBeUndefined();
+      expect(normalizeEdgeKind('portal')).toBeUndefined();
       expect(normalizeEdgeKind('MAGIC_PORTAL')).toBeUndefined();
       expect(normalizeEdgeKind('WARP_ZONE')).toBeUndefined();
       expect(normalizeEdgeKind('')).toBeUndefined();
@@ -130,6 +137,12 @@ describe('extractionContract — Deterministic Alias Normalization', () => {
       const missingId = normalizeValueHolder({ kind: 'person' });
       expect(missingId?.kind).toBe('CHARACTER');
       expect(missingId?.castMemberId).toBeUndefined();
+    });
+
+    it('does not map ambiguous ENTITY to CHARACTER value holder', () => {
+      const entityHolder = normalizeValueHolder({ kind: 'entity', id: 'ent-1' });
+      // ENTITY is ambiguous and must not map to CHARACTER
+      expect(entityHolder?.kind).toBe('entity');
     });
 
     it('normalizes RELATIONSHIP holder aliases when 2 distinct member IDs exist', () => {
@@ -167,14 +180,26 @@ describe('extractionContract — Deterministic Alias Normalization', () => {
         kind: 'AT_NODE',
         nodeId: 'hall',
       });
+      expect(normalizePresenceDisposition({ kind: 'location', nodeId: 'hall' })).toEqual({
+        kind: 'AT_NODE',
+        nodeId: 'hall',
+      });
+      expect(normalizePresenceDisposition({ kind: 'in_room', id: 'cellar' })).toEqual({
+        kind: 'AT_NODE',
+        nodeId: 'cellar',
+      });
     });
 
-    it('normalizes OFFSTAGE aliases', () => {
+    it('normalizes OFFSTAGE aliases and rejects ambiguous tokens like HIDDEN and WAITING', () => {
       expect(normalizePresenceDisposition({ kind: 'off_stage' })).toEqual({ kind: 'OFFSTAGE' });
+      expect(normalizePresenceDisposition({ kind: 'absent' })).toEqual({ kind: 'OFFSTAGE' });
+      expect(normalizePresenceDisposition({ kind: 'hidden' })).toEqual({ kind: 'hidden' });
+      expect(normalizePresenceDisposition({ kind: 'waiting' })).toEqual({ kind: 'waiting' });
     });
 
     it('normalizes NONLOCAL aliases', () => {
       expect(normalizePresenceDisposition({ kind: 'non-local' })).toEqual({ kind: 'NONLOCAL' });
+      expect(normalizePresenceDisposition({ kind: 'omnipresent' })).toEqual({ kind: 'NONLOCAL' });
     });
   });
 
@@ -226,7 +251,12 @@ describe('extractionContract — Deterministic Alias Normalization', () => {
   });
 });
 
-describe('extractionContract — Sanitized Issues & Extraction Prompt', () => {
+describe('extractionContract — Sanitized Issues, Parity & Prompt', () => {
+  it('enforces parity between ForgeSourceCandidateTargetSchema and EXTRACTION_CANDIDATE_TARGETS', () => {
+    const schemaTargets = ForgeSourceCandidateTargetSchema.options;
+    expect(EXTRACTION_CANDIDATE_TARGETS).toEqual(schemaTargets);
+  });
+
   it('creates quarantined issue without sensitive payloads or credentials', () => {
     const issue = createQuarantinedIssue('src-123', 3, { target: 'topology_connection', label: 'Secret Path' }, {
       fieldPath: 'proposedValue.kind',

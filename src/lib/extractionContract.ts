@@ -149,53 +149,39 @@ const EDGE_KIND_ALIAS_MAP: Record<string, EdgeKind> = {
   PHYSICAL_PATH: 'PHYSICAL',
   'PHYSICAL-PATH': 'PHYSICAL',
   WALKWAY: 'PHYSICAL',
-  PORTAL: 'PHYSICAL',
-  ROOM_CONNECTION: 'PHYSICAL',
-  ADJACENT: 'PHYSICAL',
-  CONNECTED: 'PHYSICAL',
   STAIRS: 'PHYSICAL',
   STAIRCASE: 'PHYSICAL',
 
-  // FORCED_EVENT aliases
+  // FORCED_EVENT aliases (spelling and separator variants only)
   FORCED_EVENT: 'FORCED_EVENT',
   'FORCED-EVENT': 'FORCED_EVENT',
-  FORCED: 'FORCED_EVENT',
-  EVENT: 'FORCED_EVENT',
-  TRAP: 'FORCED_EVENT',
-  COLLAPSE: 'FORCED_EVENT',
-  AMBUSH: 'FORCED_EVENT',
+  FORCED_TRANSITION: 'FORCED_EVENT',
+  'FORCED-TRANSITION': 'FORCED_EVENT',
 
   // MEMORY_RECONSTRUCTION aliases
   MEMORY_RECONSTRUCTION: 'MEMORY_RECONSTRUCTION',
   'MEMORY-RECONSTRUCTION': 'MEMORY_RECONSTRUCTION',
-  MEMORY: 'MEMORY_RECONSTRUCTION',
-  RECONSTRUCTION: 'MEMORY_RECONSTRUCTION',
-  FLASHBACK: 'MEMORY_RECONSTRUCTION',
-  RECOLLECTION: 'MEMORY_RECONSTRUCTION',
+  MEMORY_TRANSITION: 'MEMORY_RECONSTRUCTION',
+  'MEMORY-TRANSITION': 'MEMORY_RECONSTRUCTION',
 
   // HISTORICAL_REFERENCE aliases
   HISTORICAL_REFERENCE: 'HISTORICAL_REFERENCE',
   'HISTORICAL-REFERENCE': 'HISTORICAL_REFERENCE',
   HISTORICAL: 'HISTORICAL_REFERENCE',
-  HISTORY: 'HISTORICAL_REFERENCE',
-  LORE: 'HISTORICAL_REFERENCE',
-  ARCHIVAL: 'HISTORICAL_REFERENCE',
 
   // TERMINAL_EJECTION aliases
   TERMINAL_EJECTION: 'TERMINAL_EJECTION',
   'TERMINAL-EJECTION': 'TERMINAL_EJECTION',
   TERMINAL: 'TERMINAL_EJECTION',
   EJECTION: 'TERMINAL_EJECTION',
-  EXIT: 'TERMINAL_EJECTION',
-  EXPULSION: 'TERMINAL_EJECTION',
 
   // AUTHORED_PARADOX aliases
   AUTHORED_PARADOX: 'AUTHORED_PARADOX',
   'AUTHORED-PARADOX': 'AUTHORED_PARADOX',
   PARADOX: 'AUTHORED_PARADOX',
   ANOMALY: 'AUTHORED_PARADOX',
-  IMPOSSIBILITY: 'AUTHORED_PARADOX',
   NON_EUCLIDEAN: 'AUTHORED_PARADOX',
+  'NON-EUCLIDEAN': 'AUTHORED_PARADOX',
 };
 
 export function normalizeEdgeKind(raw: unknown): EdgeKind | undefined {
@@ -216,7 +202,7 @@ export function normalizeValueHolder(raw: unknown): Record<string, unknown> | un
   const obj = { ...(raw as Record<string, unknown>) };
   const rawKind = typeof obj.kind === 'string' ? obj.kind.trim().toUpperCase() : '';
 
-  // CHARACTER aliases
+  // CHARACTER aliases (strict person/castmember equivalents; ENTITY is excluded)
   if (
     rawKind === 'CHARACTER' ||
     rawKind === 'CASTMEMBER' ||
@@ -224,8 +210,7 @@ export function normalizeValueHolder(raw: unknown): Record<string, unknown> | un
     rawKind === 'PERSON' ||
     rawKind === 'ACTOR' ||
     rawKind === 'INDIVIDUAL' ||
-    rawKind === 'SUBJECT' ||
-    rawKind === 'ENTITY'
+    rawKind === 'SUBJECT'
   ) {
     const castMemberId =
       typeof obj.castMemberId === 'string' && obj.castMemberId.trim()
@@ -335,9 +320,7 @@ export function normalizePresenceDisposition(raw: unknown): Record<string, unkno
     rawKind === 'OFFSTAGE' ||
     rawKind === 'OFF_STAGE' ||
     rawKind === 'OFF-STAGE' ||
-    rawKind === 'ABSENT' ||
-    rawKind === 'HIDDEN' ||
-    rawKind === 'WAITING'
+    rawKind === 'ABSENT'
   ) {
     return { kind: 'OFFSTAGE' };
   }
@@ -429,6 +412,55 @@ export function normalizeCandidateAliases(
         obj.expressionProfile = expObj;
       }
       proposedValue = obj;
+    }
+
+    // 6. Character pursuit
+    else if (target === 'character_pursuit') {
+      const sanitized: Record<string, unknown> = {};
+      const allowedKeys = [
+        'id',
+        'castMemberId',
+        'objective',
+        'presentApproach',
+        'locationNodeId',
+        'status',
+        'reviewWindow',
+        'triggerReferences',
+        'basisSummary',
+        'provenance',
+      ];
+      for (const key of allowedKeys) {
+        if (obj[key] !== undefined) {
+          sanitized[key] = obj[key];
+        }
+      }
+
+      if (typeof obj.reviewWindow === 'string') {
+        const cleaned = obj.reviewWindow.trim().toUpperCase().replace(/-/g, '_');
+        if (cleaned === 'MOMENT' || cleaned === 'EVERY_TURN' || cleaned === 'TURN') {
+          sanitized.reviewWindow = 'MOMENT';
+        } else if (cleaned === 'SCENE_BEAT' || cleaned === 'SCENE' || cleaned === 'LOCATION_ENTRY' || cleaned === 'BEAT') {
+          sanitized.reviewWindow = 'SCENE_BEAT';
+        } else if (cleaned === 'EXTENDED' || cleaned === 'LONG_TERM' || cleaned === 'VALUE_THREATENED') {
+          sanitized.reviewWindow = 'EXTENDED';
+        } else if (cleaned === 'EVENT_DRIVEN' || cleaned === 'EVENT') {
+          sanitized.reviewWindow = 'EVENT_DRIVEN';
+        }
+      }
+      if (typeof obj.status === 'string') {
+        const cleaned = obj.status.trim().toUpperCase();
+        if (cleaned === 'ACTIVE' || cleaned === 'DORMANT') {
+          sanitized.status = cleaned;
+        }
+      }
+      if (typeof sanitized.basisSummary !== 'string' || !sanitized.basisSummary.trim()) {
+        if (typeof obj.explanation === 'string' && obj.explanation.trim()) {
+          sanitized.basisSummary = obj.explanation.trim();
+        } else if (typeof obj.objective === 'string' && obj.objective.trim()) {
+          sanitized.basisSummary = `Source baseline objective: ${obj.objective.trim()}`;
+        }
+      }
+      proposedValue = sanitized;
     }
   }
 

@@ -28,15 +28,8 @@ export function isCharacterEligibleForRole(
   character: Blueprint['cast'][number],
   role: PlayerRole
 ): boolean {
-  if (role === 'protagonist') {
-    return character.isEntity !== true;
-  }
-  if (role === 'antagonist') {
-    return character.isEntity === true;
-  }
-  if (role === 'possessed') {
-    // For possessed mode, return true for any exact cast member to allow authored-perspective validation
-    return true;
+  if (role === 'protagonist' || role === 'antagonist' || role === 'possessed') {
+    return Boolean(character && character.id);
   }
   return false;
 }
@@ -108,17 +101,6 @@ export function resolvePerspectiveBinding(
       throw new PlayerCharacterBindingError(
         'ROLE_CHARACTER_MISMATCH',
         `Character "${matchedChar.id}" is not eligible for role "${role}".`
-      );
-    }
-
-    if (
-      role === 'protagonist' &&
-      blueprint.userCharacterId &&
-      matchedChar.id !== blueprint.userCharacterId
-    ) {
-      throw new PlayerCharacterBindingError(
-        'ROLE_CHARACTER_MISMATCH',
-        `Selected character "${matchedChar.id}" does not match the reviewed user character ID "${blueprint.userCharacterId}" in this blueprint.`
       );
     }
 
@@ -197,7 +179,7 @@ export function resolvePerspectiveBinding(
       }
     }
 
-    const firstEntity = cast.find((c) => isCharacterEligibleForRole(c, 'antagonist'));
+    const firstEntity = cast.find((c) => c.isEntity) || cast[0];
     return {
       playerRole: 'antagonist',
       characterId: firstEntity ? firstEntity.id : null,
@@ -212,12 +194,6 @@ export function resolvePerspectiveBinding(
         throw new PlayerCharacterBindingError(
           'UNKNOWN_CHARACTER_ID',
           `User character ID "${blueprint.userCharacterId}" does not exist in blueprint cast.`
-        );
-      }
-      if (!isCharacterEligibleForRole(charMatches[0], 'protagonist')) {
-        throw new PlayerCharacterBindingError(
-          'ROLE_CHARACTER_MISMATCH',
-          `User character "${blueprint.userCharacterId}" is not eligible for role "protagonist".`
         );
       }
       return {
@@ -245,7 +221,7 @@ export function resolvePerspectiveBinding(
       }
     }
 
-    const userMarked = cast.find((c) => c.isUserCharacter && isCharacterEligibleForRole(c, 'protagonist'));
+    const userMarked = cast.find((c) => c.isUserCharacter);
     if (userMarked) {
       return {
         playerRole: 'protagonist',
@@ -254,7 +230,7 @@ export function resolvePerspectiveBinding(
       };
     }
 
-    const firstMortal = cast.find((c) => isCharacterEligibleForRole(c, 'protagonist'));
+    const firstMortal = cast.find((c) => !c.isEntity) || cast[0];
     return {
       playerRole: 'protagonist',
       characterId: firstMortal ? firstMortal.id : null,

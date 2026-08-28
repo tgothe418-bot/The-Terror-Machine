@@ -126,18 +126,17 @@ describe('compileRuntimeTopology', () => {
     expect(result.spatialGraph[0].exits).toEqual([]);
   });
 
-  it('fails closed for rich authored topology when explicit startingNodeId is missing', () => {
-    expect(() =>
-      compileRuntimeTopology({
-        topology: {
-          nodeDefinitions: [
-            { id: 'ROOM_A', label: 'Room A', description: 'Desc A' },
-            { id: 'ROOM_B', label: 'Room B', description: 'Desc B' },
-          ],
-          connections: [],
-        },
-      })
-    ).toThrow('Explicit startingNodeId is required for rich authored topology.');
+  it('falls back to first node for rich authored topology when explicit startingNodeId is missing', () => {
+    const result = compileRuntimeTopology({
+      topology: {
+        nodeDefinitions: [
+          { id: 'ROOM_A', label: 'Room A', description: 'Desc A' },
+          { id: 'ROOM_B', label: 'Room B', description: 'Desc B' },
+        ],
+        connections: [],
+      },
+    });
+    expect(result.startNodeId).toBe('ROOM_A');
   });
 
   it('fails closed for rich authored topology when startingNodeId is an expandable space anchor', () => {

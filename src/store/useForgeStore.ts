@@ -1414,17 +1414,51 @@ export const useForgeStoreInternal = create<ForgeStore>()(
               reviewedAt: Date.now(),
             };
 
+            const hg = currentDraft.horrorGrammar || {
+              valueBaselineReview: 'UNREVIEWED',
+              pursuitReviews: {},
+              valueAnchors: [],
+              characterPursuits: [],
+            };
+
+            const existingPursuitIdx = (hg.characterPursuits || []).findIndex(
+              (p) => p.castMemberId === userChar.id
+            );
+
+            const userPursuit: CharacterPursuit = {
+              id: `pursuit-${userChar.id}`,
+              castMemberId: userChar.id,
+              objective: candText,
+              presentApproach: 'Direct focus on opening objective.',
+              status: 'ACTIVE',
+              reviewWindow: 'MOMENT',
+              triggerReferences: [],
+              basisSummary: 'Accepted reference opening objective',
+              provenance: {
+                kind: 'REVIEWED_SOURCE',
+                sourceId: actualSourceId,
+                evidenceIds: candidate.evidenceIds || [],
+              },
+            };
+
+            const nextPursuits = [...(hg.characterPursuits || [])];
+            if (existingPursuitIdx >= 0) {
+              nextPursuits[existingPursuitIdx] = userPursuit;
+            } else {
+              nextPursuits.push(userPursuit);
+            }
+
             const updatedDraft: ForgeDraft = {
               ...currentDraft,
               userOpeningAim: aimRecord,
               horrorGrammar: {
-                ...(currentDraft.horrorGrammar || {
-                  valueBaselineReview: 'UNREVIEWED',
-                  pursuitReviews: {},
-                  valueAnchors: [],
-                  characterPursuits: [],
-                }),
+                ...hg,
                 userOpeningAim: aimRecord,
+                pursuitReviews: {
+                  ...(hg.pursuitReviews || {}),
+                  [userChar.id]: 'REVIEWED',
+                },
+                characterPursuits: nextPursuits,
               },
             };
 
@@ -1462,17 +1496,47 @@ export const useForgeStoreInternal = create<ForgeStore>()(
               reviewedAt: Date.now(),
             };
 
+            const hg = currentDraft.horrorGrammar || {
+              valueBaselineReview: 'UNREVIEWED',
+              pursuitReviews: {},
+              valueAnchors: [],
+              characterPursuits: [],
+            };
+
+            const existingPursuitIdx = (hg.characterPursuits || []).findIndex(
+              (p) => p.castMemberId === userChar.id
+            );
+
+            const userPursuit: CharacterPursuit = {
+              id: `pursuit-${userChar.id}`,
+              castMemberId: userChar.id,
+              objective: cleanText,
+              presentApproach: 'Direct focus on opening objective.',
+              status: 'ACTIVE',
+              reviewWindow: 'MOMENT',
+              triggerReferences: [],
+              basisSummary: 'Creator authored opening objective',
+              provenance: { kind: 'CREATOR_DEFINED' },
+            };
+
+            const nextPursuits = [...(hg.characterPursuits || [])];
+            if (existingPursuitIdx >= 0) {
+              nextPursuits[existingPursuitIdx] = userPursuit;
+            } else {
+              nextPursuits.push(userPursuit);
+            }
+
             const updatedDraft: ForgeDraft = {
               ...currentDraft,
               userOpeningAim: aimRecord,
               horrorGrammar: {
-                ...(currentDraft.horrorGrammar || {
-                  valueBaselineReview: 'UNREVIEWED',
-                  pursuitReviews: {},
-                  valueAnchors: [],
-                  characterPursuits: [],
-                }),
+                ...hg,
                 userOpeningAim: aimRecord,
+                pursuitReviews: {
+                  ...(hg.pursuitReviews || {}),
+                  [userChar.id]: 'REVIEWED',
+                },
+                characterPursuits: nextPursuits,
               },
             };
 
@@ -1500,17 +1564,28 @@ export const useForgeStoreInternal = create<ForgeStore>()(
               reviewedAt: Date.now(),
             };
 
+            const hg = currentDraft.horrorGrammar || {
+              valueBaselineReview: 'UNREVIEWED',
+              pursuitReviews: {},
+              valueAnchors: [],
+              characterPursuits: [],
+            };
+
+            const filteredPursuits = (hg.characterPursuits || []).filter(
+              (p) => p.castMemberId !== (userChar?.id || '')
+            );
+
             const updatedDraft: ForgeDraft = {
               ...currentDraft,
               userOpeningAim: aimRecord,
               horrorGrammar: {
-                ...(currentDraft.horrorGrammar || {
-                  valueBaselineReview: 'UNREVIEWED',
-                  pursuitReviews: {},
-                  valueAnchors: [],
-                  characterPursuits: [],
-                }),
+                ...hg,
                 userOpeningAim: aimRecord,
+                pursuitReviews: {
+                  ...(hg.pursuitReviews || {}),
+                  ...(userChar?.id ? { [userChar.id]: 'REVIEWED_NONE' } : {}),
+                },
+                characterPursuits: filteredPursuits,
               },
             };
 

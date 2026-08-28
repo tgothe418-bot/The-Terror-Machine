@@ -115,16 +115,18 @@ export function compileRuntimeTopology(
 
   let startNodeId: string;
   if (isRichTopology) {
-    if (!explicitStart || !explicitStart.trim()) {
-      throw new Error('Explicit startingNodeId is required for rich authored topology.');
+    if (explicitStart && explicitStart.trim()) {
+      if (options.topology?.anchors?.some((a) => a.id === explicitStart)) {
+        throw new Error(`Starting node ID "${explicitStart}" cannot be an expandable space anchor.`);
+      }
+      if (!nodeIds.includes(explicitStart)) {
+        throw new Error(`Explicit startingNodeId "${explicitStart}" not found in topology node definitions.`);
+      }
+      startNodeId = explicitStart;
+    } else {
+      // Perspective-neutral rich topology: fallback to first authored node definition
+      startNodeId = nodeIds[0];
     }
-    if (options.topology?.anchors?.some((a) => a.id === explicitStart)) {
-      throw new Error(`Starting node ID "${explicitStart}" cannot be an expandable space anchor.`);
-    }
-    if (!nodeIds.includes(explicitStart)) {
-      throw new Error(`Explicit startingNodeId "${explicitStart}" not found in topology node definitions.`);
-    }
-    startNodeId = explicitStart;
   } else {
     // Legacy flat topology compatibility path: fallback to explicit start if present, else first node
     startNodeId = explicitStart && nodeIds.includes(explicitStart) ? explicitStart : nodeIds[0];

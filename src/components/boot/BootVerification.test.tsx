@@ -39,7 +39,7 @@ describe('Blocker W1 Boot and Render Verification', () => {
     });
 
     expect(container?.childElementCount).toBeGreaterThan(0);
-    expect(container?.textContent).toContain('NIGHTMARE MACHINE');
+    expect(container?.textContent).toContain('THE TERROR MACHINE');
     expect(container?.textContent).toContain('The Voice');
     expect(container?.textContent).toContain('The Forge');
     expect(container?.textContent).toContain('The Engine');

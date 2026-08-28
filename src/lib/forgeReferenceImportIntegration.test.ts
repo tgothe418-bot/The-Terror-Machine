@@ -427,6 +427,7 @@ describe('Forge Reference-Import End-to-End Traversal & Stabilization Suite (Pac
     };
     if (workingDraft.horrorGrammar) {
       workingDraft.horrorGrammar.pursuitReviews = {
+        'char-mercer': 'REVIEWED_NONE',
         'char-resonator': 'REVIEWED_NONE',
       };
     }
@@ -596,6 +597,21 @@ describe('Forge Reference-Import End-to-End Traversal & Stabilization Suite (Pac
     forgeActions.updateDepictionContractField('directness', 'High Directness');
     forgeActions.updateDepictionContractField('aftermath', 'Irreversible Oxygen Depletion');
     forgeActions.updateDepictionContractField('ambiguityHandling', 'Preserve Epistemic Silence');
+
+    // Review all cast member pursuits
+    if (draft.cast) {
+      if (!draft.horrorGrammar) {
+        draft.horrorGrammar = {
+          valueBaselineReview: 'REVIEWED_NONE',
+          pursuitReviews: {},
+          valueAnchors: [],
+          characterPursuits: [],
+        };
+      }
+      draft.cast.forEach((c) => {
+        draft.horrorGrammar!.pursuitReviews[c.id] = 'REVIEWED_NONE';
+      });
+    }
 
     // Compile to Blueprint
     const compileRes = compileForgeDraft(getForgeState().forgeDraft, {

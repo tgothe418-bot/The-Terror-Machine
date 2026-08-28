@@ -39,38 +39,9 @@ export function validateForgeExportReadiness({
     errors[key] = [...msgs];
   }
 
-  // 1b. Validate exact source/evidence provenance for ACCEPTED_REFERENCE opening aim
-  if (draft?.userOpeningAim?.disposition === 'ACCEPTED_REFERENCE') {
-    const provRes = resolveSourceEvidenceProvenance({
-      provenance: draft.userOpeningAim.provenance,
-      sourceAnalyses,
-      expectedText: draft.userOpeningAim.aimText,
-      expectedCastMemberId: draft.userOpeningAim.castMemberId,
-    });
-    if (!provRes.valid) {
-      if (!errors['userOpeningAim.provenance']) errors['userOpeningAim.provenance'] = [];
-      errors['userOpeningAim.provenance'].push(...provRes.errors);
-    }
-  }
-
-  // 1c. Validate exact source/evidence provenance for Topology elements
+  // 1b. Validate exact source/evidence provenance for Topology elements
   if (draft?.topology) {
     const topo = draft.topology;
-
-    if (topo.startingNodeProvenance?.sourceId) {
-      const provRes = resolveSourceEvidenceProvenance({
-        provenance: {
-          kind: 'REVIEWED_SOURCE',
-          sourceId: topo.startingNodeProvenance.sourceId,
-          evidenceIds: topo.startingNodeProvenance.evidenceIds || [],
-        },
-        sourceAnalyses,
-      });
-      if (!provRes.valid) {
-        if (!errors['topology.startingNodeProvenance']) errors['topology.startingNodeProvenance'] = [];
-        errors['topology.startingNodeProvenance'].push(...provRes.errors);
-      }
-    }
 
     if (Array.isArray(topo.nodeDefinitions)) {
       topo.nodeDefinitions.forEach((nodeDef, idx) => {
@@ -133,6 +104,43 @@ export function validateForgeExportReadiness({
     }
   }
 
+  // 1c. Validate exact source/evidence provenance for Horror Grammar elements
+  if (draft?.horrorGrammar) {
+    const hg = draft.horrorGrammar;
+
+    if (Array.isArray(hg.characterPursuits)) {
+      hg.characterPursuits.forEach((pursuit, idx) => {
+        if (pursuit.provenance?.kind === 'REVIEWED_SOURCE') {
+          const provRes = resolveSourceEvidenceProvenance({
+            provenance: pursuit.provenance,
+            sourceAnalyses,
+          });
+          if (!provRes.valid) {
+            const key = `horrorGrammar.characterPursuits[${idx}].provenance`;
+            if (!errors[key]) errors[key] = [];
+            errors[key].push(...provRes.errors);
+          }
+        }
+      });
+    }
+
+    if (Array.isArray(hg.valueAnchors)) {
+      hg.valueAnchors.forEach((anchor, idx) => {
+        if (anchor.provenance?.kind === 'REVIEWED_SOURCE') {
+          const provRes = resolveSourceEvidenceProvenance({
+            provenance: anchor.provenance,
+            sourceAnalyses,
+          });
+          if (!provRes.valid) {
+            const key = `horrorGrammar.valueAnchors[${idx}].provenance`;
+            if (!errors[key]) errors[key] = [];
+            errors[key].push(...provRes.errors);
+          }
+        }
+      });
+    }
+  }
+
   // 2. Validate Source Baseline Intake Readiness
   const summary: ForgeExportReadinessSummary = {
     sourceCount: 0,
@@ -160,7 +168,6 @@ export function validateForgeExportReadiness({
       }
 
       // Check candidates
-      let stagedAcceptedInSource = 0;
       if (Array.isArray(analysis.candidates)) {
         summary.candidateTotal += analysis.candidates.length;
         for (const cand of analysis.candidates) {
@@ -170,17 +177,8 @@ export function validateForgeExportReadiness({
             summary.candidateApplied += 1;
           } else if (cand.reviewDecision === 'accepted' && cand.applicationState === 'staged') {
             summary.candidateStagedAccepted += 1;
-            stagedAcceptedInSource += 1;
           }
         }
-      }
-
-      if (stagedAcceptedInSource > 0) {
-        const key = `source.${analysis.id}.stagedCandidates`;
-        if (!errors[key]) errors[key] = [];
-        errors[key].push(
-          `Source "${fileName}": ${stagedAcceptedInSource} accepted candidate${stagedAcceptedInSource > 1 ? 's are' : ' is'} still staged. Apply or reject before export.`
-        );
       }
 
       // Check unknowns

@@ -718,6 +718,7 @@ export function validateAndNormalizeDocumentAnalysis(
   // 2. Normalize and filter candidate entries with deterministic alias normalization and quarantine
   const candidates: ForgeSourceCandidate[] = [];
   const validationIssues: ForgeValidationIssue[] = [];
+  let omittedValidationIssueCount = 0;
   const validEvidenceIds = new Set(evidence.map((e) => e.id));
 
   const recordIssue = (
@@ -732,14 +733,8 @@ export function validateAndNormalizeDocumentAnalysis(
   ) => {
     if (validationIssues.length < MAX_VALIDATION_ISSUES) {
       validationIssues.push(createQuarantinedIssue(sourceId, candidateIndex, candidateObj, errorInfo));
-    } else if (validationIssues.length === MAX_VALIDATION_ISSUES) {
-      validationIssues.push(
-        createQuarantinedIssue(sourceId, candidateIndex, candidateObj, {
-          fieldPath: 'candidates',
-          code: 'INVALID_CANDIDATE_SHAPE',
-          message: 'Additional malformed candidates truncated.',
-        })
-      );
+    } else {
+      omittedValidationIssueCount++;
     }
   };
 
@@ -804,6 +799,64 @@ export function validateAndNormalizeDocumentAnalysis(
           return;
         }
         proposedValue = castObj;
+      } else if (
+        normalizedCandidate.target === 'value_anchor' &&
+        typeof proposedValue === 'object' &&
+        proposedValue !== null &&
+        !Array.isArray(proposedValue)
+      ) {
+        const anchorObj = { ...(proposedValue as Record<string, unknown>) };
+        if (!anchorObj.id || typeof anchorObj.id !== 'string' || !anchorObj.id.trim()) {
+          anchorObj.id = `${sourceId}-anchor-${idx}`;
+        }
+        if (rawEvIds.length === 0) {
+          recordIssue(candidateIndex, normalizedCandidate, {
+            fieldPath: 'evidenceIds',
+            code: 'MISSING_REQUIRED_FIELD',
+            message: `Candidate ${candidateIndex} (value_anchor) requires source evidence provenance.`,
+          });
+          return;
+        }
+        // Server reconstructs provenance authoritatively from sourceRecord.id and valid evidence IDs
+        anchorObj.provenance = {
+          kind: 'REVIEWED_SOURCE',
+          sourceId,
+          evidenceIds: rawEvIds,
+        };
+        proposedValue = anchorObj;
+      } else if (
+        normalizedCandidate.target === 'character_pursuit' &&
+        typeof proposedValue === 'object' &&
+        proposedValue !== null &&
+        !Array.isArray(proposedValue)
+      ) {
+        const pursuitObj = { ...(proposedValue as Record<string, unknown>) };
+        if (!pursuitObj.id || typeof pursuitObj.id !== 'string' || !pursuitObj.id.trim()) {
+          pursuitObj.id = `${sourceId}-pursuit-${idx}`;
+        }
+        if (rawEvIds.length === 0) {
+          recordIssue(candidateIndex, normalizedCandidate, {
+            fieldPath: 'evidenceIds',
+            code: 'MISSING_REQUIRED_FIELD',
+            message: `Candidate ${candidateIndex} (character_pursuit) requires source evidence provenance.`,
+          });
+          return;
+        }
+        pursuitObj.provenance = {
+          kind: 'REVIEWED_SOURCE',
+          sourceId,
+          evidenceIds: rawEvIds,
+        };
+        proposedValue = pursuitObj;
+      } else if (
+        normalizedCandidate.target === 'reference_attribution' &&
+        typeof proposedValue === 'object' &&
+        proposedValue !== null &&
+        !Array.isArray(proposedValue)
+      ) {
+        const attrObj = { ...(proposedValue as Record<string, unknown>) };
+        attrObj.sourceId = sourceId;
+        proposedValue = attrObj;
       } else if (normalizedCandidate.target === 'user_opening_aim_default') {
         let aimText = '';
         let castMemberId =
@@ -886,7 +939,7 @@ export function validateAndNormalizeDocumentAnalysis(
         );
         const discIssue = parseRes.error.issues.find(
           (i) => {
-            const rec = i as Record<string, unknown>;
+            const rec = i as unknown as Record<string, unknown>;
             return (
               (i.code as string) === 'invalid_union_discriminator' ||
               (i.code === 'invalid_union' && Boolean(rec.discriminator || rec.options))
@@ -894,7 +947,7 @@ export function validateAndNormalizeDocumentAnalysis(
           }
         );
         const missingIssue = parseRes.error.issues.find((i) => {
-          const rec = i as Record<string, unknown>;
+          const rec = i as unknown as Record<string, unknown>;
           return i.code === 'invalid_type' && (rec.received === 'undefined' || rec.input === undefined);
         });
         const relevantIssue = enumIssue || discIssue || missingIssue || parseRes.error.issues[0];
@@ -905,7 +958,7 @@ export function validateAndNormalizeDocumentAnalysis(
 
         if (relevantIssue) {
           const issueCode = relevantIssue.code as string;
-          const issueRec = relevantIssue as Record<string, unknown>;
+          const issueRec = relevantIssue as unknown as Record<string, unknown>;
           if (issueCode === 'invalid_value' || issueCode === 'invalid_enum_value') {
             code = 'INVALID_ENUM';
             allowedValues = (issueRec.values || issueRec.options) as string[];
@@ -970,6 +1023,7 @@ export function validateAndNormalizeDocumentAnalysis(
       candidates: [],
       unknowns: [],
       validationIssues,
+      omittedValidationIssueCount,
       status: 'error',
       errorMessage:
         validationIssues.length > 0
@@ -981,7 +1035,7 @@ export function validateAndNormalizeDocumentAnalysis(
   const status: 'completed' | 'completed_with_issues' | 'error' =
     rawObj.status === 'error'
       ? 'error'
-      : validationIssues.length > 0
+      : validationIssues.length > 0 || omittedValidationIssueCount > 0
         ? 'completed_with_issues'
         : 'completed';
 
@@ -992,12 +1046,13 @@ export function validateAndNormalizeDocumentAnalysis(
       typeof rawObj.summary === 'string' && rawObj.summary.trim()
         ? rawObj.summary.trim()
         : validationIssues.length > 0
-          ? `Source intake analysis for ${sourceRecord.fileName} (${candidates.length} valid candidates, ${validationIssues.length} quarantined issues)`
+          ? `Source intake analysis for ${sourceRecord.fileName} (${candidates.length} valid candidates, ${validationIssues.length + omittedValidationIssueCount} quarantined issues)`
           : `Source intake analysis for ${sourceRecord.fileName} (${candidates.length} reviewable candidates)`,
     evidence,
     candidates,
     unknowns,
     validationIssues,
+    omittedValidationIssueCount,
     status,
     errorMessage:
       typeof rawObj.errorMessage === 'string' && rawObj.errorMessage.trim()
@@ -1011,14 +1066,15 @@ export function validateAndNormalizeDocumentAnalysis(
   }
 
   return {
-    id: `${sourceId}-analysis-err`,
+    id: `${sourceId}-analysis-fallback`,
     sourceRecord,
-    summary: 'Analysis payload validation failed.',
-    evidence: [],
-    candidates: [],
-    unknowns: [],
-    validationIssues: [],
-    status: 'error',
+    summary: `Source intake completed with parsing fallback for ${sourceRecord.fileName}.`,
+    evidence,
+    candidates,
+    unknowns,
+    validationIssues: validationIssues.slice(0, MAX_VALIDATION_ISSUES),
+    omittedValidationIssueCount,
+    status: 'completed_with_issues',
     errorMessage: `Schema validation failed: ${parseResult.error.issues.map((i) => i.message).join(', ')}`,
   };
 }
@@ -1161,6 +1217,15 @@ export function applyCandidateToDraft(
         cloned.cast = currentCast;
         if (cloned.userCharacterId === proposedCast.id) {
           cloned.userCharacterId = undefined;
+        }
+      }
+
+      if (cloned.horrorGrammar) {
+        if (!cloned.horrorGrammar.pursuitReviews) {
+          cloned.horrorGrammar.pursuitReviews = {};
+        }
+        if (!cloned.horrorGrammar.pursuitReviews[proposedCast.id]) {
+          cloned.horrorGrammar.pursuitReviews[proposedCast.id] = 'REVIEWED_NONE';
         }
       }
       break;

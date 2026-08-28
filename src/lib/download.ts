@@ -84,7 +84,7 @@ export const exportConversationToMarkdown = (
   }
 
   const header =
-    `# THE NIGHTMARE MACHINE // CONVERSATION LOG\n` +
+    `# THE TERROR MACHINE // CONVERSATION LOG\n` +
     `*Generated on: ${new Date().toISOString()}*\n` +
     `==================================================\n\n`;
 
@@ -1831,7 +1831,7 @@ export const buildEngineLogContent = (
       <html lang="en">
       <head>
         <meta charset="utf-8">
-        <title>The Nightmare Machine // Telemetry Stream - ${escapeHtml(title)}</title>
+        <title>The Terror Machine // Telemetry Stream - ${escapeHtml(title)}</title>
         <style>
           body { 
             background-color: #000000; 
@@ -1980,7 +1980,7 @@ export const buildEngineLogContent = (
       </head>
       <body>
         <div class="meta-header">
-          THE NIGHTMARE MACHINE // RUNTIME CORE TELEMETRY METRICS<br>
+          THE TERROR MACHINE // RUNTIME CORE TELEMETRY METRICS<br>
           TRACE CAPTURE ID: ${capturedAt.getTime()}<br>
           TIMESTAMP: ${timestamp}
         </div>
@@ -2053,7 +2053,7 @@ export const buildEngineLogContent = (
     // Markdown Standard Flow
     mimeType = 'text/markdown;charset=utf-8;';
     extension = 'md';
-    content = `# THE NIGHTMARE MACHINE // METRIC LOG\n*Captured: ${timestamp}*\n\n---\n\n`;
+    content = `# THE TERROR MACHINE // METRIC LOG\n*Captured: ${timestamp}*\n\n---\n\n`;
 
     if (receipt) {
       content +=
