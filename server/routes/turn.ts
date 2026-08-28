@@ -2,7 +2,6 @@ import { Router } from 'express';
 import { z } from 'zod';
 import {
   TurnRequestSchema,
-  TurnResultSchema,
   type TurnResult,
   TurnResponse,
   normalizeParticipationContext,
@@ -43,6 +42,7 @@ import { resolveCharacterPursuit } from '../../src/lib/characterPursuits';
 import { resolveCharacterDevelopment } from '../../src/lib/characterDevelopment';
 import {
   generateStructuredResponse,
+  EngineTurnStructuredResponseContract,
   ProviderRefusalError,
   EmptyProviderResponseError,
 } from '../utils/aiClient';
@@ -710,6 +710,70 @@ The user acts as an external scene director. A direction is a proposal for focus
               .join('\n')
           : '• None';
 
+      const valueState = (hg.runtimeState?.valueState || {}) as Record<
+        string,
+        import('../../src/types/horrorGrammar').ValueStateRecord
+      >;
+      const valueStatesFormatted =
+        hg.relevantValueAnchors.length > 0
+          ? hg.relevantValueAnchors
+              .map((v) => {
+                const s = valueState[v.id];
+                const cond = s?.condition || 'ESTABLISHED';
+                const life = s?.lifecycle || 'ACTIVE';
+                const note = s?.currentFormNote ? ` | Form: "${s.currentFormNote}"` : '';
+                return `• [${v.id}] Condition: ${cond} | Lifecycle: ${life}${note}`;
+              })
+              .join('\n')
+          : '• None';
+
+      const pursuitState = (hg.runtimeState?.characterPursuits || {}) as Record<
+        string,
+        import('../../src/types/horrorGrammar').CharacterPursuitRecord
+      >;
+      const activePursuitEntries = Object.values(pursuitState).filter(
+        (p) => p.castMemberId !== context.player.characterId
+      );
+      const pursuitOverlaysFormatted =
+        activePursuitEntries.length > 0
+          ? activePursuitEntries
+              .map(
+                (p) =>
+                  `• [${p.pursuitId}] Cast ID: ${p.castMemberId} | Status: ${p.status} | Progress: "${p.progressSummary}"`
+              )
+              .join('\n')
+          : '• None';
+
+      const devState = (hg.runtimeState?.characterDevelopment || {}) as Record<
+        string,
+        import('../../src/types/horrorGrammar').CharacterDevelopmentFact[]
+      >;
+      const devFactList: string[] = [];
+      for (const [castId, facts] of Object.entries(devState)) {
+        if (castId === context.player.characterId || !Array.isArray(facts)) continue;
+        for (const f of facts) {
+          if (f.lifecycle === 'ACTIVE') {
+            devFactList.push(`• [${f.id}] Cast ID: ${f.castMemberId} | ${f.dimension}: "${f.statement}"`);
+          }
+        }
+      }
+      const devFactsFormatted = devFactList.length > 0 ? devFactList.join('\n') : '• None';
+
+      const activeThreads = (hg.runtimeState?.activePressureThreads || []).filter(
+        (t) => t.status === 'OPEN'
+      );
+      const activeThreadsFormatted =
+        activeThreads.length > 0
+          ? activeThreads
+              .map(
+                (t) =>
+                  `• [${t.id}] Anchor: ${t.valueAnchorId} | Status: ${t.status} | Operator: ${t.operator} | Dimension: ${t.affectedDimension} | Adverse Prospect: "${t.adverseProspect}"`
+              )
+              .join('\n')
+          : '• None';
+
+      const availableCauses = ['USER_ACTION', 'ACTIVITY', 'BASELINE', 'CANONICAL_CONDITION'];
+
       horrorGrammarSection = `\n[CAST ACTIVITY OPPORTUNITY POOL (OBSERVATIONAL)]
 Fictional Time Revisions: Moment ${hg.fictionalTime.moment_revision} | Scene Beat ${hg.fictionalTime.scene_beat_revision} | Extended ${hg.fictionalTime.extended_revision} (Last Cost: ${hg.fictionalTime.last_cost || 'None'})
 Present Opportunities:
@@ -718,6 +782,16 @@ Offscreen Opportunities (Max 2):
 ${offscreenOppsFormatted}
 Relevant Value Anchors:
 ${valueAnchorsFormatted}
+Current Value States:
+${valueStatesFormatted}
+Current Character Pursuit Overlays:
+${pursuitOverlaysFormatted}
+Current Character Development Facts:
+${devFactsFormatted}
+Active Pressure Threads (Eligible for Transition):
+${activeThreadsFormatted}
+Valid Cause References:
+${availableCauses.map((c) => `• ${c}`).join('\n')}
 Authority Directive:
 ${hg.authorityInstruction}
 `;
@@ -891,6 +965,30 @@ Current Psychological Status: ${psychStatusFormatted}
 - NEVER conclude the outcome, dictate the player's reaction, or choose for the player.
 - Do NOT copy unratified pressure prose into base narrative_blocks, engine_thoughts, or logic_state.
 
+[VALUE STATE PROPOSAL CONTRACT]
+- value_state_proposal proposes bounded changes to existing reviewed value anchors only.
+- It must use exact anchor IDs, allowed operations (SET_CONDITION, REVISE, RETIRE, RESTORE) and conditions (ESTABLISHED, THREATENED, COMPROMISED, SECURED, LOST, TRANSFORMED), and a valid cause reference.
+- It must not declare the worst outcome merely because pressure was proposed.
+- It emits changes: [] when no causally supported material change occurred.
+
+[CHARACTER PURSUIT PROPOSAL CONTRACT]
+- character_pursuit_proposal proposes bounded overlays for exact existing non-User pursuits only.
+- It must use exact pursuit IDs, valid operations (ADVANCE, SETBACK, REDIRECT, BLOCK, COMPLETE, ABANDON, PAUSE, RESUME), and a valid cause reference.
+- It cannot create a new objective for the User-controlled character or reinterpret the User's aim.
+- It emits changes: [] when no supported pursuit change occurred.
+
+[CHARACTER DEVELOPMENT PROPOSAL CONTRACT]
+- character_development_proposal proposes bounded facts for non-User characters only.
+- It requires an observable/canonical cause and must not infer hidden thoughts, unobserved motives, or personality changes from atmosphere alone.
+- It cannot target the User-controlled character.
+- It emits changes: [] when no supported development occurred.
+
+[PRESSURE THREAD TRANSITION CONTRACT]
+- pressure_transition_proposal may target an exact active pressure-thread ID only.
+- It must use an allowed terminal transition (RESOLVED, REALIZED, RELEASED, TRANSFORMED) and a valid cause reference.
+- It cannot resolve, realize, release, or transform a thread merely because the model wants narrative closure.
+- It emits transitions: [] when no supported transition occurred.
+
 [INTERPRETATION & CAUSAL RECONCILIATION CONTRACT]
 - The intent_proposal and reconciliation_proposal interpret an attempted action; they are metadata, never player commands or proof of success.
 - intent_synergy is intent–state coherence, not outcome.
@@ -938,7 +1036,7 @@ ${recentHistory}
     // Call the LLM with strict Zod schema enforcement
     let engineResponse;
     try {
-      engineResponse = await generateStructuredResponse(prompt, TurnResultSchema);
+      engineResponse = await generateStructuredResponse(prompt, EngineTurnStructuredResponseContract);
     } catch (modelErr: unknown) {
       if (
         modelErr instanceof ProviderRefusalError ||

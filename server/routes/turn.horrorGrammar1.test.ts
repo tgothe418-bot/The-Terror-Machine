@@ -3,21 +3,25 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import http from 'http';
 import { createApp } from '../app';
 
-const mockGenerateStructuredResponse = vi.fn();
-vi.mock('../utils/aiClient', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../utils/aiClient')>();
+const mockGenerateContent = vi.fn();
+vi.mock('@google/genai', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@google/genai')>();
   return {
     ...actual,
-    generateStructuredResponse: (...args: unknown[]) => mockGenerateStructuredResponse(...args),
+    GoogleGenAI: vi.fn().mockImplementation(function (this: { models: { generateContent: typeof mockGenerateContent } }) {
+      this.models = {
+        generateContent: mockGenerateContent,
+      };
+    }),
   };
 });
 
-describe('Horror Grammar Turn Route (Packet 1-3 Initiative & Pressure)', () => {
+describe('Horror Grammar Turn Route (Packet 1-10 HG1 Provider Contract Restoration)', () => {
   let server: http.Server;
   let baseUrl: string;
 
   beforeEach(async () => {
-    mockGenerateStructuredResponse.mockReset();
+    mockGenerateContent.mockReset();
     const app = await createApp({ enableSpaFallback: false });
     await new Promise<void>((resolve) => {
       server = app.listen(0, '127.0.0.1', () => {
@@ -198,56 +202,54 @@ describe('Horror Grammar Turn Route (Packet 1-3 Initiative & Pressure)', () => {
   };
 
   it('embeds observational opportunity pool, fictional time, and authority directive into prompt', async () => {
-    mockGenerateStructuredResponse.mockResolvedValueOnce({
-      narrative_blocks: [
-        {
-          type: 'prose',
-          content: 'The low hum of the generator vibrates through the damp floor.',
+    mockGenerateContent.mockResolvedValueOnce({
+      text: JSON.stringify({
+        narrative_blocks: [
+          {
+            type: 'prose',
+            content: 'The low hum of the generator vibrates through the damp floor.',
+          },
+        ],
+        engine_thoughts: 'Observing surroundings.',
+        intent_proposal: {
+          action_kind: 'OBSERVE',
+          action_subtype: null,
+          pressure_direction: 'MAINTAIN',
+          dramatic_tactic: 'NONE',
+          intent_synergy: 'SUCCESS',
         },
-      ],
-      engine_thoughts: 'Observing surroundings.',
-      intent_proposal: {
-        action_kind: 'OBSERVE',
-        action_subtype: null,
-        pressure_direction: 'MAINTAIN',
-        dramatic_tactic: 'NONE',
-        intent_synergy: 'SUCCESS',
-      },
-      reconciliation_proposal: {
-        mode: 'DIRECT_EXECUTION',
-        declared_effect: 'Checking surroundings',
-        fictional_time_cost: 'MOMENT',
-        authority_alignment: 'ALIGNED',
-        reconciliation_notes: 'Standard observation',
-      },
-      consequence_proposal: {
-        mutations: [],
-      },
-      character_stance_proposal: {
-        changes: [],
-      },
-      character_relationship_proposal: {
-        changes: [],
-      },
-      character_memory_proposal: {
-        candidates: [],
-      },
-      world_memory_proposal: {
-        candidates: [],
-      },
-      cast_activity_proposal: {
-        kind: 'NONE',
-        reason: 'NO_OPPORTUNITY_CHOSEN',
-      },
-      situated_pressure_proposal: {
-        kind: 'NONE',
-        reason: 'NO_PRESSURE_CHOSEN',
-      },
-      logic_state: {
-        terminal_flags: [],
-        cast_deltas: [],
-        cast_ledger: [],
-      },
+        reconciliation_proposal: {
+          mode: 'CANONICAL',
+          feasibility: 'SUPPORTED',
+          reason_code: 'NONE',
+          fictional_time_cost: 'MOMENT',
+          authority_alignment: 'WITHIN_CONTRACT',
+          memory_echo_candidate: null,
+        },
+        consequence_proposal: { mutations: [] },
+        character_stance_proposal: { changes: [] },
+        character_relationship_proposal: { changes: [] },
+        character_memory_proposal: { candidates: [] },
+        world_memory_proposal: { candidates: [] },
+        cast_activity_proposal: {
+          kind: 'NONE',
+          reason: 'NO_OPPORTUNITY_CHOSEN',
+        },
+        situated_pressure_proposal: {
+          kind: 'NONE',
+          reason: 'NO_PRESSURE_CHOSEN',
+        },
+        value_state_proposal: { changes: [] },
+        character_pursuit_proposal: { changes: [] },
+        character_development_proposal: { changes: [] },
+        pressure_transition_proposal: { transitions: [] },
+        logic_state: {
+          terminal_flags: [],
+          cast_deltas: [],
+          cast_ledger: [],
+        },
+        topologyDelta: { isExpansion: false, newNodeDef: null },
+      }),
     });
 
     const res = await fetch(`${baseUrl}/api/turn`, {
@@ -258,77 +260,90 @@ describe('Horror Grammar Turn Route (Packet 1-3 Initiative & Pressure)', () => {
 
     expect(res.status).toBe(200);
 
-    expect(mockGenerateStructuredResponse).toHaveBeenCalledTimes(1);
-    const promptArg = mockGenerateStructuredResponse.mock.calls[0][0];
+    expect(mockGenerateContent).toHaveBeenCalledTimes(1);
+    const generateCall = mockGenerateContent.mock.calls[0][0];
+    const promptArg = generateCall.contents[0].parts[0].text;
 
     expect(promptArg).toContain('[CAST ACTIVITY OPPORTUNITY POOL (OBSERVATIONAL)]');
     expect(promptArg).toContain('Fictional Time Revisions: Moment 2 | Scene Beat 1 | Extended 0');
     expect(promptArg).toContain('[PRESENT] Cast ID: char-npc1 | Objective: "Fix wiring" | Approach: "Testing cables with voltmeter"');
     expect(promptArg).toContain('[val-1] Power Grid: "Maintain power to life support" (Holder: CHARACTER)');
+    expect(promptArg).toContain('[VALUE STATE PROPOSAL CONTRACT]');
+    expect(promptArg).toContain('[CHARACTER PURSUIT PROPOSAL CONTRACT]');
+    expect(promptArg).toContain('[CHARACTER DEVELOPMENT PROPOSAL CONTRACT]');
+    expect(promptArg).toContain('[PRESSURE THREAD TRANSITION CONTRACT]');
   });
 
-  it('composes accepted activity and pressure manifestation blocks in deterministic order', async () => {
-    mockGenerateStructuredResponse.mockResolvedValueOnce({
-      narrative_blocks: [
-        {
-          type: 'prose',
-          content: 'You scan the darkness for movement.',
+  it('production-shaped provider output carries accepted HG1 activity and pressure through their real ratifiers', async () => {
+    mockGenerateContent.mockResolvedValueOnce({
+      text: JSON.stringify({
+        narrative_blocks: [
+          {
+            type: 'prose',
+            content: 'You scan the darkness for movement.',
+          },
+        ],
+        engine_thoughts: 'Player looking around; NPC tinkering.',
+        intent_proposal: {
+          action_kind: 'OBSERVE',
+          action_subtype: null,
+          pressure_direction: 'MAINTAIN',
+          dramatic_tactic: 'NONE',
+          intent_synergy: 'SUCCESS',
         },
-      ],
-      engine_thoughts: 'Player looking around; NPC tinkering.',
-      intent_proposal: {
-        action_kind: 'OBSERVE',
-        action_subtype: null,
-        pressure_direction: 'MAINTAIN',
-        dramatic_tactic: 'NONE',
-        intent_synergy: 'SUCCESS',
-      },
-      reconciliation_proposal: {
-        mode: 'DIRECT_EXECUTION',
-        declared_effect: 'Observing',
-        fictional_time_cost: 'MOMENT',
-        authority_alignment: 'ALIGNED',
-        reconciliation_notes: 'Valid observation',
-      },
-      consequence_proposal: { mutations: [] },
-      character_stance_proposal: { changes: [] },
-      character_relationship_proposal: { changes: [] },
-      character_memory_proposal: { candidates: [] },
-      world_memory_proposal: { candidates: [] },
-      cast_activity_proposal: {
-        kind: 'ACTIVITY',
-        proposalId: 'act-1',
-        castMemberId: 'char-npc1',
-        locationNodeId: 'NODE_CORRIDOR',
-        activitySummary: 'Mercer replaces a blown fuse with a spark',
-        authorityReferences: ['CONSOLE_RULE'],
-        perceptionPath: 'DIRECT',
-        manifestationBlock: {
-          type: 'prose',
-          content: 'Mercer jams a copper wire across the terminal with a violent shower of blue sparks.',
+        reconciliation_proposal: {
+          mode: 'CANONICAL',
+          feasibility: 'SUPPORTED',
+          reason_code: 'NONE',
+          fictional_time_cost: 'MOMENT',
+          authority_alignment: 'WITHIN_CONTRACT',
+          memory_echo_candidate: null,
         },
-      },
-      situated_pressure_proposal: {
-        kind: 'PRESSURE',
-        proposalId: 'press-1',
-        valueAnchorId: 'val-1',
-        sourceReference: 'ACTIVITY',
-        operator: 'ACCELERATE',
-        affectedDimension: 'TIME',
-        adverseProspect: 'Oxygen scrubber power drain accelerates',
-        authorityReferences: ['CONSOLE_RULE'],
-        persistenceTarget: 'PRESSURE_THREAD',
-        responseWindowOpen: true,
-        manifestationBlock: {
-          type: 'prose',
-          content: 'The overhead ventilation motor slows with a dying groan, its LED timer dropping by half.',
+        consequence_proposal: { mutations: [] },
+        character_stance_proposal: { changes: [] },
+        character_relationship_proposal: { changes: [] },
+        character_memory_proposal: { candidates: [] },
+        world_memory_proposal: { candidates: [] },
+        cast_activity_proposal: {
+          kind: 'ACTIVITY',
+          proposalId: 'act-1',
+          castMemberId: 'char-npc1',
+          locationNodeId: 'NODE_CORRIDOR',
+          activitySummary: 'Mercer replaces a blown fuse with a spark',
+          authorityReferences: ['opp-present-char-npc1'],
+          perceptionPath: 'DIRECT',
+          manifestationBlock: {
+            type: 'prose',
+            content: 'Mercer jams a copper wire across the terminal with a violent shower of blue sparks.',
+          },
         },
-      },
-      logic_state: {
-        terminal_flags: [],
-        cast_deltas: [],
-        cast_ledger: [],
-      },
+        situated_pressure_proposal: {
+          kind: 'PRESSURE',
+          proposalId: 'press-1',
+          valueAnchorId: 'val-1',
+          sourceReference: 'ACTIVITY',
+          operator: 'ACCELERATE',
+          affectedDimension: 'TIME',
+          adverseProspect: 'Oxygen scrubber power drain accelerates',
+          authorityReferences: ['val-1'],
+          persistenceTarget: 'PRESSURE_THREAD',
+          responseWindowOpen: true,
+          manifestationBlock: {
+            type: 'prose',
+            content: 'The overhead ventilation motor slows with a dying groan, its LED timer dropping by half.',
+          },
+        },
+        value_state_proposal: { changes: [] },
+        character_pursuit_proposal: { changes: [] },
+        character_development_proposal: { changes: [] },
+        pressure_transition_proposal: { transitions: [] },
+        logic_state: {
+          terminal_flags: [],
+          cast_deltas: [],
+          cast_ledger: [],
+        },
+        topologyDelta: { isExpansion: false, newNodeDef: null },
+      }),
     });
 
     const res = await fetch(`${baseUrl}/api/turn`, {
@@ -350,69 +365,80 @@ describe('Horror Grammar Turn Route (Packet 1-3 Initiative & Pressure)', () => {
     expect(data.situatedPressureReceipt.outcome).toBe('ACCEPTED');
   });
 
-  it('rejects invalid activity and pressure proposals and ensures rejected text sentinels do not enter narrative', async () => {
-    const ACTIVITY_SENTINEL = 'REJECTED_ACTIVITY_SENTINEL_FORBIDDEN_TEXT';
-    const PRESSURE_SENTINEL = 'REJECTED_PRESSURE_SENTINEL_FORBIDDEN_TEXT';
-
-    mockGenerateStructuredResponse.mockResolvedValueOnce({
-      narrative_blocks: [
-        {
-          type: 'prose',
-          content: 'Base prose continues safely.',
+  it('production-shaped provider output carries causal HG1 proposals through their real ratifiers', async () => {
+    mockGenerateContent.mockResolvedValueOnce({
+      text: JSON.stringify({
+        narrative_blocks: [
+          {
+            type: 'prose',
+            content: 'Mercer manages to reroute the primary conduit.',
+          },
+        ],
+        engine_thoughts: 'Conduit repaired.',
+        intent_proposal: {
+          action_kind: 'OBSERVE',
+          action_subtype: null,
+          pressure_direction: 'MAINTAIN',
+          dramatic_tactic: 'NONE',
+          intent_synergy: 'SUCCESS',
         },
-      ],
-      engine_thoughts: 'Invalid proposals provided by LLM.',
-      intent_proposal: {
-        action_kind: 'OBSERVE',
-        action_subtype: null,
-        pressure_direction: 'MAINTAIN',
-        dramatic_tactic: 'NONE',
-        intent_synergy: 'SUCCESS',
-      },
-      reconciliation_proposal: {
-        mode: 'DIRECT_EXECUTION',
-        declared_effect: 'Observing',
-        fictional_time_cost: 'MOMENT',
-        authority_alignment: 'ALIGNED',
-        reconciliation_notes: 'Valid observation',
-      },
-      consequence_proposal: { mutations: [] },
-      character_stance_proposal: { changes: [] },
-      character_relationship_proposal: { changes: [] },
-      character_memory_proposal: { candidates: [] },
-      world_memory_proposal: { candidates: [] },
-      cast_activity_proposal: {
-        kind: 'ACTIVITY',
-        proposalId: 'act-invalid-user',
-        castMemberId: 'char-user', // User character is strictly forbidden
-        activitySummary: 'User acts independently',
-        perceptionPath: 'DIRECT',
-        manifestationBlock: {
-          type: 'prose',
-          content: ACTIVITY_SENTINEL,
+        reconciliation_proposal: {
+          mode: 'CANONICAL',
+          feasibility: 'SUPPORTED',
+          reason_code: 'NONE',
+          fictional_time_cost: 'MOMENT',
+          authority_alignment: 'WITHIN_CONTRACT',
+          memory_echo_candidate: null,
         },
-      },
-      situated_pressure_proposal: {
-        kind: 'PRESSURE',
-        proposalId: 'press-invalid-anchor',
-        valueAnchorId: 'val-nonexistent-anchor', // Nonexistent anchor
-        sourceReference: 'ACTIVITY',
-        operator: 'EXPOSE',
-        affectedDimension: 'SAFETY',
-        adverseProspect: 'Bad things happen',
-        authorityReferences: [],
-        persistenceTarget: 'PRESSURE_THREAD',
-        responseWindowOpen: true,
-        manifestationBlock: {
-          type: 'prose',
-          content: PRESSURE_SENTINEL,
+        consequence_proposal: { mutations: [] },
+        character_stance_proposal: { changes: [] },
+        character_relationship_proposal: { changes: [] },
+        character_memory_proposal: { candidates: [] },
+        world_memory_proposal: { candidates: [] },
+        cast_activity_proposal: { kind: 'NONE', reason: 'NO_OPPORTUNITY_CHOSEN' },
+        situated_pressure_proposal: { kind: 'NONE', reason: 'NO_PRESSURE_CHOSEN' },
+        value_state_proposal: {
+          changes: [
+            {
+              anchorId: 'val-1',
+              operation: 'RESTORE',
+              proposedCondition: 'SECURED',
+              causeReference: 'USER_ACTION',
+              rationale: 'Conduit successfully rerouted',
+            },
+          ],
         },
-      },
-      logic_state: {
-        terminal_flags: [],
-        cast_deltas: [],
-        cast_ledger: [],
-      },
+        character_pursuit_proposal: {
+          changes: [
+            {
+              pursuitId: 'pursuit-npc1',
+              operation: 'ADVANCE',
+              progressSummary: 'Conduit wiring secured and functional',
+              causeReference: 'USER_ACTION',
+              rationale: 'Work completed',
+            },
+          ],
+        },
+        character_development_proposal: {
+          changes: [
+            {
+              castMemberId: 'char-npc1',
+              operation: 'ESTABLISH',
+              dimension: 'ATTACHMENT',
+              statement: 'Determined to keep station life support functional.',
+              causeReference: 'USER_ACTION',
+              rationale: 'Dedicated focus shown during crisis.',
+            },
+          ],
+        },
+        pressure_transition_proposal: { transitions: [] },
+        logic_state: {
+          terminal_flags: [],
+          cast_deltas: [],
+          cast_ledger: [],
+        },
+        topologyDelta: { isExpansion: false, newNodeDef: null },
+      }),
     });
 
     const res = await fetch(`${baseUrl}/api/turn`, {
@@ -424,28 +450,25 @@ describe('Horror Grammar Turn Route (Packet 1-3 Initiative & Pressure)', () => {
     expect(res.status).toBe(200);
     const data = await res.json();
 
-    // Narrative contains ONLY the base block
-    expect(data.narrative_blocks).toHaveLength(1);
-    expect(data.narrative_blocks[0].content).toBe('Base prose continues safely.');
+    // Value anchor resolution succeeds because authoringBaseline.valueAnchors contains 'val-1'
+    expect(data.valueStateReceipt.decisions[0].outcome).toBe('APPLIED');
+    expect(data.valueStateReceipt.postState['val-1'].condition).toBe('SECURED');
 
-    // Forensics record contains the exact rejected sentinels (Packet 1-8)
-    expect(data.horrorGrammarForensics).toBeDefined();
-    expect(data.horrorGrammarForensics.activityEvidence.disposition).toBe('REJECTED');
-    expect(data.horrorGrammarForensics.activityEvidence.manifestationBlock?.content).toBe(ACTIVITY_SENTINEL);
-    expect(data.horrorGrammarForensics.pressureEvidence.disposition).toBe('REJECTED');
-    expect(data.horrorGrammarForensics.pressureEvidence.manifestationBlock?.content).toBe(PRESSURE_SENTINEL);
+    // Pursuit resolution succeeds because authoringBaseline.characterPursuits contains 'pursuit-npc1'
+    expect(data.characterPursuitReceipt.decisions[0].outcome).toBe('APPLIED');
+    expect(data.characterPursuitReceipt.postState['pursuit-npc1'].progressSummary).toBe(
+      'Conduit wiring secured and functional'
+    );
 
-    // Canonical isolation: sentinels are absent from every non-forensic surface
-    const nonForensicResponse = { ...data, horrorGrammarForensics: undefined };
-    const serializedNonForensic = JSON.stringify(nonForensicResponse);
-    expect(serializedNonForensic).not.toContain(ACTIVITY_SENTINEL);
-    expect(serializedNonForensic).not.toContain(PRESSURE_SENTINEL);
-
-    expect(data.castActivityProposalReceipt.outcome).toBe('REJECTED');
-    expect(data.situatedPressureReceipt.outcome).toBe('REJECTED');
+    // Development resolution succeeds
+    expect(data.characterDevelopmentReceipt.decisions[0].outcome).toBe('APPLIED');
+    expect(data.characterDevelopmentReceipt.postState['char-npc1']).toHaveLength(1);
+    expect(data.characterDevelopmentReceipt.postState['char-npc1'][0].statement).toBe(
+      'Determined to keep station life support functional.'
+    );
   });
 
-  it('preserves nonempty HG1 preState exactly when proposals are NONE (Proof 2)', async () => {
+  it('explicit HG1 neutral envelopes preserve existing canonical state without implying provider omission', async () => {
     const sentinelValueLedger = {
       'val-1': {
         anchorId: 'val-1',
@@ -535,44 +558,48 @@ describe('Horror Grammar Turn Route (Packet 1-3 Initiative & Pressure)', () => {
       },
     };
 
-    mockGenerateStructuredResponse.mockResolvedValueOnce({
-      narrative_blocks: [
-        {
-          type: 'prose',
-          content: 'You watch Mercer work in silence.',
+    mockGenerateContent.mockResolvedValueOnce({
+      text: JSON.stringify({
+        narrative_blocks: [
+          {
+            type: 'prose',
+            content: 'You watch Mercer work in silence.',
+          },
+        ],
+        engine_thoughts: 'Observing; no new HG1 actions.',
+        intent_proposal: {
+          action_kind: 'OBSERVE',
+          action_subtype: null,
+          pressure_direction: 'MAINTAIN',
+          dramatic_tactic: 'NONE',
+          intent_synergy: 'SUCCESS',
         },
-      ],
-      engine_thoughts: 'Observing; no new HG1 actions.',
-      intent_proposal: {
-        action_kind: 'OBSERVE',
-        action_subtype: null,
-        pressure_direction: 'MAINTAIN',
-        dramatic_tactic: 'NONE',
-        intent_synergy: 'SUCCESS',
-      },
-      reconciliation_proposal: {
-        mode: 'DIRECT_EXECUTION',
-        declared_effect: 'Observing',
-        fictional_time_cost: 'MOMENT',
-        authority_alignment: 'ALIGNED',
-        reconciliation_notes: 'Valid observation',
-      },
-      consequence_proposal: { mutations: [] },
-      character_stance_proposal: { changes: [] },
-      character_relationship_proposal: { changes: [] },
-      character_memory_proposal: { candidates: [] },
-      world_memory_proposal: { candidates: [] },
-      cast_activity_proposal: { kind: 'NONE', reason: 'NO_OPPORTUNITY_CHOSEN' },
-      situated_pressure_proposal: { kind: 'NONE', reason: 'NO_PRESSURE_CHOSEN' },
-      value_state_proposal: { changes: [] },
-      character_pursuit_proposal: { changes: [] },
-      character_development_proposal: { changes: [] },
-      pressure_transition_proposal: { transitions: [] },
-      logic_state: {
-        terminal_flags: [],
-        cast_deltas: [],
-        cast_ledger: [],
-      },
+        reconciliation_proposal: {
+          mode: 'CANONICAL',
+          feasibility: 'SUPPORTED',
+          reason_code: 'NONE',
+          fictional_time_cost: 'MOMENT',
+          authority_alignment: 'WITHIN_CONTRACT',
+          memory_echo_candidate: null,
+        },
+        consequence_proposal: { mutations: [] },
+        character_stance_proposal: { changes: [] },
+        character_relationship_proposal: { changes: [] },
+        character_memory_proposal: { candidates: [] },
+        world_memory_proposal: { candidates: [] },
+        cast_activity_proposal: { kind: 'NONE', reason: 'NO_OPPORTUNITY_CHOSEN' },
+        situated_pressure_proposal: { kind: 'NONE', reason: 'NO_PRESSURE_CHOSEN' },
+        value_state_proposal: { changes: [] },
+        character_pursuit_proposal: { changes: [] },
+        character_development_proposal: { changes: [] },
+        pressure_transition_proposal: { transitions: [] },
+        logic_state: {
+          terminal_flags: [],
+          cast_deltas: [],
+          cast_ledger: [],
+        },
+        topologyDelta: { isExpansion: false, newNodeDef: null },
+      }),
     });
 
     const res = await fetch(`${baseUrl}/api/turn`, {
@@ -598,65 +625,77 @@ describe('Horror Grammar Turn Route (Packet 1-3 Initiative & Pressure)', () => {
     expect(data.situatedPressureReceipt.postState).toEqual(sentinelPressureThreads);
   });
 
-  it('resolves valid value and pursuit proposals against authoringBaseline in typed context (Proof 3)', async () => {
-    mockGenerateStructuredResponse.mockResolvedValueOnce({
-      narrative_blocks: [
-        {
-          type: 'prose',
-          content: 'Mercer manages to reroute the primary conduit.',
+  it('rejected HG1 manifestation text remains outside fiction memory prompts and canonical state', async () => {
+    const ACTIVITY_SENTINEL = 'REJECTED_ACTIVITY_SENTINEL_FORBIDDEN_TEXT';
+    const PRESSURE_SENTINEL = 'REJECTED_PRESSURE_SENTINEL_FORBIDDEN_TEXT';
+
+    mockGenerateContent.mockResolvedValueOnce({
+      text: JSON.stringify({
+        narrative_blocks: [
+          {
+            type: 'prose',
+            content: 'Base prose continues safely.',
+          },
+        ],
+        engine_thoughts: 'Invalid proposals provided by LLM.',
+        intent_proposal: {
+          action_kind: 'OBSERVE',
+          action_subtype: null,
+          pressure_direction: 'MAINTAIN',
+          dramatic_tactic: 'NONE',
+          intent_synergy: 'SUCCESS',
         },
-      ],
-      engine_thoughts: 'Conduit repaired.',
-      intent_proposal: {
-        action_kind: 'OBSERVE',
-        action_subtype: null,
-        pressure_direction: 'MAINTAIN',
-        dramatic_tactic: 'NONE',
-        intent_synergy: 'SUCCESS',
-      },
-      reconciliation_proposal: {
-        mode: 'DIRECT_EXECUTION',
-        declared_effect: 'Observing repair',
-        fictional_time_cost: 'MOMENT',
-        authority_alignment: 'ALIGNED',
-        reconciliation_notes: 'Observation',
-      },
-      consequence_proposal: { mutations: [] },
-      character_stance_proposal: { changes: [] },
-      character_relationship_proposal: { changes: [] },
-      character_memory_proposal: { candidates: [] },
-      world_memory_proposal: { candidates: [] },
-      cast_activity_proposal: { kind: 'NONE', reason: 'NO_OPPORTUNITY_CHOSEN' },
-      situated_pressure_proposal: { kind: 'NONE', reason: 'NO_PRESSURE_CHOSEN' },
-      value_state_proposal: {
-        changes: [
-          {
-            anchorId: 'val-1',
-            operation: 'RESTORE',
-            proposedCondition: 'SECURED',
-            causeReference: 'USER_ACTION',
-            rationale: 'Conduit successfully rerouted',
+        reconciliation_proposal: {
+          mode: 'CANONICAL',
+          feasibility: 'SUPPORTED',
+          reason_code: 'NONE',
+          fictional_time_cost: 'MOMENT',
+          authority_alignment: 'WITHIN_CONTRACT',
+          memory_echo_candidate: null,
+        },
+        consequence_proposal: { mutations: [] },
+        character_stance_proposal: { changes: [] },
+        character_relationship_proposal: { changes: [] },
+        character_memory_proposal: { candidates: [] },
+        world_memory_proposal: { candidates: [] },
+        cast_activity_proposal: {
+          kind: 'ACTIVITY',
+          proposalId: 'act-invalid-user',
+          castMemberId: 'char-user', // User character is strictly forbidden
+          activitySummary: 'User acts independently',
+          perceptionPath: 'DIRECT',
+          manifestationBlock: {
+            type: 'prose',
+            content: ACTIVITY_SENTINEL,
           },
-        ],
-      },
-      character_pursuit_proposal: {
-        changes: [
-          {
-            pursuitId: 'pursuit-npc1',
-            operation: 'ADVANCE',
-            progressSummary: 'Conduit wiring secured and functional',
-            causeReference: 'USER_ACTION',
-            rationale: 'Work completed',
+        },
+        situated_pressure_proposal: {
+          kind: 'PRESSURE',
+          proposalId: 'press-invalid-anchor',
+          valueAnchorId: 'val-nonexistent-anchor', // Nonexistent anchor
+          sourceReference: 'ACTIVITY',
+          operator: 'EXPOSE',
+          affectedDimension: 'SAFETY',
+          adverseProspect: 'Bad things happen',
+          authorityReferences: [],
+          persistenceTarget: 'PRESSURE_THREAD',
+          responseWindowOpen: true,
+          manifestationBlock: {
+            type: 'prose',
+            content: PRESSURE_SENTINEL,
           },
-        ],
-      },
-      character_development_proposal: { changes: [] },
-      pressure_transition_proposal: { transitions: [] },
-      logic_state: {
-        terminal_flags: [],
-        cast_deltas: [],
-        cast_ledger: [],
-      },
+        },
+        value_state_proposal: { changes: [] },
+        character_pursuit_proposal: { changes: [] },
+        character_development_proposal: { changes: [] },
+        pressure_transition_proposal: { transitions: [] },
+        logic_state: {
+          terminal_flags: [],
+          cast_deltas: [],
+          cast_ledger: [],
+        },
+        topologyDelta: { isExpansion: false, newNodeDef: null },
+      }),
     });
 
     const res = await fetch(`${baseUrl}/api/turn`, {
@@ -668,116 +707,164 @@ describe('Horror Grammar Turn Route (Packet 1-3 Initiative & Pressure)', () => {
     expect(res.status).toBe(200);
     const data = await res.json();
 
-    // Value anchor resolution succeeds because authoringBaseline.valueAnchors contains 'val-1'
-    expect(data.valueStateReceipt.decisions[0].outcome).toBe('APPLIED');
-    expect(data.valueStateReceipt.postState['val-1'].condition).toBe('SECURED');
+    // Narrative contains ONLY the base block
+    expect(data.narrative_blocks).toHaveLength(1);
+    expect(data.narrative_blocks[0].content).toBe('Base prose continues safely.');
 
-    // Pursuit resolution succeeds because authoringBaseline.characterPursuits contains 'pursuit-npc1'
-    expect(data.characterPursuitReceipt.decisions[0].outcome).toBe('APPLIED');
-    expect(data.characterPursuitReceipt.postState['pursuit-npc1'].progressSummary).toBe(
-      'Conduit wiring secured and functional'
-    );
+    // Forensics record contains the exact rejected sentinels (Packet 1-8)
+    expect(data.horrorGrammarForensics).toBeDefined();
+    expect(data.horrorGrammarForensics.activityEvidence.disposition).toBe('REJECTED');
+    expect(data.horrorGrammarForensics.activityEvidence.manifestationBlock?.content).toBe(ACTIVITY_SENTINEL);
+    expect(data.horrorGrammarForensics.pressureEvidence.disposition).toBe('REJECTED');
+    expect(data.horrorGrammarForensics.pressureEvidence.manifestationBlock?.content).toBe(PRESSURE_SENTINEL);
+
+    // Canonical isolation: sentinels are absent from every non-forensic surface
+    const nonForensicResponse = { ...data, horrorGrammarForensics: undefined };
+    const serializedNonForensic = JSON.stringify(nonForensicResponse);
+    expect(serializedNonForensic).not.toContain(ACTIVITY_SENTINEL);
+    expect(serializedNonForensic).not.toContain(PRESSURE_SENTINEL);
+
+    expect(data.castActivityProposalReceipt.outcome).toBe('REJECTED');
+    expect(data.situatedPressureReceipt.outcome).toBe('REJECTED');
   });
 
-  it('executes consecutive turns threading state from Turn 1 to Turn 2 and retaining causal continuity (Proof 6 / Packet 1-9)', async () => {
+  it('provider refusal and empty response create no HG1 proposal or canonical advance', async () => {
+    // Sub-case 1: Provider refusal (SAFETY filter)
+    mockGenerateContent.mockResolvedValueOnce({
+      promptFeedback: {
+        blockReason: 'SAFETY',
+      },
+    });
+
+    const resRefusal = await fetch(`${baseUrl}/api/turn`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(baseTurnPayload),
+    });
+
+    expect(resRefusal.status).toBe(502);
+    const dataRefusal = await resRefusal.json();
+    expect(dataRefusal.code).toBe('PROVIDER_REFUSAL');
+
+    // Sub-case 2: Empty provider response
+    mockGenerateContent.mockResolvedValueOnce({
+      text: '',
+    });
+
+    const resEmpty = await fetch(`${baseUrl}/api/turn`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(baseTurnPayload),
+    });
+
+    expect(resEmpty.status).toBe(502);
+    const dataEmpty = await resEmpty.json();
+    expect(dataEmpty.code).toBe('PROVIDER_FAILURE');
+  });
+
+  it('accepted HG1 provider output becomes the exact bounded pre-state of the next turn', async () => {
     // -------------------------------------------------------------
     // TURN 1: Accepted activity and pressure creation
     // -------------------------------------------------------------
-    mockGenerateStructuredResponse.mockResolvedValueOnce({
-      narrative_blocks: [
-        { type: 'prose', content: 'You check the readouts near the generator.' },
-      ],
-      engine_thoughts: 'Mercer acts on power restoration.',
-      intent_proposal: {
-        action_kind: 'OBSERVE',
-        action_subtype: null,
-        pressure_direction: 'MAINTAIN',
-        dramatic_tactic: 'NONE',
-        intent_synergy: 'SUCCESS',
-      },
-      reconciliation_proposal: {
-        mode: 'DIRECT_EXECUTION',
-        declared_effect: 'Observing',
-        fictional_time_cost: 'MOMENT',
-        authority_alignment: 'ALIGNED',
-        reconciliation_notes: 'Observation aligned',
-      },
-      consequence_proposal: { mutations: [] },
-      character_stance_proposal: { changes: [] },
-      character_relationship_proposal: { changes: [] },
-      character_memory_proposal: { candidates: [] },
-      world_memory_proposal: { candidates: [] },
-      cast_activity_proposal: {
-        kind: 'ACTIVITY',
-        proposalId: 'prop-act-turn1',
-        castMemberId: 'char-npc1',
-        pursuitId: 'pursuit-npc1',
-        locationNodeId: 'NODE_CORRIDOR',
-        perceptionPath: 'DIRECT',
-        activitySummary: 'Mercer connects jumper cables across the generator terminals.',
-        authorityReferences: ['opp-present-char-npc1'],
-        manifestationBlock: {
-          type: 'dialogue',
-          speaker: 'Mercer',
-          content: 'Keep back, the terminals are live!',
+    mockGenerateContent.mockResolvedValueOnce({
+      text: JSON.stringify({
+        narrative_blocks: [
+          { type: 'prose', content: 'You check the readouts near the generator.' },
+        ],
+        engine_thoughts: 'Mercer acts on power restoration.',
+        intent_proposal: {
+          action_kind: 'OBSERVE',
+          action_subtype: null,
+          pressure_direction: 'MAINTAIN',
+          dramatic_tactic: 'NONE',
+          intent_synergy: 'SUCCESS',
         },
-      },
-      situated_pressure_proposal: {
-        kind: 'PRESSURE',
-        proposalId: 'prop-press-turn1',
-        valueAnchorId: 'val-1',
-        sourceReference: 'ACTIVITY',
-        operator: 'EXPOSE',
-        affectedDimension: 'SAFETY',
-        adverseProspect: 'Sparks ignite fuel vapors near the generator',
-        authorityReferences: ['val-1'],
-        persistenceTarget: 'PRESSURE_THREAD',
-        responseWindowOpen: true,
-        manifestationBlock: {
-          type: 'prose',
-          content: 'A shower of sparks arcs across the damp concrete floor.',
+        reconciliation_proposal: {
+          mode: 'CANONICAL',
+          feasibility: 'SUPPORTED',
+          reason_code: 'NONE',
+          fictional_time_cost: 'MOMENT',
+          authority_alignment: 'WITHIN_CONTRACT',
+          memory_echo_candidate: null,
         },
-      },
-      value_state_proposal: {
-        changes: [
-          {
-            anchorId: 'val-1',
-            operation: 'SET_CONDITION',
-            proposedCondition: 'THREATENED',
-            causeReference: 'ACTIVITY',
-            rationale: 'Live sparking terminals',
+        consequence_proposal: { mutations: [] },
+        character_stance_proposal: { changes: [] },
+        character_relationship_proposal: { changes: [] },
+        character_memory_proposal: { candidates: [] },
+        world_memory_proposal: { candidates: [] },
+        cast_activity_proposal: {
+          kind: 'ACTIVITY',
+          proposalId: 'prop-act-turn1',
+          castMemberId: 'char-npc1',
+          pursuitId: 'pursuit-npc1',
+          locationNodeId: 'NODE_CORRIDOR',
+          perceptionPath: 'DIRECT',
+          activitySummary: 'Mercer connects jumper cables across the generator terminals.',
+          authorityReferences: ['opp-present-char-npc1'],
+          manifestationBlock: {
+            type: 'dialogue',
+            speaker: 'Mercer',
+            content: 'Keep back, the terminals are live!',
           },
-        ],
-      },
-      character_pursuit_proposal: {
-        changes: [
-          {
-            pursuitId: 'pursuit-npc1',
-            operation: 'ADVANCE',
-            progressSummary: 'Jumper cables attached',
-            causeReference: 'ACTIVITY',
-            rationale: 'Connecting terminals',
+        },
+        situated_pressure_proposal: {
+          kind: 'PRESSURE',
+          proposalId: 'prop-press-turn1',
+          valueAnchorId: 'val-1',
+          sourceReference: 'ACTIVITY',
+          operator: 'EXPOSE',
+          affectedDimension: 'SAFETY',
+          adverseProspect: 'Sparks ignite fuel vapors near the generator',
+          authorityReferences: ['val-1'],
+          persistenceTarget: 'PRESSURE_THREAD',
+          responseWindowOpen: true,
+          manifestationBlock: {
+            type: 'prose',
+            content: 'A shower of sparks arcs across the damp concrete floor.',
           },
-        ],
-      },
-      character_development_proposal: {
-        changes: [
-          {
-            castMemberId: 'char-npc1',
-            operation: 'ESTABLISH',
-            dimension: 'ATTACHMENT',
-            statement: 'Willing to risk shock to save the generator.',
-            causeReference: 'ACTIVITY',
-            rationale: 'Direct action taken',
-          },
-        ],
-      },
-      pressure_transition_proposal: { transitions: [] },
-      logic_state: {
-        terminal_flags: [],
-        cast_deltas: [],
-        cast_ledger: [],
-      },
+        },
+        value_state_proposal: {
+          changes: [
+            {
+              anchorId: 'val-1',
+              operation: 'SET_CONDITION',
+              proposedCondition: 'THREATENED',
+              causeReference: 'ACTIVITY',
+              rationale: 'Live sparking terminals',
+            },
+          ],
+        },
+        character_pursuit_proposal: {
+          changes: [
+            {
+              pursuitId: 'pursuit-npc1',
+              operation: 'ADVANCE',
+              progressSummary: 'Jumper cables attached',
+              causeReference: 'ACTIVITY',
+              rationale: 'Connecting terminals',
+            },
+          ],
+        },
+        character_development_proposal: {
+          changes: [
+            {
+              castMemberId: 'char-npc1',
+              operation: 'ESTABLISH',
+              dimension: 'ATTACHMENT',
+              statement: 'Willing to risk shock to save the generator.',
+              causeReference: 'ACTIVITY',
+              rationale: 'Direct action taken',
+            },
+          ],
+        },
+        pressure_transition_proposal: { transitions: [] },
+        logic_state: {
+          terminal_flags: [],
+          cast_deltas: [],
+          cast_ledger: [],
+        },
+        topologyDelta: { isExpansion: false, newNodeDef: null },
+      }),
     });
 
     const resTurn1 = await fetch(`${baseUrl}/api/turn`, {
@@ -846,60 +933,64 @@ describe('Horror Grammar Turn Route (Packet 1-3 Initiative & Pressure)', () => {
       },
     };
 
-    mockGenerateStructuredResponse.mockResolvedValueOnce({
-      narrative_blocks: [
-        { type: 'prose', content: 'You use the fire extinguisher to suppress the sparks.' },
-      ],
-      engine_thoughts: 'Extinguishing sparks resolves the hazard.',
-      intent_proposal: {
-        action_kind: 'SUPPRESS',
-        action_subtype: null,
-        pressure_direction: 'DEFUSE',
-        dramatic_tactic: 'NONE',
-        intent_synergy: 'SUCCESS',
-      },
-      reconciliation_proposal: {
-        mode: 'DIRECT_EXECUTION',
-        declared_effect: 'Suppressed hazard',
-        fictional_time_cost: 'MOMENT',
-        authority_alignment: 'ALIGNED',
-        reconciliation_notes: 'Hazard successfully defused',
-      },
-      consequence_proposal: { mutations: [] },
-      character_stance_proposal: { changes: [] },
-      character_relationship_proposal: { changes: [] },
-      character_memory_proposal: { candidates: [] },
-      world_memory_proposal: { candidates: [] },
-      cast_activity_proposal: { kind: 'NONE', reason: 'NO_OPPORTUNITY_CHOSEN' },
-      situated_pressure_proposal: { kind: 'NONE', reason: 'NO_PRESSURE_CHOSEN' },
-      value_state_proposal: {
-        changes: [
-          {
-            anchorId: 'val-1',
-            operation: 'RESTORE',
-            proposedCondition: 'SECURED',
-            causeReference: 'USER_ACTION',
-            rationale: 'Hazard defused by extinguisher',
-          },
+    mockGenerateContent.mockResolvedValueOnce({
+      text: JSON.stringify({
+        narrative_blocks: [
+          { type: 'prose', content: 'You use the fire extinguisher to suppress the sparks.' },
         ],
-      },
-      character_pursuit_proposal: { changes: [] },
-      character_development_proposal: { changes: [] },
-      pressure_transition_proposal: {
-        transitions: [
-          {
-            threadId: acceptedThreadId!,
-            proposedStatus: 'RESOLVED',
-            causeReference: 'USER_ACTION',
-            rationale: 'Suppressed sparks with fire extinguisher',
-          },
-        ],
-      },
-      logic_state: {
-        terminal_flags: [],
-        cast_deltas: [],
-        cast_ledger: [],
-      },
+        engine_thoughts: 'Extinguishing sparks resolves the hazard.',
+        intent_proposal: {
+          action_kind: 'MANIPULATE',
+          action_subtype: null,
+          pressure_direction: 'DE_ESCALATE',
+          dramatic_tactic: 'NONE',
+          intent_synergy: 'SUCCESS',
+        },
+        reconciliation_proposal: {
+          mode: 'CANONICAL',
+          feasibility: 'SUPPORTED',
+          reason_code: 'NONE',
+          fictional_time_cost: 'MOMENT',
+          authority_alignment: 'WITHIN_CONTRACT',
+          memory_echo_candidate: null,
+        },
+        consequence_proposal: { mutations: [] },
+        character_stance_proposal: { changes: [] },
+        character_relationship_proposal: { changes: [] },
+        character_memory_proposal: { candidates: [] },
+        world_memory_proposal: { candidates: [] },
+        cast_activity_proposal: { kind: 'NONE', reason: 'NO_OPPORTUNITY_CHOSEN' },
+        situated_pressure_proposal: { kind: 'NONE', reason: 'NO_PRESSURE_CHOSEN' },
+        value_state_proposal: {
+          changes: [
+            {
+              anchorId: 'val-1',
+              operation: 'RESTORE',
+              proposedCondition: 'SECURED',
+              causeReference: 'USER_ACTION',
+              rationale: 'Hazard defused by extinguisher',
+            },
+          ],
+        },
+        character_pursuit_proposal: { changes: [] },
+        character_development_proposal: { changes: [] },
+        pressure_transition_proposal: {
+          transitions: [
+            {
+              threadId: acceptedThreadId!,
+              proposedStatus: 'RESOLVED',
+              causeReference: 'USER_ACTION',
+              rationale: 'Suppressed sparks with fire extinguisher',
+            },
+          ],
+        },
+        logic_state: {
+          terminal_flags: [],
+          cast_deltas: [],
+          cast_ledger: [],
+        },
+        topologyDelta: { isExpansion: false, newNodeDef: null },
+      }),
     });
 
     const resTurn2 = await fetch(`${baseUrl}/api/turn`, {

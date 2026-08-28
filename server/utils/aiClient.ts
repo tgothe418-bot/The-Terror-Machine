@@ -12,6 +12,8 @@ import {
   RECONCILIATION_REASON_CODES,
   FICTIONAL_TIME_COSTS,
   AUTHORITY_ALIGNMENTS,
+  TurnResultSchema,
+  type TurnResult,
 } from "../schemas/engine";
 
 let aiClient: GoogleGenAI | null = null;
@@ -424,6 +426,328 @@ export const turnResponseSchema = {
       required: ["isExpansion"],
       nullable: true,
     },
+    cast_activity_proposal: {
+      anyOf: [
+        {
+          type: Type.OBJECT,
+          properties: {
+            kind: { type: Type.STRING, format: "enum", enum: ["NONE"] },
+            reason: { type: Type.STRING, maxLength: "200" },
+          },
+          required: ["kind"],
+        },
+        {
+          type: Type.OBJECT,
+          properties: {
+            kind: { type: Type.STRING, format: "enum", enum: ["ACTIVITY"] },
+            proposalId: { type: Type.STRING },
+            castMemberId: { type: Type.STRING },
+            pursuitId: { type: Type.STRING, nullable: true },
+            locationNodeId: { type: Type.STRING, nullable: true },
+            perceptionPath: {
+              type: Type.STRING,
+              format: "enum",
+              enum: ["DIRECT", "MEDIATED", "LOCAL_TRACE", "UNOBSERVED"],
+            },
+            activitySummary: { type: Type.STRING },
+            authorityReferences: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING },
+            },
+            manifestationBlock: {
+              type: Type.OBJECT,
+              properties: {
+                type: {
+                  type: Type.STRING,
+                  format: "enum",
+                  enum: ["prose", "dialogue", "system_voice", "environmental_description"],
+                },
+                speaker: { type: Type.STRING, nullable: true },
+                content: { type: Type.STRING },
+              },
+              required: ["type", "content"],
+              nullable: true,
+            },
+          },
+          required: [
+            "kind",
+            "proposalId",
+            "castMemberId",
+            "perceptionPath",
+            "activitySummary",
+          ],
+        },
+      ],
+    },
+    situated_pressure_proposal: {
+      anyOf: [
+        {
+          type: Type.OBJECT,
+          properties: {
+            kind: { type: Type.STRING, format: "enum", enum: ["NONE"] },
+            reason: { type: Type.STRING, maxLength: "200" },
+          },
+          required: ["kind"],
+        },
+        {
+          type: Type.OBJECT,
+          properties: {
+            kind: { type: Type.STRING, format: "enum", enum: ["PRESSURE"] },
+            proposalId: { type: Type.STRING },
+            valueAnchorId: { type: Type.STRING },
+            sourceReference: { type: Type.STRING },
+            operator: {
+              type: Type.STRING,
+              format: "enum",
+              enum: [
+                "EXPOSE",
+                "CONSTRAIN_ACCESS",
+                "ACCELERATE",
+                "CORRUPT_TRUST",
+                "DEGRADE_CAPABILITY",
+                "CLOSE_DISTANCE",
+                "DESTABILIZE_KNOWLEDGE",
+                "VIOLATE_EXPECTATION",
+                "IMPOSE_COST",
+                "OTHER",
+              ],
+            },
+            affectedDimension: {
+              type: Type.STRING,
+              format: "enum",
+              enum: [
+                "ACCESS",
+                "KNOWLEDGE",
+                "TIME",
+                "TRUST",
+                "EXPOSURE",
+                "CAPABILITY",
+                "SAFETY",
+                "RELATIONSHIP",
+                "FREEDOM",
+                "IDENTITY",
+                "OTHER",
+              ],
+            },
+            adverseProspect: { type: Type.STRING, maxLength: "500" },
+            authorityReferences: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING },
+            },
+            persistenceTarget: {
+              type: Type.STRING,
+              format: "enum",
+              enum: ["PRESSURE_THREAD", "EPHEMERAL_EVENT"],
+            },
+            responseWindowOpen: { type: Type.BOOLEAN },
+            manifestationBlock: {
+              type: Type.OBJECT,
+              properties: {
+                type: {
+                  type: Type.STRING,
+                  format: "enum",
+                  enum: ["prose", "dialogue", "system_voice", "environmental_description"],
+                },
+                speaker: { type: Type.STRING, nullable: true },
+                content: { type: Type.STRING },
+              },
+              required: ["type", "content"],
+              nullable: true,
+            },
+          },
+          required: [
+            "kind",
+            "proposalId",
+            "valueAnchorId",
+            "sourceReference",
+            "operator",
+            "affectedDimension",
+            "adverseProspect",
+          ],
+        },
+      ],
+    },
+    value_state_proposal: {
+      type: Type.OBJECT,
+      properties: {
+        changes: {
+          type: Type.ARRAY,
+          maxItems: "3",
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              anchorId: { type: Type.STRING },
+              operation: {
+                type: Type.STRING,
+                format: "enum",
+                enum: ["SET_CONDITION", "REVISE", "RETIRE", "RESTORE"],
+              },
+              expectedBeforeCondition: {
+                type: Type.STRING,
+                format: "enum",
+                enum: [
+                  "ESTABLISHED",
+                  "THREATENED",
+                  "COMPROMISED",
+                  "SECURED",
+                  "LOST",
+                  "TRANSFORMED",
+                ],
+              },
+              expectedBeforeLifecycle: {
+                type: Type.STRING,
+                format: "enum",
+                enum: ["ACTIVE", "REVISED", "RETIRED"],
+              },
+              proposedCondition: {
+                type: Type.STRING,
+                format: "enum",
+                enum: [
+                  "ESTABLISHED",
+                  "THREATENED",
+                  "COMPROMISED",
+                  "SECURED",
+                  "LOST",
+                  "TRANSFORMED",
+                ],
+              },
+              proposedLifecycle: {
+                type: Type.STRING,
+                format: "enum",
+                enum: ["ACTIVE", "REVISED", "RETIRED"],
+              },
+              proposedFormNote: { type: Type.STRING, maxLength: "300", nullable: true },
+              causeReference: { type: Type.STRING },
+              rationale: { type: Type.STRING, maxLength: "300" },
+            },
+            required: [
+              "anchorId",
+              "operation",
+              "proposedCondition",
+              "causeReference",
+              "rationale",
+            ],
+          },
+        },
+      },
+      required: ["changes"],
+    },
+    character_pursuit_proposal: {
+      type: Type.OBJECT,
+      properties: {
+        changes: {
+          type: Type.ARRAY,
+          maxItems: "2",
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              pursuitId: { type: Type.STRING },
+              operation: {
+                type: Type.STRING,
+                format: "enum",
+                enum: [
+                  "ADVANCE",
+                  "SETBACK",
+                  "REDIRECT",
+                  "BLOCK",
+                  "COMPLETE",
+                  "ABANDON",
+                  "PAUSE",
+                  "RESUME",
+                ],
+              },
+              expectedStatus: {
+                type: Type.STRING,
+                format: "enum",
+                enum: ["ACTIVE", "DORMANT", "BLOCKED", "COMPLETED", "ABANDONED"],
+              },
+              proposedObjective: { type: Type.STRING, maxLength: "300" },
+              proposedApproach: { type: Type.STRING, maxLength: "300" },
+              proposedLocationNodeId: { type: Type.STRING, nullable: true },
+              proposedStatus: {
+                type: Type.STRING,
+                format: "enum",
+                enum: ["ACTIVE", "DORMANT", "BLOCKED", "COMPLETED", "ABANDONED"],
+              },
+              progressSummary: { type: Type.STRING, maxLength: "300" },
+              causeReference: { type: Type.STRING },
+              rationale: { type: Type.STRING, maxLength: "300" },
+            },
+            required: [
+              "pursuitId",
+              "operation",
+              "progressSummary",
+              "causeReference",
+              "rationale",
+            ],
+          },
+        },
+      },
+      required: ["changes"],
+    },
+    character_development_proposal: {
+      type: Type.OBJECT,
+      properties: {
+        changes: {
+          type: Type.ARRAY,
+          maxItems: "2",
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              castMemberId: { type: Type.STRING },
+              operation: {
+                type: Type.STRING,
+                format: "enum",
+                enum: ["ESTABLISH", "REVISE", "RETIRE"],
+              },
+              targetFactId: { type: Type.STRING, nullable: true },
+              dimension: {
+                type: Type.STRING,
+                format: "enum",
+                enum: ["GOAL", "BELIEF", "IDENTITY", "ATTACHMENT", "DISPOSITION", "OTHER"],
+              },
+              statement: { type: Type.STRING, maxLength: "300" },
+              causeReference: { type: Type.STRING },
+              rationale: { type: Type.STRING, maxLength: "300" },
+            },
+            required: [
+              "castMemberId",
+              "operation",
+              "dimension",
+              "statement",
+              "causeReference",
+              "rationale",
+            ],
+          },
+        },
+      },
+      required: ["changes"],
+    },
+    pressure_transition_proposal: {
+      type: Type.OBJECT,
+      properties: {
+        transitions: {
+          type: Type.ARRAY,
+          maxItems: "2",
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              threadId: { type: Type.STRING },
+              proposedStatus: {
+                type: Type.STRING,
+                format: "enum",
+                enum: ["RESOLVED", "REALIZED", "RELEASED", "TRANSFORMED"],
+              },
+              causeReference: { type: Type.STRING },
+              replacementAdverseProspect: { type: Type.STRING, maxLength: "500" },
+              rationale: { type: Type.STRING, maxLength: "300" },
+            },
+            required: ["threadId", "proposedStatus", "causeReference", "rationale"],
+          },
+        },
+      },
+      required: ["transitions"],
+    },
   },
   required: [
     "narrative_blocks",
@@ -435,6 +759,12 @@ export const turnResponseSchema = {
     "character_relationship_proposal",
     "character_memory_proposal",
     "world_memory_proposal",
+    "cast_activity_proposal",
+    "situated_pressure_proposal",
+    "value_state_proposal",
+    "character_pursuit_proposal",
+    "character_development_proposal",
+    "pressure_transition_proposal",
   ],
 } satisfies Schema;
 
@@ -533,6 +863,22 @@ export function unwrapStrictJsonResponse(text: string): string {
 }
 
 /**
+ * Paired contract interface linking the Gemini JSON Schema sent to generateContent()
+ * with the authoritative Zod schema used to parse and validate the returned response.
+ */
+export interface StructuredResponseContract<T> {
+  name: string;
+  responseSchema: Schema;
+  zodSchema: z.ZodType<T>;
+}
+
+export const EngineTurnStructuredResponseContract: StructuredResponseContract<TurnResult> = {
+  name: 'ENGINE_TURN',
+  responseSchema: turnResponseSchema,
+  zodSchema: TurnResultSchema,
+};
+
+/**
  * Pure parsing and Zod validation boundary extracted for testability and deterministic validation.
  */
 export function parseStructuredTurnResponse<T>(rawText: string, zodSchema: z.ZodType<T>): T {
@@ -543,9 +889,21 @@ export function parseStructuredTurnResponse<T>(rawText: string, zodSchema: z.Zod
 
 export const generateStructuredResponse = async <T = unknown>(
   prompt: string,
-  zodSchema: z.ZodType<T>
+  contractOrSchema: StructuredResponseContract<T> | z.ZodType<T>
 ): Promise<T> => {
   const contents = [{ role: "user", parts: [{ text: prompt }] }];
+
+  const contract: StructuredResponseContract<T> =
+    typeof contractOrSchema === 'object' &&
+    contractOrSchema !== null &&
+    'responseSchema' in contractOrSchema &&
+    'zodSchema' in contractOrSchema
+      ? (contractOrSchema as StructuredResponseContract<T>)
+      : {
+          name: 'CUSTOM_ZOD_SCHEMA',
+          responseSchema: turnResponseSchema,
+          zodSchema: contractOrSchema as z.ZodType<T>,
+        };
 
   const policy = getGeminiPolicy('ENGINE_TURN');
   const response = await getAiClient().models.generateContent({
@@ -556,7 +914,7 @@ export const generateStructuredResponse = async <T = unknown>(
         thinkingLevel: policy.thinkingLevel,
       },
       responseMimeType: "application/json",
-      responseSchema: turnResponseSchema,
+      responseSchema: contract.responseSchema,
     },
   });
 
@@ -569,7 +927,7 @@ export const generateStructuredResponse = async <T = unknown>(
   }
 
   try {
-    return parseStructuredTurnResponse(classification.text, zodSchema);
+    return parseStructuredTurnResponse(classification.text, contract.zodSchema);
   } catch (err) {
     console.error("Failed to parse or validate schema:", err);
     throw err;

@@ -117,6 +117,7 @@ describe('resolveCharacterEntryPlacement', () => {
         nodes: [],
         nodeDefinitions: [],
         connections: [],
+        anchors: [],
       },
     };
 

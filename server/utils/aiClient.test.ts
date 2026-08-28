@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   unwrapStrictJsonResponse,
   parseStructuredTurnResponse,
@@ -6,6 +6,9 @@ import {
   classifyProviderResponse,
   ProviderRefusalError,
   EmptyProviderResponseError,
+  getAiClient,
+  generateStructuredResponse,
+  EngineTurnStructuredResponseContract,
 } from './aiClient';
 import { TurnResultSchema } from '../schemas/engine';
 
@@ -23,6 +26,125 @@ describe('unwrapStrictJsonResponse', () => {
     expect(unwrapStrictJsonResponse('Here is the result: {"ok":true}')).toBe(
       'Here is the result: {"ok":true}'
     );
+  });
+});
+
+describe('HG1 provider contract restoration (Packet 1-10)', () => {
+  const HG1_FIELDS = [
+    'cast_activity_proposal',
+    'situated_pressure_proposal',
+    'value_state_proposal',
+    'character_pursuit_proposal',
+    'character_development_proposal',
+    'pressure_transition_proposal',
+  ] as const;
+
+  it('provider schema declares and requires the complete HG1 proposal envelope', () => {
+    const props = turnResponseSchema.properties as Record<string, unknown>;
+    const required = (turnResponseSchema.required || []) as string[];
+
+    for (const field of HG1_FIELDS) {
+      expect(props[field], `Expected Gemini schema to declare property "${field}"`).toBeDefined();
+      expect(required, `Expected Gemini schema required list to include "${field}"`).toContain(field);
+    }
+  });
+
+  it('provider ingress rejects omission of every HG1 proposal field instead of manufacturing neutral defaults', () => {
+    const fullPayload = {
+      narrative_blocks: [{ type: 'prose', content: 'Corridor hum.' }],
+      intent_proposal: {
+        action_kind: 'OBSERVE',
+        action_subtype: null,
+        pressure_direction: 'MAINTAIN',
+        dramatic_tactic: 'EXPOSURE',
+        intent_synergy: 'SUCCESS',
+      },
+      reconciliation_proposal: {
+        mode: 'CANONICAL',
+        feasibility: 'SUPPORTED',
+        reason_code: 'NONE',
+        fictional_time_cost: 'MOMENT',
+        authority_alignment: 'WITHIN_CONTRACT',
+        memory_echo_candidate: null,
+      },
+      consequence_proposal: { mutations: [] },
+      character_stance_proposal: { changes: [] },
+      character_relationship_proposal: { changes: [] },
+      character_memory_proposal: { candidates: [] },
+      world_memory_proposal: { candidates: [] },
+      cast_activity_proposal: { kind: 'NONE', reason: 'NO_OPPORTUNITY_CHOSEN' },
+      situated_pressure_proposal: { kind: 'NONE', reason: 'NO_PRESSURE_CHOSEN' },
+      value_state_proposal: { changes: [] },
+      character_pursuit_proposal: { changes: [] },
+      character_development_proposal: { changes: [] },
+      pressure_transition_proposal: { transitions: [] },
+      logic_state: {
+        current_phase: 'MANIFEST',
+        requested_transition: null,
+        suggested_tension: 20,
+        terminal_flags: [],
+        cast_deltas: [],
+      },
+      topologyDelta: { isExpansion: false, newNodeDef: null },
+    };
+
+    for (const field of HG1_FIELDS) {
+      const omitted = { ...fullPayload };
+      delete (omitted as Record<string, unknown>)[field];
+      expect(
+        () => parseStructuredTurnResponse(JSON.stringify(omitted), TurnResultSchema),
+        `Deleting "${field}" should fail provider ingress validation rather than using Zod defaults`
+      ).toThrow();
+    }
+  });
+
+  it('generateStructuredResponse sends the paired provider schema selected by its contract', async () => {
+    const client = getAiClient();
+    const generateSpy = vi.spyOn(client.models, 'generateContent').mockResolvedValueOnce({
+      text: JSON.stringify({
+        narrative_blocks: [{ type: 'prose', content: 'Ventilation hum.' }],
+        intent_proposal: {
+          action_kind: 'OBSERVE',
+          action_subtype: null,
+          pressure_direction: 'MAINTAIN',
+          dramatic_tactic: 'NONE',
+          intent_synergy: 'SUCCESS',
+        },
+        reconciliation_proposal: {
+          mode: 'CANONICAL',
+          feasibility: 'SUPPORTED',
+          reason_code: 'NONE',
+          fictional_time_cost: 'MOMENT',
+          authority_alignment: 'WITHIN_CONTRACT',
+          memory_echo_candidate: null,
+        },
+        consequence_proposal: { mutations: [] },
+        character_stance_proposal: { changes: [] },
+        character_relationship_proposal: { changes: [] },
+        character_memory_proposal: { candidates: [] },
+        world_memory_proposal: { candidates: [] },
+        cast_activity_proposal: { kind: 'NONE', reason: 'NO_OPPORTUNITY_CHOSEN' },
+        situated_pressure_proposal: { kind: 'NONE', reason: 'NO_PRESSURE_CHOSEN' },
+        value_state_proposal: { changes: [] },
+        character_pursuit_proposal: { changes: [] },
+        character_development_proposal: { changes: [] },
+        pressure_transition_proposal: { transitions: [] },
+        logic_state: {
+          terminal_flags: [],
+          cast_deltas: [],
+        },
+        topologyDelta: { isExpansion: false, newNodeDef: null },
+      }),
+    } as never);
+
+    await generateStructuredResponse('Test prompt', EngineTurnStructuredResponseContract);
+
+    expect(generateSpy).toHaveBeenCalledTimes(1);
+    const callConfig = generateSpy.mock.calls[0][0];
+    expect(callConfig.config?.responseSchema).toBe(EngineTurnStructuredResponseContract.responseSchema);
+    expect(callConfig.config?.responseSchema).toBe(turnResponseSchema);
+
+    generateSpy.mockRestore();
   });
 });
 
@@ -118,6 +240,26 @@ describe('provider turn response contract', () => {
           rationale: 'Station telemetry fact.',
         },
       ],
+    },
+    cast_activity_proposal: {
+      kind: 'NONE',
+      reason: 'NO_OPPORTUNITY_CHOSEN',
+    },
+    situated_pressure_proposal: {
+      kind: 'NONE',
+      reason: 'NO_PRESSURE_CHOSEN',
+    },
+    value_state_proposal: {
+      changes: [],
+    },
+    character_pursuit_proposal: {
+      changes: [],
+    },
+    character_development_proposal: {
+      changes: [],
+    },
+    pressure_transition_proposal: {
+      transitions: [],
     },
     logic_state: {
       current_phase: 'MANIFEST',

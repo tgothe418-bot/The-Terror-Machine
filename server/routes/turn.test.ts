@@ -340,6 +340,41 @@ describe('Turn schemas validation', () => {
       candidates: [],
     };
 
+    const validCastActivityProposal = {
+      kind: 'NONE' as const,
+      reason: 'NO_OPPORTUNITY_CHOSEN' as const,
+    };
+
+    const validSituatedPressureProposal = {
+      kind: 'NONE' as const,
+      reason: 'NO_PRESSURE_CHOSEN' as const,
+    };
+
+    const validValueStateProposal = {
+      changes: [],
+    };
+
+    const validCharacterPursuitProposal = {
+      changes: [],
+    };
+
+    const validCharacterDevelopmentProposal = {
+      changes: [],
+    };
+
+    const validPressureTransitionProposal = {
+      transitions: [],
+    };
+
+    const defaultHG1Proposals = {
+      cast_activity_proposal: validCastActivityProposal,
+      situated_pressure_proposal: validSituatedPressureProposal,
+      value_state_proposal: validValueStateProposal,
+      character_pursuit_proposal: validCharacterPursuitProposal,
+      character_development_proposal: validCharacterDevelopmentProposal,
+      pressure_transition_proposal: validPressureTransitionProposal,
+    };
+
     it('validates a well-formed turn result frame with proposals', () => {
       const validResult = {
         narrative_blocks: [
@@ -359,6 +394,7 @@ describe('Turn schemas validation', () => {
         character_relationship_proposal: validCharacterRelationshipProposal,
         character_memory_proposal: validCharacterMemoryProposal,
         world_memory_proposal: validWorldMemoryProposal,
+        ...defaultHG1Proposals,
         logic_state: {
           current_phase: 'LATENT',
           suggested_tension: 3,
@@ -404,6 +440,7 @@ describe('Turn schemas validation', () => {
     it('rejects missing intent_proposal or reconciliation_proposal or consequence_proposal or character_stance_proposal or character_relationship_proposal or character_memory_proposal or world_memory_proposal', () => {
       const baseResult = {
         narrative_blocks: [{ type: 'prose', content: 'Observation.' }],
+        ...defaultHG1Proposals,
         logic_state: {},
       };
 
@@ -501,6 +538,7 @@ describe('Turn schemas validation', () => {
         character_relationship_proposal: validCharacterRelationshipProposal,
         character_memory_proposal: validCharacterMemoryProposal,
         world_memory_proposal: validWorldMemoryProposal,
+        ...defaultHG1Proposals,
       };
 
       expect(() =>
@@ -540,6 +578,7 @@ describe('Turn schemas validation', () => {
         character_relationship_proposal: validCharacterRelationshipProposal,
         character_memory_proposal: validCharacterMemoryProposal,
         world_memory_proposal: validWorldMemoryProposal,
+        ...defaultHG1Proposals,
         logic_state: {
           current_phase: 'LATENT',
           suggested_tension: 1,
@@ -561,6 +600,7 @@ describe('Turn schemas validation', () => {
           character_relationship_proposal: validCharacterRelationshipProposal,
           character_memory_proposal: validCharacterMemoryProposal,
           world_memory_proposal: validWorldMemoryProposal,
+          ...defaultHG1Proposals,
           logic_state: {},
         })
       ).toThrow();
@@ -577,6 +617,7 @@ describe('Turn schemas validation', () => {
           character_relationship_proposal: validCharacterRelationshipProposal,
           character_memory_proposal: validCharacterMemoryProposal,
           world_memory_proposal: validWorldMemoryProposal,
+          ...defaultHG1Proposals,
           logic_state: {},
         })
       ).toThrow();
@@ -593,6 +634,7 @@ describe('Turn schemas validation', () => {
           character_relationship_proposal: validCharacterRelationshipProposal,
           character_memory_proposal: validCharacterMemoryProposal,
           world_memory_proposal: validWorldMemoryProposal,
+          ...defaultHG1Proposals,
           logic_state: {},
           topologyDelta: { isExpansion: 'false' },
         })
@@ -702,6 +744,7 @@ describe('Turn schemas validation', () => {
           },
           character_memory_proposal: validCharacterMemoryProposal,
           world_memory_proposal: validWorldMemoryProposal,
+          ...defaultHG1Proposals,
           logic_state: {
             current_phase: 'LATENT',
             suggested_tension: 1,
@@ -751,6 +794,7 @@ describe('Turn schemas validation', () => {
           },
           character_memory_proposal: validCharacterMemoryProposal,
           world_memory_proposal: validWorldMemoryProposal,
+          ...defaultHG1Proposals,
           logic_state: {
             current_phase: 'LATENT',
             suggested_tension: 1,
@@ -783,6 +827,7 @@ describe('Turn schemas validation', () => {
           },
           character_memory_proposal: validCharacterMemoryProposal,
           world_memory_proposal: validWorldMemoryProposal,
+          ...defaultHG1Proposals,
           logic_state: {
             current_phase: 'LATENT',
             suggested_tension: 1,
@@ -810,6 +855,7 @@ describe('Turn schemas validation', () => {
           },
           character_memory_proposal: validCharacterMemoryProposal,
           world_memory_proposal: validWorldMemoryProposal,
+          ...defaultHG1Proposals,
           logic_state: {
             current_phase: 'LATENT',
             suggested_tension: 1,
@@ -1832,6 +1878,29 @@ describe('Turn schemas validation', () => {
       },
     });
 
+    const defaultHG1Proposals = {
+      cast_activity_proposal: {
+        kind: 'NONE' as const,
+        reason: 'NO_OPPORTUNITY_CHOSEN' as const,
+      },
+      situated_pressure_proposal: {
+        kind: 'NONE' as const,
+        reason: 'NO_PRESSURE_CHOSEN' as const,
+      },
+      value_state_proposal: {
+        changes: [],
+      },
+      character_pursuit_proposal: {
+        changes: [],
+      },
+      character_development_proposal: {
+        changes: [],
+      },
+      pressure_transition_proposal: {
+        transitions: [],
+      },
+    };
+
     it('handles invalid move despite optimistic model metadata (Case 1)', () => {
       const modelResult = TurnResultSchema.parse({
         narrative_blocks: [
@@ -1867,6 +1936,7 @@ describe('Turn schemas validation', () => {
         world_memory_proposal: {
           candidates: [],
         },
+        ...defaultHG1Proposals,
         logic_state: {
           current_phase: 'LATENT',
           suggested_tension: 3,
@@ -1951,6 +2021,7 @@ describe('Turn schemas validation', () => {
         world_memory_proposal: {
           candidates: [],
         },
+        ...defaultHG1Proposals,
         logic_state: {
           current_phase: 'LATENT',
           suggested_tension: 2,
@@ -2018,6 +2089,7 @@ describe('Turn schemas validation', () => {
         world_memory_proposal: {
           candidates: [],
         },
+        ...defaultHG1Proposals,
         logic_state: {
           current_phase: 'LATENT',
           suggested_tension: 2,
@@ -2087,6 +2159,7 @@ describe('Turn schemas validation', () => {
         world_memory_proposal: {
           candidates: [],
         },
+        ...defaultHG1Proposals,
         logic_state: {
           current_phase: 'LATENT',
           suggested_tension: 1,
@@ -2144,6 +2217,7 @@ describe('Turn schemas validation', () => {
         world_memory_proposal: {
           candidates: [],
         },
+        ...defaultHG1Proposals,
         logic_state: {
           current_phase: 'LATENT',
           suggested_tension: 2,
@@ -2206,6 +2280,7 @@ describe('Turn schemas validation', () => {
         world_memory_proposal: {
           candidates: [],
         },
+        ...defaultHG1Proposals,
         logic_state: {},
       });
 
@@ -2320,6 +2395,7 @@ describe('Turn schemas validation', () => {
         world_memory_proposal: {
           candidates: [],
         },
+        ...defaultHG1Proposals,
         logic_state: {
           requested_transition: 'AIRLOCK_01',
           cast_deltas: [{ character_id: 'char-elena', skepticism_delta: 0.1 }],
@@ -2392,6 +2468,7 @@ describe('Turn schemas validation', () => {
         world_memory_proposal: {
           candidates: [],
         },
+        ...defaultHG1Proposals,
         logic_state: {
           cast_deltas: [{ character_id: 'char-elena', skepticism_delta: 0.1 }],
         },
@@ -2445,6 +2522,7 @@ describe('Turn schemas validation', () => {
         world_memory_proposal: {
           candidates: [],
         },
+        ...defaultHG1Proposals,
         logic_state: {},
       });
 
@@ -2571,6 +2649,7 @@ describe('Turn schemas validation', () => {
           world_memory_proposal: {
             candidates: [],
           },
+          ...defaultHG1Proposals,
           logic_state: {
             requested_transition: 'AIRLOCK_01',
           },
@@ -2628,6 +2707,7 @@ describe('Turn schemas validation', () => {
           world_memory_proposal: {
             candidates: [],
           },
+          ...defaultHG1Proposals,
           logic_state: {
             requested_transition: 'AIRLOCK_01',
           },
@@ -2789,6 +2869,7 @@ describe('Turn schemas validation', () => {
             world_memory_proposal: {
               candidates: [],
             },
+            ...defaultHG1Proposals,
             logic_state: {},
             topologyDelta: mockProposedExpansion,
           });
@@ -2847,6 +2928,7 @@ describe('Turn schemas validation', () => {
             world_memory_proposal: {
               candidates: [],
             },
+            ...defaultHG1Proposals,
             logic_state: {},
             topologyDelta: mockProposedExpansion,
           });
@@ -2905,6 +2987,7 @@ describe('Turn schemas validation', () => {
             world_memory_proposal: {
               candidates: [],
             },
+            ...defaultHG1Proposals,
             logic_state: {},
             topologyDelta: mockProposedExpansion,
           });
@@ -2963,6 +3046,7 @@ describe('Turn schemas validation', () => {
             world_memory_proposal: {
               candidates: [],
             },
+            ...defaultHG1Proposals,
             logic_state: {},
             topologyDelta: mockProposedExpansion,
           });
@@ -3020,6 +3104,7 @@ describe('Turn schemas validation', () => {
             world_memory_proposal: {
               candidates: [],
             },
+            ...defaultHG1Proposals,
             logic_state: {},
             topologyDelta: mockProposedExpansion,
           });
@@ -3089,6 +3174,7 @@ describe('Turn schemas validation', () => {
             world_memory_proposal: {
               candidates: [],
             },
+            ...defaultHG1Proposals,
             logic_state: {},
             topologyDelta: mockProposedExpansion,
           });
@@ -3156,6 +3242,7 @@ describe('Turn schemas validation', () => {
             world_memory_proposal: {
               candidates: [],
             },
+            ...defaultHG1Proposals,
             logic_state: {},
             topologyDelta: mockProposedExpansion,
           });
@@ -3272,6 +3359,7 @@ describe('Turn schemas validation', () => {
             world_memory_proposal: {
               candidates: [],
             },
+            ...defaultHG1Proposals,
             logic_state: {},
             topologyDelta: mockProposedExpansion,
           });

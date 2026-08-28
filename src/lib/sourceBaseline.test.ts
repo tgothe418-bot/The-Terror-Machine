@@ -1321,7 +1321,7 @@ describe('sourceBaseline pure functions', () => {
     };
 
     it('collects exactly 49 issues with 0 omitted issues', () => {
-      const candidates = Array.from({ length: 49 }, (_, i) => ({
+      const candidates: Array<{ id: string; target: string; proposedValue: unknown }> = Array.from({ length: 49 }, (_, i) => ({
         id: `bad-${i}`,
         target: 'cast_seed',
         proposedValue: { id: `c-${i}` }, // missing isUserCharacter
@@ -1340,7 +1340,7 @@ describe('sourceBaseline pure functions', () => {
     });
 
     it('collects exactly 50 issues with 0 omitted issues at MAX_VALIDATION_ISSUES boundary', () => {
-      const candidates = Array.from({ length: 50 }, (_, i) => ({
+      const candidates: Array<{ id: string; target: string; proposedValue: unknown }> = Array.from({ length: 50 }, (_, i) => ({
         id: `bad-${i}`,
         target: 'cast_seed',
         proposedValue: { id: `c-${i}` }, // missing isUserCharacter
@@ -1359,7 +1359,7 @@ describe('sourceBaseline pure functions', () => {
     });
 
     it('collects 50 issues and records 1 omitted issue when 51 malformed candidates exist', () => {
-      const candidates = Array.from({ length: 51 }, (_, i) => ({
+      const candidates: Array<{ id: string; target: string; proposedValue: unknown }> = Array.from({ length: 51 }, (_, i) => ({
         id: `bad-${i}`,
         target: 'cast_seed',
         proposedValue: { id: `c-${i}` }, // missing isUserCharacter
@@ -1378,7 +1378,7 @@ describe('sourceBaseline pure functions', () => {
     });
 
     it('handles noisy document with 80 malformed candidates without exceeding schema limits', () => {
-      const candidates = Array.from({ length: 80 }, (_, i) => ({
+      const candidates: Array<{ id: string; target: string; proposedValue: unknown }> = Array.from({ length: 80 }, (_, i) => ({
         id: `bad-${i}`,
         target: 'cast_seed',
         proposedValue: { id: `c-${i}` }, // missing isUserCharacter

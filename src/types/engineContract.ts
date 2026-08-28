@@ -399,26 +399,12 @@ export const TurnResultSchema = z.object({
   character_relationship_proposal: CharacterRelationshipProposalSchema,
   character_memory_proposal: CharacterMemoryProposalSchema,
   world_memory_proposal: WorldMemoryProposalSchema,
-  cast_activity_proposal: CastActivityProposalSchema.optional().default({
-    kind: 'NONE',
-    reason: 'NO_OPPORTUNITY_CHOSEN',
-  }),
-  situated_pressure_proposal: SituatedPressureProposalSchema.optional().default({
-    kind: 'NONE',
-    reason: 'NO_PRESSURE_CHOSEN',
-  }),
-  value_state_proposal: ValueStateProposalSchema.optional().default({
-    changes: [],
-  }),
-  character_pursuit_proposal: CharacterPursuitProposalSchema.optional().default({
-    changes: [],
-  }),
-  character_development_proposal: CharacterDevelopmentProposalSchema.optional().default({
-    changes: [],
-  }),
-  pressure_transition_proposal: PressureThreadTransitionProposalSchema.optional().default({
-    transitions: [],
-  }),
+  cast_activity_proposal: CastActivityProposalSchema,
+  situated_pressure_proposal: SituatedPressureProposalSchema,
+  value_state_proposal: ValueStateProposalSchema,
+  character_pursuit_proposal: CharacterPursuitProposalSchema,
+  character_development_proposal: CharacterDevelopmentProposalSchema,
+  pressure_transition_proposal: PressureThreadTransitionProposalSchema,
   logic_state: z
     .object({
       current_phase: z.string().optional(),
