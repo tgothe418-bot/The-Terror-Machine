@@ -652,7 +652,7 @@ describe('sourceBaseline pure functions', () => {
   });
 
   describe('validateAndNormalizeDocumentAnalysis partial extraction recovery', () => {
-    it('retains valid entries and drops invalid candidates/evidence/unknowns without failing the analysis', () => {
+    it('retains valid entries and quarantines invalid candidates into validationIssues with completed_with_issues status', () => {
       const sourceRecord: ForgeSourceRecord = {
         id: 'src-test-recovery-1',
         fileName: 'research_notes.txt',
@@ -725,13 +725,23 @@ describe('sourceBaseline pure functions', () => {
       };
 
       const analysis = validateAndNormalizeDocumentAnalysis(payload, sourceRecord);
-      expect(analysis.status).toBe('error');
-      expect(analysis.errorMessage).toContain('Extraction validation failed');
-      expect(analysis.errorMessage).toContain('Candidate 2');
-      expect(analysis.errorMessage).toContain('Candidate 3');
+      expect(analysis.status).toBe('completed_with_issues');
+      expect(analysis.evidence).toHaveLength(1);
+      expect(analysis.unknowns).toHaveLength(1);
+      expect(analysis.candidates).toHaveLength(1);
+      expect(analysis.candidates[0].target).toBe('setting_location');
+      expect(analysis.candidates[0].proposedValue).toBe('Marianas Trench Station Sector 9');
+
+      expect(analysis.validationIssues).toHaveLength(2);
+      expect(analysis.validationIssues[0].candidateIndex).toBe(2);
+      expect(analysis.validationIssues[0].code).toBe('INVALID_ENUM');
+      expect(analysis.validationIssues[0].disposition).toBe('QUARANTINED');
+
+      expect(analysis.validationIssues[1].candidateIndex).toBe(3);
+      expect(analysis.validationIssues[1].disposition).toBe('QUARANTINED');
     });
 
-    it('fails visibly when a cast_seed candidate is missing explicit isUserCharacter boolean', () => {
+    it('quarantines candidate when cast_seed is missing explicit isUserCharacter boolean', () => {
       const sourceRecord: ForgeSourceRecord = {
         id: 'src-test-cast-user-flag',
         fileName: 'cast_log.txt',
@@ -766,9 +776,96 @@ describe('sourceBaseline pure functions', () => {
       };
 
       const analysis = validateAndNormalizeDocumentAnalysis(payload, sourceRecord);
-      expect(analysis.status).toBe('error');
-      expect(analysis.errorMessage).toContain('is missing explicit isUserCharacter boolean');
+      // Since candidates has 0 valid items, but evidence has 1 valid item, this is completed_with_issues
+      expect(analysis.status).toBe('completed_with_issues');
+      expect(analysis.candidates).toHaveLength(0);
+      expect(analysis.validationIssues).toHaveLength(1);
+      expect(analysis.validationIssues[0].code).toBe('MISSING_REQUIRED_FIELD');
+      expect(analysis.validationIssues[0].fieldPath).toBe('proposedValue.isUserCharacter');
     });
+
+    it('normalizes unambiguous aliases during document analysis', () => {
+      const sourceRecord: ForgeSourceRecord = {
+        id: 'src-test-aliases',
+        fileName: 'station_log.txt',
+        mimeType: 'text/plain',
+        kind: 'document',
+        receivedAt: Date.now(),
+      };
+
+      const payload = {
+        evidence: [
+          {
+            id: 'ev-1',
+            category: 'cast',
+            claim: 'Mercer uses radio equipment.',
+          },
+        ],
+        candidates: [
+          {
+            id: 'cand-expr',
+            classification: 'evidence',
+            target: 'cast_expression_guidance',
+            targetCastMemberId: 'char-mercer',
+            label: 'Mercer Expression',
+            explanation: 'Uses radio',
+            evidenceIds: ['ev-1'],
+            proposedValue: {
+              communicationModes: ['verbal', 'radio'],
+              expressionGuidance: 'Radio dialogue.',
+            },
+          },
+          {
+            id: 'cand-conn',
+            classification: 'evidence',
+            target: 'topology_connection',
+            label: 'Station Corridor',
+            explanation: 'Physical corridor',
+            evidenceIds: ['ev-1'],
+            proposedValue: {
+              from: 'dock',
+              to: 'airlock',
+              kind: 'corridor',
+              userInitiated: true,
+            },
+          },
+          {
+            id: 'cand-anchor',
+            classification: 'evidence',
+            target: 'value_anchor',
+            label: 'Radio Tower',
+            explanation: 'Important communication facility',
+            evidenceIds: ['ev-1'],
+            proposedValue: {
+              id: 'va-tower',
+              holder: { kind: 'location', nodeId: 'dock' },
+              label: 'Radio Tower',
+              description: 'Tower on the dock.',
+              basisSummary: 'Essential comms.',
+              provenance: { kind: 'REVIEWED_SOURCE', sourceId: 'src-test-aliases', evidenceIds: ['ev-1'] },
+            },
+          },
+        ],
+      };
+
+      const analysis = validateAndNormalizeDocumentAnalysis(payload, sourceRecord);
+      expect(analysis.status).toBe('completed');
+      expect(analysis.validationIssues).toHaveLength(0);
+      expect(analysis.candidates).toHaveLength(3);
+
+      const exprCand = analysis.candidates.find((c) => c.target === 'cast_expression_guidance');
+      const exprVal = exprCand?.proposedValue as { communicationModes: string[] };
+      expect(exprVal.communicationModes).toEqual(['spoken', 'mediated']);
+
+      const connCand = analysis.candidates.find((c) => c.target === 'topology_connection');
+      const connVal = connCand?.proposedValue as { kind: string };
+      expect(connVal.kind).toBe('PHYSICAL');
+
+      const anchorCand = analysis.candidates.find((c) => c.target === 'value_anchor');
+      const anchorVal = anchorCand?.proposedValue as { holder: { kind: string; nodeId: string } };
+      expect(anchorVal.holder).toEqual({ kind: 'PLACE', nodeId: 'dock' });
+    });
+
 
     it('supplies stable fallback id for cast_seed without id and sets default reviewDecision and applicationState', () => {
       const sourceRecord: ForgeSourceRecord = {

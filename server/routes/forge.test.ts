@@ -41,7 +41,7 @@ describe('Forge Routes: /api/extract-blueprint', () => {
     });
   });
 
-  it('handles mixed-quality extraction by retaining valid entries and discarding malformed ones with HTTP 200', async () => {
+  it('handles mixed-quality extraction by retaining valid entries and quarantining malformed ones with HTTP 200 and completed_with_issues', async () => {
     const mixedExtractionPayload = {
       summary: 'Expedition log for Submerged Station Alpha.',
       evidence: [
@@ -120,12 +120,21 @@ describe('Forge Routes: /api/extract-blueprint', () => {
       }),
     });
 
-    expect(response.status).toBe(500);
+    expect(response.status).toBe(200);
 
     const body = await response.json();
-    expect(body.error).toContain('Extraction validation failed');
-    expect(body.error).toContain('Candidate 2');
-    expect(body.error).toContain('Candidate 3');
+    expect(body.success).toBe(true);
+    expect(body.sourceBinding).toBeDefined();
+    expect(body.analysis).toBeDefined();
+    expect(body.analysis.status).toBe('completed_with_issues');
+    expect(body.analysis.evidence).toHaveLength(1);
+    expect(body.analysis.unknowns).toHaveLength(1);
+    expect(body.analysis.candidates).toHaveLength(1);
+    expect(body.analysis.candidates[0].target).toBe('setting_location');
+    expect(body.analysis.candidates[0].proposedValue).toBe('Deep Benthic Trench');
+    expect(body.analysis.validationIssues).toHaveLength(2);
+    expect(body.analysis.validationIssues[0].disposition).toBe('QUARANTINED');
+    expect(body.analysis.validationIssues[1].disposition).toBe('QUARANTINED');
   });
 
   it('handles valid extraction with HTTP 200 and completed analysis', async () => {

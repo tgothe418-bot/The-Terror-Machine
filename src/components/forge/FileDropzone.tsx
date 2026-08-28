@@ -119,6 +119,19 @@ export const FileDropzone = () => {
       };
 
       const normalizedAnalysis = validateAndNormalizeDocumentAnalysis(data.analysis, sourceRecord);
+
+      if (normalizedAnalysis.status === 'error') {
+        if (data.sourceBinding) {
+          fetch('/api/revoke-source-binding', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sourceBinding: data.sourceBinding }),
+          }).catch((e) => console.warn('[FORGE INTAKE] Binding revocation error:', e));
+        }
+        setError(normalizedAnalysis.errorMessage || 'Extraction failed to produce a valid source baseline.');
+        return;
+      }
+
       setRuntimeSourceBinding(normalizedAnalysis.id, data.sourceBinding);
       registerSourceAnalysis(normalizedAnalysis, data.sourceBinding);
 
@@ -127,10 +140,17 @@ export const FileDropzone = () => {
         console.warn('[FORGE DEPICTION] Auto-proposal error:', e)
       );
 
-      addArchitectMessage({
-        role: 'architect',
-        content: `[SOURCE MATERIAL EXTRACTED: ${file.name}]\nExtracted ${normalizedAnalysis.candidates.length} baseline candidates for review. Inspect and accept candidates to apply them to your active draft.`,
-      });
+      if (normalizedAnalysis.status === 'completed_with_issues') {
+        addArchitectMessage({
+          role: 'architect',
+          content: `[SOURCE MATERIAL EXTRACTED: ${file.name}]\nExtracted ${normalizedAnalysis.candidates.length} valid baseline candidates for review (${normalizedAnalysis.validationIssues.length} malformed candidates were quarantined and cannot affect the Blueprint). Inspect and accept candidates to apply them to your active draft.`,
+        });
+      } else {
+        addArchitectMessage({
+          role: 'architect',
+          content: `[SOURCE MATERIAL EXTRACTED: ${file.name}]\nExtracted ${normalizedAnalysis.candidates.length} baseline candidates for review. Inspect and accept candidates to apply them to your active draft.`,
+        });
+      }
     } catch (err: unknown) {
       console.error(
         'Knowledgebase extraction error:',

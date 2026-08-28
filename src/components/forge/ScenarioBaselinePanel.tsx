@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { useForgeState, forgeActions } from '../../store/useForgeStore';
 import {
   ForgeSourceAnalysis,
@@ -33,6 +33,7 @@ export const ScenarioBaselinePanel: React.FC = () => {
   } = forgeActions;
 
   const [expandedSources, setExpandedSources] = useState<Record<string, boolean>>({});
+  const [expandedIssues, setExpandedIssues] = useState<Record<string, boolean>>({});
   const [editingCandidateId, setEditingCandidateId] = useState<string | null>(null);
   const [editingValueText, setEditingValueText] = useState<string>('');
   const [applicationError, setApplicationError] = useState<{ sourceId: string; message: string } | null>(null);
@@ -315,6 +316,77 @@ export const ScenarioBaselinePanel: React.FC = () => {
                           Extraction Summary
                         </span>
                         {analysis.summary}
+                      </div>
+                    )}
+
+                    {/* QUARANTINE SUMMARY & EXTRACTION ISSUES */}
+                    {analysis.validationIssues && analysis.validationIssues.length > 0 && (
+                      <div
+                        id={`quarantine-summary-${analysis.id}`}
+                        className="bg-amber-950/30 border border-amber-800/60 p-3 rounded text-xs font-mono text-amber-200 flex flex-col space-y-2.5"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+                            <span>
+                              Imported with {analysis.candidates.length} reviewable candidate{analysis.candidates.length === 1 ? '' : 's'}; {analysis.validationIssues.length} malformed candidate{analysis.validationIssues.length === 1 ? ' was' : 's were'} quarantined and cannot affect the Blueprint.
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            id={`toggle-issues-btn-${analysis.id}`}
+                            onClick={() =>
+                              setExpandedIssues((prev) => ({
+                                ...prev,
+                                [analysis.id]: !prev[analysis.id],
+                              }))
+                            }
+                            className="px-2 py-1 bg-amber-900/50 hover:bg-amber-800 border border-amber-700 text-amber-100 rounded text-[10px] font-bold transition-colors cursor-pointer shrink-0 flex items-center gap-1"
+                          >
+                            <span>{expandedIssues[analysis.id] ? 'Hide Issues' : 'View Issues'}</span>
+                            {expandedIssues[analysis.id] ? (
+                              <ChevronDown className="w-3 h-3" />
+                            ) : (
+                              <ChevronRight className="w-3 h-3" />
+                            )}
+                          </button>
+                        </div>
+
+                        {expandedIssues[analysis.id] && (
+                          <div className="space-y-2 pt-2 border-t border-amber-900/40">
+                            <div className="text-[10px] uppercase font-bold text-amber-400 tracking-wider">
+                              Quarantined Noncanonical Candidates ({analysis.validationIssues.length})
+                            </div>
+                            {analysis.validationIssues.map((issue) => (
+                              <div
+                                key={issue.id}
+                                id={`quarantine-issue-${issue.id}`}
+                                className="p-2.5 bg-zinc-950/80 border border-amber-900/40 rounded text-[11px] space-y-1"
+                              >
+                                <div className="flex items-center justify-between gap-2 flex-wrap">
+                                  <span className="font-bold text-zinc-200">
+                                    Candidate #{issue.candidateIndex} · {issue.candidateTarget || 'Unknown target'}
+                                    {issue.label ? ` (${issue.label})` : ''}
+                                  </span>
+                                  <span className="px-1.5 py-0.5 bg-red-950/60 border border-red-800/80 text-red-300 text-[9px] uppercase font-bold rounded">
+                                    {issue.disposition} — NONCANONICAL
+                                  </span>
+                                </div>
+                                <div className="text-zinc-400 text-[10px]">
+                                  Field: <span className="text-zinc-300 font-mono">{issue.fieldPath}</span> · Code: <span className="text-zinc-300 font-mono">{issue.code}</span>
+                                </div>
+                                <div className="text-amber-200/90 text-xs">
+                                  {issue.message}
+                                </div>
+                                {issue.allowedValues && issue.allowedValues.length > 0 && (
+                                  <div className="text-[10px] text-zinc-500 font-mono">
+                                    Allowed values: [{issue.allowedValues.join(', ')}]
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )}
 

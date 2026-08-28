@@ -709,6 +709,31 @@ export const ForgeSourceUnknownSchema = z
   .strict();
 export type ForgeSourceUnknown = z.infer<typeof ForgeSourceUnknownSchema>;
 
+export const ForgeValidationIssueCodeSchema = z.enum([
+  'INVALID_ENUM',
+  'INVALID_DISCRIMINATOR',
+  'MISSING_REQUIRED_FIELD',
+  'UNRESOLVED_EVIDENCE',
+  'INVALID_CANDIDATE_SHAPE',
+]);
+export type ForgeValidationIssueCode = z.infer<typeof ForgeValidationIssueCodeSchema>;
+
+export const ForgeValidationIssueSchema = z
+  .object({
+    id: z.string().min(1),
+    sourceId: z.string().min(1),
+    candidateIndex: z.number().int().positive(),
+    candidateTarget: z.string().max(100).optional(),
+    label: z.string().max(100).optional(),
+    fieldPath: z.string().max(200),
+    code: ForgeValidationIssueCodeSchema,
+    message: z.string().max(300),
+    allowedValues: z.array(z.string().max(100)).max(20).optional(),
+    disposition: z.literal('QUARANTINED').default('QUARANTINED'),
+  })
+  .strict();
+export type ForgeValidationIssue = z.infer<typeof ForgeValidationIssueSchema>;
+
 export const ForgeSourceAnalysisSchema = z
   .object({
     id: z.string().min(1),
@@ -717,9 +742,9 @@ export const ForgeSourceAnalysisSchema = z
     evidence: z.array(ForgeSourceEvidenceSchema).default([]),
     candidates: z.array(ForgeSourceCandidateSchema).default([]),
     unknowns: z.array(ForgeSourceUnknownSchema).default([]),
-    status: z.enum(['completed', 'error']).default('completed'),
+    validationIssues: z.array(ForgeValidationIssueSchema).max(50).default([]).optional(),
+    status: z.enum(['completed', 'completed_with_issues', 'error']).default('completed'),
     errorMessage: z.string().optional(),
   })
   .strict();
 export type ForgeSourceAnalysis = z.infer<typeof ForgeSourceAnalysisSchema>;
-

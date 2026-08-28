@@ -207,4 +207,152 @@ describe('FileDropzone & Architect Binding Lifecycle UI', () => {
     const draft = getForgeState().forgeDraft;
     expect(draft?.ambiguities || []).toHaveLength(0);
   });
+
+  it('4. handles document extraction with completed_with_issues by registering valid candidates and reporting quarantined issues', async () => {
+    const rawAnalysis = {
+      summary: 'Research notes on Station Tartarus.',
+      evidence: [
+        {
+          id: 'ev-1',
+          category: 'setting',
+          claim: 'Station Tartarus is deep underwater.',
+          excerpt: 'Station Tartarus underwater.',
+        },
+      ],
+      candidates: [
+        {
+          id: 'cand-valid-loc',
+          classification: 'evidence',
+          target: 'setting_location',
+          label: 'Setting Location',
+          explanation: 'Station Tartarus underwater.',
+          evidenceIds: ['ev-1'],
+          proposedValue: 'Station Tartarus Underwater Facility',
+        },
+        {
+          id: 'cand-invalid-enum',
+          classification: 'evidence',
+          target: 'cast_expression_guidance',
+          targetCastMemberId: 'char-1',
+          label: 'Invalid Expression Guidance',
+          explanation: 'Telepathic transmission',
+          evidenceIds: ['ev-1'],
+          proposedValue: {
+            communicationModes: ['telepathy'],
+            expressionGuidance: 'Telepathic thoughts',
+          },
+        },
+      ],
+      unknowns: [],
+    };
+
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        success: true,
+        sourceBinding: 'binding-issues-999',
+        analysis: rawAnalysis,
+      }),
+    } as Response);
+
+    await act(async () => {
+      root?.render(<FileDropzone />);
+    });
+
+    const fileInput = container?.querySelector('input[type="file"]') as HTMLInputElement;
+    const file = new File(['Some notes on Tartarus.'], 'tartarus_notes.txt', {
+      type: 'text/plain',
+    });
+
+    await act(async () => {
+      Object.defineProperty(fileInput, 'files', {
+        value: [file],
+        writable: false,
+      });
+      fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
+
+    const analyses = Object.values(getForgeState().sourceAnalyses);
+    expect(analyses).toHaveLength(1);
+    expect(analyses[0].status).toBe('completed_with_issues');
+    expect(analyses[0].candidates).toHaveLength(1);
+    expect(analyses[0].candidates[0].target).toBe('setting_location');
+    expect(analyses[0].validationIssues).toHaveLength(1);
+    expect(analyses[0].validationIssues[0].disposition).toBe('QUARANTINED');
+
+    expect(getRuntimeSourceBinding(analyses[0].id)).toBe('binding-issues-999');
+  });
+
+  it('5. handles document extraction fatal error without registering source analysis or binding', async () => {
+    const rawAnalysis = {
+      summary: '',
+      evidence: [],
+      candidates: [
+        {
+          id: 'cand-bad',
+          classification: 'evidence',
+          target: 'completely_unsupported_target',
+          label: 'Bad Target',
+          explanation: 'Malformed',
+          evidenceIds: [],
+          proposedValue: 'bad',
+        },
+      ],
+      unknowns: [],
+    };
+
+    const fetchSpy = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        success: true,
+        sourceBinding: 'binding-fatal-000',
+        analysis: rawAnalysis,
+      }),
+    } as Response);
+    globalThis.fetch = fetchSpy;
+
+    await act(async () => {
+      root?.render(<FileDropzone />);
+    });
+
+    const fileInput = container?.querySelector('input[type="file"]') as HTMLInputElement;
+    const file = new File(['Completely malformed text.'], 'unusable.txt', {
+      type: 'text/plain',
+    });
+
+    await act(async () => {
+      Object.defineProperty(fileInput, 'files', {
+        value: [file],
+        writable: false,
+      });
+      fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
+
+    // Verify 0 analyses registered in store
+    const analyses = Object.values(getForgeState().sourceAnalyses);
+    expect(analyses).toHaveLength(0);
+
+    // Verify error displayed in UI
+    expect(container?.textContent).toContain('Extraction produced no usable baseline');
+
+    // Verify binding revocation was requested
+    expect(fetchSpy).toHaveBeenCalledWith(
+      '/api/revoke-source-binding',
+      expect.objectContaining({
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sourceBinding: 'binding-fatal-000' }),
+      })
+    );
+  });
 });

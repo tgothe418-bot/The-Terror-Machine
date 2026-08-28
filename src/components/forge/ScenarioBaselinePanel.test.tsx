@@ -441,4 +441,89 @@ describe('ScenarioBaselinePanel Candidate Atomicity Proof', () => {
     const stateAfter = JSON.parse(JSON.stringify(getForgeState()));
     expect(stateAfter).toEqual(stateBefore);
   });
+
+  it('renders quarantine summary banner and expandable extraction issues for completed_with_issues analysis', async () => {
+    forgeActions.initializeDraft({ title: 'Quarantine Test Draft' });
+
+    const mixedAnalysis: ForgeSourceAnalysis = {
+      id: 'analysis-quarantine-1',
+      sourceRecord: {
+        id: 'src-q-1',
+        fileName: 'salvage_record.txt',
+        mimeType: 'text/plain',
+        kind: 'document',
+        receivedAt: Date.now(),
+      },
+      summary: 'Salvage record for Deep Trench platform.',
+      evidence: [],
+      candidates: [
+        {
+          id: 'cand-valid-1',
+          sourceId: 'src-q-1',
+          classification: 'evidence',
+          target: 'setting_location',
+          label: 'Setting Location',
+          explanation: 'Salvage platform',
+          evidenceIds: [],
+          proposedValue: 'Deep Trench Platform 9',
+          reviewDecision: 'accepted',
+          applicationState: 'staged',
+        },
+      ],
+      validationIssues: [
+        {
+          id: 'issue-1',
+          sourceId: 'src-q-1',
+          candidateIndex: 2,
+          candidateTarget: 'cast_expression_guidance',
+          label: 'Malformed Expression',
+          fieldPath: 'proposedValue.communicationModes.0',
+          code: 'INVALID_ENUM',
+          message: 'Invalid communication mode: telepathy',
+          allowedValues: ['spoken', 'nonverbal', 'mediated'],
+          disposition: 'QUARANTINED',
+        },
+      ],
+      unknowns: [],
+      status: 'completed_with_issues',
+    };
+
+    forgeActions.registerSourceAnalysis(mixedAnalysis, 'mock-binding-quarantine');
+
+    await act(async () => {
+      root?.render(React.createElement(ScenarioBaselinePanel));
+    });
+
+    // 1. Verify quarantine summary banner renders
+    const quarantineSummary = container?.querySelector('#quarantine-summary-analysis-quarantine-1');
+    expect(quarantineSummary).not.toBeNull();
+    expect(quarantineSummary?.textContent).toContain('Imported with 1 reviewable candidate');
+    expect(quarantineSummary?.textContent).toContain('1 malformed candidate was quarantined');
+
+    // 2. By default, extraction issues are collapsed
+    expect(container?.querySelector('#quarantine-issue-issue-1')).toBeNull();
+
+    // 3. Toggle issues view
+    const toggleBtn = container?.querySelector('#toggle-issues-btn-analysis-quarantine-1') as HTMLButtonElement;
+    expect(toggleBtn).not.toBeNull();
+
+    await act(async () => {
+      toggleBtn.click();
+    });
+
+    // 4. Verify quarantined issue is rendered with noncanonical badge
+    const issueElement = container?.querySelector('#quarantine-issue-issue-1');
+    expect(issueElement).not.toBeNull();
+    expect(issueElement?.textContent).toContain('Candidate #2');
+    expect(issueElement?.textContent).toContain('cast_expression_guidance');
+    expect(issueElement?.textContent).toContain('QUARANTINED — NONCANONICAL');
+    expect(issueElement?.textContent).toContain('proposedValue.communicationModes.0');
+    expect(issueElement?.textContent).toContain('INVALID_ENUM');
+    expect(issueElement?.textContent).toContain('Invalid communication mode: telepathy');
+    expect(issueElement?.textContent).toContain('Allowed values: [spoken, nonverbal, mediated]');
+
+    // 5. Verify quarantined issue has NO accept or reject controls
+    const issueButtons = Array.from(issueElement?.querySelectorAll('button') || []);
+    expect(issueButtons).toHaveLength(0);
+  });
 });

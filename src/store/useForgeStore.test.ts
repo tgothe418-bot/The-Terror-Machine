@@ -720,6 +720,7 @@ describe('useForgeStore - draft state and actions', () => {
       evidence: [],
       candidates: [],
       unknowns: [],
+      validationIssues: [],
       status: 'completed' as const,
     };
 
