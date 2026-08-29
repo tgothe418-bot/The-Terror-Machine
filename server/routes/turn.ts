@@ -67,8 +67,8 @@ import { applyRoleAwareIntentPolicy } from '../../src/lib/roleAwareIntentPolicy'
 import {
   createIntentBoundCastInteractionReceipt,
   getIntentBoundAddressedCharacterId,
-  getIntentBoundRequestedTransition,
-  getIntentBoundTopologyDelta,
+  getSpatiallyRatifiableRequestedTransition,
+  getThresholdBoundTopologyDelta,
 } from '../../src/lib/intentConsequenceBridge';
 import type {
   IntentReceipt,
@@ -142,6 +142,7 @@ export interface FinalizeTurnCausalityParams {
   result: TurnResult;
   userAction: string;
   context: EngineTurnContext;
+  isExpansionExpected?: boolean;
 }
 
 export interface FinalizeTurnCausalityResult {
@@ -157,6 +158,7 @@ export function finalizeTurnCausality({
   result,
   userAction,
   context,
+  isExpansionExpected = false,
 }: FinalizeTurnCausalityParams): FinalizeTurnCausalityResult {
   // 1. Build intentReceipt from result.intent_proposal with the existing version-1 builder.
   const intentReceipt = createIntentReceipt(result.intent_proposal);
@@ -164,29 +166,43 @@ export function finalizeTurnCausality({
   // 2. Resolve castTarget with resolveExplicitCastTarget(userAction, context).
   const castTarget = resolveExplicitCastTarget(userAction, context);
 
-  // 3. Compute intent-bound requested transition.
-  const intentBoundRequestedTransition = getIntentBoundRequestedTransition(
-    intentReceipt,
-    result.logic_state.requested_transition
-  );
+  // 3. Authorize expansion first (expansion precedence).
+  const effectiveRole =
+    context.participationContext?.mode ?? context.player.role;
 
-  const resultWithIntentBoundTransition = {
+  const boundedTopologyDelta = getThresholdBoundTopologyDelta({
+    userAction,
+    effectiveRole,
+    isExpansionExpected,
+    proposedTopologyDelta: result.topologyDelta,
+  });
+  const isExpansionAuthorized = boundedTopologyDelta.isExpansion === true;
+
+  // 4. Compute spatially ratifiable requested transition (suppressed if expansion is authorized).
+  const ratifiableRequestedTransition = getSpatiallyRatifiableRequestedTransition({
+    userAction,
+    proposedTarget: result.logic_state.requested_transition,
+    isExpansionAuthorized,
+  });
+
+  const resultWithRatifiableTransition = {
     ...result,
     logic_state: {
       ...result.logic_state,
-      requested_transition: intentBoundRequestedTransition,
+      requested_transition: ratifiableRequestedTransition,
     },
+    topologyDelta: boundedTopologyDelta,
   };
 
-  // 4. Run the existing deterministic transition resolver against the intent-bound requested transition.
+  // 5. Run the existing deterministic transition resolver against the spatially ratifiable requested transition.
   const preliminaryTransitionReceipt = resolveTransition({
     currentNodeId: context.topology.currentNodeId,
-    requestedTransition: intentBoundRequestedTransition,
+    requestedTransition: ratifiableRequestedTransition,
     allowedOutgoingExits: context.topology.allowedOutgoingExits,
     activeFlags: context.runtime.activeFlags || [],
   });
 
-  // 5. Call evaluateCausalFeasibility with the intent receipt, authoritative context, preliminary transition receipt, and cast target.
+  // 6. Call evaluateCausalFeasibility with the intent receipt, authoritative context, preliminary transition receipt, and cast target.
   const baseCausal = evaluateCausalFeasibility({
     intentReceipt,
     context,
@@ -194,7 +210,7 @@ export function finalizeTurnCausality({
     castTarget,
   });
 
-  // 6. Apply role-aware intent policy over the base causal evaluation.
+  // 7. Apply role-aware intent policy over the base causal evaluation.
   const causal = applyRoleAwareIntentPolicy({
     base: baseCausal,
     intentReceipt,
@@ -202,7 +218,7 @@ export function finalizeTurnCausality({
     proposedAuthorityAlignment: result.reconciliation_proposal.authority_alignment,
   });
 
-  // 7. Build a fresh server-normalized reconciliation proposal from the policy result:
+  // 8. Build a fresh server-normalized reconciliation proposal from the policy result:
   const serverProposal = {
     ...result.reconciliation_proposal,
     feasibility: causal.feasibility,
@@ -213,19 +229,19 @@ export function finalizeTurnCausality({
       : result.reconciliation_proposal.mode,
   };
 
-  // 8. Pass serverProposal through the existing createNarrativeReconciliationReceipt builder.
+  // 9. Pass serverProposal through the existing createNarrativeReconciliationReceipt builder.
   const narrativeReconciliationReceipt = createNarrativeReconciliationReceipt(
     serverProposal,
     context.player.role
   );
 
-  // 9. Enforce narrative reconciliation boundaries so its decision uses the final reconciliation receipt.
+  // 10. Enforce narrative reconciliation boundaries so its decision uses the final reconciliation receipt.
   const boundedResult = enforceNarrativeReconciliationBoundaries(
-    resultWithIntentBoundTransition,
+    resultWithRatifiableTransition,
     narrativeReconciliationReceipt
   );
 
-  // 10. Run the existing deterministic transition resolver again against the bounded result.
+  // 11. Run the existing deterministic transition resolver again against the bounded result.
   const transitionReceipt = resolveTransition({
     currentNodeId: context.topology.currentNodeId,
     requestedTransition: boundedResult.logic_state.requested_transition,
@@ -492,7 +508,7 @@ turnRouter.post('/', async (req, res) => {
   }
 
   try {
-    const { userAction, recentHistory, systemDirective, isExpansionExpected, stateContext, context } = parsedRequest;
+    const { userAction, recentHistory, isExpansionExpected, stateContext, context } = parsedRequest;
 
     const worldRulesFormatted = context.scenario.worldRules.length > 0
       ? context.scenario.worldRules.map((r) => `• ${r}`).join('\n')
@@ -615,8 +631,6 @@ The user acts as an external scene director. A direction is a proposal for focus
 `;
       }
     }
-
-    const targetExample = context.topology.allowedOutgoingExits[0]?.to || 'TARGET_NODE_ID';
 
     const eligiblePresentCharacters = context.cast.filter(
       (member) =>
@@ -1158,21 +1172,36 @@ Tension: ${context.runtime.tension}
 Coherence: ${context.runtime.coherence}
 Reconciliation Revision: ${context.runtime.reconciliationRevision}
 
-[SYSTEM DIRECTIVE]
-${systemDirective}
+[SPATIAL INTERPRETATION CONTRACT]
+- action_kind records the dominant action only. A turn may also contain dialogue, observation, investigation, manipulation, and physical movement.
+- Never discard a completed physical move merely because another action is dominant.
+- The User's natural-language action is sufficient movement authority. Do not require a separate navigation command or confirmation.
 
-[STYLE DIRECTIVE: Clinical, visceral, objective. Eradicate metaphor/exposition. Max 2 prose blocks. Do not repeat recent sensory markers. Treat Scenario Contract facts as authoritative: do not alter scenario setting, rules, cast, or player identity.]
+LITERAL AUTHORED MOVEMENT:
+- If the action completes movement through an allowed authored exit, set logic_state.requested_transition to that exit's exact target node ID.
+- This rule applies even when action_kind is COMMUNICATE, OBSERVE, INVESTIGATE, MANIPULATE, WAIT, or OTHER.
+- Dialogue may itself authorize immediate movement. If the User invites or permits a present guide to lead them through a known exit and the narration has the party move, requested_transition is mandatory.
+- Never narrate physical arrival in another authored node without proposing the matching exact target ID.
 
-[TRANSITION CONTRACT]
-- If the player's action completes a valid spatial movement to an adjacent node listed in Allowed Exits, set logic_state.requested_transition to the exact target node ID (e.g. "${targetExample}").
-- If no movement occurs, or the movement is blocked, partial, or within the same location, omit logic_state.requested_transition.
-- Never narrate arrival in another authored node without specifying the matching exact transition ID in logic_state.requested_transition.
+PERCEPTUAL OR ANOMALOUS DISPLACEMENT:
+- When Blueprint rules, current horror conditions, or established recent fiction support a hallucinated, remembered, dreamlike, non-Euclidean, or otherwise subjective apparent location, prose may depict that apparent location while the physical node remains unchanged.
+- For purely perceptual displacement, omit logic_state.requested_transition and emit no topology expansion.
+- Use reconciliation mode MIXED when prose and physical spatial reality intentionally diverge.
+- Do not diagnose or immediately dissolve the experience unless the authored fiction and current dramatic context call for it.
+
+PHYSICAL WORLD EXPANSION:
+- Propose topology expansion only when the supplied threshold override authorizes the recognized unmapped boundary.
+- The dominant action_kind does not by itself authorize or forbid expansion.
+
+NON-MOVEMENT:
+- For SYSTEM_INIT and exact [USER_ACTION: OBSERVE], omit requested_transition and emit no expansion.
+- If physical movement is blocked, incomplete, or ambiguous, keep the physical node unchanged. The prose may express the attempt, obstruction, uncertainty, or a supported anomalous experience.
 
 --- RECENT HISTORY ---
 ${recentHistory}
 --- END HISTORY ---
 
-[USER ACTION]: ${userAction}${isExpansionExpected ? '\n\n[SYSTEM OVERRIDE: Threshold entry detected. If the user action is a real movement attempt across the detected unmapped boundary, set `isExpansion: true` and populate `newNodeDef`. Otherwise, set isExpansion: false and omit newNodeDef.]' : '\n\n[TOPOLOGY DIRECTIVE: Static authored topology active. Do NOT invent new nodes. Set isExpansion: false and omit newNodeDef.]'}${stateContext.reconciliationRevision > 0 ? `\n[MEMORY REVISION ID: ${stateContext.reconciliationRevision}. User perception fractured.]` : ''}`;
+[USER ACTION]: ${userAction}${isExpansionExpected ? '\n\n[SYSTEM OVERRIDE: Threshold entry detected. If the user action is a real movement attempt across the detected unmapped boundary, set `isExpansion: true` and populate `newNodeDef`. Otherwise, set isExpansion: false and omit newNodeDef.]' : '\n\n[TOPOLOGY DIRECTIVE: Static authored topology active. Do NOT create new canonical physical nodes. Set isExpansion: false and omit newNodeDef.]'}${stateContext.reconciliationRevision > 0 ? `\n[MEMORY REVISION ID: ${stateContext.reconciliationRevision}. User perception fractured.]` : ''}`;
 
     // Call the LLM with strict Zod schema enforcement
     let engineResponse;
@@ -1248,6 +1277,7 @@ ${recentHistory}
       result: engineResponse,
       userAction,
       context,
+      isExpansionExpected,
     });
 
     const explicitlyAddressedSpeakerId = getIntentBoundAddressedCharacterId(
@@ -1285,13 +1315,6 @@ ${recentHistory}
     boundedResult.logic_state.cast_deltas = normalizeCastSkepticismDeltas(
       boundedResult.logic_state.cast_deltas,
       context
-    );
-
-    // Authoritative server-side intent-bound topology delta authorization and static topology normalization
-    boundedResult.topologyDelta = getIntentBoundTopologyDelta(
-      intentReceipt,
-      boundedResult.topologyDelta,
-      isExpansionExpected
     );
 
     const canonicalConsequenceReceipt = finalizeCanonicalConsequences({

@@ -38,8 +38,6 @@ import { resolveExplicitCastTarget } from '../../src/lib/causalFeasibility';
 import {
   createIntentBoundCastInteractionReceipt,
   getIntentBoundAddressedCharacterId,
-  getIntentBoundRequestedTransition,
-  getIntentBoundTopologyDelta,
 } from '../../src/lib/intentConsequenceBridge';
 import type { TurnResponse, TurnResult } from '../../src/types/engineContract';
 import { geminiTurnResponseJsonSchema } from '../ai/geminiTurnJsonSchema';
@@ -2643,21 +2641,27 @@ describe('Turn schemas validation', () => {
           },
         });
 
-        const output = finalizeTurnCausality({
+        // 1. Natural language mixed action ratifies and accepts transition
+        const mixedOutput = finalizeTurnCausality({
           result: modelResult,
-          userAction: 'I inspect the doorway to Airlock 01.',
+          userAction: 'I inspect the doorway to Airlock 01 and step inside.',
           context: baseContext,
         });
 
-        expect(
-          getIntentBoundRequestedTransition(
-            output.intentReceipt,
-            modelResult.logic_state?.requested_transition ?? null
-          )
-        ).toBeNull();
-        expect(output.boundedResult.logic_state.requested_transition).toBeNull();
-        expect(output.transitionReceipt.accepted).toBe(false);
-        expect(output.transitionReceipt.requestedNodeId).toBeNull();
+        expect(mixedOutput.boundedResult.logic_state.requested_transition).toBe('AIRLOCK_01');
+        expect(mixedOutput.transitionReceipt.accepted).toBe(true);
+        expect(mixedOutput.transitionReceipt.toNodeId).toBe('AIRLOCK_01');
+
+        // 2. Synthetic non-movement command suppresses transition proposal
+        const syntheticOutput = finalizeTurnCausality({
+          result: modelResult,
+          userAction: 'SYSTEM_INIT',
+          context: baseContext,
+        });
+
+        expect(syntheticOutput.boundedResult.logic_state.requested_transition).toBeNull();
+        expect(syntheticOutput.transitionReceipt.accepted).toBe(false);
+        expect(syntheticOutput.transitionReceipt.requestedNodeId).toBeNull();
       });
 
       it('accepts requested transition for a valid MOVE proposal to a connected exit', () => {
@@ -2707,12 +2711,6 @@ describe('Turn schemas validation', () => {
           context: baseContext,
         });
 
-        expect(
-          getIntentBoundRequestedTransition(
-            output.intentReceipt,
-            modelResult.logic_state?.requested_transition ?? null
-          )
-        ).toBe('AIRLOCK_01');
         expect(output.boundedResult.logic_state.requested_transition).toBe('AIRLOCK_01');
         expect(output.transitionReceipt.accepted).toBe(true);
         expect(output.transitionReceipt.toNodeId).toBe('AIRLOCK_01');
@@ -2862,26 +2860,21 @@ describe('Turn schemas validation', () => {
             topologyDelta: mockProposedExpansion,
           });
 
+          // INVESTIGATE with isExpansionExpected: true for protagonist preserves expansion
           const output = finalizeTurnCausality({
             result: modelResult,
             userAction: 'I peer into the dark breach to inspect the machinery.',
             context: baseContext,
+            isExpansionExpected: true,
           });
-
-          const finalTopologyDelta = getIntentBoundTopologyDelta(
-            output.intentReceipt,
-            output.boundedResult.topologyDelta,
-            true
-          );
 
           expect(output.intentReceipt.action_kind).toBe('INVESTIGATE');
-          expect(finalTopologyDelta).toEqual({
-            isExpansion: false,
-            newNodeDef: null,
-          });
+          expect(output.boundedResult.topologyDelta).toEqual(mockProposedExpansion);
+          expect(output.boundedResult.topologyDelta.isExpansion).toBe(true);
+          expect(output.boundedResult.topologyDelta.newNodeDef?.id).toBe('EXPANDED_VAULT_02');
         });
 
-        it('suppresses proposed topology expansion when intent is OBSERVE even if isExpansionExpected is true', () => {
+        it('preserves proposed topology expansion when intent is OBSERVE and isExpansionExpected is true', () => {
           const modelResult = TurnResultSchema.parse({
             narrative_blocks: [
               { type: 'prose', content: 'You scan the perimeter of the unmapped boundary.' },
@@ -2925,22 +2918,15 @@ describe('Turn schemas validation', () => {
             result: modelResult,
             userAction: 'I watch the shadows shifting in the breach.',
             context: baseContext,
+            isExpansionExpected: true,
           });
-
-          const finalTopologyDelta = getIntentBoundTopologyDelta(
-            output.intentReceipt,
-            output.boundedResult.topologyDelta,
-            true
-          );
 
           expect(output.intentReceipt.action_kind).toBe('OBSERVE');
-          expect(finalTopologyDelta).toEqual({
-            isExpansion: false,
-            newNodeDef: null,
-          });
+          expect(output.boundedResult.topologyDelta).toEqual(mockProposedExpansion);
+          expect(output.boundedResult.topologyDelta.isExpansion).toBe(true);
         });
 
-        it('suppresses proposed topology expansion when intent is COMMUNICATE even if isExpansionExpected is true', () => {
+        it('preserves proposed topology expansion when intent is COMMUNICATE and isExpansionExpected is true', () => {
           const modelResult = TurnResultSchema.parse({
             narrative_blocks: [
               { type: 'prose', content: 'You shout through the opening.' },
@@ -2982,21 +2968,14 @@ describe('Turn schemas validation', () => {
 
           const output = finalizeTurnCausality({
             result: modelResult,
-            userAction: 'I yell into the dark opening.',
+            userAction: 'I yell into the dark opening as I step inside.',
             context: baseContext,
+            isExpansionExpected: true,
           });
-
-          const finalTopologyDelta = getIntentBoundTopologyDelta(
-            output.intentReceipt,
-            output.boundedResult.topologyDelta,
-            true
-          );
 
           expect(output.intentReceipt.action_kind).toBe('COMMUNICATE');
-          expect(finalTopologyDelta).toEqual({
-            isExpansion: false,
-            newNodeDef: null,
-          });
+          expect(output.boundedResult.topologyDelta).toEqual(mockProposedExpansion);
+          expect(output.boundedResult.topologyDelta.isExpansion).toBe(true);
         });
 
         it('preserves proposed topology expansion when intent is MOVE and isExpansionExpected is true', () => {
@@ -3043,18 +3022,13 @@ describe('Turn schemas validation', () => {
             result: modelResult,
             userAction: 'I crawl through the breach into the sub-basement.',
             context: baseContext,
+            isExpansionExpected: true,
           });
 
-          const finalTopologyDelta = getIntentBoundTopologyDelta(
-            output.intentReceipt,
-            output.boundedResult.topologyDelta,
-            true
-          );
-
           expect(output.intentReceipt.action_kind).toBe('MOVE');
-          expect(finalTopologyDelta).toEqual(mockProposedExpansion);
-          expect(finalTopologyDelta.isExpansion).toBe(true);
-          expect(finalTopologyDelta.newNodeDef?.id).toBe('EXPANDED_VAULT_02');
+          expect(output.boundedResult.topologyDelta).toEqual(mockProposedExpansion);
+          expect(output.boundedResult.topologyDelta.isExpansion).toBe(true);
+          expect(output.boundedResult.topologyDelta.newNodeDef?.id).toBe('EXPANDED_VAULT_02');
         });
 
         it('suppresses proposed topology expansion when isExpansionExpected is false even for MOVE actions', () => {
@@ -3101,16 +3075,11 @@ describe('Turn schemas validation', () => {
             result: modelResult,
             userAction: 'I step forward.',
             context: baseContext,
+            isExpansionExpected: false,
           });
 
-          const finalTopologyDelta = getIntentBoundTopologyDelta(
-            output.intentReceipt,
-            output.boundedResult.topologyDelta,
-            false
-          );
-
           expect(output.intentReceipt.action_kind).toBe('MOVE');
-          expect(finalTopologyDelta).toEqual({
+          expect(output.boundedResult.topologyDelta).toEqual({
             isExpansion: false,
             newNodeDef: null,
           });
@@ -3171,6 +3140,7 @@ describe('Turn schemas validation', () => {
             result: modelResult,
             userAction: 'I teleport through the unmapped dimensional rift.',
             context: witnessContext,
+            isExpansionExpected: true,
           });
 
           expect(output.causal.suppressStructuralDeltas).toBe(true);
@@ -3179,23 +3149,9 @@ describe('Turn schemas validation', () => {
             isExpansion: false,
             newNodeDef: null,
           });
-
-          const finalTopologyDelta = getIntentBoundTopologyDelta(
-            output.intentReceipt,
-            output.boundedResult.topologyDelta,
-            true
-          );
-
-          expect(finalTopologyDelta).toEqual({
-            isExpansion: false,
-            newNodeDef: null,
-          });
         });
 
-        it('route-level regression: final TurnResponse payload enforces intent-bound topology expansion authorization', () => {
-          // Case A: User investigates unmapped threshold with isExpansionExpected=true.
-          // Model mistakenly returned isExpansion=true with newNodeDef.
-          // Route-level response must return topologyDelta.isExpansion=false and newNodeDef=null.
+        it('route-level regression: final TurnResponse payload enforces threshold-bound topology expansion authorization', () => {
           const investigateModelResult = TurnResultSchema.parse({
             narrative_blocks: [
               { type: 'prose', content: 'You examine the glowing symbols around the portal.' },
@@ -3239,17 +3195,14 @@ describe('Turn schemas validation', () => {
             result: investigateModelResult,
             userAction: 'I examine the portal symbols.',
             context: baseContext,
+            isExpansionExpected: true,
           });
 
           // Simulate turn route response assembly
           const investigateResponse: TurnResponse = {
             narrative_blocks: investigateCausality.boundedResult.narrative_blocks,
             logic_state: investigateCausality.boundedResult.logic_state,
-            topologyDelta: getIntentBoundTopologyDelta(
-              investigateCausality.intentReceipt,
-              investigateCausality.boundedResult.topologyDelta,
-              true // isExpansionExpected
-            ),
+            topologyDelta: investigateCausality.boundedResult.topologyDelta,
             transitionReceipt: investigateCausality.transitionReceipt,
             castInteractionReceipt: createIntentBoundCastInteractionReceipt({
               intentReceipt: investigateCausality.intentReceipt,
@@ -3307,10 +3260,8 @@ describe('Turn schemas validation', () => {
 
           const parsedInvestigateResponse = TurnResponseSchema.parse(investigateResponse);
           expect(parsedInvestigateResponse.intentReceipt.action_kind).toBe('INVESTIGATE');
-          expect(parsedInvestigateResponse.topologyDelta).toEqual({
-            isExpansion: false,
-            newNodeDef: null,
-          });
+          expect(parsedInvestigateResponse.topologyDelta).toEqual(mockProposedExpansion);
+          expect(parsedInvestigateResponse.topologyDelta.isExpansion).toBe(true);
 
           // Case B: User moves across threshold with isExpansionExpected=true and valid model expansion.
           const moveModelResult = TurnResultSchema.parse({
@@ -3356,16 +3307,13 @@ describe('Turn schemas validation', () => {
             result: moveModelResult,
             userAction: 'I step through the archway into the unknown room.',
             context: baseContext,
+            isExpansionExpected: true,
           });
 
           const moveResponse: TurnResponse = {
             narrative_blocks: moveCausality.boundedResult.narrative_blocks,
             logic_state: moveCausality.boundedResult.logic_state,
-            topologyDelta: getIntentBoundTopologyDelta(
-              moveCausality.intentReceipt,
-              moveCausality.boundedResult.topologyDelta,
-              true // isExpansionExpected
-            ),
+            topologyDelta: moveCausality.boundedResult.topologyDelta,
             transitionReceipt: moveCausality.transitionReceipt,
             castInteractionReceipt: createIntentBoundCastInteractionReceipt({
               intentReceipt: moveCausality.intentReceipt,

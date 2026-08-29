@@ -103,6 +103,7 @@ export function evaluateCausalFeasibility(input: {
 
   const actionKind = input.intentReceipt.action_kind;
 
+  // 1. Preserve existing SYSTEM behavior
   if (actionKind === 'SYSTEM') {
     return {
       feasibility: 'SUPPORTED',
@@ -112,33 +113,33 @@ export function evaluateCausalFeasibility(input: {
     };
   }
 
-  if (actionKind === 'MOVE') {
-    if (input.transitionReceipt.accepted) {
-      return {
-        feasibility: 'SUPPORTED',
-        reason_code: 'NONE',
-        authority_alignment: authorityAlignment,
-        suppressStructuralDeltas: false,
-      };
-    }
-
-    if (input.transitionReceipt.requestedNodeId !== null) {
-      return {
-        feasibility: 'IMPOSSIBLE',
-        reason_code: 'TOPOLOGY_LIMIT',
-        authority_alignment: authorityAlignment,
-        suppressStructuralDeltas: true,
-      };
-    }
-
+  // 2. Non-embodied Director or witness proposing physical movement
+  const isNonEmbodied =
+    effectiveRole.toLowerCase() === 'director' ||
+    effectiveRole.toLowerCase() === 'witness';
+  if (isNonEmbodied && input.transitionReceipt.requestedNodeId !== null) {
     return {
-      feasibility: 'UNCLEAR',
-      reason_code: 'NONE',
+      feasibility: 'CONSTRAINED',
+      reason_code: 'AUTHORITY_LIMIT',
       authority_alignment: authorityAlignment,
-      suppressStructuralDeltas: false,
+      suppressStructuralDeltas: true,
     };
   }
 
+  // 3. Rejected physical transition regardless of primary action kind
+  if (
+    input.transitionReceipt.requestedNodeId !== null &&
+    !input.transitionReceipt.accepted
+  ) {
+    return {
+      feasibility: 'IMPOSSIBLE',
+      reason_code: 'TOPOLOGY_LIMIT',
+      authority_alignment: authorityAlignment,
+      suppressStructuralDeltas: true,
+    };
+  }
+
+  // 4. COMMUNICATE cast-target semantics
   if (actionKind === 'COMMUNICATE') {
     if (
       input.castTarget.status === 'ABSENT' ||
@@ -169,6 +170,17 @@ export function evaluateCausalFeasibility(input: {
     };
   }
 
+  // 5. Accepted transition for any other primary action kind
+  if (input.transitionReceipt.accepted) {
+    return {
+      feasibility: 'SUPPORTED',
+      reason_code: 'NONE',
+      authority_alignment: authorityAlignment,
+      suppressStructuralDeltas: false,
+    };
+  }
+
+  // 6. Default fallback (pure MOVE with no target, OBSERVE, INVESTIGATE, MANIPULATE, WAIT, OTHER)
   return {
     feasibility: 'UNCLEAR',
     reason_code: 'NONE',

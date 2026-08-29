@@ -4,7 +4,7 @@ import { executeRatificationPipeline, formatRecentHistory, TurnResponseError } f
 import { useAppStore } from '../store/useAppStore';
 import { useEngineStore } from '../core/store';
 import { engineReducer } from '../core/engine/reducer';
-import { Blueprint, RuntimeStateSnapshot, LogicState } from '../types';
+import { Blueprint, RuntimeStateSnapshot, LogicState, SpatialNode } from '../types';
 import type { EngineTurnContext } from '../types/engineContract';
 import { normalizeBlueprint } from './normalizeBlueprint';
 
@@ -744,5 +744,270 @@ describe('executeRatificationPipeline single pre-turn snapshot lifecycle', () =>
     // 3. No client-side system correction replaced the response
     expect(result.narrative_blocks[0].type).not.toBe('system_voice');
     expect(result.reconciliation).toBeUndefined();
+  });
+
+  it('Packet 1E-2 Runtime Chain Proof: mixed dialogue-plus-movement commits nodeAfter and projects next turn context', async () => {
+    // 1. Setup spatial graph with ENTRY_HALL -> RECORDS_OFFICE connection
+    const spatialGraph: SpatialNode[] = [
+      {
+        id: 'ENTRY_HALL',
+        name: 'Entry Hall',
+        description: 'A quiet entrance corridor.',
+        connectedNodes: ['RECORDS_OFFICE'],
+        exits: [
+          {
+            description: 'records office door',
+            targetNodeId: 'RECORDS_OFFICE',
+            isOpen: true,
+            kind: 'PHYSICAL',
+            userInitiated: true,
+          },
+        ],
+      },
+      {
+        id: 'RECORDS_OFFICE',
+        name: 'Records Office',
+        description: 'Filing cabinets line the wall.',
+        connectedNodes: ['ENTRY_HALL', 'ARCHIVE_VAULT'],
+        exits: [
+          {
+            description: 'back to hall',
+            targetNodeId: 'ENTRY_HALL',
+            isOpen: true,
+            kind: 'PHYSICAL',
+            userInitiated: true,
+          },
+          {
+            description: 'vault door',
+            targetNodeId: 'ARCHIVE_VAULT',
+            isOpen: true,
+            kind: 'PHYSICAL',
+            userInitiated: true,
+          },
+        ],
+      },
+    ];
+
+    useAppStore.setState({
+      currentNodeId: 'ENTRY_HALL',
+      spatialGraph,
+      turnCount: 1,
+      storyLog: [],
+    });
+
+    useEngineStore.setState({
+      activeBlueprint: {
+        title: 'Facility Baseline',
+        topology: {
+          nodes: ['ENTRY_HALL', 'RECORDS_OFFICE'],
+          connections: [
+            { from: 'ENTRY_HALL', to: 'RECORDS_OFFICE', userInitiated: true },
+            { from: 'RECORDS_OFFICE', to: 'ENTRY_HALL', userInitiated: true },
+          ],
+        },
+      } as unknown as Blueprint,
+    });
+
+    const preSnapshot: RuntimeStateSnapshot = {
+      version: 1,
+      sessionId: 'sess_chain_1',
+      blueprintId: 'bp_chain_1',
+      turnCount: 1,
+      currentNodeId: 'ENTRY_HALL',
+      activeVector: 'COGNITIVE',
+      activeTier: 'LATENT',
+      tension: 20,
+      phase: 'LATENT',
+      coherence: 1.0,
+      decayRate: 0.05,
+      reconciliationRevision: 0,
+      activeFlags: [],
+    };
+
+    interface OutboundTurnPayload {
+      userAction: string;
+      context: EngineTurnContext;
+      [key: string]: unknown;
+    }
+
+    let capturedPayload: OutboundTurnPayload | null = null;
+
+    globalThis.fetch = vi.fn().mockImplementation(async (_url: string, init?: RequestInit) => {
+      if (init?.body) {
+        capturedPayload = JSON.parse(init.body as string) as OutboundTurnPayload;
+      }
+      return new Response(
+        JSON.stringify({
+          narrative_blocks: [
+            {
+              type: 'prose',
+              content: 'You walk alongside the guide into the records office as she begins to speak.',
+            },
+          ],
+          logic_state: {
+            current_phase: 'LATENT',
+            suggested_tension: 25,
+            requested_transition: 'RECORDS_OFFICE',
+          },
+          intentReceipt: {
+            version: 1,
+            action_kind: 'COMMUNICATE',
+            action_subtype: null,
+            pressure_direction: 'MAINTAIN',
+            dramatic_tactic: 'NONE',
+            intent_synergy: 'SUCCESS',
+          },
+          narrativeReconciliationReceipt: {
+            version: 1,
+            mode: 'CANONICAL',
+            feasibility: 'SUPPORTED',
+            reason_code: 'NONE',
+            fictional_time_cost: 'MOMENT',
+            authority_alignment: 'NOT_APPLICABLE',
+            memory_echo_candidate: null,
+            revision_increment: 0,
+          },
+          transitionReceipt: {
+            requestedNodeId: 'RECORDS_OFFICE',
+            accepted: true,
+            fromNodeId: 'ENTRY_HALL',
+            toNodeId: 'RECORDS_OFFICE',
+            reason: 'TRANSITION_ACCEPTED',
+          },
+          castInteractionReceipt: {
+            version: 1,
+            addressedCharacterId: 'char-guide',
+            respondingCharacterId: 'char-guide',
+            outcome: 'RESPONDED',
+          },
+          canonicalConsequenceReceipt: defaultConsequenceReceipt,
+          characterStanceReceipt: defaultCharacterStanceReceipt,
+          characterRelationshipReceipt: defaultCharacterRelationshipReceipt,
+          characterMemoryReceipt: defaultCharacterMemoryReceipt,
+          worldMemoryReceipt: defaultWorldMemoryReceipt,
+        }),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
+    });
+
+    const ratifiedFrame = await executeRatificationPipeline(
+      'I follow the guide into the records office while asking about the missing files',
+      preSnapshot
+    );
+
+    // 1. Initial turn verification: outgoing context started at ENTRY_HALL
+    expect(capturedPayload?.context.topology.currentNodeId).toBe('ENTRY_HALL');
+    expect(ratifiedFrame.transitionReceipt?.accepted).toBe(true);
+    expect(ratifiedFrame.transitionReceipt?.toNodeId).toBe('RECORDS_OFFICE');
+
+    // 2. Commit the ratified frame through the engine reducer
+    const baseEngineState = useEngineStore.getState() as unknown as Parameters<typeof engineReducer>[0];
+    const nextEngineState = engineReducer(
+      {
+        ...baseEngineState,
+        currentNodeId: 'ENTRY_HALL',
+        spatialGraph,
+      },
+      {
+        type: 'TURN_COMMITTED',
+        payload: {
+          commandText:
+            'I follow the guide into the records office while asking about the missing files',
+          formattedText:
+            'You walk alongside the guide into the records office as she begins to speak.',
+          frame: ratifiedFrame,
+          transitionReceipt: ratifiedFrame.transitionReceipt,
+          turnReceipt: {
+            turnNumber: 1,
+            nodeBefore: 'ENTRY_HALL',
+            requestedTarget: 'RECORDS_OFFICE',
+            accepted: true,
+            nodeAfter: 'RECORDS_OFFICE',
+            activeVector: 'COGNITIVE',
+            activeTier: 'LATENT',
+            tension: 20,
+            preSnapshot,
+            postSnapshot: { ...preSnapshot, turnCount: 2, currentNodeId: 'RECORDS_OFFICE' },
+          },
+          preSnapshot,
+        },
+      }
+    );
+
+    // Verify engine state committed the node advance
+    expect(nextEngineState.currentNodeId).toBe('RECORDS_OFFICE');
+
+    // Update app store to reflect committed turn
+    useAppStore.setState({
+      currentNodeId: 'RECORDS_OFFICE',
+      turnCount: 2,
+    });
+
+    // 3. Next turn execution: captures snapshot from new committed node RECORDS_OFFICE
+    const nextSnapshot: RuntimeStateSnapshot = {
+      ...preSnapshot,
+      turnCount: 2,
+      currentNodeId: 'RECORDS_OFFICE',
+    };
+
+    let nextCapturedPayload: OutboundTurnPayload | null = null;
+    globalThis.fetch = vi.fn().mockImplementation(async (_url: string, init?: RequestInit) => {
+      if (init?.body) {
+        nextCapturedPayload = JSON.parse(init.body as string) as OutboundTurnPayload;
+      }
+      return new Response(
+        JSON.stringify({
+          narrative_blocks: [{ type: 'prose', content: 'You look around the records office.' }],
+          logic_state: { current_phase: 'LATENT', suggested_tension: 25 },
+          intentReceipt: {
+            version: 1,
+            action_kind: 'OBSERVE',
+            action_subtype: null,
+            pressure_direction: 'MAINTAIN',
+            dramatic_tactic: 'NONE',
+            intent_synergy: 'N/A',
+          },
+          narrativeReconciliationReceipt: {
+            version: 1,
+            mode: 'CANONICAL',
+            feasibility: 'SUPPORTED',
+            reason_code: 'NONE',
+            fictional_time_cost: 'MOMENT',
+            authority_alignment: 'NOT_APPLICABLE',
+            memory_echo_candidate: null,
+            revision_increment: 0,
+          },
+          transitionReceipt: {
+            requestedNodeId: null,
+            accepted: false,
+            fromNodeId: 'RECORDS_OFFICE',
+            toNodeId: 'RECORDS_OFFICE',
+            reason: 'NO_MOVEMENT_REQUESTED',
+          },
+          canonicalConsequenceReceipt: defaultConsequenceReceipt,
+          characterStanceReceipt: defaultCharacterStanceReceipt,
+          characterRelationshipReceipt: defaultCharacterRelationshipReceipt,
+          characterMemoryReceipt: defaultCharacterMemoryReceipt,
+          worldMemoryReceipt: defaultWorldMemoryReceipt,
+        }),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
+    });
+
+    await executeRatificationPipeline('I look at the rows of filing cabinets', nextSnapshot);
+
+    // 4. Outbound context for turn 2 projects RECORDS_OFFICE and its allowed exits
+    expect(nextCapturedPayload?.context.topology.currentNodeId).toBe('RECORDS_OFFICE');
+    const exitTargets = (nextCapturedPayload?.context.topology.allowedOutgoingExits || []).map(
+      (e: { to: string }) => e.to
+    );
+    expect(exitTargets).toContain('ENTRY_HALL');
+    expect(exitTargets).toContain('ARCHIVE_VAULT');
   });
 });

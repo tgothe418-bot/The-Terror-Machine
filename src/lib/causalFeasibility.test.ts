@@ -635,5 +635,153 @@ describe('Phase 3G.2A: Causal Feasibility Contracts', () => {
       expect(frozenTransition).toEqual(rawTransition);
       expect(frozenCastTarget).toEqual(rawCastTarget);
     });
+
+    describe('Packet 1E-2 Mixed-Intent Spatial Ratification and Authority Limits', () => {
+      it('14. accepts valid spatial transition for non-MOVE primary actions (OBSERVE, INVESTIGATE, MANIPULATE, WAIT, OTHER)', () => {
+        const context = createMockContext();
+        const acceptedTransition = createMockTransition({
+          requestedNodeId: 'node-002',
+          accepted: true,
+          fromNodeId: 'node-001',
+          toNodeId: 'node-002',
+        });
+        const nonMoveKinds: IntentReceipt['action_kind'][] = [
+          'OBSERVE',
+          'INVESTIGATE',
+          'MANIPULATE',
+          'WAIT',
+          'OTHER',
+        ];
+
+        for (const action_kind of nonMoveKinds) {
+          const intent = createMockIntent({ action_kind });
+          const res = evaluateCausalFeasibility({
+            intentReceipt: intent,
+            context,
+            transitionReceipt: acceptedTransition,
+            castTarget: { status: 'NONE', characterId: null },
+          });
+
+          expect(res).toEqual({
+            feasibility: 'SUPPORTED',
+            reason_code: 'NONE',
+            authority_alignment: 'NOT_APPLICABLE',
+            suppressStructuralDeltas: false,
+          });
+        }
+      });
+
+      it('15. rejects invalid spatial transition for non-MOVE actions with TOPOLOGY_LIMIT', () => {
+        const context = createMockContext();
+        const rejectedTransition = createMockTransition({
+          requestedNodeId: 'node-unknown',
+          accepted: false,
+          fromNodeId: 'node-001',
+          toNodeId: 'node-001',
+        });
+        const nonMoveKinds: IntentReceipt['action_kind'][] = [
+          'COMMUNICATE',
+          'OBSERVE',
+          'INVESTIGATE',
+          'MANIPULATE',
+          'WAIT',
+          'OTHER',
+        ];
+
+        for (const action_kind of nonMoveKinds) {
+          const intent = createMockIntent({ action_kind });
+          const res = evaluateCausalFeasibility({
+            intentReceipt: intent,
+            context,
+            transitionReceipt: rejectedTransition,
+            castTarget: { status: 'NONE', characterId: null },
+          });
+
+          expect(res).toEqual({
+            feasibility: 'IMPOSSIBLE',
+            reason_code: 'TOPOLOGY_LIMIT',
+            authority_alignment: 'NOT_APPLICABLE',
+            suppressStructuralDeltas: true,
+          });
+        }
+      });
+
+      it('16. non-embodied roles (director, witness) proposing movement produce CONSTRAINED / AUTHORITY_LIMIT', () => {
+        const acceptedTransition = createMockTransition({
+          requestedNodeId: 'node-002',
+          accepted: true,
+        });
+
+        for (const role of ['director', 'witness'] as const) {
+          const context = createMockContext({
+            player: {
+              role,
+              characterId: 'char-player',
+              name: 'Observer',
+              description: '',
+              isEntity: false,
+            },
+          });
+          const intent = createMockIntent({ action_kind: 'MOVE' });
+          const res = evaluateCausalFeasibility({
+            intentReceipt: intent,
+            context,
+            transitionReceipt: acceptedTransition,
+            castTarget: { status: 'NONE', characterId: null },
+          });
+
+          expect(res).toEqual({
+            feasibility: 'CONSTRAINED',
+            reason_code: 'AUTHORITY_LIMIT',
+            authority_alignment: 'NOT_APPLICABLE',
+            suppressStructuralDeltas: true,
+          });
+        }
+      });
+
+      it('17. COMMUNICATE with absent speaker fails with CAST_PRESENCE_LIMIT even if transition is accepted', () => {
+        const context = createMockContext();
+        const acceptedTransition = createMockTransition({
+          requestedNodeId: 'node-002',
+          accepted: true,
+        });
+        const commIntent = createMockIntent({ action_kind: 'COMMUNICATE' });
+        const res = evaluateCausalFeasibility({
+          intentReceipt: commIntent,
+          context,
+          transitionReceipt: acceptedTransition,
+          castTarget: { status: 'ABSENT', characterId: 'char-002' },
+        });
+
+        expect(res).toEqual({
+          feasibility: 'IMPOSSIBLE',
+          reason_code: 'CAST_PRESENCE_LIMIT',
+          authority_alignment: 'NOT_APPLICABLE',
+          suppressStructuralDeltas: true,
+        });
+      });
+
+      it('18. COMMUNICATE with present speaker and accepted transition produces SUPPORTED / NONE', () => {
+        const context = createMockContext();
+        const acceptedTransition = createMockTransition({
+          requestedNodeId: 'node-002',
+          accepted: true,
+        });
+        const commIntent = createMockIntent({ action_kind: 'COMMUNICATE' });
+        const res = evaluateCausalFeasibility({
+          intentReceipt: commIntent,
+          context,
+          transitionReceipt: acceptedTransition,
+          castTarget: { status: 'PRESENT_ELIGIBLE', characterId: 'char-001' },
+        });
+
+        expect(res).toEqual({
+          feasibility: 'SUPPORTED',
+          reason_code: 'NONE',
+          authority_alignment: 'NOT_APPLICABLE',
+          suppressStructuralDeltas: false,
+        });
+      });
+    });
   });
 });

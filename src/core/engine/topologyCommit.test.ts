@@ -339,4 +339,47 @@ describe('applyTopologyDeltaToGraph Authorization Boundary', () => {
       userInitiated: false,
     });
   });
+
+  describe('Packet 1E-2 Perceptual Integrity and Failure Isolation', () => {
+    it('12. perceptual displacement does not mutate graph or physical node', () => {
+      // Supported perceptual displacement: no expansion, no mapped transition
+      const result = applyTopologyDeltaToGraph({
+        spatialGraph: initialGraph,
+        currentNodeId: 'ORIGIN',
+        topologyDelta: { isExpansion: false, newNodeDef: null },
+        transitionReceipt: {
+          requestedNodeId: null,
+          accepted: false,
+          fromNodeId: 'ORIGIN',
+          toNodeId: 'ORIGIN',
+          reason: 'NO_MOVEMENT_REQUESTED',
+        },
+      });
+
+      expect(result.applied).toBe(false);
+      expect(result.nextNodeId).toBe('ORIGIN');
+      expect(result.nextGraph).toEqual(initialGraph);
+    });
+
+    it('13. failure isolation: rejected transition produces no graph or node changes', () => {
+      const rejectedTransition: TransitionReceipt = {
+        requestedNodeId: 'NONEXISTENT_NODE',
+        accepted: false,
+        fromNodeId: 'ORIGIN',
+        toNodeId: 'ORIGIN',
+        reason: 'UNKNOWN_OR_UNCONNECTED_TARGET',
+      };
+
+      const result = applyTopologyDeltaToGraph({
+        spatialGraph: initialGraph,
+        currentNodeId: 'ORIGIN',
+        topologyDelta: { isExpansion: false, newNodeDef: null },
+        transitionReceipt: rejectedTransition,
+      });
+
+      expect(result.applied).toBe(false);
+      expect(result.nextNodeId).toBe('ORIGIN');
+      expect(result.nextGraph).toEqual(initialGraph);
+    });
+  });
 });

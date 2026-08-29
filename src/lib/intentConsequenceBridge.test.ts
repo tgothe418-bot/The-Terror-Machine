@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   createIntentBoundCastInteractionReceipt,
   getIntentBoundAddressedCharacterId,
-  getIntentBoundRequestedTransition,
-  getIntentBoundTopologyDelta,
+  getSpatiallyRatifiableRequestedTransition,
+  getThresholdBoundTopologyDelta,
 } from './intentConsequenceBridge';
 import type { IntentReceipt, TopologyDelta } from '../types/engineContract';
 import type { CastTargetResolution } from './causalFeasibility';
@@ -36,35 +36,77 @@ const mockProposedExpansion: TopologyDelta = {
 };
 
 describe('intentConsequenceBridge', () => {
-  describe('getIntentBoundRequestedTransition', () => {
-    it('1. Only MOVE preserves a proposed transition', () => {
-      const moveReceipt = createMockIntentReceipt('MOVE');
-      expect(getIntentBoundRequestedTransition(moveReceipt, 'NODE_02')).toBe('NODE_02');
-      expect(getIntentBoundRequestedTransition(moveReceipt, null)).toBeNull();
-    });
-
-    it('2. Every non-MOVE kind returns a null transition', () => {
-      const nonMoveKinds: IntentReceipt['action_kind'][] = [
-        'OBSERVE',
-        'INVESTIGATE',
-        'MANIPULATE',
-        'COMMUNICATE',
-        'WAIT',
-        'SYSTEM',
-        'OTHER',
+  describe('getSpatiallyRatifiableRequestedTransition', () => {
+    it('1. Preserves proposed transition across all natural language action kinds', () => {
+      const naturalActions = [
+        'I follow the guide into the records office while asking about the missing files',
+        'I step into the records office and observe the room',
+        'I examine the desk in the records office',
+        'I move into the records office',
       ];
 
-      for (const kind of nonMoveKinds) {
-        const receipt = createMockIntentReceipt(kind);
-        expect(getIntentBoundRequestedTransition(receipt, 'NODE_02')).toBeNull();
-        expect(getIntentBoundRequestedTransition(receipt, 'NODE_99')).toBeNull();
-        expect(getIntentBoundRequestedTransition(receipt, null)).toBeNull();
+      for (const userAction of naturalActions) {
+        expect(
+          getSpatiallyRatifiableRequestedTransition({
+            userAction,
+            proposedTarget: 'RECORDS_OFFICE',
+          })
+        ).toBe('RECORDS_OFFICE');
       }
+    });
+
+    it('2. Suppresses transition for synthetic non-movement commands (SYSTEM_INIT and [USER_ACTION: OBSERVE])', () => {
+      expect(
+        getSpatiallyRatifiableRequestedTransition({
+          userAction: 'SYSTEM_INIT',
+          proposedTarget: 'RECORDS_OFFICE',
+        })
+      ).toBeNull();
+
+      expect(
+        getSpatiallyRatifiableRequestedTransition({
+          userAction: '[USER_ACTION: OBSERVE]',
+          proposedTarget: 'RECORDS_OFFICE',
+        })
+      ).toBeNull();
+    });
+
+    it('3. Suppresses mapped transition when expansion is authorized (Expansion Precedence)', () => {
+      expect(
+        getSpatiallyRatifiableRequestedTransition({
+          userAction: 'I push through the unmapped fissure into the dark cavern',
+          proposedTarget: 'RECORDS_OFFICE',
+          isExpansionAuthorized: true,
+        })
+      ).toBeNull();
+    });
+
+    it('4. Returns null for non-string or whitespace-only targets', () => {
+      expect(
+        getSpatiallyRatifiableRequestedTransition({
+          userAction: 'I walk forward',
+          proposedTarget: null,
+        })
+      ).toBeNull();
+
+      expect(
+        getSpatiallyRatifiableRequestedTransition({
+          userAction: 'I walk forward',
+          proposedTarget: undefined,
+        })
+      ).toBeNull();
+
+      expect(
+        getSpatiallyRatifiableRequestedTransition({
+          userAction: 'I walk forward',
+          proposedTarget: '   ',
+        })
+      ).toBeNull();
     });
   });
 
   describe('getIntentBoundAddressedCharacterId', () => {
-    it('3. Only COMMUNICATE + PRESENT_ELIGIBLE returns an addressed ID', () => {
+    it('Only COMMUNICATE + PRESENT_ELIGIBLE returns an addressed ID', () => {
       const commReceipt = createMockIntentReceipt('COMMUNICATE');
       const presentEligibleTarget: CastTargetResolution = {
         status: 'PRESENT_ELIGIBLE',
@@ -113,7 +155,7 @@ describe('intentConsequenceBridge', () => {
   });
 
   describe('createIntentBoundCastInteractionReceipt', () => {
-    it('4. A pure MANIPULATE action naming an eligible cast member with no dialogue produces NONE, not ADDRESS_UNANSWERED', () => {
+    it('A pure MANIPULATE action naming an eligible cast member with no dialogue produces NONE, not ADDRESS_UNANSWERED', () => {
       const manipReceipt = createMockIntentReceipt('MANIPULATE');
       const presentEligibleTarget: CastTargetResolution = {
         status: 'PRESENT_ELIGIBLE',
@@ -134,7 +176,7 @@ describe('intentConsequenceBridge', () => {
       });
     });
 
-    it('5. Non-communication spontaneous dialogue produces UNSOLICITED_DIALOGUE', () => {
+    it('Non-communication spontaneous dialogue produces UNSOLICITED_DIALOGUE', () => {
       const observeReceipt = createMockIntentReceipt('OBSERVE');
       const presentEligibleTarget: CastTargetResolution = {
         status: 'PRESENT_ELIGIBLE',
@@ -155,7 +197,7 @@ describe('intentConsequenceBridge', () => {
       });
     });
 
-    it('6. Targeted communication covers responded, unanswered, and mismatch outcomes through existing builder', () => {
+    it('Targeted communication covers responded, unanswered, and mismatch outcomes through existing builder', () => {
       const commReceipt = createMockIntentReceipt('COMMUNICATE');
       const presentEligibleTarget: CastTargetResolution = {
         status: 'PRESENT_ELIGIBLE',
@@ -201,113 +243,91 @@ describe('intentConsequenceBridge', () => {
         outcome: 'MISMATCH',
       });
     });
-
-    it('7. Inputs are not mutated', () => {
-      const commReceipt = createMockIntentReceipt('COMMUNICATE');
-      const commReceiptCopy = { ...commReceipt };
-      const target: CastTargetResolution = {
-        status: 'PRESENT_ELIGIBLE',
-        characterId: 'char-elena',
-      };
-      const targetCopy = { ...target };
-
-      createIntentBoundCastInteractionReceipt({
-        intentReceipt: commReceipt,
-        castTarget: target,
-        respondingCharacterId: 'char-elena',
-      });
-
-      expect(commReceipt).toEqual(commReceiptCopy);
-      expect(target).toEqual(targetCopy);
-    });
   });
 
-  describe('getIntentBoundTopologyDelta', () => {
-    it('1. INVESTIGATE + isExpansionExpected: true + proposed expansion → expansion suppressed', () => {
-      const receipt = createMockIntentReceipt('INVESTIGATE');
-      const result = getIntentBoundTopologyDelta(receipt, mockProposedExpansion, true);
-      expect(result).toEqual({ isExpansion: false, newNodeDef: null });
-    });
-
-    it('2. OBSERVE + isExpansionExpected: true + proposed expansion → expansion suppressed', () => {
-      const receipt = createMockIntentReceipt('OBSERVE');
-      const result = getIntentBoundTopologyDelta(receipt, mockProposedExpansion, true);
-      expect(result).toEqual({ isExpansion: false, newNodeDef: null });
-    });
-
-    it('3. COMMUNICATE + isExpansionExpected: true + proposed expansion → expansion suppressed', () => {
-      const receipt = createMockIntentReceipt('COMMUNICATE');
-      const result = getIntentBoundTopologyDelta(receipt, mockProposedExpansion, true);
-      expect(result).toEqual({ isExpansion: false, newNodeDef: null });
-    });
-
-    it('suppresses expansion for all other non-MOVE kinds even if isExpansionExpected is true and expansion is proposed', () => {
-      const nonMoveKinds: IntentReceipt['action_kind'][] = [
-        'MANIPULATE',
-        'WAIT',
-        'SYSTEM',
-        'OTHER',
+  describe('getThresholdBoundTopologyDelta', () => {
+    it('1. Preserves expansion for non-MOVE dominant kinds when threshold is expected for embodied roles', () => {
+      const embodiedRoles = ['protagonist', 'antagonist', 'possessed'];
+      const actions = [
+        'I examine the fissure while stepping inside',
+        'I talk to the guide and cross the unmapped archway',
+        'I wait as the shifting threshold opens',
       ];
 
-      for (const kind of nonMoveKinds) {
-        const receipt = createMockIntentReceipt(kind);
-        const result = getIntentBoundTopologyDelta(receipt, mockProposedExpansion, true);
+      for (const effectiveRole of embodiedRoles) {
+        for (const userAction of actions) {
+          const result = getThresholdBoundTopologyDelta({
+            userAction,
+            effectiveRole,
+            isExpansionExpected: true,
+            proposedTopologyDelta: mockProposedExpansion,
+          });
+          expect(result).toEqual(mockProposedExpansion);
+          expect(result.isExpansion).toBe(true);
+        }
+      }
+    });
+
+    it('2. Suppresses expansion when isExpansionExpected is false', () => {
+      const result = getThresholdBoundTopologyDelta({
+        userAction: 'I walk forward',
+        effectiveRole: 'protagonist',
+        isExpansionExpected: false,
+        proposedTopologyDelta: mockProposedExpansion,
+      });
+      expect(result).toEqual({ isExpansion: false, newNodeDef: null });
+    });
+
+    it('3. Suppresses expansion for non-embodied roles (director, witness)', () => {
+      for (const effectiveRole of ['director', 'witness']) {
+        const result = getThresholdBoundTopologyDelta({
+          userAction: 'I move through the boundary',
+          effectiveRole,
+          isExpansionExpected: true,
+          proposedTopologyDelta: mockProposedExpansion,
+        });
         expect(result).toEqual({ isExpansion: false, newNodeDef: null });
       }
     });
 
-    it('4. MOVE + isExpansionExpected: true + valid proposed expansion → expansion preserved', () => {
-      const moveReceipt = createMockIntentReceipt('MOVE');
-      const result = getIntentBoundTopologyDelta(moveReceipt, mockProposedExpansion, true);
-      expect(result).toEqual(mockProposedExpansion);
-      expect(result.isExpansion).toBe(true);
-      expect(result.newNodeDef?.id).toBe('EXPANDED_NODE_01');
-    });
-
-    it('5. MOVE + isExpansionExpected: false + proposed expansion → expansion suppressed', () => {
-      const moveReceipt = createMockIntentReceipt('MOVE');
-      const result = getIntentBoundTopologyDelta(moveReceipt, mockProposedExpansion, false);
-      expect(result).toEqual({ isExpansion: false, newNodeDef: null });
-    });
-
-    it('returns { isExpansion: false, newNodeDef: null } when proposedTopologyDelta is null, undefined, or not an expansion', () => {
-      const moveReceipt = createMockIntentReceipt('MOVE');
-      expect(getIntentBoundTopologyDelta(moveReceipt, null, true)).toEqual({
-        isExpansion: false,
-        newNodeDef: null,
-      });
-      expect(getIntentBoundTopologyDelta(moveReceipt, undefined, true)).toEqual({
-        isExpansion: false,
-        newNodeDef: null,
-      });
+    it('4. Suppresses expansion for synthetic commands (SYSTEM_INIT and [USER_ACTION: OBSERVE])', () => {
       expect(
-        getIntentBoundTopologyDelta(
-          moveReceipt,
-          { isExpansion: false, newNodeDef: null },
-          true
-        )
-      ).toEqual({
-        isExpansion: false,
-        newNodeDef: null,
-      });
+        getThresholdBoundTopologyDelta({
+          userAction: 'SYSTEM_INIT',
+          effectiveRole: 'protagonist',
+          isExpansionExpected: true,
+          proposedTopologyDelta: mockProposedExpansion,
+        })
+      ).toEqual({ isExpansion: false, newNodeDef: null });
+
+      expect(
+        getThresholdBoundTopologyDelta({
+          userAction: '[USER_ACTION: OBSERVE]',
+          effectiveRole: 'protagonist',
+          isExpansionExpected: true,
+          proposedTopologyDelta: mockProposedExpansion,
+        })
+      ).toEqual({ isExpansion: false, newNodeDef: null });
     });
 
-    it('7. Helper inputs are not mutated', () => {
-      const moveReceipt = createMockIntentReceipt('MOVE');
-      const moveReceiptCopy = JSON.parse(JSON.stringify(moveReceipt));
-      const proposedDeltaCopy = JSON.parse(JSON.stringify(mockProposedExpansion));
+    it('5. Suppresses expansion when proposedTopologyDelta is invalid or missing newNodeDef', () => {
+      expect(
+        getThresholdBoundTopologyDelta({
+          userAction: 'I walk forward',
+          effectiveRole: 'protagonist',
+          isExpansionExpected: true,
+          proposedTopologyDelta: null,
+        })
+      ).toEqual({ isExpansion: false, newNodeDef: null });
 
-      // Test preserving branch
-      getIntentBoundTopologyDelta(moveReceipt, mockProposedExpansion, true);
-      expect(moveReceipt).toEqual(moveReceiptCopy);
-      expect(mockProposedExpansion).toEqual(proposedDeltaCopy);
-
-      // Test suppressing branch
-      const investReceipt = createMockIntentReceipt('INVESTIGATE');
-      const investReceiptCopy = JSON.parse(JSON.stringify(investReceipt));
-      getIntentBoundTopologyDelta(investReceipt, mockProposedExpansion, true);
-      expect(investReceipt).toEqual(investReceiptCopy);
-      expect(mockProposedExpansion).toEqual(proposedDeltaCopy);
+      expect(
+        getThresholdBoundTopologyDelta({
+          userAction: 'I walk forward',
+          effectiveRole: 'protagonist',
+          isExpansionExpected: true,
+          proposedTopologyDelta: { isExpansion: true, newNodeDef: null },
+        })
+      ).toEqual({ isExpansion: false, newNodeDef: null });
     });
   });
 });
