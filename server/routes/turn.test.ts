@@ -4299,7 +4299,8 @@ describe('Turn schemas validation', () => {
       const turnPayload = {
         userAction: 'I observe the two researchers in the laboratory.',
         recentHistory: 'The humming terminal displays diagnostic readouts.',
-        systemDirective: 'Keep prose clinical and objective.',
+        systemDirective:
+          'SYSTEM_DIRECTIVE_CANARY: Keep prose clinical and objective.',
         isExpansionExpected: false,
         stateContext: {
           currentNodeId: 'LAB_01',
@@ -4455,6 +4456,12 @@ describe('Turn schemas validation', () => {
       const capturedPrompt = mockGenerateStructuredResponse.mock.calls[0][0] as string;
 
       // 4. Assert contract presence and inclusion of present eligible records
+      expect(capturedPrompt).toContain('[SYSTEM DIRECTIVE]');
+      expect(capturedPrompt).toContain(
+        'SYSTEM_DIRECTIVE_CANARY: Keep prose clinical and objective.'
+      );
+      expect(capturedPrompt).toContain('[NARRATIVE OUTPUT BOUNDARY]');
+      expect(capturedPrompt).toContain('Emit no more than 2 total narrative_blocks.');
       expect(capturedPrompt).toContain('[CHARACTER MEMORY CONTRACT]');
       expect(capturedPrompt).toContain('Dr. Evans (ID: char-a)');
       expect(capturedPrompt).toContain('PRESENT_A_MEMORY_ONLY');

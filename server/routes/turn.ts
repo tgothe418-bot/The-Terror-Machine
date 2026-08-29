@@ -508,7 +508,14 @@ turnRouter.post('/', async (req, res) => {
   }
 
   try {
-    const { userAction, recentHistory, isExpansionExpected, stateContext, context } = parsedRequest;
+    const {
+      userAction,
+      recentHistory,
+      systemDirective,
+      isExpansionExpected,
+      stateContext,
+      context,
+    } = parsedRequest;
 
     const worldRulesFormatted = context.scenario.worldRules.length > 0
       ? context.scenario.worldRules.map((r) => `• ${r}`).join('\n')
@@ -1171,6 +1178,12 @@ Phase: ${context.runtime.phase}
 Tension: ${context.runtime.tension}
 Coherence: ${context.runtime.coherence}
 Reconciliation Revision: ${context.runtime.reconciliationRevision}
+
+[SYSTEM DIRECTIVE]
+${systemDirective}
+
+[NARRATIVE OUTPUT BOUNDARY]
+- Emit no more than 2 total narrative_blocks.
 
 [SPATIAL INTERPRETATION CONTRACT]
 - action_kind records the dominant action only. A turn may also contain dialogue, observation, investigation, manipulation, and physical movement.

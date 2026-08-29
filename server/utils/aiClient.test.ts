@@ -307,14 +307,26 @@ describe('Track D1: Provider schema subset tests (Packet 1-10B)', () => {
     expect(worldCandidate.required).toContain('node_id');
   });
 
-  it('provider JSON schema omits array caps that push the live Gemini schema over its complexity budget', () => {
-    const visit = (node: GeminiJsonSchema): void => {
-      expect(node.maxItems).toBeUndefined();
-      Object.values(node.properties ?? {}).forEach(visit);
-      if (node.items) visit(node.items);
+  it('provider JSON schema declares only the canonical narrative block cap', () => {
+    const properties = geminiTurnResponseJsonSchema.properties as Record<
+      string,
+      GeminiJsonSchema
+    >;
+    expect(properties.narrative_blocks.maxItems).toBe(2);
+
+    const visit = (node: GeminiJsonSchema, path: string): void => {
+      if (path !== '$.narrative_blocks') {
+        expect(node.maxItems, `Unexpected array cap at ${path}`).toBeUndefined();
+      }
+      for (const [key, child] of Object.entries(node.properties ?? {})) {
+        visit(child, `${path}.${key}`);
+      }
+      if (node.items) visit(node.items, `${path}[]`);
     };
 
-    visit(geminiTurnResponseJsonSchema);
+    for (const [key, child] of Object.entries(properties)) {
+      visit(child, `$.${key}`);
+    }
 
     const oversized = createBaseValidPayload();
     oversized.narrative_blocks = Array.from({ length: 3 }, () => ({

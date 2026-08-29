@@ -196,6 +196,7 @@ export const geminiTurnResponseJsonSchema: GeminiJsonSchema = {
     },
     narrative_blocks: {
       type: 'array',
+      maxItems: 2,
       items: {
         type: 'object',
         properties: {

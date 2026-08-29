@@ -287,4 +287,3 @@ Stop and report rather than broadening scope if:
 - perceptual narration cannot be preserved without adding a second canonical location store;
 - Director/witness would gain an embodied movement path; or
 - the fix requires weakening allowed-edge, requirement, expansion, reconciliation, or atomic-publication guards.
-
