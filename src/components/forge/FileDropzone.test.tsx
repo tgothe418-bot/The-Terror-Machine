@@ -523,4 +523,116 @@ describe('FileDropzone & Architect Binding Lifecycle UI', () => {
     expect(architectCalls).toHaveLength(0);
     expect(getForgeState().pendingDepictionContractProposal).toBeNull();
   });
+
+  it('accepts, applies, and renders a server-normalized depiction contract during document intake', async () => {
+    const serverNormalizedAnalysis: ForgeSourceAnalysis = {
+      id: 'src-depiction-analysis',
+      sourceRecord: {
+        id: 'src-depiction',
+        fileName: 'abyssal-notes.txt',
+        mimeType: 'text/plain',
+        kind: 'document',
+        receivedAt: Date.now(),
+        fileSizeBytes: 256,
+      },
+      summary: 'A complete source-backed scenario baseline.',
+      evidence: [
+        {
+          id: 'ev-depiction-1',
+          sourceId: 'src-depiction',
+          category: 'setting',
+          claim: 'The station is confined beneath crushing ocean pressure.',
+        },
+      ],
+      candidates: [
+        {
+          id: 'cand-title',
+          sourceId: 'src-depiction',
+          classification: 'evidence',
+          target: 'scenario_title',
+          label: 'Scenario Title',
+          explanation: 'The source names the station.',
+          confidence: 0.98,
+          evidenceIds: ['ev-depiction-1'],
+          proposedValue: 'Station Tartarus',
+          reviewDecision: 'accepted',
+          applicationState: 'staged',
+        },
+        {
+          id: 'cand-depiction',
+          sourceId: 'src-depiction',
+          classification: 'evidence',
+          target: 'depiction_contract',
+          label: 'Depiction Contract',
+          explanation: 'The source establishes the simulation’s narrative boundaries.',
+          confidence: 0.98,
+          evidenceIds: ['ev-depiction-1'],
+          proposedValue: {
+            dramaticRegister: 'Claustrophobic abyssal dread.',
+            directness: 'Direct physical danger is described plainly.',
+            aftermath: 'Damage and loss remain consequential.',
+            ambiguityHandling: 'The intelligence remains partly unknowable.',
+            specialBoundaries: '',
+          },
+          reviewDecision: 'accepted',
+          applicationState: 'staged',
+        },
+      ],
+      unknowns: [],
+      validationIssues: [],
+      omittedValidationIssueCount: 0,
+      status: 'completed',
+    };
+
+    const fetchSpy = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        success: true,
+        sourceBinding: 'binding-depiction-intake',
+        analysis: serverNormalizedAnalysis,
+      }),
+    } as Response);
+    globalThis.fetch = fetchSpy;
+
+    await act(async () => {
+      root?.render(<FileDropzone />);
+    });
+
+    const fileInput = container?.querySelector('input[type="file"]') as HTMLInputElement;
+    const file = new File(['Station Tartarus is beneath the sea.'], 'abyssal-notes.txt', {
+      type: 'text/plain',
+    });
+
+    await act(async () => {
+      Object.defineProperty(fileInput, 'files', {
+        value: [file],
+        writable: false,
+      });
+      fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+
+    // Regression: the client must accept the already-normalized server payload.
+    expect(container?.textContent).not.toContain('Server returned an invalid source analysis payload');
+
+    // Regression: normal import atomically applies, rather than leaving baseline material staged.
+    const analysis = getForgeState().sourceAnalyses['src-depiction-analysis'];
+    expect(analysis).toBeDefined();
+    expect(
+      analysis.candidates.find((candidate) => candidate.id === 'cand-depiction')?.applicationState
+    ).toBe('applied');
+
+    // Regression: the imported contract reaches canonical Forge state without User input.
+    expect(getForgeState().forgeDraft?.depictionContract).toEqual(
+      serverNormalizedAnalysis.candidates[1].proposedValue
+    );
+
+    // Regression: import performs no second Architect/Depiction request.
+    expect(fetchSpy.mock.calls.filter(([url]) => url === '/api/architect')).toHaveLength(0);
+    expect(getForgeState().pendingDepictionContractProposal).toBeNull();
+  });
 });

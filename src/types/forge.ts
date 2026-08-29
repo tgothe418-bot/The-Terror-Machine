@@ -362,6 +362,7 @@ const BaseCandidateProps = {
   classification: z.enum(['evidence', 'inference']),
   label: z.string().min(1),
   explanation: z.string().min(1),
+  confidence: z.number().min(0).max(1).optional(),
   evidenceIds: z.array(z.string()).default([]),
   targetCastMemberId: z.string().optional(),
   reviewDecision: ForgeCandidateReviewDecisionSchema.default('accepted'),
