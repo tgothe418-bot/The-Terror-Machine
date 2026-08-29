@@ -277,7 +277,8 @@ describe('Horror Grammar Turn Route (Packet 1-10 HG1 Provider Contract Restorati
 
     expect(mockGenerateContent).toHaveBeenCalledTimes(1);
     const generateCall = mockGenerateContent.mock.calls[0][0];
-    expect(generateCall.config?.responseSchema).toBe(EngineTurnStructuredResponseContract.responseSchema);
+    expect(generateCall.config?.responseJsonSchema).toBe(EngineTurnStructuredResponseContract.responseJsonSchema);
+    expect(generateCall.config).not.toHaveProperty('responseSchema');
     const promptArg = generateCall.contents[0].parts[0].text;
 
     expect(promptArg).toContain('[CAST ACTIVITY OPPORTUNITY POOL (OBSERVATIONAL)]');
@@ -372,9 +373,10 @@ describe('Horror Grammar Turn Route (Packet 1-10 HG1 Provider Contract Restorati
     expect(res.status).toBe(200);
     const data = await res.json();
 
-    expect(mockGenerateContent.mock.calls[0][0].config?.responseSchema).toBe(
-      EngineTurnStructuredResponseContract.responseSchema
+    expect(mockGenerateContent.mock.calls[0][0].config?.responseJsonSchema).toBe(
+      EngineTurnStructuredResponseContract.responseJsonSchema
     );
+    expect(mockGenerateContent.mock.calls[0][0].config).not.toHaveProperty('responseSchema');
 
     // Narrative composition contains base + activity + pressure (3 blocks in order)
     expect(data.narrative_blocks).toHaveLength(3);
@@ -471,9 +473,10 @@ describe('Horror Grammar Turn Route (Packet 1-10 HG1 Provider Contract Restorati
     expect(res.status).toBe(200);
     const data = await res.json();
 
-    expect(mockGenerateContent.mock.calls[0][0].config?.responseSchema).toBe(
-      EngineTurnStructuredResponseContract.responseSchema
+    expect(mockGenerateContent.mock.calls[0][0].config?.responseJsonSchema).toBe(
+      EngineTurnStructuredResponseContract.responseJsonSchema
     );
+    expect(mockGenerateContent.mock.calls[0][0].config).not.toHaveProperty('responseSchema');
 
     // Value anchor resolution succeeds because authoringBaseline.valueAnchors contains 'val-1'
     expect(data.valueStateReceipt.decisions[0].outcome).toBe('APPLIED');
@@ -636,9 +639,10 @@ describe('Horror Grammar Turn Route (Packet 1-10 HG1 Provider Contract Restorati
     expect(res.status).toBe(200);
     const data = await res.json();
 
-    expect(mockGenerateContent.mock.calls[0][0].config?.responseSchema).toBe(
-      EngineTurnStructuredResponseContract.responseSchema
+    expect(mockGenerateContent.mock.calls[0][0].config?.responseJsonSchema).toBe(
+      EngineTurnStructuredResponseContract.responseJsonSchema
     );
+    expect(mockGenerateContent.mock.calls[0][0].config).not.toHaveProperty('responseSchema');
 
     // Receipts must retain the sentinel pre-state and produce identical post-state (no empty fallback)
     expect(data.valueStateReceipt.preState).toEqual(sentinelValueLedger);
@@ -843,9 +847,10 @@ describe('Horror Grammar Turn Route (Packet 1-10 HG1 Provider Contract Restorati
     expect(res.status).toBe(200);
     const data = await res.json();
 
-    expect(mockGenerateContent.mock.calls[0][0].config?.responseSchema).toBe(
-      EngineTurnStructuredResponseContract.responseSchema
+    expect(mockGenerateContent.mock.calls[0][0].config?.responseJsonSchema).toBe(
+      EngineTurnStructuredResponseContract.responseJsonSchema
     );
+    expect(mockGenerateContent.mock.calls[0][0].config).not.toHaveProperty('responseSchema');
 
     // All invalid proposals are rejected and receipts reflect rejection
     expect(data.castActivityProposalReceipt.outcome).toBe('REJECTED');
@@ -944,9 +949,10 @@ describe('Horror Grammar Turn Route (Packet 1-10 HG1 Provider Contract Restorati
     expect(res.status).toBe(200);
     const data = await res.json();
 
-    expect(mockGenerateContent.mock.calls[0][0].config?.responseSchema).toBe(
-      EngineTurnStructuredResponseContract.responseSchema
+    expect(mockGenerateContent.mock.calls[0][0].config?.responseJsonSchema).toBe(
+      EngineTurnStructuredResponseContract.responseJsonSchema
     );
+    expect(mockGenerateContent.mock.calls[0][0].config).not.toHaveProperty('responseSchema');
 
     // Narrative contains ONLY the base block
     expect(data.narrative_blocks).toHaveLength(1);
@@ -1117,9 +1123,10 @@ describe('Horror Grammar Turn Route (Packet 1-10 HG1 Provider Contract Restorati
     expect(resTurn1.status).toBe(200);
     const dataTurn1 = await resTurn1.json();
 
-    expect(mockGenerateContent.mock.calls[0][0].config?.responseSchema).toBe(
-      EngineTurnStructuredResponseContract.responseSchema
+    expect(mockGenerateContent.mock.calls[0][0].config?.responseJsonSchema).toBe(
+      EngineTurnStructuredResponseContract.responseJsonSchema
     );
+    expect(mockGenerateContent.mock.calls[0][0].config).not.toHaveProperty('responseSchema');
 
     // Verify Turn 1 receipts & state
     expect(dataTurn1.castActivityProposalReceipt.outcome).toBe('ACCEPTED');
@@ -1247,9 +1254,10 @@ describe('Horror Grammar Turn Route (Packet 1-10 HG1 Provider Contract Restorati
     expect(resTurn2.status).toBe(200);
     const dataTurn2 = await resTurn2.json();
 
-    expect(mockGenerateContent.mock.calls[1][0].config?.responseSchema).toBe(
-      EngineTurnStructuredResponseContract.responseSchema
+    expect(mockGenerateContent.mock.calls[1][0].config?.responseJsonSchema).toBe(
+      EngineTurnStructuredResponseContract.responseJsonSchema
     );
+    expect(mockGenerateContent.mock.calls[1][0].config).not.toHaveProperty('responseSchema');
 
     // Verify Turn 2 receipts & resolved thread
     expect(dataTurn2.pressureThreadTransitionReceipt.decisions).toHaveLength(1);
@@ -1436,10 +1444,29 @@ describe('Horror Grammar Turn Route (Packet 1-10 HG1 Provider Contract Restorati
     // Verify Turn 2 prompt sent to SDK strictly excludes the rejected sentinels
     expect(mockGenerateContent).toHaveBeenCalledTimes(2);
     const turn2SdkCall = mockGenerateContent.mock.calls[1][0];
-    expect(turn2SdkCall.config?.responseSchema).toBe(EngineTurnStructuredResponseContract.responseSchema);
+    expect(turn2SdkCall.config?.responseJsonSchema).toBe(EngineTurnStructuredResponseContract.responseJsonSchema);
+    expect(turn2SdkCall.config).not.toHaveProperty('responseSchema');
 
     const turn2Prompt = turn2SdkCall.contents[0].parts[0].text;
     expect(turn2Prompt).not.toContain(REJECTED_ACT_SENTINEL);
     expect(turn2Prompt).not.toContain(REJECTED_PRESS_SENTINEL);
+  });
+
+  it('provider 400 INVALID_ARGUMENT returns bounded JSON 502 PROVIDER_FAILURE without leaking credentials', async () => {
+    const errorWithStatus = new Error('Request contains an invalid argument.');
+    (errorWithStatus as unknown as { status: number }).status = 400;
+    mockGenerateContent.mockRejectedValueOnce(errorWithStatus);
+
+    const res = await fetch(`${baseUrl}/api/turn`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(baseTurnPayload),
+    });
+
+    expect(res.status).toBe(502);
+    const data = await res.json();
+    expect(data.code).toBe('PROVIDER_FAILURE');
+    expect(data.error).toBe('AI provider turn generation failed');
+    expect(JSON.stringify(data)).not.toContain('ttm-hg1-test-only-key');
   });
 });

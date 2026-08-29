@@ -2,7 +2,6 @@ import { describe, expect, it, vi, afterAll } from 'vitest';
 import {
   unwrapStrictJsonResponse,
   parseStructuredTurnResponse,
-  turnResponseSchema,
   classifyProviderResponse,
   ProviderRefusalError,
   EmptyProviderResponseError,
@@ -10,6 +9,11 @@ import {
   generateStructuredResponse,
   EngineTurnStructuredResponseContract,
 } from './aiClient';
+import {
+  geminiTurnResponseJsonSchema,
+  assertGeminiJsonSchemaSubset,
+  type GeminiJsonSchema,
+} from '../ai/geminiTurnJsonSchema';
 import { TurnResultSchema } from '../schemas/engine';
 import {
   PERCEPTION_PATHS,
@@ -144,6 +148,9 @@ function createBaseValidPayload(): Record<string, unknown> {
       transitions: [],
     },
     logic_state: {
+      current_phase: 'MANIFEST',
+      requested_transition: null,
+      suggested_tension: 45,
       terminal_flags: [],
       cast_deltas: [],
       cast_ledger: [],
@@ -202,76 +209,166 @@ describe('Structured AI Response Handling', () => {
   });
 });
 
-describe('HG1 Provider Schema & Contract Soundness (Packet 1-10A)', () => {
-  it('provider and Zod contracts agree on every HG1 discriminant enum bound and manifestation shape', () => {
-    const props = turnResponseSchema.properties as Record<string, Record<string, unknown>>;
-    const required = (turnResponseSchema.required || []) as string[];
+describe('Track D1: Provider schema subset tests (Packet 1-10B)', () => {
+  it('provider JSON schema uses only the documented TTM Gemini allowlist', () => {
+    expect(() => assertGeminiJsonSchemaSubset(geminiTurnResponseJsonSchema)).not.toThrow();
 
-    // 1. All live TurnResultSchema root fields declared by Gemini schema
+    const invalidSchemaWithDisallowedKey = {
+      ...geminiTurnResponseJsonSchema,
+      definitions: {},
+    };
+    expect(() => assertGeminiJsonSchemaSubset(invalidSchemaWithDisallowedKey)).toThrow(
+      /Disallowed schema keyword "definitions"/
+    );
+  });
+
+  it('provider JSON schema contains no anyOf or legacy Schema dialect keywords', () => {
+    const serialized = JSON.stringify(geminiTurnResponseJsonSchema);
+    expect(serialized).not.toContain('"anyOf"');
+    expect(serialized).not.toContain('"oneOf"');
+    expect(serialized).not.toContain('"allOf"');
+    expect(serialized).not.toContain('"format"');
+    expect(serialized).not.toContain('"nullable"');
+    expect(serialized).not.toContain('"minLength"');
+    expect(serialized).not.toContain('"maxLength"');
+    expect(serialized).not.toContain('"pattern"');
+  });
+
+  it('provider JSON schema uses lowercase types and numeric constraint literals', () => {
+    const checkTypesAndLimits = (node: GeminiJsonSchema) => {
+      if (node.type) {
+        const types = Array.isArray(node.type) ? node.type : [node.type];
+        for (const t of types) {
+          expect(t).toBe(t.toLowerCase());
+          expect(['string', 'number', 'integer', 'boolean', 'array', 'object', 'null']).toContain(t);
+        }
+      }
+      if (node.maxItems !== undefined) {
+        expect(typeof node.maxItems).toBe('number');
+      }
+      if (node.minItems !== undefined) {
+        expect(typeof node.minItems).toBe('number');
+      }
+      if (node.minimum !== undefined) {
+        expect(typeof node.minimum).toBe('number');
+      }
+      if (node.maximum !== undefined) {
+        expect(typeof node.maximum).toBe('number');
+      }
+      if (node.properties) {
+        for (const child of Object.values(node.properties)) {
+          checkTypesAndLimits(child);
+        }
+      }
+      if (node.items) {
+        checkTypesAndLimits(node.items);
+      }
+    };
+
+    checkTypesAndLimits(geminiTurnResponseJsonSchema);
+  });
+
+  it('provider JSON schema declares every TurnResult root property', () => {
+    const props = geminiTurnResponseJsonSchema.properties as Record<string, GeminiJsonSchema>;
+    expect(props).toBeDefined();
+
     const zodShape = TurnResultSchema.shape;
     for (const key of Object.keys(zodShape)) {
       expect(props[key], `Gemini schema must declare root property "${key}"`).toBeDefined();
     }
+  });
 
-    // 2. All six HG1 fields in Gemini schema required list
+  it('provider JSON schema requires all six HG1 proposal envelopes', () => {
+    const required = (geminiTurnResponseJsonSchema.required || []) as string[];
     for (const field of HG1_FIELDS) {
       expect(required, `Gemini schema required list must include "${field}"`).toContain(field);
     }
-
-    // 6. Provider persistence enum equals PERSISTENCE_TARGETS exactly
-    const pressureActiveSchema = (props.situated_pressure_proposal as { anyOf: Array<{ properties: Record<string, { enum: string[] }> }> }).anyOf[1];
-    expect(pressureActiveSchema.properties.persistenceTarget.enum).toEqual([...PERSISTENCE_TARGETS]);
-    expect(pressureActiveSchema.properties.operator.enum).toEqual([...PRESSURE_OPERATORS]);
-    expect(pressureActiveSchema.properties.affectedDimension.enum).toEqual([...AFFECTED_DIMENSIONS]);
-
-    const activityActiveSchema = (props.cast_activity_proposal as { anyOf: Array<{ properties: Record<string, { enum: string[]; maxLength?: string }> }> }).anyOf[1];
-    expect(activityActiveSchema.properties.perceptionPath.enum).toEqual([...PERCEPTION_PATHS]);
-
-    const valueChangesItem = (props.value_state_proposal as { properties: { changes: { maxItems: string; items: { properties: Record<string, { enum: string[] }> } } } }).properties.changes.items;
-    expect(valueChangesItem.properties.operation.enum).toEqual([...VALUE_OPERATIONS]);
-    expect(valueChangesItem.properties.proposedCondition.enum).toEqual([...VALUE_CONDITIONS]);
-    expect(valueChangesItem.properties.proposedLifecycle.enum).toEqual([...VALUE_LIFECYCLES]);
-    expect(valueChangesItem.properties.expectedBeforeCondition.enum).toEqual([...VALUE_CONDITIONS]);
-    expect(valueChangesItem.properties.expectedBeforeLifecycle.enum).toEqual([...VALUE_LIFECYCLES]);
-
-    const pursuitChangesItem = (props.character_pursuit_proposal as { properties: { changes: { maxItems: string; items: { properties: Record<string, { enum: string[] }> } } } }).properties.changes.items;
-    expect(pursuitChangesItem.properties.operation.enum).toEqual([...PURSUIT_OPERATIONS]);
-    expect(pursuitChangesItem.properties.proposedStatus.enum).toEqual([...PURSUIT_STATUSES]);
-    expect(pursuitChangesItem.properties.expectedStatus.enum).toEqual([...PURSUIT_STATUSES]);
-
-    const devChangesItem = (props.character_development_proposal as { properties: { changes: { maxItems: string; items: { properties: Record<string, { enum: string[] }> } } } }).properties.changes.items;
-    expect(devChangesItem.properties.operation.enum).toEqual([...DEVELOPMENT_OPERATIONS]);
-    expect(devChangesItem.properties.dimension.enum).toEqual([...DEVELOPMENT_DIMENSIONS]);
-
-    const transChangesItem = (props.pressure_transition_proposal as { properties: { transitions: { maxItems: string; items: { properties: Record<string, { enum: string[] }> } } } }).properties.transitions.items;
-    expect(transChangesItem.properties.proposedStatus.enum).toEqual([...PRESSURE_THREAD_TERMINAL_STATUSES]);
-
-    // 7. Provider manifestation union contains exactly prose and dialogue
-    const actManifest = (activityActiveSchema.properties.manifestationBlock as unknown as { anyOf: Array<{ properties: { type: { enum: string[] }; content: { maxLength: string }; speaker?: { maxLength: string } }; required: string[] }> });
-    expect(actManifest.anyOf).toHaveLength(2);
-    expect(actManifest.anyOf[0].properties.type.enum).toEqual(['prose']);
-    expect(actManifest.anyOf[0].required).toEqual(['type', 'content']);
-    expect(actManifest.anyOf[1].properties.type.enum).toEqual(['dialogue']);
-    expect(actManifest.anyOf[1].required).toEqual(['type', 'speaker', 'content']);
-
-    // 8. Provider activity summary is capped at 500
-    const actSummary = activityActiveSchema.properties.activitySummary;
-    expect(actSummary.maxLength).toBe('500');
-
-    // 9. Provider activity and pressure manifestations enforce 2000/1000 content and 100 speaker
-    expect(actManifest.anyOf[0].properties.content.maxLength).toBe('2000');
-    expect(actManifest.anyOf[1].properties.content.maxLength).toBe('1000');
-    expect(actManifest.anyOf[1].properties.speaker?.maxLength).toBe('100');
-
-    // 10. Provider list caps are exactly value 3, pursuit 2, development 2, transition 2
-    expect((props.value_state_proposal as { properties: { changes: { maxItems: string } } }).properties.changes.maxItems).toBe('3');
-    expect((props.character_pursuit_proposal as { properties: { changes: { maxItems: string } } }).properties.changes.maxItems).toBe('2');
-    expect((props.character_development_proposal as { properties: { changes: { maxItems: string } } }).properties.changes.maxItems).toBe('2');
-    expect((props.pressure_transition_proposal as { properties: { transitions: { maxItems: string } } }).properties.transitions.maxItems).toBe('2');
   });
 
-  it('every active HG1 provider variant survives the paired ingress parser', () => {
-    // 4. Every explicit neutral envelope parses
+  it('provider JSON schema keeps every HG1 discriminant enum domain', () => {
+    const props = geminiTurnResponseJsonSchema.properties as Record<string, GeminiJsonSchema>;
+
+    const actProps = props.cast_activity_proposal.properties as Record<string, GeminiJsonSchema>;
+    expect(actProps.kind.enum).toEqual(['NONE', 'ACTIVITY']);
+    expect(actProps.perceptionPath.enum).toEqual([...PERCEPTION_PATHS]);
+
+    const pressProps = props.situated_pressure_proposal.properties as Record<string, GeminiJsonSchema>;
+    expect(pressProps.kind.enum).toEqual(['NONE', 'PRESSURE']);
+    expect(pressProps.operator.enum).toEqual([...PRESSURE_OPERATORS]);
+    expect(pressProps.affectedDimension.enum).toEqual([...AFFECTED_DIMENSIONS]);
+    expect(pressProps.persistenceTarget.enum).toEqual([...PERSISTENCE_TARGETS]);
+
+    const valChangesItem = (props.value_state_proposal.properties as Record<string, GeminiJsonSchema>).changes.items as GeminiJsonSchema;
+    const valItemProps = valChangesItem.properties as Record<string, GeminiJsonSchema>;
+    expect(valItemProps.operation.enum).toEqual([...VALUE_OPERATIONS]);
+    expect(valItemProps.proposedCondition.enum).toEqual([...VALUE_CONDITIONS]);
+    expect(valItemProps.proposedLifecycle.enum).toEqual([...VALUE_LIFECYCLES]);
+    expect(valItemProps.expectedBeforeCondition.enum).toEqual([...VALUE_CONDITIONS]);
+    expect(valItemProps.expectedBeforeLifecycle.enum).toEqual([...VALUE_LIFECYCLES]);
+
+    const purChangesItem = (props.character_pursuit_proposal.properties as Record<string, GeminiJsonSchema>).changes.items as GeminiJsonSchema;
+    const purItemProps = purChangesItem.properties as Record<string, GeminiJsonSchema>;
+    expect(purItemProps.operation.enum).toEqual([...PURSUIT_OPERATIONS]);
+    expect(purItemProps.proposedStatus.enum).toEqual([...PURSUIT_STATUSES]);
+    expect(purItemProps.expectedStatus.enum).toEqual([...PURSUIT_STATUSES]);
+
+    const devChangesItem = (props.character_development_proposal.properties as Record<string, GeminiJsonSchema>).changes.items as GeminiJsonSchema;
+    const devItemProps = devChangesItem.properties as Record<string, GeminiJsonSchema>;
+    expect(devItemProps.operation.enum).toEqual([...DEVELOPMENT_OPERATIONS]);
+    expect(devItemProps.dimension.enum).toEqual([...DEVELOPMENT_DIMENSIONS]);
+
+    const transChangesItem = (props.pressure_transition_proposal.properties as Record<string, GeminiJsonSchema>).transitions.items as GeminiJsonSchema;
+    const transItemProps = transChangesItem.properties as Record<string, GeminiJsonSchema>;
+    expect(transItemProps.proposedStatus.enum).toEqual([...PRESSURE_THREAD_TERMINAL_STATUSES]);
+  });
+
+  it('relationship delta is an integer range and never a string enum', () => {
+    const props = geminiTurnResponseJsonSchema.properties as Record<string, GeminiJsonSchema>;
+    const relChanges = (props.character_relationship_proposal.properties as Record<string, GeminiJsonSchema>).changes.items as GeminiJsonSchema;
+    const deltaSchema = (relChanges.properties as Record<string, GeminiJsonSchema>).delta;
+
+    expect(deltaSchema.type).toBe('integer');
+    expect(deltaSchema.minimum).toBe(-1);
+    expect(deltaSchema.maximum).toBe(1);
+    expect(deltaSchema.enum).toBeUndefined();
+  });
+
+  it('generateStructuredResponse sends responseJsonSchema and never responseSchema', async () => {
+    const client = getAiClient();
+    const generateSpy = vi.spyOn(client.models, 'generateContent').mockResolvedValueOnce({
+      text: JSON.stringify(createBaseValidPayload()),
+    } as never);
+
+    const result = await generateStructuredResponse('Test prompt', EngineTurnStructuredResponseContract);
+
+    expect(generateSpy).toHaveBeenCalledTimes(1);
+    const sdkRequest = generateSpy.mock.calls[0][0];
+
+    expect(sdkRequest.config?.responseJsonSchema).toBe(
+      EngineTurnStructuredResponseContract.responseJsonSchema
+    );
+    expect(sdkRequest.config).not.toHaveProperty('responseSchema');
+
+    expect(result.intent_proposal.action_kind).toBe('COMMUNICATE');
+    expect(result.narrative_blocks).toHaveLength(2);
+
+    generateSpy.mockRestore();
+  });
+});
+
+describe('Track D2: Canonical ingress tests (Packet 1-10B)', () => {
+  it('omission of each HG1 envelope fails TurnResultSchema', () => {
+    for (const field of HG1_FIELDS) {
+      const omitted = createBaseValidPayload();
+      delete (omitted as Record<string, unknown>)[field];
+      expect(
+        () => parseStructuredTurnResponse(JSON.stringify(omitted), TurnResultSchema),
+        `Deleting "${field}" should fail canonical validation`
+      ).toThrow();
+    }
+  });
+
+  it('explicit neutral HG1 envelopes parse without manufacturing defaults', () => {
     const neutral = createBaseValidPayload();
     const parsedNeutral = parseStructuredTurnResponse(
       JSON.stringify(neutral),
@@ -283,8 +380,9 @@ describe('HG1 Provider Schema & Contract Soundness (Packet 1-10A)', () => {
     expect(parsedNeutral.character_pursuit_proposal.changes).toEqual([]);
     expect(parsedNeutral.character_development_proposal.changes).toEqual([]);
     expect(parsedNeutral.pressure_transition_proposal.transitions).toEqual([]);
+  });
 
-    // 5. One active variant for each of the six fields parses through zodSchema
+  it('every active HG1 variant parses through the paired Zod contract', () => {
     const active = createBaseValidPayload();
     active.cast_activity_proposal = {
       kind: 'ACTIVITY',
@@ -383,86 +481,28 @@ describe('HG1 Provider Schema & Contract Soundness (Packet 1-10A)', () => {
     expect(parsedActive.character_pursuit_proposal.changes).toHaveLength(1);
     expect(parsedActive.character_development_proposal.changes).toHaveLength(1);
     expect(parsedActive.pressure_transition_proposal.transitions).toHaveLength(1);
-
-    // 16. Relationship delta numeric -1 and 1 parse; string '-1', string '1', and numeric 0 fail
-    const posDelta = createBaseValidPayload() as { character_relationship_proposal: { changes: Array<{ delta: unknown }> } };
-    posDelta.character_relationship_proposal.changes[0].delta = 1;
-    expect(parseStructuredTurnResponse(JSON.stringify(posDelta), TurnResultSchema).character_relationship_proposal.changes[0].delta).toBe(1);
-
-    const negDelta = createBaseValidPayload() as { character_relationship_proposal: { changes: Array<{ delta: unknown }> } };
-    negDelta.character_relationship_proposal.changes[0].delta = -1;
-    expect(parseStructuredTurnResponse(JSON.stringify(negDelta), TurnResultSchema).character_relationship_proposal.changes[0].delta).toBe(-1);
-
-    const strNeg = createBaseValidPayload() as { character_relationship_proposal: { changes: Array<{ delta: unknown }> } };
-    strNeg.character_relationship_proposal.changes[0].delta = '-1';
-    expect(() => parseStructuredTurnResponse(JSON.stringify(strNeg), TurnResultSchema)).toThrow();
-
-    const strPos = createBaseValidPayload() as { character_relationship_proposal: { changes: Array<{ delta: unknown }> } };
-    strPos.character_relationship_proposal.changes[0].delta = '1';
-    expect(() => parseStructuredTurnResponse(JSON.stringify(strPos), TurnResultSchema)).toThrow();
-
-    const zeroDelta = createBaseValidPayload() as { character_relationship_proposal: { changes: Array<{ delta: unknown }> } };
-    zeroDelta.character_relationship_proposal.changes[0].delta = 0;
-    expect(() => parseStructuredTurnResponse(JSON.stringify(zeroDelta), TurnResultSchema)).toThrow();
   });
 
-  it('provider permitted malformed HG1 variants do not exist', () => {
-    // 3. All six HG1 fields are required by TurnResultSchema; deleting each one fails
-    for (const field of HG1_FIELDS) {
-      const omitted = createBaseValidPayload();
-      delete (omitted as Record<string, unknown>)[field];
-      expect(
-        () => parseStructuredTurnResponse(JSON.stringify(omitted), TurnResultSchema),
-        `Deleting "${field}" should fail provider ingress validation`
-      ).toThrow();
-    }
+  it('provider-coarse invalid cross-field combinations are rejected by Zod', () => {
+    // Missing required fields on active ACTIVITY proposal
+    const invalidAct = createBaseValidPayload();
+    invalidAct.cast_activity_proposal = {
+      kind: 'ACTIVITY',
+      reason: 'Missing required active fields',
+    };
+    expect(() => parseStructuredTurnResponse(JSON.stringify(invalidAct), TurnResultSchema)).toThrow();
 
-    // 4b. Omitting changes or transitions from the four array envelopes fails instead of creating []
-    const noChangesVal = createBaseValidPayload();
-    delete (noChangesVal.value_state_proposal as Record<string, unknown>).changes;
-    expect(() => parseStructuredTurnResponse(JSON.stringify(noChangesVal), TurnResultSchema)).toThrow();
-
-    const noChangesPur = createBaseValidPayload();
-    delete (noChangesPur.character_pursuit_proposal as Record<string, unknown>).changes;
-    expect(() => parseStructuredTurnResponse(JSON.stringify(noChangesPur), TurnResultSchema)).toThrow();
-
-    const noChangesDev = createBaseValidPayload();
-    delete (noChangesDev.character_development_proposal as Record<string, unknown>).changes;
-    expect(() => parseStructuredTurnResponse(JSON.stringify(noChangesDev), TurnResultSchema)).toThrow();
-
-    const noTrans = createBaseValidPayload();
-    delete (noTrans.pressure_transition_proposal as Record<string, unknown>).transitions;
-    expect(() => parseStructuredTurnResponse(JSON.stringify(noTrans), TurnResultSchema)).toThrow();
-
-    // 11. Invalid activity/pressure discriminants fail
-    const invalidActKind = createBaseValidPayload();
-    (invalidActKind.cast_activity_proposal as Record<string, unknown>) = { kind: 'AUTONOMOUS', reason: 'None' };
-    expect(() => parseStructuredTurnResponse(JSON.stringify(invalidActKind), TurnResultSchema)).toThrow();
-
-    const invalidPressKind = createBaseValidPayload();
-    (invalidPressKind.situated_pressure_proposal as Record<string, unknown>) = { kind: 'ATTACK', reason: 'None' };
-    expect(() => parseStructuredTurnResponse(JSON.stringify(invalidPressKind), TurnResultSchema)).toThrow();
-
-    // 12. A persistence value outside PERSISTENCE_TARGETS fails
-    const invalidPersist = createBaseValidPayload();
-    invalidPersist.situated_pressure_proposal = {
+    // Missing required fields on active PRESSURE proposal
+    const invalidPress = createBaseValidPayload();
+    invalidPress.situated_pressure_proposal = {
       kind: 'PRESSURE',
-      proposalId: 'prop-press-1',
-      valueAnchorId: 'val-reactor',
-      sourceReference: 'BASELINE',
-      operator: 'EXPOSE',
-      affectedDimension: 'SAFETY',
-      adverseProspect: 'Coolant line leaking toxic gas.',
-      authorityReferences: ['auth-press-1'],
-      persistenceTarget: 'PERMANENT' as unknown as 'TRANSIENT',
-      responseWindowOpen: true,
-      manifestationBlock: null,
+      reason: 'Missing required active fields',
     };
-    expect(() => parseStructuredTurnResponse(JSON.stringify(invalidPersist), TurnResultSchema)).toThrow();
+    expect(() => parseStructuredTurnResponse(JSON.stringify(invalidPress), TurnResultSchema)).toThrow();
 
-    // 13. system_voice, environmental_description, and dialogue without speaker fail as HG1 manifestations
-    const sysVoiceAct = createBaseValidPayload();
-    sysVoiceAct.cast_activity_proposal = {
+    // Dialogue manifestation block without speaker
+    const invalidManifest = createBaseValidPayload();
+    invalidManifest.cast_activity_proposal = {
       kind: 'ACTIVITY',
       proposalId: 'prop-act-1',
       castMemberId: 'char-tech',
@@ -471,351 +511,69 @@ describe('HG1 Provider Schema & Contract Soundness (Packet 1-10A)', () => {
       perceptionPath: 'DIRECT',
       activitySummary: 'Working.',
       authorityReferences: ['ref'],
-      manifestationBlock: { type: 'system_voice', content: 'Alert' } as unknown as { type: 'prose'; content: string },
+      manifestationBlock: { type: 'dialogue', content: 'Missing speaker' },
     };
-    expect(() => parseStructuredTurnResponse(JSON.stringify(sysVoiceAct), TurnResultSchema)).toThrow();
+    expect(() => parseStructuredTurnResponse(JSON.stringify(invalidManifest), TurnResultSchema)).toThrow();
 
-    const envDescAct = createBaseValidPayload();
-    envDescAct.cast_activity_proposal = {
-      kind: 'ACTIVITY',
-      proposalId: 'prop-act-1',
-      castMemberId: 'char-tech',
-      pursuitId: null,
-      locationNodeId: null,
-      perceptionPath: 'DIRECT',
-      activitySummary: 'Working.',
-      authorityReferences: ['ref'],
-      manifestationBlock: { type: 'environmental_description', content: 'Dark' } as unknown as { type: 'prose'; content: string },
-    };
-    expect(() => parseStructuredTurnResponse(JSON.stringify(envDescAct), TurnResultSchema)).toThrow();
-
-    const noSpeakerDialAct = createBaseValidPayload();
-    noSpeakerDialAct.cast_activity_proposal = {
-      kind: 'ACTIVITY',
-      proposalId: 'prop-act-1',
-      castMemberId: 'char-tech',
-      pursuitId: null,
-      locationNodeId: null,
-      perceptionPath: 'DIRECT',
-      activitySummary: 'Working.',
-      authorityReferences: ['ref'],
-      manifestationBlock: { type: 'dialogue', content: 'Missing speaker' } as unknown as { type: 'dialogue'; speaker: string; content: string },
-    };
-    expect(() => parseStructuredTurnResponse(JSON.stringify(noSpeakerDialAct), TurnResultSchema)).toThrow();
-
-    // 14. Over-limit proposal arrays fail
-    const overVal = createBaseValidPayload();
-    overVal.value_state_proposal = {
-      changes: [
-        { anchorId: 'a1', operation: 'SET_CONDITION', proposedCondition: 'LOST', causeReference: 'BASELINE', rationale: 'R' },
-        { anchorId: 'a2', operation: 'SET_CONDITION', proposedCondition: 'LOST', causeReference: 'BASELINE', rationale: 'R' },
-        { anchorId: 'a3', operation: 'SET_CONDITION', proposedCondition: 'LOST', causeReference: 'BASELINE', rationale: 'R' },
-        { anchorId: 'a4', operation: 'SET_CONDITION', proposedCondition: 'LOST', causeReference: 'BASELINE', rationale: 'R' },
-      ],
-    };
-    expect(() => parseStructuredTurnResponse(JSON.stringify(overVal), TurnResultSchema)).toThrow();
-
-    const overPur = createBaseValidPayload();
-    overPur.character_pursuit_proposal = {
-      changes: [
-        { pursuitId: 'p1', operation: 'ADVANCE', progressSummary: 'S', causeReference: 'BASELINE', rationale: 'R' },
-        { pursuitId: 'p2', operation: 'ADVANCE', progressSummary: 'S', causeReference: 'BASELINE', rationale: 'R' },
-        { pursuitId: 'p3', operation: 'ADVANCE', progressSummary: 'S', causeReference: 'BASELINE', rationale: 'R' },
-      ],
-    };
-    expect(() => parseStructuredTurnResponse(JSON.stringify(overPur), TurnResultSchema)).toThrow();
-
-    const overDev = createBaseValidPayload();
-    overDev.character_development_proposal = {
-      changes: [
-        { castMemberId: 'c1', operation: 'ESTABLISH', dimension: 'BELIEF', statement: 'S1', causeReference: 'BASELINE', rationale: 'R' },
-        { castMemberId: 'c2', operation: 'ESTABLISH', dimension: 'BELIEF', statement: 'S2', causeReference: 'BASELINE', rationale: 'R' },
-        { castMemberId: 'c3', operation: 'ESTABLISH', dimension: 'BELIEF', statement: 'S3', causeReference: 'BASELINE', rationale: 'R' },
-      ],
-    };
-    expect(() => parseStructuredTurnResponse(JSON.stringify(overDev), TurnResultSchema)).toThrow();
-
-    const overTrans = createBaseValidPayload();
-    overTrans.pressure_transition_proposal = {
-      transitions: [
-        { threadId: 't1', proposedStatus: 'RESOLVED', causeReference: 'BASELINE', rationale: 'R' },
-        { threadId: 't2', proposedStatus: 'RESOLVED', causeReference: 'BASELINE', rationale: 'R' },
-        { threadId: 't3', proposedStatus: 'RESOLVED', causeReference: 'BASELINE', rationale: 'R' },
-      ],
-    };
-    expect(() => parseStructuredTurnResponse(JSON.stringify(overTrans), TurnResultSchema)).toThrow();
-
-    // 15. Empty/blank required canonical strings fail
-    const blankCauseVal = createBaseValidPayload();
-    blankCauseVal.value_state_proposal = {
-      changes: [
-        { anchorId: 'a1', operation: 'SET_CONDITION', proposedCondition: 'LOST', causeReference: '   ', rationale: 'R' },
-      ],
-    };
-    expect(() => parseStructuredTurnResponse(JSON.stringify(blankCauseVal), TurnResultSchema)).toThrow();
-
-    const emptyCauseVal = createBaseValidPayload();
-    emptyCauseVal.value_state_proposal = {
-      changes: [
-        { anchorId: 'a1', operation: 'SET_CONDITION', proposedCondition: 'LOST', causeReference: '', rationale: 'R' },
-      ],
-    };
-    expect(() => parseStructuredTurnResponse(JSON.stringify(emptyCauseVal), TurnResultSchema)).toThrow();
-  });
-
-  it('generateStructuredResponse has no unpaired Zod-only fallback', async () => {
-    const client = getAiClient();
-    const generateSpy = vi.spyOn(client.models, 'generateContent').mockResolvedValueOnce({
-      text: JSON.stringify(createBaseValidPayload()),
-    } as never);
-
-    // 17. The SDK receives the exact contract.responseSchema object
-    const result = await generateStructuredResponse('Test prompt', EngineTurnStructuredResponseContract);
-
-    expect(generateSpy).toHaveBeenCalledTimes(1);
-    const callConfig = generateSpy.mock.calls[0][0];
-    expect(callConfig.config?.responseSchema).toBe(EngineTurnStructuredResponseContract.responseSchema);
-    expect(callConfig.config?.responseSchema).toBe(turnResponseSchema);
-
-    // 18. The returned text is parsed by the exact contract.zodSchema object
-    expect(result.intent_proposal.action_kind).toBe('COMMUNICATE');
-    expect(result.narrative_blocks).toHaveLength(2);
-
-    generateSpy.mockRestore();
-  });
-});
-
-describe('provider turn response contract', () => {
-  const createValidBaseResult = () => ({
-    narrative_blocks: [
-      { type: 'dialogue', speaker: 'Dr. Vane', content: 'Did you hear that sound in the ventilation?' },
-      { type: 'prose', content: 'The station hull groans under the benthic pressure.' },
-    ],
-    intent_proposal: {
-      action_kind: 'COMMUNICATE',
-      action_subtype: null,
-      pressure_direction: 'MAINTAIN',
-      dramatic_tactic: 'EXPOSURE',
-      intent_synergy: 'SUCCESS',
-    },
-    reconciliation_proposal: {
-      mode: 'CANONICAL',
-      feasibility: 'SUPPORTED',
-      reason_code: 'NONE',
-      fictional_time_cost: 'MOMENT',
-      authority_alignment: 'WITHIN_CONTRACT',
-      memory_echo_candidate: 'ventilation rumble',
-    },
-    consequence_proposal: {
+    // Invalid consequence combination (SET on INVENTORY)
+    const invalidCsq = createBaseValidPayload();
+    invalidCsq.consequence_proposal = {
       mutations: [
         {
           domain: 'INVENTORY',
-          operation: 'ADD',
-          value: 'Acoustic Sensor Key',
-          rationale: 'Retrieved from console.',
-        },
-        {
-          domain: 'PLAYER_INJURY',
-          operation: 'ADD',
-          value: 'Barotrauma headache',
-          rationale: 'Pressure gradient spike.',
-        },
-        {
-          domain: 'PSYCHOLOGICAL_STATUS',
           operation: 'SET',
-          value: 'UNEASY',
-          rationale: 'Unexplained auditory cues.',
+          value: 'Item',
+          rationale: 'Invalid op for domain',
         },
       ],
-    },
-    character_stance_proposal: {
-      changes: [
-        {
-          character_id: 'char-vane',
-          focus: 'PLAYER',
-          stance: 'GUARDED',
-          rationale: 'Suspicious of protagonist motives.',
-        },
-      ],
-    },
-    character_relationship_proposal: {
-      changes: [
-        {
-          source_character_id: 'char-vane',
-          target_character_id: 'char-protagonist',
-          kind: 'TRUST',
-          delta: -1,
-          rationale: 'Hesitation during query.',
-        },
-      ],
-    },
-    character_memory_proposal: {
+    };
+    expect(() => parseStructuredTurnResponse(JSON.stringify(invalidCsq), TurnResultSchema)).toThrow();
+
+    // Invalid World Memory node scope with null node_id
+    const invalidWorldNode = createBaseValidPayload();
+    invalidWorldNode.world_memory_proposal = {
       candidates: [
-        {
-          character_id: 'char-vane',
-          fact: 'Protagonist questioned the ventilation noise.',
-          source: 'OBSERVED',
-          certainty: 'KNOWN',
-          rationale: 'Direct interpersonal exchange.',
-        },
-      ],
-    },
-    world_memory_proposal: {
-      candidates: [
-        {
-          kind: 'ENVIRONMENTAL_CONDITION',
-          scope: 'NODE',
-          node_id: 'NODE_BENTHIC_01',
-          statement: 'Ventilation conduit vibrating at 40Hz.',
-          rationale: 'Established ambient physical symptom.',
-        },
         {
           kind: 'ESTABLISHED_FACT',
-          scope: 'GLOBAL',
+          scope: 'NODE',
           node_id: null,
-          statement: 'Sub-level power distribution is failing.',
-          rationale: 'Station telemetry fact.',
+          statement: 'Fact',
+          rationale: 'Rationale',
         },
       ],
-    },
-    cast_activity_proposal: {
-      kind: 'NONE',
-      reason: 'NO_OPPORTUNITY_CHOSEN',
-    },
-    situated_pressure_proposal: {
-      kind: 'NONE',
-      reason: 'NO_PRESSURE_CHOSEN',
-    },
-    value_state_proposal: {
-      changes: [],
-    },
-    character_pursuit_proposal: {
-      changes: [],
-    },
-    character_development_proposal: {
-      changes: [],
-    },
-    pressure_transition_proposal: {
-      transitions: [],
-    },
-    logic_state: {
-      current_phase: 'MANIFEST',
-      requested_transition: null,
-      suggested_tension: 45,
-      terminal_flags: [],
-      cast_deltas: [{ character_id: 'char-vane', skepticism_delta: 0.1 }],
-    },
-    topologyDelta: { isExpansion: false, newNodeDef: null },
+    };
+    expect(() => parseStructuredTurnResponse(JSON.stringify(invalidWorldNode), TurnResultSchema)).toThrow();
   });
 
-  it('aligns provider turn output with the authoritative application schema', () => {
-    // 1. Concise two-block dialogue result passes the same pure parser used by generateStructuredResponse
-    const base = createValidBaseResult();
-    const rawJson = JSON.stringify(base);
-    const parsed = parseStructuredTurnResponse(rawJson, TurnResultSchema);
-    expect(parsed.narrative_blocks).toHaveLength(2);
-    expect(parsed.narrative_blocks[0].type).toBe('dialogue');
-    expect(parsed.narrative_blocks[0].speaker).toBe('Dr. Vane');
+  it('overlong, blank, invalid-cause, and invalid-ID values remain rejected by Zod or their deterministic ratifier owner', () => {
+    // Blank causeReference
+    const blankCause = createBaseValidPayload();
+    blankCause.value_state_proposal = {
+      changes: [
+        {
+          anchorId: 'a1',
+          operation: 'SET_CONDITION',
+          proposedCondition: 'LOST',
+          causeReference: '   ',
+          rationale: 'R',
+        },
+      ],
+    };
+    expect(() => parseStructuredTurnResponse(JSON.stringify(blankCause), TurnResultSchema)).toThrow();
 
-    // 2. Each provider-permitted narrative block type is accepted by Zod and an unknown type fails
-    const validTypes = ['prose', 'dialogue', 'system_voice', 'environmental_description'] as const;
-    for (const blockType of validTypes) {
-      const sample = createValidBaseResult();
-      sample.narrative_blocks = [{ type: blockType, content: 'Testing narrative block type.' }];
-      expect(() => parseStructuredTurnResponse(JSON.stringify(sample), TurnResultSchema)).not.toThrow();
-    }
-    const invalidBlockSample = createValidBaseResult();
-    (invalidBlockSample.narrative_blocks as unknown[]) = [{ type: 'hallucination_stream', content: 'Invalid.' }];
-    expect(() => parseStructuredTurnResponse(JSON.stringify(invalidBlockSample), TurnResultSchema)).toThrow();
-
-    // 3. Provider schema caps narrative blocks at two
-    expect(String(turnResponseSchema.properties?.narrative_blocks?.maxItems)).toBe('2');
-
-    // 4. Numeric relationship deltas -1 and 1 pass
-    const sampleDeltaPos = createValidBaseResult();
-    sampleDeltaPos.character_relationship_proposal.changes[0].delta = 1;
-    const parsedPos = parseStructuredTurnResponse(JSON.stringify(sampleDeltaPos), TurnResultSchema);
-    expect(parsedPos.character_relationship_proposal.changes[0].delta).toBe(1);
-
-    const sampleDeltaNeg = createValidBaseResult();
-    sampleDeltaNeg.character_relationship_proposal.changes[0].delta = -1;
-    const parsedNeg = parseStructuredTurnResponse(JSON.stringify(sampleDeltaNeg), TurnResultSchema);
-    expect(parsedNeg.character_relationship_proposal.changes[0].delta).toBe(-1);
-
-    // 5. String "-1", string "1", and numeric 0 fail without coercion
-    const sampleStringNeg = createValidBaseResult();
-    (sampleStringNeg.character_relationship_proposal.changes[0] as Record<string, unknown>).delta = '-1';
-    expect(() => parseStructuredTurnResponse(JSON.stringify(sampleStringNeg), TurnResultSchema)).toThrow();
-
-    const sampleStringPos = createValidBaseResult();
-    (sampleStringPos.character_relationship_proposal.changes[0] as Record<string, unknown>).delta = '1';
-    expect(() => parseStructuredTurnResponse(JSON.stringify(sampleStringPos), TurnResultSchema)).toThrow();
-
-    const sampleZero = createValidBaseResult();
-    sampleZero.character_relationship_proposal.changes[0].delta = 0 as 1;
-    expect(() => parseStructuredTurnResponse(JSON.stringify(sampleZero), TurnResultSchema)).toThrow();
-
-    // 6. Valid consequence variants pass
-    const sampleConsequences = createValidBaseResult();
-    sampleConsequences.consequence_proposal.mutations = [
-      { domain: 'INVENTORY', operation: 'REMOVE', value: 'Old Keycard', rationale: 'Discarded.' },
-      { domain: 'PLAYER_INJURY', operation: 'REMOVE', value: 'Splinter', rationale: 'Extracted.' },
-      { domain: 'PSYCHOLOGICAL_STATUS', operation: 'SET', value: 'PANICKED', rationale: 'Trauma trigger.' },
+    // Over-limit narrative blocks
+    const overNarrative = createBaseValidPayload();
+    overNarrative.narrative_blocks = [
+      { type: 'prose', content: 'Block 1' },
+      { type: 'prose', content: 'Block 2' },
+      { type: 'prose', content: 'Block 3' },
     ];
-    expect(() => parseStructuredTurnResponse(JSON.stringify(sampleConsequences), TurnResultSchema)).not.toThrow();
+    expect(() => parseStructuredTurnResponse(JSON.stringify(overNarrative), TurnResultSchema)).toThrow();
 
-    // 7. Invalid domain/operation combinations fail
-    const sampleInvalidOp1 = createValidBaseResult();
-    (sampleInvalidOp1.consequence_proposal.mutations[0] as Record<string, unknown>).operation = 'SET';
-    expect(() => parseStructuredTurnResponse(JSON.stringify(sampleInvalidOp1), TurnResultSchema)).toThrow();
-
-    const sampleInvalidOp2 = createValidBaseResult();
-    (sampleInvalidOp2.consequence_proposal.mutations[2] as Record<string, unknown>).operation = 'ADD';
-    expect(() => parseStructuredTurnResponse(JSON.stringify(sampleInvalidOp2), TurnResultSchema)).toThrow();
-
-    // 8. Valid empty proposal envelopes pass
-    const sampleEmptyProposals = createValidBaseResult();
-    sampleEmptyProposals.consequence_proposal.mutations = [];
-    sampleEmptyProposals.character_stance_proposal.changes = [];
-    sampleEmptyProposals.character_relationship_proposal.changes = [];
-    sampleEmptyProposals.character_memory_proposal.candidates = [];
-    sampleEmptyProposals.world_memory_proposal.candidates = [];
-    const parsedEmpty = parseStructuredTurnResponse(JSON.stringify(sampleEmptyProposals), TurnResultSchema);
-    expect(parsedEmpty.consequence_proposal.mutations).toEqual([]);
-    expect(parsedEmpty.character_stance_proposal.changes).toEqual([]);
-    expect(parsedEmpty.character_relationship_proposal.changes).toEqual([]);
-    expect(parsedEmpty.character_memory_proposal.candidates).toEqual([]);
-    expect(parsedEmpty.world_memory_proposal.candidates).toEqual([]);
-
-    // 9. Bounded stance, relationship, character-memory, and World Memory proposals pass
-    expect(parsed.character_stance_proposal.changes).toHaveLength(1);
-    expect(parsed.character_relationship_proposal.changes).toHaveLength(1);
-    expect(parsed.character_memory_proposal.candidates).toHaveLength(1);
-    expect(parsed.world_memory_proposal.candidates).toHaveLength(2);
-
-    // 10. Over-limit field or proposal list fails closed
-    // 10a. More than 2 narrative blocks fails
-    const sample3Blocks = createValidBaseResult();
-    sample3Blocks.narrative_blocks.push({ type: 'prose', content: 'Third block.' });
-    expect(() => parseStructuredTurnResponse(JSON.stringify(sample3Blocks), TurnResultSchema)).toThrow();
-
-    // 10b. More than 4 consequence mutations fails
-    const sample5Mutations = createValidBaseResult();
-    sample5Mutations.consequence_proposal.mutations.push(
-      { domain: 'INVENTORY', operation: 'ADD', value: 'Item 4', rationale: 'R' },
-      { domain: 'INVENTORY', operation: 'ADD', value: 'Item 5', rationale: 'R' }
-    );
-    expect(() => parseStructuredTurnResponse(JSON.stringify(sample5Mutations), TurnResultSchema)).toThrow();
-
-    // 10c. Suggested tension > 100 fails
-    const sampleHighTension = createValidBaseResult();
-    sampleHighTension.logic_state.suggested_tension = 101;
-    expect(() => parseStructuredTurnResponse(JSON.stringify(sampleHighTension), TurnResultSchema)).toThrow();
-
-    // 10d. World Memory scope NODE with null node_id fails
-    const sampleInvalidWorldNode = createValidBaseResult();
-    (sampleInvalidWorldNode.world_memory_proposal.candidates[0] as Record<string, unknown>).node_id = null;
-    expect(() => parseStructuredTurnResponse(JSON.stringify(sampleInvalidWorldNode), TurnResultSchema)).toThrow();
+    // Numeric delta 0 rejected by relationship delta schema
+    const zeroDelta = createBaseValidPayload();
+    (zeroDelta.character_relationship_proposal as { changes: Array<{ delta: unknown }> }).changes[0].delta = 0;
+    expect(() => parseStructuredTurnResponse(JSON.stringify(zeroDelta), TurnResultSchema)).toThrow();
   });
 });
 

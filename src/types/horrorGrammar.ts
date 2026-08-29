@@ -390,6 +390,7 @@ export const CastActivityProposalNoneSchema = z
 export const CastActivityProposalActiveSchema = z
   .object({
     kind: z.literal('ACTIVITY'),
+    reason: z.string().max(200).optional(),
     proposalId: z.string().min(1),
     castMemberId: z.string().min(1),
     pursuitId: z.string().min(1).nullable().optional(),
@@ -419,6 +420,7 @@ export const SituatedPressureProposalNoneSchema = z
 export const SituatedPressureProposalActiveSchema = z
   .object({
     kind: z.literal('PRESSURE'),
+    reason: z.string().max(200).optional(),
     proposalId: z.string().min(1),
     valueAnchorId: z.string().min(1),
     sourceReference: z.string().min(1),

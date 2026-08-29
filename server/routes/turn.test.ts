@@ -2,7 +2,6 @@ import * as fs from 'fs';
 import * as path from 'path';
 import http from 'http';
 import { describe, expect, it, beforeAll, afterAll, beforeEach, vi } from 'vitest';
-import { Type } from '@google/genai';
 import { createApp } from '../app';
 
 const mockGenerateStructuredResponse = vi.fn();
@@ -43,7 +42,7 @@ import {
   getIntentBoundTopologyDelta,
 } from '../../src/lib/intentConsequenceBridge';
 import type { TurnResponse, TurnResult } from '../../src/types/engineContract';
-import { turnResponseSchema } from '../utils/aiClient';
+import { geminiTurnResponseJsonSchema } from '../ai/geminiTurnJsonSchema';
 
 describe('Turn schemas validation', () => {
   describe('EngineTurnContextSchema', () => {
@@ -205,61 +204,50 @@ describe('Turn schemas validation', () => {
   });
 
   describe('TurnResultSchema and TurnResponseSchema', () => {
-    describe('turnResponseSchema provider contract', () => {
+    describe('geminiTurnResponseJsonSchema provider contract', () => {
       it('includes character_stance_proposal in schema properties and required fields', () => {
-        expect(turnResponseSchema.properties).toHaveProperty('character_stance_proposal');
-        expect(turnResponseSchema.required).toContain('character_stance_proposal');
+        expect(geminiTurnResponseJsonSchema.properties).toHaveProperty('character_stance_proposal');
+        expect(geminiTurnResponseJsonSchema.required).toContain('character_stance_proposal');
       });
 
       it('includes character_relationship_proposal in schema properties and required fields', () => {
-        expect(turnResponseSchema.properties).toHaveProperty('character_relationship_proposal');
-        expect(turnResponseSchema.required).toContain('character_relationship_proposal');
+        expect(geminiTurnResponseJsonSchema.properties).toHaveProperty('character_relationship_proposal');
+        expect(geminiTurnResponseJsonSchema.required).toContain('character_relationship_proposal');
       });
 
       it('includes character_memory_proposal in schema properties and required fields', () => {
-        expect(turnResponseSchema.properties).toHaveProperty('character_memory_proposal');
-        expect(turnResponseSchema.required).toContain('character_memory_proposal');
+        expect(geminiTurnResponseJsonSchema.properties).toHaveProperty('character_memory_proposal');
+        expect(geminiTurnResponseJsonSchema.required).toContain('character_memory_proposal');
       });
 
       it('declares world_memory_proposal provider contract correctly with bounded candidates and fields', () => {
-        expect(turnResponseSchema.properties).toHaveProperty('world_memory_proposal');
-        expect(turnResponseSchema.required).toContain('world_memory_proposal');
+        expect(geminiTurnResponseJsonSchema.properties).toHaveProperty('world_memory_proposal');
+        expect(geminiTurnResponseJsonSchema.required).toContain('world_memory_proposal');
 
-        const worldMemoryProp = turnResponseSchema.properties?.world_memory_proposal;
+        const worldMemoryProp = geminiTurnResponseJsonSchema.properties?.world_memory_proposal;
         expect(worldMemoryProp).toBeDefined();
         expect(worldMemoryProp?.properties).toBeDefined();
 
         const candidatesProp = worldMemoryProp?.properties?.candidates;
         expect(candidatesProp).toBeDefined();
-        expect(String(candidatesProp?.maxItems)).toBe('2');
+        expect(candidatesProp?.type).toBe('array');
 
         const candidateItems = candidatesProp?.items;
         expect(candidateItems).toBeDefined();
-        expect(candidateItems?.anyOf).toBeDefined();
-        expect(candidateItems?.anyOf).toHaveLength(2);
-
-        const globalVariant = candidateItems?.anyOf?.[0];
-        expect(globalVariant?.properties?.scope?.enum).toEqual(['GLOBAL']);
-        expect(globalVariant?.properties?.node_id?.nullable).toBe(true);
-        expect(String(globalVariant?.properties?.statement?.maxLength)).toBe('240');
-
-        const nodeVariant = candidateItems?.anyOf?.[1];
-        expect(nodeVariant?.properties?.scope?.enum).toEqual(['NODE']);
-        expect(String(nodeVariant?.properties?.node_id?.maxLength)).toBe('120');
-        expect(String(nodeVariant?.properties?.statement?.maxLength)).toBe('240');
+        expect(candidateItems?.properties?.scope?.enum).toEqual(['GLOBAL', 'NODE']);
       });
 
-      it('declares character_relationship_proposal delta as an INTEGER with format enum and exact values ["-1", "1"]', () => {
+      it('declares character_relationship_proposal delta as an integer range with minimum -1 and maximum 1', () => {
         const deltaSchema =
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (turnResponseSchema.properties.character_relationship_proposal as any).properties.changes.items.properties.delta;
+          (geminiTurnResponseJsonSchema.properties.character_relationship_proposal as any).properties.changes.items.properties.delta;
 
-        expect(deltaSchema.type).toBe(Type.INTEGER);
-        expect(deltaSchema.format).toBe('enum');
-        expect(deltaSchema.enum).toEqual(['-1', '1']);
+        expect(deltaSchema.type).toBe('integer');
+        expect(deltaSchema.minimum).toBe(-1);
+        expect(deltaSchema.maximum).toBe(1);
       });
 
-      it('ensures every member of every enum array inside turnResponseSchema is a string', () => {
+      it('ensures every member of every enum array inside geminiTurnResponseJsonSchema is a string', () => {
         function collectEnumArrays(
           node: unknown,
           currentPath = '$'
@@ -288,7 +276,7 @@ describe('Turn schemas validation', () => {
           return collected;
         }
 
-        const enumArrays = collectEnumArrays(turnResponseSchema);
+        const enumArrays = collectEnumArrays(geminiTurnResponseJsonSchema);
         expect(enumArrays.length).toBeGreaterThan(0);
 
         for (const { path: enumPath, values } of enumArrays) {
