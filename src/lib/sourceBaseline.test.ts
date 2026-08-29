@@ -8,7 +8,13 @@ import {
   sortCandidatesForApplication,
   validateAndNormalizeDocumentAnalysis,
 } from './sourceBaseline';
-import { ForgeDraft, ForgeSourceCandidate, ForgeSourceRecord, ForgeSourceEvidence } from '../types/forge';
+import {
+  ForgeDraft,
+  ForgeSourceCandidate,
+  ForgeSourceRecord,
+  ForgeSourceEvidence,
+  ForgeSourceAnalysisSchema,
+} from '../types/forge';
 import { compileForgeDraft } from './forgeCompiler';
 import { normalizeBlueprint } from './normalizeBlueprint';
 
@@ -1853,6 +1859,56 @@ describe('sourceBaseline pure functions', () => {
       expect(quarantinedVa).toBeDefined();
       expect(quarantinedVa!.disposition).toBe('QUARANTINED');
       expect(quarantinedVa!.fieldPath).toBe('evidenceIds');
+    });
+
+    it('accepts a server-normalized analysis containing depiction_contract', () => {
+      expect(
+        ForgeSourceAnalysisSchema.safeParse({
+          id: 'src-analysis-dep-test',
+          sourceRecord: {
+            id: 'src-rec-dep',
+            fileName: 'manifest.txt',
+            mimeType: 'text/plain',
+            kind: 'document',
+            receivedAt: Date.now(),
+            fileSizeBytes: 256,
+          },
+          summary: 'Document containing valid depiction contract candidate.',
+          evidence: [
+            {
+              id: 'ev-1',
+              sourceId: 'src-rec-dep',
+              category: 'other',
+              claim: 'Atmosphere and directness evidence',
+            },
+          ],
+          candidates: [
+            {
+              id: 'cand-dep-1',
+              sourceId: 'src-rec-dep',
+              classification: 'evidence',
+              target: 'depiction_contract',
+              label: 'Depiction Contract',
+              explanation: 'Extracted depiction contract',
+              confidence: 0.9,
+              evidenceIds: ['ev-1'],
+              proposedValue: {
+                dramaticRegister: 'Submersible dread',
+                directness: 'High directness',
+                aftermath: 'Severe trauma',
+                ambiguityHandling: 'Uncertain boundaries',
+                specialBoundaries: '',
+              },
+              reviewDecision: 'accepted',
+              applicationState: 'staged',
+            },
+          ],
+          unknowns: [],
+          validationIssues: [],
+          omittedValidationIssueCount: 0,
+          status: 'completed',
+        }).success
+      ).toBe(true);
     });
   });
 });
