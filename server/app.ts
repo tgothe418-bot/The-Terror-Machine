@@ -91,6 +91,12 @@ export async function createApp(options: CreateAppOptions = { enableSpaFallback:
       const distPath = path.join(process.cwd(), "dist");
       app.use(express.static(distPath));
       app.get("*", (req, res) => {
+        if (req.path.startsWith("/api")) {
+          return res.status(404).json({
+            error: `API route not found: ${req.method} ${req.originalUrl || req.path}`,
+            code: "API_ROUTE_NOT_FOUND",
+          });
+        }
         res.sendFile(path.join(distPath, "index.html"));
       });
     }
