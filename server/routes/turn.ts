@@ -50,6 +50,7 @@ import {
   ProviderRefusalError,
   EmptyProviderResponseError,
 } from '../utils/aiClient';
+import { GEMINI_TURN_NULL_SENTINEL } from '../ai/geminiTurnTransport';
 import { resolveTransition } from '../engine/transitionResolver';
 import { clampSkepticismDelta } from '../../src/lib/castContinuity';
 import { createIntentReceipt } from '../../src/lib/intentReceipt';
@@ -1054,6 +1055,7 @@ ${worldMemoryFormatted}
   • ENVIRONMENTAL_CONDITION: MOVE, MANIPULATE
   • PERSISTENT_CONSEQUENCE: MOVE, MANIPULATE
 - GLOBAL is permitted only for an ESTABLISHED_FACT; all other new entries are NODE-scoped to the exact current node ID (${context.topology.currentNodeId}).
+- Every candidate must include node_id. Use "${GEMINI_TURN_NULL_SENTINEL}" for GLOBAL scope and the exact current node ID for NODE scope.
 - A fact from COMMUNICATE requires a material response from the addressed character.
 - Character-specific knowledge belongs only in character_memory_proposal.
 - Do not repeat an existing ledger statement at the same identity.
@@ -1084,7 +1086,7 @@ Current Psychological Status: ${psychStatusFormatted}
   • DIRECT: co-present in the same room.
   • MEDIATED: intercom/radio/terminal.
   • LOCAL_TRACE: tangible environmental trace or disturbance left at the current location.
-  • UNOBSERVED: activity occurs elsewhere with no immediate sensory perception (must have manifestationBlock: null).
+  • UNOBSERVED: activity occurs elsewhere with no immediate sensory perception (omit manifestationBlock).
 - An isolated manifestationBlock (prose or dialogue) describes ONLY this activity. Dialogue speaker must be the non-User actor.
 - NEVER propose actions, decisions, thoughts, feelings, or choices for the player-controlled character.
 - Do NOT copy unratified activity prose into base narrative_blocks, engine_thoughts, or logic_state.
@@ -1125,6 +1127,10 @@ Current Psychological Status: ${psychStatusFormatted}
 - It emits transitions: [] when no supported transition occurred.
 
 [INTERPRETATION & CAUSAL RECONCILIATION CONTRACT]
+- "${GEMINI_TURN_NULL_SENTINEL}" is a reserved JSON transport token. Use it only for required nullable fields.
+- Always include intent_proposal.action_subtype. Use FLEE or HIDE when applicable; otherwise use "${GEMINI_TURN_NULL_SENTINEL}".
+- Always include reconciliation_proposal.memory_echo_candidate. Use a non-empty candidate when applicable; otherwise use "${GEMINI_TURN_NULL_SENTINEL}".
+- Never omit either required field, and never use the reserved token in narrative prose or any other field.
 - The intent_proposal and reconciliation_proposal interpret an attempted action; they are metadata, never player commands or proof of success.
 - intent_synergy is intent–state coherence, not outcome.
 - Pressure direction is a dramatic reading. DE_ESCALATE and ESCALATE do not directly change tension or state.
@@ -1138,7 +1144,7 @@ Current Psychological Status: ${psychStatusFormatted}
 - For an Antagonist, compare the attempt with the explicit Authority Contract and counterplay limits. authority_alignment remains a narrative reading, not a mutation command.
 - A cast member's full name is an addressed-speaker target only when action_kind is COMMUNICATE. In other action kinds, a name may identify the subject, object, or observed person and must not be treated as an attempted conversation merely because it appears in the action text.
 - None of the field names or enum labels should appear in ordinary narrative prose unless those words arise naturally in the fiction.
-- For SYSTEM_INIT, require action_kind: SYSTEM, null subtype, mode: NOT_REQUIRED, and no memory candidate.
+- For SYSTEM_INIT, require action_kind: SYSTEM, action_subtype: "${GEMINI_TURN_NULL_SENTINEL}", mode: NOT_REQUIRED, and memory_echo_candidate: "${GEMINI_TURN_NULL_SENTINEL}".
 
 [TOPOLOGY BOUNDARY]
 Current Node: ${context.topology.readableNodeLabel} (ID: ${context.topology.currentNodeId})
@@ -1159,14 +1165,14 @@ ${systemDirective}
 
 [TRANSITION CONTRACT]
 - If the player's action completes a valid spatial movement to an adjacent node listed in Allowed Exits, set logic_state.requested_transition to the exact target node ID (e.g. "${targetExample}").
-- If no movement occurs, or the movement is blocked, partial, or within the same location, set logic_state.requested_transition to null.
+- If no movement occurs, or the movement is blocked, partial, or within the same location, omit logic_state.requested_transition.
 - Never narrate arrival in another authored node without specifying the matching exact transition ID in logic_state.requested_transition.
 
 --- RECENT HISTORY ---
 ${recentHistory}
 --- END HISTORY ---
 
-[USER ACTION]: ${userAction}${isExpansionExpected ? '\n\n[SYSTEM OVERRIDE: Threshold entry detected. If the user action is a real movement attempt across the detected unmapped boundary, set `isExpansion: true` and populate `newNodeDef`. Otherwise, set isExpansion: false and newNodeDef: null.]' : '\n\n[TOPOLOGY DIRECTIVE: Static authored topology active. Do NOT invent new nodes. Set isExpansion: false and newNodeDef: null.]'}${stateContext.reconciliationRevision > 0 ? `\n[MEMORY REVISION ID: ${stateContext.reconciliationRevision}. User perception fractured.]` : ''}`;
+[USER ACTION]: ${userAction}${isExpansionExpected ? '\n\n[SYSTEM OVERRIDE: Threshold entry detected. If the user action is a real movement attempt across the detected unmapped boundary, set `isExpansion: true` and populate `newNodeDef`. Otherwise, set isExpansion: false and omit newNodeDef.]' : '\n\n[TOPOLOGY DIRECTIVE: Static authored topology active. Do NOT invent new nodes. Set isExpansion: false and omit newNodeDef.]'}${stateContext.reconciliationRevision > 0 ? `\n[MEMORY REVISION ID: ${stateContext.reconciliationRevision}. User perception fractured.]` : ''}`;
 
     // Call the LLM with strict Zod schema enforcement
     let engineResponse;

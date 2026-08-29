@@ -3,6 +3,7 @@ import { describe, expect, it, vi, beforeEach, afterEach, afterAll } from 'vites
 import http from 'http';
 import { createApp } from '../app';
 import { EngineTurnStructuredResponseContract } from '../utils/aiClient';
+import { GEMINI_TURN_NULL_SENTINEL } from '../ai/geminiTurnTransport';
 
 const { originalGeminiKey } = vi.hoisted(() => {
   const originalGeminiKey = process.env.GEMINI_API_KEY;
@@ -228,7 +229,7 @@ describe('Horror Grammar Turn Route (Packet 1-10 HG1 Provider Contract Restorati
         engine_thoughts: 'Observing surroundings.',
         intent_proposal: {
           action_kind: 'OBSERVE',
-          action_subtype: null,
+          action_subtype: GEMINI_TURN_NULL_SENTINEL,
           pressure_direction: 'MAINTAIN',
           dramatic_tactic: 'NONE',
           intent_synergy: 'SUCCESS',
@@ -239,7 +240,7 @@ describe('Horror Grammar Turn Route (Packet 1-10 HG1 Provider Contract Restorati
           reason_code: 'NONE',
           fictional_time_cost: 'MOMENT',
           authority_alignment: 'WITHIN_CONTRACT',
-          memory_echo_candidate: null,
+          memory_echo_candidate: GEMINI_TURN_NULL_SENTINEL,
         },
         consequence_proposal: { mutations: [] },
         character_stance_proposal: { changes: [] },
@@ -290,6 +291,7 @@ describe('Horror Grammar Turn Route (Packet 1-10 HG1 Provider Contract Restorati
     expect(promptArg).toContain('[CHARACTER DEVELOPMENT PROPOSAL CONTRACT]');
     expect(promptArg).toContain('[PRESSURE THREAD TRANSITION CONTRACT]');
     expect(promptArg).toContain('[HG1 CAUSE REFERENCE CONTRACT]');
+    expect(promptArg).toContain(GEMINI_TURN_NULL_SENTINEL);
   });
 
   it('valid active activity and pressure proposals succeed through the live provider contract seam', async () => {

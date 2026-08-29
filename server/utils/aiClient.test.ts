@@ -14,6 +14,10 @@ import {
   assertGeminiJsonSchemaSubset,
   type GeminiJsonSchema,
 } from '../ai/geminiTurnJsonSchema';
+import {
+  GEMINI_TURN_NULL_SENTINEL,
+  normalizeGeminiTurnProviderPayload,
+} from '../ai/geminiTurnTransport';
 import { TurnResultSchema } from '../schemas/engine';
 import {
   PERCEPTION_PATHS,
@@ -285,6 +289,47 @@ describe('Track D1: Provider schema subset tests (Packet 1-10B)', () => {
     }
   });
 
+  it('provider JSON schema requires explicit sentinels for required nullable fields', () => {
+    const props = geminiTurnResponseJsonSchema.properties as Record<string, GeminiJsonSchema>;
+    const intent = props.intent_proposal;
+    const intentProps = intent.properties as Record<string, GeminiJsonSchema>;
+    const reconciliation = props.reconciliation_proposal;
+
+    expect(intent.required).toContain('action_subtype');
+    expect(intentProps.action_subtype.enum).toEqual([
+      'FLEE',
+      'HIDE',
+      GEMINI_TURN_NULL_SENTINEL,
+    ]);
+    expect(reconciliation.required).toContain('memory_echo_candidate');
+
+    const worldCandidate = (
+      (props.world_memory_proposal.properties as Record<string, GeminiJsonSchema>).candidates
+        .items as GeminiJsonSchema
+    );
+    expect(worldCandidate.required).toContain('node_id');
+    expect(
+      (worldCandidate.properties as Record<string, GeminiJsonSchema>).node_id.description
+    ).toContain(GEMINI_TURN_NULL_SENTINEL);
+  });
+
+  it('provider JSON schema declares every canonical proposal array cap', () => {
+    const props = geminiTurnResponseJsonSchema.properties as Record<string, GeminiJsonSchema>;
+    const arrayCap = (owner: string, field: string) =>
+      (props[owner].properties as Record<string, GeminiJsonSchema>)[field].maxItems;
+
+    expect(props.narrative_blocks.maxItems).toBe(2);
+    expect(arrayCap('consequence_proposal', 'mutations')).toBe(4);
+    expect(arrayCap('character_stance_proposal', 'changes')).toBe(2);
+    expect(arrayCap('character_relationship_proposal', 'changes')).toBe(2);
+    expect(arrayCap('character_memory_proposal', 'candidates')).toBe(2);
+    expect(arrayCap('world_memory_proposal', 'candidates')).toBe(2);
+    expect(arrayCap('value_state_proposal', 'changes')).toBe(3);
+    expect(arrayCap('character_pursuit_proposal', 'changes')).toBe(2);
+    expect(arrayCap('character_development_proposal', 'changes')).toBe(2);
+    expect(arrayCap('pressure_transition_proposal', 'transitions')).toBe(2);
+  });
+
   it('provider JSON schema keeps every HG1 discriminant enum domain', () => {
     const props = geminiTurnResponseJsonSchema.properties as Record<string, GeminiJsonSchema>;
 
@@ -335,8 +380,17 @@ describe('Track D1: Provider schema subset tests (Packet 1-10B)', () => {
 
   it('generateStructuredResponse sends responseJsonSchema and never responseSchema', async () => {
     const client = getAiClient();
+    const providerPayload = createBaseValidPayload();
+    (providerPayload.intent_proposal as Record<string, unknown>).action_subtype =
+      GEMINI_TURN_NULL_SENTINEL;
+    (providerPayload.reconciliation_proposal as Record<string, unknown>).memory_echo_candidate =
+      GEMINI_TURN_NULL_SENTINEL;
+    const worldCandidate = (
+      providerPayload.world_memory_proposal as { candidates: Array<Record<string, unknown>> }
+    ).candidates[0];
+    worldCandidate.node_id = GEMINI_TURN_NULL_SENTINEL;
     const generateSpy = vi.spyOn(client.models, 'generateContent').mockResolvedValueOnce({
-      text: JSON.stringify(createBaseValidPayload()),
+      text: JSON.stringify(providerPayload),
     } as never);
 
     const result = await generateStructuredResponse('Test prompt', EngineTurnStructuredResponseContract);
@@ -350,6 +404,9 @@ describe('Track D1: Provider schema subset tests (Packet 1-10B)', () => {
     expect(sdkRequest.config).not.toHaveProperty('responseSchema');
 
     expect(result.intent_proposal.action_kind).toBe('COMMUNICATE');
+    expect(result.intent_proposal.action_subtype).toBeNull();
+    expect(result.reconciliation_proposal.memory_echo_candidate).toBeNull();
+    expect(result.world_memory_proposal.candidates[0].node_id).toBeNull();
     expect(result.narrative_blocks).toHaveLength(2);
 
     generateSpy.mockRestore();
@@ -357,6 +414,53 @@ describe('Track D1: Provider schema subset tests (Packet 1-10B)', () => {
 });
 
 describe('Track D2: Canonical ingress tests (Packet 1-10B)', () => {
+  it('required nullable canonical fields fail when omitted instead of defaulting', () => {
+    const omittedSubtype = createBaseValidPayload();
+    delete (omittedSubtype.intent_proposal as Record<string, unknown>).action_subtype;
+    expect(() =>
+      parseStructuredTurnResponse(
+        JSON.stringify(omittedSubtype),
+        TurnResultSchema,
+        normalizeGeminiTurnProviderPayload
+      )
+    ).toThrow();
+
+    const omittedEcho = createBaseValidPayload();
+    delete (omittedEcho.reconciliation_proposal as Record<string, unknown>)
+      .memory_echo_candidate;
+    expect(() =>
+      parseStructuredTurnResponse(
+        JSON.stringify(omittedEcho),
+        TurnResultSchema,
+        normalizeGeminiTurnProviderPayload
+      )
+    ).toThrow();
+  });
+
+  it('normalizes only explicit provider null sentinels at known paths', () => {
+    const payload = createBaseValidPayload();
+    (payload.intent_proposal as Record<string, unknown>).action_subtype =
+      GEMINI_TURN_NULL_SENTINEL;
+    (payload.reconciliation_proposal as Record<string, unknown>).memory_echo_candidate =
+      GEMINI_TURN_NULL_SENTINEL;
+    const candidate = (
+      payload.world_memory_proposal as { candidates: Array<Record<string, unknown>> }
+    ).candidates[0];
+    candidate.node_id = GEMINI_TURN_NULL_SENTINEL;
+    payload.engine_thoughts = GEMINI_TURN_NULL_SENTINEL;
+
+    const parsed = parseStructuredTurnResponse(
+      JSON.stringify(payload),
+      TurnResultSchema,
+      normalizeGeminiTurnProviderPayload
+    );
+
+    expect(parsed.intent_proposal.action_subtype).toBeNull();
+    expect(parsed.reconciliation_proposal.memory_echo_candidate).toBeNull();
+    expect(parsed.world_memory_proposal.candidates[0].node_id).toBeNull();
+    expect(parsed.engine_thoughts).toBe(GEMINI_TURN_NULL_SENTINEL);
+  });
+
   it('omission of each HG1 envelope fails TurnResultSchema', () => {
     for (const field of HG1_FIELDS) {
       const omitted = createBaseValidPayload();
@@ -499,6 +603,34 @@ describe('Track D2: Canonical ingress tests (Packet 1-10B)', () => {
       reason: 'Missing required active fields',
     };
     expect(() => parseStructuredTurnResponse(JSON.stringify(invalidPress), TurnResultSchema)).toThrow();
+
+    const activeReason = createBaseValidPayload();
+    activeReason.cast_activity_proposal = {
+      kind: 'ACTIVITY',
+      reason: 'This key belongs only to the NONE variant.',
+      proposalId: 'prop-act-1',
+      castMemberId: 'char-tech',
+      perceptionPath: 'DIRECT',
+      activitySummary: 'Working.',
+    };
+    expect(() =>
+      parseStructuredTurnResponse(JSON.stringify(activeReason), TurnResultSchema)
+    ).toThrow();
+
+    const activePressureReason = createBaseValidPayload();
+    activePressureReason.situated_pressure_proposal = {
+      kind: 'PRESSURE',
+      reason: 'This key belongs only to the NONE variant.',
+      proposalId: 'prop-pressure-1',
+      valueAnchorId: 'value-1',
+      sourceReference: 'BASELINE',
+      operator: 'EXPOSE',
+      affectedDimension: 'SAFETY',
+      adverseProspect: 'The failing seal may expose the chamber.',
+    };
+    expect(() =>
+      parseStructuredTurnResponse(JSON.stringify(activePressureReason), TurnResultSchema)
+    ).toThrow();
 
     // Dialogue manifestation block without speaker
     const invalidManifest = createBaseValidPayload();

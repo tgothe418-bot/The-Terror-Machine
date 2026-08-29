@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { getAiClient, EngineTurnStructuredResponseContract, parseStructuredTurnResponse } from '../server/utils/aiClient';
 import { getGeminiPolicy } from '../server/ai/modelPolicy';
+import { GEMINI_TURN_NULL_SENTINEL } from '../server/ai/geminiTurnTransport';
 
 export type ProbeResult =
   | {
@@ -25,8 +26,8 @@ export type ProbeResult =
 const PROMPT = `You are the Engine narrative generator. Generate an explicit neutral initial TurnResult payload for a solitary protagonist standing in an enclosed chamber.
 Return valid JSON matching the schema with these EXACT values:
 - narrative_blocks: [{"type": "environmental_description", "content": "The chamber is quiet and dim."}, {"type": "prose", "content": "You stand in the center of the room."}]
-- intent_proposal: {"action_kind": "OBSERVE", "action_subtype": null, "pressure_direction": "MAINTAIN", "dramatic_tactic": "NONE", "intent_synergy": "N/A"}
-- reconciliation_proposal: {"mode": "CANONICAL", "feasibility": "SUPPORTED", "reason_code": "NONE", "fictional_time_cost": "MOMENT", "authority_alignment": "NOT_APPLICABLE", "memory_echo_candidate": null}
+- intent_proposal: {"action_kind": "OBSERVE", "action_subtype": "${GEMINI_TURN_NULL_SENTINEL}", "pressure_direction": "MAINTAIN", "dramatic_tactic": "NONE", "intent_synergy": "N/A"}
+- reconciliation_proposal: {"mode": "CANONICAL", "feasibility": "SUPPORTED", "reason_code": "NONE", "fictional_time_cost": "MOMENT", "authority_alignment": "NOT_APPLICABLE", "memory_echo_candidate": "${GEMINI_TURN_NULL_SENTINEL}"}
 - consequence_proposal: {"mutations": []}
 - character_stance_proposal: {"changes": []}
 - character_relationship_proposal: {"changes": []}
@@ -102,7 +103,7 @@ async function runProbe(): Promise<void> {
   }
 
   try {
-    parseStructuredTurnResponse(rawText, contract.zodSchema);
+    parseStructuredTurnResponse(rawText, contract.zodSchema, contract.normalizeProviderPayload);
     const successResult: ProbeResult = {
       schemaAccepted: true,
       responseReceived: true,

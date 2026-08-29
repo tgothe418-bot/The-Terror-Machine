@@ -6,6 +6,7 @@ import {
   type GeminiJsonSchema,
   geminiTurnResponseJsonSchema,
 } from "../ai/geminiTurnJsonSchema";
+import { normalizeGeminiTurnProviderPayload } from '../ai/geminiTurnTransport';
 
 let aiClient: GoogleGenAI | null = null;
 const STARTUP_API_KEY = process.env.GEMINI_API_KEY;
@@ -210,25 +211,31 @@ export function unwrapStrictJsonResponse(text: string): string {
 export interface StructuredResponseContract<T> {
   name: string;
   responseJsonSchema: GeminiJsonSchema;
+  normalizeProviderPayload: (payload: unknown) => unknown;
   zodSchema: z.ZodType<T>;
 }
 
 export const EngineTurnStructuredResponseContract: StructuredResponseContract<TurnResult> = {
   name: 'ENGINE_TURN',
   responseJsonSchema: geminiTurnResponseJsonSchema,
+  normalizeProviderPayload: normalizeGeminiTurnProviderPayload,
   zodSchema: TurnResultSchema,
 };
 
 /**
  * Pure parsing and Zod validation boundary extracted for testability and deterministic validation.
  */
-export function parseStructuredTurnResponse<T>(rawText: string, zodSchema: z.ZodType<T>): T {
+export function parseStructuredTurnResponse<T>(
+  rawText: string,
+  zodSchema: z.ZodType<T>,
+  normalizeProviderPayload: (payload: unknown) => unknown = (payload) => payload
+): T {
   const unwrapped = unwrapStrictJsonResponse(rawText);
   if (!unwrapped) {
     throw new EmptyProviderResponseError();
   }
   const parsed = JSON.parse(unwrapped);
-  return zodSchema.parse(parsed);
+  return zodSchema.parse(normalizeProviderPayload(parsed));
 }
 
 export const generateStructuredResponse = async <T>(
@@ -258,5 +265,9 @@ export const generateStructuredResponse = async <T>(
     throw new EmptyProviderResponseError();
   }
 
-  return parseStructuredTurnResponse(classification.text, contract.zodSchema);
+  return parseStructuredTurnResponse(
+    classification.text,
+    contract.zodSchema,
+    contract.normalizeProviderPayload
+  );
 };

@@ -281,7 +281,7 @@ export const INTENT_SYNERGIES = ['SUCCESS', 'FAILURE', 'N/A'] as const;
 export const ActionKindSchema = z.enum(ACTION_KINDS);
 export type ActionKind = z.infer<typeof ActionKindSchema>;
 
-export const ActionSubtypeSchema = z.enum(ACTION_SUBTYPES).nullable().optional().default(null);
+export const ActionSubtypeSchema = z.enum(ACTION_SUBTYPES).nullable();
 export type ActionSubtype = z.infer<typeof ActionSubtypeSchema>;
 
 export const PressureDirectionSchema = z.enum(PRESSURE_DIRECTIONS);
@@ -364,7 +364,7 @@ export const NarrativeReconciliationProposalSchema = z.object({
   reason_code: ReconciliationReasonCodeSchema,
   fictional_time_cost: FictionalTimeCostSchema,
   authority_alignment: AuthorityAlignmentSchema,
-  memory_echo_candidate: z.string().trim().min(1).max(240).nullable().optional().default(null),
+  memory_echo_candidate: z.string().trim().min(1).max(240).nullable(),
 }).strict();
 export type NarrativeReconciliationProposal = z.infer<typeof NarrativeReconciliationProposalSchema>;
 

@@ -23,7 +23,17 @@ import {
   DEVELOPMENT_DIMENSIONS,
   DEVELOPMENT_OPERATIONS,
   PRESSURE_THREAD_TERMINAL_STATUSES,
+  MAX_VALUE_STATE_CHANGES_PER_TURN,
+  MAX_CHARACTER_PURSUIT_CHANGES_PER_TURN,
+  MAX_CHARACTER_DEVELOPMENT_CHANGES_PER_TURN,
+  MAX_PRESSURE_THREAD_TRANSITIONS_PER_TURN,
 } from '../../src/types/horrorGrammar';
+import { MAX_CONSEQUENCE_MUTATIONS } from '../../src/types/consequence';
+import { MAX_STANCE_CHANGES_PER_TURN } from '../../src/types/characterStance';
+import { MAX_RELATIONSHIP_CHANGES_PER_TURN } from '../../src/types/characterRelationships';
+import { MAX_CHARACTER_MEMORY_PROPOSALS } from '../../src/types/characterMemory';
+import { MAX_WORLD_MEMORY_CANDIDATES } from '../../src/types/worldMemory';
+import { GEMINI_TURN_NULL_SENTINEL } from './geminiTurnTransport';
 
 export type GeminiJsonSchema = {
   type?: string | readonly string[];
@@ -196,6 +206,7 @@ export const geminiTurnResponseJsonSchema: GeminiJsonSchema = {
     },
     narrative_blocks: {
       type: 'array',
+      maxItems: 2,
       items: {
         type: 'object',
         properties: {
@@ -213,13 +224,18 @@ export const geminiTurnResponseJsonSchema: GeminiJsonSchema = {
       type: 'object',
       properties: {
         action_kind: { type: 'string', enum: [...ACTION_KINDS] },
-        action_subtype: { type: 'string', enum: [...ACTION_SUBTYPES] },
+        action_subtype: {
+          type: 'string',
+          enum: [...ACTION_SUBTYPES, GEMINI_TURN_NULL_SENTINEL],
+          description: `Use ${GEMINI_TURN_NULL_SENTINEL} when no action subtype applies.`,
+        },
         pressure_direction: { type: 'string', enum: [...PRESSURE_DIRECTIONS] },
         dramatic_tactic: { type: 'string', enum: [...DRAMATIC_TACTICS] },
         intent_synergy: { type: 'string', enum: [...INTENT_SYNERGIES] },
       },
       required: [
         'action_kind',
+        'action_subtype',
         'pressure_direction',
         'dramatic_tactic',
         'intent_synergy',
@@ -233,7 +249,10 @@ export const geminiTurnResponseJsonSchema: GeminiJsonSchema = {
         reason_code: { type: 'string', enum: [...RECONCILIATION_REASON_CODES] },
         fictional_time_cost: { type: 'string', enum: [...FICTIONAL_TIME_COSTS] },
         authority_alignment: { type: 'string', enum: [...AUTHORITY_ALIGNMENTS] },
-        memory_echo_candidate: { type: 'string' },
+        memory_echo_candidate: {
+          type: 'string',
+          description: `Use ${GEMINI_TURN_NULL_SENTINEL} when no memory echo is proposed.`,
+        },
       },
       required: [
         'mode',
@@ -241,6 +260,7 @@ export const geminiTurnResponseJsonSchema: GeminiJsonSchema = {
         'reason_code',
         'fictional_time_cost',
         'authority_alignment',
+        'memory_echo_candidate',
       ],
     },
     consequence_proposal: {
@@ -248,6 +268,7 @@ export const geminiTurnResponseJsonSchema: GeminiJsonSchema = {
       properties: {
         mutations: {
           type: 'array',
+          maxItems: MAX_CONSEQUENCE_MUTATIONS,
           items: {
             type: 'object',
             properties: {
@@ -270,6 +291,7 @@ export const geminiTurnResponseJsonSchema: GeminiJsonSchema = {
       properties: {
         changes: {
           type: 'array',
+          maxItems: MAX_STANCE_CHANGES_PER_TURN,
           items: {
             type: 'object',
             properties: {
@@ -292,6 +314,7 @@ export const geminiTurnResponseJsonSchema: GeminiJsonSchema = {
       properties: {
         changes: {
           type: 'array',
+          maxItems: MAX_RELATIONSHIP_CHANGES_PER_TURN,
           items: {
             type: 'object',
             properties: {
@@ -325,6 +348,7 @@ export const geminiTurnResponseJsonSchema: GeminiJsonSchema = {
       properties: {
         candidates: {
           type: 'array',
+          maxItems: MAX_CHARACTER_MEMORY_PROPOSALS,
           items: {
             type: 'object',
             properties: {
@@ -345,6 +369,7 @@ export const geminiTurnResponseJsonSchema: GeminiJsonSchema = {
       properties: {
         candidates: {
           type: 'array',
+          maxItems: MAX_WORLD_MEMORY_CANDIDATES,
           items: {
             type: 'object',
             properties: {
@@ -358,7 +383,10 @@ export const geminiTurnResponseJsonSchema: GeminiJsonSchema = {
                 ],
               },
               scope: { type: 'string', enum: ['GLOBAL', 'NODE'] },
-              node_id: { type: 'string' },
+              node_id: {
+                type: 'string',
+                description: `Use ${GEMINI_TURN_NULL_SENTINEL} for GLOBAL scope; use the exact node ID for NODE scope.`,
+              },
               statement: { type: 'string' },
               rationale: { type: 'string' },
             },
@@ -423,6 +451,7 @@ export const geminiTurnResponseJsonSchema: GeminiJsonSchema = {
       properties: {
         changes: {
           type: 'array',
+          maxItems: MAX_VALUE_STATE_CHANGES_PER_TURN,
           items: {
             type: 'object',
             properties: {
@@ -453,6 +482,7 @@ export const geminiTurnResponseJsonSchema: GeminiJsonSchema = {
       properties: {
         changes: {
           type: 'array',
+          maxItems: MAX_CHARACTER_PURSUIT_CHANGES_PER_TURN,
           items: {
             type: 'object',
             properties: {
@@ -484,6 +514,7 @@ export const geminiTurnResponseJsonSchema: GeminiJsonSchema = {
       properties: {
         changes: {
           type: 'array',
+          maxItems: MAX_CHARACTER_DEVELOPMENT_CHANGES_PER_TURN,
           items: {
             type: 'object',
             properties: {
@@ -513,6 +544,7 @@ export const geminiTurnResponseJsonSchema: GeminiJsonSchema = {
       properties: {
         transitions: {
           type: 'array',
+          maxItems: MAX_PRESSURE_THREAD_TRANSITIONS_PER_TURN,
           items: {
             type: 'object',
             properties: {
@@ -590,4 +622,3 @@ export const geminiTurnResponseJsonSchema: GeminiJsonSchema = {
 };
 
 assertGeminiJsonSchemaSubset(geminiTurnResponseJsonSchema);
-

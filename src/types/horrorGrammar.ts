@@ -390,7 +390,6 @@ export const CastActivityProposalNoneSchema = z
 export const CastActivityProposalActiveSchema = z
   .object({
     kind: z.literal('ACTIVITY'),
-    reason: z.string().max(200).optional(),
     proposalId: z.string().min(1),
     castMemberId: z.string().min(1),
     pursuitId: z.string().min(1).nullable().optional(),
@@ -420,7 +419,6 @@ export const SituatedPressureProposalNoneSchema = z
 export const SituatedPressureProposalActiveSchema = z
   .object({
     kind: z.literal('PRESSURE'),
-    reason: z.string().max(200).optional(),
     proposalId: z.string().min(1),
     valueAnchorId: z.string().min(1),
     sourceReference: z.string().min(1),
@@ -588,9 +586,11 @@ export const ValueStateProposalEntrySchema = z
   .strict();
 export type ValueStateProposalEntry = z.infer<typeof ValueStateProposalEntrySchema>;
 
+export const MAX_VALUE_STATE_CHANGES_PER_TURN = 3;
+
 export const ValueStateProposalSchema = z
   .object({
-    changes: z.array(ValueStateProposalEntrySchema).max(3),
+    changes: z.array(ValueStateProposalEntrySchema).max(MAX_VALUE_STATE_CHANGES_PER_TURN),
   })
   .strict();
 export type ValueStateProposal = z.infer<typeof ValueStateProposalSchema>;
@@ -678,9 +678,13 @@ export const CharacterPursuitProposalEntrySchema = z
   .strict();
 export type CharacterPursuitProposalEntry = z.infer<typeof CharacterPursuitProposalEntrySchema>;
 
+export const MAX_CHARACTER_PURSUIT_CHANGES_PER_TURN = 2;
+
 export const CharacterPursuitProposalSchema = z
   .object({
-    changes: z.array(CharacterPursuitProposalEntrySchema).max(2),
+    changes: z.array(CharacterPursuitProposalEntrySchema).max(
+      MAX_CHARACTER_PURSUIT_CHANGES_PER_TURN
+    ),
   })
   .strict();
 export type CharacterPursuitProposal = z.infer<typeof CharacterPursuitProposalSchema>;
@@ -762,9 +766,13 @@ export type CharacterDevelopmentProposalEntry = z.infer<
   typeof CharacterDevelopmentProposalEntrySchema
 >;
 
+export const MAX_CHARACTER_DEVELOPMENT_CHANGES_PER_TURN = 2;
+
 export const CharacterDevelopmentProposalSchema = z
   .object({
-    changes: z.array(CharacterDevelopmentProposalEntrySchema).max(2),
+    changes: z.array(CharacterDevelopmentProposalEntrySchema).max(
+      MAX_CHARACTER_DEVELOPMENT_CHANGES_PER_TURN
+    ),
   })
   .strict();
 export type CharacterDevelopmentProposal = z.infer<typeof CharacterDevelopmentProposalSchema>;
@@ -812,9 +820,13 @@ export type PressureThreadTransitionProposalEntry = z.infer<
   typeof PressureThreadTransitionProposalEntrySchema
 >;
 
+export const MAX_PRESSURE_THREAD_TRANSITIONS_PER_TURN = 2;
+
 export const PressureThreadTransitionProposalSchema = z
   .object({
-    transitions: z.array(PressureThreadTransitionProposalEntrySchema).max(2),
+    transitions: z.array(PressureThreadTransitionProposalEntrySchema).max(
+      MAX_PRESSURE_THREAD_TRANSITIONS_PER_TURN
+    ),
   })
   .strict();
 export type PressureThreadTransitionProposal = z.infer<
