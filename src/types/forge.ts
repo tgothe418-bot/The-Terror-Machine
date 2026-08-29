@@ -534,6 +534,8 @@ export const UserOpeningAimCandidateSchema = z
       UserOpeningAimSchema,
     ]),
   })
+  .strict();
+
 export const DepictionContractCandidateSchema = z
   .object({
     ...BaseCandidateProps,
