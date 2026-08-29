@@ -49,6 +49,7 @@ import {
   EngineTurnStructuredResponseContract,
   ProviderRefusalError,
   EmptyProviderResponseError,
+  ProviderRequestRejectedError,
 } from '../utils/aiClient';
 import { GEMINI_TURN_NULL_SENTINEL } from '../ai/geminiTurnTransport';
 import { resolveTransition } from '../engine/transitionResolver';
@@ -1127,10 +1128,9 @@ Current Psychological Status: ${psychStatusFormatted}
 - It emits transitions: [] when no supported transition occurred.
 
 [INTERPRETATION & CAUSAL RECONCILIATION CONTRACT]
-- "${GEMINI_TURN_NULL_SENTINEL}" is a reserved JSON transport token. Use it only for required nullable fields.
-- Always include intent_proposal.action_subtype. Use FLEE or HIDE when applicable; otherwise use "${GEMINI_TURN_NULL_SENTINEL}".
-- Always include reconciliation_proposal.memory_echo_candidate. Use a non-empty candidate when applicable; otherwise use "${GEMINI_TURN_NULL_SENTINEL}".
-- Never omit either required field, and never use the reserved token in narrative prose or any other field.
+- intent_proposal.action_subtype is optional at the provider boundary. Include FLEE or HIDE only when applicable; otherwise omit it.
+- reconciliation_proposal.memory_echo_candidate is optional at the provider boundary. Include a non-empty candidate only when applicable; otherwise omit it.
+- "${GEMINI_TURN_NULL_SENTINEL}" is reserved only for world_memory_proposal.candidates[].node_id when scope is GLOBAL. Never use it in narrative prose or any other field.
 - The intent_proposal and reconciliation_proposal interpret an attempted action; they are metadata, never player commands or proof of success.
 - intent_synergy is intent–state coherence, not outcome.
 - Pressure direction is a dramatic reading. DE_ESCALATE and ESCALATE do not directly change tension or state.
@@ -1144,7 +1144,7 @@ Current Psychological Status: ${psychStatusFormatted}
 - For an Antagonist, compare the attempt with the explicit Authority Contract and counterplay limits. authority_alignment remains a narrative reading, not a mutation command.
 - A cast member's full name is an addressed-speaker target only when action_kind is COMMUNICATE. In other action kinds, a name may identify the subject, object, or observed person and must not be treated as an attempted conversation merely because it appears in the action text.
 - None of the field names or enum labels should appear in ordinary narrative prose unless those words arise naturally in the fiction.
-- For SYSTEM_INIT, require action_kind: SYSTEM, action_subtype: "${GEMINI_TURN_NULL_SENTINEL}", mode: NOT_REQUIRED, and memory_echo_candidate: "${GEMINI_TURN_NULL_SENTINEL}".
+- For SYSTEM_INIT, require action_kind: SYSTEM, omit action_subtype, use mode: NOT_REQUIRED, and omit memory_echo_candidate.
 
 [TOPOLOGY BOUNDARY]
 Current Node: ${context.topology.readableNodeLabel} (ID: ${context.topology.currentNodeId})
@@ -1197,6 +1197,16 @@ ${recentHistory}
         return res.status(502).json({
           error: 'AI provider returned an empty response',
           code: 'PROVIDER_FAILURE',
+        });
+      }
+      if (
+        modelErr instanceof ProviderRequestRejectedError ||
+        (modelErr as { code?: string })?.code === 'PROVIDER_REQUEST_REJECTED'
+      ) {
+        console.error('[API /turn] AI Provider rejected request configuration');
+        return res.status(502).json({
+          error: 'AI provider rejected the turn generation request',
+          code: 'PROVIDER_REQUEST_REJECTED',
         });
       }
       if (modelErr instanceof z.ZodError || (modelErr as { name?: string })?.name === 'ZodError') {

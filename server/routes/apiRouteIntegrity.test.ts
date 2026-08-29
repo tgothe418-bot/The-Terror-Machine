@@ -1,6 +1,8 @@
 // @vitest-environment node
 import { describe, expect, it, beforeAll, afterAll, vi } from 'vitest';
 import http from 'http';
+import path from 'path';
+import { createServer as createViteServer } from 'vite';
 
 const mockGenerateStructuredResponse = vi.fn();
 vi.mock('../utils/aiClient', async (importOriginal) => {
@@ -60,6 +62,53 @@ describe('Phase 2G: Runtime API Route Integrity Suite', () => {
       expect(data.service).toBe('ttm-engine');
       expect(data.runtime).toBe('express');
       expect(typeof data.timestamp).toBe('number');
+    });
+
+    it('mounts the Express JSON API when Vite is the direct preview runtime', async () => {
+      const vite = await createViteServer({
+        configFile: path.resolve(process.cwd(), 'vite.config.ts'),
+        server: {
+          host: '127.0.0.1',
+          port: 0,
+        },
+      });
+
+      try {
+        await vite.listen();
+        const address = vite.httpServer?.address();
+        expect(address && typeof address === 'object').toBe(true);
+        if (!address || typeof address === 'string') {
+          throw new Error('Vite direct-runtime test did not expose a TCP address.');
+        }
+
+        const response = await fetch(`http://127.0.0.1:${address.port}/api/health`);
+        expect(response.status).toBe(200);
+        expect(response.headers.get('content-type')).toContain('application/json');
+        expect(response.headers.get(API_DIAGNOSTIC_HEADER_NAME.toLowerCase())).toBe(
+          API_DIAGNOSTIC_HEADER_VALUE
+        );
+        await expect(response.json()).resolves.toMatchObject({
+          status: 'ok',
+          service: 'ttm-engine',
+          runtime: 'express',
+        });
+
+        const turnResponse = await fetch(`http://127.0.0.1:${address.port}/api/turn`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: '{}',
+        });
+        expect(turnResponse.status).toBe(400);
+        expect(turnResponse.headers.get('content-type')).toContain('application/json');
+        expect(turnResponse.headers.get(API_DIAGNOSTIC_HEADER_NAME.toLowerCase())).toBe(
+          API_DIAGNOSTIC_HEADER_VALUE
+        );
+        await expect(turnResponse.json()).resolves.toMatchObject({
+          code: 'INVALID_REQUEST',
+        });
+      } finally {
+        await vite.close();
+      }
     });
   });
 

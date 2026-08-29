@@ -229,7 +229,6 @@ describe('Horror Grammar Turn Route (Packet 1-10 HG1 Provider Contract Restorati
         engine_thoughts: 'Observing surroundings.',
         intent_proposal: {
           action_kind: 'OBSERVE',
-          action_subtype: GEMINI_TURN_NULL_SENTINEL,
           pressure_direction: 'MAINTAIN',
           dramatic_tactic: 'NONE',
           intent_synergy: 'SUCCESS',
@@ -240,7 +239,6 @@ describe('Horror Grammar Turn Route (Packet 1-10 HG1 Provider Contract Restorati
           reason_code: 'NONE',
           fictional_time_cost: 'MOMENT',
           authority_alignment: 'WITHIN_CONTRACT',
-          memory_echo_candidate: GEMINI_TURN_NULL_SENTINEL,
         },
         consequence_proposal: { mutations: [] },
         character_stance_proposal: { changes: [] },
@@ -1454,7 +1452,7 @@ describe('Horror Grammar Turn Route (Packet 1-10 HG1 Provider Contract Restorati
     expect(turn2Prompt).not.toContain(REJECTED_PRESS_SENTINEL);
   });
 
-  it('provider 400 INVALID_ARGUMENT returns bounded JSON 502 PROVIDER_FAILURE without leaking credentials', async () => {
+  it('provider 400 INVALID_ARGUMENT returns bounded JSON 502 PROVIDER_REQUEST_REJECTED without leaking credentials', async () => {
     const errorWithStatus = new Error('Request contains an invalid argument.');
     (errorWithStatus as unknown as { status: number }).status = 400;
     mockGenerateContent.mockRejectedValueOnce(errorWithStatus);
@@ -1467,8 +1465,9 @@ describe('Horror Grammar Turn Route (Packet 1-10 HG1 Provider Contract Restorati
 
     expect(res.status).toBe(502);
     const data = await res.json();
-    expect(data.code).toBe('PROVIDER_FAILURE');
-    expect(data.error).toBe('AI provider turn generation failed');
+    expect(data.code).toBe('PROVIDER_REQUEST_REJECTED');
+    expect(data.error).toBe('AI provider rejected the turn generation request');
     expect(JSON.stringify(data)).not.toContain('ttm-hg1-test-only-key');
+    expect(JSON.stringify(data)).not.toContain('Request contains an invalid argument');
   });
 });

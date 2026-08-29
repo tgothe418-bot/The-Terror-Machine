@@ -198,6 +198,33 @@ export class EmptyProviderResponseError extends Error {
   }
 }
 
+export class ProviderRequestRejectedError extends Error {
+  readonly code = 'PROVIDER_REQUEST_REJECTED';
+  readonly providerStatus: number;
+
+  constructor(providerStatus: number) {
+    super('AI provider rejected the turn generation request');
+    this.name = 'ProviderRequestRejectedError';
+    this.providerStatus = providerStatus;
+  }
+}
+
+function readProviderStatus(error: unknown): number | null {
+  if (!error || typeof error !== 'object') {
+    return null;
+  }
+
+  const directStatus = (error as { status?: unknown }).status;
+  if (typeof directStatus === 'number' && Number.isInteger(directStatus)) {
+    return directStatus;
+  }
+
+  const responseStatus = (error as { response?: { status?: unknown } }).response?.status;
+  return typeof responseStatus === 'number' && Number.isInteger(responseStatus)
+    ? responseStatus
+    : null;
+}
+
 export function unwrapStrictJsonResponse(text: string): string {
   const trimmed = text.trim();
   const fenced = trimmed.match(/^```(?:json)?[ \t]*\r?\n([\s\S]*?)\r?\n```$/i);
@@ -245,17 +272,26 @@ export const generateStructuredResponse = async <T>(
   const contents = [{ role: 'user', parts: [{ text: prompt }] }];
 
   const policy = getGeminiPolicy('ENGINE_TURN');
-  const response = await getAiClient().models.generateContent({
-    model: policy.model,
-    contents,
-    config: {
-      thinkingConfig: {
-        thinkingLevel: policy.thinkingLevel,
+  let response;
+  try {
+    response = await getAiClient().models.generateContent({
+      model: policy.model,
+      contents,
+      config: {
+        thinkingConfig: {
+          thinkingLevel: policy.thinkingLevel,
+        },
+        responseMimeType: 'application/json',
+        responseJsonSchema: contract.responseJsonSchema,
       },
-      responseMimeType: 'application/json',
-      responseJsonSchema: contract.responseJsonSchema,
-    },
-  });
+    });
+  } catch (error: unknown) {
+    const providerStatus = readProviderStatus(error);
+    if (providerStatus === 400) {
+      throw new ProviderRequestRejectedError(providerStatus);
+    }
+    throw error;
+  }
 
   const classification = classifyProviderResponse(response);
   if (classification.kind === 'PROVIDER_REFUSAL') {

@@ -5,6 +5,7 @@ import {
   classifyProviderResponse,
   ProviderRefusalError,
   EmptyProviderResponseError,
+  ProviderRequestRejectedError,
   getAiClient,
   generateStructuredResponse,
   EngineTurnStructuredResponseContract,
@@ -289,45 +290,38 @@ describe('Track D1: Provider schema subset tests (Packet 1-10B)', () => {
     }
   });
 
-  it('provider JSON schema requires explicit sentinels for required nullable fields', () => {
+  it('provider JSON schema keeps nullable transport fields optional to remain live-admissible', () => {
     const props = geminiTurnResponseJsonSchema.properties as Record<string, GeminiJsonSchema>;
     const intent = props.intent_proposal;
     const intentProps = intent.properties as Record<string, GeminiJsonSchema>;
     const reconciliation = props.reconciliation_proposal;
 
-    expect(intent.required).toContain('action_subtype');
-    expect(intentProps.action_subtype.enum).toEqual([
-      'FLEE',
-      'HIDE',
-      GEMINI_TURN_NULL_SENTINEL,
-    ]);
-    expect(reconciliation.required).toContain('memory_echo_candidate');
+    expect(intent.required).not.toContain('action_subtype');
+    expect(intentProps.action_subtype.enum).toEqual(['FLEE', 'HIDE']);
+    expect(reconciliation.required).not.toContain('memory_echo_candidate');
 
     const worldCandidate = (
       (props.world_memory_proposal.properties as Record<string, GeminiJsonSchema>).candidates
         .items as GeminiJsonSchema
     );
     expect(worldCandidate.required).toContain('node_id');
-    expect(
-      (worldCandidate.properties as Record<string, GeminiJsonSchema>).node_id.description
-    ).toContain(GEMINI_TURN_NULL_SENTINEL);
   });
 
-  it('provider JSON schema declares every canonical proposal array cap', () => {
-    const props = geminiTurnResponseJsonSchema.properties as Record<string, GeminiJsonSchema>;
-    const arrayCap = (owner: string, field: string) =>
-      (props[owner].properties as Record<string, GeminiJsonSchema>)[field].maxItems;
+  it('provider JSON schema omits array caps that push the live Gemini schema over its complexity budget', () => {
+    const visit = (node: GeminiJsonSchema): void => {
+      expect(node.maxItems).toBeUndefined();
+      Object.values(node.properties ?? {}).forEach(visit);
+      if (node.items) visit(node.items);
+    };
 
-    expect(props.narrative_blocks.maxItems).toBe(2);
-    expect(arrayCap('consequence_proposal', 'mutations')).toBe(4);
-    expect(arrayCap('character_stance_proposal', 'changes')).toBe(2);
-    expect(arrayCap('character_relationship_proposal', 'changes')).toBe(2);
-    expect(arrayCap('character_memory_proposal', 'candidates')).toBe(2);
-    expect(arrayCap('world_memory_proposal', 'candidates')).toBe(2);
-    expect(arrayCap('value_state_proposal', 'changes')).toBe(3);
-    expect(arrayCap('character_pursuit_proposal', 'changes')).toBe(2);
-    expect(arrayCap('character_development_proposal', 'changes')).toBe(2);
-    expect(arrayCap('pressure_transition_proposal', 'transitions')).toBe(2);
+    visit(geminiTurnResponseJsonSchema);
+
+    const oversized = createBaseValidPayload();
+    oversized.narrative_blocks = Array.from({ length: 3 }, () => ({
+      type: 'prose',
+      content: 'Bounded by the canonical Zod contract.',
+    }));
+    expect(TurnResultSchema.safeParse(oversized).success).toBe(false);
   });
 
   it('provider JSON schema keeps every HG1 discriminant enum domain', () => {
@@ -381,10 +375,9 @@ describe('Track D1: Provider schema subset tests (Packet 1-10B)', () => {
   it('generateStructuredResponse sends responseJsonSchema and never responseSchema', async () => {
     const client = getAiClient();
     const providerPayload = createBaseValidPayload();
-    (providerPayload.intent_proposal as Record<string, unknown>).action_subtype =
-      GEMINI_TURN_NULL_SENTINEL;
-    (providerPayload.reconciliation_proposal as Record<string, unknown>).memory_echo_candidate =
-      GEMINI_TURN_NULL_SENTINEL;
+    delete (providerPayload.intent_proposal as Record<string, unknown>).action_subtype;
+    delete (providerPayload.reconciliation_proposal as Record<string, unknown>)
+      .memory_echo_candidate;
     const worldCandidate = (
       providerPayload.world_memory_proposal as { candidates: Array<Record<string, unknown>> }
     ).candidates[0];
@@ -414,30 +407,32 @@ describe('Track D1: Provider schema subset tests (Packet 1-10B)', () => {
 });
 
 describe('Track D2: Canonical ingress tests (Packet 1-10B)', () => {
-  it('required nullable canonical fields fail when omitted instead of defaulting', () => {
+  it('transport normalizer completes only the two known nullable omissions', () => {
     const omittedSubtype = createBaseValidPayload();
     delete (omittedSubtype.intent_proposal as Record<string, unknown>).action_subtype;
-    expect(() =>
+    expect(TurnResultSchema.safeParse(omittedSubtype).success).toBe(false);
+    expect(
       parseStructuredTurnResponse(
         JSON.stringify(omittedSubtype),
         TurnResultSchema,
         normalizeGeminiTurnProviderPayload
-      )
-    ).toThrow();
+      ).intent_proposal.action_subtype
+    ).toBeNull();
 
     const omittedEcho = createBaseValidPayload();
     delete (omittedEcho.reconciliation_proposal as Record<string, unknown>)
       .memory_echo_candidate;
-    expect(() =>
+    expect(TurnResultSchema.safeParse(omittedEcho).success).toBe(false);
+    expect(
       parseStructuredTurnResponse(
         JSON.stringify(omittedEcho),
         TurnResultSchema,
         normalizeGeminiTurnProviderPayload
-      )
-    ).toThrow();
+      ).reconciliation_proposal.memory_echo_candidate
+    ).toBeNull();
   });
 
-  it('normalizes only explicit provider null sentinels at known paths', () => {
+  it('normalizes explicit provider null sentinels only at known paths', () => {
     const payload = createBaseValidPayload();
     (payload.intent_proposal as Record<string, unknown>).action_subtype =
       GEMINI_TURN_NULL_SENTINEL;
@@ -815,5 +810,11 @@ describe('classifyProviderResponse', () => {
     const emptyErr = new EmptyProviderResponseError();
     expect(emptyErr.code).toBe('EMPTY_PROVIDER_RESPONSE');
     expect(emptyErr.message).toBe('AI provider returned an empty response');
+
+    const rejectedErr = new ProviderRequestRejectedError(400);
+    expect(rejectedErr.code).toBe('PROVIDER_REQUEST_REJECTED');
+    expect(rejectedErr.providerStatus).toBe(400);
+    expect(rejectedErr.message).toBe('AI provider rejected the turn generation request');
+    expect(JSON.stringify(rejectedErr)).not.toContain('generativelanguage.googleapis.com');
   });
 });

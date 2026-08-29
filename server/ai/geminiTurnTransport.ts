@@ -17,9 +17,22 @@ function normalizeSentinelField(record: JsonRecord, field: string): JsonRecord {
   };
 }
 
+function normalizeMissingNullableField(record: JsonRecord, field: string): JsonRecord {
+  if (Object.prototype.hasOwnProperty.call(record, field)) {
+    return normalizeSentinelField(record, field);
+  }
+
+  return {
+    ...record,
+    [field]: null,
+  };
+}
+
 /**
- * Converts only the explicit Gemini transport sentinel at known nullable paths.
- * Missing fields are deliberately left missing so the canonical Zod schema fails closed.
+ * Adapts the deliberately minimized Gemini transport schema to the canonical turn schema.
+ * Gemini may omit the two optional transport properties that mean "no value"; only those
+ * known nullable paths are completed with null. All HG1 envelopes and every non-nullable
+ * canonical field still fail closed at the authoritative Zod boundary.
  */
 export function normalizeGeminiTurnProviderPayload(payload: unknown): unknown {
   if (!isJsonRecord(payload)) {
@@ -29,14 +42,14 @@ export function normalizeGeminiTurnProviderPayload(payload: unknown): unknown {
   const normalized: JsonRecord = { ...payload };
 
   if (isJsonRecord(payload.intent_proposal)) {
-    normalized.intent_proposal = normalizeSentinelField(
+    normalized.intent_proposal = normalizeMissingNullableField(
       payload.intent_proposal,
       'action_subtype'
     );
   }
 
   if (isJsonRecord(payload.reconciliation_proposal)) {
-    normalized.reconciliation_proposal = normalizeSentinelField(
+    normalized.reconciliation_proposal = normalizeMissingNullableField(
       payload.reconciliation_proposal,
       'memory_echo_candidate'
     );

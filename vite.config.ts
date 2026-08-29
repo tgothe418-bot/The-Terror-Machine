@@ -2,36 +2,31 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
-import type { ProxyOptions, HttpProxy } from 'vite';
-import type { IncomingMessage, ServerResponse } from 'http';
-import { defineConfig, loadEnv } from 'vite';
+import { defineConfig, type Plugin, type PreviewServer, type ViteDevServer } from 'vite';
 
-export default defineConfig(({mode}) => {
-  loadEnv(mode, '.', '');
-  const apiProxyConfig: ProxyOptions = {
-    target: 'http://localhost:3000',
-    changeOrigin: true,
-    configure: (proxy: HttpProxy.Server) => {
-      proxy.on('error', (err: Error, _req: IncomingMessage, res: ServerResponse | unknown) => {
-        const serverRes = res as ServerResponse | undefined;
-        if (serverRes && !serverRes.headersSent && typeof serverRes.writeHead === 'function') {
-          serverRes.writeHead(502, {
-            'Content-Type': 'application/json',
-          });
-          serverRes.end(
-            JSON.stringify({
-              error: 'Backend API server unavailable on http://localhost:3000',
-              code: 'API_GATEWAY_ERROR',
-              details: err.message,
-            })
-          );
-        }
-      });
-    },
-  };
+type ViteMiddlewareHost = Pick<ViteDevServer, 'middlewares'> | Pick<PreviewServer, 'middlewares'>;
 
+async function mountTtmApiRuntime(server: ViteMiddlewareHost): Promise<void> {
+  const { createApp } = await import('./server/app');
+  const apiApp = await createApp({ enableSpaFallback: false });
+  server.middlewares.use(apiApp);
+}
+
+/**
+ * AI Studio may start Vite directly instead of executing server.ts. Mount the same
+ * server-only Express API in that topology so /api can never fall through to SPA HTML.
+ */
+export function ttmApiRuntimePlugin(): Plugin {
   return {
-    plugins: [react(), tailwindcss()],
+    name: 'ttm-api-runtime',
+    configureServer: mountTtmApiRuntime,
+    configurePreviewServer: mountTtmApiRuntime,
+  };
+}
+
+export default defineConfig(() => {
+  return {
+    plugins: [ttmApiRuntimePlugin(), react(), tailwindcss()],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),
@@ -41,15 +36,9 @@ export default defineConfig(({mode}) => {
       // HMR is disabled in AI Studio via DISABLE_HMR env var.
       // Do not modify—file watching is disabled to prevent flickering during agent edits.
       hmr: process.env.DISABLE_HMR !== 'true',
-      proxy: {
-        '/api': apiProxyConfig,
-      },
     },
     preview: {
       port: 3000,
-      proxy: {
-        '/api': apiProxyConfig,
-      },
     },
     test: {
       environment: 'jsdom',
