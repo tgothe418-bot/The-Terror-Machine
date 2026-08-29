@@ -18,7 +18,8 @@ import {
   ForgeResolutionDraftPatch,
   ForgeResolutionDraftPatchSchema,
   ForgeTopologyNode,
-  ForgeExpandableAnchor,
+  DepictionContractSchema,
+  CharacterPresenceDisposition,
 } from '../types/forge';
 import { normalizeBlueprint } from './normalizeBlueprint';
 import {
@@ -308,9 +309,7 @@ export function buildSourceAnalysisFromBlueprint(
       personality: member.personality || '',
       goals: member.goals || '',
       traits: member.traits || [],
-      isUserCharacter:
-        member.isUserCharacter === true ||
-        (Boolean(normalized.userCharacterId) && normalized.userCharacterId === charId),
+      isUserCharacter: false,
       behaviorVector: member.behaviorVector || 'ADAPTIVE',
       isEntity: member.isEntity ?? false,
       psychological_status: member.psychological_status,
@@ -502,30 +501,82 @@ export function buildSourceAnalysisFromBlueprint(
     });
   });
 
-  // 8. Starting Node Selection
-  if (normalized.topology?.startingNodeId) {
-    const startId = normalized.topology.startingNodeId;
-    const evId = `${sourceId}-ev-start-node`;
-    evidence.push({
-      id: evId,
-      sourceId,
-      category: 'topology',
-      claim: `Authoritative starting node: "${startId}"`,
-      excerpt: startId,
-    });
-    candidates.push({
-      id: `${sourceId}-cand-start-node`,
-      sourceId,
-      classification: 'evidence',
-      target: 'starting_node_selection',
-      label: `Start Node: ${startId}`,
-      explanation: 'Authoritative opening node for scenario execution.',
-      evidenceIds: [evId],
-      proposedValue: startId,
-      reviewDecision: 'accepted',
-      applicationState: 'staged',
-    });
+  // 8. Depiction Contract
+  const depContract =
+    normalized.depictionContract ||
+    (rawBlueprint && typeof rawBlueprint === 'object'
+      ? (rawBlueprint as Record<string, unknown>).depictionContract
+      : undefined);
+
+  const isInvalidField = (val?: string) => {
+    if (!val) return true;
+    const t = val.trim().toLowerCase();
+    return !t || t === 'unknown' || t === 'none' || t === 'n/a';
+  };
+
+  const isCompleteDepiction =
+    depContract &&
+    typeof depContract === 'object' &&
+    typeof (depContract as Record<string, unknown>).dramaticRegister === 'string' &&
+    !isInvalidField((depContract as Record<string, unknown>).dramaticRegister as string) &&
+    typeof (depContract as Record<string, unknown>).directness === 'string' &&
+    !isInvalidField((depContract as Record<string, unknown>).directness as string) &&
+    typeof (depContract as Record<string, unknown>).aftermath === 'string' &&
+    !isInvalidField((depContract as Record<string, unknown>).aftermath as string) &&
+    typeof (depContract as Record<string, unknown>).ambiguityHandling === 'string' &&
+    !isInvalidField((depContract as Record<string, unknown>).ambiguityHandling as string);
+
+  if (!isCompleteDepiction) {
+    return {
+      id: `${sourceId}-analysis`,
+      sourceRecord,
+      summary: `Native Blueprint intake failed for "${title || sourceRecord.fileName}".`,
+      evidence: [],
+      candidates: [],
+      unknowns: [],
+      validationIssues: [],
+      status: 'error',
+      errorMessage: 'Extraction did not produce a complete source-backed Depiction Contract.',
+    };
   }
+
+  const typedDepContract = depContract as {
+    dramaticRegister: string;
+    directness: string;
+    aftermath: string;
+    ambiguityHandling: string;
+    specialBoundaries?: string;
+  };
+
+  const evIdDep = `${sourceId}-ev-depiction-contract`;
+  evidence.push({
+    id: evIdDep,
+    sourceId,
+    category: 'other',
+    claim: `Depiction contract: dramatic register "${typedDepContract.dramaticRegister}"`,
+    excerpt: typedDepContract.dramaticRegister,
+  });
+  candidates.push({
+    id: `${sourceId}-cand-depiction-contract`,
+    sourceId,
+    classification: 'evidence',
+    target: 'depiction_contract',
+    label: 'Depiction Contract',
+    explanation: 'Extracted complete Depiction Contract from native blueprint.',
+    evidenceIds: [evIdDep],
+    proposedValue: {
+      dramaticRegister: typedDepContract.dramaticRegister.trim(),
+      directness: typedDepContract.directness.trim(),
+      aftermath: typedDepContract.aftermath.trim(),
+      ambiguityHandling: typedDepContract.ambiguityHandling.trim(),
+      specialBoundaries:
+        typeof typedDepContract.specialBoundaries === 'string'
+          ? typedDepContract.specialBoundaries.trim()
+          : '',
+    },
+    reviewDecision: 'accepted',
+    applicationState: 'staged',
+  });
 
   // 9. Expandable Space Anchors
   const expAnchors = normalized.topology?.anchors || [];
@@ -627,35 +678,6 @@ export function buildSourceAnalysisFromBlueprint(
       applicationState: 'staged',
     });
   });
-
-  // 13. User Opening Aim Default
-  const userAim = normalized.userOpeningAim || normalized.horrorGrammar?.userOpeningAim;
-  if (userAim && userAim.castMemberId && userAim.aimText) {
-    const evId = `${sourceId}-ev-user-aim`;
-    evidence.push({
-      id: evId,
-      sourceId,
-      category: 'identity',
-      claim: `User character opening aim for ${userAim.castMemberId}: "${userAim.aimText}"`,
-      excerpt: userAim.aimText,
-    });
-    candidates.push({
-      id: `${sourceId}-cand-user-aim`,
-      sourceId,
-      classification: 'evidence',
-      target: 'user_opening_aim_default',
-      label: `Opening Aim: ${userAim.aimText.slice(0, 40)}`,
-      explanation: 'Extracted opening aim default for user-controlled character.',
-      evidenceIds: [evId],
-      targetCastMemberId: userAim.castMemberId,
-      proposedValue: {
-        castMemberId: userAim.castMemberId,
-        aimText: userAim.aimText,
-      },
-      reviewDecision: 'accepted',
-      applicationState: 'staged',
-    });
-  }
 
   return {
     id: `${sourceId}-analysis`,
@@ -790,15 +812,22 @@ export function validateAndNormalizeDocumentAnalysis(
         if (!castObj.id || typeof castObj.id !== 'string' || !castObj.id.trim()) {
           castObj.id = `${sourceId}-cast-${idx}`;
         }
-        if (typeof castObj.isUserCharacter !== 'boolean') {
+        castObj.isUserCharacter = false;
+        proposedValue = castObj;
+      } else if (
+        normalizedCandidate.target === 'depiction_contract' &&
+        typeof proposedValue === 'object' &&
+        proposedValue !== null &&
+        !Array.isArray(proposedValue)
+      ) {
+        if (rawEvIds.length === 0) {
           recordIssue(candidateIndex, normalizedCandidate, {
-            fieldPath: 'proposedValue.isUserCharacter',
+            fieldPath: 'evidenceIds',
             code: 'MISSING_REQUIRED_FIELD',
-            message: `Candidate ${candidateIndex} (cast_seed) is missing explicit isUserCharacter boolean.`,
+            message: `Candidate ${candidateIndex} (depiction_contract) requires source evidence provenance.`,
           });
           return;
         }
-        proposedValue = castObj;
       } else if (
         normalizedCandidate.target === 'value_anchor' &&
         typeof proposedValue === 'object' &&
@@ -1013,7 +1042,28 @@ export function validateAndNormalizeDocumentAnalysis(
     });
   }
 
-  // 4. Fatal analysis check: if no usable evidence, candidates, or unknowns could be parsed
+  // 4. Fatal depiction contract check: must produce exactly one complete depiction_contract candidate
+  const depictionCandidates = candidates.filter((c) => c.target === 'depiction_contract');
+  if (depictionCandidates.length !== 1) {
+    const issueReason =
+      depictionCandidates.length === 0
+        ? 'missing required depiction_contract candidate'
+        : `found ${depictionCandidates.length} duplicate depiction_contract candidates`;
+    return {
+      id: typeof rawObj.id === 'string' && rawObj.id.trim() ? rawObj.id.trim() : `${sourceId}-analysis-err`,
+      sourceRecord,
+      summary: `Extraction failed for ${sourceRecord.fileName}: did not produce exactly one complete source-backed Depiction Contract.`,
+      evidence,
+      candidates,
+      unknowns,
+      validationIssues,
+      omittedValidationIssueCount,
+      status: 'error',
+      errorMessage: `Extraction did not produce a complete source-backed Depiction Contract. (${issueReason})`,
+    };
+  }
+
+  // 5. Fatal analysis check: if no usable evidence, candidates, or unknowns could be parsed
   if (candidates.length === 0 && evidence.length === 0 && unknowns.length === 0) {
     return {
       id: typeof rawObj.id === 'string' && rawObj.id.trim() ? rawObj.id.trim() : `${sourceId}-analysis-err`,
@@ -1254,18 +1304,7 @@ export function applyCandidateToDraft(
     }
 
     case 'initial_topology_node': {
-      if (typeof candidate.proposedValue !== 'string' || !candidate.proposedValue.trim()) {
-        return { success: false, draft, error: 'Topology node must be a non-empty string.' };
-      }
-      const nodeName = candidate.proposedValue.trim();
-      const currentNodes = cloned.topology?.nodes ? [...cloned.topology.nodes] : [];
-      if (!currentNodes.includes(nodeName)) {
-        currentNodes.push(nodeName);
-      }
-      cloned.topology = {
-        ...(cloned.topology || { connections: [] }),
-        nodes: currentNodes,
-      };
+      // Legacy compatibility record: do not apply to modern draft
       break;
     }
 
@@ -1274,18 +1313,25 @@ export function applyCandidateToDraft(
       if (!nodeDef || typeof nodeDef !== 'object' || !nodeDef.id || !nodeDef.label) {
         return { success: false, draft, error: 'Topology node candidate must be a valid node object.' };
       }
+      const cleanId = typeof nodeDef.id === 'string' ? nodeDef.id.trim() : '';
+      const cleanLabel = typeof nodeDef.label === 'string' ? nodeDef.label.trim() : '';
+      if (!cleanId || !cleanLabel) {
+        return { success: false, draft, error: 'Topology node candidate must have non-empty id and label.' };
+      }
       const nodeDefWithProv: ForgeTopologyNode = {
         ...nodeDef,
+        id: cleanId,
+        label: cleanLabel,
         sourceId: candidate.sourceId || nodeDef.sourceId,
         evidenceIds: candidate.evidenceIds || nodeDef.evidenceIds || [],
         classification: candidate.classification || nodeDef.classification || 'evidence',
       };
       const currentNodes = cloned.topology?.nodes ? [...cloned.topology.nodes] : [];
-      if (!currentNodes.includes(nodeDefWithProv.id)) {
-        currentNodes.push(nodeDefWithProv.id);
+      if (!currentNodes.includes(cleanId)) {
+        currentNodes.push(cleanId);
       }
       const currentNodeDefs = cloned.topology?.nodeDefinitions ? [...cloned.topology.nodeDefinitions] : [];
-      const existingIdx = currentNodeDefs.findIndex((n) => n.id === nodeDefWithProv.id);
+      const existingIdx = currentNodeDefs.findIndex((n) => n.id === cleanId);
       if (existingIdx >= 0) {
         currentNodeDefs[existingIdx] = nodeDefWithProv;
       } else {
@@ -1350,37 +1396,14 @@ export function applyCandidateToDraft(
     }
 
     case 'starting_node_selection': {
-      if (typeof candidate.proposedValue !== 'string' || !candidate.proposedValue.trim()) {
-        return { success: false, draft, error: 'Starting node selection must be a non-empty string.' };
-      }
-      const startNodeId = candidate.proposedValue.trim();
-      const validNodeIds = new Set([
-        ...(cloned.topology?.nodes || []),
-        ...(cloned.topology?.nodeDefinitions?.map((n) => n.id) || []),
-      ]);
-      if (!validNodeIds.has(startNodeId)) {
-        return {
-          success: false,
-          draft,
-          error: `Starting node "${startNodeId}" not found in active draft nodes.`,
-        };
-      }
-      cloned.topology = {
-        ...(cloned.topology || { nodes: [], connections: [] }),
-        startingNodeId: startNodeId,
-        startingNodeProvenance: {
-          sourceId: candidate.sourceId,
-          evidenceIds: candidate.evidenceIds || [],
-          classification: candidate.classification || 'evidence',
-        },
-      };
+      // Legacy compatibility record: do not apply to modern draft
       break;
     }
 
     case 'expandable_space_anchor': {
       const anchor = candidate.proposedValue;
-      if (!anchor || typeof anchor !== 'object' || !anchor.id || !anchor.parentNodeId || !anchor.label) {
-        return { success: false, draft, error: 'Expandable space anchor must be a valid anchor object.' };
+      if (!anchor || typeof anchor !== 'object' || !anchor.id || !anchor.parentNodeId) {
+        return { success: false, draft, error: 'Expandable space anchor candidate must be a valid anchor object.' };
       }
       const validNodeIds = new Set([
         ...(cloned.topology?.nodes || []),
@@ -1390,10 +1413,10 @@ export function applyCandidateToDraft(
         return {
           success: false,
           draft,
-          error: `Expansion anchor parent node "${anchor.parentNodeId}" not found in active draft nodes.`,
+          error: `Anchor parent node "${anchor.parentNodeId}" not found in active draft nodes.`,
         };
       }
-      const anchorWithProv: ForgeExpandableAnchor = {
+      const anchorWithProv = {
         ...anchor,
         sourceId: candidate.sourceId || anchor.sourceId,
         evidenceIds: candidate.evidenceIds || anchor.evidenceIds || [],
@@ -1414,7 +1437,6 @@ export function applyCandidateToDraft(
     }
 
     case 'cast_opening_placement': {
-      const placement = candidate.proposedValue;
       const targetId = candidate.targetCastMemberId;
       if (!targetId || !cloned.cast || !cloned.cast.some((m) => m.id === targetId)) {
         return {
@@ -1423,7 +1445,10 @@ export function applyCandidateToDraft(
           error: `Target cast member "${targetId || 'unspecified'}" not found in active draft. Apply cast seed first.`,
         };
       }
-      const targetMember = cloned.cast.find((m) => m.id === targetId);
+      const placement = candidate.proposedValue as CharacterPresenceDisposition;
+      if (!placement || typeof placement !== 'object' || !placement.kind) {
+        return { success: false, draft, error: 'Opening placement candidate must be a valid disposition object.' };
+      }
       if (placement.kind === 'AT_NODE') {
         const validNodeIds = new Set([
           ...(cloned.topology?.nodes || []),
@@ -1433,30 +1458,16 @@ export function applyCandidateToDraft(
           return {
             success: false,
             draft,
-            error: `Opening placement node "${placement.nodeId}" for cast member "${targetMember?.name || targetId}" not found in active draft nodes.`,
-          };
-        }
-      } else if (placement.kind === 'NONLOCAL') {
-        if (!targetMember?.isEntity) {
-          return {
-            success: false,
-            draft,
-            error: `NONLOCAL opening placement is only permitted for Entity cast members ("${targetMember?.name || targetId}" is not an entity).`,
+            error: `Opening placement node "${placement.nodeId}" not found in active draft nodes.`,
           };
         }
       }
       cloned.cast = cloned.cast.map((member) => {
         if (member.id === targetId) {
-          const strictDisposition =
-            placement.kind === 'AT_NODE'
-              ? { kind: 'AT_NODE' as const, nodeId: placement.nodeId }
-              : placement.kind === 'OFFSTAGE'
-              ? { kind: 'OFFSTAGE' as const }
-              : { kind: 'NONLOCAL' as const };
           return {
             ...member,
-            presenceDisposition: strictDisposition,
-            starting_location: placement.kind === 'AT_NODE' ? placement.nodeId : '',
+            presenceDisposition: placement,
+            starting_location: placement.kind === 'AT_NODE' ? placement.nodeId : undefined,
           };
         }
         return member;
@@ -1465,13 +1476,21 @@ export function applyCandidateToDraft(
     }
 
     case 'reference_attribution': {
-      if (typeof candidate.proposedValue !== 'string' || !candidate.proposedValue.trim()) {
+      const refStr =
+        typeof candidate.proposedValue === 'string'
+          ? candidate.proposedValue.trim()
+          : typeof candidate.proposedValue === 'object' &&
+            candidate.proposedValue !== null &&
+            'fileName' in candidate.proposedValue &&
+            typeof (candidate.proposedValue as { fileName: unknown }).fileName === 'string'
+          ? (candidate.proposedValue as { fileName: string }).fileName.trim()
+          : '';
+      if (!refStr) {
         return { success: false, draft, error: 'Reference attribution must be a non-empty string.' };
       }
-      const refName = candidate.proposedValue.trim();
       const currentRefs = cloned.references ? [...cloned.references] : [];
-      if (!currentRefs.includes(refName)) {
-        currentRefs.push(refName);
+      if (!currentRefs.includes(refStr)) {
+        currentRefs.push(refStr);
       }
       cloned.references = currentRefs;
       break;
@@ -1531,64 +1550,16 @@ export function applyCandidateToDraft(
     }
 
     case 'user_opening_aim_default': {
-      const targetId = candidate.targetCastMemberId;
-      if (!targetId || !cloned.cast || !cloned.cast.some((m) => m.id === targetId)) {
-        return {
-          success: false,
-          draft,
-          error: `Target cast member "${targetId || 'unspecified'}" not found in active draft. Apply cast seed first.`,
-        };
+      // Legacy compatibility record: do not apply to modern draft
+      break;
+    }
+
+    case 'depiction_contract': {
+      const contract = DepictionContractSchema.safeParse(candidate.proposedValue);
+      if (!contract.success) {
+        return { success: false, draft, error: 'Depiction contract candidate proposed value is malformed.' };
       }
-      const member = cloned.cast.find((m) => m.id === targetId);
-      if (!member?.isUserCharacter) {
-        return {
-          success: false,
-          draft,
-          error: `Target cast member "${member?.name || targetId}" is not marked as user-controlled character.`,
-        };
-      }
-      const text =
-        typeof candidate.proposedValue === 'string'
-          ? candidate.proposedValue.trim()
-          : typeof candidate.proposedValue === 'object' &&
-            candidate.proposedValue !== null &&
-            'aimText' in candidate.proposedValue &&
-            typeof candidate.proposedValue.aimText === 'string'
-          ? candidate.proposedValue.aimText.trim()
-          : '';
-
-      if (!text) {
-        return { success: false, draft, error: 'User opening aim text must be a non-empty string.' };
-      }
-
-      const resolvedEvidenceIds =
-        candidate.evidenceIds && Array.isArray(candidate.evidenceIds)
-          ? candidate.evidenceIds.filter((id) => typeof id === 'string' && id.trim().length > 0)
-          : [];
-
-      const provenance = candidate.sourceId
-        ? {
-            kind: 'REVIEWED_SOURCE' as const,
-            sourceId: candidate.sourceId,
-            evidenceIds: resolvedEvidenceIds,
-          }
-        : undefined;
-
-      const aimRecord = {
-        castMemberId: targetId,
-        disposition: 'UNREVIEWED' as const,
-        aimText: text,
-        provenance,
-        reviewedAt: undefined,
-      };
-
-      cloned.userOpeningAim = aimRecord;
-      if (cloned.horrorGrammar) {
-        cloned.horrorGrammar = {
-          ...cloned.horrorGrammar,
-          userOpeningAim: aimRecord,
-        };
-      }
+      cloned.depictionContract = structuredClone(contract.data);
       break;
     }
   }
@@ -1606,36 +1577,34 @@ export function applyCandidateToDraft(
   return { success: true, draft: cloned };
 }
 
+export const IMPORT_APPLICATION_PRIORITY = {
+  cast_seed: 1,
+  topology_node: 1,
+  topology_connection: 2,
+  expandable_space_anchor: 2,
+  scenario_title: 2,
+  premise: 2,
+  setting_location: 2,
+  setting_atmosphere: 2,
+  setting_time_period: 2,
+  environmental_rule: 2,
+  narrative_rule: 2,
+  cast_opening_placement: 3,
+  cast_expression_guidance: 3,
+  value_anchor: 4,
+  character_pursuit: 4,
+  depiction_contract: 5,
+  reference_attribution: 5,
+} as const;
+
 /**
  * Gets the execution priority for a candidate target.
- * Dependency ordering:
- * 1. cast_seed, topology_node, initial_topology_node
- * 2. topology_connection, expandable_space_anchor, scenario/setting scalar fields
- * 3. starting_node_selection, cast_opening_placement, cast_expression_guidance
- * 4. value_anchor, character_pursuit, user_opening_aim_default
  */
 export function getCandidateApplicationPriority(target: ForgeSourceCandidate['target']): number {
-  if (target === 'cast_seed' || target === 'topology_node' || target === 'initial_topology_node') {
-    return 1;
+  if (target in IMPORT_APPLICATION_PRIORITY) {
+    return IMPORT_APPLICATION_PRIORITY[target as keyof typeof IMPORT_APPLICATION_PRIORITY];
   }
-  if (target === 'topology_connection' || target === 'expandable_space_anchor') {
-    return 2;
-  }
-  if (
-    target === 'starting_node_selection' ||
-    target === 'cast_opening_placement' ||
-    target === 'cast_expression_guidance'
-  ) {
-    return 3;
-  }
-  if (
-    target === 'value_anchor' ||
-    target === 'character_pursuit' ||
-    target === 'user_opening_aim_default'
-  ) {
-    return 4;
-  }
-  return 2;
+  return 10;
 }
 
 /**

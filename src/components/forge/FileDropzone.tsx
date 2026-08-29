@@ -7,8 +7,7 @@ import {
   REFERENCE_IMPORT_HUMAN_MAX_SIZE,
 } from '../../lib/referenceImportPolicy';
 import { readSafeResponseError } from '../../lib/responseErrorReader';
-import { triggerInitialDepictionProposalIfEligible } from '../../lib/depictionProposalOrchestrator';
-import { ForgeSourceAnalysisSchema } from '../../types/forge';
+import { ForgeSourceAnalysisSchema, ForgeSourceAnalysis } from '../../types/forge';
 
 export const FileDropzone = () => {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -16,7 +15,53 @@ export const FileDropzone = () => {
   const [error, setError] = useState('');
 
   const draftBlueprint = useForgeState((state) => state.draftBlueprint);
-  const { registerSourceAnalysis, removeReference, addArchitectMessage } = forgeActions;
+  const {
+    registerSourceAnalysis,
+    applyImportedSourceBaseline,
+    removeSourceAnalysis,
+    removeReference,
+    addArchitectMessage,
+  } = forgeActions;
+
+  const applyBaselineAndNotify = (
+    analysis: ForgeSourceAnalysis,
+    sourceBinding: string,
+    fileName: string
+  ): boolean => {
+    setRuntimeSourceBinding(analysis.id, sourceBinding);
+    registerSourceAnalysis(analysis, sourceBinding);
+
+    const outcome = applyImportedSourceBaseline(analysis.id);
+    if (!outcome.success) {
+      if (sourceBinding) {
+        fetch('/api/revoke-source-binding', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sourceBinding }),
+        }).catch((e) => console.warn('[FORGE INTAKE] Binding revocation error:', e));
+      }
+      setRuntimeSourceBinding(analysis.id, undefined);
+      removeSourceAnalysis(analysis.id);
+      const errMsg = 'error' in outcome ? outcome.error : 'Failed to apply imported source baseline.';
+      setError(errMsg || 'Failed to apply imported source baseline.');
+      return false;
+    }
+
+    const issueCount =
+      (analysis.validationIssues?.length || 0) + (analysis.omittedValidationIssueCount || 0);
+    if (analysis.status === 'completed_with_issues') {
+      addArchitectMessage({
+        role: 'architect',
+        content: `[SOURCE MATERIAL IMPORTED: ${fileName}]\nApplied source-based defaults to your active draft (${issueCount} malformed candidates were quarantined and cannot affect the Blueprint). You may edit any field or regenerate a review proposal.`,
+      });
+    } else {
+      addArchitectMessage({
+        role: 'architect',
+        content: `[SOURCE MATERIAL IMPORTED: ${fileName}]\nApplied source-based defaults to your active draft. You may edit any field or regenerate a review proposal.`,
+      });
+    }
+    return true;
+  };
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -54,19 +99,25 @@ export const FileDropzone = () => {
           throw new Error('Server response did not include a valid source binding.');
         }
 
-        setRuntimeSourceBinding(data.analysis.id, data.sourceBinding);
-        registerSourceAnalysis(data.analysis, data.sourceBinding);
+        const parseRes = ForgeSourceAnalysisSchema.safeParse(data.analysis);
+        if (!parseRes.success) {
+          throw new Error(`Server returned an invalid source analysis: ${parseRes.error.issues.map((i) => i.message).join('; ')}`);
+        }
 
-        // Automatically stage initial Depiction Contract proposal if eligible
-        triggerInitialDepictionProposalIfEligible().catch((e) =>
-          console.warn('[FORGE DEPICTION] Auto-proposal error:', e)
-        );
+        const analysis = parseRes.data;
+        if (analysis.status === 'error') {
+          if (data.sourceBinding) {
+            fetch('/api/revoke-source-binding', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ sourceBinding: data.sourceBinding }),
+            }).catch((e) => console.warn('[FORGE INTAKE] Binding revocation error:', e));
+          }
+          setError(analysis.errorMessage || 'Native Blueprint intake failed.');
+          return;
+        }
 
-        addArchitectMessage({
-          role: 'architect',
-          content: `[SOURCE MATERIAL ANALYZED: ${file.name}]\nExtracted ${data.analysis.candidates.length} baseline candidates for review. The active authoring draft remains unchanged until you accept candidates.`,
-        });
-
+        applyBaselineAndNotify(analysis, data.sourceBinding, file.name);
         setIsProcessing(false);
         return;
       }
@@ -132,26 +183,7 @@ export const FileDropzone = () => {
         return;
       }
 
-      setRuntimeSourceBinding(analysis.id, data.sourceBinding);
-      registerSourceAnalysis(analysis, data.sourceBinding);
-
-      // Automatically stage initial Depiction Contract proposal if eligible
-      triggerInitialDepictionProposalIfEligible().catch((e) =>
-        console.warn('[FORGE DEPICTION] Auto-proposal error:', e)
-      );
-
-      const issueCount = (analysis.validationIssues?.length || 0) + (analysis.omittedValidationIssueCount || 0);
-      if (analysis.status === 'completed_with_issues') {
-        addArchitectMessage({
-          role: 'architect',
-          content: `[SOURCE MATERIAL EXTRACTED: ${file.name}]\nExtracted ${analysis.candidates.length} valid baseline candidates for review (${issueCount} malformed candidates were quarantined and cannot affect the Blueprint). Inspect and accept candidates to apply them to your active draft.`,
-        });
-      } else {
-        addArchitectMessage({
-          role: 'architect',
-          content: `[SOURCE MATERIAL EXTRACTED: ${file.name}]\nExtracted ${analysis.candidates.length} baseline candidates for review. Inspect and accept candidates to apply them to your active draft.`,
-        });
-      }
+      applyBaselineAndNotify(analysis, data.sourceBinding, file.name);
     } catch (err: unknown) {
       console.error(
         'Knowledgebase extraction error:',

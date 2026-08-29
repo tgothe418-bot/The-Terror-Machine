@@ -115,28 +115,3 @@ export async function requestDepictionContractProposal(options?: {
     isProposalInFlight = false;
   }
 }
-
-/**
- * Triggers automatic initial depiction proposal if eligible.
- * Triggered once for the first eligible source baseline after registration commits.
- */
-export async function triggerInitialDepictionProposalIfEligible(): Promise<void> {
-  const state = useForgeStoreInternal.getState();
-  const analyses = Object.values(state.sourceAnalyses || {});
-  if (analyses.length === 0) return;
-
-  const readiness = checkDepictionGenerationReadiness({ sourceAnalyses: state.sourceAnalyses });
-  if (!readiness.ready) return;
-
-  // Only trigger if no canonical contract exists and no proposal staged yet
-  const currentContract = state.forgeDraft?.depictionContract;
-  const hasCompletedContract = Boolean(
-    currentContract?.dramaticRegister &&
-      currentContract?.directness &&
-      currentContract?.aftermath &&
-      currentContract?.ambiguityHandling
-  );
-  if (hasCompletedContract || state.pendingDepictionContractProposal) return;
-
-  await requestDepictionContractProposal({ force: false });
-}

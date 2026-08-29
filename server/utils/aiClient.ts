@@ -837,6 +837,9 @@ export const EngineTurnStructuredResponseContract: StructuredResponseContract<Tu
  */
 export function parseStructuredTurnResponse<T>(rawText: string, zodSchema: z.ZodType<T>): T {
   const unwrapped = unwrapStrictJsonResponse(rawText);
+  if (!unwrapped) {
+    throw new EmptyProviderResponseError();
+  }
   const parsed = JSON.parse(unwrapped);
   return zodSchema.parse(parsed);
 }

@@ -52,14 +52,12 @@ export const CharacterAuthoringPanel: React.FC = () => {
     if (n && !nodeMap.has(n)) nodeMap.set(n, n);
   });
   const availableNodes = Array.from(nodeMap.entries()).map(([id, label]) => ({ id, label }));
-  const startingNodeId = topology?.startingNodeId || availableNodes[0]?.id || '';
 
   const toggleCard = (id: string) => {
     setExpandedCards((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
   const handleAddCast = () => {
-    const defaultPlacementNode = startingNodeId || (availableNodes[0]?.id ?? '');
     const res = addCastMember({
       name: 'New Cast Member',
       role: 'Subject',
@@ -67,9 +65,7 @@ export const CharacterAuthoringPanel: React.FC = () => {
       isUserCharacter: false,
       isEntity: false,
       behaviorVector: 'ADAPTIVE',
-      presenceDisposition: defaultPlacementNode
-        ? { kind: 'AT_NODE', nodeId: defaultPlacementNode }
-        : { kind: 'OFFSTAGE' },
+      presenceDisposition: { kind: 'OFFSTAGE' },
     });
     if (res.characterId) {
       setExpandedCards((prev) => ({ ...prev, [res.characterId!]: true }));
@@ -339,7 +335,7 @@ export const CharacterAuthoringPanel: React.FC = () => {
                             if (newKind === 'AT_NODE') {
                               setCastOpeningPlacement(char.id, {
                                 kind: 'AT_NODE',
-                                nodeId: currentNodeId || startingNodeId || availableNodes[0]?.id || 'NODE_INIT',
+                                nodeId: currentNodeId || availableNodes[0]?.id || 'NODE_INIT',
                               });
                             } else if (newKind === 'OFFSTAGE') {
                               setCastOpeningPlacement(char.id, { kind: 'OFFSTAGE' });

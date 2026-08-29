@@ -8,7 +8,7 @@ import {
   sortCandidatesForApplication,
   validateAndNormalizeDocumentAnalysis,
 } from './sourceBaseline';
-import { ForgeDraft, ForgeSourceCandidate, ForgeSourceRecord } from '../types/forge';
+import { ForgeDraft, ForgeSourceCandidate, ForgeSourceRecord, ForgeSourceEvidence } from '../types/forge';
 import { compileForgeDraft } from './forgeCompiler';
 import { normalizeBlueprint } from './normalizeBlueprint';
 
@@ -51,6 +51,13 @@ describe('sourceBaseline pure functions', () => {
         },
       },
     ],
+    depictionContract: {
+      dramaticRegister: 'Nautical claustrophobic dread',
+      directness: 'High tactile pressure and audio distortion',
+      aftermath: 'Decompression sickness and psychological ruin',
+      ambiguityHandling: 'Deep sea acoustic echoes remain unexplained',
+      specialBoundaries: 'None',
+    },
   };
 
   it('builds a valid ForgeSourceAnalysis from native blueprint without mutating any draft', () => {
@@ -246,7 +253,10 @@ describe('sourceBaseline pure functions', () => {
 
     const rawAnalysis = {
       summary: 'Test summary',
-      evidence: [{ id: 'ev-1', category: 'setting', claim: 'Underwater research post' }],
+      evidence: [
+        { id: 'ev-1', category: 'setting', claim: 'Underwater research post' },
+        { id: 'ev-dep', category: 'other', claim: 'Depiction parameters' },
+      ],
       candidates: [
         {
           id: 'c1',
@@ -257,6 +267,20 @@ describe('sourceBaseline pure functions', () => {
           evidenceIds: ['ev-1'],
           proposedValue: 'Sector 7 Facility',
         },
+        {
+          id: 'c-dep',
+          classification: 'evidence',
+          target: 'depiction_contract',
+          label: 'Depiction Contract',
+          explanation: 'Depiction parameters',
+          evidenceIds: ['ev-dep'],
+          proposedValue: {
+            dramaticRegister: 'Dread',
+            directness: 'High directness',
+            aftermath: 'Severe consequences',
+            ambiguityHandling: 'Uncertain boundaries',
+          },
+        },
       ],
       unknowns: [{ id: 'u1', category: 'cast', question: 'How many crew survived?' }],
     };
@@ -264,7 +288,7 @@ describe('sourceBaseline pure functions', () => {
     const normalized = validateAndNormalizeDocumentAnalysis(rawAnalysis, sourceRecord);
     expect(normalized.id).toBe('src-doc-1-analysis');
     expect(normalized.sourceRecord.id).toBe('src-doc-1');
-    expect(normalized.candidates.length).toBe(1);
+    expect(normalized.candidates.length).toBe(2);
     expect(normalized.candidates[0].reviewDecision).toBe('accepted');
     expect(normalized.candidates[0].applicationState).toBe('staged');
     expect(normalized.candidates[0].sourceId).toBe('src-doc-1');
@@ -678,6 +702,11 @@ describe('sourceBaseline pure functions', () => {
             category: 'unsupported_category_name',
             claim: 'Some claim with bad category.',
           },
+          {
+            id: 'ev-dep',
+            category: 'other',
+            claim: 'Depiction parameters',
+          },
         ],
         candidates: [
           {
@@ -688,6 +717,20 @@ describe('sourceBaseline pure functions', () => {
             explanation: 'Extracted from research notes.',
             evidenceIds: ['ev-valid-1'],
             proposedValue: 'Marianas Trench Station Sector 9',
+          },
+          {
+            id: 'cand-dep',
+            classification: 'evidence',
+            target: 'depiction_contract',
+            label: 'Depiction Contract',
+            explanation: 'Extracted depiction',
+            evidenceIds: ['ev-dep'],
+            proposedValue: {
+              dramaticRegister: 'Claustrophobic ocean horror',
+              directness: 'High tactile audio directness',
+              aftermath: 'Severe decompression trauma',
+              ambiguityHandling: 'Deep sea silence',
+            },
           },
           {
             id: 'cand-invalid-expr',
@@ -728,22 +771,22 @@ describe('sourceBaseline pure functions', () => {
 
       const analysis = validateAndNormalizeDocumentAnalysis(payload, sourceRecord);
       expect(analysis.status).toBe('completed_with_issues');
-      expect(analysis.evidence).toHaveLength(1);
+      expect(analysis.evidence).toHaveLength(2);
       expect(analysis.unknowns).toHaveLength(1);
-      expect(analysis.candidates).toHaveLength(1);
+      expect(analysis.candidates).toHaveLength(2);
       expect(analysis.candidates[0].target).toBe('setting_location');
       expect(analysis.candidates[0].proposedValue).toBe('Marianas Trench Station Sector 9');
 
       expect(analysis.validationIssues).toHaveLength(2);
-      expect(analysis.validationIssues[0].candidateIndex).toBe(2);
+      expect(analysis.validationIssues[0].candidateIndex).toBe(3);
       expect(analysis.validationIssues[0].code).toBe('INVALID_ENUM');
       expect(analysis.validationIssues[0].disposition).toBe('QUARANTINED');
 
-      expect(analysis.validationIssues[1].candidateIndex).toBe(3);
+      expect(analysis.validationIssues[1].candidateIndex).toBe(4);
       expect(analysis.validationIssues[1].disposition).toBe('QUARANTINED');
     });
 
-    it('quarantines candidate when cast_seed is missing explicit isUserCharacter boolean', () => {
+    it('document import normalizes provider user-character designation to false', () => {
       const sourceRecord: ForgeSourceRecord = {
         id: 'src-test-cast-user-flag',
         fileName: 'cast_log.txt',
@@ -759,6 +802,11 @@ describe('sourceBaseline pure functions', () => {
             category: 'cast',
             claim: 'Dr. Evans is the lead biologist.',
           },
+          {
+            id: 'ev-dep-1',
+            category: 'other',
+            claim: 'Depiction parameters',
+          },
         ],
         candidates: [
           {
@@ -771,19 +819,161 @@ describe('sourceBaseline pure functions', () => {
             proposedValue: {
               name: 'Dr. Evans',
               role: 'Biologist',
-              // missing explicit isUserCharacter: boolean
+              isUserCharacter: true,
+            },
+          },
+          {
+            id: 'cand-dep-1',
+            classification: 'evidence',
+            target: 'depiction_contract',
+            label: 'Depiction Contract',
+            explanation: 'Source-backed depiction parameters.',
+            evidenceIds: ['ev-dep-1'],
+            proposedValue: {
+              dramaticRegister: 'Psychological dread and tension',
+              directness: 'Visceral direct sensory observations',
+              aftermath: 'Irreversible psychological trauma',
+              ambiguityHandling: 'Preserve epistemic gaps and ontological uncertainty',
+              specialBoundaries: 'None',
             },
           },
         ],
       };
 
       const analysis = validateAndNormalizeDocumentAnalysis(payload, sourceRecord);
-      // Since candidates has 0 valid items, but evidence has 1 valid item, this is completed_with_issues
-      expect(analysis.status).toBe('completed_with_issues');
-      expect(analysis.candidates).toHaveLength(0);
-      expect(analysis.validationIssues).toHaveLength(1);
-      expect(analysis.validationIssues[0].code).toBe('MISSING_REQUIRED_FIELD');
-      expect(analysis.validationIssues[0].fieldPath).toBe('proposedValue.isUserCharacter');
+      expect(analysis.status).toBe('completed');
+      expect(analysis.validationIssues).toHaveLength(0);
+      expect(analysis.candidates).toHaveLength(2);
+      const castCand = analysis.candidates.find((c) => c.target === 'cast_seed');
+      const castVal = castCand?.proposedValue as { isUserCharacter: boolean; name: string };
+      expect(castVal.isUserCharacter).toBe(false);
+      expect(castVal.name).toBe('Dr. Evans');
+    });
+
+    it('document import requires exactly one complete evidence-linked depiction contract', () => {
+      const sourceRecord: ForgeSourceRecord = {
+        id: 'src-dep-valid',
+        fileName: 'scenario_source.txt',
+        mimeType: 'text/plain',
+        kind: 'document',
+        receivedAt: Date.now(),
+      };
+
+      const payload = {
+        evidence: [
+          { id: 'ev-dep-1', category: 'other', claim: 'Depiction parameters' },
+        ],
+        candidates: [
+          {
+            id: 'cand-dep',
+            target: 'depiction_contract',
+            evidenceIds: ['ev-dep-1'],
+            proposedValue: {
+              dramaticRegister: 'Submersible clinical horror',
+              directness: 'Brutal acoustic shockwaves',
+              aftermath: 'Eardrum rupture and nitrogen narcosis',
+              ambiguityHandling: 'Sonar signals remain untranslated',
+              specialBoundaries: 'No physical escape',
+            },
+          },
+        ],
+      };
+
+      const analysis = validateAndNormalizeDocumentAnalysis(payload, sourceRecord);
+      expect(analysis.status).toBe('completed');
+      expect(analysis.candidates).toHaveLength(1);
+      expect(analysis.candidates[0].target).toBe('depiction_contract');
+    });
+
+    it('document import fails with bounded baseline error when depiction contract is absent', () => {
+      const sourceRecord: ForgeSourceRecord = {
+        id: 'src-dep-missing',
+        fileName: 'scenario_source.txt',
+        mimeType: 'text/plain',
+        kind: 'document',
+        receivedAt: Date.now(),
+      };
+
+      const payload = {
+        evidence: [
+          { id: 'ev-loc', category: 'setting', claim: 'Deep seabed' },
+        ],
+        candidates: [
+          {
+            id: 'cand-loc',
+            target: 'setting_location',
+            evidenceIds: ['ev-loc'],
+            proposedValue: 'Trench Core 9',
+          },
+        ],
+      };
+
+      const analysis = validateAndNormalizeDocumentAnalysis(payload, sourceRecord);
+      expect(analysis.status).toBe('error');
+      expect(analysis.errorMessage).toContain('Extraction did not produce a complete source-backed Depiction Contract.');
+    });
+
+    it('document import fails when depiction contract is duplicated, malformed, or lacks evidence', () => {
+      const sourceRecord: ForgeSourceRecord = {
+        id: 'src-dep-invalid',
+        fileName: 'scenario_source.txt',
+        mimeType: 'text/plain',
+        kind: 'document',
+        receivedAt: Date.now(),
+      };
+
+      // 1. Duplicate depiction contracts
+      const dupPayload = {
+        evidence: [{ id: 'ev-1', category: 'other', claim: 'Claim 1' }],
+        candidates: [
+          {
+            id: 'cand-dep-1',
+            target: 'depiction_contract',
+            evidenceIds: ['ev-1'],
+            proposedValue: {
+              dramaticRegister: 'Tone 1',
+              directness: 'Directness 1',
+              aftermath: 'Aftermath 1',
+              ambiguityHandling: 'Ambiguity 1',
+            },
+          },
+          {
+            id: 'cand-dep-2',
+            target: 'depiction_contract',
+            evidenceIds: ['ev-1'],
+            proposedValue: {
+              dramaticRegister: 'Tone 2',
+              directness: 'Directness 2',
+              aftermath: 'Aftermath 2',
+              ambiguityHandling: 'Ambiguity 2',
+            },
+          },
+        ],
+      };
+      const dupAnalysis = validateAndNormalizeDocumentAnalysis(dupPayload, sourceRecord);
+      expect(dupAnalysis.status).toBe('error');
+      expect(dupAnalysis.errorMessage).toContain('Extraction did not produce a complete source-backed Depiction Contract.');
+
+      // 2. Depiction contract without evidence
+      const noEvPayload = {
+        evidence: [],
+        candidates: [
+          {
+            id: 'cand-dep-1',
+            target: 'depiction_contract',
+            evidenceIds: [],
+            proposedValue: {
+              dramaticRegister: 'Tone 1',
+              directness: 'Directness 1',
+              aftermath: 'Aftermath 1',
+              ambiguityHandling: 'Ambiguity 1',
+            },
+          },
+        ],
+      };
+      const noEvAnalysis = validateAndNormalizeDocumentAnalysis(noEvPayload, sourceRecord);
+      expect(noEvAnalysis.status).toBe('error');
+      expect(noEvAnalysis.errorMessage).toContain('Extraction did not produce a complete source-backed Depiction Contract.');
     });
 
     it('normalizes unambiguous aliases during document analysis', () => {
@@ -802,8 +992,26 @@ describe('sourceBaseline pure functions', () => {
             category: 'cast',
             claim: 'Mercer uses radio equipment.',
           },
+          {
+            id: 'ev-dep',
+            category: 'other',
+            claim: 'Depiction parameters',
+          },
         ],
         candidates: [
+          {
+            id: 'cand-dep',
+            classification: 'evidence',
+            target: 'depiction_contract',
+            evidenceIds: ['ev-dep'],
+            proposedValue: {
+              dramaticRegister: 'Cold industrial realism',
+              directness: 'Direct sensory details',
+              aftermath: 'Severe physical trauma',
+              ambiguityHandling: 'Ontological silence',
+              specialBoundaries: 'None',
+            },
+          },
           {
             id: 'cand-expr',
             classification: 'evidence',
@@ -853,7 +1061,7 @@ describe('sourceBaseline pure functions', () => {
       const analysis = validateAndNormalizeDocumentAnalysis(payload, sourceRecord);
       expect(analysis.status).toBe('completed');
       expect(analysis.validationIssues).toHaveLength(0);
-      expect(analysis.candidates).toHaveLength(3);
+      expect(analysis.candidates).toHaveLength(4);
 
       const exprCand = analysis.candidates.find((c) => c.target === 'cast_expression_guidance');
       const exprVal = exprCand?.proposedValue as { communicationModes: string[] };
@@ -868,7 +1076,6 @@ describe('sourceBaseline pure functions', () => {
       expect(anchorVal.holder).toEqual({ kind: 'PLACE', nodeId: 'dock' });
     });
 
-
     it('supplies stable fallback id for cast_seed without id and sets default reviewDecision and applicationState', () => {
       const sourceRecord: ForgeSourceRecord = {
         id: 'src-test-cast-fallback',
@@ -879,7 +1086,21 @@ describe('sourceBaseline pure functions', () => {
       };
 
       const payload = {
+        evidence: [
+          { id: 'ev-dep', category: 'other', claim: 'Depiction contract' },
+        ],
         candidates: [
+          {
+            id: 'cand-dep',
+            target: 'depiction_contract',
+            evidenceIds: ['ev-dep'],
+            proposedValue: {
+              dramaticRegister: 'Psychological tension',
+              directness: 'Close perspective',
+              aftermath: 'Lingering fear',
+              ambiguityHandling: 'Uncertain boundaries',
+            },
+          },
           {
             target: 'cast_seed',
             label: 'Station Engineer',
@@ -898,11 +1119,12 @@ describe('sourceBaseline pure functions', () => {
 
       const analysis = validateAndNormalizeDocumentAnalysis(payload, sourceRecord);
       expect(analysis.status).toBe('completed');
-      expect(analysis.candidates).toHaveLength(1);
-      expect(analysis.candidates[0].target).toBe('cast_seed');
-      expect(analysis.candidates[0].reviewDecision).toBe('accepted');
-      const castMember = analysis.candidates[0].proposedValue as { id: string; name: string };
-      expect(castMember.id).toBe('src-test-cast-fallback-cast-0');
+      expect(analysis.candidates).toHaveLength(2);
+      const castCand = analysis.candidates.find((c) => c.target === 'cast_seed');
+      expect(castCand).toBeDefined();
+      expect(castCand!.reviewDecision).toBe('accepted');
+      const castMember = castCand!.proposedValue as { id: string; name: string };
+      expect(castMember.id).toBe('src-test-cast-fallback-cast-1');
       expect(castMember.name).toBe('Engineer Mercer');
     });
 
@@ -1035,6 +1257,20 @@ describe('sourceBaseline pure functions', () => {
         ],
         candidates: [
           {
+            id: 'cand-dep-trench',
+            classification: 'evidence',
+            target: 'depiction_contract',
+            label: 'Trench Depiction Contract',
+            evidenceIds: ['ev-1'],
+            proposedValue: {
+              dramaticRegister: 'Cosmic existential dread',
+              directness: 'High directness',
+              aftermath: 'Irreversible damage',
+              ambiguityHandling: 'Deliberate void',
+              specialBoundaries: 'None',
+            },
+          },
+          {
             id: 'cand-node-bridge',
             classification: 'evidence',
             target: 'topology_node',
@@ -1070,14 +1306,6 @@ describe('sourceBaseline pure functions', () => {
               kind: 'PHYSICAL',
               userInitiated: true,
             },
-          },
-          {
-            id: 'cand-start',
-            classification: 'evidence',
-            target: 'starting_node_selection',
-            label: 'Start at Bridge',
-            evidenceIds: ['ev-1'],
-            proposedValue: 'BRIDGE',
           },
           {
             id: 'cand-anchor-vent',
@@ -1154,13 +1382,11 @@ describe('sourceBaseline pure functions', () => {
       // Verify dependency sorting
       const sorted = sortCandidatesForApplication(analysis.candidates);
       const targets = sorted.map((c) => c.target);
-      // Priority 1: cast_seed and topology_node must precede topology_connection and expandable_space_anchor (2),
-      // which precede starting_node_selection and cast_opening_placement (3)
       const firstPri2 = targets.findIndex((t) => t === 'topology_connection' || t === 'expandable_space_anchor');
       const lastPri1 = targets.map((t, idx) => ((t === 'cast_seed' || t === 'topology_node') ? idx : -1)).reduce((a, b) => Math.max(a, b), -1);
       expect(lastPri1).toBeLessThan(firstPri2);
 
-      const firstPri3 = targets.findIndex((t) => t === 'starting_node_selection' || t === 'cast_opening_placement');
+      const firstPri3 = targets.findIndex((t) => t === 'cast_opening_placement');
       expect(firstPri2).toBeLessThan(firstPri3);
 
       // Apply in dependency sorted order onto an initial draft
@@ -1193,7 +1419,6 @@ describe('sourceBaseline pure functions', () => {
       // Assert draft state
       expect(workingDraft.topology?.nodes).toContain('BRIDGE');
       expect(workingDraft.topology?.nodes).toContain('AIRLOCK_B');
-      expect(workingDraft.topology?.startingNodeId).toBe('BRIDGE');
       expect(workingDraft.topology?.connections).toHaveLength(1);
       expect(workingDraft.topology?.anchors).toHaveLength(1);
       expect(workingDraft.topology?.anchors?.[0].id).toBe('vent-shaft-3');
@@ -1243,23 +1468,27 @@ describe('sourceBaseline pure functions', () => {
         expect((edgeRes as { error: string }).error).toContain('ROOM_NONEXISTENT');
       }
 
-      // 2. Starting node with unknown node ID
-      const badStartCand: ForgeSourceCandidate = {
+      // 2. Opening placement with unknown node ID
+      const badPlacementCand: ForgeSourceCandidate = {
         id: 'cand-bad-start',
         sourceId: 'src-1',
         classification: 'evidence',
-        target: 'starting_node_selection',
-        label: 'Broken Start',
-        explanation: 'Sets start to non-existent node',
+        target: 'cast_opening_placement',
+        targetCastMemberId: 'char-mortal',
+        label: 'Broken Placement',
+        explanation: 'Sets placement to non-existent node',
         evidenceIds: [],
-        proposedValue: 'ROOM_VOID',
+        proposedValue: {
+          kind: 'AT_NODE',
+          nodeId: 'ROOM_VOID',
+        },
         reviewDecision: 'accepted',
         applicationState: 'staged',
       };
-      const startRes = applyCandidateToDraft(draft, badStartCand);
-      expect(startRes.success).toBe(false);
-      if (!startRes.success) {
-        expect((startRes as { error: string }).error).toContain('ROOM_VOID');
+      const placeRes = applyCandidateToDraft(draft, badPlacementCand);
+      expect(placeRes.success).toBe(false);
+      if (!placeRes.success) {
+        expect((placeRes as { error: string }).error).toContain('ROOM_VOID');
       }
 
       // 3. Anchor with unknown parent node ID
@@ -1286,28 +1515,145 @@ describe('sourceBaseline pure functions', () => {
       if (!anchorRes.success) {
         expect((anchorRes as { error: string }).error).toContain('ROOM_GHOST');
       }
+    });
 
-      // 4. NONLOCAL placement on non-entity cast member
-      const badPlacementCand: ForgeSourceCandidate = {
-        id: 'cand-bad-placement',
+    it('source import creates only one rich topology node for a canonical node ID', () => {
+      let draft: ForgeDraft = {
+        id: 'draft-topo-test',
+        title: 'Station',
+        topology: { nodes: [], nodeDefinitions: [], connections: [] },
+      };
+
+      const nodeCand1: ForgeSourceCandidate = {
+        id: 'cand-node-1',
         sourceId: 'src-1',
         classification: 'evidence',
-        target: 'cast_opening_placement',
-        label: 'Bad Nonlocal Placement',
-        explanation: 'Assigns nonlocal to mortal',
-        evidenceIds: [],
-        targetCastMemberId: 'char-mortal',
+        target: 'topology_node',
+        label: 'Reactor Core',
+        explanation: 'Reactor core node',
+        evidenceIds: ['ev-1'],
         proposedValue: {
-          kind: 'NONLOCAL',
+          id: 'CORE_ROOM',
+          label: 'Reactor Core',
+          description: 'Primary power station.',
         },
         reviewDecision: 'accepted',
         applicationState: 'staged',
       };
-      const placementRes = applyCandidateToDraft(draft, badPlacementCand);
-      expect(placementRes.success).toBe(false);
-      if (!placementRes.success) {
-        expect((placementRes as { error: string }).error).toContain('NONLOCAL');
-      }
+
+      const nodeCand2: ForgeSourceCandidate = {
+        id: 'cand-node-2',
+        sourceId: 'src-1',
+        classification: 'evidence',
+        target: 'topology_node',
+        label: 'Reactor Core (Refined)',
+        explanation: 'Refined reactor core node',
+        evidenceIds: ['ev-1'],
+        proposedValue: {
+          id: 'CORE_ROOM',
+          label: 'Reactor Core Refined',
+          description: 'Updated primary power station.',
+        },
+        reviewDecision: 'accepted',
+        applicationState: 'staged',
+      };
+
+      const res1 = applyCandidateToDraft(draft, nodeCand1);
+      expect(res1.success).toBe(true);
+      draft = (res1 as { success: true; draft: ForgeDraft }).draft;
+
+      const res2 = applyCandidateToDraft(draft, nodeCand2);
+      expect(res2.success).toBe(true);
+      draft = (res2 as { success: true; draft: ForgeDraft }).draft;
+
+      expect(draft.topology?.nodes).toEqual(['CORE_ROOM']);
+      expect(draft.topology?.nodeDefinitions).toHaveLength(1);
+      expect(draft.topology?.nodeDefinitions?.[0].label).toBe('Reactor Core Refined');
+    });
+
+    it('source import writes character placements but no topology startingNodeId', () => {
+      const draft: ForgeDraft = {
+        id: 'draft-place-test',
+        title: 'Station',
+        cast: [{ id: 'char-1', name: 'Officer', isEntity: false, isUserCharacter: false }],
+        topology: { nodes: ['ROOM_A'], nodeDefinitions: [{ id: 'ROOM_A', label: 'Room A' }], connections: [] },
+      };
+
+      const placementCand: ForgeSourceCandidate = {
+        id: 'cand-place-1',
+        sourceId: 'src-1',
+        classification: 'evidence',
+        target: 'cast_opening_placement',
+        targetCastMemberId: 'char-1',
+        label: 'Officer Placement',
+        explanation: 'Officer placement at Room A',
+        evidenceIds: ['ev-1'],
+        proposedValue: {
+          kind: 'AT_NODE',
+          nodeId: 'ROOM_A',
+        },
+        reviewDecision: 'accepted',
+        applicationState: 'staged',
+      };
+
+      const res = applyCandidateToDraft(draft, placementCand);
+      expect(res.success).toBe(true);
+      const updatedDraft = (res as { success: true; draft: ForgeDraft }).draft;
+      expect(updatedDraft.cast?.[0].presenceDisposition).toEqual({ kind: 'AT_NODE', nodeId: 'ROOM_A' });
+      expect(updatedDraft.topology?.startingNodeId).toBeUndefined();
+    });
+
+    it('native Blueprint import emits source-backed depiction contract and no global start candidate', () => {
+      const nativeBlueprint = {
+        identity: { title: 'Cold Dawn', thematicAnchor: 'Isolation' },
+        premise: 'Isolated arctic observatory anomaly.',
+        setting: { location: 'Station Ice-9', atmosphere: 'Freezing dread', timePeriod: '1982' },
+        startingVector: 'SOMATIC',
+        startingTier: 'GATEWAY',
+        topology: {
+          nodes: ['LAB'],
+          nodeDefinitions: [{ id: 'LAB', label: 'Research Lab', description: 'Cold lab' }],
+          connections: [],
+        },
+        cast: [
+          {
+            id: 'char-elena',
+            name: 'Dr. Elena Rostova',
+            role: 'Scientist',
+            isUserCharacter: true,
+            presenceDisposition: { kind: 'AT_NODE', nodeId: 'LAB' },
+          },
+        ],
+        depictionContract: {
+          dramaticRegister: 'Sub-zero psychological horror',
+          directness: 'Sensory hypothermia and auditory hallucinations',
+          aftermath: 'Severe frostbite and psychological breaks',
+          ambiguityHandling: 'Radio static remains uninterpreted',
+          specialBoundaries: 'None',
+        },
+      };
+
+      const analysis = buildSourceAnalysisFromBlueprint(nativeBlueprint, 'cold_dawn.json');
+      expect(analysis.status).toBe('completed');
+
+      const depCand = analysis.candidates.find((c) => c.target === 'depiction_contract');
+      expect(depCand).toBeDefined();
+      expect(depCand?.proposedValue).toEqual({
+        dramaticRegister: 'Sub-zero psychological horror',
+        directness: 'Sensory hypothermia and auditory hallucinations',
+        aftermath: 'Severe frostbite and psychological breaks',
+        ambiguityHandling: 'Radio static remains uninterpreted',
+        specialBoundaries: 'None',
+      });
+
+      const startCand = analysis.candidates.find((c) => c.target === 'starting_node_selection');
+      expect(startCand).toBeUndefined();
+
+      const userAimCand = analysis.candidates.find((c) => c.target === 'user_opening_aim_default');
+      expect(userAimCand).toBeUndefined();
+
+      const castCand = analysis.candidates.find((c) => c.target === 'cast_seed');
+      expect((castCand?.proposedValue as { isUserCharacter: boolean }).isUserCharacter).toBe(false);
     });
   });
 
@@ -1320,80 +1666,110 @@ describe('sourceBaseline pure functions', () => {
       receivedAt: Date.now(),
     };
 
+    const mockDepictionEvidence: ForgeSourceEvidence = {
+      id: 'ev-dep-1',
+      sourceId: 'src-bound-test',
+      category: 'other',
+      claim: 'Depiction contract basis',
+    };
+
+    const mockDepictionCandidate: ForgeSourceCandidate = {
+      id: 'cand-dep-1',
+      sourceId: 'src-bound-test',
+      classification: 'evidence',
+      target: 'depiction_contract',
+      label: 'Depiction Contract',
+      explanation: 'Extracted depiction contract',
+      evidenceIds: ['ev-dep-1'],
+      proposedValue: {
+        dramaticRegister: 'Standard dread',
+        directness: 'High directness',
+        aftermath: 'Severe aftermath',
+        ambiguityHandling: 'High uncertainty',
+        specialBoundaries: '',
+      },
+      reviewDecision: 'accepted',
+      applicationState: 'staged',
+    };
+
     it('collects exactly 49 issues with 0 omitted issues', () => {
       const candidates: Array<{ id: string; target: string; proposedValue: unknown }> = Array.from({ length: 49 }, (_, i) => ({
         id: `bad-${i}`,
-        target: 'cast_seed',
-        proposedValue: { id: `c-${i}` }, // missing isUserCharacter
+        target: 'setting_location',
+        proposedValue: null, // missing proposedValue triggers quarantine
       }));
       candidates.push({
         id: 'valid-cand',
         target: 'setting_location' as const,
         proposedValue: 'The Abandoned Mine',
       });
+      candidates.push(mockDepictionCandidate as unknown as { id: string; target: string; proposedValue: unknown });
 
-      const analysis = validateAndNormalizeDocumentAnalysis({ candidates }, sourceRecord);
+      const analysis = validateAndNormalizeDocumentAnalysis({ candidates, evidence: [mockDepictionEvidence] }, sourceRecord);
       expect(analysis.status).toBe('completed_with_issues');
       expect(analysis.validationIssues).toHaveLength(49);
       expect(analysis.omittedValidationIssueCount).toBe(0);
-      expect(analysis.candidates).toHaveLength(1);
+      expect(analysis.candidates).toHaveLength(2);
     });
 
     it('collects exactly 50 issues with 0 omitted issues at MAX_VALIDATION_ISSUES boundary', () => {
       const candidates: Array<{ id: string; target: string; proposedValue: unknown }> = Array.from({ length: 50 }, (_, i) => ({
         id: `bad-${i}`,
-        target: 'cast_seed',
-        proposedValue: { id: `c-${i}` }, // missing isUserCharacter
+        target: 'setting_location',
+        proposedValue: null, // missing proposedValue triggers quarantine
       }));
       candidates.push({
         id: 'valid-cand',
         target: 'setting_location' as const,
         proposedValue: 'The Abandoned Mine',
       });
+      candidates.push(mockDepictionCandidate as unknown as { id: string; target: string; proposedValue: unknown });
 
-      const analysis = validateAndNormalizeDocumentAnalysis({ candidates }, sourceRecord);
+      const analysis = validateAndNormalizeDocumentAnalysis({ candidates, evidence: [mockDepictionEvidence] }, sourceRecord);
       expect(analysis.status).toBe('completed_with_issues');
       expect(analysis.validationIssues).toHaveLength(50);
       expect(analysis.omittedValidationIssueCount).toBe(0);
-      expect(analysis.candidates).toHaveLength(1);
+      expect(analysis.candidates).toHaveLength(2);
     });
 
     it('collects 50 issues and records 1 omitted issue when 51 malformed candidates exist', () => {
       const candidates: Array<{ id: string; target: string; proposedValue: unknown }> = Array.from({ length: 51 }, (_, i) => ({
         id: `bad-${i}`,
-        target: 'cast_seed',
-        proposedValue: { id: `c-${i}` }, // missing isUserCharacter
+        target: 'setting_location',
+        proposedValue: null, // missing proposedValue triggers quarantine
       }));
       candidates.push({
         id: 'valid-cand',
         target: 'setting_location' as const,
         proposedValue: 'The Abandoned Mine',
       });
+      candidates.push(mockDepictionCandidate as unknown as { id: string; target: string; proposedValue: unknown });
 
-      const analysis = validateAndNormalizeDocumentAnalysis({ candidates }, sourceRecord);
+      const analysis = validateAndNormalizeDocumentAnalysis({ candidates, evidence: [mockDepictionEvidence] }, sourceRecord);
       expect(analysis.status).toBe('completed_with_issues');
       expect(analysis.validationIssues).toHaveLength(50);
       expect(analysis.omittedValidationIssueCount).toBe(1);
-      expect(analysis.candidates).toHaveLength(1);
+      expect(analysis.candidates).toHaveLength(2);
     });
 
     it('handles noisy document with 80 malformed candidates without exceeding schema limits', () => {
       const candidates: Array<{ id: string; target: string; proposedValue: unknown }> = Array.from({ length: 80 }, (_, i) => ({
         id: `bad-${i}`,
-        target: 'cast_seed',
-        proposedValue: { id: `c-${i}` }, // missing isUserCharacter
+        target: 'setting_location',
+        proposedValue: null, // missing proposedValue triggers quarantine
       }));
       candidates.push({
         id: 'valid-cand',
         target: 'setting_location' as const,
         proposedValue: 'The Abandoned Mine',
       });
+      candidates.push(mockDepictionCandidate as unknown as { id: string; target: string; proposedValue: unknown });
 
-      const analysis = validateAndNormalizeDocumentAnalysis({ candidates }, sourceRecord);
+      const analysis = validateAndNormalizeDocumentAnalysis({ candidates, evidence: [mockDepictionEvidence] }, sourceRecord);
       expect(analysis.status).toBe('completed_with_issues');
       expect(analysis.validationIssues).toHaveLength(50);
       expect(analysis.omittedValidationIssueCount).toBe(30);
-      expect(analysis.candidates).toHaveLength(1);
+      expect(analysis.candidates).toHaveLength(2);
     });
 
     it('reconstructs server provenance authoritatively for value_anchor and character_pursuit', () => {
@@ -1404,8 +1780,10 @@ describe('sourceBaseline pure functions', () => {
             category: 'setting',
             claim: 'Sanctuary contains the relic.',
           },
+          mockDepictionEvidence,
         ],
         candidates: [
+          mockDepictionCandidate,
           {
             id: 'cand-va',
             target: 'value_anchor',
@@ -1451,7 +1829,7 @@ describe('sourceBaseline pure functions', () => {
 
       const analysis = validateAndNormalizeDocumentAnalysis(payload, sourceRecord);
       expect(analysis.status).toBe('completed_with_issues');
-      expect(analysis.candidates).toHaveLength(2); // cand-va and cand-pursuit valid; cand-va-no-ev quarantined
+      expect(analysis.candidates).toHaveLength(3); // cand-dep-1, cand-va and cand-pursuit valid; cand-va-no-ev quarantined
 
       const vaCand = analysis.candidates.find((c) => c.target === 'value_anchor');
       expect(vaCand).toBeDefined();
@@ -1471,7 +1849,7 @@ describe('sourceBaseline pure functions', () => {
         evidenceIds: ['ev-1'],
       });
 
-      const quarantinedVa = analysis.validationIssues?.find((i) => i.candidateIndex === 2);
+      const quarantinedVa = analysis.validationIssues?.find((i) => i.candidateIndex === 3);
       expect(quarantinedVa).toBeDefined();
       expect(quarantinedVa!.disposition).toBe('QUARANTINED');
       expect(quarantinedVa!.fieldPath).toBe('evidenceIds');

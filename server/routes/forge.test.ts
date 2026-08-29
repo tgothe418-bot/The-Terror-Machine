@@ -52,6 +52,11 @@ describe('Forge Routes: /api/extract-blueprint', () => {
           excerpt: 'Submerged Station Alpha in the deep benthic trench.',
         },
         {
+          id: 'ev-dep',
+          category: 'other',
+          claim: 'Depiction parameters',
+        },
+        {
           id: 'ev-2',
           category: 'invalid_evidence_category_xyz',
           claim: 'Invalid evidence category entry.',
@@ -66,6 +71,20 @@ describe('Forge Routes: /api/extract-blueprint', () => {
           explanation: 'Extracted from expedition log.',
           evidenceIds: ['ev-1'],
           proposedValue: 'Deep Benthic Trench',
+        },
+        {
+          id: 'cand-dep',
+          classification: 'evidence',
+          target: 'depiction_contract',
+          label: 'Depiction Contract',
+          explanation: 'Atmospheric tone',
+          evidenceIds: ['ev-dep'],
+          proposedValue: {
+            dramaticRegister: 'Deep oceanic dread',
+            directness: 'High tactile audio',
+            aftermath: 'Severe trauma',
+            ambiguityHandling: 'Deep sea silence',
+          },
         },
         {
           id: 'cand-2',
@@ -127,9 +146,9 @@ describe('Forge Routes: /api/extract-blueprint', () => {
     expect(body.sourceBinding).toBeDefined();
     expect(body.analysis).toBeDefined();
     expect(body.analysis.status).toBe('completed_with_issues');
-    expect(body.analysis.evidence).toHaveLength(1);
+    expect(body.analysis.evidence).toHaveLength(2);
     expect(body.analysis.unknowns).toHaveLength(1);
-    expect(body.analysis.candidates).toHaveLength(1);
+    expect(body.analysis.candidates).toHaveLength(2);
     expect(body.analysis.candidates[0].target).toBe('setting_location');
     expect(body.analysis.candidates[0].proposedValue).toBe('Deep Benthic Trench');
     expect(body.analysis.validationIssues).toHaveLength(2);
@@ -147,6 +166,11 @@ describe('Forge Routes: /api/extract-blueprint', () => {
           claim: 'Station location is Deep Benthic Trench',
           excerpt: 'Deep Benthic Trench station reached.',
         },
+        {
+          id: 'ev-dep',
+          category: 'other',
+          claim: 'Depiction parameters',
+        },
       ],
       candidates: [
         {
@@ -157,6 +181,20 @@ describe('Forge Routes: /api/extract-blueprint', () => {
           explanation: 'Extracted from expedition log.',
           evidenceIds: ['ev-1'],
           proposedValue: 'Deep Benthic Trench',
+        },
+        {
+          id: 'cand-dep',
+          classification: 'evidence',
+          target: 'depiction_contract',
+          label: 'Depiction Contract',
+          explanation: 'Atmospheric tone',
+          evidenceIds: ['ev-dep'],
+          proposedValue: {
+            dramaticRegister: 'Deep oceanic dread',
+            directness: 'High tactile audio',
+            aftermath: 'Severe trauma',
+            ambiguityHandling: 'Deep sea silence',
+          },
         },
       ],
       unknowns: [
@@ -190,8 +228,8 @@ describe('Forge Routes: /api/extract-blueprint', () => {
     expect(body.success).toBe(true);
     expect(body.analysis).toBeDefined();
     expect(body.analysis.status).toBe('completed');
-    expect(body.analysis.evidence).toHaveLength(1);
-    expect(body.analysis.candidates).toHaveLength(1);
+    expect(body.analysis.evidence).toHaveLength(2);
+    expect(body.analysis.candidates).toHaveLength(2);
     expect(body.analysis.candidates[0].target).toBe('setting_location');
     expect(body.analysis.candidates[0].proposedValue).toBe('Deep Benthic Trench');
     expect(body.analysis.unknowns).toHaveLength(1);

@@ -174,4 +174,148 @@ describe('Packet 1D-5: Automatic Depiction Contract & One-Action Export', () => 
     const schemaValidated = BlueprintSchema.safeParse(compiled.blueprint);
     expect(schemaValidated.success).toBe(true);
   });
+
+  describe('Packet 1E-1: Perspective-Neutral Export and Default Closure', () => {
+    it('valid source import fills all canonical depiction fields and exports without manual depiction editing', () => {
+      const draft = createValidBaseDraft();
+      // Set canonical depiction contract from source import
+      draft.depictionContract = {
+        dramaticRegister: 'Deep oceanic isolation and epistemic dread',
+        directness: 'High direct sensory immersion',
+        aftermath: 'Severe trauma and structural hull compromise',
+        ambiguityHandling: 'Deep hydrothermal vent signals remain untranslated',
+        specialBoundaries: '',
+      };
+
+      const readiness = validateForgeExportReadiness({ draft });
+      expect(readiness.valid).toBe(true);
+
+      const compiled = compileForgeDraft(draft);
+      expect(compiled.success).toBe(true);
+      if (!compiled.success) return;
+
+      expect(compiled.blueprint.depictionContract.dramaticRegister).toBe('Deep oceanic isolation and epistemic dread');
+      expect(compiled.blueprint.depictionContract.directness).toBe('High direct sensory immersion');
+      expect(compiled.blueprint.depictionContract.aftermath).toBe('Severe trauma and structural hull compromise');
+      expect(compiled.blueprint.depictionContract.ambiguityHandling).toBe('Deep hydrothermal vent signals remain untranslated');
+    });
+
+    it('source-derived character pursuits satisfy export review without Set Pursuit interaction', () => {
+      const draft = createValidBaseDraft();
+      draft.depictionContract = {
+        dramaticRegister: 'Deep oceanic isolation and epistemic dread',
+        directness: 'High direct sensory immersion',
+        aftermath: 'Severe trauma and structural hull compromise',
+        ambiguityHandling: 'Deep hydrothermal vent signals remain untranslated',
+        specialBoundaries: '',
+      };
+
+      // Cast member with source-derived character pursuit
+      draft.cast = [
+        {
+          id: 'char-eva',
+          name: 'Dr. Eva Cross',
+          role: 'Lead Biologist',
+          isEntity: false,
+          isUserCharacter: false,
+          presenceDisposition: { kind: 'AT_NODE', nodeId: 'HAB_MODULE' },
+        },
+      ];
+
+      draft.horrorGrammar = {
+        valueBaselineReview: 'REVIEWED_NONE',
+        pursuitReviews: {
+          'char-eva': 'REVIEWED',
+        },
+        valueAnchors: [],
+        characterPursuits: [
+          {
+            id: 'pursuit-eva-1',
+            castMemberId: 'char-eva',
+            objective: 'Collect hydrothermal vent sample',
+            presentApproach: 'Calibrating robotic arm in airlock',
+            status: 'ACTIVE',
+            reviewWindow: 'SCENE_BEAT',
+            triggerReferences: [],
+            basisSummary: 'Mission log entry',
+            provenance: { kind: 'CREATOR_DEFINED' },
+          },
+        ],
+      };
+
+      const readiness = validateForgeExportReadiness({ draft });
+      expect(readiness.valid).toBe(true);
+
+      const compiled = compileForgeDraft(draft);
+      expect(compiled.success).toBe(true);
+      if (!compiled.success) return;
+
+      expect(compiled.blueprint.horrorGrammar?.characterPursuits).toHaveLength(1);
+      expect(compiled.blueprint.horrorGrammar?.characterPursuits?.[0].objective).toBe('Collect hydrothermal vent sample');
+    });
+
+    it('compiled Blueprint remains perspective-neutral with all isUserCharacter flags false and no userCharacterId, userOpeningAim, or startingNodeId', () => {
+      const draft = createValidBaseDraft();
+      draft.depictionContract = {
+        dramaticRegister: 'Deep oceanic isolation and epistemic dread',
+        directness: 'High direct sensory immersion',
+        aftermath: 'Severe trauma and structural hull compromise',
+        ambiguityHandling: 'Deep hydrothermal vent signals remain untranslated',
+        specialBoundaries: '',
+      };
+
+      draft.cast = [
+        {
+          id: 'char-1',
+          name: 'Officer A',
+          role: 'SENTINEL',
+          isEntity: false,
+          isUserCharacter: false,
+          presenceDisposition: { kind: 'AT_NODE', nodeId: 'HAB_MODULE' },
+        },
+        {
+          id: 'char-2',
+          name: 'Officer B',
+          role: 'ENGINEER',
+          isEntity: false,
+          isUserCharacter: false,
+          presenceDisposition: { kind: 'OFFSTAGE' },
+        },
+      ];
+
+      draft.horrorGrammar = {
+        valueBaselineReview: 'REVIEWED_NONE',
+        pursuitReviews: {
+          'char-1': 'REVIEWED_NONE',
+          'char-2': 'REVIEWED_NONE',
+        },
+        valueAnchors: [],
+        characterPursuits: [],
+      };
+
+      // Ensure draft has no global startingNodeId, userCharacterId, or userOpeningAim
+      delete (draft as Record<string, unknown>).userCharacterId;
+      delete (draft as Record<string, unknown>).userOpeningAim;
+      if (draft.topology) {
+        delete (draft.topology as Record<string, unknown>).startingNodeId;
+      }
+
+      const compiled = compileForgeDraft(draft);
+      expect(compiled.success).toBe(true);
+      if (!compiled.success) return;
+
+      const bp = compiled.blueprint;
+      expect(bp.topology.startingNodeId).toBeUndefined();
+      expect(bp.userCharacterId).toBeUndefined();
+      expect(bp.userOpeningAim).toBeUndefined();
+
+      // All cast members must have isUserCharacter: false
+      for (const char of bp.cast) {
+        expect(char.isUserCharacter).toBe(false);
+      }
+
+      const validated = BlueprintSchema.safeParse(bp);
+      expect(validated.success).toBe(true);
+    });
+  });
 });

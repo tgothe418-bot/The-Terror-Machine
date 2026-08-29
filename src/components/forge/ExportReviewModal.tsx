@@ -194,10 +194,6 @@ export const ExportReviewModal: React.FC<ExportReviewModalProps> = ({
     displayBlueprint?.topology?.nodes?.length ||
     0;
   const connectionCount = displayBlueprint?.topology?.connections?.length || 0;
-  const startingNodeId =
-    displayBlueprint?.topology?.startingNodeId ||
-    displayBlueprint?.topology?.nodes?.[0] ||
-    'Unset';
   const expansionAnchorCount = displayBlueprint?.topology?.anchors?.length || 0;
   const castList = displayBlueprint?.cast || [];
   const atNodeCount = castList.filter(
@@ -421,13 +417,12 @@ export const ExportReviewModal: React.FC<ExportReviewModalProps> = ({
                 <div className="space-y-1">
                   <div className="font-bold text-zinc-200 flex items-center justify-between text-[11px]">
                     <span>{topologyNodeCount} nodes · {connectionCount} connections</span>
-                    <span className="text-cyan-400 font-mono text-[10px]">Start: {startingNodeId}</span>
-                  </div>
-                  <div className="text-[10px] text-zinc-400 flex items-center justify-between">
-                    <span>{castCount} cast ({atNodeCount} at node · {offstageCount} off · {nonlocalCount} non-local)</span>
                     {expansionAnchorCount > 0 && (
-                      <span className="text-purple-300">+{expansionAnchorCount} anchors</span>
+                      <span className="text-purple-300 font-mono text-[10px]">+{expansionAnchorCount} anchors</span>
                     )}
+                  </div>
+                  <div className="text-[10px] text-zinc-400">
+                    <span>{castCount} cast ({atNodeCount} placed · {offstageCount} offstage · {nonlocalCount} non-local)</span>
                   </div>
                 </div>
               </div>

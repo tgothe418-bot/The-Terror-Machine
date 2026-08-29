@@ -212,6 +212,16 @@ export const DepictionContractPanel: React.FC = () => {
         </div>
       )}
 
+      {/* Source-based defaults / Authoring status banner */}
+      {!pendingDepictionContractProposal && isContractComplete && (
+        <div
+          id="depiction-source-defaults-banner"
+          className="bg-emerald-950/20 border border-emerald-800/40 px-3 py-2 rounded text-[11px] font-mono text-emerald-300 flex items-center justify-between"
+        >
+          <span>SOURCE-BASED DEFAULTS APPLIED — EDIT ANY FIELD OR REGENERATE A REVIEW PROPOSAL</span>
+        </div>
+      )}
+
       {/* Error / Retry Bar */}
       {errorMessage && (
         <div

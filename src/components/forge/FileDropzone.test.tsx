@@ -373,4 +373,154 @@ describe('FileDropzone & Architect Binding Lifecycle UI', () => {
       })
     );
   });
+
+  it('FileDropzone preserves server completed_with_issues analysis without re-normalizing it', async () => {
+    const serverAnalysis: ForgeSourceAnalysis = {
+      id: 'src-preserve-analysis',
+      sourceRecord: {
+        id: 'src-preserve',
+        fileName: 'station_notes.txt',
+        mimeType: 'text/plain',
+        kind: 'document',
+        receivedAt: Date.now(),
+        fileSizeBytes: 120,
+      },
+      summary: 'Research notes on Station.',
+      evidence: [{ id: 'ev-1', sourceId: 'src-preserve', category: 'setting', claim: 'Station is underwater.' }],
+      candidates: [
+        {
+          id: 'cand-loc',
+          sourceId: 'src-preserve',
+          classification: 'evidence',
+          target: 'setting_location',
+          label: 'Location',
+          explanation: 'Station location',
+          evidenceIds: ['ev-1'],
+          proposedValue: 'Underwater Station',
+          reviewDecision: 'accepted',
+          applicationState: 'staged',
+        },
+      ],
+      unknowns: [],
+      validationIssues: [
+        {
+          id: 'src-preserve-issue-1',
+          sourceId: 'src-preserve',
+          candidateIndex: 1,
+          candidateTarget: 'cast_seed',
+          label: 'Corrupted Cast',
+          fieldPath: 'proposedValue.name',
+          code: 'MISSING_REQUIRED_FIELD',
+          message: 'Missing character name',
+          disposition: 'QUARANTINED',
+        },
+      ],
+      omittedValidationIssueCount: 0,
+      status: 'completed_with_issues',
+    };
+
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        success: true,
+        sourceBinding: 'binding-preserve-1',
+        analysis: serverAnalysis,
+      }),
+    } as Response);
+
+    await act(async () => {
+      root?.render(<FileDropzone />);
+    });
+
+    const fileInput = container?.querySelector('input[type="file"]') as HTMLInputElement;
+    const file = new File(['Notes'], 'station_notes.txt', { type: 'text/plain' });
+
+    await act(async () => {
+      Object.defineProperty(fileInput, 'files', {
+        value: [file],
+        writable: false,
+      });
+      fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
+
+    const analyses = Object.values(getForgeState().sourceAnalyses);
+    expect(analyses).toHaveLength(1);
+    expect(analyses[0].status).toBe('completed_with_issues');
+    expect(analyses[0].validationIssues).toHaveLength(1);
+    expect(analyses[0].validationIssues![0].id).toBe('src-preserve-issue-1');
+  });
+
+  it('normal import performs no automatic depiction proposal request', async () => {
+    const fetchSpy = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        success: true,
+        sourceBinding: 'binding-no-proposal',
+        analysis: {
+          id: 'src-no-prop-analysis',
+          sourceRecord: {
+            id: 'src-no-prop',
+            fileName: 'doc.txt',
+            mimeType: 'text/plain',
+            kind: 'document',
+            receivedAt: Date.now(),
+            fileSizeBytes: 100,
+          },
+          evidence: [{ id: 'ev-1', sourceId: 'src-no-prop', category: 'other', claim: 'Claim' }],
+          candidates: [
+            {
+              id: 'cand-dep',
+              sourceId: 'src-no-prop',
+              classification: 'evidence',
+              target: 'depiction_contract',
+              label: 'Depiction Contract',
+              explanation: 'Tone',
+              evidenceIds: ['ev-1'],
+              proposedValue: {
+                dramaticRegister: 'Dread',
+                directness: 'Direct',
+                aftermath: 'Grim',
+                ambiguityHandling: 'Uncertain',
+              },
+              reviewDecision: 'accepted',
+              applicationState: 'staged',
+            },
+          ],
+          unknowns: [],
+          status: 'completed',
+        },
+      }),
+    } as Response);
+    globalThis.fetch = fetchSpy;
+
+    await act(async () => {
+      root?.render(<FileDropzone />);
+    });
+
+    const fileInput = container?.querySelector('input[type="file"]') as HTMLInputElement;
+    const file = new File(['Source text'], 'doc.txt', { type: 'text/plain' });
+
+    await act(async () => {
+      Object.defineProperty(fileInput, 'files', {
+        value: [file],
+        writable: false,
+      });
+      fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
+
+    // Verify /api/architect was NOT called
+    const architectCalls = fetchSpy.mock.calls.filter((call) => call[0] === '/api/architect');
+    expect(architectCalls).toHaveLength(0);
+    expect(getForgeState().pendingDepictionContractProposal).toBeNull();
+  });
 });

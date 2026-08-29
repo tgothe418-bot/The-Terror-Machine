@@ -333,11 +333,15 @@ export const ForgeSourceCandidateTargetSchema = z.enum([
   'narrative_rule',
   'cast_seed',
   'cast_expression_guidance',
-  'initial_topology_node',
+  'topology_node',
+  'topology_connection',
+  'expandable_space_anchor',
+  'cast_opening_placement',
   'reference_attribution',
   'value_anchor',
   'character_pursuit',
-]);
+  'depiction_contract',
+] as const);
 export type ForgeSourceCandidateTarget = z.infer<typeof ForgeSourceCandidateTargetSchema>;
 
 export const ForgeCandidateReviewDecisionSchema = z.enum(['accepted', 'rejected']);
@@ -530,6 +534,14 @@ export const UserOpeningAimCandidateSchema = z
       UserOpeningAimSchema,
     ]),
   })
+export const DepictionContractCandidateSchema = z
+  .object({
+    ...BaseCandidateProps,
+    target: z.literal('depiction_contract'),
+    confidence: z.number().min(0).max(1).optional(),
+    evidenceIds: z.array(z.string().min(1)).min(1).max(12),
+    proposedValue: DepictionContractSchema,
+  })
   .strict();
 
 export const ForgeSourceCandidateSchema = z.discriminatedUnion('target', [
@@ -552,6 +564,7 @@ export const ForgeSourceCandidateSchema = z.discriminatedUnion('target', [
   ValueAnchorCandidateSchema,
   CharacterPursuitCandidateSchema,
   UserOpeningAimCandidateSchema,
+  DepictionContractCandidateSchema,
 ]);
 export type ForgeSourceCandidate = z.infer<typeof ForgeSourceCandidateSchema>;
 

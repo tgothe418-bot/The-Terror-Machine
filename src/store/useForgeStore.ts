@@ -424,6 +424,9 @@ export interface ForgeActions {
   applyAcceptedCandidates: (
     sourceId: string
   ) => { success: true; appliedCandidateIds: string[] } | { success: false; errors: Record<string, string> };
+  applyImportedSourceBaseline: (
+    sourceAnalysisId: string
+  ) => { success: true } | { success: false; error: string };
   removeSourceAnalysis: (sourceId: string) => void;
 
   // Deprecated compatibility aliases for candidates
@@ -1093,6 +1096,112 @@ export const useForgeStoreInternal = create<ForgeStore>()(
             };
 
             outcome = { success: true, appliedCandidateIds: appliedIds };
+
+            return {
+              forgeDraft: workingDraft,
+              draftBlueprint: workingDraft,
+              draftRevision: (state.draftRevision || 0) + 1,
+              sourceBaselineRevision: (state.sourceBaselineRevision || 0) + 1,
+              castLedger: deriveCastLedger(workingDraft),
+              topology: deriveTopology(workingDraft),
+              sourceAnalyses: {
+                ...state.sourceAnalyses,
+                [analysis.id]: updatedAnalysis,
+              },
+            };
+          });
+
+          return outcome;
+        },
+
+        applyImportedSourceBaseline: (sourceAnalysisId: string): { success: true } | { success: false; error: string } => {
+          let outcome: { success: true } | { success: false; error: string } = {
+            success: false,
+            error: 'Unknown error',
+          };
+
+          set((state: ForgeState) => {
+            const analysis = state.sourceAnalyses[sourceAnalysisId];
+            if (!analysis) {
+              outcome = { success: false, error: `Source analysis not found: ${sourceAnalysisId}` };
+              return state;
+            }
+
+            const stagedAccepted = analysis.candidates.filter(
+              (c) => c.reviewDecision === 'accepted' && c.applicationState === 'staged'
+            );
+
+            if (stagedAccepted.length === 0) {
+              outcome = { success: true };
+              return state;
+            }
+
+            const existingContract =
+              state.forgeDraft?.depictionContract || state.draftBlueprint?.depictionContract;
+            const isInvalidField = (val?: string) => {
+              if (!val) return true;
+              const t = val.trim().toLowerCase();
+              return !t || t === 'unknown' || t === 'none' || t === 'n/a';
+            };
+            const hasCompleteAuthoredDepiction = Boolean(
+              existingContract &&
+                !isInvalidField(existingContract.dramaticRegister) &&
+                !isInvalidField(existingContract.directness) &&
+                !isInvalidField(existingContract.aftermath) &&
+                !isInvalidField(existingContract.ambiguityHandling)
+            );
+
+            const ordered = sortCandidatesForApplication(stagedAccepted);
+
+            let workingDraft: ForgeDraft = state.forgeDraft
+              ? JSON.parse(JSON.stringify(state.forgeDraft))
+              : createInitialDraft();
+
+            const errors: Record<string, string> = {};
+            const appliedIds: string[] = [];
+
+            for (const cand of ordered) {
+              if (cand.target === 'depiction_contract' && hasCompleteAuthoredDepiction) {
+                // Preserved existing authored Depiction Contract; do not overwrite
+                continue;
+              }
+
+              const applyRes = applyCandidateToDraft(
+                workingDraft,
+                cand,
+                analysis.sourceRecord.fileName
+              );
+              if (!applyRes.success) {
+                errors[cand.id] = (applyRes as { success: false; draft: ForgeDraft; error: string }).error;
+              } else {
+                workingDraft = applyRes.draft;
+                appliedIds.push(cand.id);
+              }
+            }
+
+            if (Object.keys(errors).length > 0) {
+              const firstErr = Object.values(errors)[0] || 'Failed to apply one or more baseline candidates.';
+              outcome = { success: false, error: firstErr };
+              return state;
+            }
+
+            const updatedCandidates = analysis.candidates.map((c) => {
+              if (appliedIds.includes(c.id)) {
+                return {
+                  ...c,
+                  reviewDecision: 'accepted' as const,
+                  applicationState: 'applied' as const,
+                };
+              }
+              return c;
+            });
+
+            const updatedAnalysis: ForgeSourceAnalysis = {
+              ...analysis,
+              candidates: updatedCandidates,
+            };
+
+            outcome = { success: true };
 
             return {
               forgeDraft: workingDraft,

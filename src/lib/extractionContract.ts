@@ -548,7 +548,7 @@ You MUST output ONLY a valid JSON object matching this schema. Do not include ma
       "explanation": "Why this candidate was extracted from the evidence",
       "evidenceIds": ["ev-1"],
       "proposedValue": "Target-specific typed value matching EXACT schema rules below",
-      "targetCastMemberId": "optional cast member ID (strictly required if target is cast_expression_guidance, cast_opening_placement, character_pursuit, or user_opening_aim_default)"
+      "targetCastMemberId": "optional cast member ID (strictly required if target is cast_expression_guidance, cast_opening_placement, or character_pursuit)"
     }
   ],
   "unknowns": [
@@ -562,14 +562,31 @@ You MUST output ONLY a valid JSON object matching this schema. Do not include ma
 }
 
 CRITICAL EXTRACTION SCHEMAS & ENUMS:
-1. 'cast_expression_guidance':
+1. 'depiction_contract' (MANDATORY - EXACTLY ONE):
+   - proposedValue: {
+       "dramaticRegister": string (concrete reference-specific dramatic tone),
+       "directness": string (concrete sensory and narrative camera directness),
+       "aftermath": string (concrete lasting consequences and aftermath framing),
+       "ambiguityHandling": string (concrete epistemic uncertainty / reveal boundaries),
+       "specialBoundaries"?: string (optional boundaries / prohibitions, or empty string)
+     }
+   - Must be linked to 1 to 12 evidenceIds in the evidence registry.
+
+2. 'cast_expression_guidance':
    - proposedValue: { "communicationModes": ["${EXTRACTION_COMMUNICATION_MODES.join('" | "')}"], "expressionGuidance": string, "silenceGuidance"?: string }
    - targetCastMemberId: string (REQUIRED)
 
-2. 'topology_connection':
+3. 'topology_node':
+   - proposedValue: { "id": string, "label": string, "description"?: string, "sensoryGuidance"?: string }
+   - Map story-important main spaces as rich topology_nodes. Never emit a raw string node.
+
+4. 'topology_connection':
    - proposedValue: { "from": string, "to": string, "kind": "${EXTRACTION_EDGE_KINDS.join('" | "')}", "requires"?: string[], "userInitiated": boolean }
 
-3. 'value_anchor':
+5. 'expandable_space_anchor':
+   - proposedValue: { "id": string, "parentNodeId": string, "label": string, "description"?: string, "statement"?: string }
+
+6. 'value_anchor':
    - proposedValue: {
        "id": string,
        "holder": 
@@ -583,14 +600,14 @@ CRITICAL EXTRACTION SCHEMAS & ENUMS:
        "provenance": { "kind": "REVIEWED_SOURCE", "sourceId": string, "evidenceIds": string[] }
      }
 
-4. 'cast_opening_placement':
+7. 'cast_opening_placement':
    - proposedValue:
        | { "kind": "AT_NODE", "nodeId": string }
        | { "kind": "OFFSTAGE" }
        | { "kind": "NONLOCAL" }
    - targetCastMemberId: string (REQUIRED)
 
-5. 'character_pursuit':
+8. 'character_pursuit':
    - proposedValue: {
        "id": string,
        "castMemberId": string,
@@ -604,20 +621,11 @@ CRITICAL EXTRACTION SCHEMAS & ENUMS:
        "provenance": { "kind": "REVIEWED_SOURCE", "sourceId": string, "evidenceIds": string[] }
      }
    - targetCastMemberId: string (REQUIRED)
+   - Emit for each cast member with a readable source-derived opening objective. When no intent is readable, do not fabricate an objective.
 
-6. 'cast_seed':
-   - proposedValue: { "id"?: string, "name": string, "role": string, "description"?: string, "isEntity": boolean, "isUserCharacter": boolean, "behaviorVector"?: string, "vulnerabilityBase"?: { "resilience": number, "skepticism": number, "baggage": number } }
-   - Explicit "isUserCharacter" boolean is strictly required.
-
-7. 'user_opening_aim_default':
-   - proposedValue: { "castMemberId"?: string, "aimText": string }
-   - targetCastMemberId: string (REQUIRED)
-
-8. 'topology_node':
-   - proposedValue: { "id": string, "label": string, "description"?: string, "sensoryGuidance"?: string }
-
-9. 'expandable_space_anchor':
-   - proposedValue: { "id": string, "parentNodeId": string, "label": string, "description"?: string, "statement"?: string }
+9. 'cast_seed':
+   - proposedValue: { "id"?: string, "name": string, "role": string, "description"?: string, "isEntity": boolean, "behaviorVector"?: string, "vulnerabilityBase"?: { "resilience": number, "skepticism": number, "baggage": number } }
+   - No cast member is designated as the player/user character. The simulation Engine chooses perspective dynamically.
 
 10. String Targets:
    - 'scenario_title': String title.
@@ -627,13 +635,13 @@ CRITICAL EXTRACTION SCHEMAS & ENUMS:
    - 'setting_time_period': String time period.
    - 'environmental_rule': String environmental rule.
    - 'narrative_rule': String narrative rule.
-   - 'starting_node_selection': String node ID.
-   - 'initial_topology_node': String initial node name.
    - 'reference_attribution': String file name ("${fileName}").
 
 EXTRACTION POLICIES:
+- Emit EXACTLY ONE complete 'depiction_contract' candidate tied to concrete evidence for every document.
 - Extract all primary characters and entities/monsters found in the document.
 - Link candidate evidenceIds to corresponding entries in the evidence list.
 - Keep opening topology compact: map primary spaces as topology_nodes and secondary areas as expandable_space_anchors.
+- Perspective neutrality: Every imported scenario is perspective-neutral. There is no global starting space, designated player character, or fixed user opening aim.
 `;
 }

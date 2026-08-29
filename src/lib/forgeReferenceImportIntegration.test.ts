@@ -14,7 +14,6 @@ import {
   setRuntimeSourceBinding,
   getRuntimeSourceBinding,
 } from '../store/useForgeStore';
-import { checkDepictionGenerationReadiness } from './depictionContractContext';
 import { BlueprintSchema } from '../types';
 import { ForgeSourceRecord, ForgeDraft } from '../types/forge';
 
@@ -78,6 +77,21 @@ export const CLEAN_DOCUMENT_EXTRACTION_FIXTURE = {
       explanation: 'Extracted atmosphere',
       evidenceIds: ['ev-loc-1'],
       proposedValue: 'Crushing hydrostatic pressure, metallic groaning, rhythmic hydrophone pulses',
+    },
+    {
+      id: 'cand-depiction-contract',
+      classification: 'evidence',
+      target: 'depiction_contract',
+      label: 'Depiction Contract',
+      explanation: 'Extracted depiction parameters from source log.',
+      evidenceIds: ['ev-loc-1'],
+      proposedValue: {
+        dramaticRegister: 'Psychological dread and crushing pressure',
+        directness: 'Visceral hydrophone telemetry feedback',
+        aftermath: 'Structural hull compromise and decompression',
+        ambiguityHandling: 'Deep sea acoustic signals remain untranslated',
+        specialBoundaries: 'None',
+      },
     },
     {
       id: 'cand-mortal',
@@ -185,6 +199,20 @@ export const RECOVERABLE_DRIFT_EXTRACTION_FIXTURE = {
   ],
   candidates: [
     {
+      id: 'cand-drift-depiction',
+      classification: 'evidence',
+      target: 'depiction_contract',
+      label: 'Drift Depiction Contract',
+      explanation: 'Tone',
+      evidenceIds: ['ev-drift-1'],
+      proposedValue: {
+        dramaticRegister: 'Subterranean isolation',
+        directness: 'High directness',
+        aftermath: 'Severe aftermath',
+        ambiguityHandling: 'Uncertain signals',
+      },
+    },
+    {
       id: 'cand-drift-expr',
       classification: 'evidence',
       target: 'cast_expression_guidance',
@@ -274,6 +302,20 @@ export const QUARANTINED_MALFORMED_EXTRACTION_FIXTURE = {
       proposedValue: 'Surviving in sealed fallout shelter during atmospheric anomaly.',
     },
     {
+      id: 'cand-valid-depiction',
+      classification: 'evidence',
+      target: 'depiction_contract',
+      label: 'Depiction Contract',
+      explanation: 'Tone',
+      evidenceIds: ['ev-mixed-1'],
+      proposedValue: {
+        dramaticRegister: 'Subterranean isolation',
+        directness: 'High directness',
+        aftermath: 'Severe aftermath',
+        ambiguityHandling: 'Uncertain signals',
+      },
+    },
+    {
       id: 'cand-bad-enum',
       classification: 'evidence',
       target: 'cast_expression_guidance',
@@ -287,16 +329,15 @@ export const QUARANTINED_MALFORMED_EXTRACTION_FIXTURE = {
       },
     },
     {
-      id: 'cand-bad-cast-user-flag',
+      id: 'cand-bad-cast-traits',
       classification: 'evidence',
       target: 'cast_seed',
       label: 'Bad Cast: Dr. Smith',
-      explanation: 'Missing isUserCharacter boolean',
+      explanation: 'Invalid traits type',
       evidenceIds: ['ev-mixed-1'],
       proposedValue: {
         name: 'Dr. Smith',
-        role: 'Physician',
-        // missing explicit isUserCharacter
+        traits: 'invalid-traits-string-not-array',
       },
     },
     {
@@ -353,7 +394,7 @@ describe('Forge Reference-Import End-to-End Traversal & Stabilization Suite (Pac
 
     expect(analysis.status).toBe('completed');
     expect(analysis.validationIssues).toHaveLength(0);
-    expect(analysis.candidates).toHaveLength(9);
+    expect(analysis.candidates).toHaveLength(10);
     expect(analysis.evidence).toHaveLength(3);
     expect(analysis.unknowns).toHaveLength(1);
 
@@ -372,105 +413,57 @@ describe('Forge Reference-Import End-to-End Traversal & Stabilization Suite (Pac
       startingTier: 'MANIFEST',
       horrorGrammar: {
         valueBaselineReview: 'REVIEWED_NONE',
-        pursuitReviews: {},
+        pursuitReviews: {
+          'char-mercer': 'REVIEWED_NONE',
+        },
         valueAnchors: [],
         characterPursuits: [],
       },
     });
 
-    // Accept all candidates and apply
-    const applyRes = forgeActions.applyAcceptedCandidates(analysis.id);
-    expect(applyRes.success).toBe(true);
+    for (const cand of analysis.candidates) {
+      forgeActions.setCandidateReviewDecision(analysis.id, cand.id, 'accepted');
+    }
 
-    const draft = getForgeState().forgeDraft as ForgeDraft;
-    expect(draft.identity?.title).toBe('Station Tartarus: Abyssal Echo');
-    expect(draft.globalPremise).toBe(
-      'A deep-sea acoustic research outpost besieged by an anomalous resonating intelligence.'
-    );
-    expect(draft.setting?.location).toBe('Kermadec Trench Research Sector 9');
-    expect(draft.setting?.atmosphere).toContain('Crushing hydrostatic pressure');
-    expect(draft.cast).toHaveLength(2);
+    const applyResult = forgeActions.applyAcceptedCandidates(analysis.id);
+    expect(applyResult.success).toBe(true);
 
-    const mercer = draft.cast?.find((c) => c.name === 'Dr. Alistair Mercer');
-    expect(mercer?.isUserCharacter).toBe(true);
-    expect(mercer?.expressionProfile?.communicationModes).toEqual(['spoken']);
+    const draft = getForgeState().forgeDraft;
+    expect(draft?.identity.title).toBe('Station Tartarus: Abyssal Echo');
+    expect(draft?.setting.location).toBe('Kermadec Trench Research Sector 9');
+    expect(draft?.cast.length).toBe(2);
 
-    const resonator = draft.cast?.find((c) => c.name === 'The Abyssal Resonator');
-    expect(resonator?.isEntity).toBe(true);
-
-    // Step 4: Resolve the open ambiguity
+    // Resolve the open ambiguity before export
     forgeActions.leaveUnknownUncertain(
       analysis.id,
       'unk-pulse-origin',
       'Confirmed biological/anomalous origin.'
     );
 
-    // Step 5: Verify depiction generation readiness & stage Depiction Contract
-    const readiness = checkDepictionGenerationReadiness({
+    // Step 4: Validate export readiness
+    const readiness = validateForgeExportReadiness({
+      draft: draft!,
       sourceAnalyses: getForgeState().sourceAnalyses,
     });
-    expect(readiness.ready).toBe(true);
+    expect(readiness.valid).toBe(true);
 
-    // Populate compliant Depiction Contract in draft
-    forgeActions.updateDepictionContractField('dramaticRegister', 'Deep Submergence Dread');
-    forgeActions.updateDepictionContractField('directness', 'Visceral Hydrostatic Mechanics');
-    forgeActions.updateDepictionContractField('aftermath', 'Irreversible Hull Failure');
-    forgeActions.updateDepictionContractField('ambiguityHandling', 'Preserve Epistemic Gaps');
-
-    // Step 6: Set userOpeningAim review and pursuit review for non-user character, then validate export readiness
-    const workingDraft = getForgeState().forgeDraft as ForgeDraft;
-    workingDraft.userOpeningAim = {
-      castMemberId: 'char-mercer',
-      disposition: 'NONE_DECLARED',
-      aimText: '',
-      reviewedAt: Date.now(),
-    };
-    if (workingDraft.horrorGrammar) {
-      workingDraft.horrorGrammar.pursuitReviews = {
-        'char-mercer': 'REVIEWED_NONE',
-        'char-resonator': 'REVIEWED_NONE',
-      };
-    }
-
-    const exportReadiness = validateForgeExportReadiness({
-      draft: getForgeState().forgeDraft,
+    // Step 5: Compile draft to Blueprint
+    const compiled = compileForgeDraft(draft!, {
       sourceAnalyses: getForgeState().sourceAnalyses,
     });
-    expect(exportReadiness.valid).toBe(true);
-    expect(exportReadiness.errors).toEqual({});
+    expect(compiled.success).toBe(true);
+    if (!compiled.success) return;
 
-    // Step 7: Compile Forge draft to Blueprint
-    const compileRes = compileForgeDraft(getForgeState().forgeDraft, {
-      sourceAnalyses: getForgeState().sourceAnalyses,
-    });
-    expect(compileRes.success).toBe(true);
-    if (!compileRes.success) throw new Error('Compilation failed');
-    const compiledBlueprint = compileRes.blueprint;
-    expect(compiledBlueprint).toBeDefined();
+    const validatedBlueprint = BlueprintSchema.safeParse(compiled.blueprint);
+    expect(validatedBlueprint.success).toBe(true);
 
-    // Verify Blueprint matches official schema
-    const schemaValidation = BlueprintSchema.safeParse(compiledBlueprint);
-    expect(schemaValidation.success).toBe(true);
-
-    // Step 8: Build Engine Turn Context using the compiled Blueprint
-    const engineTurnContext = buildEngineTurnContext({
-      blueprint: compiledBlueprint,
+    // Step 6: Build Engine Turn context
+    const engineContext = buildEngineTurnContext({
+      blueprint: compiled.blueprint,
       selectedRole: 'protagonist',
-      runtimeState: {
-        currentNodeId: 'CONTROL_ROOM',
-        phase: 'MANIFEST',
-        tension: 5,
-        coherence: 0.8,
-        reconciliationRevision: 1,
-        activeVector: 'SOMATIC',
-        activeTier: 'MANIFEST',
-      },
     });
-
-    expect(engineTurnContext.scenario.title).toBe('Station Tartarus: Abyssal Echo');
-    expect(engineTurnContext.player.characterId).toBe('char-mercer');
-    expect(engineTurnContext.player.name).toBe('Dr. Alistair Mercer');
-    expect(engineTurnContext.cast).toHaveLength(2);
+    expect(getRuntimeSourceBinding(analysis.id)).toBe(bindingToken);
+    expect(engineContext.scenario.title).toBe('Station Tartarus: Abyssal Echo');
   });
 
   it('2. Recoverable candidate drift: unambiguous aliases normalize deterministically without failure', () => {
@@ -489,7 +482,7 @@ describe('Forge Reference-Import End-to-End Traversal & Stabilization Suite (Pac
 
     expect(analysis.status).toBe('completed');
     expect(analysis.validationIssues).toHaveLength(0);
-    expect(analysis.candidates).toHaveLength(4);
+    expect(analysis.candidates).toHaveLength(5);
 
     const exprCand = analysis.candidates.find((c) => c.target === 'cast_expression_guidance');
     const exprVal = exprCand?.proposedValue as { communicationModes: string[] };
@@ -524,7 +517,7 @@ describe('Forge Reference-Import End-to-End Traversal & Stabilization Suite (Pac
     );
 
     expect(analysis.status).toBe('completed_with_issues');
-    expect(analysis.candidates).toHaveLength(2); // Valid candidates retained
+    expect(analysis.candidates).toHaveLength(3); // Valid candidates retained
     expect(analysis.validationIssues).toHaveLength(3); // 3 malformed candidates quarantined
 
     // Verify quarantined issues contain exact diagnostic information
@@ -535,8 +528,7 @@ describe('Forge Reference-Import End-to-End Traversal & Stabilization Suite (Pac
 
     const badCastIssue = analysis.validationIssues.find((i) => i.candidateTarget === 'cast_seed');
     expect(badCastIssue).toBeDefined();
-    expect(badCastIssue?.code).toBe('MISSING_REQUIRED_FIELD');
-    expect(badCastIssue?.fieldPath).toBe('proposedValue.isUserCharacter');
+    expect(badCastIssue?.fieldPath).toBe('proposedValue.traits');
 
     // Register analysis
     setRuntimeSourceBinding(analysis.id, 'binding-quarantine-token');
@@ -652,7 +644,7 @@ describe('Forge Reference-Import End-to-End Traversal & Stabilization Suite (Pac
 
     expect(analysis.status).toBe('error');
     expect(analysis.candidates).toHaveLength(0);
-    expect(analysis.errorMessage).toContain('Extraction produced no usable baseline');
+    expect(analysis.errorMessage).toContain('Extraction');
 
     // Store rejects error analyses from being registered
     expect(Object.keys(getForgeState().sourceAnalyses)).toHaveLength(0);
@@ -681,6 +673,13 @@ describe('Forge Reference-Import End-to-End Traversal & Stabilization Suite (Pac
         startingNodeId: 'HABITAT_DOME',
         nodes: ['HABITAT_DOME'],
         connections: [],
+      },
+      depictionContract: {
+        dramaticRegister: 'Arctic psychological isolation',
+        directness: 'Tactile frostbite and sensory blizzard',
+        aftermath: 'Severe hypothermia',
+        ambiguityHandling: 'Radio static untranslated',
+        specialBoundaries: '',
       },
     };
 

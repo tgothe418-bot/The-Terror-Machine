@@ -459,4 +459,60 @@ describe('ExportReviewModal Component Snapshot Lifecycle', () => {
     expect(copyBtn.disabled).toBe(true);
     expect(downloadBtn.disabled).toBe(true);
   });
+
+  it('export review does not display a global Start fallback for perspective-neutral drafts', async () => {
+    forgeActions.initializeDraft({
+      title: 'Perspective Neutral Station',
+      premise: 'Facility without global start.',
+      startingVector: 'SOMATIC',
+      startingTier: 'MANIFEST',
+      setting: { location: 'Deep Trench' },
+      cast: [
+        {
+          id: 'c1',
+          name: 'Crew Member',
+          role: 'Engineer',
+          isEntity: false,
+          isUserCharacter: false,
+          presenceDisposition: { kind: 'AT_NODE', nodeId: 'NODE_01' },
+        },
+        {
+          id: 'c2',
+          name: 'Offstage Crew',
+          role: 'Scientist',
+          isEntity: false,
+          isUserCharacter: false,
+          presenceDisposition: { kind: 'OFFSTAGE' },
+        },
+      ],
+      topology: {
+        nodes: ['NODE_01'],
+        nodeDefinitions: [{ id: 'NODE_01', label: 'Node 01' }],
+        connections: [],
+      },
+      horrorGrammar: {
+        valueBaselineReview: 'REVIEWED_NONE',
+        pursuitReviews: {
+          c1: 'REVIEWED_NONE',
+          c2: 'REVIEWED_NONE',
+        },
+        valueAnchors: [],
+        characterPursuits: [],
+      },
+    });
+
+    forgeActions.updateDepictionContractField('dramaticRegister', 'Clinical dread');
+    forgeActions.updateDepictionContractField('directness', 'Visceral mechanics');
+    forgeActions.updateDepictionContractField('aftermath', 'Irreversible consequences');
+    forgeActions.updateDepictionContractField('ambiguityHandling', 'Preserve epistemic gaps');
+
+    const mockOnClose = vi.fn();
+    await act(async () => {
+      root?.render(React.createElement(ExportReviewModal, { isOpen: true, onClose: mockOnClose }));
+    });
+
+    // Verify manifest text shows cast breakdown and does NOT show Start:
+    expect(container?.textContent).toContain('2 cast (1 placed · 1 offstage · 0 non-local)');
+    expect(container?.textContent).not.toContain('Start:');
+  });
 });

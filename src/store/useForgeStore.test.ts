@@ -10,7 +10,7 @@ import {
   sanitizeSourceAnalyses,
 } from './useForgeStore';
 import { TopologyEdge } from '../types';
-import { DepictionContract, DepictionContractProposal } from '../types/forge';
+import { DepictionContract, DepictionContractProposal, ForgeSourceAnalysis } from '../types/forge';
 import { useAppStore } from './useAppStore';
 
 describe('useForgeStore - draft state and actions', () => {
@@ -1888,6 +1888,195 @@ describe('useForgeStore - draft state and actions', () => {
       expect(userChar?.isUserCharacter).toBe(true);
       expect(userChar?.presenceDisposition).toEqual({ kind: 'OFFSTAGE' });
       expect(userChar?.starting_location).toBe('');
+    });
+  });
+
+  describe('Packet 1E-1: Atomic Imported Source Baseline Application', () => {
+    it('successful document intake atomically applies accepted source baseline candidates', () => {
+      forgeActions.initializeDraft({ title: 'Initial Draft' });
+
+      const analysisId = 'src-atomic-1';
+      const mockAnalysis: ForgeSourceAnalysis = {
+        id: analysisId,
+        sourceRecord: {
+          id: analysisId,
+          fileName: 'station.txt',
+          mimeType: 'text/plain',
+          kind: 'document',
+          receivedAt: Date.now(),
+        },
+        summary: 'Deep station summary',
+        evidence: [{ id: 'ev-1', sourceId: analysisId, category: 'setting', claim: 'Station is deep in the abyss' }],
+        candidates: [
+          {
+            id: 'cand-1',
+            sourceId: analysisId,
+            classification: 'evidence',
+            target: 'setting_location',
+            label: 'Location',
+            explanation: 'Location',
+            evidenceIds: ['ev-1'],
+            proposedValue: 'Abyssal Trench Outpost',
+            reviewDecision: 'accepted',
+            applicationState: 'staged',
+          },
+          {
+            id: 'cand-2',
+            sourceId: analysisId,
+            classification: 'evidence',
+            target: 'depiction_contract',
+            label: 'Depiction Contract',
+            explanation: 'Tone',
+            evidenceIds: ['ev-1'],
+            proposedValue: {
+              dramaticRegister: 'Deep dread',
+              directness: 'High tactile audio',
+              aftermath: 'Severe trauma',
+              ambiguityHandling: 'Uncertain boundaries',
+              specialBoundaries: '',
+            },
+            reviewDecision: 'accepted',
+            applicationState: 'staged',
+          },
+        ],
+        unknowns: [],
+        status: 'completed',
+      };
+
+      forgeActions.registerSourceAnalysis(mockAnalysis, 'binding-atomic-1');
+      const result = forgeActions.applyImportedSourceBaseline(analysisId);
+      expect(result.success).toBe(true);
+
+      const state = getForgeState();
+      expect(state.forgeDraft?.setting?.location).toBe('Abyssal Trench Outpost');
+      expect(state.forgeDraft?.depictionContract?.dramaticRegister).toBe('Deep dread');
+      expect(state.forgeDraft?.depictionContract?.directness).toBe('High tactile audio');
+
+      // Candidate ledger must be updated to applied
+      const updatedAnalysis = state.sourceAnalyses[analysisId];
+      expect(updatedAnalysis.candidates[0].applicationState).toBe('applied');
+      expect(updatedAnalysis.candidates[1].applicationState).toBe('applied');
+    });
+
+    it('failed automatic baseline application preserves the prior draft and revokes the new binding', () => {
+      forgeActions.initializeDraft({ title: 'Unbroken Prior Draft' });
+      const priorDraft = getForgeState().forgeDraft;
+
+      const analysisId = 'src-fail-1';
+      const badAnalysis: ForgeSourceAnalysis = {
+        id: analysisId,
+        sourceRecord: {
+          id: analysisId,
+          fileName: 'broken.txt',
+          mimeType: 'text/plain',
+          kind: 'document',
+          receivedAt: Date.now(),
+        },
+        summary: 'Broken summary',
+        evidence: [],
+        candidates: [
+          {
+            id: 'cand-broken-edge',
+            sourceId: analysisId,
+            classification: 'evidence',
+            target: 'topology_connection',
+            label: 'Bad Edge',
+            explanation: 'Non-existent from node',
+            evidenceIds: [],
+            proposedValue: {
+              from: 'GHOST_ROOM_1',
+              to: 'GHOST_ROOM_2',
+              kind: 'PHYSICAL',
+              userInitiated: true,
+            },
+            reviewDecision: 'accepted',
+            applicationState: 'staged',
+          },
+        ],
+        unknowns: [],
+        status: 'completed',
+      };
+
+      forgeActions.registerSourceAnalysis(badAnalysis, 'binding-bad-1');
+      const result = forgeActions.applyImportedSourceBaseline(analysisId);
+      expect(result.success).toBe(false);
+
+      const state = getForgeState();
+      // Draft restored to prior state
+      expect(state.forgeDraft?.title).toBe(priorDraft?.title);
+      expect(state.forgeDraft?.topology?.connections || []).toHaveLength(0);
+    });
+
+    it('complete authored depiction contract is preserved during a subsequent source import', () => {
+      forgeActions.initializeDraft({
+        title: 'Authored Scenario',
+        depictionContract: {
+          dramaticRegister: 'Authored Gothic Register',
+          directness: 'Authored Visceral Directness',
+          aftermath: 'Authored Psychological Aftermath',
+          ambiguityHandling: 'Authored Ambiguity',
+          specialBoundaries: 'Authored Boundaries',
+        },
+      });
+
+      const analysisId = 'src-subsequent-1';
+      const mockAnalysis: ForgeSourceAnalysis = {
+        id: analysisId,
+        sourceRecord: {
+          id: analysisId,
+          fileName: 'imported.txt',
+          mimeType: 'text/plain',
+          kind: 'document',
+          receivedAt: Date.now(),
+        },
+        summary: 'Imported summary',
+        evidence: [{ id: 'ev-1', sourceId: analysisId, category: 'setting', claim: 'Imported claim' }],
+        candidates: [
+          {
+            id: 'cand-dep-imported',
+            sourceId: analysisId,
+            classification: 'evidence',
+            target: 'depiction_contract',
+            label: 'Imported Depiction Contract',
+            explanation: 'Imported tone',
+            evidenceIds: ['ev-1'],
+            proposedValue: {
+              dramaticRegister: 'Imported Tone',
+              directness: 'Imported Directness',
+              aftermath: 'Imported Aftermath',
+              ambiguityHandling: 'Imported Ambiguity',
+              specialBoundaries: '',
+            },
+            reviewDecision: 'accepted',
+            applicationState: 'staged',
+          },
+          {
+            id: 'cand-loc',
+            sourceId: analysisId,
+            classification: 'evidence',
+            target: 'setting_location',
+            label: 'Imported Location',
+            explanation: 'Imported location',
+            evidenceIds: ['ev-1'],
+            proposedValue: 'Imported Castle',
+            reviewDecision: 'accepted',
+            applicationState: 'staged',
+          },
+        ],
+        unknowns: [],
+        status: 'completed',
+      };
+
+      forgeActions.registerSourceAnalysis(mockAnalysis, 'binding-subsequent');
+      const result = forgeActions.applyImportedSourceBaseline(analysisId);
+      expect(result.success).toBe(true);
+
+      const state = getForgeState();
+      // Authored depiction contract is preserved
+      expect(state.forgeDraft?.depictionContract?.dramaticRegister).toBe('Authored Gothic Register');
+      expect(state.forgeDraft?.depictionContract?.directness).toBe('Authored Visceral Directness');
+      // Other candidate is applied
+      expect(state.forgeDraft?.setting?.location).toBe('Imported Castle');
     });
   });
 });

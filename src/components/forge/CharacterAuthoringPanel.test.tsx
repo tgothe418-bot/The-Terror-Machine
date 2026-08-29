@@ -147,7 +147,7 @@ describe('CharacterAuthoringPanel Component', () => {
     expect(container?.textContent).toContain('Opening Objective');
   });
 
-  it('adds a new cast member on "+ ADD CAST MEMBER" click', async () => {
+  it('manual character placement defaults to OFFSTAGE and never nodes[0]', async () => {
     await act(async () => {
       root?.render(<CharacterAuthoringPanel />);
     });
@@ -161,7 +161,9 @@ describe('CharacterAuthoringPanel Component', () => {
 
     const draft = useForgeStoreInternal.getState().forgeDraft;
     expect(draft?.cast?.length).toBe(3);
-    expect(draft?.cast?.[2].name).toBe('New Cast Member');
+    const newMember = draft?.cast?.[2];
+    expect(newMember?.name).toBe('New Cast Member');
+    expect(newMember?.presenceDisposition).toEqual({ kind: 'OFFSTAGE' });
   });
 
   it('toggles entity status on a character', async () => {

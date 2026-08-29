@@ -330,6 +330,21 @@ describe('Forge 1C-8: Production-Path Closure, Integration Proof, and Negative M
         },
       },
       {
+        id: 'cand-depiction',
+        classification: 'evidence',
+        target: 'depiction_contract',
+        label: 'Xenon Depiction Contract',
+        explanation: 'Extracted tone from incident report',
+        evidenceIds: ['ev-top-1'],
+        proposedValue: {
+          dramaticRegister: 'Subterranean Hard Sci-Fi Horror',
+          directness: 'Tactile environmental feedback',
+          aftermath: 'Structural damage is persistent',
+          ambiguityHandling: 'Entity nature is never explained as magic',
+          specialBoundaries: 'None',
+        },
+      },
+      {
         id: 'cand-pursuit-sarah',
         classification: 'evidence',
         target: 'character_pursuit',
@@ -663,14 +678,15 @@ describe('Forge 1C-8: Production-Path Closure, Integration Proof, and Negative M
   });
 
   describe('Negative Matrix Boundary Rejections', () => {
-    it('rejects provider cast missing explicit isUserCharacter boolean', () => {
+    it('normalizes provider cast missing explicit isUserCharacter boolean to false', () => {
       const rawExtraction = createRepresentativeRawExtraction();
       const castCand = rawExtraction.candidates.find((c) => c.id === 'cand-cast-marcus')!;
       delete (castCand.proposedValue as Record<string, unknown>).isUserCharacter;
 
       const norm = validateAndNormalizeDocumentAnalysis(rawExtraction, sourceRecord);
       const marcusCand = norm.candidates.find((c) => c.id === 'cand-cast-marcus');
-      expect(marcusCand).toBeUndefined(); // Dropped by strict schema validation
+      expect(marcusCand).toBeDefined();
+      expect((marcusCand?.proposedValue as { isUserCharacter: boolean }).isUserCharacter).toBe(false);
     });
 
     it('rejects draft when cast opening placement is missing', () => {

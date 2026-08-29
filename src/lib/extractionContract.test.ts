@@ -294,5 +294,25 @@ describe('extractionContract — Sanitized Issues, Parity & Prompt', () => {
     expect(prompt).toContain('AT_NODE');
     expect(prompt).toContain('OFFSTAGE');
     expect(prompt).toContain('NONLOCAL');
+    expect(prompt).toContain('depiction_contract');
+    expect(prompt).toContain('topology_node');
+  });
+
+  it('provider-facing extraction targets include rich topology and depiction contract but exclude legacy start targets', () => {
+    expect(EXTRACTION_CANDIDATE_TARGETS).toContain('topology_node');
+    expect(EXTRACTION_CANDIDATE_TARGETS).toContain('topology_connection');
+    expect(EXTRACTION_CANDIDATE_TARGETS).toContain('expandable_space_anchor');
+    expect(EXTRACTION_CANDIDATE_TARGETS).toContain('cast_opening_placement');
+    expect(EXTRACTION_CANDIDATE_TARGETS).toContain('depiction_contract');
+
+    expect(EXTRACTION_CANDIDATE_TARGETS).not.toContain('initial_topology_node');
+    expect(EXTRACTION_CANDIDATE_TARGETS).not.toContain('starting_node_selection');
+    expect(EXTRACTION_CANDIDATE_TARGETS).not.toContain('user_opening_aim_default');
+
+    const prompt = getForgeExtractionPrompt('scenario_spec.md');
+    expect(prompt).toContain('depiction_contract');
+    expect(prompt).toContain('topology_node');
+    expect(prompt).not.toContain('starting_node_selection');
+    expect(prompt).not.toContain('user_opening_aim_default');
   });
 });

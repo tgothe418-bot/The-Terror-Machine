@@ -130,24 +130,49 @@ describe('Forge 1C-3: Opening Aims, Goals, and Pursuit Convergence', () => {
           presenceDisposition: { kind: 'AT_NODE', nodeId: 'AIRLOCK_ALPHA' },
         },
       ],
-      userOpeningAim: {
-        castMemberId: 'char-elena',
-        disposition: 'ACCEPTED_REFERENCE',
-        aimText: 'Investigate the acoustic anomalies in the lower trench.',
-        provenance: {
-          kind: 'REVIEWED_SOURCE',
-          sourceId: 'src-1',
-          evidenceIds: ['ev-1'],
+      horrorGrammar: {
+        valueBaselineReview: 'REVIEWED_NONE',
+        pursuitReviews: {
+          'char-elena': 'REVIEWED',
         },
+        valueAnchors: [],
+        characterPursuits: [
+          {
+            id: 'pursuit-elena',
+            castMemberId: 'char-elena',
+            objective: 'Investigate the acoustic anomalies in the lower trench.',
+            presentApproach: 'Listening to hydrophone telemetry',
+            status: 'ACTIVE',
+            reviewWindow: 'SCENE_BEAT',
+            triggerReferences: [],
+            basisSummary: 'Mission objective',
+            provenance: {
+              kind: 'REVIEWED_SOURCE',
+              sourceId: 'src-1',
+              evidenceIds: ['ev-1'],
+            },
+          },
+        ],
+      },
+      depictionContract: {
+        dramaticRegister: 'Deep dread',
+        directness: 'High directness',
+        aftermath: 'Severe aftermath',
+        ambiguityHandling: 'Uncertain boundaries',
+        specialBoundaries: '',
       },
     });
 
     const analysis = buildSourceAnalysisFromBlueprint(rawBp, 'delta_manifest.json');
+    const pursuitCand = analysis.candidates.find((c) => c.target === 'character_pursuit');
+    expect(pursuitCand).toBeDefined();
+    expect(pursuitCand?.targetCastMemberId).toBe('char-elena');
+    expect(pursuitCand?.evidenceIds.length).toBeGreaterThan(0);
+    expect(analysis.evidence.some((e) => pursuitCand?.evidenceIds.includes(e.id))).toBe(true);
+
+    // Perspective-neutral: no user_opening_aim_default candidate is emitted
     const aimCand = analysis.candidates.find((c) => c.target === 'user_opening_aim_default');
-    expect(aimCand).toBeDefined();
-    expect(aimCand?.targetCastMemberId).toBe('char-elena');
-    expect(aimCand?.evidenceIds.length).toBeGreaterThan(0);
-    expect(analysis.evidence.some((e) => aimCand?.evidenceIds.includes(e.id))).toBe(true);
+    expect(aimCand).toBeUndefined();
   });
 
   it('2. unreviewed cast opening objectives fail validation and block export', () => {
@@ -160,7 +185,7 @@ describe('Forge 1C-3: Opening Aims, Goals, and Pursuit Convergence', () => {
     expect(validation.errors['horrorGrammar.pursuitReviews.char-elena'][0]).toContain('Opening objective review is required');
   });
 
-  it('3. candidate application produces UNREVIEWED proposal without setting ACCEPTED_REFERENCE', () => {
+  it('3. legacy user aim candidate application is safely ignored to preserve perspective neutrality', () => {
     const draft = createBaseDraft();
     const candidate: ForgeSourceCandidate = {
       id: 'cand-aim-1',
@@ -183,13 +208,8 @@ describe('Forge 1C-3: Opening Aims, Goals, and Pursuit Convergence', () => {
     expect(applyRes.success).toBe(true);
     if (!applyRes.success) return;
 
-    // Applied candidate MUST be UNREVIEWED with undefined reviewedAt
-    expect(applyRes.draft.userOpeningAim).toBeDefined();
-    expect(applyRes.draft.userOpeningAim?.disposition).toBe('UNREVIEWED');
-    expect(applyRes.draft.userOpeningAim?.reviewedAt).toBeUndefined();
-    expect(applyRes.draft.userOpeningAim?.aimText).toBe(
-      'Investigate the acoustic anomalies in the lower trench.'
-    );
+    // Legacy target is ignored - userOpeningAim remains undefined
+    expect(applyRes.draft.userOpeningAim).toBeUndefined();
   });
 
   it('4. custom replacement creates creator-defined provenance and removes false source attribution', () => {
@@ -522,11 +542,10 @@ describe('Forge 1C-3: Opening Aims, Goals, and Pursuit Convergence', () => {
     expect(getCandidateApplicationPriority('topology_node')).toBe(1);
     expect(getCandidateApplicationPriority('topology_connection')).toBe(2);
     expect(getCandidateApplicationPriority('expandable_space_anchor')).toBe(2);
-    expect(getCandidateApplicationPriority('starting_node_selection')).toBe(3);
     expect(getCandidateApplicationPriority('cast_opening_placement')).toBe(3);
     expect(getCandidateApplicationPriority('value_anchor')).toBe(4);
     expect(getCandidateApplicationPriority('character_pursuit')).toBe(4);
-    expect(getCandidateApplicationPriority('user_opening_aim_default')).toBe(4);
+    expect(getCandidateApplicationPriority('depiction_contract')).toBe(5);
   });
 
   it('16. document extraction payload attempting ACCEPTED_REFERENCE is normalized to proposal-only', () => {
@@ -547,23 +566,46 @@ describe('Forge 1C-3: Opening Aims, Goals, and Pursuit Convergence', () => {
           claim: 'Elena is ordered to seal the bulkhead.',
           excerpt: 'Seal the bulkhead immediately.',
         },
+        {
+          id: 'ev-dep',
+          category: 'other',
+          claim: 'Depiction parameters',
+        },
       ],
       candidates: [
         {
+          id: 'cand-dep',
+          classification: 'evidence',
+          target: 'depiction_contract',
+          label: 'Depiction Contract',
+          explanation: 'Depiction contract',
+          evidenceIds: ['ev-dep'],
+          proposedValue: {
+            dramaticRegister: 'Deep sea dread',
+            directness: 'High directness',
+            aftermath: 'Severe trauma',
+            ambiguityHandling: 'High uncertainty',
+          },
+        },
+        {
           id: 'cand-aim-untrusted',
           classification: 'evidence',
-          target: 'user_opening_aim_default',
+          target: 'character_pursuit',
           label: 'Aim Proposal',
           explanation: 'Extracted order',
           evidenceIds: ['ev-aim-1'],
           targetCastMemberId: 'char-elena',
-          // Untrusted model attempted to emit ACCEPTED_REFERENCE
           proposedValue: {
+            id: 'pursuit-elena',
             castMemberId: 'char-elena',
-            disposition: 'ACCEPTED_REFERENCE',
-            aimText: 'Seal the bulkhead immediately.',
+            objective: 'Seal the bulkhead immediately.',
+            presentApproach: 'Running to the manual seal valve.',
+            status: 'ACTIVE',
+            reviewWindow: 'SCENE_BEAT',
+            triggerReferences: [],
+            basisSummary: 'Duty order',
             provenance: {
-              kind: 'REVIEWED_SOURCE',
+              kind: 'UNTRUSTED_MODEL_AUTHOR',
               sourceId: 'model-fake-source',
               evidenceIds: ['ev-aim-1'],
             },
@@ -575,13 +617,15 @@ describe('Forge 1C-3: Opening Aims, Goals, and Pursuit Convergence', () => {
 
     const analysis = validateAndNormalizeDocumentAnalysis(rawExtractionPayload, sourceRecord);
     expect(analysis.status).toBe('completed');
-    const aimCand = analysis.candidates.find((c) => c.target === 'user_opening_aim_default');
-    expect(aimCand).toBeDefined();
-    expect(aimCand?.sourceId).toBe('src-extract-test'); // Server-owned source ID enforced
-    expect(aimCand?.proposedValue).toEqual({
-      castMemberId: 'char-elena',
-      aimText: 'Seal the bulkhead immediately.',
-    }); // Model-attempted ACCEPTED_REFERENCE stripped to pure proposal
+    const pursuitCand = analysis.candidates.find((c) => c.target === 'character_pursuit');
+    expect(pursuitCand).toBeDefined();
+    expect(pursuitCand?.sourceId).toBe('src-extract-test'); // Server-owned source ID enforced
+    const val = pursuitCand?.proposedValue as Record<string, unknown>;
+    expect(val.provenance).toEqual({
+      kind: 'REVIEWED_SOURCE',
+      sourceId: 'src-extract-test',
+      evidenceIds: ['ev-aim-1'],
+    }); // Model-attempted untrusted provenance normalized to authoritative server provenance
   });
 
   it('17. fake, placeholder, or cross-source provenance on topology fails export readiness and compilation', () => {
