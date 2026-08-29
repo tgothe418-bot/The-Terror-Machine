@@ -132,7 +132,9 @@ Once the current seams are stable:
 
 - campaign continuity can move scoped state between authored Blueprints;
 - a researched generative horror grammar can guide pressure, pacing, revelation, recovery, and fear without reducing them to genre presets;
-Active construction has moved to Antigravity. Engine structured generation operates behind a provider-neutral dispatch layer with admissions for Google Gemini (default) and Alibaba Qwen (`qwen3.7-flash-2026-07-15`), while Voice and Forge continue on Gemini. Provider selection occurs before generation without runtime retries or cross-provider fallbacks.
+- the Engine's model-provider boundary can become more replaceable.
+
+Active construction has moved to Antigravity. Google Gemini remains the application's current model provider through `@google/genai`; provider neutrality is still a design direction rather than a present-tense claim.
 
 ## What will not change
 

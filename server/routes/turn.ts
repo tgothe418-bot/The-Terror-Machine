@@ -49,8 +49,6 @@ import {
   EngineTurnStructuredResponseContract,
   ProviderRefusalError,
   EmptyProviderResponseError,
-  ProviderConfigurationError,
-  ProviderRequestError,
 } from '../utils/aiClient';
 import { resolveTransition } from '../engine/transitionResolver';
 import { clampSkepticismDelta } from '../../src/lib/castContinuity';
@@ -1176,16 +1174,6 @@ ${recentHistory}
       engineResponse = await generateStructuredResponse(prompt, EngineTurnStructuredResponseContract);
     } catch (modelErr: unknown) {
       if (
-        modelErr instanceof ProviderConfigurationError ||
-        (modelErr as { code?: string })?.code === 'PROVIDER_CONFIGURATION_ERROR'
-      ) {
-        console.error('[API /turn] AI Provider configuration error');
-        return res.status(502).json({
-          error: 'AI provider is not configured',
-          code: 'PROVIDER_CONFIGURATION_ERROR',
-        });
-      }
-      if (
         modelErr instanceof ProviderRefusalError ||
         (modelErr as { code?: string })?.code === 'PROVIDER_REFUSAL'
       ) {
@@ -1205,18 +1193,8 @@ ${recentHistory}
           code: 'PROVIDER_FAILURE',
         });
       }
-      if (
-        modelErr instanceof ProviderRequestError ||
-        (modelErr as { code?: string })?.code === 'PROVIDER_REQUEST_ERROR'
-      ) {
-        console.error('[API /turn] AI Provider request failure');
-        return res.status(502).json({
-          error: 'AI provider turn generation failed',
-          code: 'PROVIDER_FAILURE',
-        });
-      }
       if (modelErr instanceof z.ZodError || (modelErr as { name?: string })?.name === 'ZodError') {
-        console.error('[API /turn] Model contract mismatch');
+        console.error('[API /turn] Model contract mismatch:', modelErr);
         const zodError =
           modelErr instanceof z.ZodError
             ? modelErr
@@ -1229,7 +1207,7 @@ ${recentHistory}
         });
       }
       if (modelErr instanceof SyntaxError) {
-        console.error('[API /turn] Model JSON parse failure');
+        console.error('[API /turn] Model JSON parse failure:', modelErr);
         const diagnostics = buildJsonParseDiagnostics();
         return res.status(502).json({
           error: 'Model output violated schema contract',
@@ -1237,7 +1215,7 @@ ${recentHistory}
           diagnostics,
         });
       }
-      console.error('[API /turn] AI Provider failure');
+      console.error('[API /turn] AI Provider failure:', modelErr);
       return res.status(502).json({
         error: 'AI provider turn generation failed',
         code: 'PROVIDER_FAILURE',

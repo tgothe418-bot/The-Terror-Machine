@@ -25,7 +25,7 @@ Jump to: [Run it](#running-the-machine) · [The House is Free](#the-house-is-fre
 
 Before the tour, the doorknob.
 
-The application uses React, TypeScript, Vite, Express, Zustand, Zod, Tailwind CSS, Vitest, IndexedDB utilities, and provider-neutral structured generation with support for Google Gemini and Alibaba Qwen (`qwen3.7-flash-2026-07-15`).
+The application uses React, TypeScript, Vite, Express, Zustand, Zod, Tailwind CSS, Vitest, IndexedDB utilities, and Google Gemini through `@google/genai`.
 
 ```bash
 npm install
@@ -33,10 +33,7 @@ cp .env.example .env
 npm run dev
 ```
 
-Configure your local `.env`:
-
-- **Gemini (Default)**: Set `GEMINI_API_KEY`. Used by default for Engine turns, Voice, and Forge.
-- **Qwen (Alternate Engine Provider)**: Set `TTM_ENGINE_PROVIDER=qwen`, `DASHSCOPE_API_KEY`, and `QWEN_BASE_URL` (e.g. `https://dashscope-intl.aliyuncs.com/compatible-mode/v1`). Engine turns run via pinned model `qwen3.7-flash-2026-07-15`. Voice and Forge continue to use Gemini.
+Add a personal Gemini API key to `.env`.
 
 For a production-style compilation:
 
@@ -53,7 +50,7 @@ npm test
 
 Never commit `.env`, expose an API key in source code, or paste a key into a public issue.
 
-The machine is currently being built and tested in Antigravity. Model runtimes supply generation, but the Engine sits behind strict, provider-neutral schema contracts. Workshops change. The house should survive its builders.
+The machine is currently being built and tested in Antigravity. Gemini supplies the model runtime, but the Engine sits behind explicit contracts. Workshops change. The house should survive its builders.
 
 ## THE HOUSE IS FREE
 

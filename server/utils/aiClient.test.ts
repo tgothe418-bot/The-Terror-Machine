@@ -166,6 +166,36 @@ describe('Structured AI Response Handling', () => {
     expect(unwrapStrictJsonResponse(raw)).toBe('{"test": true}');
   });
 
+  it('classifies successful responses as SUCCESS', () => {
+    const result = classifyProviderResponse({
+      text: () => '{"narrative_blocks":[]}',
+    });
+    expect(result.kind).toBe('SUCCESS');
+    if (result.kind === 'SUCCESS') {
+      expect(result.rawText).toBe('{"narrative_blocks":[]}');
+    }
+  });
+
+  it('classifies empty responses as EMPTY', () => {
+    const result = classifyProviderResponse({ text: () => '' });
+    expect(result.kind).toBe('EMPTY');
+  });
+
+  it('classifies safety blocks as REFUSAL', () => {
+    const result = classifyProviderResponse({
+      candidates: [
+        {
+          finishReason: 'SAFETY',
+          safetyRatings: [{ category: 'HARM_CATEGORY_DANGEROUS_CONTENT', probability: 'HIGH' }],
+        },
+      ],
+    });
+    expect(result.kind).toBe('REFUSAL');
+    if (result.kind === 'REFUSAL') {
+      expect(result.reason).toContain('SAFETY');
+    }
+  });
+
   it('throws EmptyProviderResponseError for empty responses in parseStructuredTurnResponse', () => {
     expect(() => parseStructuredTurnResponse('', TurnResultSchema)).toThrow(
       EmptyProviderResponseError
@@ -218,7 +248,7 @@ describe('HG1 Provider Schema & Contract Soundness (Packet 1-10A)', () => {
     expect(transChangesItem.properties.proposedStatus.enum).toEqual([...PRESSURE_THREAD_TERMINAL_STATUSES]);
 
     // 7. Provider manifestation union contains exactly prose and dialogue
-    const actManifest = (activityActiveSchema.properties.manifestationBlock as unknown as { anyOf: Array<{ properties: { type: { enum: string[] }; content: { maxLength: string }; speaker?: { maxLength: string } }; required: string[] }> });
+    const actManifest = (activityActiveSchema.properties.manifestationBlock as { anyOf: Array<{ properties: { type: { enum: string[] }; content: { maxLength: string }; speaker?: { maxLength: string } }; required: string[] }> });
     expect(actManifest.anyOf).toHaveLength(2);
     expect(actManifest.anyOf[0].properties.type.enum).toEqual(['prose']);
     expect(actManifest.anyOf[0].required).toEqual(['type', 'content']);
@@ -545,7 +575,7 @@ describe('HG1 Provider Schema & Contract Soundness (Packet 1-10A)', () => {
 
     expect(generateSpy).toHaveBeenCalledTimes(1);
     const callConfig = generateSpy.mock.calls[0][0];
-    expect(callConfig.config?.responseSchema).toBe(EngineTurnStructuredResponseContract.providerSchemas.gemini);
+    expect(callConfig.config?.responseSchema).toBe(EngineTurnStructuredResponseContract.responseSchema);
     expect(callConfig.config?.responseSchema).toBe(turnResponseSchema);
 
     // 18. The returned text is parsed by the exact contract.zodSchema object

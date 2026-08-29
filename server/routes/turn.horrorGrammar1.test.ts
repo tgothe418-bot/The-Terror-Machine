@@ -277,7 +277,7 @@ describe('Horror Grammar Turn Route (Packet 1-10 HG1 Provider Contract Restorati
 
     expect(mockGenerateContent).toHaveBeenCalledTimes(1);
     const generateCall = mockGenerateContent.mock.calls[0][0];
-    expect(generateCall.config?.responseSchema).toBe(EngineTurnStructuredResponseContract.providerSchemas.gemini);
+    expect(generateCall.config?.responseSchema).toBe(EngineTurnStructuredResponseContract.responseSchema);
     const promptArg = generateCall.contents[0].parts[0].text;
 
     expect(promptArg).toContain('[CAST ACTIVITY OPPORTUNITY POOL (OBSERVATIONAL)]');
@@ -373,7 +373,7 @@ describe('Horror Grammar Turn Route (Packet 1-10 HG1 Provider Contract Restorati
     const data = await res.json();
 
     expect(mockGenerateContent.mock.calls[0][0].config?.responseSchema).toBe(
-      EngineTurnStructuredResponseContract.providerSchemas.gemini
+      EngineTurnStructuredResponseContract.responseSchema
     );
 
     // Narrative composition contains base + activity + pressure (3 blocks in order)
@@ -472,7 +472,7 @@ describe('Horror Grammar Turn Route (Packet 1-10 HG1 Provider Contract Restorati
     const data = await res.json();
 
     expect(mockGenerateContent.mock.calls[0][0].config?.responseSchema).toBe(
-      EngineTurnStructuredResponseContract.providerSchemas.gemini
+      EngineTurnStructuredResponseContract.responseSchema
     );
 
     // Value anchor resolution succeeds because authoringBaseline.valueAnchors contains 'val-1'
@@ -637,7 +637,7 @@ describe('Horror Grammar Turn Route (Packet 1-10 HG1 Provider Contract Restorati
     const data = await res.json();
 
     expect(mockGenerateContent.mock.calls[0][0].config?.responseSchema).toBe(
-      EngineTurnStructuredResponseContract.providerSchemas.gemini
+      EngineTurnStructuredResponseContract.responseSchema
     );
 
     // Receipts must retain the sentinel pre-state and produce identical post-state (no empty fallback)
@@ -844,7 +844,7 @@ describe('Horror Grammar Turn Route (Packet 1-10 HG1 Provider Contract Restorati
     const data = await res.json();
 
     expect(mockGenerateContent.mock.calls[0][0].config?.responseSchema).toBe(
-      EngineTurnStructuredResponseContract.providerSchemas.gemini
+      EngineTurnStructuredResponseContract.responseSchema
     );
 
     // All invalid proposals are rejected and receipts reflect rejection
@@ -945,7 +945,7 @@ describe('Horror Grammar Turn Route (Packet 1-10 HG1 Provider Contract Restorati
     const data = await res.json();
 
     expect(mockGenerateContent.mock.calls[0][0].config?.responseSchema).toBe(
-      EngineTurnStructuredResponseContract.providerSchemas.gemini
+      EngineTurnStructuredResponseContract.responseSchema
     );
 
     // Narrative contains ONLY the base block
@@ -1118,7 +1118,7 @@ describe('Horror Grammar Turn Route (Packet 1-10 HG1 Provider Contract Restorati
     const dataTurn1 = await resTurn1.json();
 
     expect(mockGenerateContent.mock.calls[0][0].config?.responseSchema).toBe(
-      EngineTurnStructuredResponseContract.providerSchemas.gemini
+      EngineTurnStructuredResponseContract.responseSchema
     );
 
     // Verify Turn 1 receipts & state
@@ -1248,7 +1248,7 @@ describe('Horror Grammar Turn Route (Packet 1-10 HG1 Provider Contract Restorati
     const dataTurn2 = await resTurn2.json();
 
     expect(mockGenerateContent.mock.calls[1][0].config?.responseSchema).toBe(
-      EngineTurnStructuredResponseContract.providerSchemas.gemini
+      EngineTurnStructuredResponseContract.responseSchema
     );
 
     // Verify Turn 2 receipts & resolved thread
@@ -1436,7 +1436,7 @@ describe('Horror Grammar Turn Route (Packet 1-10 HG1 Provider Contract Restorati
     // Verify Turn 2 prompt sent to SDK strictly excludes the rejected sentinels
     expect(mockGenerateContent).toHaveBeenCalledTimes(2);
     const turn2SdkCall = mockGenerateContent.mock.calls[1][0];
-    expect(turn2SdkCall.config?.responseSchema).toBe(EngineTurnStructuredResponseContract.providerSchemas.gemini);
+    expect(turn2SdkCall.config?.responseSchema).toBe(EngineTurnStructuredResponseContract.responseSchema);
 
     const turn2Prompt = turn2SdkCall.contents[0].parts[0].text;
     expect(turn2Prompt).not.toContain(REJECTED_ACT_SENTINEL);

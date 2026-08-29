@@ -1,4 +1,3 @@
-import 'dotenv/config';
 import { createApp } from "./server/app";
 
 async function startServer() {
