@@ -15,9 +15,8 @@ A focused test proves its named behavior. It does not, by itself, close an integ
 
 ## Live code baseline reviewed for this ledger
 
-- Horror Grammar 1 implementation reviewed: [b0253fe](https://github.com/tgothe418-bot/The-Terror-Machine/commit/b0253fed9302e4b5fac8b8c633de0bab016c587b) (Packets 1-1 through 1-5).
-- README refresh reviewed: [e5e7f9d](https://github.com/tgothe418-bot/The-Terror-Machine/commit/e5e7f9de5e3bfed16341c91d41229317692f093c).
-- The branch was clean and synced when reviewed. The status below is based on live code inspection as well as reported tests; a packet's completion report is not accepted evidence by itself.
+- Current live line reviewed: [de658a1](https://github.com/tgothe418-bot/The-Terror-Machine/commit/de658a167e43b82cee5bf3fa80e2681e0c743526) (Forge 1E-1 closure, HG1 provider closure, and runtime/API admission correction).
+- The branch was clean and synced when reviewed. The status below is based on live code inspection, focused proofs, broad gates, and recent smoke telemetry; a packet's completion report is not accepted evidence by itself.
 
 ## Current baseline
 
@@ -30,32 +29,32 @@ A focused test proves its named behavior. It does not, by itself, close an integ
 - Canonical consequences, cast presence and continuity, stance, relationships, and bounded character memory.
 - Phase 3H.5C World Memory: deterministic identity, bounded global/current-node prompt projection, required proposal and receipt contracts, fail-closed validation, canonical commit, and export evidence.
 - Forge source review through the accepted Packet 02A–07 corrective sequence.
+- Forge Packet 1E-1 — Source-Backed Default Import and Map Closure: valid reference imports now apply a complete source-backed baseline atomically, populate rich topology and per-character opening placement, and export perspective-neutral Blueprints without a required global starting node or permanent User character.
 - Engine Corrective Packet 08 — Human Turn Contract Reliability: the provider response schema is aligned to the application contract; concise creator-written input remains exact and shares the one-generation, ratification path with Autopilot; bounded mismatch diagnostics survive failure receipts and Markdown/HTML telemetry; creator acceptance is complete.
 - Horror Grammar 0 — Provider-Refusal Containment Correction: provider block metadata is classified before parsing; empty/refused responses fail closed; synthetic player-action fallbacks are removed; Autopilot halts on failed generation or non-commit; human input and canonical state remain recoverable.
+- HG1 Provider Contract Closure (Packets 1-10, 1-10A, and 1-10B): Gemini receives the supported structured-output schema, required HG1 envelopes remain required at ingress, causal references fail closed, and provider/runtime failures cannot become player input or canonical state.
+- Local and Vite preview runtime admission: Express owns `/api`, the SPA fallback excludes API routes, and backend failures remain structured JSON failures instead of HTML masquerading as a successful turn.
+- The current live line passes the declared broad Vitest, TypeScript, lint, production-build, and diff gates. These are baseline facts, not substitutes for feature-specific acceptance.
 
 ### Live, under review
 
-#### Phase 3H.5D — Explicit Player-Character Binding
+#### Phase 3H.5D — Explicit Player-Character Binding and persistence
 
-The live line can bind an exact selected cast ID, and human telemetry demonstrates selection of a non-first eligible character. This phase is not accepted until setup, initialization, turn context, prompts, ratification, receipts, retake, persistence, and telemetry carry the same canonical identity end to end without relying on cast order.
+The live line can bind an exact selected cast ID, and recent telemetry demonstrates protagonist and antagonist selection from the same perspective-neutral Blueprint. This phase is not accepted until setup, initialization, turn context, prompts, ratification, receipts, retake, persistence, and telemetry carry the same canonical identity end to end without relying on cast order.
 
 #### Scenario authority enforcement
 
 An Authority Contract appearing in a prompt is not enforcement. Causal authority must be adjudicated before an out-of-contract consequence, character change, durable memory item, or receipt can become canonical.
 
-#### Forge required-field synthesis
+#### Source-gap handling and authored boundaries
 
-The accepted Forge sequence provides the contracts and review lifecycle for a source-grounded Depiction Contract, but imported reference material does not yet reliably activate that path. A real Blueprint import populated premise, location, cast, and topology while leaving all four required Depiction Contract fields empty: dramatic register, directness, aftermath, and ambiguity handling.
-
-The export gate behaved correctly by blocking the incomplete artifact. The remaining defect is upstream: when the accepted Source Baseline contains adequate evidence, the Architect should stage a complete, grounded proposal instead of leaving required fields blank. When evidence is inadequate, the Forge should expose a specific authoring gap and preserve uncertainty rather than generating a canned fallback.
-
-#### Inherited global TypeScript debt
-
-Packet 07's Forge stabilization passed the complete Vitest suite, full lint, and production build. Packet 08's TypeScript check was clean inside its boundary, but the global command still reports inherited errors in `ArchitectChat.*`, `src/core/engine/sessionPersistence.test.ts`, `src/core/store.ts`, and `useForgeStore.*`. Those errors remain explicit debt; they must not be described as a green TypeScript gate.
+Packet 1E-1 closes the normal source-backed default path: when extraction supplies the required evidence, the Forge can apply a complete Depiction Contract and map baseline without manual reconstruction. Remaining work is limited to honest, field-addressable handling for sources that are genuinely incomplete or ambiguous, plus enforcement that the Depiction Contract shapes depiction without granting causal authority.
 
 ## Horror Grammar 1 construction ledger
 
-The Horror Grammar 1 series is present on the live line, but the series is not accepted as an integrated milestone. Its purpose is to let the Blueprint provide values, pursuits, fictional time, and narrative pressure so non-User characters can continue pursuing their own concerns without turning the Engine into a visible stat system. The User supplies actions; the Engine may commit only causally supported changes.
+The Horror Grammar 1 series is active on the live line. Its purpose is to let the Blueprint provide values, pursuits, fictional time, and narrative pressure so non-User characters can continue pursuing their own concerns without turning the Engine into a visible stat system. The User supplies actions; the Engine may commit only causally supported changes.
+
+The provider and route-admission boundary is accepted through Packets 1-10, 1-10A, and 1-10B. The integrated grammar milestone remains open only at the deeper state-threading, authority/perception, and forensic boundaries below. Recent smoke telemetry has exercised protagonist and antagonist perspectives and recorded accepted consequences, character reactions, and World Memory.
 
 | Packet | Construction boundary | Current disposition |
 |---|---|---|
@@ -64,6 +63,7 @@ The Horror Grammar 1 series is present on the live line, but the series is not a
 | **1-3 — Validated non-User initiative and situated pressure** | Initiative and pressure ratifiers plus isolated narrative composition are present. | Implementation present; exact authority/perception/speaker/source validation still open. |
 | **1-4 — Causal value, pursuit, and character evolution** | Value state, pursuit overlays, development, and pressure-thread lifecycle structures are present. | Implementation present; canonical state threading and publication still open. |
 | **1-5 — Forensic telemetry and integration gate** | Forensic/export scaffolding and integration tests are present. | Implementation present; typed Runtime forensic evidence and real multi-turn acceptance still open. |
+| **1-10 through 1-10B — Provider and route admission** | Exact HG1 provider envelopes, causal-reference validation, Gemini structured-output compatibility, and API failure containment. | **Accepted at the provider and route boundary; not a substitute for full grammar integration.** |
 
 ### Critical integration closure
 
@@ -86,7 +86,7 @@ These are recorded for later audit once the critical integration closure is work
 
 ## Accepted Forge corrective sequence
 
-The source-to-Blueprint handoff is now one reviewable chain rather than a set of loosely connected features. Acceptance of that infrastructure does not claim that every import currently reaches each required authoring step automatically.
+The source-to-Blueprint handoff is now one reviewable chain rather than a set of loosely connected features. Packet 1E-1 closes the normal default-import path: valid, evidence-backed source analysis can produce a complete, perspective-neutral, exportable Blueprint without requiring a permanent global start or player character. Unsupported or ambiguous source material remains an explicit authoring gap.
 
 | Packet | Accepted boundary |
 |---|---|
@@ -102,6 +102,7 @@ The source-to-Blueprint handoff is now one reviewable chain rather than a set of
 | **06A — Export Artifact** | Export compilation produces one deeply immutable artifact carrying the supplied draft and Source Baseline revisions. |
 | **06B — Export Review Snapshot** | Opening Export Review captures one artifact; Copy and Download use its exact bytes; revision changes require refresh. |
 | **07 — Stabilization** | Sequence-related type and fixture integrations were repaired; the full test suite, lint, and production build passed. |
+| **1E-1 — Source-Backed Default Import and Map Closure** | Accepted source candidates apply atomically, including Depiction Contract, rich topology, and per-character opening placement; export remains perspective-neutral and schema-valid. |
 
 The post-07 mount correction ensures that the normal closed-to-open Export Review path actually creates the first snapshot rather than initializing while hidden.
 
@@ -111,6 +112,9 @@ The post-07 mount correction ensures that the normal closed-to-open Export Revie
 |---|---|
 | **08 — Human Turn Contract Reliability** | The provider schema now projects the authoritative application response contract more faithfully. Concise creator input is preserved verbatim and follows the same one-generation, fail-closed route as Autopilot. Safe schema-failure paths and codes survive the failure receipt and Markdown/HTML telemetry. Focused tests, scoped lint, a scoped-clean TypeScript result, production build, and creator live smoke acceptance are recorded. |
 | **Horror Grammar 0 — Provider-Refusal Containment Correction** | Provider refusal and empty-response metadata are classified before parsing; route failures omit synthetic action input; Autopilot stops on failed generation or non-commit; human input is recoverable and canonical state remains unchanged. |
+| **1-10 — HG1 Provider Contract Restoration** | The complete HG1 proposal envelope is required at provider ingress; omission, refusal, and empty responses fail closed instead of manufacturing neutral state. |
+| **1-10A — HG1 Exact Provider Closure** | Canonical enum and causal-reference constraints are projected exactly, valid causes are fail-closed, and bounded prompt projections carry the HG1 context used by ratifiers. |
+| **1-10B — Gemini Structured-Output Compatibility and Live Turn Admission** | Gemini receives the supported JSON-schema transport shape, the authoritative Zod contract remains the ingress validator, and the production turn route preserves structured failure semantics. |
 
 ## Next work packages
 
@@ -129,26 +133,9 @@ Acceptance requires:
 - focused two-turn, authority/perception, refusal/rejection, forensic, and Retake proofs pass at the relevant boundaries;
 - broad Vitest, TypeScript, lint, build, and diff gates are run once at the closure's stabilization point, not demanded for every micro-packet.
 
-### 2. Complete source-to-required-field synthesis
+### 2. Close explicit Player-Character Binding and persistence
 
-Connect imported Source Baseline evidence to the existing proposal lifecycle for required Blueprint fields, beginning with the Depiction Contract.
-
-Acceptance requires:
-
-- detection of required fields that remain empty after source analysis and accepted candidate application;
-- a Depiction Contract generation action that is reachable in the normal imported-source workflow without hidden manual setup;
-- a complete proposal for dramatic register, directness, aftermath, ambiguity handling, and special boundaries;
-- grounding in accepted evidence, accepted creator decisions, and deliberately preserved uncertainties;
-- no canned fallback, placeholder value, or silent direct mutation of the draft;
-- an explicit, field-addressable gap when the source cannot support a responsible proposal;
-- revision-bound review, apply, dismiss, refresh, and stale-state behavior through the already accepted lifecycle;
-- an integration proof beginning with imported source material and ending with either a reviewable complete proposal or an honest unresolved requirement.
-
-This work should inspect other required Blueprint fields for the same omission pattern, but it must not invent material merely to make Export Review turn green.
-
-### 3. Close the inherited baseline and 3H.5D
-
-Repair the inherited TypeScript errors without weakening Engine contracts, then finish explicit Player-Character Binding.
+Finish the identity-bearing path across setup, initialization, turn context, prompts, ratification, receipts, retake, persistence, and telemetry. The selected character must remain exact without relying on cast order or scenario-specific assumptions. Recent smoke runs demonstrate the basic protagonist and antagonist paths; this package closes the remaining recovery and persistence proof.
 
 Acceptance requires:
 
@@ -159,7 +146,7 @@ Acceptance requires:
 - focused proofs plus the appropriate broad suite, TypeScript, lint, build, and diff gates;
 - no Blueprint names, cast assumptions, or scenario literals in production instructions.
 
-### 4. Enforce authored participation and treatment at the Engine boundary
+### 3. Enforce authored participation and treatment at the Engine boundary
 
 The Engine must use accepted Blueprint contracts while retaining deterministic ownership of causality and canon.
 
@@ -174,21 +161,21 @@ Acceptance requires:
 
 Provider-level non-negotiable constraints remain external to the Blueprint contract. They must be represented honestly without pretending the player authored the refusal.
 
-### 5. Make Autopilot identity-safe
+### 4. Make Autopilot identity-safe
 
 Autopilot must receive the selected character's canonical context, use the same identity-bearing path as a human session, stop or retry deliberately after failure, and label generated input in telemetry and exports.
 
-### 6. Finish durable continuity
+### 5. Finish durable continuity
 
 Extend character and World Memory through the complete turn lifecycle with scoped, inspectable handoff. Every durable fact needs a source, scope, acceptance decision, and bounded prompt projection.
 
 Campaign handoff must remain explicit rather than becoming an implicit global ledger.
 
-### 7. Harden the Voice boundary
+### 6. Harden the Voice boundary
 
 Keep Voice observations read-only and separate from simulation canon. Add evidence-labelled context, snapshot/export parity, and clear handling for Forge drafts, Engine sessions, outside research, and ordinary project conversation.
 
-### 8. Prepare campaign, horror-grammar, and provider seams
+### 7. Prepare campaign, horror-grammar, and provider seams
 
 Once identity, authority, and continuity are stable:
 

@@ -126,6 +126,8 @@ The Source Baseline has its own revision. Architect responses remain attached to
 
 The Forge can stage a source-grounded **Depiction Contract** describing how a particular nightmare should be shown: its dramatic register, its directness, its aftermath, the uncertainty it must preserve, and any special boundaries that belong to this house alone.
 
+When a source import has enough accepted evidence, the Forge can now apply its source-backed defaults as one atomic operation: rich story spaces, per-character opening placement, cast intent, and a complete Depiction Contract. The exported Blueprint is perspective-neutral. It does not require one permanent player character or one universal starting room; the Engine resolves the entry after the operator chooses a perspective.
+
 When Export Review opens, the machine places one revision-bound Blueprint artifact under glass. Copy and Download receive the artifact that was reviewed—not whatever the draft happened to become five seconds later.
 
 ### `[ THE ENGINE ]`
@@ -135,6 +137,8 @@ The Engine is the room after the lights go out.
 It receives an action, consults the current state, asks the model for a bounded proposal, and decides what—if anything—actually changes. A beautiful sentence is welcome. It still has to earn its place in the house.
 
 The Engine is not a narrator wearing a lab coat. It is the part of the project responsible for refusing impossible continuity.
+
+An imported Blueprint can be entered from any eligible cast perspective. Protagonists, human antagonists, and nonlocal entities are selected at Engine setup; the chosen character's authored placement determines the initial scene.
 
 When a turn succeeds, the world moves.
 
@@ -297,7 +301,9 @@ The target is a story that has become a place—and a place that remembers being
 
 The Terror Machine is an open-source solo project in active development.
 
-The first Horror Grammar has been fitted to the Engine. Fictional time now has a pulse: a glance, a conversation, and a long search need not cost the same amount of night. Characters who are not being played can still have somewhere to be and something to do. While the player studies one door, someone else may be testing a lock; while the player follows a sound, a value may begin to stand in danger. The machine can place that pressure in the room without choosing the player's answer.
+The first Horror Grammar is active on the live line. Fictional time has a pulse: a glance, a conversation, and a long search need not cost the same amount of night. Characters who are not being played can still have somewhere to be and something to do. While the player studies one door, someone else may be testing a lock; while the player follows a sound, a value may begin to stand in danger. The machine can place that pressure in the room without choosing the player's answer.
+
+The current Engine boundary is usable for real source-derived and authored Blueprints. Gemini structured-output admission is schema-bound and fail-closed, and recent smoke runs have entered the same Blueprint from both protagonist and antagonist perspectives while carrying accepted consequences and memory across turns. The remaining work is refinement of the deeper Horror Grammar continuity, authority, and forensic surfaces—not getting the house to open at all.
 
 For the honest implementation record—what is landed, what is under review, what is planned, and how acceptance is decided—read the [Technical (Public) Roadmap](./ROADMAP.md). The [Development Roadmap](./DEVELOPMENT-ROADMAP.md) holds the more detailed engineering ledger. Both change far more often than this page does, and both are the better source once you want specifics.
 

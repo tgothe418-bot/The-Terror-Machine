@@ -10,7 +10,7 @@ For the experiential front door, read the [README](./README.md). For the detaile
 
 TTM has a working foundation for bounded horror simulation.
 
-A Blueprint or a Haunted House Induction enters the same Engine path. The core turn is snapshotted, interpreted, generated, ratified, committed once or refused without corrupting canonical state. The application—not the language model—owns the places, cast, roles, consequences, receipts, and the state that survives a paragraph. The newly added Horror Grammar 1 ledgers are an occupied construction site and are listed separately below; they do not yet inherit that acceptance claim.
+A Blueprint or a Haunted House Induction enters the same Engine path. The core turn is snapshotted, interpreted, generated, ratified, committed once or refused without corrupting canonical state. The application—not the language model—owns the places, cast, roles, consequences, receipts, and the state that survives a paragraph. Horror Grammar 1 is active on that line; its provider boundary is closed, while deeper continuity, authority, and forensic acceptance remain explicitly tracked below.
 
 ### Live foundation
 
@@ -18,15 +18,18 @@ A Blueprint or a Haunted House Induction enters the same Engine path. The core t
 - Canonical spatial topology, including deliberate expansion at an unmapped boundary.
 - Protagonist, Antagonist, and Director participation, with explicit antagonist authority and limits.
 - Blueprint authoring and Haunted House / Ad-Lib Induction entry paths.
+- Perspective-neutral Blueprint export with per-character opening placement; the Engine chooses the session perspective and entry location.
 - Cast presence, character stance, relationships, bounded character memory, and bounded World Memory.
 - Deterministic consequences, receipts, telemetry, Markdown/HTML diagnostics, and retake of the most recent completed turn.
 - A shared human/Autopilot response contract: concise creator input is preserved verbatim, one bounded generation is ratified or refused, and safe field-path diagnostics appear in failure receipts and exports.
 - Provider-refusal containment at the live generation boundaries: explicit declines and empty responses fail closed, never become player input, and leave canonical state available for retry or Retake.
+- Gemini structured-output compatibility on the live turn path, with the supported JSON-schema subset owned at the provider boundary and provider failures returned as structured API errors.
+- Express API mounting and `/api` fallback protection in local and Vite preview runtimes, so a backend failure cannot masquerade as an HTML success response.
 - Development recovery through Clear System Memory and Autopilot as a soak-testing instrument.
 
 ### The Forge source-review path
 
-The corrective Forge sequence through Packet 07 is landed.
+The corrective Forge sequence through Packet 1E-1 is landed.
 
 The Forge can now:
 
@@ -40,23 +43,31 @@ The Forge can now:
 - support proposal review, application, dismissal, refresh, and manual authoring;
 - keep detailed source evidence available in a focused review drawer;
 - produce a deeply immutable export artifact carrying both source revisions;
-- capture one reviewed artifact whose Copy and Download bytes remain identical until the creator refreshes a stale review.
+- capture one reviewed artifact whose Copy and Download bytes remain identical until the creator refreshes a stale review;
+- apply accepted source-backed defaults atomically, including a complete Depiction Contract, rich topology definitions, and per-character opening placement;
+- export a perspective-neutral Blueprint without requiring a global starting node or a permanently designated User character.
 
-This does not mean every imported source automatically produces an export-ready Blueprint. It means the source-to-Blueprint authoring boundary is now a working system rather than a collection of adjacent prototypes.
+The standard source-to-Blueprint path can now produce an export-ready artifact when the extraction contains the required evidence. Incomplete or genuinely unsupported source material remains visible as an authoring gap rather than being disguised with a canned default.
 
-### Horror Grammar 1 — the occupied construction site
+### Gemini turn admission and runtime boundary
+
+The Engine's Gemini structured-output boundary is closed through Packet 1-10B. The provider receives the exact supported JSON-schema projection, all required HG1 envelopes remain present at ingress, and the authoritative Zod contract still validates the returned object after the provider responds. Refusals, empty responses, invalid provider requests, and non-JSON runtime responses fail closed without mutating canonical state or inventing player input.
+
+The current runtime also mounts the Express API in Vite previews and excludes `/api` from the single-page fallback. A failed turn therefore remains an API failure instead of becoming an HTTP 200 HTML document that the client cannot parse.
+
+### Horror Grammar 1 — active, with integrated closure still open
 
 The Horror Grammar 1 series (Packets 1-1 through 1-5) is now on the live line as construction. It adds a Blueprint-defined layer for values, pursuits, fictional time, bounded offscreen activity, non-User initiative, situated pressure, causally supported character change, and forensic review.
 
 This is literary scaffolding, not a visible stat system. The User does not track meters or run a turn schedule. The Forge supplies the starting material; the Engine lets relevant characters pursue what they are pursuing, lets immediate participants act in the scene, and commits only changes the narrative and Blueprint can support.
 
-The first implementation is not yet accepted as an integrated milestone. Review of consecutive-turn behavior found three gates still open:
+The provider and route-admission gates are now accepted through Packets 1-10, 1-10A, and 1-10B. Recent live smoke telemetry has exercised the same Blueprint from protagonist and antagonist perspectives and has recorded accepted consequences, character reactions, and World Memory. The complete grammar milestone remains under review at three deeper seams:
 
 - the new ledgers and overlays are not yet carried through the real client → server → client turn contract, so cross-turn continuity can be lost;
 - activity and pressure manifestations still need exact authority, perception, speaker, source, and location validation before they may become canon;
 - the forensic view needs a typed, bounded record that preserves reviewable rejected evidence only in a clearly labeled forensic section; provider and internal material must remain sanitized and excluded from story, prompt, and canonical history.
 
-The Engine remains usable while this gate is open. This is a critical integration hold, not a reason to stop building the larger creative direction.
+The Engine remains usable while this gate is open. This is a bounded integration hold, not a reason to stop using or testing the larger creative direction.
 
 ### Current verification line
 
@@ -69,9 +80,8 @@ Horror Grammar 1 is implementation-landed and under critical integration review;
 - **Horror Grammar 1 continuity:** values, pursuits, fictional time, activity, pressure, and development state must survive the real turn request and response across consecutive turns instead of being replaced by empty boundary defaults.
 - **Horror Grammar 1 authority and perception:** activity and pressure changes need exact, Blueprint-grounded authority, perception, speaker, source, and location evidence before they can become canon or enter the final narrative.
 - **Horror Grammar 1 forensic evidence:** the Runtime drawer and raw/Markdown/HTML diagnostics need a typed, bounded forensic record with reviewable rejected evidence in an explicitly labeled section, while provider metadata, credentials, stack traces, and endpoint details remain out of ordinary story and prompt context.
-- **Required-field synthesis from source:** imported reference material can populate premise, setting, cast, and topology while still leaving required Blueprint fields blank. Current testing exposed all four mandatory Depiction Contract fields as empty even though the source contained material from which the Architect should have been able to stage a grounded proposal. Export correctly blocks the incomplete Blueprint; the missing behavior is earlier in the authoring flow.
-- **Explicit Player-Character Binding:** exact cast selection works in the live line and has been demonstrated with a non-first eligible character, but its complete end-to-end acceptance gate remains open.
-- **Global TypeScript debt:** Packet 08's type check was clean in scope, but the global command still reports inherited issues in ArchitectChat.*, sessionPersistence.test.ts, core/store.ts, and useForgeStore.*. They remain openly tracked rather than being mistaken for a green global TypeScript gate.
+- **Explicit Player-Character Binding:** exact cast selection works in the live line and has been demonstrated with protagonist and antagonist perspectives; persistence and every recovery surface remain under end-to-end review.
+- **Verification baseline:** the current live line passes the declared broad Vitest, TypeScript, lint, build, and diff gates. Future failures should be reported against that baseline rather than hidden as inherited debt.
 
 ## What comes next
 
@@ -89,19 +99,11 @@ The closure must:
 
 The Engine should remain literary and User-readable throughout. Values and fictional time are internal scaffolding parsed from the Blueprint, not meters the User must track.
 
-### 2. Complete source-to-required-field synthesis
+### 2. Close the remaining Engine identity acceptance debt
 
-When imported reference material supports a required Blueprint field, the Forge should turn that evidence into a reviewable proposal rather than leave the field silently empty.
+Finish explicit Player-Character Binding across setup, initialization, turn context, prompts, ratification, receipts, retake, persistence, and telemetry. The selected character must remain exact without relying on cast order or scenario-specific assumptions. Keep honest source-gap handling in the Forge, but do not reopen the completed Depiction Contract import path.
 
-The first confirmed case is the Depiction Contract: dramatic register, directness, aftermath, and ambiguity handling should be proposed from the accepted source baseline and creator decisions. The proposal must remain source-grounded, revision-bound, and subject to explicit review. If the source genuinely cannot support a field, the Forge should identify the gap instead of filling it with canned horror language.
-
-### 3. Close the remaining Engine and baseline acceptance debt
-
-Finish the global TypeScript baseline and close explicit Player-Character Binding across setup, initialization, turn context, prompts, ratification, receipts, retake, persistence, and telemetry.
-
-The selected character must remain exact without relying on cast order or scenario-specific assumptions.
-
-### 4. Enforce authored boundaries in the Engine
+### 3. Enforce authored boundaries in the Engine
 
 The Engine must distinguish two questions:
 
@@ -112,21 +114,21 @@ Authority is causal. The Depiction Contract shapes the narrative camera—dramat
 
 Provider refusals are external events. They must be represented honestly, never serialized as player input or allowed to alter canonical state accidentally.
 
-### 5. Make Autopilot a trustworthy test participant
+### 4. Make Autopilot a trustworthy test participant
 
 Autopilot must run through the same identity-bearing turn path as a human player, receive the selected character's usable context, stop or retry deliberately after failed turns, and identify generated actions in telemetry and exports.
 
-### 6. Make continuity durable
+### 5. Make continuity durable
 
 Character and World Memory should become a dependable, inspectable continuity layer for discoveries, rules, relationships, environmental conditions, and consequences.
 
 The goal is not infinite memory. It is memory with scope, provenance, acceptance, and bounded prompt projection.
 
-### 7. Deepen the Voice without giving it authority
+### 6. Deepen the Voice without giving it authority
 
 The Voice remains read-only. Its future work is better evidence-labelled context: clear distinctions among a Forge draft, an Engine session, outside research, and ordinary project discussion.
 
-### 8. Grow outward carefully
+### 7. Grow outward carefully
 
 Once the current seams are stable:
 
