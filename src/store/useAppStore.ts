@@ -124,6 +124,8 @@ export interface InitializeSessionParams {
   sessionId?: string;
   participationContext?: ParticipationContext | null;
   spatialGraph?: SpatialNode[];
+  /** Canonical entry resolved for the selected Engine character. */
+  entryNodeId?: string;
 }
 
 export interface AppStore extends EngineState {
@@ -201,7 +203,7 @@ export const useAppStore = create<AppStore>()(
       executeTemporalShift: () => {},
       loadCampaignManifest: (manifest: CampaignManifest) => set({ activeCampaign: manifest }),
 
-      initializeSession: ({ blueprint, sessionId, participationContext, spatialGraph }) => {
+      initializeSession: ({ blueprint, sessionId, participationContext, spatialGraph, entryNodeId }) => {
         const normalized = normalizeBlueprint(blueprint);
         const compiled = compileRuntimeTopology({
           topology: normalized.topology,
@@ -216,8 +218,18 @@ export const useAppStore = create<AppStore>()(
           : 'LATENT';
         const effectiveGraph =
           spatialGraph && spatialGraph.length > 0 ? spatialGraph : compiled.spatialGraph;
+        const requestedEntryNodeId = entryNodeId?.trim();
+        if (
+          requestedEntryNodeId &&
+          !effectiveGraph.some((node) => node.id === requestedEntryNodeId)
+        ) {
+          throw new Error(
+            `Engine entry node "${requestedEntryNodeId}" is not present in the compiled runtime topology.`
+          );
+        }
         const startNodeId =
-          spatialGraph && spatialGraph[0]?.id ? spatialGraph[0].id : compiled.startNodeId || 'ORIGIN';
+          requestedEntryNodeId ||
+          (spatialGraph && spatialGraph[0]?.id ? spatialGraph[0].id : compiled.startNodeId || 'ORIGIN');
         const newSessionId = sessionId || crypto.randomUUID();
 
         set({

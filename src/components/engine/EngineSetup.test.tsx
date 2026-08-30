@@ -36,6 +36,7 @@ const testBlueprint = normalizeBlueprint({
       goals: 'Observe the enclosure',
       traits: ['Analytical'],
       isEntity: false,
+      presenceDisposition: { kind: 'AT_NODE', nodeId: 'CHAMBER_01' },
     },
     {
       id: 'char-2',
@@ -46,6 +47,7 @@ const testBlueprint = normalizeBlueprint({
       goals: 'Inspect the systems',
       traits: ['Audacious'],
       isEntity: false,
+      presenceDisposition: { kind: 'AT_NODE', nodeId: 'CHAMBER_02' },
     },
     {
       id: 'entity-1',
@@ -69,6 +71,7 @@ const testBlueprint = normalizeBlueprint({
   topology: {
     nodes: ['CHAMBER_01', 'CHAMBER_02'],
     connections: [],
+    startingNodeId: 'CHAMBER_01',
   },
 });
 
@@ -169,6 +172,7 @@ describe('EngineSetup explicit cast binding', () => {
     expect(gameState?.player_role).toBe('protagonist');
     expect(gameState?.player_character_id).toBe('char-2');
     expect(gameState?.perspective_mode).toBe('embodied');
+    expect(useAppStore.getState().currentNodeId).toBe('CHAMBER_02');
   });
 
   it('handles cast card selection when switching between roles', async () => {

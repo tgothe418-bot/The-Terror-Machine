@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { BlueprintSchema } from '../types';
 import { useAppStore } from '../store/useAppStore';
+import { buildEngineTurnContext } from '../lib/buildEngineTurnContext';
 import { useEngineStore } from './store';
 
 describe('Engine blueprint ingress', () => {
@@ -91,9 +92,14 @@ describe('Engine blueprint ingress', () => {
           goals: 'Heal',
           traits: [],
           isEntity: false,
+          presenceDisposition: { kind: 'AT_NODE', nodeId: 'NODE_SELECTED' },
         },
       ],
-      topology: { nodes: ['HALL'], connections: [] },
+      topology: {
+        nodes: ['NODE_DEFAULT', 'NODE_SELECTED'],
+        connections: [],
+        startingNodeId: 'NODE_DEFAULT',
+      },
     });
 
     useEngineStore.getState().setBlueprint(blueprint, 'protagonist', null, 'char-2');
@@ -102,6 +108,19 @@ describe('Engine blueprint ingress', () => {
     expect(gameState?.player_role).toBe('protagonist');
     expect(gameState?.player_character_id).toBe('char-2');
     expect(gameState?.perspective_mode).toBe('embodied');
+    const appState = useAppStore.getState();
+    expect(appState.currentNodeId).toBe('NODE_SELECTED');
+
+    const firstTurnContext = buildEngineTurnContext({
+      blueprint,
+      selectedRole: gameState?.player_role,
+      selectedCharacterId: gameState?.player_character_id,
+      spatialGraph: appState.spatialGraph,
+      runtimeState: { currentNodeId: appState.currentNodeId },
+    });
+    expect(firstTurnContext.player.characterId).toBe('char-2');
+    expect(firstTurnContext.topology.currentNodeId).toBe('NODE_SELECTED');
+    expect(firstTurnContext.cast.find((member) => member.id === 'char-2')?.isPresent).toBe(true);
   });
 
   it('fails closed and preserves prior state if binding validation throws', () => {

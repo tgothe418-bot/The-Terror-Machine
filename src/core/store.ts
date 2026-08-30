@@ -7,6 +7,7 @@ import { distillContext } from '../services/geminiService';
 import { useAppStore } from '../store/useAppStore';
 import { normalizeBlueprint } from '../lib/normalizeBlueprint';
 import { resolvePerspectiveBinding } from '../lib/playerCharacterBinding';
+import { resolveCharacterEntryPlacement } from '../lib/resolveCharacterEntryPlacement';
 import { createInitialFictionalTimeLedger } from '../lib/fictionalTime';
 import { createInitialValueStateLedger } from '../lib/valueState';
 import { createInitialCharacterPursuitLedger } from '../lib/characterPursuits';
@@ -137,6 +138,20 @@ export const useEngineStore = create<EngineState>()(
           role,
           selectedCharacterId
         );
+        const resolvedEntryNodeId = resolveCharacterEntryPlacement({
+          blueprint: normalizedBlueprint,
+          characterId: binding.characterId,
+        });
+        const authoredNodeIds = new Set([
+          ...(normalizedBlueprint.topology?.nodes || []),
+          ...(normalizedBlueprint.topology?.nodeDefinitions || []).map((node) => node.id),
+        ]);
+        // Preserve legacy setting-derived fallback behavior when no authored
+        // topology exists. Character-relative entries are passed only when the
+        // Engine can prove they belong to the compiled authored graph.
+        const entryNodeId = authoredNodeIds.has(resolvedEntryNodeId)
+          ? resolvedEntryNodeId
+          : undefined;
 
         // Generate shared session ID once before either store is written
         const sessionId = crypto.randomUUID();
@@ -146,6 +161,7 @@ export const useEngineStore = create<EngineState>()(
           blueprint: normalizedBlueprint,
           participationContext,
           sessionId,
+          entryNodeId,
         });
 
         set({

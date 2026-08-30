@@ -26,7 +26,6 @@ import {
   isCharacterEligibleForRole,
   resolvePerspectiveBinding,
 } from '../../lib/playerCharacterBinding';
-import { resolveCharacterEntryPlacement } from '../../lib/resolveCharacterEntryPlacement';
 import { motion, AnimatePresence } from 'motion/react';
 import AdLibInductionModal from './AdLibInductionModal';
 
@@ -44,8 +43,6 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
   const [selectedRole, setSelectedRole] = useState<ParticipationMode | null>(null);
   const [isAdLibModalOpen, setIsAdLibModalOpen] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const compileTopology = useAppStore((state) => state.compileTopology);
 
   // Compute seat availabilities for loaded blueprint
   const seatAvailabilities = useMemo(() => {
@@ -151,18 +148,6 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
       return;
     }
 
-    if (
-      previewBlueprint.topology &&
-      previewBlueprint.topology.nodes &&
-      previewBlueprint.topology.nodes.length > 0
-    ) {
-      const startNodeId = resolveCharacterEntryPlacement({
-        blueprint: previewBlueprint,
-        characterId: binding.characterId,
-      });
-      compileTopology(previewBlueprint.topology, startNodeId);
-    }
-
     const activeContext = buildActiveParticipationContext(
       previewBlueprint,
       selectedRole,
@@ -178,7 +163,7 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
 
     forgeActions.setActiveNeuralLink(neuralLink);
     forgeActions.startSimulation(previewBlueprint);
-    setBlueprint(previewBlueprint, selectedRole, activeContext, activeCharacterId ?? undefined);
+    setBlueprint(previewBlueprint, selectedRole, activeContext, binding.characterId ?? undefined);
   };
 
   const isRoleAvailable = (role: ParticipationMode) => {

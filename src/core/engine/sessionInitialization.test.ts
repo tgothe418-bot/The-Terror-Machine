@@ -46,4 +46,29 @@ describe('Session initialization canonical authority', () => {
     expect(engineStoreState.incrementTurn).toBeUndefined();
     expect(engineStoreState.updateTension).toBeUndefined();
   });
+
+  it('honors a validated character-relative entry node over the Blueprint default', () => {
+    useAppStore.getState().initializeSession({
+      blueprint: {
+        id: 'bp-entry-node',
+        topology: {
+          nodes: ['NODE_DEFAULT', 'NODE_SELECTED'],
+          connections: [],
+          startingNodeId: 'NODE_DEFAULT',
+        },
+      },
+      entryNodeId: 'NODE_SELECTED',
+    });
+
+    expect(useAppStore.getState().currentNodeId).toBe('NODE_SELECTED');
+  });
+
+  it('rejects a character entry node missing from the compiled runtime topology', () => {
+    expect(() =>
+      useAppStore.getState().initializeSession({
+        blueprint: { topology: { nodes: ['NODE_DEFAULT'], connections: [] } },
+        entryNodeId: 'NODE_MISSING',
+      })
+    ).toThrow('Engine entry node "NODE_MISSING" is not present in the compiled runtime topology.');
+  });
 });
