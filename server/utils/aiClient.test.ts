@@ -468,6 +468,31 @@ describe('Track D2: Canonical ingress tests (Packet 1-10B)', () => {
     expect(parsed.engine_thoughts).toBe(GEMINI_TURN_NULL_SENTINEL);
   });
 
+  it('strips only unknown root keys from situated pressure proposals', () => {
+    const payload = createBaseValidPayload();
+    payload.situated_pressure_proposal = {
+      kind: 'PRESSURE',
+      proposalId: 'prop-pressure-1',
+      valueAnchorId: 'value-1',
+      sourceReference: 'BASELINE',
+      operator: 'EXPOSE',
+      affectedDimension: 'SAFETY',
+      adverseProspect: 'The failing seal may expose the chamber.',
+      providerNarrativeHint: 'This is not a canonical proposal field.',
+    };
+
+    expect(TurnResultSchema.safeParse(payload).success).toBe(false);
+
+    const parsed = parseStructuredTurnResponse(
+      JSON.stringify(payload),
+      TurnResultSchema,
+      normalizeGeminiTurnProviderPayload
+    );
+
+    expect(parsed.situated_pressure_proposal.kind).toBe('PRESSURE');
+    expect(parsed.situated_pressure_proposal).not.toHaveProperty('providerNarrativeHint');
+  });
+
   it('omission of each HG1 envelope fails TurnResultSchema', () => {
     for (const field of HG1_FIELDS) {
       const omitted = createBaseValidPayload();
@@ -637,6 +662,14 @@ describe('Track D2: Canonical ingress tests (Packet 1-10B)', () => {
     };
     expect(() =>
       parseStructuredTurnResponse(JSON.stringify(activePressureReason), TurnResultSchema)
+    ).toThrow();
+
+    expect(() =>
+      parseStructuredTurnResponse(
+        JSON.stringify(activePressureReason),
+        TurnResultSchema,
+        normalizeGeminiTurnProviderPayload
+      )
     ).toThrow();
 
     // Dialogue manifestation block without speaker

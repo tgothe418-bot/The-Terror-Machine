@@ -2,6 +2,21 @@ export const GEMINI_TURN_NULL_SENTINEL = '__TTM_NULL__' as const;
 
 type JsonRecord = Record<string, unknown>;
 
+const SITUATED_PRESSURE_PROPOSAL_FIELDS = new Set([
+  'kind',
+  'reason',
+  'proposalId',
+  'valueAnchorId',
+  'sourceReference',
+  'operator',
+  'affectedDimension',
+  'adverseProspect',
+  'authorityReferences',
+  'persistenceTarget',
+  'responseWindowOpen',
+  'manifestationBlock',
+]);
+
 function isJsonRecord(value: unknown): value is JsonRecord {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -26,6 +41,20 @@ function normalizeMissingNullableField(record: JsonRecord, field: string): JsonR
     ...record,
     [field]: null,
   };
+}
+
+/**
+ * Gemini's provider schema cannot express the active/neutral discriminated
+ * union as an exact object. It can occasionally add descriptive root keys to
+ * this one envelope. Discard only keys outside the complete transport field
+ * vocabulary; Zod still rejects missing fields, invalid values, and fields
+ * which are invalid for the selected `kind` (for example `reason` on
+ * `PRESSURE`).
+ */
+function normalizeSituatedPressureProposal(record: JsonRecord): JsonRecord {
+  return Object.fromEntries(
+    Object.entries(record).filter(([key]) => SITUATED_PRESSURE_PROPOSAL_FIELDS.has(key))
+  );
 }
 
 /**
@@ -69,6 +98,12 @@ export function normalizeGeminiTurnProviderPayload(payload: unknown): unknown {
           }
         : {}),
     };
+  }
+
+  if (isJsonRecord(payload.situated_pressure_proposal)) {
+    normalized.situated_pressure_proposal = normalizeSituatedPressureProposal(
+      payload.situated_pressure_proposal
+    );
   }
 
   return normalized;
