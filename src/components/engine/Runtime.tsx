@@ -50,6 +50,11 @@ import type {
 
 const SESSION_TIMEOUT = 60 * 60 * 1000; // 60 minutes
 const HEARTBEAT_INTERVAL = 30000; // 30 seconds
+/**
+ * Autopilot is a soak-test harness, not a burst-load generator.  Keep an
+ * observable human-scale pause before every simulated action/turn attempt.
+ */
+export const AUTOPILOT_MINIMUM_TURN_INTERVAL_MS = 5000;
 
 import { Edit2, Check, X } from 'lucide-react';
 import type { UITranscriptMessage } from '../../types';
@@ -339,6 +344,15 @@ export default function Runtime() {
   const [autopilotTarget, setAutopilotTarget] = useState<number>(5);
   const [isAutopilotRunning, setIsAutopilotRunning] = useState<boolean>(false);
   const autopilotRef = useRef<boolean>(false); // Ref for immediate abort checking
+  const autopilotRunIdRef = useRef<number>(0);
+
+  useEffect(() => {
+    return () => {
+      // Invalidate a pending cadence timer if the runtime is unmounted or reloaded.
+      autopilotRef.current = false;
+      autopilotRunIdRef.current += 1;
+    };
+  }, []);
 
   const userCharName = gameState?.player_character_id
     ? activeBlueprint?.cast?.find((c) => c.id === gameState.player_character_id)?.name ||
@@ -697,15 +711,35 @@ export default function Runtime() {
     }
   };
 
-  const runAutopilotSequence = async (turnsRemaining: number) => {
-    if (turnsRemaining <= 0 || !autopilotRef.current) {
-      setIsAutopilotRunning(false);
+  const runAutopilotSequence = async (turnsRemaining: number, runId: number) => {
+    const isActiveRun = () =>
+      autopilotRef.current && autopilotRunIdRef.current === runId;
+
+    const finishRun = () => {
+      if (autopilotRunIdRef.current !== runId) return;
       autopilotRef.current = false;
+      setIsAutopilotRunning(false);
+    };
+
+    if (turnsRemaining <= 0 || !isActiveRun()) {
+      finishRun();
       console.log('// AUTOPILOT SEQUENCE COMPLETE OR ABORTED //');
       return;
     }
 
     try {
+      // Give the current frame time to settle before the harness asks for the
+      // next simulated action. This intentionally applies to the opening turn
+      // as well, so Engage cannot immediately create a second provider request.
+      await new Promise<void>((resolve) => {
+        setTimeout(resolve, AUTOPILOT_MINIMUM_TURN_INTERVAL_MS);
+      });
+
+      if (!isActiveRun()) {
+        finishRun();
+        return;
+      }
+
       // A. Grab coherent simulation state
       const canonicalState = getCanonicalSimulationState();
 
@@ -715,9 +749,13 @@ export default function Runtime() {
         canonicalState.gameState || null
       );
 
+      if (!isActiveRun()) {
+        finishRun();
+        return;
+      }
+
       if (!simulatedResult.success || !simulatedResult.action) {
-        setIsAutopilotRunning(false);
-        autopilotRef.current = false;
+        finishRun();
         console.warn('// AUTOPILOT STOPPED // Action generation failed or declined.');
         return;
       }
@@ -725,38 +763,36 @@ export default function Runtime() {
       // C. Inject the simulated action into your standard submission pipeline
       const outcome = await handleCommand(undefined, simulatedResult.action);
 
-      if (outcome !== 'COMMITTED' || !autopilotRef.current) {
-        setIsAutopilotRunning(false);
-        autopilotRef.current = false;
+      if (outcome !== 'COMMITTED' || !isActiveRun()) {
+        finishRun();
         return;
       }
 
-      // D. Wait a moment for visual pacing and to prevent API rate-limiting
-      await new Promise((resolve) => setTimeout(resolve, 2500));
-
-      if (!autopilotRef.current) {
-        setIsAutopilotRunning(false);
-        return;
-      }
-
-      // E. Recurse for the next turn
-      runAutopilotSequence(turnsRemaining - 1);
+      // D. Recurse only after an explicit committed turn. The next invocation
+      // begins with the cadence delay above, so no provider calls overlap.
+      await runAutopilotSequence(turnsRemaining - 1, runId);
     } catch (err) {
       console.error('// AUTOPILOT FATAL ERROR // Loop terminated.', err);
-      setIsAutopilotRunning(false);
-      autopilotRef.current = false;
+      finishRun();
     }
   };
 
   const handleStartAutopilot = () => {
+    // State updates are asynchronous, so use the ref as the authoritative
+    // immediate admission gate for double-clicks and concurrent starts.
+    if (isLoading || isTerminated || autopilotRef.current) return;
+
+    const runId = autopilotRunIdRef.current + 1;
+    autopilotRunIdRef.current = runId;
     setIsAutopilotRunning(true);
     autopilotRef.current = true;
-    runAutopilotSequence(autopilotTarget);
+    void runAutopilotSequence(autopilotTarget, runId);
   };
 
   const handleStopAutopilot = () => {
-    setIsAutopilotRunning(false);
     autopilotRef.current = false;
+    autopilotRunIdRef.current += 1;
+    setIsAutopilotRunning(false);
   };
 
   if (!isHydrated || !isCoherent) return null;
@@ -962,13 +998,14 @@ export default function Runtime() {
                   max="25"
                   value={autopilotTarget}
                   onChange={(e) => setAutopilotTarget(Number(e.target.value))}
-                  disabled={isAutopilotRunning}
+                  disabled={isAutopilotRunning || isLoading || isTerminated}
                   className="w-14 bg-black text-zinc-200 text-xs p-1.5 border border-zinc-700 rounded text-center focus:outline-none"
                 />
                 {!isAutopilotRunning ? (
                   <button
                     onClick={handleStartAutopilot}
-                    className="text-xs uppercase tracking-wider bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-3 py-1.5 rounded transition-colors font-mono cursor-pointer"
+                    disabled={isLoading || isTerminated}
+                    className="text-xs uppercase tracking-wider bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-3 py-1.5 rounded transition-colors font-mono cursor-pointer disabled:opacity-30 disabled:pointer-events-none"
                     type="button"
                   >
                     Engage
