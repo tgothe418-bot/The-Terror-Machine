@@ -394,6 +394,21 @@ describe('Track D1: Provider schema subset tests (Packet 1-10B)', () => {
       providerPayload.world_memory_proposal as { candidates: Array<Record<string, unknown>> }
     ).candidates[0];
     worldCandidate.node_id = GEMINI_TURN_NULL_SENTINEL;
+    providerPayload.cast_activity_proposal = {
+      kind: 'NONE',
+      reason: 'No independent cast activity is proposed.',
+      proposalId: 'provider-cross-branch-id',
+    };
+    providerPayload.situated_pressure_proposal = {
+      kind: 'PRESSURE',
+      reason: 'This field belongs only to the neutral branch.',
+      proposalId: 'prop-pressure-seam',
+      valueAnchorId: 'value-stability',
+      sourceReference: 'USER_ACTION',
+      operator: 'EXPOSE',
+      affectedDimension: 'SAFETY',
+      adverseProspect: 'A damaged junction may expose the service ring.',
+    };
     const generateSpy = vi.spyOn(client.models, 'generateContent').mockResolvedValueOnce({
       text: JSON.stringify(providerPayload),
     } as never);
@@ -412,6 +427,12 @@ describe('Track D1: Provider schema subset tests (Packet 1-10B)', () => {
     expect(result.intent_proposal.action_subtype).toBeNull();
     expect(result.reconciliation_proposal.memory_echo_candidate).toBeNull();
     expect(result.world_memory_proposal.candidates[0].node_id).toBeNull();
+    expect(result.cast_activity_proposal).toEqual({
+      kind: 'NONE',
+      reason: 'No independent cast activity is proposed.',
+    });
+    expect(result.situated_pressure_proposal.kind).toBe('PRESSURE');
+    expect(result.situated_pressure_proposal).not.toHaveProperty('reason');
     expect(result.narrative_blocks).toHaveLength(2);
 
     generateSpy.mockRestore();
@@ -468,10 +489,11 @@ describe('Track D2: Canonical ingress tests (Packet 1-10B)', () => {
     expect(parsed.engine_thoughts).toBe(GEMINI_TURN_NULL_SENTINEL);
   });
 
-  it('strips only unknown root keys from situated pressure proposals', () => {
+  it('projects recognized situated pressure branches before canonical validation', () => {
     const payload = createBaseValidPayload();
     payload.situated_pressure_proposal = {
       kind: 'PRESSURE',
+      reason: 'This field belongs only to the neutral branch.',
       proposalId: 'prop-pressure-1',
       valueAnchorId: 'value-1',
       sourceReference: 'BASELINE',
@@ -479,6 +501,12 @@ describe('Track D2: Canonical ingress tests (Packet 1-10B)', () => {
       affectedDimension: 'SAFETY',
       adverseProspect: 'The failing seal may expose the chamber.',
       providerNarrativeHint: 'This is not a canonical proposal field.',
+      manifestationBlock: {
+        type: 'dialogue',
+        speaker: 'Technician',
+        content: 'The pressure seal is slipping.',
+        providerStageDirection: 'This is not a canonical manifestation field.',
+      },
     };
 
     expect(TurnResultSchema.safeParse(payload).success).toBe(false);
@@ -490,7 +518,128 @@ describe('Track D2: Canonical ingress tests (Packet 1-10B)', () => {
     );
 
     expect(parsed.situated_pressure_proposal.kind).toBe('PRESSURE');
+    expect(parsed.situated_pressure_proposal).not.toHaveProperty('reason');
     expect(parsed.situated_pressure_proposal).not.toHaveProperty('providerNarrativeHint');
+    if (parsed.situated_pressure_proposal.kind !== 'PRESSURE') {
+      throw new Error('Expected the active pressure branch');
+    }
+    expect(parsed.situated_pressure_proposal.manifestationBlock).toEqual({
+      type: 'dialogue',
+      speaker: 'Technician',
+      content: 'The pressure seal is slipping.',
+    });
+
+    const neutral = createBaseValidPayload();
+    neutral.situated_pressure_proposal = {
+      kind: 'NONE',
+      reason: 'No prospective pressure is being proposed.',
+      proposalId: 'provider-cross-branch-id',
+      adverseProspect: 'Provider-only cross-branch content.',
+    };
+
+    const parsedNeutral = parseStructuredTurnResponse(
+      JSON.stringify(neutral),
+      TurnResultSchema,
+      normalizeGeminiTurnProviderPayload
+    );
+
+    expect(parsedNeutral.situated_pressure_proposal).toEqual({
+      kind: 'NONE',
+      reason: 'No prospective pressure is being proposed.',
+    });
+  });
+
+  it('projects recognized cast activity branches before canonical validation', () => {
+    const active = createBaseValidPayload();
+    active.cast_activity_proposal = {
+      kind: 'ACTIVITY',
+      reason: 'This field belongs only to the neutral branch.',
+      proposalId: 'prop-activity-1',
+      castMemberId: 'cast-technician',
+      pursuitId: null,
+      locationNodeId: 'NODE_SERVICE_RING',
+      perceptionPath: 'DIRECT',
+      activitySummary: 'A technician checks a failing junction.',
+      authorityReferences: ['blueprint-cast'],
+      providerNarrativeHint: 'This is not a canonical proposal field.',
+      manifestationBlock: {
+        type: 'prose',
+        speaker: 'Provider-only cross-branch speaker.',
+        content: 'A status lamp flickers beside the junction.',
+        providerStageDirection: 'This is not a canonical manifestation field.',
+      },
+    };
+
+    expect(TurnResultSchema.safeParse(active).success).toBe(false);
+
+    const parsedActive = parseStructuredTurnResponse(
+      JSON.stringify(active),
+      TurnResultSchema,
+      normalizeGeminiTurnProviderPayload
+    );
+
+    expect(parsedActive.cast_activity_proposal.kind).toBe('ACTIVITY');
+    expect(parsedActive.cast_activity_proposal).not.toHaveProperty('reason');
+    expect(parsedActive.cast_activity_proposal).not.toHaveProperty('providerNarrativeHint');
+    if (parsedActive.cast_activity_proposal.kind !== 'ACTIVITY') {
+      throw new Error('Expected the active activity branch');
+    }
+    expect(parsedActive.cast_activity_proposal.manifestationBlock).toEqual({
+      type: 'prose',
+      content: 'A status lamp flickers beside the junction.',
+    });
+
+    const neutral = createBaseValidPayload();
+    neutral.cast_activity_proposal = {
+      kind: 'NONE',
+      reason: 'No independent cast activity is proposed.',
+      proposalId: 'provider-cross-branch-id',
+      activitySummary: 'Provider-only cross-branch content.',
+    };
+
+    const parsedNeutral = parseStructuredTurnResponse(
+      JSON.stringify(neutral),
+      TurnResultSchema,
+      normalizeGeminiTurnProviderPayload
+    );
+
+    expect(parsedNeutral.cast_activity_proposal).toEqual({
+      kind: 'NONE',
+      reason: 'No independent cast activity is proposed.',
+    });
+  });
+
+  it('leaves invalid union discriminants and incomplete active branches fail closed', () => {
+    for (const field of ['cast_activity_proposal', 'situated_pressure_proposal'] as const) {
+      const invalidKind = createBaseValidPayload();
+      invalidKind[field] = {
+        kind: 'UNRECOGNIZED',
+        reason: 'The canonical schema must reject this discriminant.',
+        providerNarrativeHint: 'Must not be repaired.',
+      };
+
+      expect(() =>
+        parseStructuredTurnResponse(
+          JSON.stringify(invalidKind),
+          TurnResultSchema,
+          normalizeGeminiTurnProviderPayload
+        )
+      ).toThrow();
+
+      const incompleteActive = createBaseValidPayload();
+      incompleteActive[field] = {
+        kind: field === 'cast_activity_proposal' ? 'ACTIVITY' : 'PRESSURE',
+        reason: 'Removing this cross-branch field cannot manufacture required semantics.',
+      };
+
+      expect(() =>
+        parseStructuredTurnResponse(
+          JSON.stringify(incompleteActive),
+          TurnResultSchema,
+          normalizeGeminiTurnProviderPayload
+        )
+      ).toThrow();
+    }
   });
 
   it('omission of each HG1 envelope fails TurnResultSchema', () => {
@@ -664,14 +813,6 @@ describe('Track D2: Canonical ingress tests (Packet 1-10B)', () => {
       parseStructuredTurnResponse(JSON.stringify(activePressureReason), TurnResultSchema)
     ).toThrow();
 
-    expect(() =>
-      parseStructuredTurnResponse(
-        JSON.stringify(activePressureReason),
-        TurnResultSchema,
-        normalizeGeminiTurnProviderPayload
-      )
-    ).toThrow();
-
     // Dialogue manifestation block without speaker
     const invalidManifest = createBaseValidPayload();
     invalidManifest.cast_activity_proposal = {
@@ -686,6 +827,13 @@ describe('Track D2: Canonical ingress tests (Packet 1-10B)', () => {
       manifestationBlock: { type: 'dialogue', content: 'Missing speaker' },
     };
     expect(() => parseStructuredTurnResponse(JSON.stringify(invalidManifest), TurnResultSchema)).toThrow();
+    expect(() =>
+      parseStructuredTurnResponse(
+        JSON.stringify(invalidManifest),
+        TurnResultSchema,
+        normalizeGeminiTurnProviderPayload
+      )
+    ).toThrow();
 
     // Invalid consequence combination (SET on INVENTORY)
     const invalidCsq = createBaseValidPayload();

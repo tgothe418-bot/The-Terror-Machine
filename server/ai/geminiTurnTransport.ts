@@ -2,9 +2,22 @@ export const GEMINI_TURN_NULL_SENTINEL = '__TTM_NULL__' as const;
 
 type JsonRecord = Record<string, unknown>;
 
-const SITUATED_PRESSURE_PROPOSAL_FIELDS = new Set([
+const NEUTRAL_PROPOSAL_FIELDS = new Set(['kind', 'reason']);
+
+const CAST_ACTIVITY_PROPOSAL_ACTIVE_FIELDS = new Set([
   'kind',
-  'reason',
+  'proposalId',
+  'castMemberId',
+  'pursuitId',
+  'locationNodeId',
+  'perceptionPath',
+  'activitySummary',
+  'authorityReferences',
+  'manifestationBlock',
+]);
+
+const SITUATED_PRESSURE_PROPOSAL_ACTIVE_FIELDS = new Set([
+  'kind',
   'proposalId',
   'valueAnchorId',
   'sourceReference',
@@ -16,6 +29,9 @@ const SITUATED_PRESSURE_PROPOSAL_FIELDS = new Set([
   'responseWindowOpen',
   'manifestationBlock',
 ]);
+
+const MANIFESTATION_PROSE_FIELDS = new Set(['type', 'content']);
+const MANIFESTATION_DIALOGUE_FIELDS = new Set(['type', 'speaker', 'content']);
 
 function isJsonRecord(value: unknown): value is JsonRecord {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -43,18 +59,88 @@ function normalizeMissingNullableField(record: JsonRecord, field: string): JsonR
   };
 }
 
-/**
- * Gemini's provider schema cannot express the active/neutral discriminated
- * union as an exact object. It can occasionally add descriptive root keys to
- * this one envelope. Discard only keys outside the complete transport field
- * vocabulary; Zod still rejects missing fields, invalid values, and fields
- * which are invalid for the selected `kind` (for example `reason` on
- * `PRESSURE`).
- */
-function normalizeSituatedPressureProposal(record: JsonRecord): JsonRecord {
+function projectProviderUnionBranch(
+  record: JsonRecord,
+  activeKind: string,
+  activeFields: ReadonlySet<string>
+): JsonRecord {
+  const fields = record.kind === 'NONE'
+    ? NEUTRAL_PROPOSAL_FIELDS
+    : record.kind === activeKind
+      ? activeFields
+      : null;
+
+  if (!fields) {
+    return record;
+  }
+
   return Object.fromEntries(
-    Object.entries(record).filter(([key]) => SITUATED_PRESSURE_PROPOSAL_FIELDS.has(key))
+    Object.entries(record).filter(([key]) => fields.has(key))
   );
+}
+
+function normalizeManifestationBlock(value: unknown): unknown {
+  if (!isJsonRecord(value)) {
+    return value;
+  }
+
+  const fields = value.type === 'prose'
+    ? MANIFESTATION_PROSE_FIELDS
+    : value.type === 'dialogue'
+      ? MANIFESTATION_DIALOGUE_FIELDS
+      : null;
+
+  if (!fields) {
+    return value;
+  }
+
+  return Object.fromEntries(
+    Object.entries(value).filter(([key]) => fields.has(key))
+  );
+}
+
+function normalizeActiveManifestationBlock(record: JsonRecord): JsonRecord {
+  if (!Object.prototype.hasOwnProperty.call(record, 'manifestationBlock')) {
+    return record;
+  }
+
+  return {
+    ...record,
+    manifestationBlock: normalizeManifestationBlock(record.manifestationBlock),
+  };
+}
+
+/**
+ * Gemini's provider schema flattens each active/neutral discriminated union
+ * into one object because the supported schema subset cannot express the
+ * exact branch relationship. Project a recognized branch to its canonical
+ * vocabulary before Zod validation so provider-only and opposite-branch keys
+ * cannot invalidate an otherwise complete proposal. Missing fields, invalid
+ * values, and unknown discriminants remain untouched and still fail closed at
+ * the authoritative Zod boundary.
+ */
+function normalizeCastActivityProposal(record: JsonRecord): JsonRecord {
+  const projected = projectProviderUnionBranch(
+    record,
+    'ACTIVITY',
+    CAST_ACTIVITY_PROPOSAL_ACTIVE_FIELDS
+  );
+
+  return record.kind === 'ACTIVITY'
+    ? normalizeActiveManifestationBlock(projected)
+    : projected;
+}
+
+function normalizeSituatedPressureProposal(record: JsonRecord): JsonRecord {
+  const projected = projectProviderUnionBranch(
+    record,
+    'PRESSURE',
+    SITUATED_PRESSURE_PROPOSAL_ACTIVE_FIELDS
+  );
+
+  return record.kind === 'PRESSURE'
+    ? normalizeActiveManifestationBlock(projected)
+    : projected;
 }
 
 /**
@@ -98,6 +184,12 @@ export function normalizeGeminiTurnProviderPayload(payload: unknown): unknown {
           }
         : {}),
     };
+  }
+
+  if (isJsonRecord(payload.cast_activity_proposal)) {
+    normalized.cast_activity_proposal = normalizeCastActivityProposal(
+      payload.cast_activity_proposal
+    );
   }
 
   if (isJsonRecord(payload.situated_pressure_proposal)) {
