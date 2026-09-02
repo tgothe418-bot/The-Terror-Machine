@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { z } from 'zod';
-import { Blueprint, BlueprintSchema, LogicState, Message, PlayerRole, ParticipationContext } from '../types';
+import { Blueprint, BlueprintSchema, LogicState, Message, PlayerRole, ParticipationContext, SpatialNode } from '../types';
 import { idbStorage } from '../lib/idbStorage';
 import { distillContext } from '../services/geminiService';
 import { useAppStore } from '../store/useAppStore';
@@ -77,6 +77,12 @@ export interface TelemetryMetrics {
   engineLogic: string;
 }
 
+export interface SetBlueprintOptions {
+  sessionId?: string;
+  spatialGraph?: SpatialNode[];
+  entryNodeId?: string;
+}
+
 export interface EngineState {
   activeSessionId: string | null;
   activeBlueprint: Blueprint | null;
@@ -92,7 +98,8 @@ export interface EngineState {
     blueprint: unknown,
     role: PlayerRole,
     participationContext?: ParticipationContext | null,
-    selectedCharacterId?: string
+    selectedCharacterId?: string,
+    options?: SetBlueprintOptions
   ) => void;
 
   clearBlueprint: () => void;
@@ -121,7 +128,7 @@ export const useEngineStore = create<EngineState>()(
       engineWorldStateSummary: '',
       telemetry: null,
       updateTelemetry: (metrics) => set({ telemetry: metrics }),
-      setBlueprint: (blueprint, role, participationContext = null, selectedCharacterId) => {
+      setBlueprint: (blueprint, role, participationContext = null, selectedCharacterId, options) => {
         // Preserve identity only for a fully canonical payload. BlueprintSchema has defaults,
         // so safeParse success alone is insufficient: a partial legacy object can parse while
         // still requiring normalization.
@@ -149,19 +156,23 @@ export const useEngineStore = create<EngineState>()(
         // Preserve legacy setting-derived fallback behavior when no authored
         // topology exists. Character-relative entries are passed only when the
         // Engine can prove they belong to the compiled authored graph.
-        const entryNodeId = authoredNodeIds.has(resolvedEntryNodeId)
+        const defaultEntryNodeId = authoredNodeIds.has(resolvedEntryNodeId)
           ? resolvedEntryNodeId
           : undefined;
+        const finalEntryNodeId = options?.entryNodeId ?? defaultEntryNodeId;
 
-        // Generate shared session ID once before either store is written
-        const sessionId = crypto.randomUUID();
+        // Trim and resolve shared session ID exactly once before either store is written
+        const rawSessionId = options?.sessionId;
+        const trimmedSessionId = typeof rawSessionId === 'string' ? rawSessionId.trim() : '';
+        const sessionId = trimmedSessionId.length > 0 ? trimmedSessionId : crypto.randomUUID();
 
-        // Invoke the canonical AppStore session initialization action with the shared sessionId
+        // Invoke the canonical AppStore session initialization action with the shared sessionId exactly once
         useAppStore.getState().initializeSession({
           blueprint: normalizedBlueprint,
           participationContext,
           sessionId,
-          entryNodeId,
+          entryNodeId: finalEntryNodeId,
+          ...(options?.spatialGraph ? { spatialGraph: options.spatialGraph } : {}),
         });
 
         set({

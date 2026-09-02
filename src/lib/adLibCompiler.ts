@@ -10,7 +10,6 @@ import {
 } from '../types';
 import { normalizeBlueprint } from './normalizeBlueprint';
 import { useEngineStore } from '../core/store';
-import { useAppStore } from '../store/useAppStore';
 
 export interface CompiledAdLibSession {
   blueprint: ScenarioBlueprint;
@@ -416,17 +415,22 @@ export function initiateCompiledAdLibSession(
   const { blueprint, participationContext, initialSpatialNode, sessionId: customSessionId } = payload;
   const mode = participationContext.mode;
 
-  // 1. Initialize engine store directly from supplied values
-  useEngineStore.getState().setBlueprint(blueprint, mode, participationContext);
+  const candidateSessionId =
+    typeof customSessionId === 'string' && customSessionId.trim().length > 0
+      ? customSessionId
+      : `session-adlib-${crypto.randomUUID()}`;
 
-  // 2. Initialize app runtime store with single source of truth
-  const sessionId = customSessionId || `session-adlib-${crypto.randomUUID()}`;
-  useAppStore.getState().initializeSession({
+  // Initialize engine and app stores atomically in one coordinated call
+  useEngineStore.getState().setBlueprint(
     blueprint,
-    sessionId,
+    mode,
     participationContext,
-    spatialGraph: [initialSpatialNode],
-  });
+    undefined,
+    {
+      sessionId: candidateSessionId,
+      spatialGraph: [initialSpatialNode],
+    }
+  );
 
   return {
     blueprint,

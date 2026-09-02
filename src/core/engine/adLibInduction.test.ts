@@ -1,5 +1,6 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import 'fake-indexeddb/auto';
+import { evaluateSessionCoherence } from '../../lib/sessionReconciliation';
 import {
   compileAdLibInduction,
   initiateAdLibSession,
@@ -1179,7 +1180,126 @@ describe('Phase 3B: Antagonist Authority Contracts & Victim Framing', () => {
       const appState = useAppStore.getState();
       expect(appState.blueprintId).toBe(reviewedBlueprint.id);
       expect(appState.participationContext).toBe(originalContext);
-      expect(appState.spatialGraph[0]).toBe(originalNode);
+      expect(appState.spatialGraph[0]).toEqual(originalNode);
+
+      // Session ID parity & coherence invariant
+      expect(engineState.activeSessionId).toBe(appState.sessionId);
+      expect(appState.sessionId).toMatch(/^session-adlib-/);
+      expect(evaluateSessionCoherence(engineState, appState)).toEqual({
+        isCoherent: true,
+        status: 'COHERENT',
+      });
+    });
+
+    it('initializes both stores with identical session ID when an exact customSessionId is provided', () => {
+      const induction: AdLibProtagonistInduction = {
+        participationMode: 'protagonist',
+        placeSeed: 'Observation Outpost Echo',
+        goal: 'Secure perimeter logs',
+        participantName: 'Technician Ross',
+      };
+
+      const compiled = compileAdLibInduction(induction);
+      const reviewedBlueprint = normalizeBlueprint(compiled.blueprint);
+
+      initiateCompiledAdLibSession({
+        blueprint: reviewedBlueprint,
+        participationContext: compiled.participationContext,
+        initialSpatialNode: compiled.initialSpatialNode,
+        sessionId: 'custom-session-exact-42',
+      });
+
+      const engineState = useEngineStore.getState();
+      const appState = useAppStore.getState();
+
+      expect(engineState.activeSessionId).toBe('custom-session-exact-42');
+      expect(appState.sessionId).toBe('custom-session-exact-42');
+      expect(evaluateSessionCoherence(engineState, appState)).toEqual({
+        isCoherent: true,
+        status: 'COHERENT',
+      });
+    });
+
+    it('normalizes whitespace-padded customSessionId identically across both stores', () => {
+      const induction: AdLibProtagonistInduction = {
+        participationMode: 'protagonist',
+        placeSeed: 'Sub-Basement Vault',
+        goal: 'Retrieve specimen 9',
+        participantName: 'Dr. Elizabeth',
+      };
+
+      const compiled = compileAdLibInduction(induction);
+      const reviewedBlueprint = normalizeBlueprint(compiled.blueprint);
+
+      initiateCompiledAdLibSession({
+        blueprint: reviewedBlueprint,
+        participationContext: compiled.participationContext,
+        initialSpatialNode: compiled.initialSpatialNode,
+        sessionId: '   custom-padded-id-99   ',
+      });
+
+      const engineState = useEngineStore.getState();
+      const appState = useAppStore.getState();
+
+      expect(engineState.activeSessionId).toBe('custom-padded-id-99');
+      expect(appState.sessionId).toBe('custom-padded-id-99');
+      expect(evaluateSessionCoherence(engineState, appState)).toEqual({
+        isCoherent: true,
+        status: 'COHERENT',
+      });
+    });
+
+    it('falls back to a generated UUID identically in both stores when customSessionId is blank', () => {
+      const induction: AdLibProtagonistInduction = {
+        participationMode: 'protagonist',
+        placeSeed: 'Perimeter Boundary Fence',
+        goal: 'Inspect power conduits',
+        participantName: 'Sgt. Cole',
+      };
+
+      const compiled = compileAdLibInduction(induction);
+      const reviewedBlueprint = normalizeBlueprint(compiled.blueprint);
+
+      initiateCompiledAdLibSession({
+        blueprint: reviewedBlueprint,
+        participationContext: compiled.participationContext,
+        initialSpatialNode: compiled.initialSpatialNode,
+        sessionId: '    ',
+      });
+
+      const engineState = useEngineStore.getState();
+      const appState = useAppStore.getState();
+
+      expect(engineState.activeSessionId).toBeTruthy();
+      expect(appState.sessionId).toBeTruthy();
+      expect(engineState.activeSessionId).toBe(appState.sessionId);
+      expect(evaluateSessionCoherence(engineState, appState)).toEqual({
+        isCoherent: true,
+        status: 'COHERENT',
+      });
+    });
+
+    it('calls AppStore.initializeSession exactly once during compiled Ad-Lib ingress', () => {
+      const induction: AdLibProtagonistInduction = {
+        participationMode: 'protagonist',
+        placeSeed: 'Cryo-Chamber 12',
+        goal: 'Check life support relays',
+        participantName: 'Medic Lee',
+      };
+
+      const compiled = compileAdLibInduction(induction);
+      const reviewedBlueprint = normalizeBlueprint(compiled.blueprint);
+
+      const spy = vi.spyOn(useAppStore.getState(), 'initializeSession');
+
+      initiateCompiledAdLibSession({
+        blueprint: reviewedBlueprint,
+        participationContext: compiled.participationContext,
+        initialSpatialNode: compiled.initialSpatialNode,
+      });
+
+      expect(spy).toHaveBeenCalledTimes(1);
+      spy.mockRestore();
     });
   });
 });
