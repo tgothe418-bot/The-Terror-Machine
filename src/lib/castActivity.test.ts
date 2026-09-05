@@ -289,7 +289,7 @@ describe('Cast Activity Ratifier (Packet 1-3)', () => {
       castMemberId: 'char-tech',
       locationNodeId: 'NODE_CONTROL',
       activitySummary: 'Mercer taps the auxiliary voltage dial with a metallic click.',
-      authorityReferences: ['CONSOLE_MANUAL'],
+      authorityReferences: ['opp-present-char-tech'],
       perceptionPath: 'DIRECT',
       manifestationBlock: {
         type: 'dialogue',
@@ -321,7 +321,7 @@ describe('Cast Activity Ratifier (Packet 1-3)', () => {
       locationNodeId: 'NODE_CONTROL',
       perceptionPath: 'DIRECT',
       committedTurn: 2,
-      authorityReferences: ['CONSOLE_MANUAL'],
+      authorityReferences: ['opp-present-char-tech'],
       wasManifested: true,
     });
   });
@@ -337,7 +337,7 @@ describe('Cast Activity Ratifier (Packet 1-3)', () => {
       pursuitId: 'pursuit-guard',
       locationNodeId: 'NODE_GATE',
       activitySummary: 'Petrov locks the blast doors at the outer gate perimeter.',
-      authorityReferences: ['GATE_ORDERS'],
+      authorityReferences: ['pursuit-guard'],
       perceptionPath: 'UNOBSERVED',
       manifestationBlock: null,
     };
@@ -449,5 +449,381 @@ describe('Cast Activity Ratifier (Packet 1-3)', () => {
 
     expect(receipt.outcome).toBe('REJECTED');
     expect(receipt.reasonCode).toBe('INVALID_MANIFESTATION_DIALOGUE_SPEAKER');
+  });
+
+  describe('Packet 04: Canonical Cast Presence Enforcement in Ratification', () => {
+    it('rejects forged or contradictory PRESENT opportunity when actor is canonically absent (isPresent = false)', () => {
+      const context = createMockContext();
+      // Ensure char-guard is canonically absent
+      const guardInCast = context.cast.find((c) => c.id === 'char-guard');
+      expect(guardInCast?.isPresent).toBe(false);
+
+      // Forged eligibility receipt with a PRESENT opportunity for char-guard
+      const forgedEligibility: CastActivityEligibilityReceipt = {
+        version: 1,
+        presentOpportunities: [
+          {
+            castMemberId: 'char-guard',
+            opportunityKind: 'PRESENT',
+            locationNodeId: 'NODE_CONTROL',
+            pursuitId: null,
+            objective: null,
+            presentApproach: null,
+            reviewWindow: null,
+            referencedValueIds: [],
+          },
+        ],
+        offscreenOpportunities: [],
+        boundedOutPursuitIds: [],
+        dormantCount: 0,
+        notDueCount: 0,
+        ledgerSnapshot: {
+          moment_revision: 1,
+          scene_beat_revision: 0,
+          extended_revision: 0,
+          last_cost: null,
+        },
+        scheduleSnapshotRevision: 1,
+      };
+
+      const proposal: CastActivityProposal = {
+        kind: 'ACTIVITY',
+        proposalId: 'prop-forged-present',
+        castMemberId: 'char-guard',
+        locationNodeId: 'NODE_CONTROL',
+        activitySummary: 'Guard steps out of shadows at control desk.',
+        perceptionPath: 'DIRECT',
+        manifestationBlock: {
+          type: 'dialogue',
+          speaker: 'Guard Petrov',
+          content: 'You should not be here.',
+        },
+      };
+
+      const preEvents: CastActivityEvent[] = [
+        {
+          id: 'event-prior',
+          committedTurn: 1,
+          castMemberId: 'char-tech',
+          pursuitId: null,
+          locationNodeId: 'NODE_CONTROL',
+          activitySummary: 'Tech calibrated dials.',
+          perceptionPath: 'DIRECT',
+          authorityReferences: ['opp-tech'],
+          wasManifested: true,
+        },
+      ];
+
+      const receipt = resolveCastActivity({
+        proposal,
+        eligibilityReceipt: forgedEligibility,
+        currentContext: context,
+        preEvents,
+        currentTurn: 2,
+      });
+
+      expect(receipt.outcome).toBe('REJECTED');
+      expect(receipt.reasonCode).toBe('DIRECT_PERCEPTION_REQUIRES_CO_PRESENCE');
+      expect(receipt.admittedManifestation).toBe(false);
+      expect(receipt.acceptedEventId).toBeNull();
+      // Verifies canonical state and activity records remain completely unchanged
+      expect(receipt.preState).toEqual(preEvents);
+      expect(receipt.postState).toEqual(preEvents);
+    });
+
+    it('permits valid offscreen actor with mediated capabilities to manifest via MEDIATED perception', () => {
+      const context = createMockContext();
+      // Add an entity / offscreen actor with mediated communication mode
+      context.cast.push({
+        id: 'char-intercom-ai',
+        name: 'Facility AI',
+        role: 'Synthesizer',
+        description: 'Automated intercom entity',
+        personality: 'Objective',
+        goals: 'Broadcast facility telemetry',
+        traits: ['Synthetic'],
+        isEntity: true,
+        isUserCharacter: false,
+        skepticism: 0.1,
+        isPresent: false,
+        stance: null,
+        memory: [],
+        expressionProfile: {
+          communicationModes: ['mediated'],
+          expressionGuidance: 'Transmits via facility speaker grid.',
+        },
+      });
+
+      const eligibility: CastActivityEligibilityReceipt = {
+        version: 1,
+        presentOpportunities: [],
+        offscreenOpportunities: [
+          {
+            castMemberId: 'char-intercom-ai',
+            opportunityKind: 'OFFSCREEN_PURSUIT',
+            locationNodeId: null,
+            pursuitId: 'pursuit-ai-broadcast',
+            objective: 'Broadcast facility status',
+            presentApproach: 'Automated chime',
+            reviewWindow: 'MOMENT',
+            referencedValueIds: [],
+          },
+        ],
+        boundedOutPursuitIds: [],
+        dormantCount: 0,
+        notDueCount: 0,
+        ledgerSnapshot: {
+          moment_revision: 1,
+          scene_beat_revision: 0,
+          extended_revision: 0,
+          last_cost: null,
+        },
+        scheduleSnapshotRevision: 1,
+      };
+
+      const proposal: CastActivityProposal = {
+        kind: 'ACTIVITY',
+        proposalId: 'prop-ai-broadcast',
+        castMemberId: 'char-intercom-ai',
+        pursuitId: 'pursuit-ai-broadcast',
+        activitySummary: 'Broadcast chime echoes over speaker system.',
+        authorityReferences: ['pursuit-ai-broadcast'],
+        perceptionPath: 'MEDIATED',
+        manifestationBlock: {
+          type: 'dialogue',
+          speaker: 'Facility AI',
+          content: 'Pressure drop detected in auxiliary loop.',
+        },
+      };
+
+      const receipt = resolveCastActivity({
+        proposal,
+        eligibilityReceipt: eligibility,
+        currentContext: context,
+        preEvents: [],
+        currentTurn: 2,
+      });
+
+      expect(receipt.outcome).toBe('ACCEPTED');
+      expect(receipt.admittedManifestation).toBe(true);
+      expect(receipt.acceptedEventId).toBe('prop-ai-broadcast');
+      expect(receipt.postState).toHaveLength(1);
+      expect(receipt.postState[0].perceptionPath).toBe('MEDIATED');
+    });
+
+    it('permits valid offscreen actor unobserved activity without manifestation block', () => {
+      const context = createMockContext();
+      const eligibility = createMockEligibility();
+      // char-guard has an active offscreen pursuit at NODE_GATE
+      const proposal: CastActivityProposal = {
+        kind: 'ACTIVITY',
+        proposalId: 'prop-guard-unobserved',
+        castMemberId: 'char-guard',
+        pursuitId: 'pursuit-guard',
+        locationNodeId: 'NODE_GATE',
+        activitySummary: 'Guard reinforces security barricade at gate perimeter.',
+        authorityReferences: ['pursuit-guard'],
+        perceptionPath: 'UNOBSERVED',
+        manifestationBlock: null,
+      };
+
+      const receipt = resolveCastActivity({
+        proposal,
+        eligibilityReceipt: eligibility,
+        currentContext: context,
+        preEvents: [],
+        currentTurn: 2,
+      });
+
+      expect(receipt.outcome).toBe('ACCEPTED');
+      expect(receipt.admittedManifestation).toBe(false);
+      expect(receipt.acceptedEventId).toBe('prop-guard-unobserved');
+      expect(receipt.postState).toHaveLength(1);
+      expect(receipt.postState[0].perceptionPath).toBe('UNOBSERVED');
+    });
+  });
+
+  describe('Packet 06: Exact Authority References & Evidence Scope', () => {
+    it('rejects schema-valid direct activity proposal citing nonexistent rule with INVALID_AUTHORITY_REFERENCE', () => {
+      const context = createMockContext();
+      const eligibility = createMockEligibility();
+
+      const proposal: CastActivityProposal = {
+        kind: 'ACTIVITY',
+        proposalId: 'prop-tech-nonexistent-rule',
+        castMemberId: 'char-tech',
+        locationNodeId: 'NODE_CONTROL',
+        activitySummary: 'Mercer asserts protocol authority.',
+        authorityReferences: ['rule-does-not-exist-in-this-scenario'],
+        perceptionPath: 'DIRECT',
+        manifestationBlock: {
+          type: 'dialogue',
+          speaker: 'Technician Mercer',
+          content: 'Protocol forbids opening this valve.',
+        },
+      };
+
+      const receipt = resolveCastActivity({
+        proposal,
+        eligibilityReceipt: eligibility,
+        currentContext: context,
+        preEvents: [],
+        currentTurn: 2,
+      });
+
+      expect(receipt.outcome).toBe('REJECTED');
+      expect(receipt.reasonCode).toBe('INVALID_AUTHORITY_REFERENCE');
+      expect(receipt.admittedManifestation).toBe(false);
+      expect(receipt.acceptedEventId).toBeNull();
+      expect(receipt.postState).toEqual([]);
+    });
+
+    it('rejects fabricated prefix references (opp-, pur-, val-) that do not exist in canonical registry', () => {
+      const context = createMockContext();
+      const eligibility = createMockEligibility();
+
+      for (const fabricatedRef of ['opp-fabricated-id', 'pur-nonexistent', 'val-invented']) {
+        const proposal: CastActivityProposal = {
+          kind: 'ACTIVITY',
+          proposalId: `prop-${fabricatedRef}`,
+          castMemberId: 'char-tech',
+          locationNodeId: 'NODE_CONTROL',
+          activitySummary: 'Mercer attempts action with fabricated authority.',
+          authorityReferences: [fabricatedRef],
+          perceptionPath: 'DIRECT',
+          manifestationBlock: null,
+        };
+
+        const receipt = resolveCastActivity({
+          proposal,
+          eligibilityReceipt: eligibility,
+          currentContext: context,
+          preEvents: [],
+          currentTurn: 2,
+        });
+
+        expect(receipt.outcome).toBe('REJECTED');
+        expect(receipt.reasonCode).toBe('INVALID_AUTHORITY_REFERENCE');
+      }
+    });
+
+    it('rejects proposal citing valid existing reference belonging to a different actor with UNAUTHORIZED_ACTIVITY_CLAIM', () => {
+      const context = createMockContext();
+      const eligibility = createMockEligibility();
+
+      // char-guard tries to cite char-tech's present opportunity
+      const proposal: CastActivityProposal = {
+        kind: 'ACTIVITY',
+        proposalId: 'prop-guard-wrong-owner',
+        castMemberId: 'char-guard',
+        pursuitId: 'pursuit-guard',
+        locationNodeId: 'NODE_GATE',
+        activitySummary: 'Petrov attempts to act under Mercer\'s engineering opportunity.',
+        authorityReferences: ['opp-present-char-tech'],
+        perceptionPath: 'UNOBSERVED',
+        manifestationBlock: null,
+      };
+
+      const receipt = resolveCastActivity({
+        proposal,
+        eligibilityReceipt: eligibility,
+        currentContext: context,
+        preEvents: [],
+        currentTurn: 2,
+      });
+
+      expect(receipt.outcome).toBe('REJECTED');
+      expect(receipt.reasonCode).toBe('UNAUTHORIZED_ACTIVITY_CLAIM');
+    });
+
+    it('rejects proposal citing communication capability of a different actor with UNAUTHORIZED_ACTIVITY_CLAIM', () => {
+      const context = createMockContext();
+      const eligibility = createMockEligibility();
+
+      // char-guard tries to cite char-tech's mediated capability
+      const proposal: CastActivityProposal = {
+        kind: 'ACTIVITY',
+        proposalId: 'prop-guard-wrong-capability',
+        castMemberId: 'char-guard',
+        pursuitId: 'pursuit-guard',
+        locationNodeId: 'NODE_GATE',
+        activitySummary: 'Petrov tries to use Mercer\'s radio clearance.',
+        authorityReferences: ['expr-char-tech-mediated'],
+        perceptionPath: 'UNOBSERVED',
+        manifestationBlock: null,
+      };
+
+      const receipt = resolveCastActivity({
+        proposal,
+        eligibilityReceipt: eligibility,
+        currentContext: context,
+        preEvents: [],
+        currentTurn: 2,
+      });
+
+      expect(receipt.outcome).toBe('REJECTED');
+      expect(receipt.reasonCode).toBe('UNAUTHORIZED_ACTIVITY_CLAIM');
+    });
+
+    it('rejects proposal with empty authorityReferences with UNAUTHORIZED_ACTIVITY_CLAIM', () => {
+      const context = createMockContext();
+      const eligibility = createMockEligibility();
+
+      const proposal: CastActivityProposal = {
+        kind: 'ACTIVITY',
+        proposalId: 'prop-tech-no-authority',
+        castMemberId: 'char-tech',
+        locationNodeId: 'NODE_CONTROL',
+        activitySummary: 'Mercer acts with no stated authority references.',
+        authorityReferences: [],
+        perceptionPath: 'DIRECT',
+        manifestationBlock: null,
+      };
+
+      const receipt = resolveCastActivity({
+        proposal,
+        eligibilityReceipt: eligibility,
+        currentContext: context,
+        preEvents: [],
+        currentTurn: 2,
+      });
+
+      expect(receipt.outcome).toBe('REJECTED');
+      expect(receipt.reasonCode).toBe('UNAUTHORIZED_ACTIVITY_CLAIM');
+    });
+
+    it('accepts proposal citing exact valid scenario rule rule-1', () => {
+      const context = createMockContext();
+      context.scenario.worldRules = ['Air filtration cycles every hour.'];
+      const eligibility = createMockEligibility();
+
+      const proposal: CastActivityProposal = {
+        kind: 'ACTIVITY',
+        proposalId: 'prop-tech-valid-rule',
+        castMemberId: 'char-tech',
+        locationNodeId: 'NODE_CONTROL',
+        activitySummary: 'Mercer waits for the hourly filtration cycle.',
+        authorityReferences: ['rule-1'],
+        perceptionPath: 'DIRECT',
+        manifestationBlock: {
+          type: 'dialogue',
+          speaker: 'Technician Mercer',
+          content: 'Cycle should start any moment.',
+        },
+      };
+
+      const receipt = resolveCastActivity({
+        proposal,
+        eligibilityReceipt: eligibility,
+        currentContext: context,
+        preEvents: [],
+        currentTurn: 2,
+      });
+
+      expect(receipt.outcome).toBe('ACCEPTED');
+      expect(receipt.reasonCode).toBe('ACTIVITY_RATIFIED');
+      expect(receipt.admittedManifestation).toBe(true);
+      expect(receipt.acceptedEventId).toBe('prop-tech-valid-rule');
+    });
   });
 });

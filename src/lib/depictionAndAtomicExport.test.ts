@@ -317,5 +317,179 @@ describe('Packet 1D-5: Automatic Depiction Contract & One-Action Export', () => 
       const validated = BlueprintSchema.safeParse(bp);
       expect(validated.success).toBe(true);
     });
+
+    describe('Packet 07: Depiction Contract Preservation Through Export', () => {
+      it('compileForgeDraft protects complete authored depiction contract even if candidate is staged', () => {
+        const draft = createValidBaseDraft();
+        draft.depictionContract = {
+          dramaticRegister: 'Authored Claustrophobic Reg',
+          directness: 'Authored Sensory Directness',
+          aftermath: 'Authored Irreversible Aftermath',
+          ambiguityHandling: 'Authored Epistemic Silence',
+          specialBoundaries: 'Authored Boundaries',
+        };
+
+        const mockAnalysis: ForgeSourceAnalysis = {
+          id: 'src-analysis-depiction',
+          sourceRecord: {
+            id: 'rec-1',
+            fileName: 'manifest.json',
+            mimeType: 'application/json',
+            kind: 'native_blueprint',
+            receivedAt: Date.now(),
+          },
+          summary: 'Imported analysis',
+          candidates: [
+            {
+              id: 'cand-dep-staged',
+              sourceId: 'src-analysis-depiction',
+              classification: 'evidence',
+              target: 'depiction_contract',
+              label: 'Imported Depiction',
+              explanation: 'Imported tone',
+              evidenceIds: [],
+              proposedValue: {
+                dramaticRegister: 'Imported Dread',
+                directness: 'Imported Danger',
+                aftermath: 'Imported Consequences',
+                ambiguityHandling: 'Imported Ambiguity',
+                specialBoundaries: '',
+              },
+              reviewDecision: 'accepted',
+              applicationState: 'staged',
+            },
+          ],
+          evidence: [],
+          unknowns: [],
+          status: 'completed',
+        };
+
+        const compiled = compileForgeDraft(draft, {
+          sourceAnalyses: { 'src-analysis-depiction': mockAnalysis },
+        });
+
+        expect(compiled.success).toBe(true);
+        if (!compiled.success) return;
+
+        // Authored contract remains intact
+        expect(compiled.blueprint.depictionContract.dramaticRegister).toBe('Authored Claustrophobic Reg');
+        expect(compiled.blueprint.depictionContract.directness).toBe('Authored Sensory Directness');
+        expect(compiled.blueprint.depictionContract.aftermath).toBe('Authored Irreversible Aftermath');
+        expect(compiled.blueprint.depictionContract.ambiguityHandling).toBe('Authored Epistemic Silence');
+      });
+
+      it('compileForgeDraft applies staged depiction candidate when authored depiction is missing or partial', () => {
+        const draft = createValidBaseDraft();
+        delete (draft as Record<string, unknown>).depictionContract;
+
+        const mockAnalysis: ForgeSourceAnalysis = {
+          id: 'src-analysis-depiction-2',
+          sourceRecord: {
+            id: 'rec-2',
+            fileName: 'manifest.json',
+            mimeType: 'application/json',
+            kind: 'native_blueprint',
+            receivedAt: Date.now(),
+          },
+          summary: 'Imported analysis',
+          candidates: [
+            {
+              id: 'cand-dep-staged-2',
+              sourceId: 'src-analysis-depiction-2',
+              classification: 'evidence',
+              target: 'depiction_contract',
+              label: 'Imported Depiction',
+              explanation: 'Imported tone',
+              evidenceIds: [],
+              proposedValue: {
+                dramaticRegister: 'Imported Dread',
+                directness: 'Imported Danger',
+                aftermath: 'Imported Consequences',
+                ambiguityHandling: 'Imported Ambiguity',
+                specialBoundaries: '',
+              },
+              reviewDecision: 'accepted',
+              applicationState: 'staged',
+            },
+          ],
+          evidence: [],
+          unknowns: [],
+          status: 'completed',
+        };
+
+        const compiled = compileForgeDraft(draft, {
+          sourceAnalyses: { 'src-analysis-depiction-2': mockAnalysis },
+        });
+
+        expect(compiled.success).toBe(true);
+        if (!compiled.success) return;
+
+        // Imported contract populates missing contract
+        expect(compiled.blueprint.depictionContract.dramaticRegister).toBe('Imported Dread');
+        expect(compiled.blueprint.depictionContract.directness).toBe('Imported Danger');
+      });
+
+      it('superseded candidate is ignored during compilation and export readiness validation', () => {
+        const draft = createValidBaseDraft();
+        draft.depictionContract = {
+          dramaticRegister: 'Authored Claustrophobic Reg',
+          directness: 'Authored Sensory Directness',
+          aftermath: 'Authored Irreversible Aftermath',
+          ambiguityHandling: 'Authored Epistemic Silence',
+          specialBoundaries: 'Authored Boundaries',
+        };
+
+        const mockAnalysis: ForgeSourceAnalysis = {
+          id: 'src-analysis-depiction-3',
+          sourceRecord: {
+            id: 'rec-3',
+            fileName: 'manifest.json',
+            mimeType: 'application/json',
+            kind: 'native_blueprint',
+            receivedAt: Date.now(),
+          },
+          summary: 'Imported analysis',
+          candidates: [
+            {
+              id: 'cand-dep-superseded',
+              sourceId: 'src-analysis-depiction-3',
+              classification: 'evidence',
+              target: 'depiction_contract',
+              label: 'Imported Depiction',
+              explanation: 'Imported tone',
+              evidenceIds: [],
+              proposedValue: {
+                dramaticRegister: 'Superseded Tone',
+                directness: 'Superseded Directness',
+                aftermath: 'Superseded Aftermath',
+                ambiguityHandling: 'Superseded Ambiguity',
+                specialBoundaries: '',
+              },
+              reviewDecision: 'accepted',
+              applicationState: 'superseded',
+            },
+          ],
+          evidence: [],
+          unknowns: [],
+          status: 'completed',
+        };
+
+        const readiness = validateForgeExportReadiness({
+          draft,
+          sourceAnalyses: { 'src-analysis-depiction-3': mockAnalysis },
+        });
+        expect(readiness.valid).toBe(true);
+        expect(readiness.sourceSummary.candidateSuperseded).toBe(1);
+        expect(readiness.sourceSummary.candidateStagedAccepted).toBe(0);
+
+        const compiled = compileForgeDraft(draft, {
+          sourceAnalyses: { 'src-analysis-depiction-3': mockAnalysis },
+        });
+        expect(compiled.success).toBe(true);
+        if (!compiled.success) return;
+
+        expect(compiled.blueprint.depictionContract.dramaticRegister).toBe('Authored Claustrophobic Reg');
+      });
+    });
   });
 });

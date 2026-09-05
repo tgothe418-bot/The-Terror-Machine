@@ -423,4 +423,261 @@ describe('Cast Activity Eligibility & Scheduling (Packet 1-2)', () => {
 
     expect(nextSchedule['pursuit-dormant'].latestDisposition).toBe('DORMANT');
   });
+
+  describe('Packet 04: Canonical Cast Presence Enforcement in Opportunity Selection', () => {
+    it('ensures OFFSTAGE, NONLOCAL, and invalid AT_NODE actors receive NO false PRESENT opportunity', () => {
+      const bp = createMockBlueprint();
+      bp.cast.push(
+        {
+          id: 'char-offstage',
+          name: 'Offstage Lurker',
+          description: 'Lurking in background',
+          role: 'Infiltrator',
+          personality: 'Quiet',
+          goals: 'Observe',
+          traits: ['Stealthy'],
+          isUserCharacter: false,
+          behaviorVector: 'COGNITIVE',
+          isEntity: false,
+          starting_location: '',
+          presenceDisposition: { kind: 'OFFSTAGE' },
+        },
+        {
+          id: 'char-nonlocal',
+          name: 'Nonlocal Anomaly',
+          description: 'Everywhere and nowhere',
+          role: 'Entity',
+          personality: 'Unknowable',
+          goals: 'Permeate',
+          traits: ['Diffuse'],
+          isUserCharacter: false,
+          behaviorVector: 'COSMIC',
+          isEntity: true,
+          starting_location: '',
+          presenceDisposition: { kind: 'NONLOCAL' },
+        },
+        {
+          id: 'char-invalid-node',
+          name: 'Wanderer',
+          description: 'Lost traveler',
+          role: 'Drifter',
+          personality: 'Confused',
+          goals: 'Escape',
+          traits: ['Lost'],
+          isUserCharacter: false,
+          behaviorVector: 'SOMATIC',
+          isEntity: false,
+          starting_location: '',
+          presenceDisposition: { kind: 'AT_NODE', nodeId: 'NON_EXISTENT_CHAMBER' },
+        }
+      );
+
+      const fictionalTime: FictionalTimeLedger = {
+        moment_revision: 1,
+        scene_beat_revision: 0,
+        extended_revision: 0,
+        last_cost: null,
+      };
+
+      const receipt = selectCastActivityEligibility({
+        blueprint: bp,
+        currentTopologyNode: 'NODE_CONTROL',
+        fictionalTime,
+        userCharacterId: 'char-user',
+        turnNumber: 1,
+      });
+
+      const presentIds = receipt.presentOpportunities.map((o) => o.castMemberId);
+      expect(presentIds).not.toContain('char-offstage');
+      expect(presentIds).not.toContain('char-nonlocal');
+      expect(presentIds).not.toContain('char-invalid-node');
+    });
+
+    it('preserves legacy placement fallback to currentNodeId when cast member actually lacks explicit placement data', () => {
+      const bp = createMockBlueprint();
+      bp.cast.push({
+        id: 'char-legacy-unplaced',
+        name: 'Unplaced Assistant',
+        description: 'Station assistant',
+        role: 'Assistant',
+        personality: 'Helpful',
+        goals: 'Assist crew',
+        traits: ['Loyal'],
+        isUserCharacter: false,
+        behaviorVector: 'COGNITIVE',
+        isEntity: false,
+        starting_location: '',
+      });
+
+      const fictionalTime: FictionalTimeLedger = {
+        moment_revision: 1,
+        scene_beat_revision: 0,
+        extended_revision: 0,
+        last_cost: null,
+      };
+
+      const receipt = selectCastActivityEligibility({
+        blueprint: bp,
+        currentTopologyNode: 'NODE_CONTROL',
+        fictionalTime,
+        userCharacterId: 'char-user',
+        turnNumber: 1,
+      });
+
+      const presentIds = receipt.presentOpportunities.map((o) => o.castMemberId);
+      expect(presentIds).toContain('char-legacy-unplaced');
+    });
+
+    it('respects authoritative castPresenceMap even if member was authored as present in blueprint', () => {
+      const bp = createMockBlueprint();
+      const fictionalTime: FictionalTimeLedger = {
+        moment_revision: 1,
+        scene_beat_revision: 0,
+        extended_revision: 0,
+        last_cost: null,
+      };
+
+      const receipt = selectCastActivityEligibility({
+        blueprint: bp,
+        currentTopologyNode: 'NODE_CONTROL',
+        fictionalTime,
+        userCharacterId: 'char-user',
+        turnNumber: 1,
+        castPresenceMap: {
+          'char-tech': 'NODE_LAB', // moved away
+        },
+      });
+
+      const presentIds = receipt.presentOpportunities.map((o) => o.castMemberId);
+      expect(presentIds).not.toContain('char-tech');
+    });
+
+    it('projects runtime currentObjective and currentApproach for offscreen opportunities from characterPursuitLedger', () => {
+      const bp = createMockBlueprint();
+      const fictionalTime: FictionalTimeLedger = {
+        moment_revision: 1,
+        scene_beat_revision: 0,
+        extended_revision: 0,
+        last_cost: 'MOMENT',
+      };
+
+      const receipt = selectCastActivityEligibility({
+        blueprint: bp,
+        currentTopologyNode: 'NODE_CONTROL',
+        fictionalTime,
+        userCharacterId: 'char-user',
+        turnNumber: 2,
+        characterPursuitLedger: {
+          'pursuit-guard': {
+            pursuitId: 'pursuit-guard',
+            castMemberId: 'char-guard',
+            status: 'ACTIVE',
+            currentObjective: 'Barricade the secondary gate',
+            currentApproach: 'Stacking heavy steel supply containers',
+            currentLocationNodeId: 'NODE_LAB',
+            reviewWindow: 'MOMENT',
+            progressSummary: 'Reinforcing gate',
+            lastCauseReference: 'BASELINE',
+            lastActivityTurn: null,
+            lastChangedTurn: 1,
+          },
+        },
+      });
+
+      const guardOpp = receipt.offscreenOpportunities.find(
+        (o) => o.pursuitId === 'pursuit-guard'
+      );
+      expect(guardOpp).toBeDefined();
+      expect(guardOpp?.objective).toBe('Barricade the secondary gate');
+      expect(guardOpp?.presentApproach).toBe('Stacking heavy steel supply containers');
+      expect(guardOpp?.locationNodeId).toBe('NODE_LAB');
+    });
+
+    it('evaluates EVENT_DRIVEN pursuit review window against activityEvents committedTurn > lastConsideredTurn', () => {
+      const bp = createMockBlueprint();
+      // Add an EVENT_DRIVEN pursuit to bp
+      bp.horrorGrammar!.characterPursuits.push({
+        id: 'pursuit-doc-emergency',
+        castMemberId: 'char-doc',
+        objective: 'Respond to medical emergency',
+        presentApproach: 'Rush with field defibrillator',
+        locationNodeId: 'NODE_LAB',
+        status: 'ACTIVE',
+        reviewWindow: 'EVENT_DRIVEN',
+        triggerReferences: ['evt-medical-crisis'],
+        basisSummary: 'Emergency protocol',
+        provenance: { kind: 'CREATOR_DEFINED' },
+      });
+
+      const fictionalTime: FictionalTimeLedger = {
+        moment_revision: 0,
+        scene_beat_revision: 0,
+        extended_revision: 0,
+        last_cost: null,
+      };
+
+      // 1. When event committed at turn 2 and pursuit never considered (lastConsidered: null) -> due
+      const receipt1 = selectCastActivityEligibility({
+        blueprint: bp,
+        currentTopologyNode: 'NODE_CONTROL',
+        fictionalTime,
+        userCharacterId: 'char-user',
+        turnNumber: 3,
+        activityEvents: [
+          {
+            id: 'evt-medical-crisis',
+            castMemberId: 'char-doc',
+            pursuitId: 'pursuit-doc-emergency',
+            activitySummary: 'Medical crisis triggered.',
+            locationNodeId: 'NODE_LAB',
+            perceptionPath: 'UNOBSERVED',
+            committedTurn: 2,
+            authorityReferences: [],
+            wasManifested: false,
+          },
+        ],
+      });
+
+      expect(
+        receipt1.offscreenOpportunities.map((o) => o.pursuitId)
+      ).toContain('pursuit-doc-emergency');
+
+      // 2. When pursuit was considered on turn 3 and no new event occurred -> consumed / not due
+      const receipt2 = selectCastActivityEligibility({
+        blueprint: bp,
+        currentTopologyNode: 'NODE_CONTROL',
+        fictionalTime,
+        pursuitSchedule: {
+          'pursuit-doc-emergency': {
+            pursuitId: 'pursuit-doc-emergency',
+            castMemberId: 'char-doc',
+            lastConsideredMomentRevision: 0,
+            lastConsideredSceneBeatRevision: 0,
+            lastConsideredExtendedRevision: 0,
+            lastConsideredTurn: 3,
+            latestDisposition: 'OFFSCREEN_SELECTED',
+          },
+        },
+        userCharacterId: 'char-user',
+        turnNumber: 4,
+        activityEvents: [
+          {
+            id: 'evt-medical-crisis',
+            castMemberId: 'char-doc',
+            pursuitId: 'pursuit-doc-emergency',
+            activitySummary: 'Medical crisis triggered.',
+            locationNodeId: 'NODE_LAB',
+            perceptionPath: 'UNOBSERVED',
+            committedTurn: 2, // 2 <= 3 -> not due
+            authorityReferences: [],
+            wasManifested: false,
+          },
+        ],
+      });
+
+      expect(
+        receipt2.offscreenOpportunities.map((o) => o.pursuitId)
+      ).not.toContain('pursuit-doc-emergency');
+    });
+  });
 });

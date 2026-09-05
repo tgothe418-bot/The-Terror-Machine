@@ -1,28 +1,54 @@
 import { useState, useEffect } from 'react';
-import type { Blueprint, LogicState } from '../types';
+import type { Blueprint, LogicState, DurableSessionRevision } from '../types';
 import type { AppStore } from '../store/useAppStore';
 import { useEngineStore } from '../core/store';
 import { useAppStore } from '../store/useAppStore';
 
 export interface StoreReconciliationResult {
   isCoherent: boolean;
-  status: 'COHERENT' | 'MISMATCH' | 'CORRUPT' | 'CLEAN_SETUP';
+  status: 'COHERENT' | 'MISMATCH' | 'CORRUPT' | 'CLEAN_SETUP' | 'RECOVERABLE_CHECKPOINT';
   reason?: string;
+  recoveryTarget?: 'PREVIOUS_REVISION' | 'MIGRATE_LEGACY';
+  recoveredRevision?: number;
+  isRevisionMismatch?: boolean;
+}
+
+export interface EvaluateSessionCoherenceEngineState {
+  activeSessionId?: string | null;
+  activeBlueprint: Blueprint | null;
+  durableSessionRevision?: DurableSessionRevision | null;
+  lastTurnCheckpoint?: {
+    revision: number;
+    turnCount: number;
+    gameStateBefore: LogicState | null;
+  } | null;
+  gameState: LogicState | null;
+  engineMessages?: unknown[];
 }
 
 /**
  * Validates cross-store identity and coherence between the Engine store and the App runtime-session store.
+ * Verifies shared durable commit boundary and detects split or interrupted revisions.
  */
 export function evaluateSessionCoherence(
-  engineState: {
-    activeSessionId?: string | null;
-    activeBlueprint: Blueprint | null;
-    gameState: LogicState | null;
-  },
+  engineState: EvaluateSessionCoherenceEngineState,
   appState: Partial<AppStore>
 ): StoreReconciliationResult {
-  const { activeSessionId, activeBlueprint, gameState } = engineState;
-  const { blueprintId, sessionId, turnCount, history } = appState;
+  const {
+    activeSessionId,
+    activeBlueprint,
+    gameState,
+    durableSessionRevision: engineDurableRev,
+    engineMessages,
+  } = engineState;
+  const {
+    blueprintId,
+    sessionId,
+    turnCount,
+    history,
+    durableSessionRevision: appDurableRev,
+    lastTurnCheckpoint: appCheckpoint,
+  } = appState;
 
   // Case 1: No active Blueprint loaded in Engine store
   if (!activeBlueprint) {
@@ -114,11 +140,116 @@ export function evaluateSessionCoherence(
     }
   }
 
-  return { isCoherent: true, status: 'COHERENT' };
+  // --- Step 3: Shared Durable Commit Boundary & Revision Verification ---
+  const effectiveAppTurnCount = typeof turnCount === 'number' ? turnCount : 0;
+
+  // Branch A: Both stores carry durableSessionRevision
+  if (appDurableRev && engineDurableRev) {
+    const revMatch = appDurableRev.revision === engineDurableRev.revision;
+    const turnMatch = appDurableRev.turnCount === engineDurableRev.turnCount;
+    const sessionMatch = appDurableRev.sessionId === engineDurableRev.sessionId;
+    const bpMatch = appDurableRev.blueprintId === engineDurableRev.blueprintId;
+
+    if (revMatch && turnMatch && sessionMatch && bpMatch) {
+      return { isCoherent: true, status: 'COHERENT' };
+    }
+
+    // Split / interrupted write: check if previous complete revision is recoverable via checkpoint
+    // Case 1: App is ahead (e.g. App committed turn N, Engine write failed/interrupted at turn N-1)
+    if (
+      appDurableRev.revision > engineDurableRev.revision &&
+      appCheckpoint &&
+      appCheckpoint.engineStateBefore?.turnCount === engineDurableRev.turnCount
+    ) {
+      return {
+        isCoherent: false,
+        status: 'RECOVERABLE_CHECKPOINT',
+        reason: `Interrupted persistence detected: App is at revision ${appDurableRev.revision} (turn ${appDurableRev.turnCount}) but Engine is at revision ${engineDurableRev.revision} (turn ${engineDurableRev.turnCount}). Complete checkpoint for revision ${engineDurableRev.revision} is available.`,
+        recoveryTarget: 'PREVIOUS_REVISION',
+        isRevisionMismatch: true,
+      };
+    }
+
+    // Case 2: Engine is ahead (e.g. Engine committed turn N, App write failed/interrupted at turn N-1)
+    if (
+      engineDurableRev.revision > appDurableRev.revision &&
+      engineState.lastTurnCheckpoint &&
+      engineState.lastTurnCheckpoint.turnCount === appDurableRev.turnCount
+    ) {
+      return {
+        isCoherent: false,
+        status: 'RECOVERABLE_CHECKPOINT',
+        reason: `Interrupted persistence detected: Engine is at revision ${engineDurableRev.revision} (turn ${engineDurableRev.turnCount}) but App is at revision ${appDurableRev.revision} (turn ${appDurableRev.turnCount}). Complete checkpoint for revision ${appDurableRev.revision} is available.`,
+        recoveryTarget: 'PREVIOUS_REVISION',
+        isRevisionMismatch: true,
+      };
+    }
+
+    // Unrecoverable revision mismatch
+    return {
+      isCoherent: false,
+      status: 'MISMATCH',
+      reason: `Durable revision mismatch: App has revision ${appDurableRev.revision} (turn ${appDurableRev.turnCount}) but Engine has revision ${engineDurableRev.revision} (turn ${engineDurableRev.turnCount}). No complete checkpoint can recover this disparity.`,
+      isRevisionMismatch: true,
+    };
+  }
+
+  // Branch B: Legacy save migration (one or both stores lack durableSessionRevision)
+  // Subcase 1: Clean setup at turn 0
+  const isCleanAppTurn0 = effectiveAppTurnCount === 0 && (!history || history.length === 0);
+  if (isCleanAppTurn0) {
+    return {
+      isCoherent: true,
+      status: 'COHERENT',
+      recoveryTarget: 'MIGRATE_LEGACY',
+      recoveredRevision: 1,
+    };
+  }
+
+  // Subcase 2: Legacy save with turn progress:
+  // Check if App has a valid checkpoint that can restore a known complete previous turn
+  if (
+    appCheckpoint &&
+    typeof appCheckpoint.engineStateBefore?.turnCount === 'number' &&
+    appCheckpoint.engineStateBefore.turnCount < effectiveAppTurnCount
+  ) {
+    const cpTurn = appCheckpoint.engineStateBefore.turnCount;
+    return {
+      isCoherent: false,
+      status: 'RECOVERABLE_CHECKPOINT',
+      reason: `Legacy save interrupted: App turn ${effectiveAppTurnCount} has valid checkpoint for turn ${cpTurn}.`,
+      recoveryTarget: 'PREVIOUS_REVISION',
+      isRevisionMismatch: true,
+    };
+  }
+
+  // Subcase 3: Legacy save where turn counts are corroborated between stores
+  const engineTurnCount = Array.isArray(engineMessages) ? engineMessages.length : undefined;
+  const isCorroborated =
+    typeof engineTurnCount === 'number' &&
+    (engineTurnCount === effectiveAppTurnCount || engineTurnCount === (history?.length || 0));
+
+  if (isCorroborated) {
+    return {
+      isCoherent: true,
+      status: 'COHERENT',
+      recoveryTarget: 'MIGRATE_LEGACY',
+      recoveredRevision: effectiveAppTurnCount + 1,
+    };
+  }
+
+  // An unrecoverable legacy pair (e.g. diagnostic: App dropped key on turn 2, Engine inventory retains key from turn 1)
+  return {
+    isCoherent: false,
+    status: 'MISMATCH',
+    reason: `Unrecoverable legacy save: cannot prove durable cross-store coherence from IDs alone for App turn ${effectiveAppTurnCount}.`,
+    isRevisionMismatch: true,
+  };
 }
 
 /**
- * Reconciles the Engine store and App session store, failing closed if incoherence is detected.
+ * Reconciles the Engine store and App session store, recovering from checkpoints when available
+ * and failing closed without destroying evidence if unrecoverable incoherence is detected.
  */
 export function reconcileSessionStores(
   engineStore: typeof useEngineStore,
@@ -129,9 +260,87 @@ export function reconcileSessionStores(
 
   const evalResult = evaluateSessionCoherence(engineState, appState);
 
+  // If recoverable from checkpoint, safely restore the stores to the complete known revision
+  if (evalResult.status === 'RECOVERABLE_CHECKPOINT' && evalResult.recoveryTarget === 'PREVIOUS_REVISION') {
+    const appRev = appState.durableSessionRevision?.revision ?? (appState.canonicalRevision || 0);
+    const engineRev = engineState.durableSessionRevision?.revision ?? 0;
+
+    if (appRev > engineRev && appState.lastTurnCheckpoint) {
+      // App was ahead: rollback App to lastTurnCheckpoint
+      const cp = appState.lastTurnCheckpoint;
+      const targetTurn = (cp.engineStateBefore?.turnCount as number) ?? 0;
+      const targetRev = engineState.durableSessionRevision?.revision ?? 1;
+
+      const recoveredDurableRevision: DurableSessionRevision = {
+        sessionId: appState.sessionId || engineState.activeSessionId || '',
+        blueprintId: appState.blueprintId || engineState.activeBlueprint?.id || '',
+        revision: targetRev,
+        turnCount: targetTurn,
+        committedAt: Date.now(),
+      };
+
+      appStore.setState({
+        ...cp.engineStateBefore,
+        durableSessionRevision: recoveredDurableRevision,
+        lastTurnCheckpoint: null,
+      });
+
+      return {
+        isCoherent: true,
+        status: 'COHERENT',
+        reason: `Successfully recovered complete previous revision ${targetRev} (turn ${targetTurn}) from checkpoint.`,
+        recoveredRevision: targetRev,
+      };
+    } else if (engineRev > appRev && engineState.lastTurnCheckpoint) {
+      // Engine was ahead: rollback Engine to lastTurnCheckpoint
+      const cp = engineState.lastTurnCheckpoint;
+      const targetTurn = cp.turnCount;
+      const targetRev = appState.durableSessionRevision?.revision ?? 1;
+
+      const recoveredDurableRevision: DurableSessionRevision = {
+        sessionId: appState.sessionId || engineState.activeSessionId || '',
+        blueprintId: appState.blueprintId || engineState.activeBlueprint?.id || '',
+        revision: targetRev,
+        turnCount: targetTurn,
+        committedAt: Date.now(),
+      };
+
+      engineStore.setState({
+        gameState: cp.gameStateBefore,
+        durableSessionRevision: recoveredDurableRevision,
+        lastTurnCheckpoint: null,
+      });
+
+      return {
+        isCoherent: true,
+        status: 'COHERENT',
+        reason: `Successfully recovered complete previous revision ${targetRev} (turn ${targetTurn}) from checkpoint.`,
+        recoveredRevision: targetRev,
+      };
+    }
+  }
+
+  // If coherent and legacy migration is requested, write the durable revision token to both stores
+  if (evalResult.isCoherent && evalResult.recoveryTarget === 'MIGRATE_LEGACY') {
+    const rev = evalResult.recoveredRevision || 1;
+    const turn = appState.turnCount || 0;
+    const migratedRevision: DurableSessionRevision = {
+      sessionId: appState.sessionId || engineState.activeSessionId || '',
+      blueprintId: appState.blueprintId || engineState.activeBlueprint?.id || '',
+      revision: rev,
+      turnCount: turn,
+      committedAt: Date.now(),
+    };
+    appStore.setState({ durableSessionRevision: migratedRevision });
+    engineStore.setState({ durableSessionRevision: migratedRevision });
+  }
+
   if (!evalResult.isCoherent) {
-    // Fail closed: clear contaminated session state to prevent state blending
-    appStore.getState().resetSession();
+    // Fail closed: if cross-session or cross-blueprint identity collision, clear contaminated session.
+    // For revision mismatches or unrecoverable legacy saves, preserve evidence without erasing it.
+    if (!evalResult.isRevisionMismatch) {
+      appStore.getState().resetSession();
+    }
     return evalResult;
   }
 

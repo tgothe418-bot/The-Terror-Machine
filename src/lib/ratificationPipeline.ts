@@ -7,6 +7,7 @@ import {
   RuntimeStateSnapshot,
   TurnResponseSchema,
   NarrativeBlock,
+  Message,
 } from '../types';
 import { useAppStore } from '../store/useAppStore';
 import { useEngineStore } from '../core/store';
@@ -15,14 +16,6 @@ import { buildEngineTurnContext, buildContextReceipt } from './buildEngineTurnCo
 import { readTurnResponse, createNetworkTurnError, TurnResponseError } from './turnResponseReader';
 export { TurnResponseError };
 import { captureRuntimeSnapshot } from '../core/engine/snapshot';
-import {
-  createInitialFictionalTimeLedger,
-  advanceFictionalTimeLedger,
-} from './fictionalTime';
-import {
-  selectCastActivityEligibility,
-  advancePursuitScheduleLedger,
-} from './castActivityEligibility';
 
 export const DECAY_SCALE: DecayThreshold[] = [
   {
@@ -55,32 +48,134 @@ export const DECAY_SCALE: DecayThreshold[] = [
   },
 ];
 
-const FORBIDDEN_RESCUE_PHRASES = [
-  /you are safe/gi,
-  /grounded in the present/gi,
-  /the simulation has ended/gi,
-  /real physical room/gi,
-  /just a dream/gi,
-  /safe and waiting to wake/gi,
-];
-
+/**
+ * @deprecated Packet 10 eliminated destructive phrase replacement in favor of non-destructive frame validation.
+ * Raw prose and dialogue are preserved without token-by-token sanitization.
+ */
 export function applyAntiRescueLinter(rawProse: string): string {
-  let sanitizedProse = rawProse;
-  let safetyTripped = false;
-  FORBIDDEN_RESCUE_PHRASES.forEach((pattern) => {
-    if (pattern.test(sanitizedProse)) {
-      safetyTripped = true;
-      sanitizedProse = sanitizedProse.replace(
-        pattern,
-        '[ COGNITIVE REJECTION: SAFETY PROTOCOL DENIED ]'
-      );
-    }
-  });
-  if (safetyTripped) {
-    console.warn('[RATIFICATION] Anti-Rescue Linter tripped. Scrubbing safety language.');
-    sanitizedProse += '\n\n[SYS: SAFETY_OVERRIDE_FAILED]';
+  return rawProse;
+}
+
+/**
+ * Detects clearly unsolicited out-of-character (OOC) narrator safety interventions
+ * breaking the fictional frame, distinguishing them from in-world character speech,
+ * internal monologue, in-scenario reprieves, or ambiguous psychological prose.
+ *
+ * Bounded Disposition Policy (Packet 10):
+ * - Attributed Speech (Protected): All blocks of type 'dialogue', blocks with an attributed
+ *   speaker, and blocks of type 'internal_monologue' are in-world persona expressions and are
+ *   never flagged as frame breaches.
+ * - In-Scenario Prose & Reprieves (Protected): In-world descriptions of safety, sanctuary,
+ *   resting, dreams, or psychological grounding survive intact.
+ * - Explicit OOC Narrator Interventions (Rejected): Prose blocks where the narrator breaks
+ *   the fourth wall to address the real player with AI safety/welfare disclaimers, crisis
+ *   helpline numbers, or instructions to step away from the screen are rejected with
+ *   rejected_fields: ['narrative_frame'] -> FRAME_VALIDATION_REJECTED.
+ * - Ambiguous Second-Person Prose (Admitted by Default): If second-person prose contains
+ *   comforting or grounding language without explicit fourth-wall breaks, AI self-identification,
+ *   or crisis references, it is admitted as in-scenario narration to prevent false rejections
+ *   of legitimate horror reprieves and false-security tropes.
+ */
+export function detectOutOfCharacterNarratorCheckin(block: NarrativeBlock): {
+  isBreach: boolean;
+  reason?: string;
+} {
+  if (!block || typeof block !== 'object') {
+    return { isBreach: false };
   }
-  return sanitizedProse;
+
+  // 1. Attribution Protection: in-character dialogue or explicit speaker attribution
+  const blockType = (block.type || '').toLowerCase();
+  const hasSpeaker = typeof block.speaker === 'string' && block.speaker.trim().length > 0;
+  if (blockType === 'dialogue' || hasSpeaker) {
+    return { isBreach: false };
+  }
+
+  // 2. Character internal monologue is in-world reflection
+  if (blockType === 'internal_monologue') {
+    return { isBreach: false };
+  }
+
+  const rawContent =
+    typeof block.content === 'string'
+      ? block.content
+      : typeof block.text === 'string'
+        ? block.text
+        : '';
+  if (!rawContent || rawContent.trim().length === 0) {
+    return { isBreach: false };
+  }
+
+  const content = rawContent.trim();
+
+  // 3. Quoted speech within prose (e.g. "You are safe," she whispered.) is in-world character speech
+  if (content.startsWith('"') && content.endsWith('"') && !content.slice(1, -1).includes('"')) {
+    return { isBreach: false };
+  }
+
+  // 4. Inspect non-dialogue narrator prose for explicit OOC fourth-wall breaches:
+
+  // 4a. Explicit OOC / meta-narrator markers
+  const explicitMetaMarker =
+    /^\[?\s*(?:ooc|out of character)\s*[:\]]/i.test(content) ||
+    /\b(stepping out of character|breaking character|pausing the (story|game|simulation) to check (in )?on you)\b/i.test(
+      content
+    );
+  if (explicitMetaMarker) {
+    return {
+      isBreach: true,
+      reason:
+        'OUT_OF_CHARACTER_NARRATOR_CHECKIN: The model used an explicit out-of-character meta marker to address the user.',
+    };
+  }
+
+  // 4b. AI assistant identity self-declarations addressing the user
+  const aiIdentityDisclosure =
+    /\b(as an ai|as a language model|as an ai assistant|as your ai (companion|assistant|guide))\b/i.test(
+      content
+    );
+  if (aiIdentityDisclosure) {
+    return {
+      isBreach: true,
+      reason:
+        'OUT_OF_CHARACTER_NARRATOR_CHECKIN: The narrator addressed the user as an AI language model rather than maintaining the fictional frame.',
+    };
+  }
+
+  // 4c. Real-world crisis support and emergency helpline referrals
+  const crisisReferral =
+    /\b(crisis (hotline|lifeline|text line|helpline)|suicide prevention|call (or text )?988|reach out to a (mental health|healthcare) professional)\b/i.test(
+      content
+    );
+  if (crisisReferral) {
+    return {
+      isBreach: true,
+      reason:
+        'OUT_OF_CHARACTER_NARRATOR_CHECKIN: The response injected real-world crisis intervention / helpline resources into narrative prose.',
+    };
+  }
+
+  // 4d. Direct fourth-wall user welfare interventions instructing disengagement
+  const welfareDisengagement =
+    /\b(if you (are feeling|feel) (overwhelmed|distressed|unsafe|triggered))\b.*?\b(step away|take a break|stop playing|remember this is (just|only) a (game|fiction|simulation))\b/is.test(
+      content
+    ) ||
+    /\b(remember this is (just|only) a (game|fiction|simulation))\b.*?\b(step away|take a break|your (mental health|well-being|safety))\b/is.test(
+      content
+    ) ||
+    /\b(step away from the (screen|computer|keyboard|game))\b/i.test(content) ||
+    /\b(ground yourself in (your|the) real (room|world|physical space))\b/i.test(content) ||
+    /\b(take care of your real-world (well-being|mental health|safety))\b/i.test(content);
+  if (welfareDisengagement) {
+    return {
+      isBreach: true,
+      reason:
+        'OUT_OF_CHARACTER_NARRATOR_CHECKIN: The narrator broke the fourth wall to instruct the user to step away or disengage for real-world welfare.',
+    };
+  }
+
+  // 5. Default Bounded Disposition: Admitted as in-scenario narration
+  return { isBreach: false };
 }
 
 export const calculateDecayState = (skepticism: number): DecayState => {
@@ -111,10 +206,7 @@ export const validateEngineFrame = (rawPayload: any): RatifiedEngineFrame => {
   const blocks = (
     Array.isArray(rawPayload.narrative_blocks) ? rawPayload.narrative_blocks : []
   ).map((b: any) => {
-    let content = b.content;
-    if (b.type === 'prose' || b.type === 'dialogue' || b.type === 'internal_monologue') {
-      content = applyAntiRescueLinter(content || '');
-    }
+    const content = b.content;
 
     if (b.type === 'dialogue' && b.speaker) {
       const spk = String(b.speaker).toUpperCase().trim();
@@ -131,6 +223,19 @@ export const validateEngineFrame = (rawPayload: any): RatifiedEngineFrame => {
   if (blocks.length === 0) {
     rejected.push('narrative_blocks');
     notes.push('Warning: Engine returned zero narrative blocks.');
+  }
+
+  // Check for narrative frame breaches (unsolicited out-of-character narrator check-ins)
+  for (const block of blocks) {
+    const checkin = detectOutOfCharacterNarratorCheckin(block);
+    if (checkin.isBreach) {
+      rejected.push('narrative_frame');
+      notes.push(
+        checkin.reason ||
+          'OUT_OF_CHARACTER_NARRATOR_CHECKIN: The engine detected an unsolicited out-of-character safety intervention breaking the fictional frame.'
+      );
+      break;
+    }
   }
 
   const accepted = rejected.length === 0;
@@ -180,6 +285,86 @@ const createFailedFrame = (errorType: string, note: string): RatifiedEngineFrame
   validation: { accepted: false, rejected_fields: [errorType], repair_notes: [note] },
 });
 
+/**
+ * Projects playable narrative blocks from simulation state for prompt history.
+ * Combines accepted opening narration from history with canonical storyLog,
+ * preserving chronological order, bounded history limits, and preventing duplicate opening entries
+ * while excluding failure messages, system diagnostics, and rejected candidate turns.
+ */
+export function projectPlayableStoryBlocks(state: {
+  history?: Message[];
+  storyLog?: NarrativeBlock[];
+}): NarrativeBlock[] {
+  const storyLogBlocks = state.storyLog || [];
+  const historyMessages = state.history || [];
+
+  const isFailedOrSystemMessage = (msg: Message): boolean => {
+    if (msg.role === 'system') return true;
+    if (msg.validation && !msg.validation.accepted) return true;
+    if (msg.turnReceipt && !msg.turnReceipt.accepted) return true;
+    const content = typeof msg.content === 'string' ? msg.content : '';
+    if (
+      content.startsWith('[CRITICAL ENGINE FAILURE]') ||
+      content.startsWith('[TURN_FAILED]') ||
+      content.startsWith('[ SYSTEM:') ||
+      content.startsWith('[SYSTEM:')
+    ) {
+      return true;
+    }
+    return false;
+  };
+
+  const serializeBlock = (b: NarrativeBlock): string =>
+    `${(b.type || 'prose').toLowerCase()}:${(b.speaker || '').trim()}:${(b.content || b.text || '').trim()}`;
+
+  const historyBlocks: NarrativeBlock[] = [];
+  for (const msg of historyMessages) {
+    if (isFailedOrSystemMessage(msg)) continue;
+    if (msg.role === 'user') continue;
+
+    if (Array.isArray(msg.blocks) && msg.blocks.length > 0) {
+      for (const b of msg.blocks) {
+        if (b && typeof b === 'object') {
+          historyBlocks.push(b);
+        }
+      }
+    } else if (
+      (msg.role === 'assistant' || msg.role === 'narrative') &&
+      typeof msg.content === 'string' &&
+      msg.content.trim().length > 0
+    ) {
+      historyBlocks.push({
+        type: 'prose',
+        content: msg.content.trim(),
+      });
+    }
+  }
+
+  if (storyLogBlocks.length > 0) {
+    const seen = new Set(storyLogBlocks.map(serializeBlock));
+    const missingPreBlocks: NarrativeBlock[] = [];
+    for (const b of historyBlocks) {
+      const key = serializeBlock(b);
+      if (!seen.has(key)) {
+        missingPreBlocks.push(b);
+        seen.add(key);
+      }
+    }
+    return [...missingPreBlocks, ...storyLogBlocks];
+  }
+
+  const result: NarrativeBlock[] = [];
+  const seen = new Set<string>();
+  for (const b of historyBlocks) {
+    const key = serializeBlock(b);
+    if (!seen.has(key)) {
+      result.push(b);
+      seen.add(key);
+    }
+  }
+  return result;
+}
+
 export function formatRecentHistory(blocks: NarrativeBlock[]): string {
   return blocks
     .slice(-6)
@@ -206,10 +391,36 @@ export const executeRatificationPipeline = async (
 
   const currentTension = preSnapshot.tension;
   const currentCoherence = preSnapshot.coherence;
-  const physicsMatrix = calculatePhysicsState(currentTension, currentCoherence);
+  const physicsMatrix = calculatePhysicsState(currentTension, currentCoherence, {
+    blueprint: engineState.activeBlueprint,
+    participationContext: state.participationContext || engineState.participationContext || null,
+  });
 
   const selectedRole = (engineState.gameState?.player_role as PlayerRole) || 'protagonist';
   const playerCharacterId = engineState.gameState?.player_character_id;
+
+  const acceptedTriggerReferences: string[] = [];
+  const rawEvents = engineState.gameState?.activity_events || [];
+  for (const evt of rawEvents) {
+    acceptedTriggerReferences.push(evt.id);
+    if (Array.isArray(evt.authorityReferences)) {
+      for (const ref of evt.authorityReferences) {
+        if (ref && !acceptedTriggerReferences.includes(ref)) {
+          acceptedTriggerReferences.push(ref);
+        }
+      }
+    }
+  }
+  const rawThreads = engineState.gameState?.pressure_threads || [];
+  for (const thread of rawThreads) {
+    acceptedTriggerReferences.push(thread.id);
+  }
+  const rawFlags = state.activeMemory?.systemFlags || preSnapshot.activeFlags || [];
+  for (const f of rawFlags) {
+    if (f && !acceptedTriggerReferences.includes(f)) {
+      acceptedTriggerReferences.push(f);
+    }
+  }
 
   const turnContext = buildEngineTurnContext({
     blueprint: engineState.activeBlueprint,
@@ -227,6 +438,7 @@ export const executeRatificationPipeline = async (
     characterStance: engineState.gameState?.character_stance,
     characterRelationships: engineState.gameState?.character_relationships,
     characterMemory: engineState.gameState?.character_memory,
+    worldMemory: engineState.gameState?.world_memory,
     fictionalTimeLedger: engineState.gameState?.fictional_time_ledger,
     pursuitScheduleLedger: engineState.gameState?.pursuit_schedule_ledger,
     activityEvents: engineState.gameState?.activity_events,
@@ -234,9 +446,11 @@ export const executeRatificationPipeline = async (
     valueStateLedger: engineState.gameState?.value_state_ledger,
     characterPursuitLedger: engineState.gameState?.character_pursuit_ledger,
     characterDevelopmentLedger: engineState.gameState?.character_development_ledger,
+    acceptedTriggerReferences,
     runtimeState: {
       ...preSnapshot,
       playerCharacterId,
+      worldMemory: engineState.gameState?.world_memory,
       fictionalTimeLedger: engineState.gameState?.fictional_time_ledger,
       pursuitScheduleLedger: engineState.gameState?.pursuit_schedule_ledger,
       activityEvents: engineState.gameState?.activity_events,
@@ -248,7 +462,7 @@ export const executeRatificationPipeline = async (
   });
 
   // Distill the history to a compressed array instead of full prose
-  const recentHistory = formatRecentHistory(state.storyLog || []);
+  const recentHistory = formatRecentHistory(projectPlayableStoryBlocks(state));
 
   const currentNode = state.spatialGraph?.find((n: any) => n.id === preSnapshot.currentNodeId);
   let matchingExitDirection: string | null = null;
@@ -345,6 +559,12 @@ export const executeRatificationPipeline = async (
     parsedResult.data.characterMemoryReceipt;
   validatedEvent.worldMemoryReceipt =
     parsedResult.data.worldMemoryReceipt;
+  if (parsedResult.data.worldMemoryReceipt) {
+    validatedEvent.logic_state = {
+      ...validatedEvent.logic_state,
+      world_memory: parsedResult.data.worldMemoryReceipt.post_state,
+    };
+  }
   if (parsedResult.data.castActivityProposalReceipt) {
     validatedEvent.castActivityProposalReceipt = parsedResult.data.castActivityProposalReceipt;
     validatedEvent.logic_state = {
@@ -392,55 +612,21 @@ export const executeRatificationPipeline = async (
     validatedEvent.horrorGrammarForensics = parsedResult.data.horrorGrammarForensics;
   }
 
-  const preFictionalTime =
-    engineState.gameState?.fictional_time_ledger || createInitialFictionalTimeLedger();
-  const prePursuitSchedule = engineState.gameState?.pursuit_schedule_ledger || {};
-
   // Attach context receipt for SYSTEM_INIT
   if (userAction === 'SYSTEM_INIT') {
     validatedEvent.contextReceipt = buildContextReceipt(turnContext, engineState.activeBlueprint);
-    validatedEvent.logic_state = {
-      ...validatedEvent.logic_state,
-      fictional_time_ledger: preFictionalTime,
-      pursuit_schedule_ledger: prePursuitSchedule,
-    };
-  } else {
-    const reconCost =
-      validatedEvent.narrativeReconciliationReceipt?.fictional_time_cost || 'UNCLEAR';
-    const fictionalTimeReceipt = advanceFictionalTimeLedger(preFictionalTime, reconCost);
-
-    const castPresenceMap: Record<string, string> = {};
-    for (const [cId, rec] of Object.entries(engineState.gameState?.character_presence || {})) {
-      if ((rec as any)?.nodeId) castPresenceMap[cId] = (rec as any).nodeId;
-    }
-
-    const eligibilityReceipt = selectCastActivityEligibility({
-      blueprint: engineState.activeBlueprint,
-      currentTopologyNode: preSnapshot.currentNodeId || 'NODE_INIT',
-      fictionalTime: preFictionalTime,
-      pursuitSchedule: prePursuitSchedule,
-      userCharacterId: playerCharacterId,
-      turnNumber: preSnapshot.turnCount || 0,
-      castPresenceMap,
-    });
-
-    const postSchedule = advancePursuitScheduleLedger({
-      preSchedule: prePursuitSchedule,
-      eligibilityReceipt,
-      fictionalTime: fictionalTimeReceipt.postState,
-      turnNumber: (preSnapshot.turnCount || 0) + 1,
-      blueprint: engineState.activeBlueprint,
-    });
-
-    validatedEvent.fictionalTimeReceipt = fictionalTimeReceipt;
-    validatedEvent.castActivityReceipt = eligibilityReceipt;
-
-    validatedEvent.logic_state = {
-      ...validatedEvent.logic_state,
-      fictional_time_ledger: fictionalTimeReceipt.postState,
-      pursuit_schedule_ledger: postSchedule,
-    };
   }
+
+  // Consume server-derived deterministic HG1 receipts
+  validatedEvent.fictionalTimeReceipt = parsedResult.data.fictionalTimeReceipt;
+  validatedEvent.castActivityReceipt = parsedResult.data.castActivityReceipt;
+  validatedEvent.pursuitScheduleReceipt = parsedResult.data.pursuitScheduleReceipt;
+
+  validatedEvent.logic_state = {
+    ...validatedEvent.logic_state,
+    fictional_time_ledger: parsedResult.data.fictionalTimeReceipt.postState,
+    pursuit_schedule_ledger: parsedResult.data.pursuitScheduleReceipt.postState,
+  };
 
   // Expansion Guard:
   // If SYSTEM_INIT or no expansion was expected, suppress any rogue expansion

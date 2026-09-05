@@ -13,6 +13,7 @@ import {
   WorldMemoryCandidateSchema,
   WorldMemoryProposalSchema,
   WorldMemoryReceiptSchema,
+  WorldMemoryReceipt,
   WorldMemoryStateSchema,
   WorldMemoryState,
   WorldMemoryEntry,
@@ -30,6 +31,7 @@ import {
   migrateLegacyLoreAndMemory,
   resolveWorldMemory,
   selectSituatedWorldMemory,
+  validateWorldMemoryReceipt,
 } from './worldMemory';
 import { buildEngineTurnContext } from './buildEngineTurnContext';
 import { parseTelemetrySections } from './download';
@@ -1670,6 +1672,134 @@ describe('3H.5A: Durable World Memory Contracts and Pure Resolver', () => {
       expect(selectSituatedWorldMemory([], 'node-a')).toEqual([]);
       expect(selectSituatedWorldMemory(null, 'node-a')).toEqual([]);
       expect(selectSituatedWorldMemory(undefined, 'node-a')).toEqual([]);
+    });
+  });
+
+  describe('Packet 01 - Runtime World Memory Continuity & Validation', () => {
+    const runtimeFact: WorldMemoryEntry = {
+      id: 'wm_runtime_01',
+      statement: 'The outer gate is padlocked.',
+      kind: 'PERSISTENT_CONSEQUENCE',
+      scope: 'GLOBAL',
+      node_id: null,
+      established_turn: 2,
+    };
+
+    const blueprintFact: WorldMemoryEntry = {
+      id: 'wm_bp_01',
+      statement: 'The perimeter is clear.',
+      kind: 'ENVIRONMENTAL_CONDITION',
+      scope: 'GLOBAL',
+      node_id: null,
+      established_turn: 0,
+    };
+
+    describe('validateWorldMemoryReceipt', () => {
+      it('rejects missing receipt', () => {
+        const result = validateWorldMemoryReceipt([], undefined);
+        expect(result.isValid).toBe(false);
+        expect(result.errorCode).toBe('MISSING_WORLD_MEMORY_RECEIPT');
+      });
+
+      it('rejects pre-state mismatch when canonical memory has facts and receipt pre-state is empty', () => {
+        const receipt: WorldMemoryReceipt = {
+          version: 1,
+          pre_state: [],
+          post_state: [],
+          decisions: [],
+        };
+        const result = validateWorldMemoryReceipt([runtimeFact], receipt);
+        expect(result.isValid).toBe(false);
+        expect(result.errorCode).toBe('WORLD_MEMORY_PRESTATE_MISMATCH');
+      });
+
+      it('rejects pre-state mismatch when statement differs', () => {
+        const receipt: WorldMemoryReceipt = {
+          version: 1,
+          pre_state: [
+            {
+              ...runtimeFact,
+              statement: 'The outer gate is swinging open.',
+            },
+          ],
+          post_state: [],
+          decisions: [],
+        };
+        const result = validateWorldMemoryReceipt([runtimeFact], receipt);
+        expect(result.isValid).toBe(false);
+        expect(result.errorCode).toBe('WORLD_MEMORY_PRESTATE_MISMATCH');
+      });
+
+      it('accepts matching pre-state even if array order is inverted (normalized sorting)', () => {
+        const fact2: WorldMemoryEntry = {
+          id: 'wm_runtime_02',
+          statement: 'Emergency power is humming.',
+          kind: 'ENVIRONMENTAL_CONDITION',
+          scope: 'GLOBAL',
+          node_id: null,
+          established_turn: 1,
+        };
+        const receipt: WorldMemoryReceipt = {
+          version: 1,
+          pre_state: [fact2, runtimeFact],
+          post_state: [fact2, runtimeFact],
+          decisions: [],
+        };
+        const result = validateWorldMemoryReceipt([runtimeFact, fact2], receipt);
+        expect(result.isValid).toBe(true);
+      });
+    });
+
+    describe('buildEngineTurnContext world memory precedence', () => {
+      const mockBlueprint = {
+        scenario_id: 'sc-test',
+        title: 'Test Blueprint',
+        environmentalRules: [],
+        world_memory: [blueprintFact],
+      };
+
+      it('established runtime memory wins over Blueprint memory', () => {
+        const context = buildEngineTurnContext({
+          blueprint: mockBlueprint,
+          worldMemory: [runtimeFact],
+        });
+
+        expect(context.worldMemory).toHaveLength(1);
+        expect(context.worldMemory[0].statement).toBe('The outer gate is padlocked.');
+        expect(context.worldMemory[0].id).toBe(deriveWorldMemoryId(runtimeFact));
+      });
+
+      it('intentionally empty runtime memory wins over Blueprint memory and does NOT revive retired facts', () => {
+        const context = buildEngineTurnContext({
+          blueprint: mockBlueprint,
+          worldMemory: [],
+        });
+
+        expect(context.worldMemory).toEqual([]);
+      });
+
+      it('uninitialized runtime memory (undefined) falls back to Blueprint memory', () => {
+        const context = buildEngineTurnContext({
+          blueprint: mockBlueprint,
+          worldMemory: undefined,
+        });
+
+        expect(context.worldMemory).toHaveLength(1);
+        expect(context.worldMemory[0].statement).toBe('The perimeter is clear.');
+        expect(context.worldMemory[0].id).toBe(deriveWorldMemoryId(blueprintFact));
+      });
+
+      it('forwards worldMemory through runtimeState object if top-level option is omitted', () => {
+        const context = buildEngineTurnContext({
+          blueprint: mockBlueprint,
+          runtimeState: {
+            worldMemory: [runtimeFact],
+          },
+        });
+
+        expect(context.worldMemory).toHaveLength(1);
+        expect(context.worldMemory[0].statement).toBe('The outer gate is padlocked.');
+      });
     });
   });
 });

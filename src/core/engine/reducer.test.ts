@@ -12,6 +12,7 @@ import type {
   NarrativeReconciliationReceipt,
   LogicState,
   ScenarioBlueprint,
+  Message,
 } from '../../types';
 
 describe('engineReducer atomic turn commits', () => {
@@ -1480,6 +1481,150 @@ describe('engineReducer atomic turn commits', () => {
       expect(htmlExport).not.toContain(PROVIDER_METADATA_SENTINEL);
       expect(htmlExport).not.toContain(ENDPOINT_URL_SENTINEL);
       expect(htmlExport).not.toContain(CREDENTIAL_SENTINEL);
+    });
+  });
+
+  describe('Packet 03 - ADD_MESSAGE opening continuity and failure exclusion', () => {
+    it('projects accepted opening narrative blocks into storyLog while preserving turn count', () => {
+      const startState = {
+        ...initialEngineState,
+        turnCount: 0,
+        history: [],
+        storyLog: [],
+      };
+
+      const openingMessage: Message = {
+        id: 'msg_open_01',
+        role: 'assistant',
+        content: 'A rusted iron key hangs on the wall.',
+        blocks: [
+          { type: 'prose', content: 'A rusted iron key hangs on the wall.' },
+        ],
+        validation: { accepted: true, rejected_fields: [], repair_notes: [] },
+        timestamp: Date.now(),
+      };
+
+      const nextState = engineReducer(startState, {
+        type: 'ADD_MESSAGE',
+        message: openingMessage,
+      });
+
+      expect(nextState.history).toHaveLength(1);
+      expect(nextState.history[0].id).toBe('msg_open_01');
+      expect(nextState.storyLog).toHaveLength(1);
+      expect(nextState.storyLog?.[0].content).toBe('A rusted iron key hangs on the wall.');
+      expect(nextState.turnCount).toBe(0); // Opening narration does NOT advance turn count
+    });
+
+    it('prevents duplicate opening entries when identical message or blocks are added', () => {
+      const startState = {
+        ...initialEngineState,
+        turnCount: 0,
+        history: [],
+        storyLog: [],
+      };
+
+      const openingMessage: Message = {
+        id: 'msg_open_02',
+        role: 'assistant',
+        content: 'A silver locket rests in the dust.',
+        blocks: [
+          { type: 'prose', content: 'A silver locket rests in the dust.' },
+        ],
+        timestamp: Date.now(),
+      };
+
+      const state1 = engineReducer(startState, {
+        type: 'ADD_MESSAGE',
+        message: openingMessage,
+      });
+      expect(state1.history).toHaveLength(1);
+      expect(state1.storyLog).toHaveLength(1);
+
+      // Re-dispatching the exact same message must be a no-op
+      const state2 = engineReducer(state1, {
+        type: 'ADD_MESSAGE',
+        message: openingMessage,
+      });
+      expect(state2.history).toHaveLength(1);
+      expect(state2.storyLog).toHaveLength(1);
+
+      // Dispatching a different message ID with identical opening content must not duplicate in storyLog or history
+      const state3 = engineReducer(state2, {
+        type: 'ADD_MESSAGE',
+        message: {
+          id: 'msg_open_03',
+          role: 'assistant',
+          content: 'A silver locket rests in the dust.',
+          blocks: [{ type: 'prose', content: 'A silver locket rests in the dust.' }],
+          timestamp: Date.now(),
+        },
+      });
+      expect(state3.history).toHaveLength(1);
+      expect(state3.storyLog).toHaveLength(1);
+    });
+
+    it('excludes failure, diagnostic, and rejected candidate messages from storyLog', () => {
+      const startState = {
+        ...initialEngineState,
+        turnCount: 0,
+        history: [],
+        storyLog: [],
+      };
+
+      // 1. Critical engine failure message
+      const state1 = engineReducer(startState, {
+        type: 'ADD_MESSAGE',
+        message: {
+          id: 'fail_01',
+          role: 'assistant',
+          content: '[CRITICAL ENGINE FAILURE]: The house refused to open.',
+          timestamp: Date.now(),
+        },
+      });
+      expect(state1.history).toHaveLength(1);
+      expect(state1.storyLog).toHaveLength(0); // Excluded from storyLog
+
+      // 2. System neural link severed message
+      const state2 = engineReducer(state1, {
+        type: 'ADD_MESSAGE',
+        message: {
+          id: 'sys_01',
+          role: 'assistant',
+          content: '[ SYSTEM: NEURAL LINK SEVERED DUE TO PROLONGED INACTIVITY. RETURNING TO HUB. ]',
+          timestamp: Date.now(),
+        },
+      });
+      expect(state2.history).toHaveLength(2);
+      expect(state2.storyLog).toHaveLength(0); // Excluded from storyLog
+
+      // 3. System role message
+      const state3 = engineReducer(state2, {
+        type: 'ADD_MESSAGE',
+        message: {
+          id: 'sys_02',
+          role: 'system',
+          content: 'System diagnostic ping.',
+          timestamp: Date.now(),
+        },
+      });
+      expect(state3.history).toHaveLength(3);
+      expect(state3.storyLog).toHaveLength(0); // Excluded from storyLog
+
+      // 4. Rejected candidate frame message
+      const state4 = engineReducer(state3, {
+        type: 'ADD_MESSAGE',
+        message: {
+          id: 'rej_01',
+          role: 'assistant',
+          content: 'Malformed text',
+          validation: { accepted: false, rejected_fields: ['STRUCTURAL_ERROR'], repair_notes: [] },
+          blocks: [{ type: 'prose', content: 'Malformed text' }],
+          timestamp: Date.now(),
+        },
+      });
+      expect(state4.history).toHaveLength(4);
+      expect(state4.storyLog).toHaveLength(0); // Excluded from storyLog
     });
   });
 });

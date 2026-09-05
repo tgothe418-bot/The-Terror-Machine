@@ -228,7 +228,7 @@ export const FictionalTimeReceiptSchema = z
   .object({
     version: z.literal(1).default(1),
     preState: FictionalTimeLedgerSchema,
-    acceptedCost: FictionalTimeCostSchema,
+    acceptedCost: FictionalTimeCostSchema.or(z.literal('NONE')),
     postState: FictionalTimeLedgerSchema,
   })
   .strict();
@@ -263,6 +263,15 @@ export type PursuitScheduleRecord = z.infer<typeof PursuitScheduleRecordSchema>;
 
 export const PursuitScheduleLedgerSchema = z.record(z.string(), PursuitScheduleRecordSchema);
 export type PursuitScheduleLedger = z.infer<typeof PursuitScheduleLedgerSchema>;
+
+export const PursuitScheduleReceiptSchema = z
+  .object({
+    version: z.literal(1),
+    preState: PursuitScheduleLedgerSchema,
+    postState: PursuitScheduleLedgerSchema,
+  })
+  .strict();
+export type PursuitScheduleReceipt = z.infer<typeof PursuitScheduleReceiptSchema>;
 
 // ============================================================================
 // Packet 1-2: Cast Activity Opportunities & Eligibility Receipts
@@ -578,8 +587,8 @@ export const ValueStateProposalEntrySchema = z
     expectedBeforeCondition: ValueConditionSchema.optional(),
     expectedBeforeLifecycle: ValueLifecycleSchema.optional(),
     proposedCondition: ValueConditionSchema,
-    proposedLifecycle: ValueLifecycleSchema.optional().default('ACTIVE'),
-    proposedFormNote: z.string().trim().max(300).nullable().optional().default(null),
+    proposedLifecycle: ValueLifecycleSchema.optional(),
+    proposedFormNote: z.string().trim().max(300).nullable().optional(),
     causeReference: z.string().trim().min(1).max(300),
     rationale: z.string().trim().min(1).max(300),
   })
@@ -917,6 +926,7 @@ export type EvidenceRegistry = z.infer<typeof EvidenceRegistrySchema>;
 export const HorrorGrammarTurnContextSchema = z
   .object({
     fictionalTime: FictionalTimeLedgerSchema,
+    activityEligibility: CastActivityEligibilityReceiptSchema,
     presentActorOpportunities: z.array(ActivityOpportunityCandidateSchema).default([]),
     offscreenPursuitOpportunities: z.array(ActivityOpportunityCandidateSchema).max(2).default([]),
     relevantValueAnchors: z.array(ValueAnchorSchema).default([]),

@@ -413,3 +413,35 @@ export function resolveWorldMemory(input: {
     decisions,
   };
 }
+
+export interface WorldMemoryValidationResult {
+  isValid: boolean;
+  errorCode?: string;
+  reason?: string;
+}
+
+export function validateWorldMemoryReceipt(
+  canonicalWorldMemory: WorldMemoryState | null | undefined,
+  receipt: WorldMemoryReceipt | null | undefined
+): WorldMemoryValidationResult {
+  if (!receipt) {
+    return {
+      isValid: false,
+      errorCode: 'MISSING_WORLD_MEMORY_RECEIPT',
+      reason: 'Turn response is missing required worldMemoryReceipt',
+    };
+  }
+
+  const expectedPreState = createWorldMemoryState(canonicalWorldMemory);
+  const actualPreState = createWorldMemoryState(receipt.pre_state);
+
+  if (JSON.stringify(expectedPreState) !== JSON.stringify(actualPreState)) {
+    return {
+      isValid: false,
+      errorCode: 'WORLD_MEMORY_PRESTATE_MISMATCH',
+      reason: 'worldMemoryReceipt pre_state does not match canonical world_memory',
+    };
+  }
+
+  return { isValid: true };
+}

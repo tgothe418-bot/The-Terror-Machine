@@ -24,8 +24,13 @@ import { exportEngineLog } from '../../lib/download';
 import { executeRatificationPipeline } from '../../lib/ratificationPipeline';
 import { createEngineHistoryMessage, createTurnHistoryEvents } from '../../core/engine/turnHistory';
 import type { CommittedTurnPayload } from '../../core/engine/events';
-import { coordinateCanonicalTurnPublication, getCanonicalSimulationState } from '../../core/engine/commitCoordinator';
-import { toTurnFailureReceipt } from '../../lib/turnResponseReader';
+import {
+  coordinateCanonicalTurnPublication,
+  getCanonicalSimulationState,
+  isTurnAttemptCurrent,
+} from '../../core/engine/commitCoordinator';
+import { toTurnFailureReceipt, TurnResponseError } from '../../lib/turnResponseReader';
+import { validateHorrorGrammarTurnReceipts } from '../../lib/horrorGrammarTurnValidation';
 import { fetchSimulatedPlayerAction, triggerMemoryForge } from '../../services/geminiService';
 import ErgodicTextRenderer from './ErgodicTextRenderer';
 import AntagonistContractDisplay from './AntagonistContractDisplay';
@@ -236,6 +241,9 @@ export default function Runtime() {
   const currentSimulationPhase = useTelemetryStore((state) => state.currentPhase);
   const lastTurnCheckpoint = useAppStore((state) => state.lastTurnCheckpoint);
   const retakeLastTurn = useAppStore((state) => state.retakeLastTurn);
+  const sessionId = useAppStore((state) => state.sessionId);
+  const blueprintId = useAppStore((state) => state.blueprintId);
+  const canonicalRevision = useAppStore((state) => state.canonicalRevision);
 
   const prevPhaseRef = useRef<string | null>(null);
 
@@ -354,6 +362,34 @@ export default function Runtime() {
     };
   }, []);
 
+  const currentSessionId = useAppStore((state) => state.sessionId);
+  const currentBlueprintId = useAppStore((state) => state.blueprintId);
+  const prevSessionIdentityRef = useRef({
+    sessionId: currentSessionId,
+    blueprintId: currentBlueprintId,
+    turnCount,
+  });
+
+  useEffect(() => {
+    const isSessionReplaced =
+      prevSessionIdentityRef.current.sessionId !== currentSessionId ||
+      prevSessionIdentityRef.current.blueprintId !== currentBlueprintId;
+    const isRetaken = turnCount < prevSessionIdentityRef.current.turnCount;
+
+    if (isSessionReplaced || isRetaken) {
+      setIsLoading(false);
+      autopilotRef.current = false;
+      autopilotRunIdRef.current += 1;
+      setIsAutopilotRunning(false);
+    }
+
+    prevSessionIdentityRef.current = {
+      sessionId: currentSessionId,
+      blueprintId: currentBlueprintId,
+      turnCount,
+    };
+  }, [currentSessionId, currentBlueprintId, turnCount]);
+
   const userCharName = gameState?.player_character_id
     ? activeBlueprint?.cast?.find((c) => c.id === gameState.player_character_id)?.name ||
       'Protagonist'
@@ -362,12 +398,20 @@ export default function Runtime() {
       : 'UNKNOWN';
 
   const handleExit = useCallback(() => {
+    autopilotRef.current = false;
+    autopilotRunIdRef.current += 1;
+    setIsAutopilotRunning(false);
     // DO NOT clearBlueprint() - maintain session until explicit wipe
     setPhase('hub');
   }, [setPhase]);
 
   const handleRetake = useCallback(() => {
     if (!lastTurnCheckpoint) return;
+    autopilotRef.current = false;
+    autopilotRunIdRef.current += 1;
+    setIsAutopilotRunning(false);
+    setIsLoading(false);
+
     const previousCommand = lastTurnCheckpoint.commandText;
     const success = retakeLastTurn();
     if (success) {
@@ -379,8 +423,37 @@ export default function Runtime() {
 
   const startSimulation = useCallback(async () => {
     setIsLoading(true);
+    const canonicalPreState = getCanonicalSimulationState();
+    const preSnapshot = captureRuntimeSnapshot(canonicalPreState.app);
+    let isObsolete = false;
+
     try {
-      const data = await executeRatificationPipeline('SYSTEM_INIT');
+      const data = await executeRatificationPipeline('SYSTEM_INIT', preSnapshot);
+
+      const currentAppState = useAppStore.getState();
+      if (!isTurnAttemptCurrent(currentAppState, preSnapshot)) {
+        isObsolete = true;
+        console.warn('[Runtime] Ignoring obsolete SYSTEM_INIT response: attempt no longer current', {
+          attemptSessionId: preSnapshot.sessionId,
+          currentSessionId: currentAppState.sessionId,
+          attemptRevision: preSnapshot.canonicalRevision,
+          currentRevision: currentAppState.canonicalRevision,
+        });
+        return;
+      }
+
+      // Check if opening narration has already been accepted in current session to prevent duplicates
+      const hasOpeningAlready = (currentAppState.history || []).some(
+        (msg) =>
+          (msg.role === 'assistant' || msg.role === 'narrative') &&
+          !msg.content?.startsWith('[CRITICAL ENGINE FAILURE]') &&
+          !msg.content?.startsWith('[TURN_FAILED]') &&
+          (msg.blocks?.length || msg.content?.trim().length)
+      );
+      if (hasOpeningAlready) {
+        console.warn('[Runtime] Opening narration already accepted; skipping duplicate INIT dispatch');
+        return;
+      }
 
       const formattedText = formatBlocks(data.narrative_blocks);
       dispatch({
@@ -388,6 +461,13 @@ export default function Runtime() {
         message: createEngineHistoryMessage(formattedText, data),
       });
     } catch (err: any) {
+      const currentAppState = useAppStore.getState();
+      if (!isTurnAttemptCurrent(currentAppState, preSnapshot)) {
+        isObsolete = true;
+        console.warn('[Runtime] Ignoring obsolete SYSTEM_INIT error: attempt no longer current', err);
+        return;
+      }
+
       console.error(err);
       dispatch({
         type: 'ADD_MESSAGE',
@@ -398,7 +478,9 @@ export default function Runtime() {
         },
       });
     } finally {
-      setIsLoading(false);
+      if (!isObsolete) {
+        setIsLoading(false);
+      }
     }
   }, [dispatch]);
 
@@ -439,17 +521,21 @@ export default function Runtime() {
 
   // Note: Activity timestamp is updated via event handlers to avoid cascading renders
 
-  const hasStarted = useRef(false);
-
   // Initial simulation start
+  const lastStartedSessionKeyRef = useRef<string | null>(null);
   useEffect(() => {
     if (!isHydrated || !isCoherent) return;
-    // Only fire if the log is empty AND the ref hasn't been flipped AND an active blueprint exists
-    if (engineMessages.length === 0 && !hasStarted.current && activeBlueprint) {
-      hasStarted.current = true;
+    const currentSessionKey = `${sessionId || ''}:${blueprintId || ''}`;
+    // Only fire if the log is empty AND this session/blueprint hasn't started yet AND an active blueprint exists
+    if (
+      engineMessages.length === 0 &&
+      lastStartedSessionKeyRef.current !== currentSessionKey &&
+      activeBlueprint
+    ) {
+      lastStartedSessionKeyRef.current = currentSessionKey;
       startSimulation();
     }
-  }, [isHydrated, isCoherent, engineMessages.length, startSimulation, activeBlueprint]);
+  }, [isHydrated, isCoherent, engineMessages.length, startSimulation, activeBlueprint, sessionId, blueprintId]);
 
   const handleCommand = async (
     e?: React.FormEvent,
@@ -469,8 +555,25 @@ export default function Runtime() {
       ? JSON.parse(JSON.stringify(canonicalPreState.gameState))
       : null;
 
+    let isObsolete = false;
+
     try {
       const response = await executeRatificationPipeline(commandText, preSnapshot);
+
+      // Check attempt currentness before validating, preparing payload, or mutating stores
+      const currentAppState = useAppStore.getState();
+      if (!isTurnAttemptCurrent(currentAppState, preSnapshot)) {
+        isObsolete = true;
+        console.warn('[Runtime] Ignoring obsolete turn response: attempt no longer current', {
+          attemptSessionId: preSnapshot.sessionId,
+          currentSessionId: currentAppState.sessionId,
+          attemptRevision: preSnapshot.canonicalRevision,
+          currentRevision: currentAppState.canonicalRevision,
+          attemptTurnCount: preSnapshot.turnCount,
+          currentTurnCount: currentAppState.turnCount,
+        });
+        return 'IGNORED';
+      }
 
       if (
         !response ||
@@ -504,6 +607,8 @@ export default function Runtime() {
           : effectiveCurrentNode;
 
       const latestEngineState = useEngineStore.getState();
+      const baseGameState =
+        engineGameStateBefore || latestEngineState.gameState || ({} as typeof latestEngineState.gameState);
       let nextCharacterContinuity: CharacterContinuityById | null = null;
       let castContinuityReceipt: CastContinuityReceipt;
       let nextCharacterPresence: CharacterPresenceById | null = null;
@@ -512,7 +617,7 @@ export default function Runtime() {
       if (activeBlueprint) {
         nextCharacterContinuity = applyCastSkepticismDeltas(
           activeBlueprint.cast || [],
-          latestEngineState.gameState?.character_continuity,
+          baseGameState.character_continuity,
           response.logic_state.cast_deltas,
         );
         castContinuityReceipt = createCastContinuityReceipt(
@@ -534,19 +639,19 @@ export default function Runtime() {
 
         nextCharacterPresence = buildCharacterPresence(
           activeBlueprint.cast || [],
-          latestEngineState.gameState?.character_presence,
+          baseGameState.character_presence,
           validNodeIds,
           postTurnNodeId,
-          latestEngineState.gameState?.player_character_id,
+          baseGameState.player_character_id,
         );
         castPresenceReceipt = createCastPresenceReceipt(nextCharacterPresence);
       } else {
         castContinuityReceipt = createCastContinuityReceipt(
-          latestEngineState.gameState?.character_continuity || {},
+          baseGameState.character_continuity || {},
           [],
         );
         castPresenceReceipt = createCastPresenceReceipt(
-          latestEngineState.gameState?.character_presence || {},
+          baseGameState.character_presence || {},
         );
       }
 
@@ -582,6 +687,7 @@ export default function Runtime() {
         worldMemoryReceipt: response.worldMemoryReceipt,
         fictionalTimeReceipt: response.fictionalTimeReceipt,
         castActivityReceipt: response.castActivityReceipt,
+        pursuitScheduleReceipt: response.pursuitScheduleReceipt,
         castActivityProposalReceipt: response.castActivityProposalReceipt,
         situatedPressureReceipt: response.situatedPressureReceipt,
         valueStateReceipt: response.valueStateReceipt,
@@ -601,8 +707,21 @@ export default function Runtime() {
         engineGameStateBefore,
       };
 
-      // 1. Prepare complete situated game state covering all canonical receipt domains
-      const baseGameState = latestEngineState.gameState || ({} as typeof latestEngineState.gameState);
+      // 1. Validate complete HG1 receipt chain before publication
+      const hgValidation = validateHorrorGrammarTurnReceipts(engineGameStateBefore, response);
+      if (!hgValidation.isValid) {
+        console.error(
+          '[Runtime] HG1 receipt chain validation failed:',
+          hgValidation.errorCode,
+          hgValidation.reason
+        );
+        throw new TurnResponseError({
+          code: 'MODEL_CONTRACT_MISMATCH',
+          message: hgValidation.reason,
+        });
+      }
+
+      // 2. Prepare complete situated game state covering all canonical receipt domains
       const preparedGameState = {
         ...baseGameState,
         ...(response.canonicalConsequenceReceipt
@@ -635,39 +754,7 @@ export default function Runtime() {
             }
           : {}),
         world_memory: createWorldMemoryState(response.worldMemoryReceipt.post_state),
-        ...(response.logic_state?.fictional_time_ledger
-          ? { fictional_time_ledger: response.logic_state.fictional_time_ledger }
-          : {}),
-        ...(response.logic_state?.pursuit_schedule_ledger
-          ? { pursuit_schedule_ledger: response.logic_state.pursuit_schedule_ledger }
-          : {}),
-        ...(response.castActivityProposalReceipt
-          ? { activity_events: response.castActivityProposalReceipt.postState }
-          : response.logic_state?.activity_events
-            ? { activity_events: response.logic_state.activity_events }
-            : {}),
-        ...(response.pressureThreadTransitionReceipt
-          ? { pressure_threads: response.pressureThreadTransitionReceipt.postState }
-          : response.situatedPressureReceipt
-            ? { pressure_threads: response.situatedPressureReceipt.postState }
-            : response.logic_state?.pressure_threads
-              ? { pressure_threads: response.logic_state.pressure_threads }
-              : {}),
-        ...(response.valueStateReceipt
-          ? { value_state_ledger: response.valueStateReceipt.postState }
-          : response.logic_state?.value_state_ledger
-            ? { value_state_ledger: response.logic_state.value_state_ledger }
-            : {}),
-        ...(response.characterPursuitReceipt
-          ? { character_pursuit_ledger: response.characterPursuitReceipt.postState }
-          : response.logic_state?.character_pursuit_ledger
-            ? { character_pursuit_ledger: response.logic_state.character_pursuit_ledger }
-            : {}),
-        ...(response.characterDevelopmentReceipt
-          ? { character_development_ledger: response.characterDevelopmentReceipt.postState }
-          : response.logic_state?.character_development_ledger
-            ? { character_development_ledger: response.logic_state.character_development_ledger }
-            : {}),
+        ...hgValidation.postState,
         ...(nextCharacterContinuity ? { character_continuity: nextCharacterContinuity } : {}),
         ...(nextCharacterPresence ? { character_presence: nextCharacterPresence } : {}),
       };
@@ -684,6 +771,13 @@ export default function Runtime() {
 
       return 'COMMITTED';
     } catch (err: unknown) {
+      const currentAppState = useAppStore.getState();
+      if (!isTurnAttemptCurrent(currentAppState, preSnapshot)) {
+        isObsolete = true;
+        console.warn('[Runtime] Ignoring obsolete turn error: attempt no longer current', err);
+        return 'IGNORED';
+      }
+
       console.error(err);
       const failureReceipt = toTurnFailureReceipt(err);
 
@@ -707,7 +801,9 @@ export default function Runtime() {
 
       return failureReceipt.code === 'PROVIDER_REFUSAL' ? 'REFUSED' : 'FAILED';
     } finally {
-      setIsLoading(false);
+      if (!isObsolete) {
+        setIsLoading(false);
+      }
     }
   };
 

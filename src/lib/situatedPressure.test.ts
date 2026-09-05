@@ -141,6 +141,21 @@ describe('Situated Pressure Ratifier (Packet 1-3)', () => {
         extended_revision: 0,
         last_cost: 'MOMENT',
       },
+      activityEligibility: {
+        version: 1,
+        presentOpportunities: [],
+        offscreenOpportunities: [],
+        boundedOutPursuitIds: [],
+        dormantCount: 0,
+        notDueCount: 0,
+        ledgerSnapshot: {
+          moment_revision: 2,
+          scene_beat_revision: 1,
+          extended_revision: 0,
+          last_cost: 'MOMENT',
+        },
+        scheduleSnapshotRevision: 2,
+      },
       presentActorOpportunities: [],
       offscreenPursuitOpportunities: [],
       relevantValueAnchors: bp.horrorGrammar!.valueAnchors,
@@ -315,7 +330,7 @@ describe('Situated Pressure Ratifier (Packet 1-3)', () => {
       operator: 'CONSTRAIN_ACCESS',
       affectedDimension: 'ACCESS',
       adverseProspect: 'Primary coolant valve is jammed shut behind expanding steam',
-      authorityReferences: ['COOLING_RULE'],
+      authorityReferences: ['rule-1'],
       persistenceTarget: 'PRESSURE_THREAD',
       responseWindowOpen: true,
       manifestationBlock: {
@@ -515,5 +530,216 @@ describe('Situated Pressure Ratifier (Packet 1-3)', () => {
 
     expect(receipt.outcome).toBe('REJECTED');
     expect(receipt.reasonCode).toBe('INVALID_SOURCE_REFERENCE');
+  });
+
+  describe('Packet 06: Exact Authority & Source References in Situated Pressure', () => {
+    it('rejects pressure citing nonexistent rule in authorityReferences with INVALID_AUTHORITY_REFERENCE', () => {
+      const bp = createMockBlueprint();
+      const context = createMockContext(bp);
+
+      const proposal: SituatedPressureProposal = {
+        kind: 'PRESSURE',
+        proposalId: 'prop-press-fake-rule',
+        valueAnchorId: 'val-reactor-core',
+        sourceReference: 'BASELINE',
+        operator: 'CONSTRAIN_ACCESS',
+        affectedDimension: 'ACCESS',
+        adverseProspect: 'Coolant line pressure drop',
+        authorityReferences: ['rule-does-not-exist-in-this-scenario'],
+        persistenceTarget: 'PRESSURE_THREAD',
+        responseWindowOpen: true,
+        manifestationBlock: null,
+      };
+
+      const receipt = resolveSituatedPressure({
+        proposal,
+        currentContext: context,
+        preThreads: [],
+        currentTurn: 2,
+        blueprint: bp,
+      });
+
+      expect(receipt.outcome).toBe('REJECTED');
+      expect(receipt.reasonCode).toBe('INVALID_AUTHORITY_REFERENCE');
+    });
+
+    it('rejects pressure citing nonexistent rule in sourceReference with INVALID_SOURCE_REFERENCE', () => {
+      const bp = createMockBlueprint();
+      const context = createMockContext(bp);
+
+      const proposal: SituatedPressureProposal = {
+        kind: 'PRESSURE',
+        proposalId: 'prop-press-fake-source-rule',
+        valueAnchorId: 'val-reactor-core',
+        sourceReference: 'rule-does-not-exist-in-this-scenario',
+        operator: 'CONSTRAIN_ACCESS',
+        affectedDimension: 'ACCESS',
+        adverseProspect: 'Coolant line pressure drop',
+        authorityReferences: ['rule-1'],
+        persistenceTarget: 'PRESSURE_THREAD',
+        responseWindowOpen: true,
+        manifestationBlock: null,
+      };
+
+      const receipt = resolveSituatedPressure({
+        proposal,
+        currentContext: context,
+        preThreads: [],
+        currentTurn: 2,
+        blueprint: bp,
+      });
+
+      expect(receipt.outcome).toBe('REJECTED');
+      expect(receipt.reasonCode).toBe('INVALID_SOURCE_REFERENCE');
+    });
+
+    it('rejects environmental pressure citing character opportunity with UNAUTHORIZED_PRESSURE_CLAIM', () => {
+      const bp = createMockBlueprint();
+      const context = createMockContext(bp);
+      context.horrorGrammar = {
+        ...context.horrorGrammar!,
+        evidenceRegistry: [
+          {
+            id: 'opp-present-char-tech',
+            category: 'OPPORTUNITY',
+            ownerRef: 'char-tech',
+            description: 'Engineering opportunity for Mercer',
+          },
+        ],
+      };
+
+      const proposal: SituatedPressureProposal = {
+        kind: 'PRESSURE',
+        proposalId: 'prop-press-unauthorized-opp',
+        valueAnchorId: 'val-reactor-core',
+        sourceReference: 'BASELINE',
+        operator: 'CONSTRAIN_ACCESS',
+        affectedDimension: 'ACCESS',
+        adverseProspect: 'Pumps fail due to environmental strain',
+        authorityReferences: ['opp-present-char-tech'], // tech opportunity cited for non-tech environmental pressure
+        persistenceTarget: 'PRESSURE_THREAD',
+        responseWindowOpen: true,
+        manifestationBlock: {
+          type: 'prose',
+          content: 'The coolant hiss rises sharply.',
+        },
+      };
+
+      const receipt = resolveSituatedPressure({
+        proposal,
+        currentContext: context,
+        preThreads: [],
+        currentTurn: 2,
+        blueprint: bp,
+      });
+
+      expect(receipt.outcome).toBe('REJECTED');
+      expect(receipt.reasonCode).toBe('UNAUTHORIZED_PRESSURE_CLAIM');
+    });
+
+    it('ratifies pressure derived from accepted same-turn activity, but rejects otherwise-identical pressure when activity is rejected', () => {
+      const bp = createMockBlueprint();
+      const context = createMockContext(bp);
+
+      const makePressureProposal = (): SituatedPressureProposal => ({
+        kind: 'PRESSURE',
+        proposalId: 'prop-pressure-consequent',
+        valueAnchorId: 'val-reactor-core',
+        sourceReference: 'ACTIVITY',
+        operator: 'DEGRADE_CAPABILITY',
+        affectedDimension: 'CAPABILITY',
+        adverseProspect: 'Primary cooling loop impaired by technician maintenance error',
+        authorityReferences: ['rule-1'],
+        persistenceTarget: 'PRESSURE_THREAD',
+        responseWindowOpen: true,
+        manifestationBlock: {
+          type: 'prose',
+          content: 'Steam sprays outward as the pipe fractures under stress.',
+        },
+      });
+
+      // Case A: Activity accepted earlier this turn
+      const acceptedActivityReceipt: CastActivityReceipt = {
+        version: 1,
+        outcome: 'ACCEPTED',
+        reasonCode: 'ACTIVITY_RATIFIED',
+        preState: [],
+        postState: [],
+        admittedManifestation: true,
+        acceptedEventId: 'evt-2-char-tech',
+      };
+
+      const acceptedPressureReceipt = resolveSituatedPressure({
+        proposal: makePressureProposal(),
+        activityReceipt: acceptedActivityReceipt,
+        currentContext: context,
+        preThreads: [],
+        currentTurn: 2,
+        blueprint: bp,
+      });
+
+      expect(acceptedPressureReceipt.outcome).toBe('ACCEPTED');
+      expect(acceptedPressureReceipt.reasonCode).toBe('PRESSURE_RATIFIED');
+      expect(acceptedPressureReceipt.acceptedThreadId).toBe('prop-pressure-consequent');
+      expect(acceptedPressureReceipt.postState).toHaveLength(1);
+      expect(acceptedPressureReceipt.postState[0].sourceReference).toBe('evt-2-char-tech');
+
+      // Case B: Activity rejected earlier this turn
+      const rejectedActivityReceipt: CastActivityReceipt = {
+        version: 1,
+        outcome: 'REJECTED',
+        reasonCode: 'USER_CHARACTER_CANNOT_BE_ACTIVITY_ACTOR',
+        preState: [],
+        postState: [],
+        admittedManifestation: false,
+        acceptedEventId: null,
+      };
+
+      const rejectedPressureReceipt = resolveSituatedPressure({
+        proposal: makePressureProposal(),
+        activityReceipt: rejectedActivityReceipt,
+        currentContext: context,
+        preThreads: [],
+        currentTurn: 2,
+        blueprint: bp,
+      });
+
+      expect(rejectedPressureReceipt.outcome).toBe('REJECTED');
+      expect(rejectedPressureReceipt.reasonCode).toBe('ACTIVITY_SOURCE_NOT_ACCEPTED');
+      expect(rejectedPressureReceipt.acceptedThreadId).toBeNull();
+      expect(rejectedPressureReceipt.postState).toEqual([]);
+    });
+
+    it('rejects fabricated prefixes like rule-999 or thr-fake that do not exist in canonical sources', () => {
+      const bp = createMockBlueprint();
+      const context = createMockContext(bp);
+
+      for (const fakeRef of ['rule-999', 'thr-invented-thread', 'act-fabricated-event']) {
+        const proposal: SituatedPressureProposal = {
+          kind: 'PRESSURE',
+          proposalId: `prop-${fakeRef}`,
+          valueAnchorId: 'val-reactor-core',
+          sourceReference: fakeRef,
+          operator: 'CONSTRAIN_ACCESS',
+          affectedDimension: 'ACCESS',
+          adverseProspect: 'Pumps fail.',
+          authorityReferences: ['rule-1'],
+          persistenceTarget: 'PRESSURE_THREAD',
+          responseWindowOpen: true,
+          manifestationBlock: null,
+        };
+
+        const receipt = resolveSituatedPressure({
+          proposal,
+          currentContext: context,
+          preThreads: [],
+          currentTurn: 2,
+          blueprint: bp,
+        });
+
+        expect(receipt.outcome).toBe('REJECTED');
+        expect(receipt.reasonCode).toBe('INVALID_SOURCE_REFERENCE');
+      }
+    });
   });
 });

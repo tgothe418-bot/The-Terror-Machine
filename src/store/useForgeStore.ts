@@ -41,6 +41,7 @@ import {
   sortCandidatesForApplication,
   applyResolutionDraftPatch,
   resolveSourceEvidenceProvenance,
+  isCompleteAuthoredDepictionContract,
 } from '../lib/sourceBaseline';
 
 export const defaultStyleVector: ProseStyleVector = {
@@ -1138,18 +1139,7 @@ export const useForgeStoreInternal = create<ForgeStore>()(
 
             const existingContract =
               state.forgeDraft?.depictionContract || state.draftBlueprint?.depictionContract;
-            const isInvalidField = (val?: string) => {
-              if (!val) return true;
-              const t = val.trim().toLowerCase();
-              return !t || t === 'unknown' || t === 'none' || t === 'n/a';
-            };
-            const hasCompleteAuthoredDepiction = Boolean(
-              existingContract &&
-                !isInvalidField(existingContract.dramaticRegister) &&
-                !isInvalidField(existingContract.directness) &&
-                !isInvalidField(existingContract.aftermath) &&
-                !isInvalidField(existingContract.ambiguityHandling)
-            );
+            const hasCompleteAuthoredDepiction = isCompleteAuthoredDepictionContract(existingContract);
 
             const ordered = sortCandidatesForApplication(stagedAccepted);
 
@@ -1159,10 +1149,12 @@ export const useForgeStoreInternal = create<ForgeStore>()(
 
             const errors: Record<string, string> = {};
             const appliedIds: string[] = [];
+            const supersededIds: string[] = [];
 
             for (const cand of ordered) {
               if (cand.target === 'depiction_contract' && hasCompleteAuthoredDepiction) {
-                // Preserved existing authored Depiction Contract; do not overwrite
+                // Preserved existing authored Depiction Contract; mark candidate superseded
+                supersededIds.push(cand.id);
                 continue;
               }
 
@@ -1191,6 +1183,13 @@ export const useForgeStoreInternal = create<ForgeStore>()(
                   ...c,
                   reviewDecision: 'accepted' as const,
                   applicationState: 'applied' as const,
+                };
+              }
+              if (supersededIds.includes(c.id)) {
+                return {
+                  ...c,
+                  reviewDecision: 'accepted' as const,
+                  applicationState: 'superseded' as const,
                 };
               }
               return c;

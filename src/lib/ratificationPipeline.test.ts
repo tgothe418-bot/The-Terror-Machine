@@ -1,6 +1,7 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import 'fake-indexeddb/auto';
-import { executeRatificationPipeline, formatRecentHistory, TurnResponseError } from './ratificationPipeline';
+import { executeRatificationPipeline, formatRecentHistory, projectPlayableStoryBlocks, TurnResponseError } from './ratificationPipeline';
 import { useAppStore } from '../store/useAppStore';
 import { useEngineStore } from '../core/store';
 import { engineReducer } from '../core/engine/reducer';
@@ -61,7 +62,76 @@ describe('executeRatificationPipeline single pre-turn snapshot lifecycle', () =>
     decisions: [],
   };
 
+  const defaultHG1Receipts = {
+    fictionalTimeReceipt: {
+      version: 1 as const,
+      preState: { moment_revision: 0, scene_beat_revision: 0, extended_revision: 0, last_cost: null },
+      acceptedCost: 'MOMENT' as const,
+      postState: { moment_revision: 1, scene_beat_revision: 0, extended_revision: 0, last_cost: 'MOMENT' as const },
+    },
+    castActivityReceipt: {
+      version: 1 as const,
+      presentOpportunities: [],
+      offscreenOpportunities: [],
+      boundedOutPursuitIds: [],
+      dormantCount: 0,
+      notDueCount: 0,
+      ledgerSnapshot: { moment_revision: 0, scene_beat_revision: 0, extended_revision: 0, last_cost: null },
+      scheduleSnapshotRevision: 0,
+    },
+    pursuitScheduleReceipt: {
+      version: 1 as const,
+      preState: {},
+      postState: {},
+    },
+    castActivityProposalReceipt: {
+      version: 1 as const,
+      outcome: 'NO_PROPOSAL' as const,
+      reasonCode: 'NO_OPPORTUNITY_CHOSEN' as const,
+      admittedManifestation: false,
+      acceptedEventId: null,
+      preState: [],
+      postState: [],
+    },
+    situatedPressureReceipt: {
+      version: 1 as const,
+      outcome: 'NO_PROPOSAL' as const,
+      reasonCode: 'NO_PRESSURE_CHOSEN' as const,
+      admittedManifestation: false,
+      acceptedThreadId: null,
+      preState: [],
+      postState: [],
+    },
+    valueStateReceipt: {
+      version: 1 as const,
+      preState: {},
+      postState: {},
+      decisions: [],
+    },
+    characterPursuitReceipt: {
+      version: 1 as const,
+      preState: {},
+      postState: {},
+      decisions: [],
+    },
+    characterDevelopmentReceipt: {
+      version: 1 as const,
+      preState: {},
+      postState: {},
+      decisions: [],
+    },
+    pressureThreadTransitionReceipt: {
+      version: 1 as const,
+      preState: [],
+      postState: [],
+      decisions: [],
+    },
+  };
+
   beforeEach(() => {
+    useEngineStore.getState().resetEngine();
+    useAppStore.getState().resetSession();
+
     // Set EngineStore active blueprint
     useEngineStore.setState({
       activeBlueprint: {
@@ -146,6 +216,7 @@ describe('executeRatificationPipeline single pre-turn snapshot lifecycle', () =>
           characterRelationshipReceipt: defaultCharacterRelationshipReceipt,
           characterMemoryReceipt: defaultCharacterMemoryReceipt,
           worldMemoryReceipt: defaultWorldMemoryReceipt,
+          ...defaultHG1Receipts,
         }),
         {
           status: 200,
@@ -218,6 +289,7 @@ describe('executeRatificationPipeline single pre-turn snapshot lifecycle', () =>
           characterRelationshipReceipt: defaultCharacterRelationshipReceipt,
           characterMemoryReceipt: defaultCharacterMemoryReceipt,
           worldMemoryReceipt: defaultWorldMemoryReceipt,
+          ...defaultHG1Receipts,
         }),
         {
           status: 200,
@@ -302,6 +374,7 @@ describe('executeRatificationPipeline single pre-turn snapshot lifecycle', () =>
           characterRelationshipReceipt: defaultCharacterRelationshipReceipt,
           characterMemoryReceipt: defaultCharacterMemoryReceipt,
           worldMemoryReceipt: defaultWorldMemoryReceipt,
+          ...defaultHG1Receipts,
         }),
         {
           status: 200,
@@ -359,6 +432,7 @@ describe('executeRatificationPipeline single pre-turn snapshot lifecycle', () =>
           characterRelationshipReceipt: defaultCharacterRelationshipReceipt,
           characterMemoryReceipt: defaultCharacterMemoryReceipt,
           worldMemoryReceipt: defaultWorldMemoryReceipt,
+          ...defaultHG1Receipts,
         }),
         {
           status: 200,
@@ -469,6 +543,7 @@ describe('executeRatificationPipeline single pre-turn snapshot lifecycle', () =>
           characterRelationshipReceipt: defaultCharacterRelationshipReceipt,
           characterMemoryReceipt: defaultCharacterMemoryReceipt,
           worldMemoryReceipt: defaultWorldMemoryReceipt,
+          ...defaultHG1Receipts,
         }),
         {
           status: 200,
@@ -523,6 +598,95 @@ describe('executeRatificationPipeline single pre-turn snapshot lifecycle', () =>
     );
   });
 
+  describe('Packet 03 - projectPlayableStoryBlocks continuity projection', () => {
+    it('projects opening narrative from history when storyLog is empty', () => {
+      const state = {
+        history: [
+          {
+            id: 'open-1',
+            role: 'assistant' as const,
+            content: 'A brass bell hangs motionless.',
+            blocks: [{ type: 'prose', content: 'A brass bell hangs motionless.' }],
+            timestamp: 100,
+          },
+        ],
+        storyLog: [],
+      };
+
+      const blocks = projectPlayableStoryBlocks(state);
+      expect(blocks).toHaveLength(1);
+      expect(blocks[0].content).toBe('A brass bell hangs motionless.');
+    });
+
+    it('deduplicates identical opening blocks present in both history and storyLog', () => {
+      const state = {
+        history: [
+          {
+            id: 'open-1',
+            role: 'assistant' as const,
+            content: 'A brass bell hangs motionless.',
+            blocks: [{ type: 'prose', content: 'A brass bell hangs motionless.' }],
+            timestamp: 100,
+          },
+        ],
+        storyLog: [
+          { type: 'prose', content: 'A brass bell hangs motionless.' },
+          { type: 'prose', content: 'You step closer to the bell.' },
+        ],
+      };
+
+      const blocks = projectPlayableStoryBlocks(state);
+      expect(blocks).toHaveLength(2);
+      expect(blocks[0].content).toBe('A brass bell hangs motionless.');
+      expect(blocks[1].content).toBe('You step closer to the bell.');
+    });
+
+    it('excludes failure messages, system diagnostics, and rejected candidate frames from playable context', () => {
+      const state = {
+        history: [
+          {
+            id: 'open-1',
+            role: 'assistant' as const,
+            content: 'A brass bell hangs motionless.',
+            blocks: [{ type: 'prose', content: 'A brass bell hangs motionless.' }],
+            timestamp: 100,
+          },
+          {
+            id: 'fail-1',
+            role: 'assistant' as const,
+            content: '[CRITICAL ENGINE FAILURE]: 500 Network error.',
+            timestamp: 101,
+          },
+          {
+            id: 'fail-2',
+            role: 'assistant' as const,
+            content: '[TURN_FAILED] Provider refusal.',
+            turnReceipt: { accepted: false } as any,
+            timestamp: 102,
+          },
+          {
+            id: 'sys-1',
+            role: 'assistant' as const,
+            content: '[ SYSTEM: NEURAL LINK SEVERED ]',
+            timestamp: 103,
+          },
+          {
+            id: 'rej-1',
+            role: 'assistant' as const,
+            content: 'Hallucinated text',
+            validation: { accepted: false, rejected_fields: ['ERR'], repair_notes: [] },
+            timestamp: 104,
+          },
+        ],
+        storyLog: [],
+      };
+
+      const blocks = projectPlayableStoryBlocks(state);
+      expect(blocks).toHaveLength(1);
+      expect(blocks[0].content).toBe('A brass bell hangs motionless.');
+    });
+  });
+
   it('preserves valid server castInteractionReceipt through ratification pipeline onto returned frame', async () => {
     const preSnapshot: RuntimeStateSnapshot = {
       version: 1,
@@ -570,6 +734,7 @@ describe('executeRatificationPipeline single pre-turn snapshot lifecycle', () =>
           characterRelationshipReceipt: defaultCharacterRelationshipReceipt,
           characterMemoryReceipt: defaultCharacterMemoryReceipt,
           worldMemoryReceipt: defaultWorldMemoryReceipt,
+          ...defaultHG1Receipts,
         }),
         {
           status: 200,
@@ -641,6 +806,7 @@ describe('executeRatificationPipeline single pre-turn snapshot lifecycle', () =>
           characterRelationshipReceipt: defaultCharacterRelationshipReceipt,
           characterMemoryReceipt: defaultCharacterMemoryReceipt,
           worldMemoryReceipt: defaultWorldMemoryReceipt,
+          ...defaultHG1Receipts,
         }),
         {
           status: 200,
@@ -722,6 +888,7 @@ describe('executeRatificationPipeline single pre-turn snapshot lifecycle', () =>
           characterRelationshipReceipt: defaultCharacterRelationshipReceipt,
           characterMemoryReceipt: defaultCharacterMemoryReceipt,
           worldMemoryReceipt: defaultWorldMemoryReceipt,
+          ...defaultHG1Receipts,
         }),
         {
           status: 200,
@@ -885,6 +1052,7 @@ describe('executeRatificationPipeline single pre-turn snapshot lifecycle', () =>
           characterRelationshipReceipt: defaultCharacterRelationshipReceipt,
           characterMemoryReceipt: defaultCharacterMemoryReceipt,
           worldMemoryReceipt: defaultWorldMemoryReceipt,
+          ...defaultHG1Receipts,
         }),
         {
           status: 200,
@@ -992,6 +1160,7 @@ describe('executeRatificationPipeline single pre-turn snapshot lifecycle', () =>
           characterRelationshipReceipt: defaultCharacterRelationshipReceipt,
           characterMemoryReceipt: defaultCharacterMemoryReceipt,
           worldMemoryReceipt: defaultWorldMemoryReceipt,
+          ...defaultHG1Receipts,
         }),
         {
           status: 200,
@@ -1009,5 +1178,67 @@ describe('executeRatificationPipeline single pre-turn snapshot lifecycle', () =>
     );
     expect(exitTargets).toContain('ENTRY_HALL');
     expect(exitTargets).toContain('ARCHIVE_VAULT');
+  });
+
+  it('Packet 01: threads accepted runtime world memory into the production request context and preserves facts across turns', async () => {
+    const runtimeFact = {
+      id: 'wm_01',
+      statement: 'The outer gate is padlocked.',
+      kind: 'PERSISTENT_CONSEQUENCE' as const,
+      scope: 'GLOBAL' as const,
+      node_id: null,
+      established_turn: 1,
+    };
+
+    // 1. Seed Engine store with established world memory
+    useEngineStore.setState({
+      gameState: {
+        ...(useEngineStore.getState().gameState as any),
+        world_memory: [runtimeFact],
+      },
+    });
+
+    let capturedPayload: any = null;
+    globalThis.fetch = vi.fn().mockImplementation(async (_url: string, init?: RequestInit) => {
+      if (init?.body) {
+        capturedPayload = JSON.parse(init.body as string);
+      }
+      return new Response(
+        JSON.stringify({
+          narrative_blocks: [{ type: 'prose', content: 'The padlock holds.' }],
+          logic_state: {
+            current_phase: 'DISCOVERY',
+            suggested_tension: 40,
+          },
+          topologyDelta: { isExpansion: false },
+          validation: { accepted: true },
+          canonicalConsequenceReceipt: defaultConsequenceReceipt,
+          characterStanceReceipt: defaultCharacterStanceReceipt,
+          characterRelationshipReceipt: defaultCharacterRelationshipReceipt,
+          characterMemoryReceipt: defaultCharacterMemoryReceipt,
+          worldMemoryReceipt: {
+            version: 1,
+            pre_state: [runtimeFact],
+            post_state: [runtimeFact],
+            decisions: [],
+          },
+          ...defaultHG1Receipts,
+        }),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
+    });
+
+    const frame = await executeRatificationPipeline('Check the outer gate');
+
+    // Verify context received the exact runtime world memory fact
+    expect(capturedPayload?.context.worldMemory).toHaveLength(1);
+    expect(capturedPayload?.context.worldMemory[0].statement).toBe('The outer gate is padlocked.');
+
+    // Verify ratified frame logic_state and worldMemoryReceipt post_state preserved the fact
+    expect(frame.worldMemoryReceipt?.post_state[0].statement).toBe('The outer gate is padlocked.');
+    expect(frame.logic_state?.world_memory?.[0].statement).toBe('The outer gate is padlocked.');
   });
 });

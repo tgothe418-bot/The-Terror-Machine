@@ -42,6 +42,105 @@ import {
 import type { TurnResponse, TurnResult } from '../../src/types/engineContract';
 import { geminiTurnResponseJsonSchema } from '../ai/geminiTurnJsonSchema';
 
+const defaultTestHorrorGrammarReceipts = {
+  fictionalTimeReceipt: {
+    version: 1 as const,
+    preState: { moment_revision: 0, scene_beat_revision: 0, extended_revision: 0, last_cost: null },
+    acceptedCost: 'MOMENT' as const,
+    postState: { moment_revision: 1, scene_beat_revision: 0, extended_revision: 0, last_cost: 'MOMENT' as const },
+  },
+  castActivityReceipt: {
+    version: 1 as const,
+    presentOpportunities: [],
+    offscreenOpportunities: [],
+    boundedOutPursuitIds: [],
+    dormantCount: 0,
+    notDueCount: 0,
+    ledgerSnapshot: { moment_revision: 0, scene_beat_revision: 0, extended_revision: 0, last_cost: null },
+    scheduleSnapshotRevision: 0,
+  },
+  pursuitScheduleReceipt: {
+    version: 1 as const,
+    preState: {},
+    postState: {},
+  },
+  castActivityProposalReceipt: {
+    version: 1 as const,
+    outcome: 'NO_PROPOSAL' as const,
+    reasonCode: 'NO_OPPORTUNITY_CHOSEN' as const,
+    admittedManifestation: false,
+    acceptedEventId: null,
+    preState: [],
+    postState: [],
+  },
+  situatedPressureReceipt: {
+    version: 1 as const,
+    outcome: 'NO_PROPOSAL' as const,
+    reasonCode: 'NO_PRESSURE_CHOSEN' as const,
+    admittedManifestation: false,
+    acceptedThreadId: null,
+    preState: [],
+    postState: [],
+  },
+  valueStateReceipt: {
+    version: 1 as const,
+    preState: {},
+    postState: {},
+    decisions: [],
+  },
+  characterPursuitReceipt: {
+    version: 1 as const,
+    preState: {},
+    postState: {},
+    decisions: [],
+  },
+  characterDevelopmentReceipt: {
+    version: 1 as const,
+    preState: {},
+    postState: {},
+    decisions: [],
+  },
+  pressureThreadTransitionReceipt: {
+    version: 1 as const,
+    preState: [],
+    postState: [],
+    decisions: [],
+  },
+};
+
+const defaultTestHorrorGrammarContext = {
+  fictionalTime: { moment_revision: 0, scene_beat_revision: 0, extended_revision: 0, last_cost: null },
+  activityEligibility: {
+    version: 1 as const,
+    presentOpportunities: [],
+    offscreenOpportunities: [],
+    boundedOutPursuitIds: [],
+    dormantCount: 0,
+    notDueCount: 0,
+    ledgerSnapshot: { moment_revision: 0, scene_beat_revision: 0, extended_revision: 0, last_cost: null },
+    scheduleSnapshotRevision: 0,
+  },
+  presentActorOpportunities: [],
+  offscreenPursuitOpportunities: [],
+  relevantValueAnchors: [],
+  authorityInstruction: 'Standard authority',
+  runtimeState: {
+    fictionalTime: { moment_revision: 0, scene_beat_revision: 0, extended_revision: 0, last_cost: null },
+    pursuitSchedule: {},
+    recentActivityEvents: [],
+    activePressureThreads: [],
+    valueState: {},
+    characterPursuits: {},
+    characterDevelopment: {},
+  },
+  authoringBaseline: {
+    valueBaselineReview: 'REVIEWED' as const,
+    pursuitReviews: {},
+    valueAnchors: [],
+    characterPursuits: [],
+  },
+};
+
 describe('Turn schemas validation', () => {
   describe('EngineTurnContextSchema', () => {
     it('validates and supplies defaults for an engine turn context', () => {
@@ -687,6 +786,7 @@ describe('Turn schemas validation', () => {
           post_state: [],
           decisions: [],
         },
+        ...defaultTestHorrorGrammarReceipts,
       };
 
       const parsed = TurnResponseSchema.parse(responseEnvelope);
@@ -1683,6 +1783,7 @@ describe('Turn schemas validation', () => {
           post_state: [],
           decisions: [],
         },
+        ...defaultTestHorrorGrammarReceipts,
       });
 
       expect(validatedEnvelope.castInteractionReceipt?.outcome).toBe('RESPONDED');
@@ -2575,6 +2676,7 @@ describe('Turn schemas validation', () => {
           post_state: [],
           decisions: [],
         },
+        ...defaultTestHorrorGrammarReceipts,
       };
 
       const validated = TurnResponseSchema.parse(responseEnvelope);
@@ -3256,6 +3358,7 @@ describe('Turn schemas validation', () => {
               post_state: [],
               decisions: [],
             },
+            ...defaultTestHorrorGrammarReceipts,
           };
 
           const parsedInvestigateResponse = TurnResponseSchema.parse(investigateResponse);
@@ -3367,6 +3470,7 @@ describe('Turn schemas validation', () => {
               post_state: [],
               decisions: [],
             },
+            ...defaultTestHorrorGrammarReceipts,
           };
 
           const parsedMoveResponse = TurnResponseSchema.parse(moveResponse);
@@ -4427,6 +4531,7 @@ describe('Turn schemas validation', () => {
               },
             ],
           },
+          horrorGrammar: defaultTestHorrorGrammarContext,
         },
       };
 
@@ -4684,6 +4789,7 @@ describe('Turn schemas validation', () => {
             activeVector: 'COGNITIVE',
             activeTier: 'LATENT',
           },
+          horrorGrammar: defaultTestHorrorGrammarContext,
         },
       };
 
@@ -4778,6 +4884,7 @@ describe('Turn schemas validation', () => {
             activeVector: 'COGNITIVE',
             activeTier: 'LATENT',
           },
+          horrorGrammar: defaultTestHorrorGrammarContext,
         },
       };
 
@@ -5099,6 +5206,7 @@ describe('Turn schemas validation', () => {
             activeVector: 'COGNITIVE',
             activeTier: 'LATENT',
           },
+          horrorGrammar: defaultTestHorrorGrammarContext,
         },
       };
 

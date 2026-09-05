@@ -7,6 +7,7 @@ import {
   setCandidateReviewDecisionPure,
   sortCandidatesForApplication,
   validateAndNormalizeDocumentAnalysis,
+  isCompleteAuthoredDepictionContract,
 } from './sourceBaseline';
 import {
   ForgeDraft,
@@ -14,6 +15,7 @@ import {
   ForgeSourceRecord,
   ForgeSourceEvidence,
   ForgeSourceAnalysisSchema,
+  ForgeCandidateApplicationStateSchema,
 } from '../types/forge';
 import { compileForgeDraft } from './forgeCompiler';
 import { normalizeBlueprint } from './normalizeBlueprint';
@@ -1909,6 +1911,102 @@ describe('sourceBaseline pure functions', () => {
           status: 'completed',
         }).success
       ).toBe(true);
+    });
+
+    describe('Packet 07: Candidate Application State & Depiction Contract Preservation', () => {
+      it('ForgeCandidateApplicationStateSchema parses staged, applied, and superseded', () => {
+        expect(ForgeCandidateApplicationStateSchema.parse('staged')).toBe('staged');
+        expect(ForgeCandidateApplicationStateSchema.parse('applied')).toBe('applied');
+        expect(ForgeCandidateApplicationStateSchema.parse('superseded')).toBe('superseded');
+        expect(() => ForgeCandidateApplicationStateSchema.parse('invalid')).toThrow();
+      });
+
+      it('isCompleteAuthoredDepictionContract accurately identifies complete vs incomplete contracts', () => {
+        // Complete contract
+        expect(
+          isCompleteAuthoredDepictionContract({
+            dramaticRegister: 'Submersible Dread',
+            directness: 'High Directness',
+            aftermath: 'Severe Trauma',
+            ambiguityHandling: 'Uncertain boundaries',
+          })
+        ).toBe(true);
+
+        // Null or undefined
+        expect(isCompleteAuthoredDepictionContract(null)).toBe(false);
+        expect(isCompleteAuthoredDepictionContract(undefined)).toBe(false);
+
+        // Empty field
+        expect(
+          isCompleteAuthoredDepictionContract({
+            dramaticRegister: 'Submersible Dread',
+            directness: '',
+            aftermath: 'Severe Trauma',
+            ambiguityHandling: 'Uncertain boundaries',
+          })
+        ).toBe(false);
+
+        // Placeholder/unknown values
+        expect(
+          isCompleteAuthoredDepictionContract({
+            dramaticRegister: 'Submersible Dread',
+            directness: 'unknown',
+            aftermath: 'Severe Trauma',
+            ambiguityHandling: 'Uncertain boundaries',
+          })
+        ).toBe(false);
+
+        expect(
+          isCompleteAuthoredDepictionContract({
+            dramaticRegister: 'none',
+            directness: 'High Directness',
+            aftermath: 'Severe Trauma',
+            ambiguityHandling: 'Uncertain boundaries',
+          })
+        ).toBe(false);
+
+        expect(
+          isCompleteAuthoredDepictionContract({
+            dramaticRegister: 'Submersible Dread',
+            directness: 'High Directness',
+            aftermath: 'n/a',
+            ambiguityHandling: 'Uncertain boundaries',
+          })
+        ).toBe(false);
+      });
+
+      it('validateCandidateEdit resets a superseded candidate to staged upon edit', () => {
+        const supersededCand: ForgeSourceCandidate = {
+          id: 'cand-dep-1',
+          sourceId: 'src-1',
+          classification: 'evidence',
+          target: 'depiction_contract',
+          label: 'Depiction Contract',
+          explanation: 'Extracted depiction contract',
+          evidenceIds: ['ev-1'],
+          proposedValue: {
+            dramaticRegister: 'Old Register',
+            directness: 'Old Directness',
+            aftermath: 'Old Aftermath',
+            ambiguityHandling: 'Old Ambiguity',
+            specialBoundaries: '',
+          },
+          reviewDecision: 'accepted',
+          applicationState: 'superseded',
+        };
+
+        const result = validateCandidateEdit(supersededCand, {
+          dramaticRegister: 'Edited Register',
+          directness: 'Edited Directness',
+          aftermath: 'Edited Aftermath',
+          ambiguityHandling: 'Edited Ambiguity',
+          specialBoundaries: '',
+        });
+
+        expect(result.valid).toBe(true);
+        expect(result.updatedCandidate?.applicationState).toBe('staged');
+        expect(result.updatedCandidate?.reviewDecision).toBe('accepted');
+      });
     });
   });
 });

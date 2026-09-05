@@ -44,6 +44,12 @@ import {
   buildHorrorGrammarValidCauses,
   HG1_CAUSE_REFERENCE_PROMPT,
 } from '../../src/lib/horrorGrammarCauseReferences';
+import { advanceFictionalTimeLedger } from '../../src/lib/fictionalTime';
+import { advancePursuitScheduleLedger } from '../../src/lib/castActivityEligibility';
+import type {
+  FictionalTimeReceipt,
+  PursuitScheduleReceipt,
+} from '../../src/types/horrorGrammar';
 import {
   generateStructuredResponse,
   EngineTurnStructuredResponseContract,
@@ -516,6 +522,13 @@ turnRouter.post('/', async (req, res) => {
       stateContext,
       context,
     } = parsedRequest;
+
+    if (!context.horrorGrammar) {
+      return res.status(400).json({
+        error: 'Invalid turn request: context.horrorGrammar is required for Engine turn processing',
+        code: 'MISSING_HORROR_GRAMMAR_CONTEXT',
+      });
+    }
 
     const worldRulesFormatted = context.scenario.worldRules.length > 0
       ? context.scenario.worldRules.map((r) => `• ${r}`).join('\n')
@@ -1160,7 +1173,7 @@ Current Psychological Status: ${psychStatusFormatted}
 - Unsupported effects may receive one vivid experiential beat, but the prose must re-anchor to authoritative reality in the same turn.
 - Do not automatically diagnose the beat as a dream, psychosis, hallucination, or Hell. Use such language only when the authored fiction supports it.
 - Plausible consequences of an attempted act may be described. The unsupported declared effect itself cannot create powers, destroy topology, move cast, or establish facts.
-- fictional_time_cost guides prose only; every response remains one committed turn.
+- fictional_time_cost classifies the elapsed fictional time for this turn (MOMENT, SCENE_BEAT, EXTENDED, or UNCLEAR), which causally advances the authoritative fictional time ledger and drives pursuit review schedules while every response remains one committed turn.
 - A memory echo is a telemetry candidate only. It does not write lore_and_memory or character continuity.
 - For an Antagonist, compare the attempt with the explicit Authority Contract and counterplay limits. authority_alignment remains a narrative reading, not a mutation command.
 - A cast member's full name is an addressed-speaker target only when action_kind is COMMUNICATE. In other action kinds, a name may identify the subject, object, or observed person and must not be treated as an attempted conversation merely because it appears in the action text.
@@ -1338,25 +1351,14 @@ ${recentHistory}
     });
 
     const hgContext = context.horrorGrammar;
-    const hgRuntime = hgContext?.runtimeState;
-    const hgBaseline = hgContext?.authoringBaseline;
+    const hgRuntime = hgContext.runtimeState;
+    const hgBaseline = hgContext.authoringBaseline;
 
     const castActivityProposalReceipt = resolveCastActivity({
       proposal: engineResponse.cast_activity_proposal,
-      eligibilityReceipt: hgContext
-        ? {
-            version: 1,
-            presentOpportunities: hgContext.presentActorOpportunities,
-            offscreenOpportunities: hgContext.offscreenPursuitOpportunities,
-            boundedOutPursuitIds: [],
-            dormantCount: 0,
-            notDueCount: 0,
-            ledgerSnapshot: hgContext.fictionalTime,
-            scheduleSnapshotRevision: context.runtime.turnNumber,
-          }
-        : null,
+      eligibilityReceipt: hgContext.activityEligibility,
       currentContext: context,
-      preEvents: hgRuntime?.recentActivityEvents || [],
+      preEvents: hgRuntime.recentActivityEvents || [],
       currentTurn: context.runtime.turnNumber,
     });
 
@@ -1445,7 +1447,43 @@ ${recentHistory}
       castInteractionReceipt,
     });
 
-    // 5. Isolated narrative composition
+    // 5. Deterministic Fictional Time & Pursuit Schedule Derivation
+    let fictionalTimeReceipt: FictionalTimeReceipt;
+    if (userAction === 'SYSTEM_INIT') {
+      fictionalTimeReceipt = {
+        version: 1,
+        preState: hgRuntime.fictionalTime,
+        acceptedCost: 'NONE',
+        postState: hgRuntime.fictionalTime,
+      };
+    } else {
+      const reconCost = narrativeReconciliationReceipt.fictional_time_cost || 'UNCLEAR';
+      fictionalTimeReceipt = advanceFictionalTimeLedger(hgRuntime.fictionalTime, reconCost);
+    }
+
+    let pursuitScheduleReceipt: PursuitScheduleReceipt;
+    if (userAction === 'SYSTEM_INIT') {
+      pursuitScheduleReceipt = {
+        version: 1,
+        preState: hgRuntime.pursuitSchedule,
+        postState: hgRuntime.pursuitSchedule,
+      };
+    } else {
+      const postSchedule = advancePursuitScheduleLedger({
+        preSchedule: hgRuntime.pursuitSchedule,
+        eligibilityReceipt: hgContext.activityEligibility,
+        fictionalTime: fictionalTimeReceipt.postState,
+        turnNumber: context.runtime.turnNumber + 1,
+        characterPursuits: hgBaseline.characterPursuits,
+      });
+      pursuitScheduleReceipt = {
+        version: 1,
+        preState: hgRuntime.pursuitSchedule,
+        postState: postSchedule,
+      };
+    }
+
+    // 6. Isolated narrative composition
     const composedNarrativeBlocks = [...boundedResult.narrative_blocks];
     if (
       castActivityProposalReceipt.admittedManifestation &&
@@ -1462,7 +1500,7 @@ ${recentHistory}
       composedNarrativeBlocks.push(engineResponse.situated_pressure_proposal.manifestationBlock);
     }
 
-    // 6. Build typed developer forensic record (Packet 1-8)
+    // 7. Build typed developer forensic record (Packet 1-8)
     const actProp = engineResponse.cast_activity_proposal;
     const pressProp = engineResponse.situated_pressure_proposal;
 
@@ -1506,27 +1544,22 @@ ${recentHistory}
       acceptedThreadId: situatedPressureReceipt.acceptedThreadId,
     };
 
-    const presentOpportunityIds = (hgContext?.presentActorOpportunities || []).map(
+    const presentOpportunityIds = (hgContext.presentActorOpportunities || []).map(
       (o) => o.opportunityId || `opp-present-${o.castMemberId}`
     );
-    const selectedOffscreenPursuitIds = (hgContext?.offscreenPursuitOpportunities || [])
+    const selectedOffscreenPursuitIds = (hgContext.offscreenPursuitOpportunities || [])
       .map((o) => o.pursuitId)
       .filter((id): id is string => Boolean(id));
 
     const horrorGrammarForensics: import('../../src/types/horrorGrammar').HorrorGrammarForensicRecord = {
       version: 1,
       turnNumber: context.runtime.turnNumber,
-      preFictionalTime: hgContext?.fictionalTime || {
-        moment_revision: 0,
-        scene_beat_revision: 0,
-        extended_revision: 0,
-        last_cost: null,
-      },
+      preFictionalTime: hgContext.fictionalTime,
       presentOpportunityIds,
       selectedOffscreenPursuitIds,
-      boundedOutPursuitIds: [],
-      dormantCount: 0,
-      notDueCount: 0,
+      boundedOutPursuitIds: hgContext.activityEligibility.boundedOutPursuitIds,
+      dormantCount: hgContext.activityEligibility.dormantCount,
+      notDueCount: hgContext.activityEligibility.notDueCount,
       activityEvidence,
       pressureEvidence,
       causalDecisions: {
@@ -1551,6 +1584,9 @@ ${recentHistory}
       characterRelationshipReceipt,
       characterMemoryReceipt,
       worldMemoryReceipt,
+      fictionalTimeReceipt,
+      castActivityReceipt: hgContext.activityEligibility,
+      pursuitScheduleReceipt,
       castActivityProposalReceipt,
       situatedPressureReceipt,
       valueStateReceipt,

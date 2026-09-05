@@ -111,4 +111,14 @@ describe('captureRuntimeSnapshot', () => {
     expect(isExposureTier('TERMINAL')).toBe(true);
     expect(isExposureTier('UNKNOWN')).toBe(false);
   });
+
+  it('captures live coherenceRating when provided as top-level property on source', () => {
+    const snapshot = captureRuntimeSnapshot({
+      coherenceRating: 0.45,
+      tensionLevel: 65,
+    });
+
+    expect(snapshot.coherence).toBe(0.45);
+    expect(snapshot.tension).toBe(65);
+  });
 });

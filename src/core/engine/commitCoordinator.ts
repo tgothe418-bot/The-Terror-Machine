@@ -6,6 +6,8 @@ import {
   ExposureTier,
   Message,
   NarrativeBlock,
+  RuntimeStateSnapshot,
+  DurableSessionRevision,
 } from '../../types';
 import type { CommittedTurnPayload } from './events';
 import type { AppStore } from '../../store/useAppStore';
@@ -17,6 +19,8 @@ import { engineReducer } from './reducer';
 export interface AppStoreSlice {
   sessionId: string | null;
   blueprintId: string | null;
+  canonicalRevision: number;
+  durableSessionRevision: DurableSessionRevision | null;
   turnCount: number;
   currentNodeId: string;
   spatialGraph: SpatialNode[];
@@ -78,6 +82,8 @@ export function captureAppSlice(state: AppStore): AppStoreSlice {
   return {
     sessionId: state.sessionId,
     blueprintId: state.blueprintId,
+    canonicalRevision: state.canonicalRevision ?? 0,
+    durableSessionRevision: state.durableSessionRevision ? cloneDataSlice(state.durableSessionRevision) : null,
     turnCount: state.turnCount,
     currentNodeId: state.currentNodeId,
     spatialGraph: cloneDataSlice(state.spatialGraph || []),
@@ -148,6 +154,59 @@ export function filterAllowlistedPresentationPatch(
   return safePatch;
 }
 
+export class ObsoleteTurnPublicationError extends Error {
+  readonly code = 'OBSOLETE_TURN_ATTEMPT';
+  constructor(message: string) {
+    super(message);
+    this.name = 'ObsoleteTurnPublicationError';
+  }
+}
+
+/**
+ * Validates that a turn attempt is current with respect to the active canonical application state.
+ * Returns false if sessionId, blueprintId, turnCount, or canonicalRevision do not match.
+ */
+export function isTurnAttemptCurrent(
+  currentApp: AppStoreSlice | AppStore | null | undefined,
+  preSnapshot?: RuntimeStateSnapshot | null
+): boolean {
+  if (!currentApp || !preSnapshot) return false;
+
+  // Session ID comparison: normalized to empty string fallback
+  const currentSessionId = currentApp.sessionId || '';
+  const attemptSessionId = preSnapshot.sessionId || '';
+  if (currentSessionId !== attemptSessionId) {
+    return false;
+  }
+
+  // Blueprint ID comparison: normalized to empty string fallback
+  const currentBlueprintId = currentApp.blueprintId || '';
+  const attemptBlueprintId = preSnapshot.blueprintId || '';
+  if (currentBlueprintId !== attemptBlueprintId) {
+    return false;
+  }
+
+  // Turn count comparison: must match exact turn count
+  if (
+    typeof preSnapshot.turnCount === 'number' &&
+    typeof currentApp.turnCount === 'number' &&
+    preSnapshot.turnCount !== currentApp.turnCount
+  ) {
+    return false;
+  }
+
+  // Canonical revision comparison: attempt generation token must match if tracked
+  if (
+    typeof preSnapshot.canonicalRevision === 'number' &&
+    typeof currentApp.canonicalRevision === 'number' &&
+    preSnapshot.canonicalRevision !== currentApp.canonicalRevision
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
 export interface CoordinateTurnPublicationParams {
   appStore?: {
     getState: () => AppStore;
@@ -174,21 +233,76 @@ export function coordinateCanonicalTurnPublication({
   preparedGameState,
   presentationPatch,
 }: CoordinateTurnPublicationParams): void {
+  // 0. Boundary admission check: verify turn attempt matches active session and canonical revision
+  const currentApp = appStore.getState();
+  if (!isTurnAttemptCurrent(currentApp, committedPayload.preSnapshot)) {
+    throw new ObsoleteTurnPublicationError(
+      `Turn attempt is obsolete and cannot be published into active session. ` +
+      `Attempt: session=${committedPayload.preSnapshot?.sessionId ?? 'none'}, ` +
+      `blueprint=${committedPayload.preSnapshot?.blueprintId ?? 'none'}, ` +
+      `rev=${committedPayload.preSnapshot?.canonicalRevision ?? 'none'}, ` +
+      `turn=${committedPayload.preSnapshot?.turnCount ?? 'none'}. ` +
+      `Active: session=${currentApp.sessionId ?? 'none'}, ` +
+      `blueprint=${currentApp.blueprintId ?? 'none'}, ` +
+      `rev=${currentApp.canonicalRevision ?? 'none'}, ` +
+      `turn=${currentApp.turnCount}.`
+    );
+  }
+
   // 1. Authoritative pre-flight schema validation
   const validatedGameState = LogicStateSchema.parse(preparedGameState) as LogicState;
 
+  // Calculate next durable revision token
+  const nextTurnCount = (currentApp.turnCount ?? 0) + 1;
+  const currentRev = currentApp.durableSessionRevision?.revision ?? currentApp.canonicalRevision ?? 0;
+  const nextCommitRev = currentRev + 1;
+  const committedAt = Date.now();
+
+  const nextDurableRevision: DurableSessionRevision = {
+    sessionId: currentApp.sessionId || '',
+    blueprintId: currentApp.blueprintId || '',
+    turnCount: nextTurnCount,
+    revision: nextCommitRev,
+    committedAt,
+  };
+
   // 2. Capture pure pre-turn data slices
   const preAppSlice = captureAppSlice(appStore.getState());
-  const preGameState = engineStore.getState().gameState
-    ? cloneDataSlice(engineStore.getState().gameState)
-    : null;
+  const preEngineState = {
+    gameState: engineStore.getState().gameState
+      ? cloneDataSlice(engineStore.getState().gameState)
+      : null,
+    durableSessionRevision: engineStore.getState().durableSessionRevision
+      ? cloneDataSlice(engineStore.getState().durableSessionRevision)
+      : null,
+    lastTurnCheckpoint: engineStore.getState().lastTurnCheckpoint
+      ? cloneDataSlice(engineStore.getState().lastTurnCheckpoint)
+      : null,
+  };
+  const preGameState = preEngineState.gameState;
 
   // 3. Pre-compute both complete post-turn states before publication
-  const postAppState = engineReducer(appStore.getState(), {
+  const computedPostAppState = engineReducer(appStore.getState(), {
     type: 'TURN_COMMITTED',
     payload: committedPayload,
   });
+  const postAppState = {
+    ...computedPostAppState,
+    canonicalRevision: nextCommitRev,
+    durableSessionRevision: nextDurableRevision,
+    lastTurnCheckpoint: computedPostAppState.lastTurnCheckpoint
+      ? {
+          ...computedPostAppState.lastTurnCheckpoint,
+          durableSessionRevisionBefore: currentApp.durableSessionRevision,
+        }
+      : null,
+  };
   const postGameState = cloneDataSlice(validatedGameState);
+  const postEngineCheckpoint = {
+    revision: currentRev,
+    turnCount: currentApp.turnCount ?? 0,
+    gameStateBefore: preGameState,
+  };
 
   // 4. Set publication fence
   _isPublicationInProgress = true;
@@ -200,15 +314,19 @@ export function coordinateCanonicalTurnPublication({
     // A. Commit canonical application state & checkpoint
     appStore.setState(postAppState);
 
-    // B. Commit prepared situated game state
-    engineStore.setState({ gameState: postGameState });
+    // B. Commit prepared situated game state, durable revision & engine checkpoint
+    engineStore.setState({
+      gameState: postGameState,
+      durableSessionRevision: nextDurableRevision,
+      lastTurnCheckpoint: postEngineCheckpoint,
+    });
 
     // C. Both writes succeeded: advance shared publication revision
     _sharedPublicationRevision += 1;
   } catch (err) {
     // Rollback: restore both stores immediately to pre-turn snapshots before failure emission
     appStore.setState(preAppSlice);
-    engineStore.setState({ gameState: preGameState });
+    engineStore.setState(preEngineState);
     throw err;
   } finally {
     _isPublicationInProgress = false;

@@ -9,6 +9,7 @@ import {
   SpatialNode,
   ParticipationContext,
   LogicState,
+  DurableSessionRevision,
 } from '../../types';
 import { formatTurnFailureMessage, normalizeTurnFailureReceipt } from '../../lib/turnResponseReader';
 import {
@@ -30,6 +31,7 @@ export interface RetakeRestorableEngineState {
   activeTier: ExposureTier;
   decay: DecayState;
   turnCount: number;
+  canonicalRevision?: number;
   roomsGenerated: number;
   maxRooms?: number;
   aesthetic?: string;
@@ -63,6 +65,7 @@ export interface RetakeCheckpoint {
   commandText: string;
   engineStateBefore: RetakeRestorableEngineState;
   engineGameStateBefore: LogicState | null;
+  durableSessionRevisionBefore?: DurableSessionRevision | null;
 }
 
 export interface EngineState extends RetakeRestorableEngineState {
@@ -84,6 +87,7 @@ export function captureRetakeRestorableState(
     activeTier: state.activeTier,
     decay: state.decay,
     turnCount: state.turnCount,
+    canonicalRevision: state.canonicalRevision ?? 0,
     roomsGenerated: state.roomsGenerated,
     maxRooms: state.maxRooms,
     aesthetic: state.aesthetic,
@@ -179,6 +183,7 @@ export const initialEngineState: EngineState = {
   activeTier: 'LATENT',
   decay: { stage: 'STABLE', coherence: 1.0 },
   turnCount: 0,
+  canonicalRevision: 0,
   roomsGenerated: 0,
   traumaLedger: [],
   activeMemory: {
@@ -334,6 +339,7 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
         lastTurnCheckpoint,
         history: [...(state.history || []), userMsg, engineMsg],
         turnCount: updatedTurnCount,
+        canonicalRevision: (state.canonicalRevision || 0) + 1,
         currentNodeId: nextNodeId,
         spatialGraph: nextGraph,
         activeVector: nextVector,
@@ -350,6 +356,38 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
     }
 
     case 'TURN_FAILED': {
+      if (event.payload.preSnapshot) {
+        const attemptSession = event.payload.preSnapshot.sessionId;
+        const currentSession = state.sessionId;
+        if (
+          attemptSession !== undefined &&
+          currentSession !== undefined &&
+          currentSession !== null &&
+          attemptSession !== currentSession
+        ) {
+          return state;
+        }
+
+        const attemptBp = event.payload.preSnapshot.blueprintId;
+        const currentBp = state.blueprintId;
+        if (
+          attemptBp !== undefined &&
+          currentBp !== undefined &&
+          currentBp !== null &&
+          attemptBp !== currentBp
+        ) {
+          return state;
+        }
+
+        if (
+          typeof event.payload.preSnapshot.canonicalRevision === 'number' &&
+          typeof state.canonicalRevision === 'number' &&
+          event.payload.preSnapshot.canonicalRevision !== state.canonicalRevision
+        ) {
+          return state;
+        }
+      }
+
       const rawReceipt = event.payload.failureReceipt || {
         code: event.payload.errorCategory || 'UNKNOWN_ERROR',
         status: event.payload.statusCode ?? null,
@@ -414,6 +452,7 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
       return {
         ...state,
         ...state.lastTurnCheckpoint.engineStateBefore,
+        canonicalRevision: (state.canonicalRevision || 0) + 1,
         lastTurnCheckpoint: null,
       };
     }
@@ -446,18 +485,83 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
         ],
       };
 
-    case 'ADD_MESSAGE':
+    case 'ADD_MESSAGE': {
+      const message = {
+        ...event.message,
+        id: event.message.id || crypto.randomUUID(),
+        timestamp: event.message.timestamp || Date.now(),
+      };
+
+      // Guard against exact message ID duplication
+      if (event.message.id && (state.history || []).some((m) => m.id === event.message.id)) {
+        return state;
+      }
+
+      // Check if message represents failed or diagnostic content that must be excluded from playable prompt context
+      const isFailedOrSystem =
+        message.role === 'system' ||
+        message.role === 'user' ||
+        message.validation?.accepted === false ||
+        message.turnReceipt?.accepted === false ||
+        (typeof message.content === 'string' &&
+          (message.content.startsWith('[CRITICAL ENGINE FAILURE]') ||
+            message.content.startsWith('[TURN_FAILED]') ||
+            message.content.startsWith('[ SYSTEM:') ||
+            message.content.startsWith('[SYSTEM:')));
+
+      // Guard against duplicate opening narrative message with identical content
+      if (
+        (message.role === 'assistant' || message.role === 'narrative') &&
+        !isFailedOrSystem &&
+        typeof message.content === 'string' &&
+        message.content.trim().length > 0 &&
+        (state.history || []).some(
+          (m) =>
+            (m.role === 'assistant' || m.role === 'narrative') &&
+            m.content === message.content
+        )
+      ) {
+        return state;
+      }
+
+      let updatedStoryLog = state.storyLog || [];
+      if (!isFailedOrSystem) {
+        let newBlocks: NarrativeBlock[] = [];
+        if (Array.isArray(message.blocks) && message.blocks.length > 0) {
+          newBlocks = message.blocks;
+        } else if (
+          (message.role === 'assistant' || message.role === 'narrative') &&
+          typeof message.content === 'string' &&
+          message.content.trim().length > 0
+        ) {
+          newBlocks = [{ type: 'prose', content: message.content.trim() }];
+        }
+
+        if (newBlocks.length > 0) {
+          const existingSerialized = new Set(
+            updatedStoryLog.map(
+              (b) =>
+                `${(b.type || 'prose').toLowerCase()}:${(b.speaker || '').trim()}:${(b.content || b.text || '').trim()}`
+            )
+          );
+          const blocksToAdd = newBlocks.filter(
+            (b) =>
+              !existingSerialized.has(
+                `${(b.type || 'prose').toLowerCase()}:${(b.speaker || '').trim()}:${(b.content || b.text || '').trim()}`
+              )
+          );
+          if (blocksToAdd.length > 0) {
+            updatedStoryLog = [...updatedStoryLog, ...blocksToAdd];
+          }
+        }
+      }
+
       return {
         ...state,
-        history: [
-          ...(state.history || []),
-          {
-            ...event.message,
-            id: event.message.id || crypto.randomUUID(),
-            timestamp: event.message.timestamp || Date.now(),
-          },
-        ],
+        history: [...(state.history || []), message],
+        storyLog: updatedStoryLog,
       };
+    }
 
     case 'TURN_RESOLVED': {
       const newTags = event.payload.semanticTags;

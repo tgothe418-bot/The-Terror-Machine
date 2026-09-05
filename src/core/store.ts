@@ -1,7 +1,17 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { z } from 'zod';
-import { Blueprint, BlueprintSchema, LogicState, Message, PlayerRole, ParticipationContext, SpatialNode } from '../types';
+import {
+  Blueprint,
+  BlueprintSchema,
+  LogicState,
+  Message,
+  PlayerRole,
+  ParticipationContext,
+  SpatialNode,
+  DurableSessionRevision,
+  DurableSessionRevisionSchema,
+} from '../types';
 import { idbStorage } from '../lib/idbStorage';
 import { distillContext } from '../services/geminiService';
 import { useAppStore } from '../store/useAppStore';
@@ -12,12 +22,31 @@ import { createInitialFictionalTimeLedger } from '../lib/fictionalTime';
 import { createInitialValueStateLedger } from '../lib/valueState';
 import { createInitialCharacterPursuitLedger } from '../lib/characterPursuits';
 import { createInitialCharacterDevelopmentLedger } from '../lib/characterDevelopment';
+import {
+  FictionalTimeLedgerSchema,
+  PursuitScheduleLedgerSchema,
+  CastActivityEventSchema,
+  SituatedPressureThreadSchema,
+  ValueStateLedgerSchema,
+  CharacterPursuitLedgerSchema,
+  CharacterDevelopmentLedgerSchema,
+} from '../types/horrorGrammar';
 
 export { resolvePerspectiveBinding } from '../lib/playerCharacterBinding';
 
 export const EnginePersistedSchema = z.object({
   activeSessionId: z.string().nullable().optional().default(null),
   activeBlueprint: BlueprintSchema.nullable().optional().default(null),
+  durableSessionRevision: DurableSessionRevisionSchema.nullable().optional().default(null),
+  lastTurnCheckpoint: z
+    .object({
+      revision: z.number(),
+      turnCount: z.number(),
+      gameStateBefore: z.any().nullable().optional(),
+    })
+    .nullable()
+    .optional()
+    .default(null),
   participationContext: z
     .object({
       role: z.string().optional(),
@@ -48,6 +77,13 @@ export const EnginePersistedSchema = z.object({
         .optional(),
       npc_fixations: z.array(z.string()).optional(),
       cast_ledger: z.array(z.any()).optional(),
+      fictional_time_ledger: FictionalTimeLedgerSchema.optional(),
+      pursuit_schedule_ledger: PursuitScheduleLedgerSchema.optional(),
+      activity_events: z.array(CastActivityEventSchema).optional(),
+      pressure_threads: z.array(SituatedPressureThreadSchema).optional(),
+      value_state_ledger: ValueStateLedgerSchema.optional(),
+      character_pursuit_ledger: CharacterPursuitLedgerSchema.optional(),
+      character_development_ledger: CharacterDevelopmentLedgerSchema.optional(),
     })
     .passthrough()
     .nullable()
@@ -83,9 +119,17 @@ export interface SetBlueprintOptions {
   entryNodeId?: string;
 }
 
+export interface EngineCheckpoint {
+  revision: number;
+  turnCount: number;
+  gameStateBefore: LogicState | null;
+}
+
 export interface EngineState {
   activeSessionId: string | null;
   activeBlueprint: Blueprint | null;
+  durableSessionRevision: DurableSessionRevision | null;
+  lastTurnCheckpoint: EngineCheckpoint | null;
   participationContext: ParticipationContext | null;
   gameState: LogicState | null;
   engineMessages: Message[]; // Used for UI display
@@ -120,6 +164,8 @@ export const useEngineStore = create<EngineState>()(
     (set, get) => ({
       activeSessionId: null,
       activeBlueprint: null,
+      durableSessionRevision: null,
+      lastTurnCheckpoint: null,
       participationContext: null,
       gameState: null,
       engineMessages: [],
@@ -175,9 +221,19 @@ export const useEngineStore = create<EngineState>()(
           ...(options?.spatialGraph ? { spatialGraph: options.spatialGraph } : {}),
         });
 
+        const initialDurableRevision: DurableSessionRevision = {
+          sessionId,
+          blueprintId: normalizedBlueprint.id || 'unknown',
+          revision: 1,
+          turnCount: 0,
+          committedAt: Date.now(),
+        };
+
         set({
           activeSessionId: sessionId,
           activeBlueprint: normalizedBlueprint,
+          durableSessionRevision: initialDurableRevision,
+          lastTurnCheckpoint: null,
           participationContext: participationContext || null,
           engineMessages: [],
           engineTextBuffer: [],
@@ -210,6 +266,8 @@ export const useEngineStore = create<EngineState>()(
         set({
           activeSessionId: null,
           activeBlueprint: null,
+          durableSessionRevision: null,
+          lastTurnCheckpoint: null,
           participationContext: null,
           gameState: null,
           engineMessages: [],
@@ -300,6 +358,8 @@ export const useEngineStore = create<EngineState>()(
         set({
           activeSessionId: null,
           activeBlueprint: null,
+          durableSessionRevision: null,
+          lastTurnCheckpoint: null,
           participationContext: null,
           gameState: null,
           engineTextBuffer: [],
@@ -339,6 +399,8 @@ export const useEngineStore = create<EngineState>()(
       partialize: (state) => ({
         activeSessionId: state.activeSessionId,
         activeBlueprint: state.activeBlueprint,
+        durableSessionRevision: state.durableSessionRevision,
+        lastTurnCheckpoint: state.lastTurnCheckpoint,
         participationContext: state.participationContext,
         gameState: state.gameState,
         engineMessages: state.engineMessages,

@@ -349,6 +349,38 @@ describe('Phase 2G: Runtime API Route Integrity Suite', () => {
           activeVector: 'COGNITIVE',
           activeTier: 'LATENT',
         },
+        horrorGrammar: {
+          fictionalTime: { moment_revision: 0, scene_beat_revision: 0, extended_revision: 0, last_cost: null },
+          activityEligibility: {
+            version: 1,
+            presentOpportunities: [],
+            offscreenOpportunities: [],
+            boundedOutPursuitIds: [],
+            dormantCount: 0,
+            notDueCount: 0,
+            ledgerSnapshot: { moment_revision: 0, scene_beat_revision: 0, extended_revision: 0, last_cost: null },
+            scheduleSnapshotRevision: 0,
+          },
+          presentActorOpportunities: [],
+          offscreenPursuitOpportunities: [],
+          relevantValueAnchors: [],
+          authorityInstruction: 'Standard authority',
+          runtimeState: {
+            fictionalTime: { moment_revision: 0, scene_beat_revision: 0, extended_revision: 0, last_cost: null },
+            pursuitSchedule: {},
+            recentActivityEvents: [],
+            activePressureThreads: [],
+            valueState: {},
+            characterPursuits: {},
+            characterDevelopment: {},
+          },
+          authoringBaseline: {
+            valueBaselineReview: 'REVIEWED' as const,
+            pursuitReviews: {},
+            valueAnchors: [],
+            characterPursuits: [],
+          },
+        },
       },
     };
 

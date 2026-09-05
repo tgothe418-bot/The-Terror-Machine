@@ -218,6 +218,81 @@ describe('Ratification Pipeline: Horror Grammar 1 Initiative & Pressure (Packet 
         admittedManifestation: true,
         acceptedThreadId: 'thr-1',
       },
+      fictionalTimeReceipt: {
+        version: 1,
+        preState: { moment_revision: 0, scene_beat_revision: 0, extended_revision: 0, last_cost: null },
+        acceptedCost: 'MOMENT',
+        postState: { moment_revision: 1, scene_beat_revision: 0, extended_revision: 0, last_cost: 'MOMENT' },
+      },
+      castActivityReceipt: {
+        version: 1,
+        presentOpportunities: [],
+        offscreenOpportunities: [],
+        boundedOutPursuitIds: [],
+        dormantCount: 0,
+        notDueCount: 0,
+        ledgerSnapshot: { moment_revision: 0, scene_beat_revision: 0, extended_revision: 0, last_cost: null },
+        scheduleSnapshotRevision: 0,
+      },
+      pursuitScheduleReceipt: {
+        version: 1,
+        preState: {},
+        postState: {},
+      },
+      valueStateReceipt: {
+        version: 1,
+        preState: {},
+        postState: {},
+        decisions: [],
+      },
+      characterPursuitReceipt: {
+        version: 1,
+        preState: {},
+        postState: {},
+        decisions: [],
+      },
+      characterDevelopmentReceipt: {
+        version: 1,
+        preState: {},
+        postState: {},
+        decisions: [],
+      },
+      pressureThreadTransitionReceipt: {
+        version: 1,
+        preState: [
+          {
+            id: 'thr-1',
+            valueAnchorId: 'val-reactor',
+            holder: { kind: 'PLACE', nodeId: 'NODE_CONTROL' },
+            sourceReference: 'ACTIVITY',
+            operator: 'CONSTRAIN_ACCESS',
+            affectedDimension: 'ACCESS',
+            adverseProspect: 'Smoke blocks emergency shutoff',
+            manifestationSummary: 'Acrid smoke billows',
+            status: 'OPEN',
+            createdTurn: 1,
+            lastChangedTurn: 1,
+            persistenceTarget: 'PRESSURE_THREAD',
+          },
+        ],
+        postState: [
+          {
+            id: 'thr-1',
+            valueAnchorId: 'val-reactor',
+            holder: { kind: 'PLACE', nodeId: 'NODE_CONTROL' },
+            sourceReference: 'ACTIVITY',
+            operator: 'CONSTRAIN_ACCESS',
+            affectedDimension: 'ACCESS',
+            adverseProspect: 'Smoke blocks emergency shutoff',
+            manifestationSummary: 'Acrid smoke billows',
+            status: 'OPEN',
+            createdTurn: 1,
+            lastChangedTurn: 1,
+            persistenceTarget: 'PRESSURE_THREAD',
+          },
+        ],
+        decisions: [],
+      },
     };
 
     globalThis.fetch = vi.fn().mockImplementation(async () => {
@@ -398,6 +473,27 @@ describe('Ratification Pipeline: Horror Grammar 1 Initiative & Pressure (Packet 
             memory_echo_candidate: null,
             revision_increment: 0,
           },
+          fictionalTimeReceipt: {
+            version: 1,
+            preState: sentinelTime,
+            acceptedCost: 'MOMENT',
+            postState: { ...sentinelTime, moment_revision: sentinelTime.moment_revision + 1, last_cost: 'MOMENT' },
+          },
+          castActivityReceipt: {
+            version: 1,
+            presentOpportunities: [],
+            offscreenOpportunities: [],
+            boundedOutPursuitIds: [],
+            dormantCount: 0,
+            notDueCount: 0,
+            ledgerSnapshot: sentinelTime,
+            scheduleSnapshotRevision: 5,
+          },
+          pursuitScheduleReceipt: {
+            version: 1,
+            preState: sentinelSchedule,
+            postState: sentinelSchedule,
+          },
           castActivityProposalReceipt: {
             version: 1,
             outcome: 'NO_PROPOSAL',
@@ -459,5 +555,137 @@ describe('Ratification Pipeline: Horror Grammar 1 Initiative & Pressure (Packet 
     expect(hg.runtimeState.valueState).toEqual(sentinelValueLedger);
     expect(hg.runtimeState.characterPursuits).toEqual(sentinelPursuitLedger);
     expect(hg.runtimeState.characterDevelopment).toEqual(sentinelDevelopmentLedger);
+  });
+
+  it('Packet 06: pipeline ratifies rejected receipts for ungrounded authorities and derives no unratified store updates', async () => {
+    const preExistingEvents: import('../types/horrorGrammar').CastActivityEvent[] = [];
+    const preExistingThreads: import('../types/horrorGrammar').SituatedPressureThread[] = [];
+
+    const rejectedTurnResponse = {
+      narrative_blocks: [{ type: 'prose', content: 'Base prose continues safely.' }],
+      logic_state: {
+        terminal_flags: [],
+        cast_deltas: [],
+        cast_ledger: [],
+        activity_events: preExistingEvents,
+        pressure_threads: preExistingThreads,
+      },
+      canonicalConsequenceReceipt: {
+        version: 1,
+        pre_state: { inventory: [], player_injuries: [], psychological_status: 'STABLE' },
+        post_state: { inventory: [], player_injuries: [], psychological_status: 'STABLE' },
+        patch: {
+          inventory_added: [],
+          inventory_removed: [],
+          injuries_added: [],
+          injuries_removed: [],
+          psychological_status_change: null,
+        },
+        decisions: [],
+      },
+      characterStanceReceipt: { version: 1, pre_state: {}, post_state: {}, decisions: [] },
+      characterRelationshipReceipt: { version: 1, pre_state: [], post_state: [], decisions: [] },
+      characterMemoryReceipt: { version: 1, pre_state: {}, post_state: {}, decisions: [] },
+      worldMemoryReceipt: { version: 1, pre_state: [], post_state: [], decisions: [] },
+      intentReceipt: {
+        version: 1,
+        action_kind: 'OBSERVE',
+        action_subtype: null,
+        pressure_direction: 'MAINTAIN',
+        dramatic_tactic: 'NONE',
+        intent_synergy: 'SUCCESS',
+      },
+      narrativeReconciliationReceipt: {
+        version: 1,
+        mode: 'CANONICAL',
+        feasibility: 'SUPPORTED',
+        reason_code: 'NONE',
+        fictional_time_cost: 'MOMENT',
+        authority_alignment: 'WITHIN_CONTRACT',
+        memory_echo_candidate: null,
+        revision_increment: 0,
+      },
+      castActivityProposalReceipt: {
+        version: 1,
+        outcome: 'REJECTED',
+        reasonCode: 'INVALID_AUTHORITY_REFERENCE',
+        preState: preExistingEvents,
+        postState: preExistingEvents,
+        admittedManifestation: false,
+        acceptedEventId: null,
+      },
+      situatedPressureReceipt: {
+        version: 1,
+        outcome: 'REJECTED',
+        reasonCode: 'ACTIVITY_SOURCE_NOT_ACCEPTED',
+        preState: preExistingThreads,
+        postState: preExistingThreads,
+        admittedManifestation: false,
+        acceptedThreadId: null,
+      },
+      fictionalTimeReceipt: {
+        version: 1,
+        preState: { moment_revision: 0, scene_beat_revision: 0, extended_revision: 0, last_cost: null },
+        acceptedCost: 'MOMENT',
+        postState: { moment_revision: 1, scene_beat_revision: 0, extended_revision: 0, last_cost: 'MOMENT' },
+      },
+      castActivityReceipt: {
+        version: 1,
+        presentOpportunities: [],
+        offscreenOpportunities: [],
+        boundedOutPursuitIds: [],
+        dormantCount: 0,
+        notDueCount: 0,
+        ledgerSnapshot: { moment_revision: 0, scene_beat_revision: 0, extended_revision: 0, last_cost: null },
+        scheduleSnapshotRevision: 0,
+      },
+      pursuitScheduleReceipt: {
+        version: 1,
+        preState: {},
+        postState: {},
+      },
+      valueStateReceipt: {
+        version: 1,
+        preState: {},
+        postState: {},
+        decisions: [],
+      },
+      characterPursuitReceipt: {
+        version: 1,
+        preState: {},
+        postState: {},
+        decisions: [],
+      },
+      characterDevelopmentReceipt: {
+        version: 1,
+        preState: {},
+        postState: {},
+        decisions: [],
+      },
+      pressureThreadTransitionReceipt: {
+        version: 1,
+        preState: [],
+        postState: [],
+        decisions: [],
+      },
+    };
+
+    globalThis.fetch = vi.fn().mockImplementation(async () => {
+      return new Response(JSON.stringify(rejectedTurnResponse), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    });
+
+    const ratifiedFrame = await executeRatificationPipeline('Observe quietly');
+
+    expect(ratifiedFrame.castActivityProposalReceipt?.outcome).toBe('REJECTED');
+    expect(ratifiedFrame.castActivityProposalReceipt?.reasonCode).toBe('INVALID_AUTHORITY_REFERENCE');
+    expect(ratifiedFrame.situatedPressureReceipt?.outcome).toBe('REJECTED');
+    expect(ratifiedFrame.situatedPressureReceipt?.reasonCode).toBe('ACTIVITY_SOURCE_NOT_ACCEPTED');
+
+    // Published frame ledgers remain uncontaminated
+    expect(ratifiedFrame.logic_state.activity_events).toEqual([]);
+    expect(ratifiedFrame.logic_state.pressure_threads).toEqual([]);
   });
 });

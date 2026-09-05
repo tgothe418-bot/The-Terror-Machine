@@ -55,86 +55,61 @@ The Engine's Gemini structured-output boundary is closed through Packet 1-10B. T
 
 The current runtime also mounts the Express API in Vite previews and excludes `/api` from the single-page fallback. A failed turn therefore remains an API failure instead of becoming an HTTP 200 HTML document that the client cannot parse.
 
-### Horror Grammar 1 — active, with integrated closure still open
+### Horror Grammar 1 & Astra Critical Corrections — Landed, Integrated, and Verified
 
-The Horror Grammar 1 series (Packets 1-1 through 1-5) is now on the live line as construction. It adds a Blueprint-defined layer for values, pursuits, fictional time, bounded offscreen activity, non-User initiative, situated pressure, causally supported character change, and forensic review.
+The 12-packet Astra Critical Corrections series (Packets 01–12 across Milestones 1–5) is completed, landed, and verified on the live line. It resolves the integration gate across the complete client → server → client turn lifecycle:
 
-This is literary scaffolding, not a visible stat system. The User does not track meters or run a turn schedule. The Forge supplies the starting material; the Engine lets relevant characters pursue what they are pursuing, lets immediate participants act in the scene, and commits only changes the narrative and Blueprint can support.
+- **State threading & multi-turn continuity:** Values, pursuits, fictional time, cast activity, situated pressure, and development state survive consecutive turns without data loss or empty fallback overwrites.
+- **Authority and causal grounding:** Cast activity and situated pressure require exact Blueprint authority, perception channel, speaker, and location grounding before admission; illicit claims fail closed.
+- **Forensic separation:** Diagnostic exports (Markdown and HTML) provide a typed, labeled forensics section preserving rejected proposals and forensic details, strictly segregated from playable fiction and prompt context.
+- **Durable dual-store persistence and crash recovery:** Monotonic sequence tracking, cross-store coherence evaluation, and checkpoint recovery protect session integrity across browser reloads, retakes, and process restarts.
+- **Perspective neutrality and opening invariants:** Blueprints compile and export perspective-neutrally; the Engine binds any eligible cast member (protagonist, antagonist, or support) with zero time cost on `SYSTEM_INIT` and full narration exposure to subsequent turns.
+- **Autopilot parity:** Automated exploration shares the exact production ratification pipeline and fail-closed admission rules as human player turns.
 
-The provider and route-admission gates are now accepted through Packets 1-10, 1-10A, and 1-10B. Recent live smoke telemetry has exercised the same Blueprint from protagonist and antagonist perspectives and has recorded accepted consequences, character reactions, and World Memory. The complete grammar milestone remains under review at three deeper seams:
-
-- the new ledgers and overlays are not yet carried through the real client → server → client turn contract, so cross-turn continuity can be lost;
-- activity and pressure manifestations still need exact authority, perception, speaker, source, and location validation before they may become canon;
-- the forensic view needs a typed, bounded record that preserves reviewable rejected evidence only in a clearly labeled forensic section; provider and internal material must remain sanitized and excluded from story, prompt, and canonical history.
-
-The Engine remains usable while this gate is open. This is a bounded integration hold, not a reason to stop using or testing the larger creative direction.
+This closure is protected by the master 9-step integration proof suite (`src/lib/integratedAcceptance.test.ts`) and broad regression suites.
 
 ### Current verification line
 
-Engine Corrective Packet 08 — Human Turn Contract Reliability — is accepted. A concise creator-written action has passed the normal live Engine path without being rewritten, padded, or sent through a separate parser. Invalid model output still fails closed; it now leaves bounded contract diagnostics in telemetry rather than an opaque failure receipt.
+The 12-packet Astra Critical Corrections series (Packets 01 through 12 across Milestones 1 through 5) is fully landed and verified:
 
-Horror Grammar 0 — Provider-Refusal Containment Correction — is accepted at the active generation boundaries. Explicit provider declines and empty responses are classified before parsing, synthetic fallback actions are gone, Autopilot halts on failed generation or non-commit, and a human command can be restored for retry without altering canonical state.
+- **Milestone 1 (Authoring & Perspective Invariants):** Packets 01 & 02 verified Forge export readiness, strict Depiction Contract enforcement, perspective-neutral Blueprint export, and zero fictional time advancement on `SYSTEM_INIT`.
+- **Milestone 2 (Turn Lifecycle & Boundary Enforcement):** Packets 03, 04 & 05 verified consecutive turn continuity, world memory persistence across empty turns, event-driven pursuit activation, offscreen opportunity projection, and response-window gated pressure.
+- **Milestone 3 (Autopilot & Failure Containment):** Packets 06 & 07 verified canonical ratification parity between human and Autopilot turns, fail-closed handling of malformed responses and provider refusals, and zero state corruption on out-of-character (OOC) check-ins.
+- **Milestone 4 (Persistence, Recovery & Telemetry):** Packets 08, 09 & 10 verified monotonic dual-store IndexedDB persistence, coherent cross-store recovery, Retake rollback of all HG1 ledgers, and forensic export segregation.
+- **Milestone 5 (Behavioral Connections & Integrated Acceptance):** Packets 11 & 12 verified offscreen runtime intent projection, event-driven trigger consumption/reactivation, and closed the master 9-step deterministic integration proof suite.
 
-Horror Grammar 1 is implementation-landed and under critical integration review; it is not a completed milestone. The remaining active questions are:
-
-- **Horror Grammar 1 continuity:** values, pursuits, fictional time, activity, pressure, and development state must survive the real turn request and response across consecutive turns instead of being replaced by empty boundary defaults.
-- **Horror Grammar 1 authority and perception:** activity and pressure changes need exact, Blueprint-grounded authority, perception, speaker, source, and location evidence before they can become canon or enter the final narrative.
-- **Horror Grammar 1 forensic evidence:** the Runtime drawer and raw/Markdown/HTML diagnostics need a typed, bounded forensic record with reviewable rejected evidence in an explicitly labeled section, while provider metadata, credentials, stack traces, and endpoint details remain out of ordinary story and prompt context.
-- **Explicit Player-Character Binding:** exact cast selection works in the live line and has been demonstrated with protagonist and antagonist perspectives; persistence and every recovery surface remain under end-to-end review.
-- **Verification baseline:** the current live line passes the declared broad Vitest, TypeScript, lint, build, and diff gates. Future failures should be reported against that baseline rather than hidden as inherited debt.
+The live line passes all broad quality gates: complete Vitest suite, TypeScript check (`tsc --noEmit`), full lint, production build, and clean git diff.
 
 ## What comes next
 
-### 1. Close the Horror Grammar 1 integration gate
+With the Horror Grammar 1 integration gate, full multi-turn continuity, and Engine identity debt closed, future work proceeds along explicit architectural boundaries:
 
-Close the one critical seam before beginning another grammar phase. This is an integration and authority closure, not a request to re-audit every outlet.
+### 1. Enforce authored boundaries and participant treatment
 
-The closure must:
+The Engine maintains strict causal ownership:
+- Authority is causal; the Depiction Contract shapes narrative register, directness, aftermath, and ambiguity without granting unearned capabilities.
+- Antagonists without physical reach remain bounded to psychological, observational, or systemic influence.
+- Provider refusals remain external events, never converted to player actions.
 
-- carry bounded values, pursuits, fictional time, activity, pressure, development, and Blueprint context through the actual client → server → client turn contract;
-- initialize those structures from the accepted Blueprint and publish the ratified post-state without empty fallback objects overwriting prior state;
-- adjudicate exact authority, perception, speaker, source, and location evidence before an activity or pressure manifestation can become canonical;
-- expose a typed, bounded forensic record in the Runtime review surface and diagnostics, preserving rejected proposal evidence only in that clearly labeled forensic section;
-- prove two consecutive real turns, a rejected or refused turn, and Retake preserve canonical state, narrative history, prompt context, and forensic separation.
+### 2. Universal warning and intervention window (Deferred Boundary)
 
-The Engine should remain literary and User-readable throughout. Values and fictional time are internal scaffolding parsed from the Blueprint, not meters the User must track.
+Design and introduce a universal warning and intervention window prior to permanent or fatal loss. (Preserved as explicitly deferred from the Astra Critical Corrections series).
 
-### 2. Close the remaining Engine identity acceptance debt
+### 3. Voice context enhancements (Deferred Boundary)
 
-Finish explicit Player-Character Binding across setup, initialization, turn context, prompts, ratification, receipts, retake, persistence, and telemetry. The selected character must remain exact without relying on cast order or scenario-specific assumptions. Keep honest source-gap handling in the Forge, but do not reopen the completed Depiction Contract import path.
+The Voice remains strictly read-only and non-authoritative. Future work will provide evidence-labelled context distinguishing Forge drafts, Engine sessions, and background research without granting simulation authority.
 
-### 3. Enforce authored boundaries in the Engine
+### 4. Telemetry polish and prose-only export (Deferred Boundary)
 
-The Engine must distinguish two questions:
+Refine Runtime diagnostic drawer presentation, add dedicated prose-only export formats alongside technical forensic telemetry, and expand multi-scenario integration fixtures.
 
-- **Can this actor cause this change?**
-- **If the change is accepted, how may this Blueprint depict it?**
+### 5. Multi-Blueprint campaign continuity
 
-Authority is causal. The Depiction Contract shapes the narrative camera—dramatic register, directness, aftermath, ambiguity handling, and special boundaries—but it cannot grant powers that the Authority Contract does not provide.
+Campaign continuity can move scoped state between authored Blueprints without merging them into an implicit global ledger.
 
-Provider refusals are external events. They must be represented honestly, never serialized as player input or allowed to alter canonical state accidentally.
+### 6. Horror Grammar 2 (Independent Future Milestone)
 
-### 4. Make Autopilot a trustworthy test participant
-
-Autopilot must run through the same identity-bearing turn path as a human player, receive the selected character's usable context, stop or retry deliberately after failed turns, and identify generated actions in telemetry and exports.
-
-### 5. Make continuity durable
-
-Character and World Memory should become a dependable, inspectable continuity layer for discoveries, rules, relationships, environmental conditions, and consequences.
-
-The goal is not infinite memory. It is memory with scope, provenance, acceptance, and bounded prompt projection.
-
-### 6. Deepen the Voice without giving it authority
-
-The Voice remains read-only. Its future work is better evidence-labelled context: clear distinctions among a Forge draft, an Engine session, outside research, and ordinary project discussion.
-
-### 7. Grow outward carefully
-
-Once the current seams are stable:
-
-- campaign continuity can move scoped state between authored Blueprints;
-- a researched generative horror grammar can guide pressure, pacing, revelation, recovery, and fear without reducing them to genre presets;
-- the Engine's model-provider boundary can become more replaceable.
+Horror Grammar 2 remains an unstarted, independent milestone. Research into generative dread pacing, revelation staging, and tension decay will begin only on this stable, verified HG1 foundation.
 
 Active construction has moved to Antigravity. Google Gemini remains the application's current model provider through `@google/genai`; provider neutrality is still a design direction rather than a present-tense claim.
 

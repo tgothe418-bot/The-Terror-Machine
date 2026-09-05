@@ -11,6 +11,7 @@ import {
 } from './useForgeStore';
 import { TopologyEdge } from '../types';
 import { DepictionContract, DepictionContractProposal, ForgeSourceAnalysis } from '../types/forge';
+import { compileForgeDraft } from '../lib/forgeCompiler';
 import { useAppStore } from './useAppStore';
 
 describe('useForgeStore - draft state and actions', () => {
@@ -2007,9 +2008,47 @@ describe('useForgeStore - draft state and actions', () => {
       expect(state.forgeDraft?.topology?.connections || []).toHaveLength(0);
     });
 
-    it('complete authored depiction contract is preserved during a subsequent source import', () => {
+    it('complete authored depiction contract is preserved during a subsequent source import and through compilation', () => {
       forgeActions.initializeDraft({
         title: 'Authored Scenario',
+        premise: 'Authored gothic dread premise.',
+        globalPremise: 'Authored gothic dread premise.',
+        identity: {
+          title: 'Authored Scenario',
+          version: '1.0',
+          author: 'Author',
+          thematicAnchor: 'Gothic terror',
+        },
+        startingVector: 'SOMATIC',
+        startingTier: 'LATENT',
+        setting: {
+          location: 'Authored Castle',
+          atmosphere: 'Dread',
+          timePeriod: '1920',
+        },
+        topology: {
+          nodes: ['NODE_1'],
+          nodeDefinitions: [{ id: 'NODE_1', label: 'Great Hall', description: 'A vast stone hall with flickering tapestries.' }],
+          connections: [],
+        },
+        cast: [
+          {
+            id: 'char-1',
+            name: 'Investigator',
+            role: 'PROTAGONIST',
+            isEntity: false,
+            isUserCharacter: false,
+            presenceDisposition: { kind: 'AT_NODE', nodeId: 'NODE_1' },
+          },
+        ],
+        horrorGrammar: {
+          valueBaselineReview: 'REVIEWED_NONE',
+          pursuitReviews: {
+            'char-1': 'REVIEWED_NONE',
+          },
+          valueAnchors: [],
+          characterPursuits: [],
+        },
         depictionContract: {
           dramaticRegister: 'Authored Gothic Register',
           directness: 'Authored Visceral Directness',
@@ -2072,11 +2111,134 @@ describe('useForgeStore - draft state and actions', () => {
       expect(result.success).toBe(true);
 
       const state = getForgeState();
-      // Authored depiction contract is preserved
+      // Authored depiction contract is preserved in draft
       expect(state.forgeDraft?.depictionContract?.dramaticRegister).toBe('Authored Gothic Register');
       expect(state.forgeDraft?.depictionContract?.directness).toBe('Authored Visceral Directness');
       // Other candidate is applied
       expect(state.forgeDraft?.setting?.location).toBe('Imported Castle');
+
+      // Candidate disposition: depiction candidate is superseded, not applied or left staged
+      const updatedCand = state.sourceAnalyses[analysisId].candidates.find(
+        (c) => c.id === 'cand-dep-imported'
+      );
+      expect(updatedCand?.applicationState).toBe('superseded');
+      expect(updatedCand?.reviewDecision).toBe('accepted');
+
+      const locCand = state.sourceAnalyses[analysisId].candidates.find(
+        (c) => c.id === 'cand-loc'
+      );
+      expect(locCand?.applicationState).toBe('applied');
+
+      // COMPILATION BOUNDARY: compileDraft preserves authored depiction, does NOT replay superseded candidate
+      const compileRes = compileForgeDraft(state.forgeDraft, {
+        sourceAnalyses: state.sourceAnalyses,
+      });
+      expect(compileRes.success).toBe(true);
+      if (compileRes.success) {
+        expect(compileRes.blueprint.depictionContract.dramaticRegister).toBe('Authored Gothic Register');
+        expect(compileRes.blueprint.depictionContract.directness).toBe('Authored Visceral Directness');
+      }
+
+      // IDEMPOTENCE: Re-running import does not change anything
+      const repeatResult = forgeActions.applyImportedSourceBaseline(analysisId);
+      expect(repeatResult.success).toBe(true);
+      const stateAfterRepeat = getForgeState();
+      expect(stateAfterRepeat.forgeDraft?.depictionContract?.dramaticRegister).toBe('Authored Gothic Register');
+      const repeatCand = stateAfterRepeat.sourceAnalyses[analysisId].candidates.find(
+        (c) => c.id === 'cand-dep-imported'
+      );
+      expect(repeatCand?.applicationState).toBe('superseded');
+
+      // Re-compiling is also idempotent
+      const recompileRes = compileForgeDraft(stateAfterRepeat.forgeDraft, {
+        sourceAnalyses: stateAfterRepeat.sourceAnalyses,
+      });
+      expect(recompileRes.success).toBe(true);
+      if (recompileRes.success) {
+        expect(recompileRes.blueprint.depictionContract.dramaticRegister).toBe('Authored Gothic Register');
+      }
+    });
+
+    it('partial authored depiction contract allows imported source defaults to apply', () => {
+      forgeActions.initializeDraft({
+        title: 'Partial Authored Scenario',
+        depictionContract: {
+          dramaticRegister: 'Authored Tone',
+          directness: '', // Incomplete / empty field
+          aftermath: 'unknown', // Invalid field
+          ambiguityHandling: 'none', // Invalid field
+        },
+      });
+
+      const analysisId = 'src-partial-1';
+      const mockAnalysis: ForgeSourceAnalysis = {
+        id: analysisId,
+        sourceRecord: {
+          id: analysisId,
+          fileName: 'imported.txt',
+          mimeType: 'text/plain',
+          kind: 'document',
+          receivedAt: Date.now(),
+        },
+        summary: 'Imported summary',
+        evidence: [{ id: 'ev-1', sourceId: analysisId, category: 'setting', claim: 'Imported claim' }],
+        candidates: [
+          {
+            id: 'cand-dep-partial',
+            sourceId: analysisId,
+            classification: 'evidence',
+            target: 'depiction_contract',
+            label: 'Imported Depiction Contract',
+            explanation: 'Imported tone',
+            evidenceIds: ['ev-1'],
+            proposedValue: {
+              dramaticRegister: 'Imported Complete Dramatic Register',
+              directness: 'Imported Complete Directness',
+              aftermath: 'Imported Complete Aftermath',
+              ambiguityHandling: 'Imported Complete Ambiguity',
+              specialBoundaries: 'None',
+            },
+            reviewDecision: 'accepted',
+            applicationState: 'staged',
+          },
+        ],
+        unknowns: [],
+        status: 'completed',
+      };
+
+      forgeActions.registerSourceAnalysis(mockAnalysis, 'binding-partial');
+      const result = forgeActions.applyImportedSourceBaseline(analysisId);
+      expect(result.success).toBe(true);
+
+      const state = getForgeState();
+      // Because authored depiction was incomplete, imported candidate applied
+      expect(state.forgeDraft?.depictionContract?.dramaticRegister).toBe('Imported Complete Dramatic Register');
+      expect(state.forgeDraft?.depictionContract?.directness).toBe('Imported Complete Directness');
+
+      const cand = state.sourceAnalyses[analysisId].candidates.find(
+        (c) => c.id === 'cand-dep-partial'
+      );
+      expect(cand?.applicationState).toBe('applied');
+    });
+
+    it('intentional later replacement through explicit authoring action updates draft and advances revision', () => {
+      forgeActions.initializeDraft({
+        title: 'Authored Scenario',
+        depictionContract: {
+          dramaticRegister: 'Authored Register',
+          directness: 'Authored Directness',
+          aftermath: 'Authored Aftermath',
+          ambiguityHandling: 'Authored Ambiguity',
+          specialBoundaries: '',
+        },
+      });
+
+      const initRev = getForgeState().draftRevision || 1;
+      forgeActions.updateDepictionContractField('dramaticRegister', 'Intentional Replacement Register');
+
+      const state = getForgeState();
+      expect(state.forgeDraft?.depictionContract?.dramaticRegister).toBe('Intentional Replacement Register');
+      expect((state.draftRevision || 0)).toBeGreaterThan(initRev);
     });
   });
 });

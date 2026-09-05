@@ -461,6 +461,11 @@ export const ScenarioBaselinePanel: React.FC = () => {
                                       Rejected
                                     </span>
                                   )}
+                                  {cand.applicationState === 'superseded' && (
+                                    <span className="text-[10px] px-1.5 py-0.5 rounded uppercase font-bold bg-amber-950/50 border border-amber-800/60 text-amber-300">
+                                      Preserved
+                                    </span>
+                                  )}
                                 </div>
                                 <div className="font-bold text-zinc-100">{cand.label}</div>
                                 {cand.explanation && (

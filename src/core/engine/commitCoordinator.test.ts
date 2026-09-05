@@ -5,6 +5,7 @@ import {
   getCanonicalSimulationState,
   isCanonicalPublicationInProgress,
   filterAllowlistedPresentationPatch,
+  ObsoleteTurnPublicationError,
 } from './commitCoordinator';
 import { useAppStore } from '../../store/useAppStore';
 import { useEngineStore } from '../store';
@@ -383,5 +384,237 @@ describe('Canonical Commit Coordinator', () => {
 
     unsubApp();
     expect(observedPairMismatch).toBe(false);
+  });
+
+  describe('Boundary Admission Checks (Packet 02)', () => {
+    it('rejects stale publication directly through coordinator when sessionId does not match', () => {
+      useAppStore.setState({
+        sessionId: 'session-active-b',
+        blueprintId: 'bp-test',
+        turnCount: 2,
+        canonicalRevision: 5,
+      });
+
+      const stalePreSnapshot = captureRuntimeSnapshot({
+        sessionId: 'session-old-a',
+        blueprintId: 'bp-test',
+        turnCount: 2,
+        canonicalRevision: 5,
+      });
+
+      const committedPayload: CommittedTurnPayload = {
+        commandText: 'Examine old room',
+        formattedText: 'Old room description',
+        preSnapshot: stalePreSnapshot,
+        frame: {
+          narrative_blocks: [{ type: 'prose', content: 'Old room' }],
+          logic_state: {},
+        },
+        turnReceipt: {
+          turnNumber: 3,
+          nodeBefore: 'ORIGIN',
+          requestedTarget: 'ORIGIN',
+          accepted: true,
+          nodeAfter: 'ORIGIN',
+          activeVector: 'COGNITIVE',
+          activeTier: 'LATENT',
+          tension: 10,
+          preSnapshot: stalePreSnapshot,
+        },
+      };
+
+      const preparedGameState: LogicState = {
+        current_location: 'ORIGIN',
+        inventory: ['stale_item'],
+      };
+
+      expect(() => {
+        coordinateCanonicalTurnPublication({
+          appStore: useAppStore,
+          engineStore: useEngineStore,
+          committedPayload,
+          preparedGameState,
+        });
+      }).toThrow(ObsoleteTurnPublicationError);
+
+      // Verify active session state remains untouched
+      const currentApp = useAppStore.getState();
+      expect(currentApp.sessionId).toBe('session-active-b');
+      expect(currentApp.turnCount).toBe(2);
+      expect(currentApp.canonicalRevision).toBe(5);
+      expect(currentApp.history).toHaveLength(0);
+      expect(useEngineStore.getState().gameState).toBeNull();
+    });
+
+    it('rejects stale publication when blueprintId does not match', () => {
+      useAppStore.setState({
+        sessionId: 'session-current',
+        blueprintId: 'bp-replacement',
+        turnCount: 1,
+        canonicalRevision: 2,
+      });
+
+      const stalePreSnapshot = captureRuntimeSnapshot({
+        sessionId: 'session-current',
+        blueprintId: 'bp-original',
+        turnCount: 1,
+        canonicalRevision: 2,
+      });
+
+      const committedPayload: CommittedTurnPayload = {
+        commandText: 'Look around',
+        formattedText: 'Look around',
+        preSnapshot: stalePreSnapshot,
+        frame: { narrative_blocks: [], logic_state: {} },
+        turnReceipt: {
+          turnNumber: 2,
+          nodeBefore: 'ORIGIN',
+          requestedTarget: 'ORIGIN',
+          accepted: true,
+          nodeAfter: 'ORIGIN',
+          activeVector: 'COGNITIVE',
+          activeTier: 'LATENT',
+          tension: 10,
+          preSnapshot: stalePreSnapshot,
+        },
+      };
+
+      expect(() => {
+        coordinateCanonicalTurnPublication({
+          appStore: useAppStore,
+          engineStore: useEngineStore,
+          committedPayload,
+          preparedGameState: { current_location: 'ORIGIN' },
+        });
+      }).toThrow(ObsoleteTurnPublicationError);
+    });
+
+    it('rejects stale publication when turnCount does not match', () => {
+      useAppStore.setState({
+        sessionId: 'session-current',
+        blueprintId: 'bp-1',
+        turnCount: 3,
+        canonicalRevision: 3,
+      });
+
+      const stalePreSnapshot = captureRuntimeSnapshot({
+        sessionId: 'session-current',
+        blueprintId: 'bp-1',
+        turnCount: 2, // stale turn count
+        canonicalRevision: 3,
+      });
+
+      const committedPayload: CommittedTurnPayload = {
+        commandText: 'Old action',
+        formattedText: 'Old action',
+        preSnapshot: stalePreSnapshot,
+        frame: { narrative_blocks: [], logic_state: {} },
+        turnReceipt: {
+          turnNumber: 3,
+          nodeBefore: 'ORIGIN',
+          requestedTarget: 'ORIGIN',
+          accepted: true,
+          nodeAfter: 'ORIGIN',
+          activeVector: 'COGNITIVE',
+          activeTier: 'LATENT',
+          tension: 10,
+          preSnapshot: stalePreSnapshot,
+        },
+      };
+
+      expect(() => {
+        coordinateCanonicalTurnPublication({
+          appStore: useAppStore,
+          engineStore: useEngineStore,
+          committedPayload,
+          preparedGameState: { current_location: 'ORIGIN' },
+        });
+      }).toThrow(ObsoleteTurnPublicationError);
+    });
+
+    it('rejects stale publication when canonicalRevision does not match (retake followed by same turnCount)', () => {
+      useAppStore.setState({
+        sessionId: 'session-current',
+        blueprintId: 'bp-1',
+        turnCount: 1,
+        canonicalRevision: 4, // e.g. after retake, revision advanced from 2 to 3, and then turn committed to 4
+      });
+
+      const stalePreSnapshot = captureRuntimeSnapshot({
+        sessionId: 'session-current',
+        blueprintId: 'bp-1',
+        turnCount: 1, // same turn count!
+        canonicalRevision: 2, // older revision before retake
+      });
+
+      const committedPayload: CommittedTurnPayload = {
+        commandText: 'Superseded action',
+        formattedText: 'Superseded action',
+        preSnapshot: stalePreSnapshot,
+        frame: { narrative_blocks: [], logic_state: {} },
+        turnReceipt: {
+          turnNumber: 2,
+          nodeBefore: 'ORIGIN',
+          requestedTarget: 'ORIGIN',
+          accepted: true,
+          nodeAfter: 'ORIGIN',
+          activeVector: 'COGNITIVE',
+          activeTier: 'LATENT',
+          tension: 10,
+          preSnapshot: stalePreSnapshot,
+        },
+      };
+
+      expect(() => {
+        coordinateCanonicalTurnPublication({
+          appStore: useAppStore,
+          engineStore: useEngineStore,
+          committedPayload,
+          preparedGameState: { current_location: 'ORIGIN' },
+        });
+      }).toThrow(ObsoleteTurnPublicationError);
+    });
+
+    it('publishes successfully when attempt is fully current', () => {
+      useAppStore.setState({
+        sessionId: 'session-valid',
+        blueprintId: 'bp-valid',
+        turnCount: 2,
+        canonicalRevision: 2,
+      });
+
+      const currentPreSnapshot = captureRuntimeSnapshot(useAppStore.getState());
+
+      const committedPayload: CommittedTurnPayload = {
+        commandText: 'Valid action',
+        formattedText: 'Valid action description',
+        preSnapshot: currentPreSnapshot,
+        frame: { narrative_blocks: [{ type: 'prose', content: 'Valid action description' }], logic_state: {} },
+        turnReceipt: {
+          turnNumber: 3,
+          nodeBefore: 'ORIGIN',
+          requestedTarget: 'ORIGIN',
+          accepted: true,
+          nodeAfter: 'ORIGIN',
+          activeVector: 'COGNITIVE',
+          activeTier: 'LATENT',
+          tension: 10,
+          preSnapshot: currentPreSnapshot,
+        },
+      };
+
+      coordinateCanonicalTurnPublication({
+        appStore: useAppStore,
+        engineStore: useEngineStore,
+        committedPayload,
+        preparedGameState: { current_location: 'ORIGIN', inventory: ['valid_item'] },
+      });
+
+      const postApp = useAppStore.getState();
+      expect(postApp.turnCount).toBe(3);
+      expect(postApp.canonicalRevision).toBe(3);
+      expect(postApp.history).toHaveLength(2);
+      expect(useEngineStore.getState().gameState?.inventory).toEqual(['valid_item']);
+    });
   });
 });

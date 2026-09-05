@@ -347,7 +347,7 @@ export type ForgeSourceCandidateTarget = z.infer<typeof ForgeSourceCandidateTarg
 export const ForgeCandidateReviewDecisionSchema = z.enum(['accepted', 'rejected']);
 export type ForgeCandidateReviewDecision = z.infer<typeof ForgeCandidateReviewDecisionSchema>;
 
-export const ForgeCandidateApplicationStateSchema = z.enum(['staged', 'applied']);
+export const ForgeCandidateApplicationStateSchema = z.enum(['staged', 'applied', 'superseded']);
 export type ForgeCandidateApplicationState = z.infer<typeof ForgeCandidateApplicationStateSchema>;
 
 /**

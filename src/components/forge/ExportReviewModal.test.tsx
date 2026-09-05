@@ -4,7 +4,7 @@ import { act } from 'react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import 'fake-indexeddb/auto';
 import { ExportReviewModal } from './ExportReviewModal';
-import { forgeActions } from '../../store/useForgeStore';
+import { forgeActions, getForgeState } from '../../store/useForgeStore';
 import { ForgeSourceAnalysis } from '../../types/forge';
 
 describe('ExportReviewModal Component Snapshot Lifecycle', () => {
@@ -514,5 +514,169 @@ describe('ExportReviewModal Component Snapshot Lifecycle', () => {
     // Verify manifest text shows cast breakdown and does NOT show Start:
     expect(container?.textContent).toContain('2 cast (1 placed · 1 offstage · 0 non-local)');
     expect(container?.textContent).not.toContain('Start:');
+  });
+
+  it('preserves authored depiction contract through export review, copy, and download when conflicting source baseline is imported', async () => {
+    // 1. Start with complete authored depiction
+    forgeActions.initializeDraft({
+      title: 'Authored Depiction Scenario',
+      premise: 'Authored scenario premise.',
+      startingVector: 'SOMATIC',
+      startingTier: 'MANIFEST',
+      setting: { location: 'Benthos Node 1' },
+      topology: {
+        nodes: ['NODE_01'],
+        nodeDefinitions: [{ id: 'NODE_01', label: 'Node 01', description: 'Deep node' }],
+        connections: [],
+      },
+      cast: [
+        {
+          id: 'c1',
+          name: 'Dr. Vane',
+          role: 'Specialist',
+          behaviorVector: 'ADAPTIVE',
+          isEntity: false,
+          isUserCharacter: false,
+          presenceDisposition: { kind: 'AT_NODE', nodeId: 'NODE_01' },
+        },
+      ],
+      horrorGrammar: {
+        valueBaselineReview: 'REVIEWED_NONE',
+        pursuitReviews: {
+          c1: 'REVIEWED_NONE',
+        },
+        valueAnchors: [],
+        characterPursuits: [],
+      },
+      depictionContract: {
+        dramaticRegister: 'Authored Dread Register',
+        directness: 'Authored Visceral Directness',
+        aftermath: 'Authored Psychological Aftermath',
+        ambiguityHandling: 'Authored Epistemic Silence',
+        specialBoundaries: 'Authored Boundaries',
+      },
+    });
+
+    // 2. Register conflicting imported source analysis
+    const analysisId = 'src-conflicting-depiction';
+    const conflictingAnalysis: ForgeSourceAnalysis = {
+      id: analysisId,
+      sourceRecord: {
+        id: 'rec-conflict',
+        fileName: 'imported_source.json',
+        mimeType: 'application/json',
+        kind: 'native_blueprint',
+        receivedAt: Date.now(),
+      },
+      summary: 'Conflicting source analysis',
+      evidence: [{ id: 'ev-1', sourceId: 'rec-conflict', category: 'setting', claim: 'Depiction tone' }],
+      candidates: [
+        {
+          id: 'cand-dep-conflict',
+          sourceId: 'rec-conflict',
+          classification: 'evidence',
+          target: 'depiction_contract',
+          label: 'Conflicting Depiction',
+          explanation: 'Imported conflicting tone',
+          evidenceIds: ['ev-1'],
+          proposedValue: {
+            dramaticRegister: 'Imported Conflicting Register',
+            directness: 'Imported Conflicting Directness',
+            aftermath: 'Imported Conflicting Aftermath',
+            ambiguityHandling: 'Imported Conflicting Ambiguity',
+            specialBoundaries: '',
+          },
+          reviewDecision: 'accepted',
+          applicationState: 'staged',
+        },
+      ],
+      unknowns: [],
+      status: 'completed',
+    };
+
+    forgeActions.registerSourceAnalysis(conflictingAnalysis, 'binding-conflict');
+    const applyOutcome = forgeActions.applyImportedSourceBaseline(analysisId);
+    expect(applyOutcome.success).toBe(true);
+
+    // Verify candidate disposition: candidate was marked superseded, not applied
+    const state = getForgeState();
+    const cand = state.sourceAnalyses[analysisId].candidates.find((c) => c.id === 'cand-dep-conflict');
+    expect(cand?.applicationState).toBe('superseded');
+    expect(cand?.reviewDecision).toBe('accepted');
+
+    // 3. Open Export Review Modal
+    const mockOnClose = vi.fn();
+    await act(async () => {
+      root?.render(React.createElement(ExportReviewModal, { isOpen: true, onClose: mockOnClose }));
+    });
+
+    expect(container?.textContent).toContain('COMPLIANT');
+    expect(container?.textContent).toContain('Authored Dread Register');
+    expect(container?.textContent).not.toContain('Imported Conflicting Register');
+
+    // 4. Exercise Copy and Download
+    let copiedText = '';
+    Object.assign(navigator, {
+      clipboard: {
+        writeText: vi.fn(async (text: string) => {
+          copiedText = text;
+        }),
+      },
+    });
+
+    let downloadedData = '';
+    const originalCreateElement = document.createElement.bind(document);
+    vi.spyOn(document, 'createElement').mockImplementation((tagName: string) => {
+      const el = originalCreateElement(tagName);
+      if (tagName === 'a') {
+        vi.spyOn(el, 'click').mockImplementation(() => {
+          downloadedData = decodeURIComponent(el.getAttribute('href') || '').replace(
+            'data:text/json;charset=utf-8,',
+            ''
+          );
+        });
+      }
+      return el;
+    });
+
+    const copyBtn = container?.querySelector('#export-review-copy-json-btn') as HTMLButtonElement;
+    const downloadBtn = container?.querySelector('#export-review-download-btn') as HTMLButtonElement;
+
+    expect(copyBtn.disabled).toBe(false);
+    expect(downloadBtn.disabled).toBe(false);
+
+    await act(async () => {
+      copyBtn.click();
+    });
+    await act(async () => {
+      downloadBtn.click();
+    });
+
+    expect(copiedText).toBeTruthy();
+    expect(downloadedData).toBeTruthy();
+    expect(copiedText).toBe(downloadedData);
+
+    // Both outputs preserve the authored depiction contract
+    const parsedCopy = JSON.parse(copiedText);
+    const parsedDownload = JSON.parse(downloadedData);
+    expect(parsedCopy.depictionContract.dramaticRegister).toBe('Authored Dread Register');
+    expect(parsedCopy.depictionContract.directness).toBe('Authored Visceral Directness');
+    expect(parsedDownload.depictionContract.dramaticRegister).toBe('Authored Dread Register');
+    expect(parsedDownload.depictionContract.directness).toBe('Authored Visceral Directness');
+
+    // 5. Stale Review Boundary: modifying draft after review triggers stale state
+    act(() => {
+      forgeActions.updateDraft({ premise: 'Mutated premise after export review was captured.' });
+    });
+
+    await act(async () => {
+      root?.render(React.createElement(ExportReviewModal, { isOpen: true, onClose: mockOnClose }));
+    });
+
+    const staleNotice = container?.querySelector('#export-review-stale-notice');
+    expect(staleNotice).not.toBeNull();
+    expect(staleNotice?.textContent).toContain('Review Snapshot Is Stale');
+    expect(copyBtn.disabled).toBe(true);
+    expect(downloadBtn.disabled).toBe(true);
   });
 });

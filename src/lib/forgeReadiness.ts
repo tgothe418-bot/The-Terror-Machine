@@ -8,6 +8,7 @@ export interface ForgeExportReadinessSummary {
   candidateApplied: number;
   candidateStagedAccepted: number;
   candidateRejected: number;
+  candidateSuperseded?: number;
   unknownTotal: number;
   unknownResolved: number;
   unknownContextual: number;
@@ -148,6 +149,7 @@ export function validateForgeExportReadiness({
     candidateApplied: 0,
     candidateStagedAccepted: 0,
     candidateRejected: 0,
+    candidateSuperseded: 0,
     unknownTotal: 0,
     unknownResolved: 0,
     unknownContextual: 0,
@@ -175,6 +177,8 @@ export function validateForgeExportReadiness({
             summary.candidateRejected += 1;
           } else if (cand.applicationState === 'applied') {
             summary.candidateApplied += 1;
+          } else if (cand.applicationState === 'superseded') {
+            summary.candidateSuperseded = (summary.candidateSuperseded || 0) + 1;
           } else if (cand.reviewDecision === 'accepted' && cand.applicationState === 'staged') {
             summary.candidateStagedAccepted += 1;
           }

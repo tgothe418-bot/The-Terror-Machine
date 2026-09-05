@@ -20,6 +20,8 @@ import {
   HorrorVector,
   ExposureTier,
   ParticipationContext,
+  DurableSessionRevision,
+  DurableSessionRevisionSchema,
 } from '../types';
 import { EngineEvent, CommittedTurnPayload, FailedTurnPayload } from '../core/engine/events';
 import { engineReducer, initialEngineState, EngineState } from '../core/engine/reducer';
@@ -33,6 +35,7 @@ import { normalizeTurnFailureReceipt } from '../lib/turnResponseReader';
 export const AppPersistedSchema = z.object({
   sessionId: z.string().optional().default(''),
   blueprintId: z.string().optional().default(''),
+  durableSessionRevision: DurableSessionRevisionSchema.nullable().optional().default(null),
   participationContext: z.any().nullable().optional().default(null),
   phase: z.string().optional().default('HUB'),
   currentPhase: z.string().optional().default('INIT'),
@@ -67,6 +70,7 @@ export const AppPersistedSchema = z.object({
   isShattered: z.boolean().optional().default(false),
   tensionLevel: z.number().optional().default(0),
   turnCount: z.number().optional().default(0),
+  canonicalRevision: z.number().optional().default(0),
   roomsGenerated: z.number().optional().default(0),
   maxRooms: z.number().optional(),
   aesthetic: z.string().optional(),
@@ -105,6 +109,7 @@ export const AppPersistedSchema = z.object({
       commandText: z.string(),
       engineStateBefore: z.any(),
       engineGameStateBefore: z.any().nullable().optional(),
+      durableSessionRevisionBefore: DurableSessionRevisionSchema.nullable().optional(),
     })
     .nullable()
     .optional()
@@ -129,6 +134,7 @@ export interface InitializeSessionParams {
 }
 
 export interface AppStore extends EngineState {
+  durableSessionRevision: DurableSessionRevision | null;
   isTransitioning: boolean;
   activeCampaign: CampaignManifest | null;
   currentActId: string | null;
@@ -183,6 +189,7 @@ export const useAppStore = create<AppStore>()(
   persist(
     (set, get) => ({
       ...initialEngineState,
+      durableSessionRevision: null,
       isTransitioning: false,
       activeCampaign: null,
       currentActId: null,
@@ -231,10 +238,21 @@ export const useAppStore = create<AppStore>()(
           requestedEntryNodeId ||
           (spatialGraph && spatialGraph[0]?.id ? spatialGraph[0].id : compiled.startNodeId || 'ORIGIN');
         const newSessionId = sessionId || crypto.randomUUID();
+        const initialRevision = 1;
+
+        const initialDurableRevision: DurableSessionRevision = {
+          sessionId: newSessionId,
+          blueprintId: normalized.id || 'unknown',
+          revision: initialRevision,
+          turnCount: 0,
+          committedAt: Date.now(),
+        };
 
         set({
           sessionId: newSessionId,
           blueprintId: normalized.id || 'unknown',
+          canonicalRevision: initialRevision,
+          durableSessionRevision: initialDurableRevision,
           participationContext: participationContext || null,
           phase: 'LATENT',
           currentPhase: 'LATENT',
@@ -304,8 +322,49 @@ export const useAppStore = create<AppStore>()(
       triggerShatter: () => set({ isShattered: true }),
       setCurrentNodeId: (nodeId: string) => set({ currentNodeId: nodeId }),
       dispatch: (event: EngineEvent) => set((state) => engineReducer(state, event)),
-      commitTurnResult: (payload: CommittedTurnPayload) =>
-        set((state) => engineReducer(state, { type: 'TURN_COMMITTED', payload })),
+      commitTurnResult: (payload: CommittedTurnPayload) => {
+        const currentApp = get();
+        const nextTurnCount = (currentApp.turnCount || 0) + 1;
+        const currentRev = currentApp.durableSessionRevision?.revision ?? (currentApp.canonicalRevision || 0);
+        const nextRev = currentRev + 1;
+        const currentSessionId = currentApp.sessionId || '';
+        const currentBlueprintId = currentApp.blueprintId || '';
+
+        const nextDurableRevision: DurableSessionRevision = {
+          sessionId: currentSessionId,
+          blueprintId: currentBlueprintId,
+          turnCount: nextTurnCount,
+          revision: nextRev,
+          committedAt: Date.now(),
+        };
+
+        const engine = useEngineStore.getState();
+        if (engine.activeSessionId && engine.activeSessionId === currentSessionId) {
+          useEngineStore.setState({
+            durableSessionRevision: nextDurableRevision,
+            lastTurnCheckpoint: {
+              revision: currentRev,
+              turnCount: currentApp.turnCount || 0,
+              gameStateBefore: engine.gameState,
+            },
+          });
+        }
+
+        set((state) => {
+          const reduced = engineReducer(state, { type: 'TURN_COMMITTED', payload });
+          return {
+            ...reduced,
+            canonicalRevision: nextRev,
+            durableSessionRevision: nextDurableRevision,
+            lastTurnCheckpoint: reduced.lastTurnCheckpoint
+              ? {
+                  ...reduced.lastTurnCheckpoint,
+                  durableSessionRevisionBefore: currentApp.durableSessionRevision,
+                }
+              : null,
+          };
+        });
+      },
       failTurnResult: (payload: FailedTurnPayload) =>
         set((state) => {
           const normalizedReceipt = normalizeTurnFailureReceipt(
@@ -363,12 +422,27 @@ export const useAppStore = create<AppStore>()(
           return false;
         }
 
+        const restoredRev = (get().canonicalRevision || 0) + 1;
+        const restoredTurn = (checkpoint.engineStateBefore?.turnCount as number) ?? 0;
+        const restoredDurableRevision: DurableSessionRevision = {
+          sessionId: currentSessionId,
+          blueprintId: currentBlueprintId,
+          revision: restoredRev,
+          turnCount: restoredTurn,
+          committedAt: Date.now(),
+        };
+
         const previousGameState = checkpoint.engineGameStateBefore;
         if (previousGameState !== undefined) {
-          useEngineStore.getState().setGameState(previousGameState);
+          useEngineStore.setState({
+            gameState: previousGameState,
+            durableSessionRevision: restoredDurableRevision,
+            lastTurnCheckpoint: null,
+          });
         }
 
         get().dispatch({ type: 'TURN_RETAKEN' });
+        set({ durableSessionRevision: restoredDurableRevision });
         return true;
       },
       resetSession: () => {
@@ -377,6 +451,8 @@ export const useAppStore = create<AppStore>()(
           ...initialEngineState,
           sessionId: '',
           blueprintId: '',
+          canonicalRevision: (get().canonicalRevision || 0) + 1,
+          durableSessionRevision: null,
           participationContext: null,
           phase: 'HUB',
           escalation_state: 'LATENT',
@@ -477,6 +553,7 @@ export const useAppStore = create<AppStore>()(
       partialize: (state) => ({
         sessionId: state.sessionId,
         blueprintId: state.blueprintId,
+        durableSessionRevision: state.durableSessionRevision,
         participationContext: state.participationContext,
         phase: state.phase,
         currentPhase: state.currentPhase,

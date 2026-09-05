@@ -21,6 +21,7 @@ import {
   DepictionContractSchema,
   CharacterPresenceDisposition,
 } from '../types/forge';
+import { DepictionContract } from '../types';
 import { normalizeBlueprint } from './normalizeBlueprint';
 import {
   normalizeCandidateAliases,
@@ -28,6 +29,28 @@ import {
   MAX_VALIDATION_ISSUES,
 } from './extractionContract';
 
+/**
+ * Pure check to determine whether a draft has a complete authored Depiction Contract.
+ * A contract is considered complete when all 4 core required fields
+ * (dramaticRegister, directness, aftermath, ambiguityHandling) are present,
+ * non-empty, and not placeholder/unknown values.
+ */
+export function isCompleteAuthoredDepictionContract(
+  contract?: Partial<DepictionContract> | null
+): boolean {
+  if (!contract) return false;
+  const isInvalidField = (val?: string) => {
+    if (!val) return true;
+    const t = val.trim().toLowerCase();
+    return !t || t === 'unknown' || t === 'none' || t === 'n/a';
+  };
+  return Boolean(
+    !isInvalidField(contract.dramaticRegister) &&
+    !isInvalidField(contract.directness) &&
+    !isInvalidField(contract.aftermath) &&
+    !isInvalidField(contract.ambiguityHandling)
+  );
+}
 
 export type ApplyCandidateResult =
   | { success: true; draft: ForgeDraft }

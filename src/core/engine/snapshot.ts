@@ -26,6 +26,7 @@ export interface CaptureSnapshotSource {
   sessionId?: string;
   blueprintId?: string;
   turnCount?: number;
+  canonicalRevision?: number;
   currentNodeId?: string | null;
   activeVector?: HorrorVector | string;
   activeTier?: ExposureTier | string;
@@ -36,6 +37,7 @@ export interface CaptureSnapshotSource {
   decay?: { coherence?: number; stage?: string };
   decayMetrics?: { coherenceRating?: number; currentStage?: string };
   coherence?: number;
+  coherenceRating?: number;
   decayRate?: number;
   reconciliationRevision?: number;
   activeMemory?: { systemFlags?: string[] };
@@ -56,11 +58,13 @@ export function captureRuntimeSnapshot(source: CaptureSnapshotSource): RuntimeSt
   const coherence =
     typeof source.coherence === 'number'
       ? source.coherence
-      : typeof source.decayMetrics?.coherenceRating === 'number'
-        ? source.decayMetrics.coherenceRating
-        : typeof source.decay?.coherence === 'number'
-          ? source.decay.coherence
-          : 1.0;
+      : typeof source.coherenceRating === 'number'
+        ? source.coherenceRating
+        : typeof source.decayMetrics?.coherenceRating === 'number'
+          ? source.decayMetrics.coherenceRating
+          : typeof source.decay?.coherence === 'number'
+            ? source.decay.coherence
+            : 1.0;
 
   const tension =
     typeof source.tensionLevel === 'number'
@@ -72,6 +76,8 @@ export function captureRuntimeSnapshot(source: CaptureSnapshotSource): RuntimeSt
   const phase = source.currentPhase || source.phase || 'LATENT';
   const currentNodeId = source.currentNodeId || 'ORIGIN';
   const turnCount = typeof source.turnCount === 'number' ? source.turnCount : 0;
+  const canonicalRevision =
+    typeof source.canonicalRevision === 'number' ? source.canonicalRevision : 0;
   const reconciliationRevision =
     typeof source.reconciliationRevision === 'number' ? source.reconciliationRevision : 0;
 
@@ -83,6 +89,7 @@ export function captureRuntimeSnapshot(source: CaptureSnapshotSource): RuntimeSt
     sessionId: source.sessionId || undefined,
     blueprintId: source.blueprintId || undefined,
     turnCount,
+    canonicalRevision,
     currentNodeId,
     activeVector,
     activeTier,

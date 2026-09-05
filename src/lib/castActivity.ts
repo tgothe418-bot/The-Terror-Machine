@@ -9,6 +9,7 @@ import {
   CastActivityEligibilityReceipt,
   MAX_RECENT_ACTIVITY_EVENTS,
 } from '../types/horrorGrammar';
+import { getEligibleEvidenceRegistryMap } from './evidenceRegistry';
 
 export interface ResolveCastActivityInput {
   proposal?: CastActivityProposal | null;
@@ -105,14 +106,31 @@ export function resolveCastActivity({
   const presentOpps = eligibilityReceipt?.presentOpportunities || [];
   const offscreenOpps = eligibilityReceipt?.offscreenOpportunities || [];
 
-  const presentMatch = presentOpps.find((o) => o.castMemberId === castMemberId);
+  const rawPresentMatch = presentOpps.find((o) => o.castMemberId === castMemberId);
   const offscreenMatch = offscreenOpps.find((o) => o.castMemberId === castMemberId);
 
-  if (!presentMatch && !offscreenMatch) {
+  if (!rawPresentMatch && !offscreenMatch) {
     return {
       version: 1,
       outcome: 'REJECTED',
       reasonCode: 'ACTOR_NOT_IN_ELIGIBILITY_SET',
+      preState: normalizedPreState,
+      postState: normalizedPreState,
+      admittedManifestation: false,
+      acceptedEventId: null,
+      proposalSnapshot,
+    };
+  }
+
+  const isCanonicallyPresent = Boolean(castMember.isPresent);
+  const presentMatch = isCanonicallyPresent ? rawPresentMatch : undefined;
+
+  // A forged or contradictory PRESENT opportunity cannot override canonical absence during ratification
+  if (rawPresentMatch && !isCanonicallyPresent && !offscreenMatch) {
+    return {
+      version: 1,
+      outcome: 'REJECTED',
+      reasonCode: 'DIRECT_PERCEPTION_REQUIRES_CO_PRESENCE',
       preState: normalizedPreState,
       postState: normalizedPreState,
       admittedManifestation: false,
@@ -137,61 +155,7 @@ export function resolveCastActivity({
     }
   }
 
-  // 5. Validate authority references
-  const registry = currentContext.horrorGrammar?.evidenceRegistry || [];
-  if (authorityReferences.length > 0 && registry.length > 0) {
-    let hasAuthorizingRef = false;
-    for (const ref of authorityReferences) {
-      const matchInRegistry = registry.find((e) => e.id === ref);
-      const isKnownPattern =
-        ref.startsWith('opp-') ||
-        ref.startsWith('pur-') ||
-        ref.startsWith('rule-') ||
-        ref.startsWith('expr-') ||
-        ref.startsWith('pres-') ||
-        ref.startsWith('val-') ||
-        ref.startsWith('prs-') ||
-        ref.startsWith('evt-') ||
-        (offscreenMatch && ref === offscreenMatch.pursuitId);
-
-      if (!matchInRegistry && !isKnownPattern) {
-        return {
-          version: 1,
-          outcome: 'REJECTED',
-          reasonCode: 'INVALID_AUTHORITY_REFERENCE',
-          preState: normalizedPreState,
-          postState: normalizedPreState,
-          admittedManifestation: false,
-          acceptedEventId: null,
-          proposalSnapshot,
-        };
-      }
-
-      if (
-        (matchInRegistry && (matchInRegistry.ownerRef === castMemberId || matchInRegistry.category === 'SCENARIO_RULE' || matchInRegistry.category === 'OPPORTUNITY')) ||
-        ref.includes(castMemberId) ||
-        (offscreenMatch && ref === offscreenMatch.pursuitId) ||
-        ref.startsWith('rule-')
-      ) {
-        hasAuthorizingRef = true;
-      }
-    }
-
-    if (!hasAuthorizingRef) {
-      return {
-        version: 1,
-        outcome: 'REJECTED',
-        reasonCode: 'UNAUTHORIZED_ACTIVITY_CLAIM',
-        preState: normalizedPreState,
-        postState: normalizedPreState,
-        admittedManifestation: false,
-        acceptedEventId: null,
-        proposalSnapshot,
-      };
-    }
-  }
-
-  // 6. Validate location consistency
+  // 5. Validate location consistency
   const playerNodeId = currentContext.topology.currentNodeId;
   if (presentMatch) {
     if (locationNodeId && locationNodeId !== playerNodeId) {
@@ -210,8 +174,8 @@ export function resolveCastActivity({
 
   // 7. Validate perception path rules
   if (perceptionPath === 'DIRECT') {
-    // DIRECT requires actor to be present at player's node
-    if (!presentMatch || (locationNodeId && locationNodeId !== playerNodeId)) {
+    // DIRECT requires actor to be canonically present at player's node
+    if (!isCanonicallyPresent || !presentMatch || (locationNodeId && locationNodeId !== playerNodeId)) {
       return {
         version: 1,
         outcome: 'REJECTED',
@@ -304,7 +268,114 @@ export function resolveCastActivity({
     }
   }
 
-  // 8. Accept proposal and record event
+  // 8. Validate authority references against exact canonical evidence
+  const registryMap = getEligibleEvidenceRegistryMap(
+    currentContext,
+    eligibilityReceipt,
+    preEvents
+  );
+
+  if (authorityReferences.length === 0) {
+    return {
+      version: 1,
+      outcome: 'REJECTED',
+      reasonCode: 'UNAUTHORIZED_ACTIVITY_CLAIM',
+      preState: normalizedPreState,
+      postState: normalizedPreState,
+      admittedManifestation: false,
+      acceptedEventId: null,
+      proposalSnapshot,
+    };
+  }
+
+  let hasAuthorizingRef = false;
+  for (const ref of authorityReferences) {
+    const matchInRegistry = registryMap.get(ref);
+
+    if (!matchInRegistry) {
+      return {
+        version: 1,
+        outcome: 'REJECTED',
+        reasonCode: 'INVALID_AUTHORITY_REFERENCE',
+        preState: normalizedPreState,
+        postState: normalizedPreState,
+        admittedManifestation: false,
+        acceptedEventId: null,
+        proposalSnapshot,
+      };
+    }
+
+    // Strict ownership & scope validation
+    if (
+      matchInRegistry.category === 'OPPORTUNITY' ||
+      matchInRegistry.category === 'EXPRESSION_CAPABILITY' ||
+      matchInRegistry.category === 'TOPOLOGY_PRESENCE' ||
+      matchInRegistry.category === 'ACTIVITY_EVENT'
+    ) {
+      if (matchInRegistry.ownerRef !== castMemberId) {
+        return {
+          version: 1,
+          outcome: 'REJECTED',
+          reasonCode: 'UNAUTHORIZED_ACTIVITY_CLAIM',
+          preState: normalizedPreState,
+          postState: normalizedPreState,
+          admittedManifestation: false,
+          acceptedEventId: null,
+          proposalSnapshot,
+        };
+      }
+    }
+
+    if (matchInRegistry.category === 'VALUE_ANCHOR') {
+      const referencedValueIds =
+        presentMatch?.referencedValueIds || offscreenMatch?.referencedValueIds || [];
+      const isReferencedInOpp = referencedValueIds.includes(ref);
+      const isCastMemberHolder =
+        currentContext.horrorGrammar?.authoringBaseline?.valueAnchors?.some(
+          (a) =>
+            a.id === ref &&
+            a.holder.kind === 'CHARACTER' &&
+            a.holder.castMemberId === castMemberId
+        );
+      if (!isReferencedInOpp && !isCastMemberHolder) {
+        return {
+          version: 1,
+          outcome: 'REJECTED',
+          reasonCode: 'UNAUTHORIZED_ACTIVITY_CLAIM',
+          preState: normalizedPreState,
+          postState: normalizedPreState,
+          admittedManifestation: false,
+          acceptedEventId: null,
+          proposalSnapshot,
+        };
+      }
+    }
+
+    if (
+      matchInRegistry.category === 'SCENARIO_RULE' ||
+      (matchInRegistry.category === 'OPPORTUNITY' && matchInRegistry.ownerRef === castMemberId) ||
+      (matchInRegistry.category === 'EXPRESSION_CAPABILITY' && matchInRegistry.ownerRef === castMemberId) ||
+      (matchInRegistry.category === 'TOPOLOGY_PRESENCE' && matchInRegistry.ownerRef === castMemberId) ||
+      (offscreenMatch && ref === offscreenMatch.pursuitId)
+    ) {
+      hasAuthorizingRef = true;
+    }
+  }
+
+  if (!hasAuthorizingRef) {
+    return {
+      version: 1,
+      outcome: 'REJECTED',
+      reasonCode: 'UNAUTHORIZED_ACTIVITY_CLAIM',
+      preState: normalizedPreState,
+      postState: normalizedPreState,
+      admittedManifestation: false,
+      acceptedEventId: null,
+      proposalSnapshot,
+    };
+  }
+
+  // 9. Accept proposal and record event
   const admittedManifestation = perceptionPath !== 'UNOBSERVED' && !!manifestationBlock;
   const eventId = proposalId || `act-evt-${currentTurn}-${castMemberId}`;
 

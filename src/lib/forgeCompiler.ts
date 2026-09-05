@@ -13,6 +13,7 @@ import {
   resolveSourceEvidenceProvenance,
   applyCandidateToDraft,
   getCandidateApplicationPriority,
+  isCompleteAuthoredDepictionContract,
 } from './sourceBaseline';
 
 /**
@@ -98,6 +99,12 @@ export function projectAcceptedStagedCandidates(
 
   let workingDraft = draft;
   for (const { cand, fileName } of stagedAccepted) {
+    if (
+      cand.target === 'depiction_contract' &&
+      isCompleteAuthoredDepictionContract(workingDraft.depictionContract)
+    ) {
+      continue;
+    }
     const result = applyCandidateToDraft(workingDraft, cand, fileName);
     if (result.success) {
       workingDraft = result.draft;

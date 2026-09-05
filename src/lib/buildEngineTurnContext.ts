@@ -43,6 +43,7 @@ import {
   MAX_RECENT_ACTIVITY_EVENTS,
   MAX_ACTIVE_PRESSURE_THREADS,
 } from '../types/horrorGrammar';
+import { buildEvidenceRegistry } from './evidenceRegistry';
 
 export interface BuildEngineTurnContextOptions {
   blueprint: unknown;
@@ -114,6 +115,7 @@ export function buildEngineTurnContext(
       'characterStance' in optionsOrState ||
       'characterRelationships' in optionsOrState ||
       'characterMemory' in optionsOrState ||
+      'worldMemory' in optionsOrState ||
       'runtimeState' in optionsOrState)
   ) {
     opts = optionsOrState;
@@ -149,7 +151,7 @@ export function buildEngineTurnContext(
       characterStance: s.character_stance || s.characterStance,
       characterRelationships: s.character_relationships || s.characterRelationships,
       characterMemory: s.character_memory || s.characterMemory,
-      worldMemory: s.world_memory || s.worldMemory,
+      worldMemory: s.world_memory ?? s.worldMemory,
       runtimeState: {
         currentNodeId: s.currentNodeId,
         playerCharacterId: s.player_character_id ?? s.playerCharacterId,
@@ -191,13 +193,20 @@ export function buildEngineTurnContext(
   );
   const memoryState = createCharacterMemoryState(rawMemory);
 
-  const rawWorldMemory =
-    rawWorldMemoryProp ??
-    runtimeState.worldMemory ??
-    (normBp as any).world_memory ??
-    ((normBp as any).lore_and_memory
-      ? migrateLegacyLoreAndMemory((normBp as any).lore_and_memory)
-      : []);
+  const hasExplicitRuntimeWorldMemory =
+    rawWorldMemoryProp !== undefined || runtimeState.worldMemory !== undefined;
+
+  const rawWorldMemory = hasExplicitRuntimeWorldMemory
+    ? (rawWorldMemoryProp ?? runtimeState.worldMemory ?? [])
+    : (normBp as any).world_memory !== undefined
+    ? (normBp as any).world_memory
+    : (blueprint as any)?.world_memory !== undefined
+    ? (blueprint as any).world_memory
+    : (normBp as any).lore_and_memory
+    ? migrateLegacyLoreAndMemory((normBp as any).lore_and_memory)
+    : (blueprint as any)?.lore_and_memory
+    ? migrateLegacyLoreAndMemory((blueprint as any).lore_and_memory)
+    : [];
   const worldMemory = createWorldMemoryState(rawWorldMemory);
 
   // 0. Participation Context resolution
@@ -471,6 +480,32 @@ export function buildEngineTurnContext(
     if (rec?.nodeId) castPresenceMap[cId] = rec.nodeId;
   }
 
+  // Derive acceptedTriggerReferences if not explicitly supplied
+  const effectiveTriggerReferences: string[] =
+    opts.acceptedTriggerReferences && opts.acceptedTriggerReferences.length > 0
+      ? opts.acceptedTriggerReferences
+      : (() => {
+          const derived: string[] = [];
+          for (const evt of activityEvents) {
+            derived.push(evt.id);
+            if (Array.isArray(evt.authorityReferences)) {
+              for (const ref of evt.authorityReferences) {
+                if (ref && !derived.includes(ref)) derived.push(ref);
+              }
+            }
+          }
+          for (const thread of pressureThreads) {
+            derived.push(thread.id);
+          }
+          const flags = opts.runtimeState?.activeFlags;
+          if (Array.isArray(flags)) {
+            for (const f of flags) {
+              if (f && !derived.includes(f)) derived.push(f);
+            }
+          }
+          return derived;
+        })();
+
   const eligibility = selectCastActivityEligibility({
     blueprint: normBp,
     currentTopologyNode: currentNodeId,
@@ -479,8 +514,9 @@ export function buildEngineTurnContext(
     characterPursuitLedger: characterPursuits,
     userCharacterId: characterId,
     turnNumber,
-    acceptedTriggerReferences: opts.acceptedTriggerReferences,
+    acceptedTriggerReferences: effectiveTriggerReferences,
     castPresenceMap,
+    activityEvents,
   });
 
   const relevantValueAnchors = getRelevantValueAnchorsForOpportunities(
@@ -488,112 +524,24 @@ export function buildEngineTurnContext(
     normBp
   );
 
-  const evidenceRegistry: import('../types/horrorGrammar').EvidenceRegistryEntry[] = [];
-
-  for (const opp of eligibility.presentOpportunities) {
-    const oppId = (opp as any).opportunityId || `opp-present-${opp.castMemberId}`;
-    evidenceRegistry.push({
-      id: oppId,
-      category: 'OPPORTUNITY',
-      ownerRef: opp.castMemberId,
-      description: `Present opportunity for ${opp.castMemberId}: ${opp.objective} (${opp.presentApproach})`,
-    });
-    if (opp.pursuitId) {
-      evidenceRegistry.push({
-        id: opp.pursuitId,
-        category: 'OPPORTUNITY',
-        ownerRef: opp.castMemberId,
-        description: `Pursuit ${opp.pursuitId}: ${opp.objective}`,
-      });
-    }
-  }
-
-  for (const opp of eligibility.offscreenOpportunities) {
-    const oppId = (opp as any).opportunityId || `opp-offscreen-${opp.castMemberId}-${opp.pursuitId}`;
-    evidenceRegistry.push({
-      id: oppId,
-      category: 'OPPORTUNITY',
-      ownerRef: opp.castMemberId,
-      description: `Offscreen opportunity for ${opp.castMemberId}: ${opp.objective} (${opp.presentApproach})`,
-    });
-    if (opp.pursuitId) {
-      evidenceRegistry.push({
-        id: opp.pursuitId,
-        category: 'OPPORTUNITY',
-        ownerRef: opp.castMemberId,
-        description: `Offscreen pursuit ${opp.pursuitId}: ${opp.objective}`,
-      });
-    }
-  }
-
-  for (const c of normBp.cast || []) {
-    const modes = c.expressionProfile?.communicationModes || ['spoken'];
-    for (const mode of modes) {
-      evidenceRegistry.push({
-        id: `expr-${c.id}-${mode}`,
-        category: 'EXPRESSION_CAPABILITY',
-        ownerRef: c.id,
-        description: `${c.name || c.id} communication capability: ${mode}`,
-      });
-    }
-  }
-
-  for (const [cId, node] of Object.entries(castPresenceMap)) {
-    evidenceRegistry.push({
-      id: `pres-${cId}-${node}`,
-      category: 'TOPOLOGY_PRESENCE',
-      ownerRef: cId,
-      description: `Cast member ${cId} situated at node ${node}`,
-    });
-  }
-
-  worldRules.forEach((rule, idx) => {
-    evidenceRegistry.push({
-      id: `rule-${idx + 1}`,
-      category: 'SCENARIO_RULE',
-      ownerRef: normBp.id,
-      description: rule.slice(0, 300),
-    });
+  const evidenceRegistry = buildEvidenceRegistry({
+    presentOpportunities: eligibility.presentOpportunities,
+    offscreenOpportunities: eligibility.offscreenOpportunities,
+    cast: normBp.cast,
+    castPresenceMap,
+    worldRules,
+    scenarioId: normBp.id,
+    valueAnchors: normBp.horrorGrammar?.valueAnchors,
+    pressureThreads,
+    playerOpeningAim,
+    characterId,
+    activityEvents,
+    maxRecentActivityEvents: MAX_RECENT_ACTIVITY_EVENTS,
   });
-
-  for (const anchor of normBp.horrorGrammar?.valueAnchors || []) {
-    evidenceRegistry.push({
-      id: anchor.id,
-      category: 'VALUE_ANCHOR',
-      ownerRef: anchor.id,
-      description: `${anchor.label}: ${anchor.description}`.slice(0, 300),
-    });
-  }
-
-  for (const thread of pressureThreads.filter((t) => t.status === 'OPEN')) {
-    evidenceRegistry.push({
-      id: thread.id,
-      category: 'PRESSURE_THREAD',
-      ownerRef: thread.id,
-      description: `Open thread on ${thread.valueAnchorId}: ${thread.adverseProspect}`.slice(0, 300),
-    });
-  }
-
-  if (playerOpeningAim && characterId) {
-    evidenceRegistry.push({
-      id: `aim-${characterId}`,
-      category: 'OPPORTUNITY',
-      ownerRef: characterId,
-      description: `Player historical aim: ${playerOpeningAim} (Sovereignty: Player choice only)`,
-    });
-  }
-
-  for (const evt of activityEvents.slice(-MAX_RECENT_ACTIVITY_EVENTS)) {
-    evidenceRegistry.push({
-      id: evt.id,
-      category: 'ACTIVITY_EVENT',
-      ownerRef: evt.castMemberId,
-      description: `Committed activity: ${evt.activitySummary}`.slice(0, 300),
-    });
-  }
 
   const horrorGrammarContext: HorrorGrammarTurnContext = {
     fictionalTime,
+    activityEligibility: eligibility,
     presentActorOpportunities: eligibility.presentOpportunities,
     offscreenPursuitOpportunities: eligibility.offscreenOpportunities,
     relevantValueAnchors,

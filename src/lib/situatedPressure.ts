@@ -10,6 +10,7 @@ import {
   MAX_ACTIVE_PRESSURE_THREADS,
 } from '../types/horrorGrammar';
 import { isHorrorGrammarCauseReferenceValid } from './horrorGrammarCauseReferences';
+import { getEligibleEvidenceRegistryMap } from './evidenceRegistry';
 
 export interface ResolveSituatedPressureInput {
   proposal?: SituatedPressureProposal | null;
@@ -27,18 +28,18 @@ export function resolveSituatedPressure({
   proposal,
   activityReceipt,
   currentContext,
-  preThreads = [],
+  preThreads,
   currentTurn,
   blueprint,
 }: ResolveSituatedPressureInput): SituatedPressureReceipt {
-  const normalizedPreState = Array.isArray(preThreads) ? [...preThreads] : [];
+  const normalizedPreState = preThreads ? [...preThreads] : [];
 
-  // 1. Handle missing or NONE proposal
+  // Early return for missing/null proposal or kind='NONE'
   if (!proposal || proposal.kind === 'NONE') {
     const reason =
       proposal && proposal.kind === 'NONE'
-        ? proposal.reason || 'NO_PRESSURE_CHOSEN'
-        : 'NO_PRESSURE_CHOSEN';
+        ? proposal.reason || 'PRESSURE_NOT_CALLED_FOR'
+        : 'PRESSURE_NOT_CALLED_FOR';
     return {
       version: 1,
       outcome: 'NO_PROPOSAL',
@@ -65,20 +66,34 @@ export function resolveSituatedPressure({
   } = proposal;
 
   const proposalSnapshot = {
-    kind: 'PRESSURE',
+    kind: 'PRESSURE' as const,
     proposalId,
     valueAnchorId,
-    sourceReference,
+    sourceReference: sourceReference ?? '',
     operator,
     affectedDimension,
     adverseProspect,
-    authorityReferences,
+    authorityReferences: [...authorityReferences],
     persistenceTarget,
     responseWindowOpen,
     hasManifestationBlock: !!manifestationBlock,
   };
 
-  // 2. Value Anchor must exist in Blueprint baseline
+  // Step 3: Check response window FIRST
+  if (responseWindowOpen !== true) {
+    return {
+      version: 1,
+      outcome: 'REJECTED',
+      reasonCode: 'RESPONSE_WINDOW_CLOSED',
+      preState: normalizedPreState,
+      postState: normalizedPreState,
+      admittedManifestation: false,
+      acceptedThreadId: null,
+      proposalSnapshot,
+    };
+  }
+
+  // Value Anchor must exist in Blueprint baseline
   const availableAnchors =
     currentContext.horrorGrammar?.authoringBaseline?.valueAnchors ||
     blueprint?.horrorGrammar?.valueAnchors ||
@@ -99,9 +114,37 @@ export function resolveSituatedPressure({
     };
   }
 
-  // 3. Source reference validation
+  // Exact canonical evidence registry lookup
+  const registryMap = getEligibleEvidenceRegistryMap(
+    currentContext,
+    null,
+    null,
+    normalizedPreState
+  );
+
   let validatedSourceRef = sourceReference;
-  if (sourceReference === 'ACTIVITY') {
+
+  // Check if sourceReference claims same-turn activity
+  const actProposal = activityReceipt?.proposalSnapshot as
+    | { kind?: string; proposalId?: string; castMemberId?: string }
+    | undefined;
+  const isActivitySourceClaim =
+    sourceReference === 'ACTIVITY' ||
+    Boolean(activityReceipt?.acceptedEventId && sourceReference === activityReceipt.acceptedEventId) ||
+    Boolean(
+      actProposal &&
+        actProposal.kind === 'ACTIVITY' &&
+        actProposal.proposalId &&
+        sourceReference === actProposal.proposalId
+    ) ||
+    (Boolean(activityReceipt) &&
+      activityReceipt?.outcome === 'REJECTED' &&
+      actProposal &&
+      actProposal.kind === 'ACTIVITY' &&
+      actProposal.castMemberId &&
+      sourceReference.includes(actProposal.castMemberId));
+
+  if (isActivitySourceClaim) {
     if (!activityReceipt || activityReceipt.outcome !== 'ACCEPTED') {
       return {
         version: 1,
@@ -115,39 +158,17 @@ export function resolveSituatedPressure({
       };
     }
     validatedSourceRef = activityReceipt.acceptedEventId || 'ACTIVITY';
-  } else if (
-    activityReceipt &&
-    activityReceipt.acceptedEventId &&
-    sourceReference === activityReceipt.acceptedEventId
-  ) {
-    if (activityReceipt.outcome !== 'ACCEPTED') {
-      return {
-        version: 1,
-        outcome: 'REJECTED',
-        reasonCode: 'ACTIVITY_SOURCE_NOT_ACCEPTED',
-        preState: normalizedPreState,
-        postState: normalizedPreState,
-        admittedManifestation: false,
-        acceptedThreadId: null,
-        proposalSnapshot,
-      };
-    }
+  } else if (sourceReference === 'BASELINE') {
+    validatedSourceRef = 'BASELINE';
   } else {
-    // Check against pre-state threads, recent events, or registry
-    const registry = currentContext.horrorGrammar?.evidenceRegistry || [];
-    const isKnownRef =
-      normalizedPreState.some((t) => t.id === sourceReference) ||
-      registry.some((e) => e.id === sourceReference) ||
-      sourceReference.startsWith('evt-') ||
-      sourceReference.startsWith('act-') ||
-      sourceReference.startsWith('thr-') ||
-      sourceReference.startsWith('prs-') ||
-      sourceReference.startsWith('csq-') ||
-      sourceReference.startsWith('rule-') ||
-      sourceReference.startsWith('val-') ||
-      sourceReference === 'BASELINE';
+    // Check against pre-state threads, recent committed activity events, or canonical registry
+    const isPreThread = normalizedPreState.some((t) => t.id === sourceReference);
+    const isPreEvent = (currentContext.horrorGrammar?.runtimeState?.recentActivityEvents || []).some(
+      (e) => e.id === sourceReference
+    );
+    const matchInRegistry = registryMap.get(sourceReference);
 
-    if (!isKnownRef && registry.length > 0) {
+    if (!isPreThread && !isPreEvent && !matchInRegistry) {
       return {
         version: 1,
         outcome: 'REJECTED',
@@ -159,20 +180,75 @@ export function resolveSituatedPressure({
         proposalSnapshot,
       };
     }
+
+    if (matchInRegistry) {
+      if (
+        matchInRegistry.category === 'OPPORTUNITY' ||
+        matchInRegistry.category === 'EXPRESSION_CAPABILITY'
+      ) {
+        return {
+          version: 1,
+          outcome: 'REJECTED',
+          reasonCode: 'UNAUTHORIZED_PRESSURE_CLAIM',
+          preState: normalizedPreState,
+          postState: normalizedPreState,
+          admittedManifestation: false,
+          acceptedThreadId: null,
+          proposalSnapshot,
+        };
+      }
+    }
   }
 
-  // 4. Response window must remain open
-  if (responseWindowOpen !== true) {
-    return {
-      version: 1,
-      outcome: 'REJECTED',
-      reasonCode: 'RESPONSE_WINDOW_CLOSED',
-      preState: normalizedPreState,
-      postState: normalizedPreState,
-      admittedManifestation: false,
-      acceptedThreadId: null,
-      proposalSnapshot,
-    };
+  // 3b. Authority references validation
+  const authorityRefs = proposal.authorityReferences || [];
+  for (const ref of authorityRefs) {
+    const matchInRegistry = registryMap.get(ref);
+    const isPreThread = normalizedPreState.some((t) => t.id === ref);
+    const isPreEvent = (currentContext.horrorGrammar?.runtimeState?.recentActivityEvents || []).some(
+      (e) => e.id === ref
+    );
+    const isAcceptedActivity =
+      activityReceipt?.outcome === 'ACCEPTED' &&
+      (ref === 'ACTIVITY' || ref === activityReceipt.acceptedEventId);
+
+    if (!matchInRegistry && !isPreThread && !isPreEvent && !isAcceptedActivity) {
+      return {
+        version: 1,
+        outcome: 'REJECTED',
+        reasonCode: 'INVALID_AUTHORITY_REFERENCE',
+        preState: normalizedPreState,
+        postState: normalizedPreState,
+        admittedManifestation: false,
+        acceptedThreadId: null,
+        proposalSnapshot,
+      };
+    }
+
+    if (matchInRegistry) {
+      if (
+        matchInRegistry.category === 'OPPORTUNITY' ||
+        matchInRegistry.category === 'EXPRESSION_CAPABILITY'
+      ) {
+        const isSpeakerMatchingActor =
+          manifestationBlock?.type === 'dialogue' &&
+          (currentContext.cast || []).some(
+            (c) => c.name === manifestationBlock.speaker && c.id === matchInRegistry.ownerRef
+          );
+        if (!isSpeakerMatchingActor) {
+          return {
+            version: 1,
+            outcome: 'REJECTED',
+            reasonCode: 'UNAUTHORIZED_PRESSURE_CLAIM',
+            preState: normalizedPreState,
+            postState: normalizedPreState,
+            admittedManifestation: false,
+            acceptedThreadId: null,
+            proposalSnapshot,
+          };
+        }
+      }
+    }
   }
 
   // 5. Validate manifestation block
@@ -181,9 +257,12 @@ export function resolveSituatedPressure({
       // Environmental or non-character pressure cannot use dialogue
       const isActivitySource =
         sourceReference === 'ACTIVITY' ||
-        (activityReceipt?.acceptedEventId && sourceReference === activityReceipt.acceptedEventId) ||
-        sourceReference.startsWith('act-') ||
-        sourceReference.startsWith('evt-');
+        (Boolean(activityReceipt?.acceptedEventId) &&
+          sourceReference === activityReceipt?.acceptedEventId) ||
+        (currentContext.horrorGrammar?.runtimeState?.recentActivityEvents || []).some(
+          (e) => e.id === sourceReference
+        ) ||
+        registryMap.get(sourceReference)?.category === 'ACTIVITY_EVENT';
 
       if (!isActivitySource && matchingAnchor.holder.kind !== 'CHARACTER') {
         return {

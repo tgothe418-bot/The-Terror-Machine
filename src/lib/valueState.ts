@@ -39,6 +39,23 @@ export interface ResolveValueStateInput {
   validCauses: readonly string[];
 }
 
+function resolveUserCharacterId(
+  userCharacterId?: string | null,
+  blueprint?: Blueprint | null,
+): string | null {
+  if (userCharacterId && userCharacterId.trim()) {
+    return userCharacterId.trim();
+  }
+  if (blueprint?.userCharacterId && blueprint.userCharacterId.trim()) {
+    return blueprint.userCharacterId.trim();
+  }
+  const userCast = blueprint?.cast?.find((c) => c.isUserCharacter);
+  if (userCast?.id) {
+    return userCast.id;
+  }
+  return null;
+}
+
 export function resolveValueState({
   proposal,
   preState = {},
@@ -64,6 +81,10 @@ export function resolveValueState({
 
   const blueprintAnchors =
     authoringBaseline?.valueAnchors || blueprint?.horrorGrammar?.valueAnchors || [];
+  const resolvedUserId = resolveUserCharacterId(
+    userCharacterId,
+    blueprint,
+  );
 
   for (const change of changes.slice(0, 3)) {
     const {
@@ -72,7 +93,7 @@ export function resolveValueState({
       expectedBeforeCondition,
       expectedBeforeLifecycle,
       proposedCondition,
-      proposedLifecycle = 'ACTIVE',
+      proposedLifecycle,
       proposedFormNote = null,
       causeReference,
     } = change;
@@ -102,11 +123,14 @@ export function resolveValueState({
     };
 
     // 2. User character protection: model cannot alter what user character values
+    // Trace holder identity strictly from canonical baseline (ignore model payload holder echoes)
     const isUserHeld =
       blueprintAnchor?.holder.kind === 'CHARACTER' &&
-      blueprintAnchor.holder.castMemberId === userCharacterId;
+      Boolean(resolvedUserId) &&
+      blueprintAnchor.holder.castMemberId === resolvedUserId;
 
     if (isUserHeld) {
+      // Operations that retire, restore, or revise a user value are rejected
       if (operation === 'REVISE' || operation === 'RETIRE' || operation === 'RESTORE') {
         decisions.push({
           anchorId,
@@ -116,6 +140,27 @@ export function resolveValueState({
           causeReference,
         });
         continue;
+      }
+
+      // SET_CONDITION attempts that would alter lifecycle or rewrite commitment are rejected
+      if (operation === 'SET_CONDITION') {
+        const attemptsLifecycleChange =
+          proposedLifecycle !== undefined && proposedLifecycle !== effectiveRecord.lifecycle;
+        const attemptsFormNoteChange =
+          proposedFormNote !== undefined &&
+          proposedFormNote !== null &&
+          proposedFormNote !== effectiveRecord.currentFormNote;
+
+        if (attemptsLifecycleChange || attemptsFormNoteChange) {
+          decisions.push({
+            anchorId,
+            operation,
+            outcome: 'REJECTED',
+            reasonCode: 'USER_VALUE_SUBJECTIVITY_PROTECTED',
+            causeReference,
+          });
+          continue;
+        }
       }
     }
 
@@ -166,16 +211,19 @@ export function resolveValueState({
 
     if (operation === 'SET_CONDITION') {
       nextCondition = proposedCondition;
-      nextLifecycle = proposedLifecycle || effectiveRecord.lifecycle;
+      if (!isUserHeld) {
+        nextLifecycle = proposedLifecycle ?? effectiveRecord.lifecycle;
+        nextFormNote = proposedFormNote ?? effectiveRecord.currentFormNote;
+      }
     } else if (operation === 'REVISE') {
       nextCondition = proposedCondition;
-      nextLifecycle = 'REVISED';
+      nextLifecycle = proposedLifecycle ?? 'REVISED';
       nextFormNote = proposedFormNote || effectiveRecord.currentFormNote;
     } else if (operation === 'RETIRE') {
-      nextLifecycle = 'RETIRED';
+      nextLifecycle = proposedLifecycle ?? 'RETIRED';
       nextCondition = proposedCondition || 'LOST';
     } else if (operation === 'RESTORE') {
-      nextLifecycle = 'ACTIVE';
+      nextLifecycle = proposedLifecycle ?? 'ACTIVE';
       nextCondition = proposedCondition || 'ESTABLISHED';
       nextFormNote = null;
     }

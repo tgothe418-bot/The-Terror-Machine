@@ -144,6 +144,32 @@ describe('Horror Grammar Turn Route (Packet 1-10 HG1 Provider Contract Restorati
           extended_revision: 0,
           last_cost: 'MOMENT',
         },
+        activityEligibility: {
+          version: 1,
+          presentOpportunities: [
+            {
+              castMemberId: 'char-npc1',
+              opportunityKind: 'PRESENT',
+              locationNodeId: 'NODE_CORRIDOR',
+              pursuitId: 'pursuit-npc1',
+              objective: 'Fix wiring',
+              presentApproach: 'Testing cables with voltmeter',
+              reviewWindow: 'MOMENT',
+              referencedValueIds: ['val-1'],
+            },
+          ],
+          offscreenOpportunities: [],
+          boundedOutPursuitIds: [],
+          dormantCount: 0,
+          notDueCount: 0,
+          ledgerSnapshot: {
+            moment_revision: 2,
+            scene_beat_revision: 1,
+            extended_revision: 0,
+            last_cost: 'MOMENT',
+          },
+          scheduleSnapshotRevision: 1,
+        },
         presentActorOpportunities: [
           {
             castMemberId: 'char-npc1',
@@ -1469,5 +1495,113 @@ describe('Horror Grammar Turn Route (Packet 1-10 HG1 Provider Contract Restorati
     expect(data.error).toBe('AI provider rejected the turn generation request');
     expect(JSON.stringify(data)).not.toContain('ttm-hg1-test-only-key');
     expect(JSON.stringify(data)).not.toContain('Request contains an invalid argument');
+  });
+
+  it('Packet 06: provider proposal citing nonexistent rule is rejected and pressure derived from it fails with ACTIVITY_SOURCE_NOT_ACCEPTED', async () => {
+    const FAKE_RULE_ACTIVITY_PROSE = 'FAKE_RULE_ACTIVITY_SENTINEL_PROSE';
+    const DERIVED_PRESSURE_PROSE = 'DERIVED_PRESSURE_SENTINEL_PROSE';
+
+    mockGenerateContent.mockResolvedValueOnce({
+      text: JSON.stringify({
+        narrative_blocks: [
+          {
+            type: 'prose',
+            content: 'Base canonical prose continues uninterrupted.',
+          },
+        ],
+        engine_thoughts: 'Testing authority reference rejection through turn seam.',
+        intent_proposal: {
+          action_kind: 'OBSERVE',
+          action_subtype: null,
+          pressure_direction: 'MAINTAIN',
+          dramatic_tactic: 'NONE',
+          intent_synergy: 'SUCCESS',
+        },
+        reconciliation_proposal: {
+          mode: 'CANONICAL',
+          feasibility: 'SUPPORTED',
+          reason_code: 'NONE',
+          fictional_time_cost: 'MOMENT',
+          authority_alignment: 'WITHIN_CONTRACT',
+          memory_echo_candidate: null,
+        },
+        consequence_proposal: { mutations: [] },
+        character_stance_proposal: { changes: [] },
+        character_relationship_proposal: { changes: [] },
+        character_memory_proposal: { candidates: [] },
+        world_memory_proposal: { candidates: [] },
+        cast_activity_proposal: {
+          kind: 'ACTIVITY',
+          proposalId: 'act-npc-fake-rule',
+          castMemberId: 'char-npc1',
+          activitySummary: 'Dr. Mercer attempts to enforce non-existent regulation',
+          authorityReferences: ['rule-does-not-exist-in-this-scenario'],
+          perceptionPath: 'DIRECT',
+          manifestationBlock: {
+            type: 'dialogue',
+            speaker: 'Mercer',
+            content: FAKE_RULE_ACTIVITY_PROSE,
+          },
+        },
+        situated_pressure_proposal: {
+          kind: 'PRESSURE',
+          proposalId: 'press-derived-from-rejected-act',
+          valueAnchorId: 'val-1',
+          sourceReference: 'ACTIVITY',
+          operator: 'CONSTRAIN_ACCESS',
+          affectedDimension: 'SAFETY',
+          adverseProspect: 'Breach accelerates due to Mercer action',
+          authorityReferences: ['val-1'],
+          persistenceTarget: 'PRESSURE_THREAD',
+          responseWindowOpen: true,
+          manifestationBlock: {
+            type: 'prose',
+            content: DERIVED_PRESSURE_PROSE,
+          },
+        },
+        value_state_proposal: { changes: [] },
+        character_pursuit_proposal: { changes: [] },
+        character_development_proposal: { changes: [] },
+        pressure_transition_proposal: { transitions: [] },
+        logic_state: {
+          terminal_flags: [],
+          cast_deltas: [],
+          cast_ledger: [],
+        },
+        topologyDelta: { isExpansion: false, newNodeDef: null },
+      }),
+    });
+
+    const res = await fetch(`${baseUrl}/api/turn`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(baseTurnPayload),
+    });
+
+    expect(res.status).toBe(200);
+    const data = await res.json();
+
+    // 1. Activity proposal citing nonexistent rule rejected
+    expect(data.castActivityProposalReceipt.outcome).toBe('REJECTED');
+    expect(data.castActivityProposalReceipt.reasonCode).toBe('INVALID_AUTHORITY_REFERENCE');
+    expect(data.castActivityProposalReceipt.admittedManifestation).toBe(false);
+    expect(data.castActivityProposalReceipt.acceptedEventId).toBeNull();
+
+    // 2. Pressure proposal derived from rejected activity fails
+    expect(data.situatedPressureReceipt.outcome).toBe('REJECTED');
+    expect(data.situatedPressureReceipt.reasonCode).toBe('ACTIVITY_SOURCE_NOT_ACCEPTED');
+    expect(data.situatedPressureReceipt.admittedManifestation).toBe(false);
+    expect(data.situatedPressureReceipt.acceptedThreadId).toBeNull();
+
+    // 3. Unadmitted manifestation texts excluded from narrative
+    const allProse = data.narrative_blocks.map((b: { content: string }) => b.content).join(' ');
+    expect(allProse).not.toContain(FAKE_RULE_ACTIVITY_PROSE);
+    expect(allProse).not.toContain(DERIVED_PRESSURE_PROSE);
+
+    // 4. Forensics record accurate disposition without raw diagnostics leaking into fiction
+    expect(data.horrorGrammarForensics.activityEvidence.disposition).toBe('REJECTED');
+    expect(data.horrorGrammarForensics.activityEvidence.reasonCode).toBe('INVALID_AUTHORITY_REFERENCE');
+    expect(data.horrorGrammarForensics.pressureEvidence.disposition).toBe('REJECTED');
+    expect(data.horrorGrammarForensics.pressureEvidence.reasonCode).toBe('ACTIVITY_SOURCE_NOT_ACCEPTED');
   });
 });

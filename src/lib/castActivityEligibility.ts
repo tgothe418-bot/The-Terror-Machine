@@ -2,6 +2,7 @@ import {
   Blueprint,
   CastMember,
 } from '../types';
+import { buildCharacterPresence } from './castPresence';
 import {
   FictionalTimeLedger,
   PursuitScheduleLedger,
@@ -9,6 +10,7 @@ import {
   ActivityOpportunityCandidate,
   CharacterPursuit,
   ValueAnchor,
+  CastActivityEvent,
 } from '../types/horrorGrammar';
 
 export const MAX_OFFSCREEN_PURSUITS_PER_TURN = 2;
@@ -23,6 +25,7 @@ export interface SelectCastActivityEligibilityParams {
   turnNumber: number;
   acceptedTriggerReferences?: string[];
   castPresenceMap?: Record<string, string>;
+  activityEvents?: readonly CastActivityEvent[] | null;
 }
 
 /**
@@ -109,11 +112,40 @@ export function selectCastActivityEligibility({
   userCharacterId,
   turnNumber,
   acceptedTriggerReferences = [],
-  castPresenceMap = {},
+  castPresenceMap,
+  activityEvents = [],
 }: SelectCastActivityEligibilityParams): CastActivityEligibilityReceipt {
   const resolvedUserId = resolveUserCharacterId(userCharacterId, blueprint);
   const castList = blueprint?.cast || [];
   const pursuitsList = blueprint?.horrorGrammar?.characterPursuits || [];
+
+  const resolvedPresenceMap: Record<string, string> =
+    castPresenceMap !== undefined
+      ? castPresenceMap
+      : (() => {
+          const rawNodes = blueprint?.topology?.nodes || [];
+          const validNodeIds = rawNodes
+            .filter((n): n is string => typeof n === 'string' && n.trim().length > 0)
+            .map((n) => n.trim());
+          const validNodesSet = new Set(validNodeIds);
+          for (const member of castList) {
+            if (!member.presenceDisposition && member.starting_location?.trim()) {
+              validNodesSet.add(member.starting_location.trim());
+            }
+          }
+          const built = buildCharacterPresence(
+            castList,
+            null,
+            Array.from(validNodesSet),
+            currentTopologyNode,
+            resolvedUserId
+          );
+          const map: Record<string, string> = {};
+          for (const [cId, rec] of Object.entries(built)) {
+            if (rec?.nodeId) map[cId] = rec.nodeId;
+          }
+          return map;
+        })();
 
   const presentOpportunities: ActivityOpportunityCandidate[] = [];
   const presentCharacterIds = new Set<string>();
@@ -125,10 +157,9 @@ export function selectCastActivityEligibility({
       continue;
     }
 
-    const memberLocation =
-      castPresenceMap[member.id] || member.starting_location || currentTopologyNode;
+    const memberLocation = resolvedPresenceMap[member.id];
 
-    if (memberLocation === currentTopologyNode) {
+    if (memberLocation && memberLocation === currentTopologyNode) {
       presentCharacterIds.add(member.id);
 
       // Find primary pursuit if any
@@ -206,12 +237,43 @@ export function selectCastActivityEligibility({
       case 'EXTENDED':
         isDue = fictionalTime.extended_revision > (schedRecord?.lastConsideredExtendedRevision ?? 0);
         break;
-      case 'EVENT_DRIVEN':
-        isDue =
-          Array.isArray(pursuit.triggerReferences) &&
-          pursuit.triggerReferences.length > 0 &&
-          pursuit.triggerReferences.some((trig) => acceptedTriggerReferences.includes(trig));
+      case 'EVENT_DRIVEN': {
+        const triggers = Array.isArray(pursuit.triggerReferences)
+          ? pursuit.triggerReferences
+          : [];
+        if (triggers.length === 0) {
+          isDue = false;
+          break;
+        }
+
+        const lastConsidered = schedRecord?.lastConsideredTurn ?? null;
+        const eventsList = activityEvents || [];
+
+        // Check if any trigger reference matches an accepted activity event
+        const matchingActivityEvents = eventsList.filter(
+          (evt) =>
+            triggers.includes(evt.id) ||
+            evt.authorityReferences?.some((ref) => triggers.includes(ref))
+        );
+
+        if (matchingActivityEvents.length > 0) {
+          // An accepted event activates the pursuit if any matching event was committed
+          // after the pursuit was last considered (or if never considered)
+          isDue = matchingActivityEvents.some(
+            (evt) => lastConsidered === null || evt.committedTurn > lastConsidered
+          );
+        } else {
+          // Check explicit acceptedTriggerReferences (e.g. system flags or caller-supplied triggers)
+          const matchesTrigger = triggers.some((trig) => acceptedTriggerReferences.includes(trig));
+          if (matchesTrigger) {
+            // Due if never considered or if considered before the current turn
+            isDue = lastConsidered === null || turnNumber > lastConsidered;
+          } else {
+            isDue = false;
+          }
+        }
         break;
+      }
     }
 
     if (!isDue) {
@@ -247,16 +309,29 @@ export function selectCastActivityEligibility({
   const selectedDue = dueCandidates.slice(0, MAX_OFFSCREEN_PURSUITS_PER_TURN);
   const boundedOut = dueCandidates.slice(MAX_OFFSCREEN_PURSUITS_PER_TURN);
 
-  const offscreenOpportunities: ActivityOpportunityCandidate[] = selectedDue.map((item) => ({
-    castMemberId: item.pursuit.castMemberId,
-    opportunityKind: 'OFFSCREEN_PURSUIT',
-    locationNodeId: item.pursuit.locationNodeId || null,
-    pursuitId: item.pursuit.id,
-    objective: item.pursuit.objective,
-    presentApproach: item.pursuit.presentApproach,
-    reviewWindow: item.pursuit.reviewWindow,
-    referencedValueIds: item.referencedValueIds,
-  }));
+  const offscreenOpportunities: ActivityOpportunityCandidate[] = selectedDue.map((item) => {
+    const runtimeRecord = characterPursuitLedger?.[item.pursuit.id];
+    const effectiveObjective =
+      runtimeRecord?.currentObjective ?? item.pursuit.objective ?? null;
+    const effectiveApproach =
+      runtimeRecord?.currentApproach ?? item.pursuit.presentApproach ?? null;
+    const effectiveLocation =
+      runtimeRecord?.currentLocationNodeId ||
+      item.pursuit.locationNodeId ||
+      resolvedPresenceMap[item.castMember.id] ||
+      null;
+
+    return {
+      castMemberId: item.pursuit.castMemberId,
+      opportunityKind: 'OFFSCREEN_PURSUIT',
+      locationNodeId: effectiveLocation,
+      pursuitId: item.pursuit.id,
+      objective: effectiveObjective,
+      presentApproach: effectiveApproach,
+      reviewWindow: runtimeRecord?.reviewWindow || item.pursuit.reviewWindow,
+      referencedValueIds: item.referencedValueIds,
+    };
+  });
 
   const boundedOutPursuitIds = boundedOut.map((item) => item.pursuit.id);
 
@@ -278,6 +353,7 @@ export interface AdvancePursuitScheduleLedgerParams {
   fictionalTime: FictionalTimeLedger;
   turnNumber: number;
   blueprint?: Blueprint | null;
+  characterPursuits?: CharacterPursuit[] | null;
 }
 
 /**
@@ -289,11 +365,12 @@ export function advancePursuitScheduleLedger({
   fictionalTime,
   turnNumber,
   blueprint,
+  characterPursuits,
 }: AdvancePursuitScheduleLedgerParams): PursuitScheduleLedger {
   const nextSchedule: PursuitScheduleLedger = { ...(preSchedule || {}) };
-  const validPursuitIds = new Set(
-    (blueprint?.horrorGrammar?.characterPursuits || []).map((p) => p.id)
-  );
+  const targetPursuits =
+    characterPursuits ?? (blueprint?.horrorGrammar?.characterPursuits || []);
+  const validPursuitIds = new Set(targetPursuits.map((p) => p.id));
 
   // Purge unknown or removed pursuits
   for (const pId of Object.keys(nextSchedule)) {
@@ -310,7 +387,7 @@ export function advancePursuitScheduleLedger({
   );
   const boundedOutIds = new Set(eligibilityReceipt.boundedOutPursuitIds);
 
-  for (const pursuit of blueprint?.horrorGrammar?.characterPursuits || []) {
+  for (const pursuit of targetPursuits) {
     const pId = pursuit.id;
     const existing = nextSchedule[pId] || {
       pursuitId: pId,

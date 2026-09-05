@@ -27,6 +27,7 @@ import {
   PursuitScheduleLedger,
   FictionalTimeReceipt,
   CastActivityEligibilityReceipt,
+  PursuitScheduleReceipt,
   CastActivityEventSchema,
   SituatedPressureThreadSchema,
   CastActivityEvent,
@@ -407,6 +408,7 @@ export interface RuntimeStateSnapshot {
   readonly sessionId?: string;
   readonly blueprintId?: string;
   readonly turnCount: number;
+  readonly canonicalRevision?: number;
   readonly currentNodeId: string;
   readonly activeVector: HorrorVector;
   readonly activeTier: ExposureTier;
@@ -442,6 +444,7 @@ export interface TurnReceipt {
   worldMemoryReceipt?: WorldMemoryReceipt;
   fictionalTimeReceipt?: FictionalTimeReceipt;
   castActivityReceipt?: CastActivityEligibilityReceipt;
+  pursuitScheduleReceipt?: PursuitScheduleReceipt;
   castActivityProposalReceipt?: CastActivityReceipt;
   situatedPressureReceipt?: SituatedPressureReceipt;
   valueStateReceipt?: ValueStateReceipt;
@@ -774,6 +777,7 @@ export interface RatifiedEngineFrame {
   worldMemoryReceipt?: WorldMemoryReceipt;
   fictionalTimeReceipt?: FictionalTimeReceipt;
   castActivityReceipt?: CastActivityEligibilityReceipt;
+  pursuitScheduleReceipt?: PursuitScheduleReceipt;
   castActivityProposalReceipt?: CastActivityReceipt;
   situatedPressureReceipt?: SituatedPressureReceipt;
   valueStateReceipt?: ValueStateReceipt;
@@ -1004,3 +1008,19 @@ export interface TurnSnapshot {
   timestamp: number;
   preservedActState: Partial<ActRuntimeState>;
 }
+
+export interface DurableSessionRevision {
+  sessionId: string;
+  blueprintId: string;
+  revision: number;
+  turnCount: number;
+  committedAt: number;
+}
+
+export const DurableSessionRevisionSchema = z.object({
+  sessionId: z.string(),
+  blueprintId: z.string(),
+  revision: z.number(),
+  turnCount: z.number(),
+  committedAt: z.number(),
+});
