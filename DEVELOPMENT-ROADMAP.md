@@ -15,7 +15,7 @@ A focused test proves its named behavior. It does not, by itself, close an integ
 
 ## Live code baseline reviewed for this ledger
 
-- Current live line reviewed: [de658a1](https://github.com/tgothe418-bot/The-Terror-Machine/commit/de658a167e43b82cee5bf3fa80e2681e0c743526) (Forge 1E-1 closure, HG1 provider closure, and runtime/API admission correction).
+- Current live line reviewed: [0599d14](https://github.com/tgothe418-bot/The-Terror-Machine/commit/0599d14) (Astra Critical Corrections series Packets 01–12 closure, Master Integration proof suite, and prospective post-series README update).
 - The branch was clean and synced when reviewed. The status below is based on live code inspection, focused proofs, broad gates, and recent smoke telemetry; a packet's completion report is not accepted evidence by itself.
 
 ## Current baseline
@@ -138,7 +138,19 @@ The 12-packet Astra Critical Corrections series resolves the integration gate ac
 
 The Horror Grammar 1 integration gate, explicit Player-Character Binding, Autopilot ratification parity, and durable dual-store persistence are fully closed and verified by the Astra Critical Corrections series (Packets 01–12). Future implementation proceeds along the following sequenced packages:
 
-### 1. Enforce authored participation and treatment at the Engine boundary
+### 1. Multi-scenario experiential play review and edge hardening
+
+Before opening new feature cycles, play the stabilized machine across varied scenarios with Justin, assessing:
+- Grounded human horror at high physical pressure.
+- Authored supernatural horror within defined Authority Contracts.
+- Deliberate uncertainty and uncollapsed epistemic ambiguity.
+- Reassurance, lying, and refuge dialogue without system-error replacements.
+- Out-of-character check-in containment vs. ambiguous in-world psychological prose.
+- Protagonist and antagonist player sovereignty and response-window gating.
+
+Address the failures, rough edges, and UX observations these real sessions reveal.
+
+### 2. Enforce authored participation and treatment at the Engine boundary
 
 The Engine must use accepted Blueprint contracts while retaining deterministic ownership of causality and canon.
 
@@ -153,23 +165,23 @@ Acceptance requires:
 
 Provider-level non-negotiable constraints remain external to the Blueprint contract. They must be represented honestly without pretending the player authored the refusal.
 
-### 2. Universal warning and intervention window (Deferred Boundary)
+### 3. Universal warning and intervention window (Deferred Boundary)
 
 Design and integrate an explicit warning/intervention window before irreversible consequence or terminal loss occurs. (Preserved as explicitly deferred from the Astra Critical Corrections series).
 
-### 3. Voice context enhancements (Deferred Boundary)
+### 4. Voice context enhancements (Deferred Boundary)
 
 Keep Voice observations read-only and separate from simulation canon. Add evidence-labelled context, snapshot/export parity, and clear handling for Forge drafts, Engine sessions, outside research, and ordinary project conversation. (Preserved as explicitly deferred from the Astra series).
 
-### 4. Telemetry polish and dedicated prose-only export (Deferred Boundary)
+### 5. Telemetry polish and dedicated prose-only export (Deferred Boundary)
 
 Refine Runtime diagnostic drawer presentation, add dedicated prose-only export formats alongside technical forensic telemetry, and expand multi-scenario integration fixtures.
 
-### 5. Multi-Blueprint campaign continuity
+### 6. Multi-Blueprint campaign continuity
 
 Extend character and World Memory through campaign handoff between authored Blueprints with scoped, inspectable transfer. Campaign handoff must remain explicit rather than becoming an implicit global ledger.
 
-### 6. Horror Grammar 2 (Independent Future Milestone)
+### 7. Horror Grammar 2 (Independent Future Milestone)
 
 Once HG1 stabilization and authored boundary enforcement are complete, research generative dread pacing, revelation staging, and tension decay as generative principles rather than genre presets.
 

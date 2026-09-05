@@ -10,7 +10,7 @@ For the experiential front door, read the [README](./README.md). For the detaile
 
 TTM has a working foundation for bounded horror simulation.
 
-A Blueprint or a Haunted House Induction enters the same Engine path. The core turn is snapshotted, interpreted, generated, ratified, committed once or refused without corrupting canonical state. The application—not the language model—owns the places, cast, roles, consequences, receipts, and the state that survives a paragraph. Horror Grammar 1 is active on that line; its provider boundary is closed, while deeper continuity, authority, and forensic acceptance remain explicitly tracked below.
+A Blueprint or a Haunted House Induction enters the same Engine path. The core turn is snapshotted, interpreted, generated, ratified, committed once or refused without corrupting canonical state. The application—not the language model—owns the places, cast, roles, consequences, receipts, and the state that survives a paragraph. Horror Grammar 1 is fully landed, integrated, and verified across that line; its provider boundary is closed, and full multi-turn continuity, authority validation, durable recovery, and forensic segregation are verified by the master integration suite.
 
 ### Live foundation
 
@@ -84,30 +84,34 @@ The live line passes all broad quality gates: complete Vitest suite, TypeScript 
 
 With the Horror Grammar 1 integration gate, full multi-turn continuity, and Engine identity debt closed, future work proceeds along explicit architectural boundaries:
 
-### 1. Enforce authored boundaries and participant treatment
+### 1. Multi-scenario experiential play review & edge hardening
+
+Play the assembled machine across varied scenarios (grounded human horror, authored supernatural, deliberate uncertainty, high-stakes dialogue, and antagonist play) to surface and harden experiential and edge failures under real session conditions.
+
+### 2. Enforce authored boundaries and participant treatment
 
 The Engine maintains strict causal ownership:
 - Authority is causal; the Depiction Contract shapes narrative register, directness, aftermath, and ambiguity without granting unearned capabilities.
 - Antagonists without physical reach remain bounded to psychological, observational, or systemic influence.
 - Provider refusals remain external events, never converted to player actions.
 
-### 2. Universal warning and intervention window (Deferred Boundary)
+### 3. Universal warning and intervention window (Deferred Boundary)
 
 Design and introduce a universal warning and intervention window prior to permanent or fatal loss. (Preserved as explicitly deferred from the Astra Critical Corrections series).
 
-### 3. Voice context enhancements (Deferred Boundary)
+### 4. Voice context enhancements (Deferred Boundary)
 
 The Voice remains strictly read-only and non-authoritative. Future work will provide evidence-labelled context distinguishing Forge drafts, Engine sessions, and background research without granting simulation authority.
 
-### 4. Telemetry polish and prose-only export (Deferred Boundary)
+### 5. Telemetry polish and prose-only export (Deferred Boundary)
 
 Refine Runtime diagnostic drawer presentation, add dedicated prose-only export formats alongside technical forensic telemetry, and expand multi-scenario integration fixtures.
 
-### 5. Multi-Blueprint campaign continuity
+### 6. Multi-Blueprint campaign continuity
 
 Campaign continuity can move scoped state between authored Blueprints without merging them into an implicit global ledger.
 
-### 6. Horror Grammar 2 (Independent Future Milestone)
+### 7. Horror Grammar 2 (Independent Future Milestone)
 
 Horror Grammar 2 remains an unstarted, independent milestone. Research into generative dread pacing, revelation staging, and tension decay will begin only on this stable, verified HG1 foundation.
 
