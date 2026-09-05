@@ -1,5 +1,4 @@
-
-<p align="center"><strong>FREE HAUNTED <span style="color: #0000ff;">HOUSE</span></strong></p>
+<p align="center"><strong>FREE HAUNTED <span style="color: #60a5fa;">HOUSE</span></strong></p>
 
 > **The room exists even when the prose looks away.**
 
@@ -11,7 +10,7 @@ It is part haunted house, part authoring system, part unreliable oracle, and par
 
 Then it will remember what happened there.
 
-The Terror Machine is not a chatbot with a spooky filter. It is not a choose-your-own-adventure book that has learned to type faster. It is an attempt to make language perform inside a world with rules—one where a character can be frightened by something the player does not know, where a discovered room can remain on the map, and where a beautiful sentence is not permitted to quietly change the past.
+TTM uses language to bring a world with rules to life: a character can be frightened by something the player does not know, a discovered room can remain on the map, and a beautiful sentence cannot quietly change the past.
 
 The central rule is simple:
 
@@ -50,7 +49,7 @@ npm test
 
 Never commit `.env`, expose an API key in source code, or paste a key into a public issue.
 
-The machine is currently being built and tested in Antigravity. Gemini supplies the model runtime, but the Engine sits behind explicit contracts. Workshops change. The house should survive its builders.
+The machine is currently being built and tested in Antigravity. Gemini supplies the model runtime, while the Engine's contracts define what it can accept.
 
 ## THE HOUSE IS FREE
 
@@ -76,7 +75,9 @@ Once the house is built, the Engine takes over the night shift.
 
 TTM is a literary horror simulator with a mechanical spine.
 
-The language model supplies improvisation: voices, dialogue, discoveries, threats, hesitations, and the terrible sentence that arrives one line too late.
+Its horror can be human, supernatural, or deliberately unresolved. A locked room and a person with a reason to keep it locked can be enough. If the world permits something impossible, that possibility belongs to the scenario; rising fear does not rewrite its rules.
+
+The language model supplies improvisation: voices, dialogue, discoveries, threats, and the details that give a scene its character.
 
 The application supplies continuity. It owns the things that make an event matter:
 
@@ -94,13 +95,11 @@ The model may declare that a character knows the truth. The Engine asks when tha
 
 The model may propose that the door is open. The Engine asks whether there is a door, whether it was reachable, and whether the action that opened it was possible.
 
-The answer may still be yes.
-
-But now the answer has to earn its place in the house.
+Those proposals can become part of the world when the checks support them.
 
 ## THE THREE NODES
 
-The machine has three principal chambers. They are not merely screens in an interface. They are three different relationships with the same impossible building.
+The application has three main workspaces, each with a distinct role in creating, running, or examining a scenario.
 
 ### `[ THE VOICE ]`
 
@@ -108,9 +107,7 @@ The Voice is the window in the wall.
 
 It can discuss an idea, examine a session, explain a receipt, compare evidence, help with research, or surface a contradiction. It can talk about the machine without pretending to be the machine.
 
-The Voice is deliberately read-only. It cannot reach through the glass and move the furniture. It does not become a secret second Engine just because it can describe what the Engine did. It is the part of the house that can be honest about the house.
-
-Use it when you want an observer, a witness, or someone in the next room who has been taking notes.
+The Voice is deliberately read-only. It can help you understand a session or examine an idea, but it cannot change simulation state.
 
 ### `[ THE FORGE ]`
 
@@ -122,27 +119,29 @@ Here you can also feed the machine source material and let it perform **Haunted 
 
 The Forge is a review chamber. A confident paragraph is not canon. An inference is not evidence. A proposal is not a commit.
 
-The Source Baseline has its own revision. Architect responses remain attached to the exact source and question that produced them. Accepted resolutions update the Blueprint as a single transaction. A proposal made for an earlier draft cannot quietly overwrite the house after the walls have changed.
+The Source Baseline has its own revision. Architect responses remain attached to the exact source and question that produced them. Accepted resolutions update the Blueprint as a single transaction. Proposals from an earlier revision cannot overwrite a newer draft.
 
 The Forge can stage a source-grounded **Depiction Contract** describing how a particular nightmare should be shown: its dramatic register, its directness, its aftermath, the uncertainty it must preserve, and any special boundaries that belong to this house alone.
 
 When a source import has enough accepted evidence, the Forge can now apply its source-backed defaults as one atomic operation: rich story spaces, per-character opening placement, cast intent, and a complete Depiction Contract. The exported Blueprint is perspective-neutral. It does not require one permanent player character or one universal starting room; the Engine resolves the entry after the operator chooses a perspective.
 
-When Export Review opens, the machine places one revision-bound Blueprint artifact under glass. Copy and Download receive the artifact that was reviewed—not whatever the draft happened to become five seconds later.
+A source import can fill an authoring gap. A complete Depiction Contract you deliberately authored survives import and compilation unless you choose to replace it.
+
+Export Review captures one revision-bound Blueprint artifact. Copy and Download use that exact artifact; later draft changes require a refreshed review.
 
 ### `[ THE ENGINE ]`
 
 The Engine is the room after the lights go out.
 
-It receives an action, consults the current state, asks the model for a bounded proposal, and decides what—if anything—actually changes. A beautiful sentence is welcome. It still has to earn its place in the house.
-
-The Engine is not a narrator wearing a lab coat. It is the part of the project responsible for refusing impossible continuity.
+It receives an action, consults the current state, asks the model for a bounded proposal, and decides what—if anything—actually changes. It checks the proposed events against the world's established state and rules. The same ratification path governs human turns and autonomous Autopilot exploration alike.
 
 An imported Blueprint can be entered from any eligible cast perspective. Protagonists, human antagonists, and nonlocal entities are selected at Engine setup; the chosen character's authored placement determines the initial scene.
 
 When a turn succeeds, the world moves.
 
 When a turn fails, the world stays intact and the failure leaves a receipt.
+
+The opening belongs to the conversation that follows it. An accepted fact survives a quiet turn. A reply that arrives after you have left a session belongs to that old session and cannot follow you into the next one.
 
 ## CHOOSE YOUR SEAT
 
@@ -164,7 +163,7 @@ An antagonist is not a license to puppeteer every other person in the scenario. 
 
 The victims are not cardboard scenery waiting for the villain to move them. They remain situated participants in the world, with their own presence, knowledge, fear, and ability to resist.
 
-The machine can support an intimate human antagonist, a predatory intelligence, or something operating at Barker, King, or Lovecraft scale. Power still has boundaries. Even a godlike thing has to declare what kind of god it is allowed to be.
+The machine can support an intimate human antagonist, a predatory intelligence, or something operating at Barker, King, or Lovecraft scale. Each remains subject to its authored capabilities and limits.
 
 ### DIRECTOR
 
@@ -178,13 +177,11 @@ These roles are not cosmetic labels. They are part of the simulation contract.
 
 ## THE HOUSE REMEMBERS
 
-Most interactive stories remember only the last page.
-
 TTM is interested in the things that survive the page turn.
 
 A character can remember a warning but not its source. A room can retain the consequence of an earlier action. A relationship can be altered by something that was never spoken aloud. Evidence can remain discoverable after the scene that revealed it is gone. A boundary can stay mapped even when the prose stops looking at it.
 
-The machine's memory is bounded on purpose. It is not a bucket into which every adjective is poured forever. It preserves what has earned persistence:
+The machine's memory is bounded on purpose. It preserves accepted information that matters beyond the current turn:
 
 - established facts;
 - discovered evidence;
@@ -202,9 +199,9 @@ The goal is a world that can be inspected, challenged, and trusted.
 
 ## A TURN IN THE MACHINE
 
-Every turn passes through the same basic ritual.
+Every turn follows the same sequence.
 
-| Chamber | What happens |
+| Stage | What happens |
 |---|---|
 | **Snapshot** | The Engine captures the authoritative state before anything new is proposed. |
 | **Generation** | The model interprets the action and proposes narrative and structured changes inside the active contract. |
@@ -213,9 +210,7 @@ Every turn passes through the same basic ritual.
 | **Telemetry** | The machine records what was proposed, what was accepted, what changed, and what was refused. |
 | **Retake** | The person at the controls may restore the immediately preceding completed checkpoint and try again. |
 
-The prose is the visible surface of a turn.
-
-The receipt is the machine's confession.
+The prose presents the scene. The receipt records how the Engine evaluated it and what changed.
 
 ## THE LAWS OF THE HOUSE
 
@@ -241,6 +236,10 @@ A room is not a mood. A doorway is not a metaphor. Spatial change requires an au
 
 Characters do not act on information merely because the model, player, or author possesses it. Knowledge belongs to someone, somewhere, at a particular point in the story.
 
+### The User owns the choice
+
+The machine may describe a racing pulse, a flinch, or the cost of a bad decision. It must still leave the character's chosen action, intent, and commitments with the person playing them. Other characters can act on their own concerns within the authority the scenario gives them.
+
 ### Consequences are allowed to stay
 
 The machine is not obligated to reset a relationship, erase a discovery, or restore a room because the next paragraph would be easier that way.
@@ -251,7 +250,7 @@ It should never be hostile to the person using it. Retake, exit, recovery, and d
 
 ### Zero gamification
 
-There is no pursuit clock, no horror score, no hidden meter nudging the story toward a prepared ending. The ledgers exist so the machine can carry consequence without asking the person at the controls to become its bookkeeper.
+There is no horror score to optimize or pursuit clock the player must manage. Internal records carry time, pressure, and consequence without turning them into a dashboard for ordinary play or a mechanism for forcing a prepared ending. The machine keeps its own books.
 
 ## WHAT YOU CAN BRING INSIDE
 
@@ -301,35 +300,23 @@ The target is a story that has become a place—and a place that remembers being
 
 The Terror Machine is an open-source solo project in active development.
 
-The first Horror Grammar is active on the live line. Fictional time has a pulse: a glance, a conversation, and a long search need not cost the same amount of night. Characters who are not being played can still have somewhere to be and something to do. While the player studies one door, someone else may be testing a lock; while the player follows a sound, a value may begin to stand in danger. The machine can place that pressure in the room without choosing the player's answer.
+The first Horror Grammar gives the world a life between the player's actions. A glance, a conversation, and a long search need not cost the same amount of night. While the player studies one door, someone else may be testing a lock. An accepted change in a character's purpose follows them when they leave the room. The machine can place pressure in the scene without choosing the player's answer.
 
-The current Engine boundary is usable for real source-derived and authored Blueprints. Gemini structured-output admission is schema-bound and fail-closed, and recent smoke runs have entered the same Blueprint from both protagonist and antagonist perspectives while carrying accepted consequences and memory across turns. The remaining work is refinement of the deeper Horror Grammar continuity, authority, and forensic surfaces—not getting the house to open at all.
+This edition brings that continuity through the complete session: the opening, successive turns, failed attempts, Retake, and recovery after reload. It strengthens the boundaries around cast presence, authored authority, User commitments, and the facts the world has already accepted. Recovery is built around complete saved revisions, with an explicit recovery state when a trustworthy continuation is unavailable.
 
-For the honest implementation record—what is landed, what is under review, what is planned, and how acceptance is decided—read the [Technical (Public) Roadmap](./ROADMAP.md). The [Development Roadmap](./DEVELOPMENT-ROADMAP.md) holds the more detailed engineering ledger. Both change far more often than this page does, and both are the better source once you want specifics.
+The same attention extends to the prose. Dramatic pressure follows the scenario's physical possibilities. A character can reassure you, lie to you, or offer shelter without their dialogue being replaced by system-error text. Provider refusals remain visible failures outside the fiction.
 
-The front door is for visitors.
+The next work begins with playing the assembled machine across varied scenarios, then addressing the failures and rough edges those sessions reveal. Further work on authored treatment, the Voice, campaign continuity, and later Horror Grammar remains on the roadmaps.
 
-The roadmap is where the sausage gets made.
+For how the project has developed, what the machine can do, and where it is heading, read the [Technical (Public) Roadmap](./ROADMAP.md). The [Development Roadmap](./DEVELOPMENT-ROADMAP.md) explores the architectural foundations and technical questions guiding that direction.
 
-Two commitments hold regardless of which packet is currently in flight: a refusal or an empty response from the model is never allowed to pass itself off as something the player did or said, and any consequence the machine records traces back to reviewed evidence or deliberate authorship—never a hidden score nudging the story toward a prepared ending.
+Two commitments hold throughout development: a refusal or an empty response from the model is never allowed to pass itself off as something the player did or said, and any consequence the machine records traces back to reviewed evidence or deliberate authorship—never a hidden score nudging the story toward a prepared ending.
 
 ## FINAL NOTICE TO OPERATORS
 
-Do not confuse a beautiful paragraph with a successful turn.
-
-Do not confuse a green test with a complete feature.
-
-Do not confuse a room described by the model with a room the machine has agreed to build.
-
-Do not assume that the person who knows the truth is the character who knows the truth.
-
-Do not mistake silence for safety.
-
-Do not open a door merely because the prose has begun to describe what is behind it.
+A convincing paragraph still needs a valid turn behind it, and a passing test covers only the behavior it exercises. The distinction between what the model describes and what the Engine accepts is central to the project.
 
 The Terror Machine is an attempt to make language walk through a world that remembers where it has been.
-
-Please leave the door open.
 
 The house may not be finished.
 
