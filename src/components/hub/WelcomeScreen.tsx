@@ -1,5 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Hammer, Play, Ghost, Target, Activity, AlertTriangle, RefreshCw, Settings2 } from 'lucide-react';
+import {
+  Hammer,
+  Play,
+  Ghost,
+  Target,
+  Activity,
+  AlertTriangle,
+  RefreshCw,
+  Settings2,
+} from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import { useVoiceStore } from '../../store/useVoiceStore';
 import { forgeActions } from '../../store/useForgeStore';
@@ -17,6 +26,8 @@ export default function WelcomeScreen() {
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
   const [aiTier, setAiTier] = useState<'free' | 'paid'>('free');
   const [aiModel, setAiModel] = useState<string>('gemini-2.5-flash');
+  const [voiceProvider, setVoiceProvider] = useState<'gemini' | 'openai'>('gemini');
+  const [openAiVoiceModel, setOpenAiVoiceModel] = useState<string>('gpt-6-astra');
 
   const fetchAiConfig = useCallback(async () => {
     try {
@@ -25,6 +36,8 @@ export default function WelcomeScreen() {
         const data = await res.json();
         setAiTier(data.tier || 'free');
         setAiModel(data.model || 'gemini-2.5-flash');
+        setVoiceProvider(data.voiceProvider || 'gemini');
+        setOpenAiVoiceModel(data.openAiModel || 'gpt-6-astra');
       }
     } catch {
       // ignore network blips on initial render
@@ -40,6 +53,8 @@ export default function WelcomeScreen() {
           const data = await res.json();
           setAiTier(data.tier || 'free');
           setAiModel(data.model || 'gemini-2.5-flash');
+          setVoiceProvider(data.voiceProvider || 'gemini');
+          setOpenAiVoiceModel(data.openAiModel || 'gpt-6-astra');
         }
       } catch {
         // ignore initial network error
@@ -98,12 +113,19 @@ export default function WelcomeScreen() {
             />
             <span className="text-xs font-mono tracking-wider uppercase text-zinc-300">
               AI Tier:{' '}
-              <strong className={aiTier === 'free' ? 'text-system-green font-bold' : 'text-red-400 font-bold'}>
+              <strong
+                className={
+                  aiTier === 'free' ? 'text-system-green font-bold' : 'text-red-400 font-bold'
+                }
+              >
                 {aiTier === 'free' ? 'Free Tier (Zero Cost)' : 'Paid Tier (Pro)'}
               </strong>
             </span>
             <span className="text-[11px] font-mono text-zinc-500 group-hover:text-zinc-300 transition-colors">
               // {aiModel}
+            </span>
+            <span className="text-[11px] font-mono text-blue-400/80 group-hover:text-blue-300 transition-colors pl-2 border-l border-zinc-800">
+              Voice: {voiceProvider === 'openai' ? `OpenAI / ${openAiVoiceModel}` : 'Gemini'}
             </span>
             <span className="text-[11px] font-mono text-zinc-400 group-hover:text-white flex items-center gap-1 pl-2 border-l border-zinc-800">
               <Settings2 className="w-3.5 h-3.5 text-zinc-400 group-hover:text-white" />
@@ -266,9 +288,7 @@ export default function WelcomeScreen() {
               <span className="w-1 h-1 bg-zinc-800 rounded-full" />
               <span>Memory: Persistent</span>
             </div>
-            <p className="text-zinc-600 tracking-[0.3em]">
-              Zero Gamification Protocol
-            </p>
+            <p className="text-zinc-600 tracking-[0.3em]">Zero Gamification Protocol</p>
           </div>
         </footer>
       </div>

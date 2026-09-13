@@ -16,6 +16,11 @@ export interface TheVoiceProps {
   };
 }
 
+interface VoiceRuntime {
+  provider: 'gemini' | 'openai';
+  model: string;
+}
+
 export default function TheVoice({ engineState }: TheVoiceProps = {}) {
   const setPhase = useAppStore((state) => state.setPhase);
   const { messages, addMessage, clearHistory } = useVoiceStore();
@@ -24,6 +29,7 @@ export default function TheVoice({ engineState }: TheVoiceProps = {}) {
   const [isLoading, setIsLoading] = useState(false);
   const [isConfirmingClear, setIsConfirmingClear] = useState(false);
   const [hydrated, setHydrated] = useState(() => useVoiceStore.persist.hasHydrated());
+  const [voiceRuntime, setVoiceRuntime] = useState<VoiceRuntime | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -51,6 +57,26 @@ export default function TheVoice({ engineState }: TheVoiceProps = {}) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages, isLoading]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    fetch('/api/ai/config')
+      .then((response) => (response.ok ? response.json() : null))
+      .then((config) => {
+        if (cancelled || !config) return;
+        const provider = config.voiceProvider === 'openai' ? 'openai' : 'gemini';
+        const model = provider === 'openai' ? config.openAiModel : config.model;
+        if (typeof model === 'string') setVoiceRuntime({ provider, model });
+      })
+      .catch(() => {
+        // A failed status lookup must not block the conversation surface.
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleCopyToClipboard = async (text: string) => {
     try {
@@ -120,7 +146,7 @@ Cast Size: ${forgeState.draftBlueprint?.cast?.length || 0}
       const telemetryPayload =
         currentForgeDraft && currentForgeDraft.premise ? currentForgeDraft : null;
 
-      const response = await fetch('/api/gemini/voice', {
+      const response = await fetch('/api/voice', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -132,6 +158,13 @@ Cast Size: ${forgeState.draftBlueprint?.cast?.length || 0}
 
       if (!response.ok) throw new Error(await response.text());
       const data = await response.json();
+
+      if (
+        (data.provider === 'gemini' || data.provider === 'openai') &&
+        typeof data.model === 'string'
+      ) {
+        setVoiceRuntime({ provider: data.provider, model: data.model });
+      }
 
       const responseText = data.text || 'Error: No response';
       const voiceMsg: Message = { role: 'voice', content: responseText, timestamp: Date.now() };
@@ -245,6 +278,14 @@ Cast Size: ${forgeState.draftBlueprint?.cast?.length || 0}
           [ THE VOICE // META-DEVELOPMENT ]
         </h2>
         <div className="flex items-center gap-4">
+          {voiceRuntime && (
+            <div
+              className="hidden lg:block text-[9px] text-zinc-500 uppercase tracking-widest"
+              title="Active provider and model"
+            >
+              {voiceRuntime.provider === 'openai' ? 'OPENAI' : 'GEMINI'} // {voiceRuntime.model}
+            </div>
+          )}
           <div className="flex items-center">
             {isConfirmingClear ? (
               <div className="flex items-center gap-4 mr-4 animate-in fade-in slide-in-from-right-2 border border-red-900/50 bg-red-950/20 px-3 py-1 rounded-sm">

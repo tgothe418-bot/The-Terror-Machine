@@ -20,10 +20,19 @@ interface AiConfigResponse {
   defaultPaidModel: string;
   hasApiKey: boolean;
   maskedApiKey: string;
+  engineProvider: 'gemini';
+  voiceProvider: 'gemini' | 'openai';
+  voiceProviders: Array<'gemini' | 'openai'>;
+  openAiModel: string;
+  approvedOpenAiModels: string[];
+  defaultOpenAiModel: string;
+  hasOpenAiApiKey: boolean;
+  maskedOpenAiApiKey: string;
 }
 
 interface AiPingResponse {
   ok: boolean;
+  provider?: 'gemini' | 'openai';
   model: string;
   latencyMs: number;
   status?: number;
@@ -46,6 +55,9 @@ export default function AiCalibrationModal({
   const [tier, setTier] = useState<'free' | 'paid'>('free');
   const [model, setModel] = useState<string>('gemini-3.6-flash');
   const [apiKeyInput, setApiKeyInput] = useState<string>('');
+  const [voiceProvider, setVoiceProvider] = useState<'gemini' | 'openai'>('gemini');
+  const [openAiModel, setOpenAiModel] = useState<string>('gpt-6-astra');
+  const [openAiApiKeyInput, setOpenAiApiKeyInput] = useState<string>('');
   const [isSaving, setIsSaving] = useState(false);
   const [isPinging, setIsPinging] = useState(false);
   const [pingResult, setPingResult] = useState<AiPingResponse | null>(null);
@@ -62,6 +74,8 @@ export default function AiCalibrationModal({
           setConfig(data);
           setTier(data.tier);
           setModel(data.model);
+          setVoiceProvider(data.voiceProvider || 'gemini');
+          setOpenAiModel(data.openAiModel || data.defaultOpenAiModel || 'gpt-6-astra');
         }
       } catch (err) {
         console.error('Failed to load AI config:', err);
@@ -76,6 +90,8 @@ export default function AiCalibrationModal({
   const handleClose = () => {
     setPingResult(null);
     setStatusMessage(null);
+    setApiKeyInput('');
+    setOpenAiApiKeyInput('');
     onClose();
   };
 
@@ -85,12 +101,24 @@ export default function AiCalibrationModal({
     setIsSaving(true);
     setStatusMessage(null);
     try {
-      const payload: { tier: 'free' | 'paid'; model: string; apiKey?: string } = {
+      const payload: {
+        tier: 'free' | 'paid';
+        model: string;
+        apiKey?: string;
+        voiceProvider: 'gemini' | 'openai';
+        openAiModel: string;
+        openAiApiKey?: string;
+      } = {
         tier,
         model,
+        voiceProvider,
+        openAiModel,
       };
       if (apiKeyInput.trim().length > 0) {
         payload.apiKey = apiKeyInput.trim();
+      }
+      if (openAiApiKeyInput.trim().length > 0) {
+        payload.openAiApiKey = openAiApiKeyInput.trim();
       }
 
       const res = await fetch('/api/ai/config', {
@@ -103,6 +131,7 @@ export default function AiCalibrationModal({
         const updated = await res.json();
         setConfig(updated);
         setApiKeyInput('');
+        setOpenAiApiKeyInput('');
         setStatusMessage('AI Configuration saved successfully.');
         onConfigChanged?.();
       } else {
@@ -120,13 +149,25 @@ export default function AiCalibrationModal({
     setIsPinging(true);
     setPingResult(null);
     try {
-      const res = await fetch('/api/ai/ping', { method: 'POST' });
+      const res = await fetch('/api/ai/ping', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          provider: voiceProvider,
+          ...(voiceProvider === 'openai'
+            ? {
+                model: openAiModel,
+                ...(openAiApiKeyInput.trim() ? { apiKey: openAiApiKeyInput.trim() } : {}),
+              }
+            : {}),
+        }),
+      });
       const data: AiPingResponse = await res.json();
       setPingResult(data);
     } catch {
       setPingResult({
         ok: false,
-        model,
+        model: voiceProvider === 'openai' ? openAiModel : model,
         latencyMs: 0,
         code: 'NETWORK_ERROR',
         message: 'Could not connect to /api/ai/ping',
@@ -142,7 +183,7 @@ export default function AiCalibrationModal({
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
-        className="max-w-2xl w-full bg-zinc-950 border border-zinc-800 rounded-lg shadow-2xl p-6 sm:p-8 space-y-6 text-zinc-100 font-sans relative"
+        className="max-w-2xl w-full max-h-[90vh] overflow-y-auto bg-zinc-950 border border-zinc-800 rounded-lg shadow-2xl p-6 sm:p-8 space-y-6 text-zinc-100 font-sans relative"
       >
         {/* Close Button */}
         <button
@@ -162,14 +203,50 @@ export default function AiCalibrationModal({
             Provider & Tier Settings
           </h2>
           <p className="text-xs text-zinc-400 font-mono">
-            Configure Gemini operating tier, active model, and API authentication.
+            Configure the Gemini simulation baseline and select the provider used by The Voice.
+          </p>
+        </div>
+
+        {/* Voice Provider Selection */}
+        <div className="space-y-2">
+          <label className="text-xs font-mono uppercase tracking-wider text-zinc-400">
+            The Voice Provider
+          </label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {(['gemini', 'openai'] as const).map((provider) => (
+              <button
+                key={provider}
+                type="button"
+                onClick={() => setVoiceProvider(provider)}
+                className={`p-4 text-left border rounded transition-all cursor-pointer ${
+                  voiceProvider === provider
+                    ? 'border-blue-500 bg-blue-950/20 text-white'
+                    : 'border-zinc-800 bg-zinc-900/50 text-zinc-400 hover:border-zinc-700'
+                }`}
+              >
+                <div className="flex items-center justify-between pb-1">
+                  <span className="font-mono text-xs font-bold uppercase tracking-wider text-blue-300">
+                    {provider === 'gemini' ? 'Google Gemini' : 'OpenAI'}
+                  </span>
+                  {voiceProvider === provider && <CheckCircle2 className="w-4 h-4 text-blue-400" />}
+                </div>
+                <p className="text-xs text-zinc-300 font-mono">
+                  {provider === 'gemini'
+                    ? 'Uses the active Gemini baseline below.'
+                    : 'Uses the Responses API for The Voice only.'}
+                </p>
+              </button>
+            ))}
+          </div>
+          <p className="text-[11px] text-zinc-500 font-mono">
+            Engine, Forge, and Autopilot continue to use Gemini during this provider preview.
           </p>
         </div>
 
         {/* Operating Tier Selection */}
         <div className="space-y-2">
           <label className="text-xs font-mono uppercase tracking-wider text-zinc-400">
-            Operating Tier
+            Gemini Baseline Tier
           </label>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {/* Free Tier */}
@@ -227,7 +304,7 @@ export default function AiCalibrationModal({
         {/* Active Model Selector */}
         <div className="space-y-2">
           <label className="text-xs font-mono uppercase tracking-wider text-zinc-400">
-            Active Model
+            Gemini Baseline Model
           </label>
           <select
             value={model}
@@ -248,6 +325,54 @@ export default function AiCalibrationModal({
             </option>
           </select>
         </div>
+
+        {voiceProvider === 'openai' && (
+          <div className="space-y-4 p-4 border border-blue-900/50 bg-blue-950/10 rounded">
+            <div className="space-y-2">
+              <label className="text-xs font-mono uppercase tracking-wider text-zinc-400">
+                OpenAI Voice Model
+              </label>
+              <select
+                value={openAiModel}
+                onChange={(e) => setOpenAiModel(e.target.value)}
+                className="w-full bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-xs font-mono text-zinc-200 focus:outline-none focus:border-blue-500 transition-colors"
+              >
+                {(config?.approvedOpenAiModels || ['gpt-6-astra']).map((approvedModel) => (
+                  <option key={approvedModel} value={approvedModel}>
+                    {approvedModel}
+                    {approvedModel === (config?.defaultOpenAiModel || 'gpt-6-astra')
+                      ? ' (Recommended)'
+                      : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-mono uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
+                  <Key className="w-3.5 h-3.5" />
+                  OpenAI API Key
+                </label>
+                {config?.hasOpenAiApiKey && (
+                  <span className="text-[11px] font-mono text-zinc-400">
+                    Active: <code className="text-zinc-300">{config.maskedOpenAiApiKey}</code>
+                  </span>
+                )}
+              </div>
+              <input
+                type="password"
+                placeholder="Paste a new OpenAI API key to update (optional)..."
+                value={openAiApiKeyInput}
+                onChange={(e) => setOpenAiApiKeyInput(e.target.value)}
+                className="w-full bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-xs font-mono text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-blue-500 transition-colors"
+              />
+              <p className="text-[11px] text-zinc-500 font-mono">
+                The key stays on the server process and is never returned to the browser.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* API Key Input */}
         <div className="space-y-2">
@@ -276,7 +401,7 @@ export default function AiCalibrationModal({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-xs font-mono text-zinc-300">
               <ShieldCheck className="w-4 h-4 text-zinc-400" />
-              <span>Connectivity Diagnostic</span>
+              <span>Voice Provider Diagnostic</span>
             </div>
             <button
               type="button"
@@ -301,8 +426,8 @@ export default function AiCalibrationModal({
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-green-400" />
                   <span>
-                    Connection verified with <strong>{pingResult.model}</strong>. Latency:{' '}
-                    {pingResult.latencyMs}ms.
+                    Connection verified with <strong>{pingResult.provider || voiceProvider}</strong>{' '}
+                    / <strong>{pingResult.model}</strong>. Latency: {pingResult.latencyMs}ms.
                   </span>
                 </div>
               ) : (

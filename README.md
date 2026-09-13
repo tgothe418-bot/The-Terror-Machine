@@ -24,7 +24,7 @@ Jump to: [Run it](#running-the-machine) · [The House is Free](#the-house-is-fre
 
 Before the tour, the doorknob.
 
-The application uses React, TypeScript, Vite, Express, Zustand, Zod, Tailwind CSS, Vitest, IndexedDB utilities, and Google Gemini through `@google/genai`.
+The application uses React, TypeScript, Vite, Express, Zustand, Zod, Tailwind CSS, Vitest, IndexedDB utilities, Google Gemini through `@google/genai`, and the OpenAI Responses API for the optional OpenAI Voice provider.
 
 ```bash
 npm install
@@ -32,7 +32,7 @@ cp .env.example .env
 npm run dev
 ```
 
-Add a personal Gemini API key to `.env`.
+Add a personal Gemini API key to `.env`. The Engine, Forge, and Autopilot currently use Gemini. To try The Voice with OpenAI, also add an OpenAI API key or enter one in AI Calibration, then select the OpenAI Voice provider.
 
 For a production-style compilation:
 
@@ -49,7 +49,7 @@ npm test
 
 Never commit `.env`, expose an API key in source code, or paste a key into a public issue.
 
-The machine is currently being built and tested in Antigravity. Gemini supplies the model runtime, while the Engine's contracts define what it can accept.
+The machine is currently being built and tested in Antigravity. Gemini supplies the simulation runtime. The Voice can use Gemini or OpenAI as a read-only development and research surface, while the Engine's contracts define what a model can propose and what the application can accept.
 
 ## THE HOUSE IS FREE
 
