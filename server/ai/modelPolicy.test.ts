@@ -1,12 +1,20 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import { ThinkingLevel } from '@google/genai';
 import {
+  APPROVED_GEMINI_MODELS,
+  DEFAULT_FREE_MODEL,
+  DEFAULT_PAID_MODEL,
   GEMINI_MODEL_ID,
   GEMINI_POLICIES,
+  getActiveModelId,
+  getActiveTier,
+  getFallbackModelId,
   getGeminiPolicy,
   GeminiPurpose,
+  setActiveModelId,
+  setActiveTier,
 } from './modelPolicy';
 
 describe('Gemini Model Policy', () => {
@@ -22,12 +30,57 @@ describe('Gemini Model Policy', () => {
     'LEGACY_RECONCILIATION',
   ];
 
-  it('resolves every declared purpose to gemini-3.7-flash', () => {
-    expect(GEMINI_MODEL_ID).toBe('gemini-3.7-flash');
+  beforeEach(() => {
+    setActiveTier('free');
+    setActiveModelId(null);
+  });
+
+  afterEach(() => {
+    setActiveTier('free');
+    setActiveModelId(null);
+  });
+
+  it('resolves every declared purpose to the active model', () => {
+    expect(APPROVED_GEMINI_MODELS).toContain(DEFAULT_FREE_MODEL);
+    expect(APPROVED_GEMINI_MODELS).toContain(DEFAULT_PAID_MODEL);
+    expect(GEMINI_MODEL_ID).toBe(DEFAULT_FREE_MODEL);
+    expect(getActiveModelId()).toBe(DEFAULT_FREE_MODEL);
     for (const purpose of ALL_PURPOSES) {
       const policy = getGeminiPolicy(purpose);
-      expect(policy.model).toBe('gemini-3.7-flash');
+      expect(policy.model).toBe(DEFAULT_FREE_MODEL);
     }
+  });
+
+  it('switches models cleanly between Free and Paid tiers', () => {
+    setActiveTier('free');
+    expect(getActiveTier()).toBe('free');
+    expect(getActiveModelId()).toBe(DEFAULT_FREE_MODEL);
+    expect(getGeminiPolicy('ENGINE_TURN').model).toBe('gemini-3.6-flash');
+
+    setActiveTier('paid');
+    expect(getActiveTier()).toBe('paid');
+    expect(getActiveModelId()).toBe(DEFAULT_PAID_MODEL);
+    expect(getGeminiPolicy('ENGINE_TURN').model).toBe('gemini-3.7-flash');
+  });
+
+  it('supports explicit model overrides within approved models', () => {
+    setActiveModelId('gemini-3.5-flash-lite');
+    expect(getActiveModelId()).toBe('gemini-3.5-flash-lite');
+    expect(getGeminiPolicy('ENGINE_TURN').model).toBe('gemini-3.5-flash-lite');
+
+    // Rejects unapproved model names
+    expect(() => {
+      // @ts-expect-error test unapproved model rejection
+      setActiveModelId('unapproved-gpt-4');
+    }).toThrow();
+  });
+
+  it('provides a resilient fallback model hierarchy', () => {
+    expect(getFallbackModelId('gemini-3.7-flash')).toBe('gemini-3.6-flash');
+    expect(getFallbackModelId('gemini-3.6-flash')).toBe('gemini-3.5-flash-lite');
+    expect(getFallbackModelId('gemini-3.5-flash-lite')).toBe('gemini-3.6-flash');
+    expect(getFallbackModelId('gemini-2.5-flash')).toBe('gemini-3.6-flash');
+    expect(getFallbackModelId('gemini-2.5-flash-lite')).toBe('gemini-3.5-flash-lite');
   });
 
   it('resolves each purpose to the exact required thinking level', () => {
@@ -61,7 +114,7 @@ describe('Gemini Model Policy', () => {
     }
   });
 
-  it('guards all 5 live server files against legacy model IDs, unsupported sampling parameters, and forbidden APIs', () => {
+  it('guards all 5 live server files against deprecated model IDs, unsupported sampling parameters, and forbidden APIs', () => {
     const liveFiles = [
       'server/utils/aiClient.ts',
       'server/routes/chat.ts',
@@ -70,7 +123,7 @@ describe('Gemini Model Policy', () => {
       'server/routes/voice.ts',
     ];
 
-    const legacyModelPattern = /gemini-(3\.1-pro-preview|3\.5-flash|1\.5-pro|1\.5-flash|2\.0-flash|2\.5-flash|3\.0-flash)/i;
+    const deprecatedModelPattern = /gemini-(1\.5-pro|1\.5-flash|2\.0-flash|3\.0-flash)/i;
     const forbiddenSamplingPattern = /\b(temperature|topP|topK|thinkingBudget|candidateCount)\s*:/;
     const forbiddenApisPattern = /(\.interactions|previous_interaction_id|previousInteractionId)/;
     const directQuotedModelPattern = /model\s*:\s*["'][^"']+["']/;
@@ -80,8 +133,8 @@ describe('Gemini Model Policy', () => {
       const content = fs.readFileSync(fullPath, 'utf8');
 
       expect(
-        legacyModelPattern.test(content),
-        `Found legacy model string in ${relPath}`
+        deprecatedModelPattern.test(content),
+        `Found deprecated model string in ${relPath}`
       ).toBe(false);
 
       expect(

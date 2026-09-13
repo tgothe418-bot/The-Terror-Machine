@@ -7,6 +7,7 @@ import voiceRoutes from "./routes/voice";
 import forgeRoutes from "./routes/forge";
 import { turnRouter } from "./routes/turn";
 import chatRoutes from "./routes/chat";
+import { aiConfigRouter } from "./routes/aiConfig";
 import { REFERENCE_IMPORT_JSON_LIMIT } from "../src/lib/referenceImportPolicy";
 import { payloadErrorHandler } from "./middleware/payloadErrorHandler";
 import { apiErrorHandler } from "./middleware/apiErrorHandler";
@@ -63,6 +64,7 @@ export async function createApp(options: CreateAppOptions = { enableSpaFallback:
   app.use("/api", apiLimiter, forgeRoutes);
   app.use("/api/turn", apiLimiter, turnRouter);
   app.use("/api", apiLimiter, chatRoutes);
+  app.use("/api/ai", apiLimiter, aiConfigRouter);
 
   // Structured error handling for parser-level payload overages
   app.use(payloadErrorHandler);

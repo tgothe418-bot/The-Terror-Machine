@@ -12,6 +12,9 @@ export const SAFE_TURN_FAILURE_CODES = [
   'MODEL_CONTRACT_MISMATCH',
   'PROVIDER_FAILURE',
   'PROVIDER_REFUSAL',
+  'PREPAYMENT_DEPLETED',
+  'RATE_LIMIT_EXCEEDED',
+  'PROVIDER_HIGH_DEMAND',
   'NON_JSON_TURN_RESPONSE',
   'MALFORMED_TURN_RESPONSE',
   'TURN_NETWORK_FAILURE',
@@ -33,6 +36,12 @@ export const SAFE_ERROR_MESSAGES: Record<SafeTurnFailureCode, string> = {
     'The AI provider turn generation failed. The session state was not changed.',
   PROVIDER_REFUSAL:
     'The simulation model declined to generate a turn. The session state was not changed. You may retry or rephrase your action.',
+  PREPAYMENT_DEPLETED:
+    'Your Google AI Studio prepayment credits are depleted. Switch to an unpaid Free Tier project key or add credits in Google AI Studio.',
+  RATE_LIMIT_EXCEEDED:
+    'AI provider rate limit reached (15 RPM on Free Tier). Please wait a few seconds before retrying.',
+  PROVIDER_HIGH_DEMAND:
+    'The AI model is experiencing a temporary capacity spike. Please retry in a moment.',
   NON_JSON_TURN_RESPONSE:
     'The turn service returned an unexpected non-JSON response. The session state was not changed.',
   MALFORMED_TURN_RESPONSE:

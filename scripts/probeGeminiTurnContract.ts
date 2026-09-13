@@ -1,4 +1,5 @@
-import 'dotenv/config';
+import dotenv from 'dotenv';
+dotenv.config({ override: true });
 import { getAiClient, EngineTurnStructuredResponseContract, parseStructuredTurnResponse } from '../server/utils/aiClient';
 import { getGeminiPolicy } from '../server/ai/modelPolicy';
 

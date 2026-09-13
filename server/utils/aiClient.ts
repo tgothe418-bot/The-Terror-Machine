@@ -1,6 +1,6 @@
 import { GoogleGenAI, Type, type Schema } from "@google/genai";
 import type { z } from "zod";
-import { getGeminiPolicy } from "../ai/modelPolicy";
+import { getGeminiPolicy, getFallbackModelId, type GeminiModelId } from "../ai/modelPolicy";
 import { TurnResultSchema, type TurnResult } from "../schemas/engine";
 import {
   type GeminiJsonSchema,
@@ -10,6 +10,13 @@ import { normalizeGeminiTurnProviderPayload } from '../ai/geminiTurnTransport';
 
 let aiClient: GoogleGenAI | null = null;
 const STARTUP_API_KEY = process.env.GEMINI_API_KEY;
+
+export function resetAiClient(newKey?: string): void {
+  if (newKey !== undefined) {
+    process.env.GEMINI_API_KEY = newKey.trim().replace(/^['"]|['"]$/g, '');
+  }
+  aiClient = null;
+}
 
 export function getAiClient(): GoogleGenAI {
   if (!aiClient) {
@@ -95,17 +102,22 @@ export const generateEngineTurn = async (prompt: string): Promise<string | null 
   ];
 
   const policy = getGeminiPolicy('ENGINE_TURN');
-  const response = await getAiClient().models.generateContent({
-    model: policy.model,
-    contents,
-    config: {
-      thinkingConfig: {
-        thinkingLevel: policy.thinkingLevel,
-      },
-      responseMimeType: "application/json",
-      responseSchema: engineResponseSchema,
-    }
-  });
+  const response = await executeWithRetryAndFallback(
+    async (modelToUse) => {
+      return await getAiClient().models.generateContent({
+        model: modelToUse,
+        contents,
+        config: {
+          thinkingConfig: {
+            thinkingLevel: policy.thinkingLevel,
+          },
+          responseMimeType: "application/json",
+          responseSchema: engineResponseSchema,
+        }
+      });
+    },
+    policy.model
+  );
 
   return response.text;
 };
@@ -209,7 +221,40 @@ export class ProviderRequestRejectedError extends Error {
   }
 }
 
-function readProviderStatus(error: unknown): number | null {
+export class ProviderPrepaymentDepletedError extends Error {
+  readonly code = 'PREPAYMENT_DEPLETED';
+  constructor(message?: string) {
+    super(
+      message ||
+        'Your Google AI Studio prepayment credits are depleted. Switch to an unpaid Free Tier project key or add credits in AI Studio.'
+    );
+    this.name = 'ProviderPrepaymentDepletedError';
+  }
+}
+
+export class ProviderRateLimitError extends Error {
+  readonly code = 'RATE_LIMIT_EXCEEDED';
+  constructor(message?: string) {
+    super(
+      message ||
+        'AI provider rate limit reached (15 RPM on Free Tier). Please wait a few seconds before retrying.'
+    );
+    this.name = 'ProviderRateLimitError';
+  }
+}
+
+export class ProviderCapacityError extends Error {
+  readonly code = 'PROVIDER_HIGH_DEMAND';
+  constructor(message?: string) {
+    super(
+      message ||
+        'AI model is currently experiencing high demand. Please try again in a few moments.'
+    );
+    this.name = 'ProviderCapacityError';
+  }
+}
+
+export function readProviderStatus(error: unknown): number | null {
   if (!error || typeof error !== 'object') {
     return null;
   }
@@ -223,6 +268,89 @@ function readProviderStatus(error: unknown): number | null {
   return typeof responseStatus === 'number' && Number.isInteger(responseStatus)
     ? responseStatus
     : null;
+}
+
+export function readProviderErrorMessage(error: unknown): string {
+  if (!error) return '';
+  if (typeof error === 'string') return error;
+  if (typeof error === 'object') {
+    const directMsg = (error as { message?: unknown }).message;
+    if (typeof directMsg === 'string') return directMsg;
+    const errObj = (error as { error?: { message?: unknown } }).error;
+    if (errObj && typeof errObj === 'object' && typeof errObj.message === 'string') {
+      return errObj.message;
+    }
+  }
+  return String(error);
+}
+
+export function isPrepaymentDepletedError(error: unknown): boolean {
+  const status = readProviderStatus(error);
+  const msg = readProviderErrorMessage(error).toLowerCase();
+  return status === 429 && (msg.includes('credits are depleted') || msg.includes('prepayment') || msg.includes('billing#prepay'));
+}
+
+export function isTransientProviderError(error: unknown): boolean {
+  if (isPrepaymentDepletedError(error)) return false;
+  const status = readProviderStatus(error);
+  return status === 503 || status === 429;
+}
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function executeWithRetryAndFallback<R>(
+  operation: (modelId: GeminiModelId) => Promise<R>,
+  initialModelId: GeminiModelId,
+  maxRetries = 3
+): Promise<R> {
+  let currentModel = initialModelId;
+  let attempt = 0;
+  let hasAttemptedFallback = false;
+  let retryCount = 0;
+  while (retryCount < maxRetries * 2) {
+    retryCount++;
+    attempt++;
+    try {
+      return await operation(currentModel);
+    } catch (error: unknown) {
+      if (isPrepaymentDepletedError(error)) {
+        throw new ProviderPrepaymentDepletedError(readProviderErrorMessage(error));
+      }
+
+      const providerStatus = readProviderStatus(error);
+      if (providerStatus === 400) {
+        throw new ProviderRequestRejectedError(providerStatus);
+      }
+
+      const isTransient = isTransientProviderError(error);
+      if (!isTransient || attempt >= maxRetries) {
+        // Model unavailable (404) or persistent capacity spike (503/429): try fallback model if available
+        if ((providerStatus === 503 || providerStatus === 429 || providerStatus === 404) && !hasAttemptedFallback) {
+          const fallbackModel = getFallbackModelId(currentModel);
+          if (fallbackModel !== currentModel) {
+            console.warn(`[AI Client] Model ${currentModel} returned ${providerStatus}. Attempting fallback to ${fallbackModel}...`);
+            currentModel = fallbackModel;
+            hasAttemptedFallback = true;
+            attempt = 0;
+            await sleep(500);
+            continue;
+          }
+        }
+
+        if (providerStatus === 503) {
+          throw new ProviderCapacityError(readProviderErrorMessage(error));
+        }
+        if (providerStatus === 429) {
+          throw new ProviderRateLimitError(readProviderErrorMessage(error));
+        }
+        throw error;
+      }
+
+      const backoffMs = Math.min(1000 * Math.pow(1.5, attempt - 1), 4000) + Math.random() * 200;
+      console.warn(`[AI Client] Transient provider error (${providerStatus}). Retrying attempt ${attempt + 1}/${maxRetries} in ${Math.round(backoffMs)}ms...`);
+      await sleep(backoffMs);
+    }
+  }
 }
 
 export function unwrapStrictJsonResponse(text: string): string {
@@ -270,28 +398,24 @@ export const generateStructuredResponse = async <T>(
   contract: StructuredResponseContract<T>
 ): Promise<T> => {
   const contents = [{ role: 'user', parts: [{ text: prompt }] }];
-
   const policy = getGeminiPolicy('ENGINE_TURN');
-  let response;
-  try {
-    response = await getAiClient().models.generateContent({
-      model: policy.model,
-      contents,
-      config: {
-        thinkingConfig: {
-          thinkingLevel: policy.thinkingLevel,
+
+  const response = await executeWithRetryAndFallback(
+    async (modelToUse) => {
+      return await getAiClient().models.generateContent({
+        model: modelToUse,
+        contents,
+        config: {
+          thinkingConfig: {
+            thinkingLevel: policy.thinkingLevel,
+          },
+          responseMimeType: 'application/json',
+          responseJsonSchema: contract.responseJsonSchema,
         },
-        responseMimeType: 'application/json',
-        responseJsonSchema: contract.responseJsonSchema,
-      },
-    });
-  } catch (error: unknown) {
-    const providerStatus = readProviderStatus(error);
-    if (providerStatus === 400) {
-      throw new ProviderRequestRejectedError(providerStatus);
-    }
-    throw error;
-  }
+      });
+    },
+    policy.model
+  );
 
   const classification = classifyProviderResponse(response);
   if (classification.kind === 'PROVIDER_REFUSAL') {
@@ -307,3 +431,50 @@ export const generateStructuredResponse = async <T>(
     contract.normalizeProviderPayload
   );
 };
+
+export interface AiPingResult {
+  ok: boolean;
+  model: string;
+  latencyMs: number;
+  status?: number;
+  code?: string;
+  message?: string;
+}
+
+export async function pingAiProvider(): Promise<AiPingResult> {
+  const policy = getGeminiPolicy('ENGINE_TURN');
+  const start = Date.now();
+  try {
+    const client = getAiClient();
+    await client.models.generateContent({
+      model: policy.model,
+      contents: [{ role: 'user', parts: [{ text: 'Respond with OK.' }] }],
+    });
+    return {
+      ok: true,
+      model: policy.model,
+      latencyMs: Date.now() - start,
+    };
+  } catch (error: unknown) {
+    const status = readProviderStatus(error);
+    const message = readProviderErrorMessage(error);
+    let code = 'PROVIDER_FAILURE';
+    if (isPrepaymentDepletedError(error)) {
+      code = 'PREPAYMENT_DEPLETED';
+    } else if (status === 429) {
+      code = 'RATE_LIMIT_EXCEEDED';
+    } else if (status === 503) {
+      code = 'PROVIDER_HIGH_DEMAND';
+    } else if (status === 400) {
+      code = 'INVALID_API_KEY';
+    }
+    return {
+      ok: false,
+      model: policy.model,
+      latencyMs: Date.now() - start,
+      status: status || 502,
+      code,
+      message,
+    };
+  }
+}

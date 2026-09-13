@@ -570,4 +570,31 @@ describe('turnResponseReader', () => {
     expect(normalized.message).not.toContain('SAFETY violation');
     expect(normalized.message).not.toContain('line 42');
   });
+
+  it('normalizes PREPAYMENT_DEPLETED with actionable message and HTTP 429 status', () => {
+    const rawReceipt = {
+      code: 'PREPAYMENT_DEPLETED',
+      status: 429,
+      contentType: 'application/json',
+      message: 'Google Cloud billing error: your prepayment credits are depleted',
+    };
+
+    const normalized = normalizeTurnFailureReceipt(rawReceipt);
+    expect(normalized.code).toBe('PREPAYMENT_DEPLETED');
+    expect(normalized.status).toBe(429);
+    expect(normalized.message).toBe(SAFE_ERROR_MESSAGES.PREPAYMENT_DEPLETED);
+    expect(normalized.message).toContain('prepayment credits are depleted');
+  });
+
+  it('normalizes RATE_LIMIT_EXCEEDED and PROVIDER_HIGH_DEMAND cleanly', () => {
+    const rateLimit = normalizeTurnFailureReceipt({ code: 'RATE_LIMIT_EXCEEDED', status: 429 });
+    expect(rateLimit.code).toBe('RATE_LIMIT_EXCEEDED');
+    expect(rateLimit.status).toBe(429);
+    expect(rateLimit.message).toBe(SAFE_ERROR_MESSAGES.RATE_LIMIT_EXCEEDED);
+
+    const highDemand = normalizeTurnFailureReceipt({ code: 'PROVIDER_HIGH_DEMAND', status: 503 });
+    expect(highDemand.code).toBe('PROVIDER_HIGH_DEMAND');
+    expect(highDemand.status).toBe(503);
+    expect(highDemand.message).toBe(SAFE_ERROR_MESSAGES.PROVIDER_HIGH_DEMAND);
+  });
 });

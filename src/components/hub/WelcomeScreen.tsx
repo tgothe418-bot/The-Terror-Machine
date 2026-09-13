@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
-import { Hammer, Play, Ghost, Target, Activity, AlertTriangle, RefreshCw } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Hammer, Play, Ghost, Target, Activity, AlertTriangle, RefreshCw, Settings2 } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import { useVoiceStore } from '../../store/useVoiceStore';
 import { forgeActions } from '../../store/useForgeStore';
 import { useEngineStore } from '../../core/store';
 import { motion, AnimatePresence } from 'motion/react';
+import AiCalibrationModal from './AiCalibrationModal';
 
 export default function WelcomeScreen() {
   const setPhase = useAppStore((state) => state.setPhase);
@@ -13,6 +14,42 @@ export default function WelcomeScreen() {
   const clearEngine = useEngineStore((state) => state.clearBlueprint);
 
   const [isConfirmingReset, setIsConfirmingReset] = useState(false);
+  const [isAiModalOpen, setIsAiModalOpen] = useState(false);
+  const [aiTier, setAiTier] = useState<'free' | 'paid'>('free');
+  const [aiModel, setAiModel] = useState<string>('gemini-2.5-flash');
+
+  const fetchAiConfig = useCallback(async () => {
+    try {
+      const res = await fetch('/api/ai/config');
+      if (res.ok) {
+        const data = await res.json();
+        setAiTier(data.tier || 'free');
+        setAiModel(data.model || 'gemini-2.5-flash');
+      }
+    } catch {
+      // ignore network blips on initial render
+    }
+  }, []);
+
+  useEffect(() => {
+    let ignore = false;
+    async function load() {
+      try {
+        const res = await fetch('/api/ai/config');
+        if (res.ok && !ignore) {
+          const data = await res.json();
+          setAiTier(data.tier || 'free');
+          setAiModel(data.model || 'gemini-2.5-flash');
+        }
+      } catch {
+        // ignore initial network error
+      }
+    }
+    void load();
+    return () => {
+      ignore = true;
+    };
+  }, []);
 
   const handleFullReset = () => {
     clearVoice();
@@ -46,6 +83,34 @@ export default function WelcomeScreen() {
             </div>
           </div>
         </header>
+
+        {/* AI Tier Status & Quick Calibration Bar */}
+        <div className="flex justify-center -mt-4">
+          <button
+            type="button"
+            onClick={() => setIsAiModalOpen(true)}
+            className="flex items-center gap-3 px-5 py-2 bg-zinc-950/90 border border-zinc-800 hover:border-zinc-500 rounded-full transition-all cursor-pointer group shadow-xl backdrop-blur-md"
+          >
+            <span
+              className={`flex h-2 w-2 rounded-full ${
+                aiTier === 'free' ? 'bg-system-green' : 'bg-red-500'
+              } animate-pulse`}
+            />
+            <span className="text-xs font-mono tracking-wider uppercase text-zinc-300">
+              AI Tier:{' '}
+              <strong className={aiTier === 'free' ? 'text-system-green font-bold' : 'text-red-400 font-bold'}>
+                {aiTier === 'free' ? 'Free Tier (Zero Cost)' : 'Paid Tier (Pro)'}
+              </strong>
+            </span>
+            <span className="text-[11px] font-mono text-zinc-500 group-hover:text-zinc-300 transition-colors">
+              // {aiModel}
+            </span>
+            <span className="text-[11px] font-mono text-zinc-400 group-hover:text-white flex items-center gap-1 pl-2 border-l border-zinc-800">
+              <Settings2 className="w-3.5 h-3.5 text-zinc-400 group-hover:text-white" />
+              Configure
+            </span>
+          </button>
+        </div>
 
         {/* Phase Action Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8">
@@ -207,6 +272,13 @@ export default function WelcomeScreen() {
           </div>
         </footer>
       </div>
+
+      {/* AI Calibration Modal */}
+      <AiCalibrationModal
+        isOpen={isAiModalOpen}
+        onClose={() => setIsAiModalOpen(false)}
+        onConfigChanged={fetchAiConfig}
+      />
     </div>
   );
 }

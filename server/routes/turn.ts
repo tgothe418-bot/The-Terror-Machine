@@ -56,6 +56,9 @@ import {
   ProviderRefusalError,
   EmptyProviderResponseError,
   ProviderRequestRejectedError,
+  ProviderPrepaymentDepletedError,
+  ProviderRateLimitError,
+  ProviderCapacityError,
 } from '../utils/aiClient';
 import { GEMINI_TURN_NULL_SENTINEL } from '../ai/geminiTurnTransport';
 import { resolveTransition } from '../engine/transitionResolver';
@@ -1234,6 +1237,36 @@ ${recentHistory}
     try {
       engineResponse = await generateStructuredResponse(prompt, EngineTurnStructuredResponseContract);
     } catch (modelErr: unknown) {
+      if (
+        modelErr instanceof ProviderPrepaymentDepletedError ||
+        (modelErr as { code?: string })?.code === 'PREPAYMENT_DEPLETED'
+      ) {
+        console.error('[API /turn] Prepayment credits depleted');
+        return res.status(429).json({
+          error: 'Google AI Studio prepayment credits are depleted. Switch to an unpaid Free Tier project key or add credits in AI Studio.',
+          code: 'PREPAYMENT_DEPLETED',
+        });
+      }
+      if (
+        modelErr instanceof ProviderRateLimitError ||
+        (modelErr as { code?: string })?.code === 'RATE_LIMIT_EXCEEDED'
+      ) {
+        console.warn('[API /turn] AI Provider rate limit exceeded');
+        return res.status(429).json({
+          error: 'AI provider rate limit reached (15 RPM on Free Tier). Please wait a few seconds before retrying.',
+          code: 'RATE_LIMIT_EXCEEDED',
+        });
+      }
+      if (
+        modelErr instanceof ProviderCapacityError ||
+        (modelErr as { code?: string })?.code === 'PROVIDER_HIGH_DEMAND'
+      ) {
+        console.warn('[API /turn] AI Provider high demand');
+        return res.status(503).json({
+          error: 'AI provider is currently experiencing high demand. Please retry in a few moments.',
+          code: 'PROVIDER_HIGH_DEMAND',
+        });
+      }
       if (
         modelErr instanceof ProviderRefusalError ||
         (modelErr as { code?: string })?.code === 'PROVIDER_REFUSAL'
