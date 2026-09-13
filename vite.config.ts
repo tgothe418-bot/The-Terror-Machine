@@ -7,6 +7,9 @@ import { defineConfig, type Plugin, type PreviewServer, type ViteDevServer } fro
 type ViteMiddlewareHost = Pick<ViteDevServer, 'middlewares'> | Pick<PreviewServer, 'middlewares'>;
 
 async function mountTtmApiRuntime(server: ViteMiddlewareHost): Promise<void> {
+  if ('config' in server && (server as ViteDevServer).config?.server?.middlewareMode) {
+    return;
+  }
   const { createApp } = await import('./server/app');
   const apiApp = await createApp({ enableSpaFallback: false });
   server.middlewares.use(apiApp);
