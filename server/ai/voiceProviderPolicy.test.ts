@@ -10,24 +10,27 @@ import {
 
 describe('Voice provider policy', () => {
   beforeEach(() => {
-    setVoiceProvider('gemini');
+    setVoiceProvider('openai');
     setOpenAiVoiceModel(null);
   });
 
   afterEach(() => {
-    setVoiceProvider('gemini');
+    setVoiceProvider('openai');
     setOpenAiVoiceModel(null);
   });
 
-  it('keeps Gemini as the default while allowing an isolated OpenAI Voice selection', () => {
+  it('defaults to OpenAI while allowing switching to Gemini', () => {
+    expect(getVoiceProvider()).toBe('openai');
+    setVoiceProvider('gemini');
     expect(getVoiceProvider()).toBe('gemini');
     setVoiceProvider('openai');
     expect(getVoiceProvider()).toBe('openai');
   });
 
-  it('uses an approved OpenAI model and rejects unknown model IDs', () => {
+  it('uses approved OpenAI model gpt-5.6-luna by default and rejects unknown model IDs', () => {
+    expect(DEFAULT_OPENAI_VOICE_MODEL).toBe('gpt-5.6-luna');
     expect(APPROVED_OPENAI_VOICE_MODELS).toContain(DEFAULT_OPENAI_VOICE_MODEL);
-    expect(getOpenAiVoiceModel()).toBe(DEFAULT_OPENAI_VOICE_MODEL);
+    expect(getOpenAiVoiceModel()).toBe('gpt-5.6-luna');
     setOpenAiVoiceModel('gpt-5.6-terra');
     expect(getOpenAiVoiceModel()).toBe('gpt-5.6-terra');
     expect(() => {

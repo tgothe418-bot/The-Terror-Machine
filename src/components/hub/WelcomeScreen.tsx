@@ -25,9 +25,9 @@ export default function WelcomeScreen() {
   const [isConfirmingReset, setIsConfirmingReset] = useState(false);
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
   const [aiTier, setAiTier] = useState<'free' | 'paid'>('free');
-  const [aiModel, setAiModel] = useState<string>('gemini-2.5-flash');
-  const [voiceProvider, setVoiceProvider] = useState<'gemini' | 'openai'>('gemini');
-  const [openAiVoiceModel, setOpenAiVoiceModel] = useState<string>('gpt-6-astra');
+  const [aiModel, setAiModel] = useState<string>('gemini-3.6-flash');
+  const [voiceProvider, setVoiceProvider] = useState<'gemini' | 'openai'>('openai');
+  const [openAiVoiceModel, setOpenAiVoiceModel] = useState<string>('gpt-5.6-luna');
 
   const fetchAiConfig = useCallback(async () => {
     try {
@@ -35,9 +35,9 @@ export default function WelcomeScreen() {
       if (res.ok) {
         const data = await res.json();
         setAiTier(data.tier || 'free');
-        setAiModel(data.model || 'gemini-2.5-flash');
-        setVoiceProvider(data.voiceProvider || 'gemini');
-        setOpenAiVoiceModel(data.openAiModel || 'gpt-6-astra');
+        setAiModel(data.model || 'gemini-3.6-flash');
+        setVoiceProvider(data.voiceProvider || 'openai');
+        setOpenAiVoiceModel(data.openAiModel || 'gpt-5.6-luna');
       }
     } catch {
       // ignore network blips on initial render
@@ -52,9 +52,9 @@ export default function WelcomeScreen() {
         if (res.ok && !ignore) {
           const data = await res.json();
           setAiTier(data.tier || 'free');
-          setAiModel(data.model || 'gemini-2.5-flash');
-          setVoiceProvider(data.voiceProvider || 'gemini');
-          setOpenAiVoiceModel(data.openAiModel || 'gpt-6-astra');
+          setAiModel(data.model || 'gemini-3.6-flash');
+          setVoiceProvider(data.voiceProvider || 'openai');
+          setOpenAiVoiceModel(data.openAiModel || 'gpt-5.6-luna');
         }
       } catch {
         // ignore initial network error

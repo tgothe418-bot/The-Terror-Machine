@@ -55,8 +55,8 @@ export default function AiCalibrationModal({
   const [tier, setTier] = useState<'free' | 'paid'>('free');
   const [model, setModel] = useState<string>('gemini-3.6-flash');
   const [apiKeyInput, setApiKeyInput] = useState<string>('');
-  const [voiceProvider, setVoiceProvider] = useState<'gemini' | 'openai'>('gemini');
-  const [openAiModel, setOpenAiModel] = useState<string>('gpt-6-astra');
+  const [voiceProvider, setVoiceProvider] = useState<'gemini' | 'openai'>('openai');
+  const [openAiModel, setOpenAiModel] = useState<string>('gpt-5.6-luna');
   const [openAiApiKeyInput, setOpenAiApiKeyInput] = useState<string>('');
   const [isSaving, setIsSaving] = useState(false);
   const [isPinging, setIsPinging] = useState(false);
@@ -337,10 +337,10 @@ export default function AiCalibrationModal({
                 onChange={(e) => setOpenAiModel(e.target.value)}
                 className="w-full bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-xs font-mono text-zinc-200 focus:outline-none focus:border-blue-500 transition-colors"
               >
-                {(config?.approvedOpenAiModels || ['gpt-6-astra']).map((approvedModel) => (
+                {(config?.approvedOpenAiModels || ['gpt-5.6-luna', 'gpt-6-astra', 'gpt-5.6-terra']).map((approvedModel) => (
                   <option key={approvedModel} value={approvedModel}>
                     {approvedModel}
-                    {approvedModel === (config?.defaultOpenAiModel || 'gpt-6-astra')
+                    {approvedModel === (config?.defaultOpenAiModel || 'gpt-5.6-luna')
                       ? ' (Recommended)'
                       : ''}
                   </option>

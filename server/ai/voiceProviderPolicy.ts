@@ -1,19 +1,22 @@
-export const VOICE_PROVIDERS = ['gemini', 'openai'] as const;
+export const VOICE_PROVIDERS = ['openai', 'gemini'] as const;
 export type VoiceProvider = (typeof VOICE_PROVIDERS)[number];
 
 export const APPROVED_OPENAI_VOICE_MODELS = [
+  'gpt-5.6-luna',
   'gpt-6-astra',
   'gpt-5.6-terra',
-  'gpt-5.6-luna',
 ] as const;
 
 export type OpenAiVoiceModelId = (typeof APPROVED_OPENAI_VOICE_MODELS)[number];
 
-export const DEFAULT_OPENAI_VOICE_MODEL: OpenAiVoiceModelId = 'gpt-6-astra';
+export const DEFAULT_VOICE_PROVIDER: VoiceProvider = 'openai';
+export const DEFAULT_OPENAI_VOICE_MODEL: OpenAiVoiceModelId = 'gpt-5.6-luna';
 
 function readConfiguredProvider(): VoiceProvider {
   const configured = process.env.VOICE_AI_PROVIDER?.trim().toLowerCase();
-  return configured === 'openai' ? 'openai' : 'gemini';
+  if (configured === 'gemini') return 'gemini';
+  if (configured === 'openai') return 'openai';
+  return DEFAULT_VOICE_PROVIDER;
 }
 
 function readConfiguredOpenAiModel(): OpenAiVoiceModelId {

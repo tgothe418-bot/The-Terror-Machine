@@ -141,7 +141,7 @@ describe('Voice provider route', () => {
     expect(current).toMatchObject({
       tier: 'free',
       voiceProvider: 'gemini',
-      openAiModel: 'gpt-6-astra',
+      openAiModel: 'gpt-5.6-luna',
     });
   });
 
