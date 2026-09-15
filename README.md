@@ -1,3 +1,15 @@
+---
+title: The Terror Machine
+emoji: 🩸
+colorFrom: red
+colorTo: gray
+sdk: docker
+app_port: 7860
+pinned: false
+license: mit
+short_description: A persistent horror simulator
+---
+
 <p align="center"><strong>FREE HAUNTED <span style="color: #60a5fa;">HOUSE</span></strong></p>
 
 > **The room exists even when the prose looks away.**
