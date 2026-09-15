@@ -34,37 +34,90 @@ export class LocalVoiceError extends Error {
   }
 }
 
+function isAllowedLocalOrTunnelHost(hostname: string): boolean {
+  const h = hostname.toLowerCase();
+  if (
+    h === 'localhost' ||
+    h === '::1' ||
+    h === '[::1]' ||
+    h.startsWith('127.')
+  ) {
+    return true;
+  }
+
+  // Allow secure tunnel services
+  if (
+    h.endsWith('.ngrok-free.app') ||
+    h.endsWith('.ngrok.io') ||
+    h.endsWith('.ngrok.app') ||
+    h.endsWith('.trycloudflare.com') ||
+    h.endsWith('.loca.lt') ||
+    h.endsWith('.tailscale.net')
+  ) {
+    return true;
+  }
+
+  // Cloud environments (Render) or explicit opt-in
+  if (process.env.ALLOW_REMOTE_AI_URL === 'true' || process.env.RENDER === 'true') {
+    return true;
+  }
+
+  return false;
+}
+
 export function normalizeLocalBaseUrl(value: string): string {
   let parsed: URL;
   try {
     parsed = new URL(value.trim());
   } catch {
-    throw new LocalVoiceError('LOCAL_URL_INVALID', 'Enter a valid local server URL.', 400);
+    throw new LocalVoiceError('LOCAL_URL_INVALID', 'Enter a valid server URL.', 400);
   }
 
-  const hostname = parsed.hostname.toLowerCase();
-  const isLoopback =
-    hostname === 'localhost' ||
-    hostname === '::1' ||
-    hostname === '[::1]' ||
-    hostname.startsWith('127.');
-  if (!isLoopback || (parsed.protocol !== 'http:' && parsed.protocol !== 'https:')) {
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
     throw new LocalVoiceError(
       'LOCAL_URL_INVALID',
-      'The Local provider must use an HTTP endpoint on this computer.',
+      'The API server URL must use http:// or https://.',
+      400
+    );
+  }
+
+  if (!isAllowedLocalOrTunnelHost(parsed.hostname)) {
+    throw new LocalVoiceError(
+      'LOCAL_URL_INVALID',
+      'The Local provider must use a local endpoint (127.0.0.1 / localhost) or a supported tunnel (ngrok, Cloudflare, localtunnel).',
       400
     );
   }
 
   const path = parsed.pathname.replace(/\/+$/, '');
-  if (path && path !== '/v1') {
-    throw new LocalVoiceError(
-      'LOCAL_URL_INVALID',
-      'Use the local server root or its /v1 API path.',
-      400
-    );
+  if (!path || path === '') {
+    return `${parsed.origin}/v1`;
   }
-  return `${parsed.origin}/v1`;
+  if (path.endsWith('/v1')) {
+    return `${parsed.origin}${path}`;
+  }
+  return `${parsed.origin}${path}/v1`;
+}
+
+export function localHeaders(
+  baseUrlOrExtra?: string | Record<string, string>,
+  maybeExtra?: Record<string, string>
+): Record<string, string> {
+  let baseUrl: string | undefined;
+  let extra: Record<string, string> = {};
+
+  if (typeof baseUrlOrExtra === 'string') {
+    baseUrl = baseUrlOrExtra;
+    extra = maybeExtra || {};
+  } else if (baseUrlOrExtra && typeof baseUrlOrExtra === 'object') {
+    extra = baseUrlOrExtra;
+  }
+
+  const headers: Record<string, string> = { ...extra };
+  if (baseUrl && typeof baseUrl === 'string' && baseUrl.toLowerCase().includes('ngrok')) {
+    headers['ngrok-skip-browser-warning'] = 'true';
+  }
+  return headers;
 }
 
 function localUrl(baseUrl: string, resource: 'models' | 'chat/completions'): string {
@@ -137,7 +190,12 @@ export async function discoverLocalVoiceModels(
 ): Promise<string[]> {
   let response: Response;
   try {
-    response = await fetch(localUrl(baseUrl, 'models'), { signal: AbortSignal.timeout(10_000) });
+    const reqHeaders = localHeaders(baseUrl);
+    const fetchOptions: RequestInit = { signal: AbortSignal.timeout(15_000) };
+    if (Object.keys(reqHeaders).length > 0) {
+      fetchOptions.headers = reqHeaders;
+    }
+    response = await fetch(localUrl(baseUrl, 'models'), fetchOptions);
   } catch (error: unknown) {
     if (error instanceof LocalVoiceError) throw error;
     throw new LocalVoiceError(
@@ -274,7 +332,7 @@ export async function generateLocalVoice({
   try {
     response = await fetch(localUrl(baseUrl, 'chat/completions'), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: localHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({
         model,
         messages: buildLocalVoiceMessages(instructions, history),
@@ -480,7 +538,7 @@ ${prompt}`;
   try {
     response = await fetch(localUrl(baseUrl, 'chat/completions'), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: localHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({
         model,
         messages: [{ role: 'user', content: structuredPrompt }],
@@ -566,7 +624,7 @@ export async function generateLocalProse(
   try {
     response = await fetch(localUrl(baseUrl, 'chat/completions'), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: localHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({
         model,
         messages: [{ role: 'user', content: prompt }],
@@ -669,7 +727,7 @@ export async function generateLocalText(
     }
     response = await fetch(localUrl(baseUrl, 'chat/completions'), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: localHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(body),
       signal: AbortSignal.timeout(options.timeoutMs ?? 300_000),
     });

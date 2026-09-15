@@ -539,7 +539,7 @@ export default function AiCalibrationModal({
           <div className="space-y-4 p-4 border border-amber-900/50 bg-amber-950/10 rounded">
             <div className="space-y-2">
               <label className="text-xs font-mono uppercase tracking-wider text-zinc-400">
-                Local API Server URL
+                Local / Tunnel API Server URL
               </label>
               <input
                 value={localBaseUrl}
@@ -548,8 +548,7 @@ export default function AiCalibrationModal({
                 className="w-full bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-xs font-mono text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-amber-500 transition-colors"
               />
               <p className="text-[11px] text-zinc-500 font-mono">
-                TTM connects only to a server on this computer. LM Studio commonly uses port 1234;
-                llama.cpp commonly uses 8080.
+                Connect to local LM Studio (1234) or Ollama (11434). For cloud instances (Render), enter a secure tunnel URL (e.g. ngrok / Cloudflare).
               </p>
             </div>
             <div className="space-y-2">
