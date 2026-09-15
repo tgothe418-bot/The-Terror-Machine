@@ -8,9 +8,9 @@ For the experiential front door, read the [README](./README.md). For the detaile
 
 ## The machine at present
 
-TTM has a working foundation for bounded horror simulation.
+TTM has a working foundation for bounded horror simulation with runtime provider switching.
 
-A Blueprint or a Haunted House Induction enters the same Engine path. The core turn is snapshotted, interpreted, generated, ratified, committed once or refused without corrupting canonical state. The application—not the language model—owns the places, cast, roles, consequences, receipts, and the state that survives a paragraph. Horror Grammar 1 is fully landed, integrated, and verified across that line; its provider boundary is closed, and full multi-turn continuity, authority validation, durable recovery, and forensic segregation are verified by the master integration suite.
+A Blueprint or a Haunted House Induction enters the same Engine path. The core turn is snapshotted, interpreted, generated, ratified, committed once or refused without corrupting canonical state. The application—not the language model—owns the places, cast, roles, consequences, receipts, and the state that survives a paragraph. Horror Grammar 1 is fully landed, integrated, and verified across that line; its provider boundary is closed, and full multi-turn continuity, authority validation, durable recovery, and forensic segregation are verified by the master integration suite. Every subsystem—Engine, Forge, Voice, and Autopilot—can be switched between Gemini, OpenAI, and local OpenAI-compatible inference servers through AI Calibration. The contracts define what the machine accepts; the provider supplies the generation.
 
 ### Live foundation
 
@@ -23,7 +23,12 @@ A Blueprint or a Haunted House Induction enters the same Engine path. The core t
 - Deterministic consequences, receipts, telemetry, Markdown/HTML diagnostics, and retake of the most recent completed turn.
 - A shared human/Autopilot response contract: concise creator input is preserved verbatim, one bounded generation is ratified or refused, and safe field-path diagnostics appear in failure receipts and exports.
 - Provider-refusal containment at the live generation boundaries: explicit declines and empty responses fail closed, never become player input, and leave canonical state available for retry or Retake.
-- Gemini structured-output compatibility on the live turn path, with the supported JSON-schema subset owned at the provider boundary and provider failures returned as structured API errors.
+- Runtime provider switching across Engine, Forge, Voice, and Autopilot through AI Calibration. Gemini, OpenAI, and local OpenAI-compatible inference servers are supported providers. Each subsystem can target its own provider and model independently.
+- Local model support through any OpenAI-compatible endpoint (LM Studio, llama.cpp, Ollama, or equivalent). No API key required; the machine discovers loaded models at the configured server URL.
+- Per-subsystem local model assignment: the Engine, Autopilot, Voice, and Forge can each run a different local model when dedicated assignment is enabled.
+- Gemini Free Tier support with resilient backoff, automatic model fallback on rate limits, and AI Calibration for tier and model selection.
+- Hardened Forge extraction and candidate normalization pipeline with robust handling of malformed or truncated provider responses.
+- Structured-output compatibility on the live turn path, with the supported JSON-schema subset owned at the provider boundary and provider failures returned as structured API errors.
 - Express API mounting and `/api` fallback protection in local and Vite preview runtimes, so a backend failure cannot masquerade as an HTML success response.
 - Development recovery through Clear System Memory and Autopilot as a soak-testing instrument.
 
@@ -49,9 +54,11 @@ The Forge can now:
 
 The standard source-to-Blueprint path can now produce an export-ready artifact when the extraction contains the required evidence. Incomplete or genuinely unsupported source material remains visible as an authoring gap rather than being disguised with a canned default.
 
-### Gemini turn admission and runtime boundary
+### Provider admission and runtime boundary
 
-The Engine's Gemini structured-output boundary is closed through Packet 1-10B. The provider receives the exact supported JSON-schema projection, all required HG1 envelopes remain present at ingress, and the authoritative Zod contract still validates the returned object after the provider responds. Refusals, empty responses, invalid provider requests, and non-JSON runtime responses fail closed without mutating canonical state or inventing player input.
+The Engine's structured-output boundary is closed through Packet 1-10B. The provider receives the exact supported JSON-schema projection, all required HG1 envelopes remain present at ingress, and the authoritative Zod contract still validates the returned object after the provider responds. Refusals, empty responses, invalid provider requests, and non-JSON runtime responses fail closed without mutating canonical state or inventing player input.
+
+The same admission path applies regardless of which provider generates the response. A local model, Gemini, or OpenAI must satisfy the same ingress contracts. Provider-specific behavior—structured-output format negotiation, rate-limit backoff, model fallback—is handled at the provider boundary before the Engine sees the response.
 
 The current runtime also mounts the Express API in Vite previews and excludes `/api` from the single-page fallback. A failed turn therefore remains an API failure instead of becoming an HTTP 200 HTML document that the client cannot parse.
 
@@ -82,7 +89,7 @@ The live line passes all broad quality gates: complete Vitest suite, TypeScript 
 
 ## What comes next
 
-With the Horror Grammar 1 integration gate, full multi-turn continuity, and Engine identity debt closed, future work proceeds along explicit architectural boundaries:
+With the Horror Grammar 1 integration gate, full multi-turn continuity, Engine identity debt, and runtime provider switching closed, future work proceeds along explicit architectural boundaries:
 
 ### 1. Multi-scenario experiential play review & edge hardening
 
@@ -95,27 +102,31 @@ The Engine maintains strict causal ownership:
 - Antagonists without physical reach remain bounded to psychological, observational, or systemic influence.
 - Provider refusals remain external events, never converted to player actions.
 
-### 3. Universal warning and intervention window (Deferred Boundary)
+### 3. Complete provider-neutral Engine and Forge paths
+
+The Voice already operates across all three provider types. The Engine and Forge have provider-switching infrastructure in place; completing provider-neutral operation means verifying that structured-output negotiation, ingress validation, and extraction contracts function correctly across Gemini, OpenAI, and local models without provider-specific exceptions in application code.
+
+### 4. Universal warning and intervention window (Deferred Boundary)
 
 Design and introduce a universal warning and intervention window prior to permanent or fatal loss. (Preserved as explicitly deferred from the Astra Critical Corrections series).
 
-### 4. Voice context enhancements (Deferred Boundary)
+### 5. Voice context enhancements (Deferred Boundary)
 
 The Voice remains strictly read-only and non-authoritative. Future work will provide evidence-labelled context distinguishing Forge drafts, Engine sessions, and background research without granting simulation authority.
 
-### 5. Telemetry polish and prose-only export (Deferred Boundary)
+### 6. Telemetry polish and prose-only export (Deferred Boundary)
 
 Refine Runtime diagnostic drawer presentation, add dedicated prose-only export formats alongside technical forensic telemetry, and expand multi-scenario integration fixtures.
 
-### 6. Multi-Blueprint campaign continuity
+### 7. Multi-Blueprint campaign continuity
 
 Campaign continuity can move scoped state between authored Blueprints without merging them into an implicit global ledger.
 
-### 7. Horror Grammar 2 (Independent Future Milestone)
+### 8. Horror Grammar 2 (Independent Future Milestone)
 
 Horror Grammar 2 remains an unstarted, independent milestone. Research into generative dread pacing, revelation staging, and tension decay will begin only on this stable, verified HG1 foundation.
 
-Active construction has moved to Antigravity. Google Gemini remains the application's current model provider through `@google/genai`; provider neutrality is still a design direction rather than a present-tense claim.
+Active construction has moved to Antigravity. The machine supports Gemini, OpenAI, and local inference servers as providers. Gemini remains the default; provider neutrality is an active engineering direction with the Voice already operating across all three types and the Engine and Forge infrastructure in place.
 
 ## What will not change
 

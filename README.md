@@ -24,7 +24,7 @@ Jump to: [Run it](#running-the-machine) · [The House is Free](#the-house-is-fre
 
 Before the tour, the doorknob.
 
-The application uses React, TypeScript, Vite, Express, Zustand, Zod, Tailwind CSS, Vitest, IndexedDB utilities, Google Gemini through `@google/genai`, and the OpenAI Responses API for the optional OpenAI Voice provider.
+The application uses React, TypeScript, Vite, Express, Zustand, Zod, Tailwind CSS, Vitest, and IndexedDB utilities. The Engine, Forge, Voice, and Autopilot can each be switched between providers—Gemini, OpenAI, and local OpenAI-compatible inference servers—through AI Calibration. Gemini is the current default; provider-neutral operation is an active design direction.
 
 ```bash
 npm install
@@ -32,7 +32,7 @@ cp .env.example .env
 npm run dev
 ```
 
-Add a personal Gemini API key to `.env`. The Engine, Forge, and Autopilot currently use Gemini. The Voice can use Gemini, OpenAI, or a local OpenAI-compatible API server. Select **Local** in AI Calibration, enter the server URL, and discover its loaded model; no API key is required for a local server.
+Add a Gemini API key to `.env` if using Gemini. Add an OpenAI key if using OpenAI for The Voice. For a local server, no API key is required: select **Local** in AI Calibration, enter the server URL, and discover its loaded models. Each subsystem—Engine, Forge, Voice, and Autopilot—can target a different provider or model independently.
 
 For a production-style compilation:
 
@@ -49,7 +49,7 @@ npm test
 
 Never commit `.env`, expose an API key in source code, or paste a key into a public issue.
 
-The machine is currently being built and tested in Antigravity. Gemini supplies the simulation runtime. The Voice can use Gemini or OpenAI as a read-only development and research surface, while the Engine's contracts define what a model can propose and what the application can accept.
+The machine is currently being built and tested in Antigravity. The Engine's contracts define what any model can propose and what the application can accept; provider-specific behavior cannot bypass those boundaries.
 
 ## THE HOUSE IS FREE
 
@@ -305,6 +305,12 @@ The first Horror Grammar gives the world a life between the player's actions. A 
 This edition brings that continuity through the complete session: the opening, successive turns, failed attempts, Retake, and recovery after reload. It strengthens the boundaries around cast presence, authored authority, User commitments, and the facts the world has already accepted. Recovery is built around complete saved revisions, with an explicit recovery state when a trustworthy continuation is unavailable.
 
 The same attention extends to the prose. Dramatic pressure follows the scenario's physical possibilities. A character can reassure you, lie to you, or offer shelter without their dialogue being replaced by system-error text. Provider refusals remain visible failures outside the fiction.
+
+The machine now supports runtime provider switching across every subsystem. The Engine, Forge, Voice, and Autopilot can each target Gemini, OpenAI, or a local OpenAI-compatible inference server—independently, through AI Calibration. A local server requires no API key: point it at an endpoint, discover loaded models, and the same Engine contracts apply. Each subsystem can run a different model if the scenario calls for it.
+
+This is not cosmetic. The architecture is designed so that the contracts—not the provider—define what the machine can accept. A local 26-billion-parameter model running on your hardware is subject to the same ratification path as a cloud endpoint. Provider neutrality is a direction the machine is actively moving toward, not a future aspiration.
+
+The Forge has hardened its extraction and candidate normalization pipeline. Source-backed defaults apply atomically—complete Depiction Contracts, rich topology definitions, and per-character opening placement—regardless of which provider produced the extraction. The exported Blueprint remains perspective-neutral and schema-valid.
 
 The next work begins with playing the assembled machine across varied scenarios, then addressing the failures and rough edges those sessions reveal. Further work on authored treatment, the Voice, campaign continuity, and later Horror Grammar remains on the roadmaps.
 

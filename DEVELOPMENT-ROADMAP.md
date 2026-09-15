@@ -15,7 +15,7 @@ A focused test proves its named behavior. It does not, by itself, close an integ
 
 ## Live code baseline reviewed for this ledger
 
-- Current live line reviewed: [0599d14](https://github.com/tgothe418-bot/The-Terror-Machine/commit/0599d14) (Astra Critical Corrections series Packets 01–12 closure, Master Integration proof suite, and prospective post-series README update).
+- Current live line reviewed: [0bc1fcb](https://github.com/tgothe418-bot/The-Terror-Machine/commit/0bc1fcb) (Local AI provider integration, model policies, extraction contract hardening, runtime provider switching, and post-series stabilization).
 - The branch was clean and synced when reviewed. The status below is based on live code inspection, focused proofs, broad gates, and recent smoke telemetry; a packet's completion report is not accepted evidence by itself.
 
 ## Current baseline
@@ -32,7 +32,7 @@ A focused test proves its named behavior. It does not, by itself, close an integ
 - Forge Packet 1E-1 — Source-Backed Default Import and Map Closure: valid reference imports now apply a complete source-backed baseline atomically, populate rich topology and per-character opening placement, and export perspective-neutral Blueprints without a required global starting node or permanent User character.
 - Engine Corrective Packet 08 — Human Turn Contract Reliability: the provider response schema is aligned to the application contract; concise creator-written input remains exact and shares the one-generation, ratification path with Autopilot; bounded mismatch diagnostics survive failure receipts and Markdown/HTML telemetry; creator acceptance is complete.
 - Horror Grammar 0 — Provider-Refusal Containment Correction: provider block metadata is classified before parsing; empty/refused responses fail closed; synthetic player-action fallbacks are removed; Autopilot halts on failed generation or non-commit; human input and canonical state remain recoverable.
-- HG1 Provider Contract Closure (Packets 1-10, 1-10A, and 1-10B): Gemini receives the supported structured-output schema, required HG1 envelopes remain required at ingress, causal references fail closed, and provider/runtime failures cannot become player input or canonical state.
+- HG1 Provider Contract Closure (Packets 1-10, 1-10A, and 1-10B): the provider receives the supported structured-output schema, required HG1 envelopes remain required at ingress, causal references fail closed, and provider/runtime failures cannot become player input or canonical state.
 - Local and Vite preview runtime admission: Express owns `/api`, the SPA fallback excludes API routes, and backend failures remain structured JSON failures instead of HTML masquerading as a successful turn.
 - Phase 3H.5D Explicit Player-Character Binding: Exact character selection, perspective-neutral Blueprint export, entry placement, and dual-store persistence are verified across the entire lifecycle.
 - Astra Critical Corrections Series (Packets 01–12, Milestones 1–5): Closed the master integration gate across the complete client → server → client turn lifecycle:
@@ -41,6 +41,14 @@ A focused test proves its named behavior. It does not, by itself, close an integ
   - *Milestone 3 (Autopilot & Failure Containment):* Packet 06 (Autopilot & human ratification parity), Packet 07 (Provider refusal & OOC check-in fail-closed containment with zero canonical mutation).
   - *Milestone 4 (Persistence, Recovery & Telemetry):* Packet 08 (Durable dual-store IndexedDB persistence with monotonic write tracking), Packet 09 (Retake rollback across all HG1 ledgers and stores), Packet 10 (Diagnostic telemetry & forensic export segregation).
   - *Milestone 5 (Behavioral Connections & Integrated Acceptance):* Packet 11 (Offscreen runtime pursuit projection & event-driven trigger consumption/reactivation), Packet 12 (Master 9-step deterministic integration proof suite in `src/lib/integratedAcceptance.test.ts`).
+- Runtime provider switching across all subsystems through AI Calibration: Engine, Forge, Voice, and Autopilot can each be switched between Gemini, OpenAI, and local OpenAI-compatible inference servers. Provider and model selection persists to `.env`.
+- Local AI provider integration: any OpenAI-compatible local endpoint (LM Studio, llama.cpp, Ollama, or equivalent) can serve as a provider. The machine discovers loaded models at the configured server URL. Per-subsystem local model assignment allows the Engine, Autopilot, Voice, and Forge to each target a different local model.
+- OpenAI Responses API integration for The Voice: approved model list, API key management, and provider-refusal containment. Default Voice model: GPT-5.6 Luna.
+- Gemini Free Tier support with resilient backoff, automatic model fallback on rate limits, and AI Calibration for runtime tier and model selection.
+- Hardened Forge extraction and candidate normalization pipeline: robust handling of malformed or truncated provider responses during source extraction.
+- Voice provider policy (`server/ai/voiceProviderPolicy.ts`): runtime provider state, per-subsystem model getters/setters, and environment-backed defaults for `VOICE_AI_PROVIDER`, `LOCAL_AI_BASE_URL`, and `LOCAL_AI_MODEL`.
+- Engine model policy (`server/ai/modelPolicy.ts`): approved Gemini model list, tier management, engine provider switching, purpose-driven thinking-level policies, and automatic fallback on provider errors.
+- AI Calibration UI modal: runtime provider switching, model selection, API key entry, local server URL and model discovery, per-subsystem model assignment, and provider connectivity testing.
 - The current live line passes the declared broad Vitest, TypeScript, lint, production-build, and diff gates. These are baseline facts, not substitutes for feature-specific acceptance.
 
 ### Live, under review / Deferred boundaries
@@ -136,7 +144,7 @@ The 12-packet Astra Critical Corrections series resolves the integration gate ac
 
 ## Next work packages
 
-The Horror Grammar 1 integration gate, explicit Player-Character Binding, Autopilot ratification parity, and durable dual-store persistence are fully closed and verified by the Astra Critical Corrections series (Packets 01–12). Future implementation proceeds along the following sequenced packages:
+The Horror Grammar 1 integration gate, explicit Player-Character Binding, Autopilot ratification parity, durable dual-store persistence, and runtime provider switching are fully closed and verified. Future implementation proceeds along the following sequenced packages:
 
 ### 1. Multi-scenario experiential play review and edge hardening
 
@@ -147,6 +155,7 @@ Before opening new feature cycles, play the stabilized machine across varied sce
 - Reassurance, lying, and refuge dialogue without system-error replacements.
 - Out-of-character check-in containment vs. ambiguous in-world psychological prose.
 - Protagonist and antagonist player sovereignty and response-window gating.
+- Provider-switching behavior under real session conditions across Gemini, OpenAI, and local models.
 
 Address the failures, rough edges, and UX observations these real sessions reveal.
 
@@ -165,33 +174,41 @@ Acceptance requires:
 
 Provider-level non-negotiable constraints remain external to the Blueprint contract. They must be represented honestly without pretending the player authored the refusal.
 
-### 3. Universal warning and intervention window (Deferred Boundary)
+### 3. Complete provider-neutral Engine and Forge paths
+
+The Voice already operates across all three provider types. The Engine and Forge have provider-switching infrastructure and local model assignment in place. Completing provider-neutral operation requires:
+
+- verifying structured-output negotiation and ingress validation across Gemini, OpenAI, and local models on the live turn path;
+- confirming Forge extraction and candidate normalization function correctly across providers without provider-specific exceptions in application code;
+- ensuring provider-specific behavior (format negotiation, backoff, fallback) is fully contained at the provider boundary.
+
+### 4. Universal warning and intervention window (Deferred Boundary)
 
 Design and integrate an explicit warning/intervention window before irreversible consequence or terminal loss occurs. (Preserved as explicitly deferred from the Astra Critical Corrections series).
 
-### 4. Voice context enhancements (Deferred Boundary)
+### 5. Voice context enhancements (Deferred Boundary)
 
 Keep Voice observations read-only and separate from simulation canon. Add evidence-labelled context, snapshot/export parity, and clear handling for Forge drafts, Engine sessions, outside research, and ordinary project conversation. (Preserved as explicitly deferred from the Astra series).
 
-### 5. Telemetry polish and dedicated prose-only export (Deferred Boundary)
+### 6. Telemetry polish and dedicated prose-only export (Deferred Boundary)
 
 Refine Runtime diagnostic drawer presentation, add dedicated prose-only export formats alongside technical forensic telemetry, and expand multi-scenario integration fixtures.
 
-### 6. Multi-Blueprint campaign continuity
+### 7. Multi-Blueprint campaign continuity
 
 Extend character and World Memory through campaign handoff between authored Blueprints with scoped, inspectable transfer. Campaign handoff must remain explicit rather than becoming an implicit global ledger.
 
-### 7. Horror Grammar 2 (Independent Future Milestone)
+### 8. Horror Grammar 2 (Independent Future Milestone)
 
 Once HG1 stabilization and authored boundary enforcement are complete, research generative dread pacing, revelation staging, and tension decay as generative principles rather than genre presets.
 
 - define explicit multi-Blueprint campaign handoff;
 - research pressure, pacing, fear, revelation, and recovery as generative principles rather than preset plots;
-- preserve a provider-replaceable Engine boundary without allowing provider behavior to bypass established contracts.
+- preserve a provider-neutral Engine boundary without allowing provider behavior to bypass established contracts.
 
 ## Construction environment
 
-Active construction and local verification have moved from Google AI Studio to Antigravity. Google Gemini remains the application's current runtime model through `@google/genai`.
+Active construction and local verification have moved from Google AI Studio to Antigravity. The machine supports Gemini, OpenAI, and local OpenAI-compatible inference servers as runtime providers. Gemini remains the default; provider neutrality is an active engineering direction.
 
 The construction environment and the application provider are separate concerns. Future provider work must preserve the same Engine contracts rather than smuggling provider-specific behavior into canon.
 
