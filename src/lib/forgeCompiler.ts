@@ -283,7 +283,8 @@ export function validateForgeDraft(rawDraft: unknown): ForgeValidationResult {
       allNodeIds.add(cleanId);
     }
 
-    if (!def.label || !def.label.trim()) {
+    const effectiveLabel = (def.label || (def as any).name || '').trim();
+    if (!effectiveLabel) {
       errors[`${fieldPrefix}.label`] = ['Node definition label cannot be empty'];
     }
 

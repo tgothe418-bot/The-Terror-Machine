@@ -78,15 +78,29 @@ export const CharacterPresenceDispositionSchema = z.discriminatedUnion('kind', [
 ]);
 export type CharacterPresenceDisposition = z.infer<typeof CharacterPresenceDispositionSchema>;
 
-export const ForgeTopologyNodeSchema = z.object({
-  id: z.string().min(1, 'Node definition ID cannot be empty'),
-  label: z.string().min(1, 'Node definition label cannot be empty'),
-  description: z.string().optional(),
-  classification: z.enum(['evidence', 'inference', 'creator']).optional(),
-  evidenceIds: z.array(z.string()).optional(),
-  sourceId: z.string().optional(),
-  sensoryGuidance: z.string().optional(),
-});
+export const ForgeTopologyNodeSchema = z.preprocess(
+  (val: any) => {
+    if (val && typeof val === 'object') {
+      const effectiveLabel = (val.label || val.name || val.id || '').trim();
+      return {
+        ...val,
+        label: val.label ? String(val.label).trim() : effectiveLabel,
+        name: val.name ? String(val.name).trim() : effectiveLabel,
+      };
+    }
+    return val;
+  },
+  z.object({
+    id: z.string().min(1, 'Node definition ID cannot be empty'),
+    label: z.string().min(1, 'Node definition label cannot be empty'),
+    name: z.string().optional(),
+    description: z.string().optional(),
+    classification: z.enum(['evidence', 'inference', 'creator']).optional(),
+    evidenceIds: z.array(z.string()).optional(),
+    sourceId: z.string().optional(),
+    sensoryGuidance: z.string().optional(),
+  })
+);
 export type ForgeTopologyNode = z.infer<typeof ForgeTopologyNodeSchema>;
 
 export const ForgeExpandableAnchorSchema = z.object({

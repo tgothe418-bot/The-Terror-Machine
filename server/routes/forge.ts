@@ -1077,16 +1077,16 @@ SPECIFIC FIELD GENERATION RULES:
    Return a "topology" object containing:
    - "startingNodeId": ID of the primary entry or central node
    - "nodes": array of node IDs (strings in snake_case, e.g. ["foyer", "study", "cellar"])
-   - "nodeDefinitions": array of objects with:
-     - "id": string (unique ID matching one in "nodes")
-     - "name": string (display name, e.g. "Grand Foyer")
-     - "description": 1-2 atmospheric sentences describing sensory details, exits, and mood
-     - "adjacentNodeIds": array of neighbor node IDs
-   - "connections": array of objects with:
-     - "from": string (node ID)
-     - "to": string (node ID)
-     - "label": string (e.g. "Heavy oak doors", "Narrow stone stairs")
-     - "bidirectional": true
+    - "nodeDefinitions": array of objects with:
+      - "id": string (unique ID matching one in "nodes")
+      - "label": string (display name, e.g. "Grand Foyer")
+      - "description": 1-2 atmospheric sentences describing sensory details, exits, and mood
+      - "adjacentNodeIds": array of neighbor node IDs
+    - "connections": array of objects with:
+      - "from": string (node ID)
+      - "to": string (node ID)
+      - "label": string (e.g. "Heavy oak doors", "Narrow stone stairs")
+      - "bidirectional": true
 2. If 'identity.title' is in the discrepancies:
    Generate an evocative, authentic title string in "title".
 3. If 'premise' is in the discrepancies:
@@ -1112,19 +1112,19 @@ Example:
     "nodeDefinitions": [
       {
         "id": "foyer",
-        "name": "Grand Foyer",
+        "label": "Grand Foyer",
         "description": "Peeling wallpaper and a cold draft from the front entrance.",
         "adjacentNodeIds": ["study"]
       },
       {
         "id": "study",
-        "name": "Library Study",
+        "label": "Library Study",
         "description": "Floor-to-ceiling shelves of rotting books and a locked desk.",
         "adjacentNodeIds": ["foyer", "cellar"]
       },
       {
         "id": "cellar",
-        "name": "Root Cellar",
+        "label": "Root Cellar",
         "description": "Damp earth floor smelling of brine and rust.",
         "adjacentNodeIds": ["study"]
       }
@@ -1166,8 +1166,32 @@ Example:
 
     // Sanitize topology if returned
     if (patch.topology) {
-      if (Array.isArray(patch.topology.nodeDefinitions) && (!Array.isArray(patch.topology.nodes) || patch.topology.nodes.length === 0)) {
+      if (Array.isArray(patch.topology.nodeDefinitions) && patch.topology.nodeDefinitions.length > 0) {
+        patch.topology.nodeDefinitions = patch.topology.nodeDefinitions.map((n: any, idx: number) => {
+          const label = (n.label || n.name || n.id || `Location ${idx + 1}`).trim();
+          const id = (n.id || label.toLowerCase().replace(/[^a-z0-9]+/g, '_')).trim();
+          const description = (n.description && n.description.trim())
+            ? n.description.trim()
+            : `Atmospheric environment of ${label}.`;
+          return {
+            ...n,
+            id,
+            label,
+            name: n.name || label,
+            description,
+          };
+        });
         patch.topology.nodes = patch.topology.nodeDefinitions.map((n: any) => n.id).filter(Boolean);
+      } else if (Array.isArray(patch.topology.nodes) && patch.topology.nodes.length > 0) {
+        patch.topology.nodes = patch.topology.nodes
+          .map((n: any) => (typeof n === 'string' ? n.trim() : (n.id || n.name || '')).trim())
+          .filter(Boolean);
+        patch.topology.nodeDefinitions = patch.topology.nodes.map((id: string) => ({
+          id,
+          label: id.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
+          name: id.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
+          description: `Atmospheric environment of ${id.replace(/_/g, ' ')}.`,
+        }));
       }
       if (!patch.topology.startingNodeId && Array.isArray(patch.topology.nodes) && patch.topology.nodes.length > 0) {
         patch.topology.startingNodeId = patch.topology.nodes[0];

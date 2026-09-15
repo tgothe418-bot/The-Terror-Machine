@@ -1853,6 +1853,8 @@ describe('Forge Routes: POST /api/resolve-discrepancies', () => {
     expect(body.patch.title).toBe('The Sunken Trench');
     expect(body.patch.topology.nodes).toEqual(['airlock', 'command_deck', 'reactor']);
     expect(body.patch.topology.nodeDefinitions).toHaveLength(3);
+    expect(body.patch.topology.nodeDefinitions[0].label).toBe('Decompression Airlock');
+    expect(body.patch.topology.nodeDefinitions[0].description).toBe('Water drips through the rusted outer valve.');
   });
 });
 

@@ -1466,11 +1466,17 @@ export function applyCandidateToDraft(
 
     case 'topology_node': {
       const nodeDef = candidate.proposedValue;
-      if (!nodeDef || typeof nodeDef !== 'object' || !nodeDef.id || !nodeDef.label) {
+      if (!nodeDef || typeof nodeDef !== 'object') {
         return { success: false, draft, error: 'Topology node candidate must be a valid node object.' };
       }
-      const cleanId = typeof nodeDef.id === 'string' ? nodeDef.id.trim() : '';
-      const cleanLabel = typeof nodeDef.label === 'string' ? nodeDef.label.trim() : '';
+      const cleanLabel = typeof nodeDef.label === 'string' && nodeDef.label.trim()
+        ? nodeDef.label.trim()
+        : typeof (nodeDef as any).name === 'string' && (nodeDef as any).name.trim()
+        ? (nodeDef as any).name.trim()
+        : '';
+      const cleanId = typeof nodeDef.id === 'string' && nodeDef.id.trim()
+        ? nodeDef.id.trim()
+        : cleanLabel.toLowerCase().replace(/[^a-z0-9]+/g, '_');
       if (!cleanId || !cleanLabel) {
         return { success: false, draft, error: 'Topology node candidate must have non-empty id and label.' };
       }
@@ -1478,20 +1484,24 @@ export function applyCandidateToDraft(
         ...nodeDef,
         id: cleanId,
         label: cleanLabel,
+        name: (nodeDef as any).name || cleanLabel,
+        description: (nodeDef.description && nodeDef.description.trim())
+          ? nodeDef.description.trim()
+          : `Sensory atmosphere of the ${cleanLabel}.`,
         sourceId: candidate.sourceId || nodeDef.sourceId,
         evidenceIds: candidate.evidenceIds || nodeDef.evidenceIds || [],
         classification: candidate.classification || nodeDef.classification || 'evidence',
       };
       const currentNodes = cloned.topology?.nodes ? [...cloned.topology.nodes] : [];
-      if (!currentNodes.includes(cleanId)) {
-        currentNodes.push(cleanId);
-      }
       const currentNodeDefs = cloned.topology?.nodeDefinitions ? [...cloned.topology.nodeDefinitions] : [];
-      const existingIdx = currentNodeDefs.findIndex((n) => n.id === cleanId);
-      if (existingIdx >= 0) {
-        currentNodeDefs[existingIdx] = nodeDefWithProv;
+      const nodeIndex = currentNodeDefs.findIndex((n) => n.id === cleanId);
+      if (nodeIndex >= 0) {
+        currentNodeDefs[nodeIndex] = { ...currentNodeDefs[nodeIndex], ...nodeDefWithProv };
       } else {
         currentNodeDefs.push(nodeDefWithProv);
+      }
+      if (!currentNodes.includes(cleanId)) {
+        currentNodes.push(cleanId);
       }
       cloned.topology = {
         ...(cloned.topology || { connections: [] }),
@@ -1783,6 +1793,38 @@ export function sortCandidatesForApplication(candidates: ForgeSourceCandidate[])
  */
 export function reconcileDraftTopologyAndCast(draft: ForgeDraft): ForgeDraft {
   const cloned: ForgeDraft = JSON.parse(JSON.stringify(draft));
+
+  // 0. Normalize topology nodeDefinitions and raw nodes
+  if (cloned.topology) {
+    if (Array.isArray(cloned.topology.nodeDefinitions) && cloned.topology.nodeDefinitions.length > 0) {
+      cloned.topology.nodeDefinitions = cloned.topology.nodeDefinitions.map((d: any, idx: number) => {
+        const label = (d.label || d.name || d.id || `Location ${idx + 1}`).trim();
+        const id = (d.id || label.toLowerCase().replace(/[^a-z0-9]+/g, '_')).trim();
+        const description = (d.description && d.description.trim())
+          ? d.description.trim()
+          : `Sensory atmosphere of the ${label}.`;
+        return {
+          ...d,
+          id,
+          label,
+          name: d.name || label,
+          description,
+        };
+      });
+      cloned.topology.nodes = cloned.topology.nodeDefinitions.map((d) => d.id);
+    } else if (Array.isArray(cloned.topology.nodes) && cloned.topology.nodes.length > 0) {
+      cloned.topology.nodes = cloned.topology.nodes
+        .map((n: any) => (typeof n === 'string' ? n.trim() : (n.id || n.name || '')).trim())
+        .filter(Boolean);
+      cloned.topology.nodeDefinitions = cloned.topology.nodes.map((id: string) => ({
+        id,
+        label: id.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
+        name: id.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
+        description: `Sensory atmosphere of the ${id.replace(/_/g, ' ')}.`,
+      }));
+    }
+  }
+
   const availableNodeIds = Array.from(
     new Set([
       ...(cloned.topology?.nodes || []),

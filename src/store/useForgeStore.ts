@@ -765,13 +765,14 @@ export const useForgeStoreInternal = create<ForgeStore>()(
                     : updates.horrorGrammar)
                 : current.horrorGrammar,
             };
+            const safeMerged = reconcileDraftTopologyAndCast(merged);
 
             return {
-              forgeDraft: merged,
-              draftBlueprint: merged,
+              forgeDraft: safeMerged,
+              draftBlueprint: safeMerged,
               draftRevision: (state.draftRevision || 0) + 1,
-              castLedger: deriveCastLedger(merged),
-              topology: deriveTopology(merged),
+              castLedger: deriveCastLedger(safeMerged),
+              topology: deriveTopology(safeMerged),
             };
           });
         },

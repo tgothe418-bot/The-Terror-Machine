@@ -96,15 +96,29 @@ export const TopologyEdgeSchema = z.object({
   authority: z.enum(['user', 'engine', 'system']).optional(),
 });
 
-export const ForgeTopologyNodeSchema = z.object({
-  id: z.string().min(1),
-  label: z.string().min(1),
-  description: z.string().optional(),
-  classification: z.enum(['evidence', 'inference', 'creator']).optional(),
-  evidenceIds: z.array(z.string()).optional(),
-  sourceId: z.string().optional(),
-  sensoryGuidance: z.string().optional(),
-});
+export const ForgeTopologyNodeSchema = z.preprocess(
+  (val: any) => {
+    if (val && typeof val === 'object') {
+      const effectiveLabel = (val.label || val.name || val.id || '').trim();
+      return {
+        ...val,
+        label: val.label ? String(val.label).trim() : effectiveLabel,
+        name: val.name ? String(val.name).trim() : effectiveLabel,
+      };
+    }
+    return val;
+  },
+  z.object({
+    id: z.string().min(1),
+    label: z.string().min(1),
+    name: z.string().optional(),
+    description: z.string().optional(),
+    classification: z.enum(['evidence', 'inference', 'creator']).optional(),
+    evidenceIds: z.array(z.string()).optional(),
+    sourceId: z.string().optional(),
+    sensoryGuidance: z.string().optional(),
+  })
+);
 
 export type ForgeTopologyNode = z.infer<typeof ForgeTopologyNodeSchema>;
 
