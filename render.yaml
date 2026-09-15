@@ -1,0 +1,8 @@
+﻿services:
+  - type: web
+    name: the-terror-machine
+    runtime: docker
+    plan: free
+    envVars:
+      - key: NODE_ENV
+        value: production
