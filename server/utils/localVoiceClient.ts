@@ -239,7 +239,12 @@ function chooseLocalVoiceModel(models: string[], configuredModel: string): strin
     return configuredModel;
   }
 
-  return models.find((model) => /qwen3\.8-27b/i.test(model)) ?? models[0];
+  return (
+    models.find((model) => /gemma-4-26b-a4b-qat/i.test(model)) ??
+    models.find((model) => /gemma-4-26b/i.test(model)) ??
+    models.find((model) => /qwen3\.8-27b/i.test(model)) ??
+    models[0]
+  );
 }
 
 function readCompletionText(
