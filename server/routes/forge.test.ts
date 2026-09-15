@@ -1767,3 +1767,92 @@ describe('Forge Local AI Routing', () => {
   });
 });
 
+describe('Forge Routes: POST /api/resolve-discrepancies', () => {
+  let server: http.Server;
+  let baseUrl: string;
+
+  beforeAll(async () => {
+    const app = await createApp({ enableSpaFallback: false });
+    await new Promise<void>((resolve) => {
+      server = app.listen(0, '127.0.0.1', () => {
+        const addr = server.address();
+        if (addr && typeof addr === 'object') {
+          baseUrl = `http://127.0.0.1:${addr.port}`;
+        }
+        resolve();
+      });
+    });
+  });
+
+  afterAll(async () => {
+    await new Promise<void>((resolve, reject) => {
+      if (server) {
+        server.close((err) => (err ? reject(err) : resolve()));
+      } else {
+        resolve();
+      }
+    });
+  });
+
+  it('generates a patch resolving missing topology nodes and title', async () => {
+    const mockPatch = {
+      title: 'The Sunken Trench',
+      topology: {
+        startingNodeId: 'airlock',
+        nodes: ['airlock', 'command_deck', 'reactor'],
+        nodeDefinitions: [
+          {
+            id: 'airlock',
+            name: 'Decompression Airlock',
+            description: 'Water drips through the rusted outer valve.',
+            adjacentNodeIds: ['command_deck'],
+          },
+          {
+            id: 'command_deck',
+            name: 'Command Deck',
+            description: 'Dead monitors flicker with green static.',
+            adjacentNodeIds: ['airlock', 'reactor'],
+          },
+          {
+            id: 'reactor',
+            name: 'Sub-level Reactor',
+            description: 'Low hum vibrating through wet steel grating.',
+            adjacentNodeIds: ['command_deck'],
+          },
+        ],
+        connections: [
+          { from: 'airlock', to: 'command_deck', label: 'Heavy bulkhead', bidirectional: true },
+          { from: 'command_deck', to: 'reactor', label: 'Spiral stairway', bidirectional: true },
+        ],
+      },
+    };
+
+    mockGenerateContent.mockResolvedValueOnce({
+      text: JSON.stringify(mockPatch),
+    });
+
+    const response = await fetch(`${baseUrl}/api/resolve-discrepancies`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        draft: {
+          cast: [{ id: 'c1', name: 'Dr. Mercer' }],
+          globalPremise: 'Underwater research facility goes dark.',
+        },
+        errors: {
+          'topology.nodes': ['At least one main-map node is required to compile a scenario'],
+          'identity.title': ['Scenario title is required and cannot be empty'],
+        },
+        referenceText: 'Station Alpha log: Mercer reported breach near the reactor.',
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.success).toBe(true);
+    expect(body.patch.title).toBe('The Sunken Trench');
+    expect(body.patch.topology.nodes).toEqual(['airlock', 'command_deck', 'reactor']);
+    expect(body.patch.topology.nodeDefinitions).toHaveLength(3);
+  });
+});
+

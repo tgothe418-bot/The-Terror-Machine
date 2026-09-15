@@ -16,6 +16,9 @@ import {
   HelpCircle,
   RefreshCw,
   AlertTriangle,
+  Wand2,
+  Sparkles,
+  Loader2,
 } from 'lucide-react';
 
 interface ExportReviewModalProps {
@@ -151,6 +154,64 @@ export const ExportReviewModal: React.FC<ExportReviewModalProps> = ({
       handleRefresh();
       setIsDelegatingAmbiguities(false);
     }, 60);
+  };
+
+  const [isRepairing, setIsRepairing] = useState(false);
+  const [repairError, setRepairError] = useState<string | null>(null);
+
+  const handleResolveDiscrepancies = async () => {
+    const freshState = useForgeStore.getState();
+    const currentDraft = freshState.draftBlueprint || freshState.forgeDraft;
+    if (!currentDraft || !validation?.errors) return;
+
+    setIsRepairing(true);
+    setRepairError(null);
+
+    try {
+      const refMaterials = freshState.referenceMaterials || [];
+      const refTexts = refMaterials
+        .map((r) => `--- Reference: ${r.name} ---\n${r.content}`)
+        .join('\n\n');
+      const sourceTexts = Object.values(freshState.sourceAnalyses || {})
+        .map(
+          (s) =>
+            `--- Source: ${s.sourceRecord.fileName} ---\nSummary: ${s.summary || ''}\nEvidence:\n${(
+              s.evidence || []
+            )
+              .map((e) => `- [${e.category}] ${e.claim}${e.excerpt ? `: "${e.excerpt}"` : ''}`)
+              .join('\n')}`
+        )
+        .join('\n\n');
+      const combinedReference = (refTexts + '\n\n' + sourceTexts).trim();
+
+      const response = await fetch('/api/resolve-discrepancies', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          draft: currentDraft,
+          errors: validation.errors,
+          referenceText: combinedReference,
+        }),
+      });
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || `Server responded with ${response.status}`);
+      }
+
+      const data = await response.json();
+      if (data.patch && typeof data.patch === 'object') {
+        forgeActions.updateDraft(data.patch);
+        setTimeout(() => {
+          handleRefresh();
+        }, 80);
+      }
+    } catch (err: unknown) {
+      console.error('[RESOLVE DISCREPANCIES ERROR]', err);
+      setRepairError(err instanceof Error ? err.message : 'Failed to resolve discrepancies');
+    } finally {
+      setIsRepairing(false);
+    }
   };
 
   const handleRefresh = () => {
@@ -355,6 +416,25 @@ export const ExportReviewModal: React.FC<ExportReviewModalProps> = ({
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
+                    disabled={isRepairing}
+                    onClick={handleResolveDiscrepancies}
+                    className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-950/90 hover:bg-amber-900 border border-amber-700/80 text-amber-200 text-[10px] font-bold uppercase rounded tracking-wider transition-colors cursor-pointer disabled:opacity-50"
+                    title="Review reference material to fill in missing structural fields and topology"
+                  >
+                    {isRepairing ? (
+                      <>
+                        <Loader2 className="w-3 h-3 animate-spin text-amber-400" />
+                        <span>Filling Gaps...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Wand2 className="w-3 h-3 text-amber-400" />
+                        <span>Review Reference & Fill Gaps</span>
+                      </>
+                    )}
+                  </button>
+                  <button
+                    type="button"
                     onClick={handleCopyDiscrepancies}
                     className="flex items-center gap-1.5 px-2 py-0.5 bg-red-950/80 hover:bg-red-900 border border-red-800/80 text-red-200 text-[10px] font-bold uppercase rounded tracking-wider transition-colors cursor-pointer"
                     title="Copy all validation discrepancies to clipboard"
@@ -371,6 +451,18 @@ export const ExportReviewModal: React.FC<ExportReviewModalProps> = ({
                 The compilation pipeline requires all structural and Depiction Contract fields to be
                 authored before export.
               </p>
+              {repairError && (
+                <div className="p-2.5 bg-red-950/80 border border-red-800 rounded text-red-300 text-[11px] flex items-center justify-between">
+                  <span>{repairError}</span>
+                  <button
+                    type="button"
+                    onClick={() => setRepairError(null)}
+                    className="text-red-400 hover:text-red-200 text-xs font-bold px-1 cursor-pointer"
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
               <div className="bg-black/60 border border-red-950 p-3 rounded space-y-1.5 mt-2">
                 {Object.entries(validation.errors).map(([field, msgs]) => (
                   <div key={field} className="text-[11px] text-red-400">

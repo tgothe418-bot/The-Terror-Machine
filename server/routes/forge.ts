@@ -1034,4 +1034,154 @@ router.post("/extract-blueprint", async (req, res) => {
   }
 });
 
+router.post("/resolve-discrepancies", async (req, res) => {
+  try {
+    const { draft, errors, referenceText } = req.body;
+    if (!draft || !errors || typeof errors !== 'object') {
+      return res.status(400).json({ error: "Missing required draft or errors object." });
+    }
+
+    const errorEntries = Object.entries(errors)
+      .map(([field, msgs]) => `- ${field}: ${(Array.isArray(msgs) ? msgs : [msgs]).join('; ')}`)
+      .join('\n');
+
+    const existingTitle = draft.identity?.title || draft.title || '';
+    const existingPremise = draft.globalPremise || draft.premise || '';
+    const existingLocation = draft.setting?.location || '';
+    const existingCast = (draft.cast || []).map((c: any) => c.name).filter(Boolean).join(', ');
+
+    const prompt = `You are the Forge Scenario Repair Architect for The Terror Machine.
+The user is compiling a scenario Blueprint, but pre-flight validation detected the following specific validation discrepancies blocking export:
+
+VALIDATION DISCREPANCIES TO RESOLVE:
+${errorEntries}
+
+EXISTING DRAFT CONTEXT:
+- Title: ${existingTitle || '(missing)'}
+- Premise: ${existingPremise || '(missing)'}
+- Setting Location: ${existingLocation || '(missing)'}
+- Setting Summary: ${draft.setting?.summary || '(none)'}
+- Existing Cast: ${existingCast || '(none)'}
+- Existing Topology Nodes: ${(draft.topology?.nodeDefinitions || []).map((n: any) => n.id).join(', ') || (draft.topology?.nodes || []).join(', ') || '(none)'}
+
+REFERENCE SOURCE MATERIAL:
+${(referenceText || '').slice(0, 15000) || 'No reference text provided. Infer from premise, setting, and cast.'}
+
+TASK:
+Review the reference material and generate ONLY the missing or invalid fields needed to resolve the discrepancies listed above.
+Do NOT regenerate or modify fields that are already valid.
+
+SPECIFIC FIELD GENERATION RULES:
+1. If 'topology.nodes' is in the discrepancies:
+   Extract or synthesize 3 to 6 distinct, atmospheric spatial locations (rooms, corridors, chambers, or areas) from the reference material.
+   Return a "topology" object containing:
+   - "startingNodeId": ID of the primary entry or central node
+   - "nodes": array of node IDs (strings in snake_case, e.g. ["foyer", "study", "cellar"])
+   - "nodeDefinitions": array of objects with:
+     - "id": string (unique ID matching one in "nodes")
+     - "name": string (display name, e.g. "Grand Foyer")
+     - "description": 1-2 atmospheric sentences describing sensory details, exits, and mood
+     - "adjacentNodeIds": array of neighbor node IDs
+   - "connections": array of objects with:
+     - "from": string (node ID)
+     - "to": string (node ID)
+     - "label": string (e.g. "Heavy oak doors", "Narrow stone stairs")
+     - "bidirectional": true
+2. If 'identity.title' is in the discrepancies:
+   Generate an evocative, authentic title string in "title".
+3. If 'premise' is in the discrepancies:
+   Generate a 2-3 sentence horror premise in "premise".
+4. If 'setting.location' or 'setting.summary' is in the discrepancies:
+   Generate a "setting" object with "location" and "summary".
+5. If 'depictionContract' fields are in the discrepancies:
+   Generate a "depictionContract" object with:
+   - "dramaticRegister": e.g. "Atmospheric psychological dread and tension"
+   - "directness": e.g. "Grounded sensory observation"
+   - "aftermath": e.g. "Lingering somatic and psychological trauma"
+   - "ambiguityHandling": e.g. "Preserve epistemic uncertainty without silent contradiction"
+   - "specialBoundaries": "None"
+
+OUTPUT FORMAT:
+Return a single valid JSON object containing ONLY the patch fields to merge.
+Do NOT wrap in markdown fences if possible. Do NOT include conversational filler.
+Example:
+{
+  "topology": {
+    "startingNodeId": "foyer",
+    "nodes": ["foyer", "study", "cellar"],
+    "nodeDefinitions": [
+      {
+        "id": "foyer",
+        "name": "Grand Foyer",
+        "description": "Peeling wallpaper and a cold draft from the front entrance.",
+        "adjacentNodeIds": ["study"]
+      },
+      {
+        "id": "study",
+        "name": "Library Study",
+        "description": "Floor-to-ceiling shelves of rotting books and a locked desk.",
+        "adjacentNodeIds": ["foyer", "cellar"]
+      },
+      {
+        "id": "cellar",
+        "name": "Root Cellar",
+        "description": "Damp earth floor smelling of brine and rust.",
+        "adjacentNodeIds": ["study"]
+      }
+    ],
+    "connections": [
+      { "from": "foyer", "to": "study", "label": "Archway", "bidirectional": true },
+      { "from": "study", "to": "cellar", "label": "Trapdoor stairs", "bidirectional": true }
+    ]
+  }
+}`;
+
+    let rawText = '';
+    const engineProvider = getEngineProvider();
+    if (engineProvider === 'local') {
+      const localModel = getLocalForgeModel();
+      rawText = await generateLocalText(prompt, {
+        model: localModel,
+        temperature: 0.3,
+        jsonMode: true,
+      });
+    } else {
+      const ai = getAiClient();
+      const policy = getGeminiPolicy();
+      const response = await ai.models.generateContent({
+        model: policy.model,
+        contents: prompt,
+        config: {
+          temperature: 0.2,
+          responseMimeType: "application/json",
+        },
+      });
+      rawText = response.text || '';
+    }
+
+    const patch = parseOrRepairJson<Record<string, any>>(rawText);
+    if (!patch || typeof patch !== 'object') {
+      throw new Error("Model response could not be parsed as a JSON patch.");
+    }
+
+    // Sanitize topology if returned
+    if (patch.topology) {
+      if (Array.isArray(patch.topology.nodeDefinitions) && (!Array.isArray(patch.topology.nodes) || patch.topology.nodes.length === 0)) {
+        patch.topology.nodes = patch.topology.nodeDefinitions.map((n: any) => n.id).filter(Boolean);
+      }
+      if (!patch.topology.startingNodeId && Array.isArray(patch.topology.nodes) && patch.topology.nodes.length > 0) {
+        patch.topology.startingNodeId = patch.topology.nodes[0];
+      }
+    }
+
+    res.json({
+      success: true,
+      patch,
+    });
+  } catch (error: any) {
+    console.error("Resolve discrepancies error:", error);
+    res.status(500).json({ error: "Failed to resolve discrepancies: " + (error?.message || error) });
+  }
+});
+
 export default router;
