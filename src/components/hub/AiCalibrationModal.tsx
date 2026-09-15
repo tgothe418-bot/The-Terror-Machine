@@ -9,7 +9,9 @@ import {
   Key,
   Cpu,
   ShieldCheck,
+  Eye,
 } from 'lucide-react';
+
 import { motion } from 'motion/react';
 
 interface AiConfigResponse {
@@ -20,20 +22,29 @@ interface AiConfigResponse {
   defaultPaidModel: string;
   hasApiKey: boolean;
   maskedApiKey: string;
-  engineProvider: 'gemini';
-  voiceProvider: 'gemini' | 'openai';
-  voiceProviders: Array<'gemini' | 'openai'>;
+  engineProvider: 'gemini' | 'local';
+  engineProviders?: Array<'gemini' | 'local'>;
+  voiceProvider: 'gemini' | 'openai' | 'local';
+  voiceProviders: Array<'gemini' | 'openai' | 'local'>;
   openAiModel: string;
   approvedOpenAiModels: string[];
   defaultOpenAiModel: string;
   hasOpenAiApiKey: boolean;
   maskedOpenAiApiKey: string;
+  localBaseUrl: string;
+  localModel: string;
+  localEngineModel?: string;
+  localAutopilotModel?: string;
+  localVoiceModel?: string;
+  localForgeModel?: string;
+  defaultLocalBaseUrl: string;
 }
 
 interface AiPingResponse {
   ok: boolean;
-  provider?: 'gemini' | 'openai';
+  provider?: 'gemini' | 'openai' | 'local';
   model: string;
+  models?: string[];
   latencyMs: number;
   status?: number;
   code?: string;
@@ -55,9 +66,19 @@ export default function AiCalibrationModal({
   const [tier, setTier] = useState<'free' | 'paid'>('free');
   const [model, setModel] = useState<string>('gemini-3.6-flash');
   const [apiKeyInput, setApiKeyInput] = useState<string>('');
-  const [voiceProvider, setVoiceProvider] = useState<'gemini' | 'openai'>('openai');
+  const [engineProvider, setEngineProvider] = useState<'gemini' | 'local'>('gemini');
+  const [voiceProvider, setVoiceProvider] = useState<'gemini' | 'openai' | 'local'>('openai');
   const [openAiModel, setOpenAiModel] = useState<string>('gpt-5.6-luna');
   const [openAiApiKeyInput, setOpenAiApiKeyInput] = useState<string>('');
+  const [localBaseUrl, setLocalBaseUrl] = useState<string>('http://127.0.0.1:1234/v1');
+  const [localModel, setLocalModel] = useState<string>('');
+  const [localEngineModel, setLocalEngineModel] = useState<string>('');
+  const [localAutopilotModel, setLocalAutopilotModel] = useState<string>('');
+  const [localVoiceModel, setLocalVoiceModel] = useState<string>('');
+  const [localForgeModel, setLocalForgeModel] = useState<string>('');
+  const [useDedicatedSubsystemModels, setUseDedicatedSubsystemModels] = useState<boolean>(false);
+  const [localModels, setLocalModels] = useState<string[]>([]);
+  const [isDiscoveringLocalModels, setIsDiscoveringLocalModels] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isPinging, setIsPinging] = useState(false);
   const [pingResult, setPingResult] = useState<AiPingResponse | null>(null);
@@ -74,8 +95,24 @@ export default function AiCalibrationModal({
           setConfig(data);
           setTier(data.tier);
           setModel(data.model);
+          setEngineProvider(data.engineProvider || 'gemini');
           setVoiceProvider(data.voiceProvider || 'gemini');
           setOpenAiModel(data.openAiModel || data.defaultOpenAiModel || 'gpt-6-astra');
+          setLocalBaseUrl(
+            data.localBaseUrl || data.defaultLocalBaseUrl || 'http://127.0.0.1:1234/v1'
+          );
+          setLocalModel(data.localModel || '');
+          setLocalEngineModel(data.localEngineModel || data.localModel || '');
+          setLocalAutopilotModel(data.localAutopilotModel || data.localModel || '');
+          setLocalVoiceModel(data.localVoiceModel || data.localModel || '');
+          setLocalForgeModel(data.localForgeModel || data.localModel || '');
+          if (
+            (data.localEngineModel && data.localEngineModel !== data.localModel) ||
+            (data.localAutopilotModel && data.localAutopilotModel !== data.localModel) ||
+            (data.localForgeModel && data.localForgeModel !== data.localModel)
+          ) {
+            setUseDedicatedSubsystemModels(true);
+          }
         }
       } catch (err) {
         console.error('Failed to load AI config:', err);
@@ -105,14 +142,28 @@ export default function AiCalibrationModal({
         tier: 'free' | 'paid';
         model: string;
         apiKey?: string;
-        voiceProvider: 'gemini' | 'openai';
+        engineProvider: 'gemini' | 'local';
+        voiceProvider: 'gemini' | 'openai' | 'local';
         openAiModel: string;
         openAiApiKey?: string;
+        localBaseUrl: string;
+        localModel: string;
+        localEngineModel?: string;
+        localAutopilotModel?: string;
+        localVoiceModel?: string;
+        localForgeModel?: string;
       } = {
         tier,
         model,
+        engineProvider,
         voiceProvider,
         openAiModel,
+        localBaseUrl,
+        localModel,
+        localEngineModel: useDedicatedSubsystemModels ? localEngineModel : localModel,
+        localAutopilotModel: useDedicatedSubsystemModels ? localAutopilotModel : localModel,
+        localVoiceModel: useDedicatedSubsystemModels ? localVoiceModel : localModel,
+        localForgeModel: useDedicatedSubsystemModels ? localForgeModel : localModel,
       };
       if (apiKeyInput.trim().length > 0) {
         payload.apiKey = apiKeyInput.trim();
@@ -132,8 +183,48 @@ export default function AiCalibrationModal({
         setConfig(updated);
         setApiKeyInput('');
         setOpenAiApiKeyInput('');
-        setStatusMessage('AI Configuration saved successfully.');
         onConfigChanged?.();
+
+        const modelsToWarmup = Array.from(
+          new Set(
+            [
+              payload.localModel,
+              payload.localEngineModel,
+              payload.localAutopilotModel,
+              payload.localVoiceModel,
+              payload.localForgeModel,
+            ].filter((m): m is string => typeof m === 'string' && m.trim().length > 0)
+          )
+        );
+
+        if (modelsToWarmup.length > 0 && (engineProvider === 'local' || voiceProvider === 'local' || Boolean(localModel))) {
+          setStatusMessage(`AI Configuration saved. Preloading ${modelsToWarmup.length} local model(s) into Bionic memory...`);
+          try {
+            const warmupRes = await fetch('/api/ai/warmup', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                models: modelsToWarmup,
+                baseUrl: payload.localBaseUrl,
+              }),
+            });
+            const warmupData = await warmupRes.json();
+            const loadedCount = warmupData?.results
+              ? warmupData.results.filter((r: any) => r.ok).length
+              : 0;
+            const loadedNames = warmupData?.results
+              ?.filter((r: any) => r.ok)
+              ?.map((r: any) => r.model.split('/').pop())
+              ?.join(', ');
+            setStatusMessage(
+              `AI Configuration saved. ${loadedCount}/${modelsToWarmup.length} local model(s) preloaded & ready in Bionic${loadedNames ? ` (${loadedNames})` : ''}.`
+            );
+          } catch {
+            setStatusMessage('AI Configuration saved. (Local model preload ping completed)');
+          }
+        } else {
+          setStatusMessage('AI Configuration saved successfully.');
+        }
       } else {
         const err = await res.json();
         setStatusMessage(`Error: ${err.error || 'Failed to save configuration'}`);
@@ -142,6 +233,42 @@ export default function AiCalibrationModal({
       setStatusMessage('Network error while saving AI configuration.');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+
+  const handleDiscoverLocalModels = async () => {
+    setIsDiscoveringLocalModels(true);
+    setStatusMessage(null);
+    try {
+      const res = await fetch(`/api/ai/local-models?baseUrl=${encodeURIComponent(localBaseUrl)}`);
+      const data: { models?: string[]; error?: string } = await res.json();
+      if (!res.ok || !data.models?.length) {
+        setStatusMessage(
+          `Error: ${data.error || 'No models were reported by the Local provider.'}`
+        );
+        return;
+      }
+      setLocalModels(data.models);
+      const chosen = (!localModel || !data.models.includes(localModel))
+        ? (data.models.find((candidate) => /qwen3\.8-27b/i.test(candidate)) || data.models[0])
+        : localModel;
+      if (!localModel || !data.models.includes(localModel)) {
+        setLocalModel(chosen);
+      }
+      if (!localEngineModel) setLocalEngineModel(chosen);
+      if (!localAutopilotModel) setLocalAutopilotModel(chosen);
+      if (!localVoiceModel) setLocalVoiceModel(chosen);
+      if (!localForgeModel) setLocalForgeModel(chosen);
+      setStatusMessage(
+        `${data.models.length} local model${data.models.length === 1 ? '' : 's'} discovered.`
+      );
+    } catch {
+      setStatusMessage(
+        'Could not reach the Local provider. Start its API server and verify the URL.'
+      );
+    } finally {
+      setIsDiscoveringLocalModels(false);
     }
   };
 
@@ -159,7 +286,9 @@ export default function AiCalibrationModal({
                 model: openAiModel,
                 ...(openAiApiKeyInput.trim() ? { apiKey: openAiApiKeyInput.trim() } : {}),
               }
-            : {}),
+            : voiceProvider === 'local'
+              ? { model: localModel, baseUrl: localBaseUrl }
+              : {}),
         }),
       });
       const data: AiPingResponse = await res.json();
@@ -167,7 +296,8 @@ export default function AiCalibrationModal({
     } catch {
       setPingResult({
         ok: false,
-        model: voiceProvider === 'openai' ? openAiModel : model,
+        model:
+          voiceProvider === 'openai' ? openAiModel : voiceProvider === 'local' ? localModel : model,
         latencyMs: 0,
         code: 'NETWORK_ERROR',
         message: 'Could not connect to /api/ai/ping',
@@ -203,8 +333,41 @@ export default function AiCalibrationModal({
             Provider & Tier Settings
           </h2>
           <p className="text-xs text-zinc-400 font-mono">
-            Configure the Gemini simulation baseline and select the provider used by The Voice.
+            Configure providers and model settings for both the Simulation Engine and The Voice.
           </p>
+        </div>
+
+        {/* Simulation Engine Provider Selection */}
+        <div className="space-y-2">
+          <label className="text-xs font-mono uppercase tracking-wider text-zinc-400">
+            Simulation Engine Provider
+          </label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {(['gemini', 'local'] as const).map((provider) => (
+              <button
+                key={provider}
+                type="button"
+                onClick={() => setEngineProvider(provider)}
+                className={`p-4 text-left border rounded transition-all cursor-pointer ${
+                  engineProvider === provider
+                    ? 'border-emerald-500 bg-emerald-950/20 text-white'
+                    : 'border-zinc-800 bg-zinc-900/50 text-zinc-400 hover:border-zinc-700'
+                }`}
+              >
+                <div className="flex items-center justify-between pb-1">
+                  <span className="font-mono text-xs font-bold uppercase tracking-wider text-emerald-300">
+                    {provider === 'gemini' ? 'Google Gemini' : 'Local Model'}
+                  </span>
+                  {engineProvider === provider && <CheckCircle2 className="w-4 h-4 text-emerald-400" />}
+                </div>
+                <p className="text-xs text-zinc-300 font-mono">
+                  {provider === 'gemini'
+                    ? 'Uses the cloud Gemini baseline for turns and initialization.'
+                    : 'Uses the active local API server (LM Studio / Ollama) below.'}
+                </p>
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Voice Provider Selection */}
@@ -212,8 +375,8 @@ export default function AiCalibrationModal({
           <label className="text-xs font-mono uppercase tracking-wider text-zinc-400">
             The Voice Provider
           </label>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {(['gemini', 'openai'] as const).map((provider) => (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {(['gemini', 'openai', 'local'] as const).map((provider) => (
               <button
                 key={provider}
                 type="button"
@@ -226,21 +389,24 @@ export default function AiCalibrationModal({
               >
                 <div className="flex items-center justify-between pb-1">
                   <span className="font-mono text-xs font-bold uppercase tracking-wider text-blue-300">
-                    {provider === 'gemini' ? 'Google Gemini' : 'OpenAI'}
+                    {provider === 'gemini'
+                      ? 'Google Gemini'
+                      : provider === 'openai'
+                        ? 'OpenAI'
+                        : 'Local'}
                   </span>
                   {voiceProvider === provider && <CheckCircle2 className="w-4 h-4 text-blue-400" />}
                 </div>
                 <p className="text-xs text-zinc-300 font-mono">
                   {provider === 'gemini'
                     ? 'Uses the active Gemini baseline below.'
-                    : 'Uses the Responses API for The Voice only.'}
+                    : provider === 'openai'
+                      ? 'Uses the Responses API for The Voice only.'
+                      : 'Uses an API server running on this computer.'}
                 </p>
               </button>
             ))}
           </div>
-          <p className="text-[11px] text-zinc-500 font-mono">
-            Engine, Forge, and Autopilot continue to use Gemini during this provider preview.
-          </p>
         </div>
 
         {/* Operating Tier Selection */}
@@ -311,18 +477,11 @@ export default function AiCalibrationModal({
             onChange={(e) => setModel(e.target.value)}
             className="w-full bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-xs font-mono text-zinc-200 focus:outline-none focus:border-white transition-colors"
           >
-            <option value="gemini-2.5-flash">
-              gemini-2.5-flash (Fast, Reliable, High Free Quota - Recommended)
-            </option>
-            <option value="gemini-2.5-flash-lite">
-              gemini-2.5-flash-lite (Ultra-Fast, Lightest Token Overhead)
-            </option>
-            <option value="gemini-3.7-flash">
-              gemini-3.7-flash (Deep Reasoning - Paid / Standard Free)
-            </option>
-            <option value="gemini-3.5-flash-lite">
-              gemini-3.5-flash-lite (High-throughput execution)
-            </option>
+            {(config?.approvedModels || [model]).map((approvedModel) => (
+              <option key={approvedModel} value={approvedModel}>
+                {approvedModel}
+              </option>
+            ))}
           </select>
         </div>
 
@@ -337,7 +496,9 @@ export default function AiCalibrationModal({
                 onChange={(e) => setOpenAiModel(e.target.value)}
                 className="w-full bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-xs font-mono text-zinc-200 focus:outline-none focus:border-blue-500 transition-colors"
               >
-                {(config?.approvedOpenAiModels || ['gpt-5.6-luna', 'gpt-6-astra', 'gpt-5.6-terra']).map((approvedModel) => (
+                {(
+                  config?.approvedOpenAiModels || ['gpt-5.6-luna', 'gpt-6-astra', 'gpt-5.6-terra']
+                ).map((approvedModel) => (
                   <option key={approvedModel} value={approvedModel}>
                     {approvedModel}
                     {approvedModel === (config?.defaultOpenAiModel || 'gpt-5.6-luna')
@@ -370,6 +531,224 @@ export default function AiCalibrationModal({
               <p className="text-[11px] text-zinc-500 font-mono">
                 The key stays on the server process and is never returned to the browser.
               </p>
+            </div>
+          </div>
+        )}
+
+        {(voiceProvider === 'local' || engineProvider === 'local') && (
+          <div className="space-y-4 p-4 border border-amber-900/50 bg-amber-950/10 rounded">
+            <div className="space-y-2">
+              <label className="text-xs font-mono uppercase tracking-wider text-zinc-400">
+                Local API Server URL
+              </label>
+              <input
+                value={localBaseUrl}
+                onChange={(e) => setLocalBaseUrl(e.target.value)}
+                placeholder="http://127.0.0.1:1234/v1"
+                className="w-full bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-xs font-mono text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-amber-500 transition-colors"
+              />
+              <p className="text-[11px] text-zinc-500 font-mono">
+                TTM connects only to a server on this computer. LM Studio commonly uses port 1234;
+                llama.cpp commonly uses 8080.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-3">
+                <label className="text-xs font-mono uppercase tracking-wider text-zinc-400">
+                  Local Model
+                </label>
+                <button
+                  type="button"
+                  onClick={handleDiscoverLocalModels}
+                  disabled={isDiscoveringLocalModels}
+                  className="text-[11px] font-mono uppercase tracking-wider text-amber-300 hover:text-amber-100 disabled:opacity-50"
+                >
+                  {isDiscoveringLocalModels ? 'Discovering...' : 'Discover Models'}
+                </button>
+              </div>
+              {localModels.length > 0 ? (
+                <select
+                  value={localModel}
+                  onChange={(e) => setLocalModel(e.target.value)}
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-xs font-mono text-zinc-200 focus:outline-none focus:border-amber-500 transition-colors"
+                >
+                  {localModels.map((candidate) => {
+                    const isVlm = /vl|vision|minicpm-v|llava|pixtral|omni/i.test(candidate);
+                    return (
+                      <option key={candidate} value={candidate}>
+                        {candidate}{isVlm ? ' [👁️ Vision Ready]' : ''}
+                      </option>
+                    );
+                  })}
+                </select>
+              ) : (
+                <input
+                  value={localModel}
+                  onChange={(e) => setLocalModel(e.target.value)}
+                  placeholder="Discover automatically, or enter the model ID"
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-xs font-mono text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-amber-500 transition-colors"
+                />
+              )}
+              {/vl|vision|minicpm-v|llava|pixtral|omni/i.test(localModel) && (
+                <div className="flex items-center gap-1.5 text-[10px] text-emerald-400 font-mono pt-1">
+                  <Eye className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                  <span>Vision-capable VLM — can inspect PDF covers, artwork, and visual maps</span>
+                </div>
+              )}
+              <p className="text-[11px] text-zinc-500 font-mono">
+                Primary model used across subsystems by default.
+              </p>
+            </div>
+
+            <div className="pt-3 border-t border-amber-900/30 space-y-3">
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={useDedicatedSubsystemModels}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setUseDedicatedSubsystemModels(checked);
+                    if (checked) {
+                      if (!localEngineModel) setLocalEngineModel(localModel);
+                      if (!localAutopilotModel) setLocalAutopilotModel(localModel);
+                      if (!localVoiceModel) setLocalVoiceModel(localModel);
+                      if (!localForgeModel) setLocalForgeModel(localModel);
+                    }
+                  }}
+                  className="rounded border-zinc-700 bg-zinc-900 text-amber-500 focus:ring-0 w-4 h-4 cursor-pointer"
+                />
+                <span className="text-xs font-mono uppercase tracking-wider text-amber-200">
+                  Assign Independent Models per Subsystem
+                </span>
+              </label>
+
+              {useDedicatedSubsystemModels ? (
+                <div className="space-y-3 pt-2 pl-3 border-l-2 border-amber-800/40">
+                  {/* The Engine */}
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-mono text-zinc-300 font-semibold">The Engine</span>
+                      <span className="text-[10px] font-mono text-zinc-500">Narrative & Spatial Turns</span>
+                    </div>
+                    {localModels.length > 0 ? (
+                      <select
+                        value={localEngineModel || localModel}
+                        onChange={(e) => setLocalEngineModel(e.target.value)}
+                        className="w-full bg-zinc-900 border border-zinc-800 rounded px-2.5 py-1.5 text-xs font-mono text-zinc-200 focus:outline-none focus:border-amber-500 transition-colors"
+                      >
+                        {localModels.map((m) => (
+                          <option key={m} value={m}>{m}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        value={localEngineModel}
+                        onChange={(e) => setLocalEngineModel(e.target.value)}
+                        placeholder="e.g. mistralai/mistral-nemo-instruct-2407"
+                        className="w-full bg-zinc-900 border border-zinc-800 rounded px-2.5 py-1.5 text-xs font-mono text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-amber-500 transition-colors"
+                      />
+                    )}
+                  </div>
+
+                  {/* Autopilot */}
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-mono text-zinc-300 font-semibold">Autopilot</span>
+                      <span className="text-[10px] font-mono text-zinc-500">Player Simulation (fast 3B–8B recommended)</span>
+                    </div>
+                    {localModels.length > 0 ? (
+                      <select
+                        value={localAutopilotModel || localModel}
+                        onChange={(e) => setLocalAutopilotModel(e.target.value)}
+                        className="w-full bg-zinc-900 border border-zinc-800 rounded px-2.5 py-1.5 text-xs font-mono text-zinc-200 focus:outline-none focus:border-amber-500 transition-colors"
+                      >
+                        {localModels.map((m) => (
+                          <option key={m} value={m}>{m}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        value={localAutopilotModel}
+                        onChange={(e) => setLocalAutopilotModel(e.target.value)}
+                        placeholder="e.g. google/gemma-4-e4b"
+                        className="w-full bg-zinc-900 border border-zinc-800 rounded px-2.5 py-1.5 text-xs font-mono text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-amber-500 transition-colors"
+                      />
+                    )}
+                  </div>
+
+                  {/* The Voice */}
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-mono text-zinc-300 font-semibold">The Voice</span>
+                      <span className="text-[10px] font-mono text-zinc-500">Audio Commentary & Atmosphere</span>
+                    </div>
+                    {localModels.length > 0 ? (
+                      <select
+                        value={localVoiceModel || localModel}
+                        onChange={(e) => setLocalVoiceModel(e.target.value)}
+                        className="w-full bg-zinc-900 border border-zinc-800 rounded px-2.5 py-1.5 text-xs font-mono text-zinc-200 focus:outline-none focus:border-amber-500 transition-colors"
+                      >
+                        {localModels.map((m) => (
+                          <option key={m} value={m}>{m}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        value={localVoiceModel}
+                        onChange={(e) => setLocalVoiceModel(e.target.value)}
+                        placeholder="e.g. mistralai/mistral-nemo-instruct-2407"
+                        className="w-full bg-zinc-900 border border-zinc-800 rounded px-2.5 py-1.5 text-xs font-mono text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-amber-500 transition-colors"
+                      />
+                    )}
+                  </div>
+
+                    {/* The Forge */}
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-mono text-zinc-300 font-semibold">The Forge</span>
+                        <span className="text-[10px] font-mono text-zinc-500">Scenario Blueprints & World Architecture</span>
+                      </div>
+                      {localModels.length > 0 ? (
+                        <select
+                          value={localForgeModel || localModel}
+                          onChange={(e) => setLocalForgeModel(e.target.value)}
+                          className="w-full bg-zinc-900 border border-zinc-800 rounded px-2.5 py-1.5 text-xs font-mono text-zinc-200 focus:outline-none focus:border-amber-500 transition-colors"
+                        >
+                          {localModels.map((m) => {
+                            const isVlm = /vl|vision|minicpm-v|llava|pixtral|omni/i.test(m);
+                            return (
+                              <option key={m} value={m}>
+                                {m}{isVlm ? ' [👁️ Vision Ready]' : ''}
+                              </option>
+                            );
+                          })}
+                        </select>
+                      ) : (
+                        <input
+                          value={localForgeModel}
+                          onChange={(e) => setLocalForgeModel(e.target.value)}
+                          placeholder="e.g. qwen/qwen3.8-27b"
+                          className="w-full bg-zinc-900 border border-zinc-800 rounded px-2.5 py-1.5 text-xs font-mono text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-amber-500 transition-colors"
+                        />
+                      )}
+                      {/vl|vision|minicpm-v|llava|pixtral|omni/i.test(localForgeModel || localModel) ? (
+                        <div className="flex items-center gap-1.5 text-[10px] text-emerald-400 font-mono pt-0.5">
+                          <Eye className="w-3 h-3 text-emerald-400 shrink-0" />
+                          <span>Vision-capable VLM — can inspect PDF covers, artwork, and visual maps</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1.5 text-[10px] text-zinc-500 font-mono pt-0.5">
+                          <span>Text-only LLM — will parse text content and structure</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+              ) : (
+                <p className="text-[11px] text-zinc-500 font-mono italic">
+                  All four subsystems inherit the primary local model above.
+                </p>
+              )}
             </div>
           </div>
         )}

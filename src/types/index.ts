@@ -121,10 +121,17 @@ export const ForgeExpandableAnchorSchema = z.object({
 
 export type ForgeExpandableAnchor = z.infer<typeof ForgeExpandableAnchorSchema>;
 
+const normalizeVulnerabilityValue = (val: unknown): number => {
+  if (typeof val !== 'number' || !Number.isFinite(val)) return 0.5;
+  if (val > 10) return Math.min(1, Math.max(0, val / 100));
+  if (val > 1) return Math.min(1, Math.max(0, val / 10));
+  return Math.min(1, Math.max(0, val));
+};
+
 export const VulnerabilityIndexSchema = z.object({
-  resilience: z.number().min(0).max(1).default(0.5),
-  skepticism: z.number().min(0).max(1).default(0.5),
-  baggage: z.number().min(0).max(1).default(0.5),
+  resilience: z.preprocess(normalizeVulnerabilityValue, z.number().min(0).max(1)).default(0.5),
+  skepticism: z.preprocess(normalizeVulnerabilityValue, z.number().min(0).max(1)).default(0.5),
+  baggage: z.preprocess(normalizeVulnerabilityValue, z.number().min(0).max(1)).default(0.5),
 });
 
 export type VulnerabilityIndex = z.infer<typeof VulnerabilityIndexSchema>;
@@ -176,8 +183,11 @@ export const BlueprintSchema = z.object({
     .optional()
     .default({ title: 'Unknown Enclosure', version: '1.0', author: 'Unknown', thematicAnchor: '' }),
   title: z.string().optional().default('Unknown Enclosure'), // Fallback for legacy
+  coverImageUrl: z.string().optional(),
+  backCoverBlurb: z.string().optional(),
   globalPremise: z.string().optional().default(''),
   premise: z.string().optional().default(''), // Legacy fallback
+
   startingVector: z.enum(['SOMATIC', 'COGNITIVE', 'COSMIC', 'SOCIO_MORAL']).optional(),
   startingTier: z.enum(['GATEWAY', 'LATENT', 'MANIFEST', 'TERMINAL']).optional(),
   environmentalRules: z
@@ -345,6 +355,8 @@ export interface ScenarioBlueprint {
     author?: string;
   };
   title: string;
+  coverImageUrl?: string;
+  backCoverBlurb?: string;
   references?: string[];
   contentScale: ContentScale | number;
   contentLevelDescription: string; // e.g. "Spooky Fun - Splatterpunk"
@@ -352,6 +364,7 @@ export interface ScenarioBlueprint {
   tone?: string;
   globalPremise?: string;
   premise?: string;
+
   startingVector?: HorrorVector;
   startingTier?: ExposureTier;
   environmentalRules?: string | string[];

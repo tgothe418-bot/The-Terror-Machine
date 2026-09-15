@@ -385,7 +385,10 @@ export const geminiTurnResponseJsonSchema: GeminiJsonSchema = {
           type: 'object',
           properties: {
             type: { type: 'string', enum: ['prose', 'dialogue'] },
-            speaker: { type: 'string' },
+            speaker: {
+              type: 'string',
+              description: 'Character ID or speaker name. Mandatory when type is dialogue.',
+            },
             content: { type: 'string' },
           },
           required: ['type', 'content'],
@@ -411,7 +414,10 @@ export const geminiTurnResponseJsonSchema: GeminiJsonSchema = {
           type: 'object',
           properties: {
             type: { type: 'string', enum: ['prose', 'dialogue'] },
-            speaker: { type: 'string' },
+            speaker: {
+              type: 'string',
+              description: 'Character ID or speaker name. Mandatory when type is dialogue.',
+            },
             content: { type: 'string' },
           },
           required: ['type', 'content'],

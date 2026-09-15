@@ -915,7 +915,7 @@ export const EvidenceRegistryEntrySchema = z
     id: z.string().min(1),
     category: EvidenceCategorySchema,
     ownerRef: z.string().min(1),
-    description: z.string().trim().min(1).max(300),
+    description: z.string().trim().min(1).max(800),
   })
   .strict();
 export type EvidenceRegistryEntry = z.infer<typeof EvidenceRegistryEntrySchema>;

@@ -32,7 +32,7 @@ cp .env.example .env
 npm run dev
 ```
 
-Add a personal Gemini API key to `.env`. The Engine, Forge, and Autopilot currently use Gemini. To try The Voice with OpenAI, also add an OpenAI API key or enter one in AI Calibration, then select the OpenAI Voice provider.
+Add a personal Gemini API key to `.env`. The Engine, Forge, and Autopilot currently use Gemini. The Voice can use Gemini, OpenAI, or a local OpenAI-compatible API server. Select **Local** in AI Calibration, enter the server URL, and discover its loaded model; no API key is required for a local server.
 
 For a production-style compilation:
 
@@ -201,14 +201,14 @@ The goal is a world that can be inspected, challenged, and trusted.
 
 Every turn follows the same sequence.
 
-| Stage | What happens |
-|---|---|
-| **Snapshot** | The Engine captures the authoritative state before anything new is proposed. |
-| **Generation** | The model interprets the action and proposes narrative and structured changes inside the active contract. |
-| **Ratification** | Deterministic rules check intent, feasibility, topology, roles, presence, cast, relationships, and other boundaries. |
-| **Commit or fail** | Accepted changes are committed once. Invalid proposals preserve canonical state and produce a failure receipt. |
-| **Telemetry** | The machine records what was proposed, what was accepted, what changed, and what was refused. |
-| **Retake** | The person at the controls may restore the immediately preceding completed checkpoint and try again. |
+| Stage              | What happens                                                                                                         |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------- |
+| **Snapshot**       | The Engine captures the authoritative state before anything new is proposed.                                         |
+| **Generation**     | The model interprets the action and proposes narrative and structured changes inside the active contract.            |
+| **Ratification**   | Deterministic rules check intent, feasibility, topology, roles, presence, cast, relationships, and other boundaries. |
+| **Commit or fail** | Accepted changes are committed once. Invalid proposals preserve canonical state and produce a failure receipt.       |
+| **Telemetry**      | The machine records what was proposed, what was accepted, what changed, and what was refused.                        |
+| **Retake**         | The person at the controls may restore the immediately preceding completed checkpoint and try again.                 |
 
 The prose presents the scene. The receipt records how the Engine evaluated it and what changed.
 

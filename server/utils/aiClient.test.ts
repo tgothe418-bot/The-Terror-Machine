@@ -1,6 +1,7 @@
-import { describe, expect, it, vi, afterAll } from 'vitest';
+import { describe, expect, it, vi, afterAll, afterEach } from 'vitest';
 import {
   unwrapStrictJsonResponse,
+  extractBalancedJson,
   parseStructuredTurnResponse,
   classifyProviderResponse,
   ProviderRefusalError,
@@ -18,6 +19,10 @@ import {
 import {
   GEMINI_TURN_NULL_SENTINEL,
   normalizeGeminiTurnProviderPayload,
+  normalizePerceptionPath,
+  normalizePressureOperator,
+  normalizeAffectedDimension,
+  normalizePersistenceTarget,
 } from '../ai/geminiTurnTransport';
 import { TurnResultSchema } from '../schemas/engine';
 import {
@@ -176,6 +181,22 @@ describe('Structured AI Response Handling', () => {
   it('preserves text without fences', () => {
     const raw = '{"test": true}';
     expect(unwrapStrictJsonResponse(raw)).toBe('{"test": true}');
+  });
+
+  it('unwraps markdown fences with preamble and postamble commentary', () => {
+    const raw = 'Here is the response:\n```json\n{"test": true}\n```\nHope this helps!';
+    expect(unwrapStrictJsonResponse(raw)).toBe('{"test": true}');
+  });
+
+  it('extracts balanced JSON when raw text has trailing commentary or non-whitespace after JSON', () => {
+    const raw = '{"narrative_blocks": [{"type": "prose", "content": "Ted says: \\"Run!\\""}]} \n\nAdditional notes...';
+    expect(unwrapStrictJsonResponse(raw)).toBe('{"narrative_blocks": [{"type": "prose", "content": "Ted says: \\"Run!\\""}]}');
+  });
+
+  it('correctly ignores braces inside string literals when extracting balanced JSON', () => {
+    const raw = 'Preamble {"key": "value with {nested} braces and \\"quotes\\""} Postamble';
+    expect(extractBalancedJson(raw)).toBe('{"key": "value with {nested} braces and \\"quotes\\""}');
+    expect(unwrapStrictJsonResponse(raw)).toBe('{"key": "value with {nested} braces and \\"quotes\\""}');
   });
 
   it('classifies successful responses as SUCCESS', () => {
@@ -1009,5 +1030,347 @@ describe('classifyProviderResponse', () => {
     expect(rejectedErr.providerStatus).toBe(400);
     expect(rejectedErr.message).toBe('AI provider rejected the turn generation request');
     expect(JSON.stringify(rejectedErr)).not.toContain('generativelanguage.googleapis.com');
+  });
+
+  describe('normalizeGeminiTurnProviderPayload defensive edge cases', () => {
+    it('normalizes GLOBAL scope world memory candidates to have node_id null', () => {
+      const payload = {
+        world_memory_proposal: {
+          candidates: [
+            {
+              kind: 'ENVIRONMENTAL_CONDITION',
+              scope: 'GLOBAL',
+              node_id: 'SOME_PLACEHOLDER_STRING',
+              statement: 'City is quiet.',
+              rationale: 'Reason',
+            },
+          ],
+        },
+      };
+
+      const normalized = normalizeGeminiTurnProviderPayload(payload) as typeof payload;
+      expect(normalized.world_memory_proposal.candidates[0].node_id).toBeNull();
+    });
+
+    it('normalizes empty strings or whitespace to null for memory_echo_candidate and action_subtype', () => {
+      const payload = {
+        reconciliation_proposal: {
+          memory_echo_candidate: '   ',
+        },
+        intent_proposal: {
+          action_subtype: '',
+        },
+      };
+
+      const normalized = normalizeGeminiTurnProviderPayload(payload) as typeof payload;
+      expect(normalized.reconciliation_proposal.memory_echo_candidate).toBeNull();
+      expect(normalized.intent_proposal.action_subtype).toBeNull();
+    });
+
+    it('filters out relationship delta 0 changes', () => {
+      const payload = {
+        character_relationship_proposal: {
+          changes: [
+            {
+              source_character_id: 'char1',
+              target_character_id: 'char2',
+              kind: 'TRUST',
+              delta: 0,
+              rationale: 'No change',
+            },
+            {
+              source_character_id: 'char1',
+              target_character_id: 'char3',
+              kind: 'HOSTILITY',
+              delta: 1,
+              rationale: 'Increased hostility',
+            },
+          ],
+        },
+      };
+
+      const normalized = normalizeGeminiTurnProviderPayload(payload) as typeof payload;
+      expect(normalized.character_relationship_proposal.changes).toHaveLength(1);
+      expect(normalized.character_relationship_proposal.changes[0].delta).toBe(1);
+    });
+
+    it('filters invalid psychological mutations and normalizes valid ones to SET operation', () => {
+      const payload = {
+        consequence_proposal: {
+          mutations: [
+            {
+              domain: 'PSYCHOLOGICAL_STATUS',
+              operation: 'REMOVE',
+              value: 'CALMNESS',
+              rationale: 'Invalid value',
+            },
+            {
+              domain: 'PSYCHOLOGICAL_STATUS',
+              operation: 'ADD',
+              value: 'panicked',
+              rationale: 'Should become SET with uppercase',
+            },
+            {
+              domain: 'INVENTORY',
+              operation: 'ADD',
+              value: 'Keycard',
+              rationale: 'Valid',
+            },
+          ],
+        },
+      };
+
+      const normalized = normalizeGeminiTurnProviderPayload(payload) as typeof payload;
+      expect(normalized.consequence_proposal.mutations).toHaveLength(2);
+      expect(normalized.consequence_proposal.mutations[0]).toEqual({
+        domain: 'PSYCHOLOGICAL_STATUS',
+        operation: 'SET',
+        value: 'PANICKED',
+        rationale: 'Should become SET with uppercase',
+      });
+      expect(normalized.consequence_proposal.mutations[1].value).toBe('Keycard');
+    });
+
+    it('clamps proposal arrays exceeding maximum bounds', () => {
+      const payload = {
+        narrative_blocks: [
+          { type: 'prose', content: 'Block 1' },
+          { type: 'prose', content: 'Block 2' },
+          { type: 'prose', content: 'Block 3' },
+        ],
+        character_stance_proposal: {
+          changes: [
+            { character_id: 'c1', focus: 'PLAYER', stance: 'GUARDED', rationale: 'r1' },
+            { character_id: 'c2', focus: 'PLAYER', stance: 'HOSTILE', rationale: 'r2' },
+            { character_id: 'c3', focus: 'PLAYER', stance: 'OPEN', rationale: 'r3' },
+          ],
+        },
+        character_relationship_proposal: {
+          changes: [
+            { source_character_id: 'c1', target_character_id: 'c2', kind: 'TRUST', delta: 1, rationale: 'r1' },
+            { source_character_id: 'c2', target_character_id: 'c3', kind: 'FEAR', delta: -1, rationale: 'r2' },
+            { source_character_id: 'c3', target_character_id: 'c1', kind: 'RESPECT', delta: 1, rationale: 'r3' },
+          ],
+        },
+        character_memory_proposal: {
+          candidates: [
+            { character_id: 'c1', summary: 's1', emotional_valence: 'NEGATIVE', importance: 'HIGH', observation_mode: 'DIRECT' },
+            { character_id: 'c2', summary: 's2', emotional_valence: 'NEUTRAL', importance: 'LOW', observation_mode: 'INFERRED' },
+            { character_id: 'c3', summary: 's3', emotional_valence: 'POSITIVE', importance: 'MEDIUM', observation_mode: 'DIRECT' },
+          ],
+        },
+      };
+
+      const normalized = normalizeGeminiTurnProviderPayload(payload) as any;
+      expect(normalized.narrative_blocks).toHaveLength(2);
+      expect(normalized.character_stance_proposal.changes).toHaveLength(2);
+      expect(normalized.character_relationship_proposal.changes).toHaveLength(2);
+      expect(normalized.character_memory_proposal.candidates).toHaveLength(2);
+    });
+
+    it('normalizes snake_case keys and fills missing proposalId for situated_pressure_proposal', () => {
+      const payload = {
+        situated_pressure_proposal: {
+          kind: 'PRESSURE',
+          proposal_id: 'pressure-proposal-1',
+          value_anchor_id: 'anchor-integrity',
+          source_reference: 'leaking conduit',
+          operator: 'escalate',
+          affected_dimension: 'survival',
+          adverse_prospect: 'Hull breach imminent',
+          persistence_target: 'until_resolved',
+          authority_references: ['manual'],
+        },
+      };
+
+      const normalized = normalizeGeminiTurnProviderPayload(payload) as any;
+      expect(normalized.situated_pressure_proposal.kind).toBe('PRESSURE');
+      expect(normalized.situated_pressure_proposal.proposalId).toBe('pressure-proposal-1');
+      expect(normalized.situated_pressure_proposal.valueAnchorId).toBe('anchor-integrity');
+      expect(normalized.situated_pressure_proposal.sourceReference).toBe('leaking conduit');
+      expect(normalized.situated_pressure_proposal.operator).toBe('ESCALATE');
+      expect(normalized.situated_pressure_proposal.affectedDimension).toBe('SURVIVAL');
+      expect(normalized.situated_pressure_proposal.persistenceTarget).toBe('UNTIL_RESOLVED');
+    });
+
+    it('generates fallback proposalId if missing from valid situated_pressure_proposal', () => {
+      const payload = {
+        situated_pressure_proposal: {
+          kind: 'PRESSURE',
+          valueAnchorId: 'anchor-integrity',
+          sourceReference: 'steam pipe',
+          operator: 'INTRODUCE',
+          affectedDimension: 'SAFETY',
+          adverseProspect: 'Scalding steam fills room',
+          persistenceTarget: 'SCENE',
+          authorityReferences: [],
+        },
+      };
+
+      const normalized = normalizeGeminiTurnProviderPayload(payload) as any;
+      expect(normalized.situated_pressure_proposal.kind).toBe('PRESSURE');
+      expect(typeof normalized.situated_pressure_proposal.proposalId).toBe('string');
+      expect(normalized.situated_pressure_proposal.proposalId).toMatch(/^prop-press-/);
+    });
+
+    it('retains PRESSURE kind for incomplete situated_pressure_proposal allowing schema validation to fail closed', () => {
+      const payload = {
+        situated_pressure_proposal: {
+          kind: 'PRESSURE',
+          // missing valueAnchorId and adverseProspect
+          sourceReference: 'shadows',
+        },
+      };
+
+      const normalized = normalizeGeminiTurnProviderPayload(payload) as any;
+      expect(normalized.situated_pressure_proposal.kind).toBe('PRESSURE');
+    });
+
+    it('normalizes snake_case keys and fills missing proposalId for cast_activity_proposal', () => {
+      const payload = {
+        cast_activity_proposal: {
+          kind: 'ACTIVITY',
+          cast_member_id: 'char-gorrister',
+          pursuit_id: 'pursuit-escape',
+          location_node_id: 'node-generator',
+          perception_path: 'auditory',
+          activity_summary: 'Banging on rusted pipe',
+          authority_references: ['note-1'],
+        },
+      };
+
+      const normalized = normalizeGeminiTurnProviderPayload(payload) as any;
+      expect(normalized.cast_activity_proposal.kind).toBe('ACTIVITY');
+      expect(typeof normalized.cast_activity_proposal.proposalId).toBe('string');
+      expect(normalized.cast_activity_proposal.proposalId).toMatch(/^prop-act-/);
+      expect(normalized.cast_activity_proposal.castMemberId).toBe('char-gorrister');
+      expect(normalized.cast_activity_proposal.pursuitId).toBe('pursuit-escape');
+      expect(normalized.cast_activity_proposal.locationNodeId).toBe('node-generator');
+      expect(normalized.cast_activity_proposal.perceptionPath).toBe('DIRECT');
+      expect(normalized.cast_activity_proposal.activitySummary).toBe('Banging on rusted pipe');
+    });
+
+    it('normalizes perceptionPath variants, sensory synonyms, and empty IDs', () => {
+      expect(normalizePerceptionPath('auditory')).toBe('DIRECT');
+      expect(normalizePerceptionPath('visual')).toBe('DIRECT');
+      expect(normalizePerceptionPath('intercom')).toBe('MEDIATED');
+      expect(normalizePerceptionPath('radio_broadcast')).toBe('MEDIATED');
+      expect(normalizePerceptionPath('blood_trace')).toBe('LOCAL_TRACE');
+      expect(normalizePerceptionPath('unseen')).toBe('UNOBSERVED');
+      expect(normalizePerceptionPath('unknown_weird_string')).toBe('DIRECT');
+
+      const payload = {
+        cast_activity_proposal: {
+          kind: 'ACTIVITY',
+          proposalId: 'prop-1',
+          castMemberId: 'char-gorrister',
+          locationNodeId: '   ',
+          pursuitId: '',
+          perceptionPath: 'auditory',
+          activitySummary: 'Whispering in shadows',
+        },
+      };
+
+      const normalized = normalizeGeminiTurnProviderPayload(payload) as any;
+      expect(normalized.cast_activity_proposal.locationNodeId).toBeNull();
+      expect(normalized.cast_activity_proposal.pursuitId).toBeNull();
+      expect(normalized.cast_activity_proposal.perceptionPath).toBe('DIRECT');
+    });
+
+    it('normalizes situated pressure operator and dimensions to OTHER when non-standard', () => {
+      expect(normalizePressureOperator('EXPOSE')).toBe('EXPOSE');
+      expect(normalizePressureOperator('invented_operator')).toBe('OTHER');
+      expect(normalizeAffectedDimension('SAFETY')).toBe('SAFETY');
+      expect(normalizeAffectedDimension('invented_dimension')).toBe('OTHER');
+      expect(normalizePersistenceTarget('world')).toBe('WORLD_MEMORY');
+      expect(normalizePersistenceTarget('random')).toBe('PRESSURE_THREAD');
+    });
+
+    it('retains ACTIVITY kind for incomplete cast_activity_proposal allowing schema validation to fail closed', () => {
+      const payload = {
+        cast_activity_proposal: {
+          kind: 'ACTIVITY',
+          // missing activitySummary
+          castMemberId: 'char-gorrister',
+        },
+      };
+
+      const normalized = normalizeGeminiTurnProviderPayload(payload) as any;
+      expect(normalized.cast_activity_proposal.kind).toBe('ACTIVITY');
+    });
+
+    it('normalizes dialogue blocks without a speaker to type prose', () => {
+      const payload = {
+        narrative_blocks: [
+          {
+            type: 'prose',
+            content: 'The room is silent.',
+          },
+          {
+            type: 'dialogue',
+            content: 'Is anyone there?',
+            // speaker is missing
+          },
+        ],
+      };
+
+      const normalized = normalizeGeminiTurnProviderPayload(payload) as any;
+      expect(normalized.narrative_blocks).toHaveLength(2);
+      expect(normalized.narrative_blocks[1]).toEqual({
+        type: 'prose',
+        content: 'Is anyone there?',
+      });
+    });
+
+  });
+
+  describe('generateStructuredResponse with engineProvider local', () => {
+    const originalFetch = globalThis.fetch;
+
+    afterEach(() => {
+      globalThis.fetch = originalFetch;
+      vi.restoreAllMocks();
+    });
+
+    it('delegates to generateLocalStructuredResponse and returns validated turn', async () => {
+      const { setEngineProvider } = await import('../ai/modelPolicy');
+      const { generateStructuredResponse, EngineTurnStructuredResponseContract } = await import('./aiClient');
+
+      setEngineProvider('local');
+
+      const basePayload = createBaseValidPayload();
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ data: [{ id: 'google/gemma-4-e4b' }] }), {
+            status: 200,
+          })
+        )
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({
+              choices: [
+                {
+                  message: {
+                    content: JSON.stringify(basePayload),
+                  },
+                },
+              ],
+            }),
+            { status: 200 }
+          )
+        );
+      globalThis.fetch = fetchMock;
+
+      try {
+        const result = await generateStructuredResponse('Test prompt', EngineTurnStructuredResponseContract);
+        expect(result.intent_proposal.action_kind).toBe('COMMUNICATE');
+        expect(fetchMock).toHaveBeenCalled();
+        const [url] = fetchMock.mock.calls[1];
+        expect(url).toContain('/chat/completions');
+      } finally {
+        setEngineProvider('gemini');
+      }
+    });
   });
 });

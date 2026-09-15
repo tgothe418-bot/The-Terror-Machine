@@ -4,12 +4,14 @@ import fs from "fs";
 import path from "path";
 import { Type } from "@google/genai";
 import { getAiClient, classifyProviderResponse } from "../utils/aiClient";
-import { getGeminiPolicy } from "../ai/modelPolicy";
+import { getGeminiPolicy, getEngineProvider } from "../ai/modelPolicy";
 import { buildOrchestratorPrompt } from "../../src/core/prompts/orchestrator";
 // Removed jsonParser
 import { BicameralOutput, HorrorVector, ExposureTier } from "../../src/types";
 import { getMatrixRules } from "../../src/core/matrix";
 import { EngineTurnRequestSchema, SimulatePlayerRequestSchema, TestSceneRequestSchema } from "../schemas/index";
+import { getVoiceProvider } from "../ai/voiceProviderPolicy";
+import { cleanSimulatedAction, generateLocalPlayerAction, generateLocalProse } from "../utils/localVoiceClient";
 
 const router = express.Router();
 
@@ -23,6 +25,10 @@ router.post("/init", async (req, res) => {
       
       Action: Describe the initial root node architecture. Do not address the user. Do not await input. Establish immediate atmospheric dread using the provided aesthetic.
     `;
+    if (getEngineProvider() === 'local') {
+      const prose = await generateLocalProse(initPrompt);
+      return res.json({ prose });
+    }
     const policy = getGeminiPolicy('ENGINE_INIT');
     const response = await getAiClient().models.generateContent({
       model: policy.model,
@@ -495,6 +501,11 @@ router.post("/simulate-player", async (req, res) => {
       Do NOT include your name, labels, or markdown. Output ONLY the raw text of your action.
     `;
 
+    if (getEngineProvider() === 'local' || getVoiceProvider() === 'local') {
+      const action = await generateLocalPlayerAction(systemPrompt);
+      return res.json({ action });
+    }
+
     const policy = getGeminiPolicy('AUTOPILOT_ACTION');
     const response = await getAiClient().models.generateContent({
       model: policy.model, 
@@ -520,7 +531,7 @@ router.post("/simulate-player", async (req, res) => {
       });
     }
 
-    const trimmedAction = classification.text.trim();
+    const trimmedAction = cleanSimulatedAction(classification.text);
     if (!trimmedAction) {
       return res.status(502).json({
         error: 'Simulation model returned an empty player action.',

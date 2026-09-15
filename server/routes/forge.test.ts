@@ -12,7 +12,10 @@ vi.mock('../utils/aiClient', () => ({
 }));
 
 import { createApp } from '../app';
-import { registerServerSource, clearServerSourceRegistry } from './forge';
+import { registerServerSource, clearServerSourceRegistry, executeForgePrompt } from './forge';
+import * as modelPolicy from '../ai/modelPolicy';
+import * as voiceProviderPolicy from '../ai/voiceProviderPolicy';
+import * as localVoiceClient from '../utils/localVoiceClient';
 
 describe('Forge Routes: /api/extract-blueprint', () => {
   let server: http.Server;
@@ -1654,3 +1657,113 @@ describe('Forge Routes: /api/extract-blueprint', () => {
     });
   });
 });
+
+describe('Forge Local AI Routing', () => {
+  it('routes to generateLocalText with getLocalForgeModel() when engineProvider is local', async () => {
+    const engineProviderSpy = vi.spyOn(modelPolicy, 'getEngineProvider').mockReturnValue('local');
+    const localForgeSpy = vi.spyOn(voiceProviderPolicy, 'getLocalForgeModel').mockReturnValue('qwen/qwen3.8-27b');
+    const localTextSpy = vi.spyOn(localVoiceClient, 'generateLocalText').mockResolvedValue('{"blueprint":"data"}');
+
+    const result = await executeForgePrompt('Generate a test blueprint', {
+      policyKey: 'FORGE_PREVIEW',
+      responseMimeType: 'application/json',
+    });
+
+    expect(localTextSpy).toHaveBeenCalledWith(
+      'Generate a test blueprint',
+      expect.objectContaining({
+        model: 'qwen/qwen3.8-27b',
+        jsonMode: true,
+      })
+    );
+    expect(result).toBe('{"blueprint":"data"}');
+
+    engineProviderSpy.mockRestore();
+    localForgeSpy.mockRestore();
+    localTextSpy.mockRestore();
+  });
+
+  it('decodes and appends text inlineData when engineProvider is local', async () => {
+    const engineProviderSpy = vi.spyOn(modelPolicy, 'getEngineProvider').mockReturnValue('local');
+    const localForgeSpy = vi.spyOn(voiceProviderPolicy, 'getLocalForgeModel').mockReturnValue('qwen/qwen3.8-27b');
+    const localTextSpy = vi.spyOn(localVoiceClient, 'generateLocalText').mockResolvedValue('{"analysis":"ok"}');
+
+    const sampleText = 'This is the classified station log.';
+    const base64Data = Buffer.from(sampleText, 'utf-8').toString('base64');
+
+    await executeForgePrompt('Extract blueprint data', {
+      inlineData: {
+        mimeType: 'text/plain',
+        data: base64Data,
+      },
+      policyKey: 'FORGE_ARCHITECTURE',
+      responseMimeType: 'application/json',
+    });
+
+    expect(localTextSpy).toHaveBeenCalled();
+    const promptArg = localTextSpy.mock.calls[0][0];
+    expect(promptArg).toContain('Extract blueprint data');
+    expect(promptArg).toContain('--- SOURCE DOCUMENT CONTENT ---');
+    expect(promptArg).toContain('This is the classified station log.');
+
+    engineProviderSpy.mockRestore();
+    localForgeSpy.mockRestore();
+    localTextSpy.mockRestore();
+  });
+
+  it('passes image inlineData to generateLocalText as multimodal images when engineProvider is local', async () => {
+    const engineProviderSpy = vi.spyOn(modelPolicy, 'getEngineProvider').mockReturnValue('local');
+    const localForgeSpy = vi.spyOn(voiceProviderPolicy, 'getLocalForgeModel').mockReturnValue('qwen2.5-vl-7b-instruct');
+    const localTextSpy = vi.spyOn(localVoiceClient, 'generateLocalText').mockResolvedValue('{"analysis":"ok"}');
+
+    const samplePng = 'iVBORw0KGgoAAAANSU';
+
+    await executeForgePrompt('Extract visual details from map', {
+      inlineData: {
+        mimeType: 'image/png',
+        data: samplePng,
+      },
+      policyKey: 'FORGE_ARCHITECTURE',
+      responseMimeType: 'application/json',
+    });
+
+    expect(localTextSpy).toHaveBeenCalledWith(
+      'Extract visual details from map',
+      expect.objectContaining({
+        model: 'qwen2.5-vl-7b-instruct',
+        images: [{ mimeType: 'image/png', data: samplePng }],
+      })
+    );
+
+    engineProviderSpy.mockRestore();
+    localForgeSpy.mockRestore();
+    localTextSpy.mockRestore();
+  });
+
+  it('extracts PDF text and passes to generateLocalText when engineProvider is local', async () => {
+    const engineProviderSpy = vi.spyOn(modelPolicy, 'getEngineProvider').mockReturnValue('local');
+    const localForgeSpy = vi.spyOn(voiceProviderPolicy, 'getLocalForgeModel').mockReturnValue('qwen/qwen3.8-27b');
+    const localTextSpy = vi.spyOn(localVoiceClient, 'generateLocalText').mockResolvedValue('{"analysis":"ok"}');
+
+    const samplePdf = Buffer.from('%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj 2 0 obj<</Type/Pages/Count 1/Kids[3 0 R]>>endobj 3 0 obj<</Type/Page/MediaBox[0 0 300 144]/Parent 2 0 R/Resources<<>>>>endobj\nxref\n0 4\n0000000000 65535 f \n0000000009 00000 n \n0000000058 00000 n \n0000000115 00000 n \ntrailer<</Size 4/Root 1 0 R>>\nstartxref\n190\n%%EOF');
+    const base64Pdf = samplePdf.toString('base64');
+
+    await executeForgePrompt('Extract blueprint from PDF', {
+      inlineData: {
+        mimeType: 'application/pdf',
+        data: base64Pdf,
+      },
+      policyKey: 'FORGE_ARCHITECTURE',
+      responseMimeType: 'application/json',
+    });
+
+    expect(localTextSpy).toHaveBeenCalled();
+    const promptArg = localTextSpy.mock.calls[0][0];
+    expect(promptArg).toContain('Extract blueprint from PDF');
+
+    engineProviderSpy.mockRestore();
+    localForgeSpy.mockRestore();
+    localTextSpy.mockRestore();
+  });
+});
+

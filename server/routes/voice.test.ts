@@ -5,6 +5,9 @@ const mocks = vi.hoisted(() => ({
   generateGemini: vi.fn(),
   generateOpenAiVoice: vi.fn(),
   pingOpenAiVoice: vi.fn(),
+  generateLocalVoice: vi.fn(),
+  pingLocalVoice: vi.fn(),
+  discoverLocalVoiceModels: vi.fn(),
 }));
 
 vi.mock('../utils/aiClient', async (importOriginal) => {
@@ -26,9 +29,24 @@ vi.mock('../utils/openaiVoiceClient', async (importOriginal) => {
   };
 });
 
+vi.mock('../utils/localVoiceClient', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../utils/localVoiceClient')>();
+  return {
+    ...actual,
+    generateLocalVoice: (...args: unknown[]) => mocks.generateLocalVoice(...args),
+    pingLocalVoice: (...args: unknown[]) => mocks.pingLocalVoice(...args),
+    discoverLocalVoiceModels: (...args: unknown[]) => mocks.discoverLocalVoiceModels(...args),
+  };
+});
+
 import { createApp } from '../app';
 import { setActiveModelId, setActiveTier } from '../ai/modelPolicy';
-import { setOpenAiVoiceModel, setVoiceProvider } from '../ai/voiceProviderPolicy';
+import {
+  setLocalVoiceBaseUrl,
+  setLocalVoiceModel,
+  setOpenAiVoiceModel,
+  setVoiceProvider,
+} from '../ai/voiceProviderPolicy';
 
 describe('Voice provider route', () => {
   let server: http.Server;
@@ -50,6 +68,8 @@ describe('Voice provider route', () => {
     setActiveModelId(null);
     setVoiceProvider('gemini');
     setOpenAiVoiceModel(null);
+    setLocalVoiceBaseUrl(null);
+    setLocalVoiceModel(null);
     await new Promise<void>((resolve) => server.close(() => resolve()));
   });
 
@@ -59,6 +79,8 @@ describe('Voice provider route', () => {
     setActiveModelId(null);
     setVoiceProvider('gemini');
     setOpenAiVoiceModel(null);
+    setLocalVoiceBaseUrl(null);
+    setLocalVoiceModel(null);
   });
 
   it('routes /api/voice through OpenAI when selected', async () => {
@@ -107,6 +129,30 @@ describe('Voice provider route', () => {
     expect(mocks.generateOpenAiVoice).not.toHaveBeenCalled();
   });
 
+  it('routes The Voice through the selected Local provider', async () => {
+    setVoiceProvider('local');
+    mocks.generateLocalVoice.mockResolvedValueOnce({
+      text: 'Local Voice online.',
+      model: 'Qwen/Qwen3.8-27B',
+      provider: 'local',
+    });
+
+    const response = await fetch(`${baseUrl}/api/voice`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ history: [{ role: 'user', content: 'Hello.' }] }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      text: 'Local Voice online.',
+      provider: 'local',
+      model: 'Qwen/Qwen3.8-27B',
+    });
+    expect(mocks.generateLocalVoice).toHaveBeenCalledOnce();
+    expect(mocks.generateGemini).not.toHaveBeenCalled();
+  });
+
   it('reports an unexpected OpenAI failure without mislabeling it as Gemini', async () => {
     setVoiceProvider('openai');
     mocks.generateOpenAiVoice.mockRejectedValueOnce(new TypeError('network detail'));
@@ -145,6 +191,26 @@ describe('Voice provider route', () => {
     });
   });
 
+  it('updates and persists subsystem local models via /api/ai/config', async () => {
+    const response = await fetch(`${baseUrl}/api/ai/config`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        localEngineModel: 'mistralai/mistral-nemo-instruct-2407',
+        localAutopilotModel: 'google/gemma-4-e4b',
+        localVoiceModel: 'magnum-v4-12b',
+        localForgeModel: 'qwen/qwen3.8-27b',
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.localEngineModel).toBe('mistralai/mistral-nemo-instruct-2407');
+    expect(body.localAutopilotModel).toBe('google/gemma-4-e4b');
+    expect(body.localVoiceModel).toBe('magnum-v4-12b');
+    expect(body.localForgeModel).toBe('qwen/qwen3.8-27b');
+  });
+
   it('tests an unsaved OpenAI key and model through the selected provider diagnostic', async () => {
     mocks.pingOpenAiVoice.mockResolvedValueOnce({
       ok: true,
@@ -172,6 +238,40 @@ describe('Voice provider route', () => {
     expect(mocks.pingOpenAiVoice).toHaveBeenCalledWith({
       model: 'gpt-5.6-luna',
       apiKey: 'sk-unsaved-test',
+    });
+  });
+
+  it('discovers and pings a Local provider without saving the configuration first', async () => {
+    mocks.discoverLocalVoiceModels.mockResolvedValueOnce(['Qwen/Qwen3.8-27B']);
+    const models = await fetch(
+      `${baseUrl}/api/ai/local-models?baseUrl=${encodeURIComponent('http://127.0.0.1:8080/v1')}`
+    );
+    expect(models.status).toBe(200);
+    expect(await models.json()).toEqual({ models: ['Qwen/Qwen3.8-27B'] });
+    expect(mocks.discoverLocalVoiceModels).toHaveBeenCalledWith('http://127.0.0.1:8080/v1');
+
+    mocks.pingLocalVoice.mockResolvedValueOnce({
+      ok: true,
+      provider: 'local',
+      model: 'Qwen/Qwen3.8-27B',
+      models: ['Qwen/Qwen3.8-27B'],
+      baseUrl: 'http://127.0.0.1:8080/v1',
+      latencyMs: 8,
+    });
+    const ping = await fetch(`${baseUrl}/api/ai/ping`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        provider: 'local',
+        baseUrl: 'http://127.0.0.1:8080/v1',
+        model: 'Qwen/Qwen3.8-27B',
+      }),
+    });
+    expect(ping.status).toBe(200);
+    expect(await ping.json()).toMatchObject({ ok: true, provider: 'local' });
+    expect(mocks.pingLocalVoice).toHaveBeenCalledWith({
+      baseUrl: 'http://127.0.0.1:8080/v1',
+      model: 'Qwen/Qwen3.8-27B',
     });
   });
 });

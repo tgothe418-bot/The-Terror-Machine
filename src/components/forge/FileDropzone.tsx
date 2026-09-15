@@ -13,6 +13,9 @@ export const FileDropzone = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [loadingMsg, setLoadingMsg] = useState('');
   const [error, setError] = useState('');
+  const [progressPercent, setProgressPercent] = useState(0);
+  const [progressStage, setProgressStage] = useState('');
+  const [activeFileName, setActiveFileName] = useState('');
 
   const draftBlueprint = useForgeState((state) => state.draftBlueprint);
   const {
@@ -67,17 +70,26 @@ export const FileDropzone = () => {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    setActiveFileName(file.name);
     setIsProcessing(true);
     setError('');
+    setProgressPercent(5);
+    setProgressStage('Initializing file reader & intake...');
     setLoadingMsg(
       `[ SOURCE INTAKE: ${file.name} ]\nExtracting baseline candidates for review...`
     );
 
+    let progressTimer: ReturnType<typeof setInterval> | null = null;
+
     try {
       // 1. JSON Blueprint Native Load (Local parsing + server normalization & binding)
       if (file.type === 'application/json' || file.name.endsWith('.json')) {
+        setProgressPercent(40);
+        setProgressStage('Parsing native blueprint JSON structure...');
         const rawJson = await parseBlueprintFile(file);
 
+        setProgressPercent(70);
+        setProgressStage('Registering source baseline & binding...');
         const response = await fetch('/api/register-source', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -117,21 +129,67 @@ export const FileDropzone = () => {
           return;
         }
 
+        setProgressPercent(100);
+        setProgressStage('Intake complete! Applying baseline...');
         applyBaselineAndNotify(analysis, data.sourceBinding, file.name);
-        setIsProcessing(false);
         return;
       }
 
-      // 2. Document Extraction Preflight Validation
-      const supportedTypes = ['application/pdf', 'text/plain', 'text/html', 'text/markdown'];
-      if (!supportedTypes.includes(file.type) && !file.name.endsWith('.md')) {
-        throw new Error('Unsupported file type. Please upload JSON, PDF, TXT, HTML, or MD.');
+      // 2. Document & Image Extraction Preflight Validation
+      const supportedTypes = [
+        'application/pdf',
+        'text/plain',
+        'text/html',
+        'text/markdown',
+        'image/png',
+        'image/jpeg',
+        'image/webp',
+        'image/gif',
+      ];
+      const isSupportedExtension = /\.(md|txt|html|pdf|png|jpe?g|webp|gif)$/i.test(file.name);
+      if (!supportedTypes.includes(file.type) && !isSupportedExtension) {
+        throw new Error('Unsupported file type. Please upload JSON, PDF, TXT, HTML, MD, or Images (PNG, JPG, WEBP).');
       }
 
       // Client preflight size check before reading or Base64 encoding
       if (file.size > REFERENCE_IMPORT_MAX_FILE_BYTES) {
         throw new Error(REFERENCE_IMPORT_ERROR_MESSAGE);
       }
+
+      const isPdf = file.type === 'application/pdf' || file.name.endsWith('.pdf');
+      const isImage = file.type.startsWith('image/') || /\.(png|jpe?g|webp|gif)$/i.test(file.name);
+      const estimatedDurationMs = isPdf
+        ? Math.min(80000, Math.max(30000, Math.round((file.size / 1024) * 20)))
+        : isImage
+          ? 14000
+          : 22000;
+
+      const startTime = Date.now();
+      progressTimer = setInterval(() => {
+        const elapsed = Date.now() - startTime;
+        const ratio = Math.min(1, elapsed / estimatedDurationMs);
+        const current = Math.min(
+          94,
+          Math.max(8, Math.round(ratio * 88 + (elapsed > estimatedDurationMs ? Math.min(4, Math.round((elapsed - estimatedDurationMs) / 10000)) : 0)))
+        );
+        setProgressPercent(current);
+
+        if (current < 18) {
+          setProgressStage('Reading document structure & layout...');
+        } else if (current < 42) {
+          setProgressStage(
+            isPdf || isImage
+              ? 'Extracting text passages & rendering visual page layout...'
+              : 'Parsing narrative text passages & scenes...'
+          );
+        } else if (current < 68) {
+          setProgressStage('Analyzing dramatic register, themes & narrative tone...');
+        } else if (current < 86) {
+          setProgressStage('Extracting character roster, psychological profiles & topology...');
+        } else {
+          setProgressStage('Synthesizing evidence links & resolving candidate baseline...');
+        }
+      }, 250);
 
       const base64Data = await fileToBase64(file);
 
@@ -183,6 +241,10 @@ export const FileDropzone = () => {
         return;
       }
 
+      if (progressTimer) clearInterval(progressTimer);
+      setProgressPercent(100);
+      setProgressStage('Extraction complete! Applying baseline to draft...');
+
       applyBaselineAndNotify(analysis, data.sourceBinding, file.name);
     } catch (err: unknown) {
       console.error(
@@ -191,7 +253,11 @@ export const FileDropzone = () => {
       );
       setError(err instanceof Error ? err.message : 'Extraction failed.');
     } finally {
+      if (progressTimer) clearInterval(progressTimer);
       setIsProcessing(false);
+      setProgressPercent(0);
+      setProgressStage('');
+      setActiveFileName('');
       setLoadingMsg('');
       event.target.value = '';
     }
@@ -202,22 +268,39 @@ export const FileDropzone = () => {
       <div className="bg-zinc-950 border border-dashed border-zinc-700 hover:border-zinc-500 rounded p-6 flex flex-col items-center justify-center transition-colors relative min-h-[120px]">
         <input
           type="file"
-          accept=".json,.pdf,.txt,.html,.md"
+          accept=".json,.pdf,.txt,.html,.md,.png,.jpg,.jpeg,.webp"
           onChange={handleFileUpload}
           disabled={isProcessing}
           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-wait"
         />
 
         {isProcessing ? (
-          <div className="text-blue-400 font-mono text-xs text-center animate-pulse whitespace-pre-line">
-            {loadingMsg}
+          <div className="w-full max-w-md px-4 flex flex-col items-center justify-center space-y-3">
+            <div className="text-zinc-300 font-mono text-xs font-semibold tracking-wider text-center truncate max-w-full">
+              [ INTAKE: {activeFileName} ]
+            </div>
+
+            {/* Animated Progress Bar */}
+            <div className="w-full bg-zinc-900 rounded-full h-2.5 overflow-hidden border border-zinc-700/60 p-0.5 shadow-inner">
+              <div
+                className="bg-gradient-to-r from-amber-600 via-amber-400 to-emerald-400 h-full rounded-full transition-all duration-300 ease-out shadow-[0_0_10px_rgba(245,158,11,0.5)]"
+                style={{ width: `${progressPercent}%` }}
+              />
+            </div>
+
+            <div className="flex items-center justify-between w-full text-[11px] font-mono text-zinc-400">
+              <span className="text-amber-300/90 animate-pulse truncate mr-2">
+                {progressStage || 'Processing...'}
+              </span>
+              <span className="text-zinc-200 font-bold shrink-0">{progressPercent}%</span>
+            </div>
           </div>
         ) : (
           <div className="text-zinc-400 font-mono text-sm text-center">
             DRAG & DROP SOURCE MATERIAL
             <br />
             <span className="text-xs text-zinc-600 mt-1 block">
-              Supports: .JSON | .PDF, .MD, .TXT, .HTML (Max {REFERENCE_IMPORT_HUMAN_MAX_SIZE})
+              Supports: .JSON | .PDF, .MD, .TXT, .HTML, Images (.PNG, .JPG, .WEBP) (Max {REFERENCE_IMPORT_HUMAN_MAX_SIZE})
             </span>
           </div>
         )}

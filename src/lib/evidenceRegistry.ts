@@ -39,14 +39,14 @@ export function buildEvidenceRegistry(input: BuildEvidenceRegistryInput): Eviden
       id: oppId,
       category: 'OPPORTUNITY',
       ownerRef: opp.castMemberId,
-      description: `Present opportunity for ${opp.castMemberId}: ${opp.objective} (${opp.presentApproach})`,
+      description: `Present opportunity for ${opp.castMemberId}: ${opp.objective} (${opp.presentApproach})`.slice(0, 800),
     });
     if (opp.pursuitId) {
       evidenceRegistry.push({
         id: opp.pursuitId,
         category: 'OPPORTUNITY',
         ownerRef: opp.castMemberId,
-        description: `Pursuit ${opp.pursuitId}: ${opp.objective}`,
+        description: `Pursuit ${opp.pursuitId}: ${opp.objective}`.slice(0, 800),
       });
     }
   }
@@ -57,14 +57,14 @@ export function buildEvidenceRegistry(input: BuildEvidenceRegistryInput): Eviden
       id: oppId,
       category: 'OPPORTUNITY',
       ownerRef: opp.castMemberId,
-      description: `Offscreen opportunity for ${opp.castMemberId}: ${opp.objective} (${opp.presentApproach})`,
+      description: `Offscreen opportunity for ${opp.castMemberId}: ${opp.objective} (${opp.presentApproach})`.slice(0, 800),
     });
     if (opp.pursuitId) {
       evidenceRegistry.push({
         id: opp.pursuitId,
         category: 'OPPORTUNITY',
         ownerRef: opp.castMemberId,
-        description: `Offscreen pursuit ${opp.pursuitId}: ${opp.objective}`,
+        description: `Offscreen pursuit ${opp.pursuitId}: ${opp.objective}`.slice(0, 800),
       });
     }
   }
@@ -97,7 +97,7 @@ export function buildEvidenceRegistry(input: BuildEvidenceRegistryInput): Eviden
       id: `rule-${idx + 1}`,
       category: 'SCENARIO_RULE',
       ownerRef: input.scenarioId || 'SCENARIO',
-      description: rule.slice(0, 300),
+      description: rule.slice(0, 800),
     });
   });
 
@@ -106,7 +106,7 @@ export function buildEvidenceRegistry(input: BuildEvidenceRegistryInput): Eviden
       id: anchor.id,
       category: 'VALUE_ANCHOR',
       ownerRef: anchor.id,
-      description: `${anchor.label}: ${anchor.description}`.slice(0, 300),
+      description: `${anchor.label}: ${anchor.description}`.slice(0, 800),
     });
   }
 
@@ -115,7 +115,7 @@ export function buildEvidenceRegistry(input: BuildEvidenceRegistryInput): Eviden
       id: thread.id,
       category: 'PRESSURE_THREAD',
       ownerRef: thread.id,
-      description: `Open thread on ${thread.valueAnchorId}: ${thread.adverseProspect}`.slice(0, 300),
+      description: `Open thread on ${thread.valueAnchorId}: ${thread.adverseProspect}`.slice(0, 800),
     });
   }
 
@@ -133,7 +133,7 @@ export function buildEvidenceRegistry(input: BuildEvidenceRegistryInput): Eviden
       id: evt.id,
       category: 'ACTIVITY_EVENT',
       ownerRef: evt.castMemberId,
-      description: `Committed activity: ${evt.activitySummary}`.slice(0, 300),
+      description: `Committed activity: ${evt.activitySummary}`.slice(0, 800),
     });
   }
 

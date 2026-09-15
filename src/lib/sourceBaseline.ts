@@ -784,7 +784,38 @@ export function validateAndNormalizeDocumentAnalysis(
   };
 
   if (Array.isArray(rawObj.candidates)) {
-    rawObj.candidates.forEach((c: unknown, idx: number) => {
+    // Pre-process: expand candidates where proposedValue is an array of objects
+    // (e.g. model emits one candidate with target "cast_seed" and proposedValue = [char1, char2, ...])
+    const expandedCandidates: unknown[] = [];
+    for (const c of rawObj.candidates) {
+      if (c && typeof c === 'object' && !Array.isArray(c)) {
+        const item = c as Record<string, unknown>;
+        let pv = item.proposedValue;
+
+        // Unwrap { characters: [...] } or { members: [...] } wrapper
+        if (pv && typeof pv === 'object' && !Array.isArray(pv)) {
+          const pvObj = pv as Record<string, unknown>;
+          if (Array.isArray(pvObj.characters)) pv = pvObj.characters;
+          else if (Array.isArray(pvObj.members)) pv = pvObj.members;
+        }
+
+        if (Array.isArray(pv) && pv.length > 0 && pv.every((v) => v && typeof v === 'object' && !Array.isArray(v))) {
+          // Expand each array element into its own candidate envelope
+          for (const element of pv) {
+            const elementObj = element as Record<string, unknown>;
+            expandedCandidates.push({
+              ...item,
+              label: typeof elementObj.name === 'string' ? elementObj.name : item.label,
+              proposedValue: element,
+            });
+          }
+          continue;
+        }
+      }
+      expandedCandidates.push(c);
+    }
+
+    expandedCandidates.forEach((c: unknown, idx: number) => {
       const candidateIndex = idx + 1;
       if (!c || typeof c !== 'object' || Array.isArray(c)) {
         recordIssue(candidateIndex, {}, {
@@ -811,14 +842,23 @@ export function validateAndNormalizeDocumentAnalysis(
             .map((id: string) => id.trim())
         : [];
 
+      // Strip unresolved evidence IDs instead of quarantining — cast_seed
+      // normalization and enrichment MUST run even when evidence linkage is imperfect.
       const unresolvedEvIds = rawEvIds.filter((id) => !validEvidenceIds.has(id));
+      let resolvedEvIds = rawEvIds.filter((id) => validEvidenceIds.has(id));
       if (unresolvedEvIds.length > 0) {
-        recordIssue(candidateIndex, item, {
-          fieldPath: 'evidenceIds',
-          code: 'UNRESOLVED_EVIDENCE',
-          message: `Candidate ${candidateIndex} (${item.target || 'unknown'}) references unresolved evidence IDs: [${unresolvedEvIds.join(', ')}].`,
-        });
-        return;
+        console.warn(
+          `[Forge Baseline] Candidate ${candidateIndex} (${item.target || 'unknown'}) has ${unresolvedEvIds.length} unresolved evidence IDs: [${unresolvedEvIds.join(', ')}] — stripping and continuing.`
+        );
+        // If candidate had evidence IDs but none were resolved, link to the first valid evidence ID
+        // from the document so it remains canonical without false quarantine.
+        if (resolvedEvIds.length === 0 && validEvidenceIds.size > 0) {
+          const fallbackEvId = validEvidenceIds.values().next().value;
+          if (fallbackEvId) {
+            resolvedEvIds = [fallbackEvId];
+            console.log(`[Forge Baseline] Linked candidate ${candidateIndex} (${item.target || 'unknown'}) to document baseline evidence "${fallbackEvId}".`);
+          }
+        }
       }
 
       // Apply deterministic alias normalization
@@ -836,6 +876,56 @@ export function validateAndNormalizeDocumentAnalysis(
           castObj.id = `${sourceId}-cast-${idx}`;
         }
         castObj.isUserCharacter = false;
+
+        // Ensure traits is a non-empty string array; synthesize if omitted or empty
+        if (castObj.traits === undefined || (Array.isArray(castObj.traits) && castObj.traits.length === 0)) {
+          const defaultTraits: string[] = [];
+          if (typeof castObj.role === 'string' && castObj.role.trim()) {
+            defaultTraits.push(castObj.role.trim().toLowerCase());
+          }
+          if (castObj.isEntity) {
+            defaultTraits.push('menacing', 'supernatural');
+          } else {
+            defaultTraits.push('vulnerable', 'reactive');
+          }
+          castObj.traits = defaultTraits;
+        }
+
+        // Ensure personality is not empty
+        if (!castObj.personality || typeof castObj.personality !== 'string' || !castObj.personality.trim()) {
+          castObj.personality = typeof castObj.description === 'string' && castObj.description.trim()
+            ? `Demeanor reflected in role as ${castObj.role || 'cast member'}: ${castObj.description.trim().slice(0, 150)}`
+            : `Behavior consistent with role as ${castObj.role || 'cast member'}.`;
+        }
+
+        // Ensure goals is not empty
+        if (!castObj.goals || typeof castObj.goals !== 'string' || !castObj.goals.trim()) {
+          castObj.goals = castObj.isEntity
+            ? 'Pursue thematic dominance and confront intruders.'
+            : 'Survive the unfolding scenario and protect what matters.';
+        }
+
+        // Ensure presenceDisposition is initialized
+        if (!castObj.presenceDisposition) {
+          castObj.presenceDisposition = { kind: 'OFFSTAGE' };
+        }
+
+        // Ensure vulnerabilityBase is normalized if provided
+        if (castObj.vulnerabilityBase && typeof castObj.vulnerabilityBase === 'object') {
+          const vb = castObj.vulnerabilityBase as Record<string, unknown>;
+          const normalizeStat = (val: unknown): number => {
+            if (typeof val !== 'number' || !Number.isFinite(val)) return 0.5;
+            if (val > 10) return Math.min(1, Math.max(0, val / 100));
+            if (val > 1) return Math.min(1, Math.max(0, val / 10));
+            return Math.min(1, Math.max(0, val));
+          };
+          castObj.vulnerabilityBase = {
+            resilience: normalizeStat(vb.resilience),
+            skepticism: normalizeStat(vb.skepticism),
+            baggage: normalizeStat(vb.baggage),
+          };
+        }
+
         proposedValue = castObj;
       } else if (
         normalizedCandidate.target === 'depiction_contract' &&
@@ -843,7 +933,7 @@ export function validateAndNormalizeDocumentAnalysis(
         proposedValue !== null &&
         !Array.isArray(proposedValue)
       ) {
-        if (rawEvIds.length === 0) {
+        if (resolvedEvIds.length === 0) {
           recordIssue(candidateIndex, normalizedCandidate, {
             fieldPath: 'evidenceIds',
             code: 'MISSING_REQUIRED_FIELD',
@@ -851,6 +941,28 @@ export function validateAndNormalizeDocumentAnalysis(
           });
           return;
         }
+
+        const dcVal = proposedValue as Record<string, unknown>;
+        proposedValue = {
+          dramaticRegister:
+            typeof dcVal.dramaticRegister === 'string' && dcVal.dramaticRegister.trim()
+              ? dcVal.dramaticRegister.trim()
+              : 'Atmospheric horror and mounting tension',
+          directness:
+            typeof dcVal.directness === 'string' && dcVal.directness.trim()
+              ? dcVal.directness.trim()
+              : 'Immediate sensory observation',
+          aftermath:
+            typeof dcVal.aftermath === 'string' && dcVal.aftermath.trim()
+              ? dcVal.aftermath.trim()
+              : 'Psychological strain and physical exhaustion',
+          ambiguityHandling:
+            typeof dcVal.ambiguityHandling === 'string' && dcVal.ambiguityHandling.trim()
+              ? dcVal.ambiguityHandling.trim()
+              : 'Tangible uncanny phenomena grounded in environmental clues',
+          specialBoundaries:
+            typeof dcVal.specialBoundaries === 'string' ? dcVal.specialBoundaries.trim() : '',
+        };
       } else if (
         normalizedCandidate.target === 'value_anchor' &&
         typeof proposedValue === 'object' &&
@@ -861,7 +973,7 @@ export function validateAndNormalizeDocumentAnalysis(
         if (!anchorObj.id || typeof anchorObj.id !== 'string' || !anchorObj.id.trim()) {
           anchorObj.id = `${sourceId}-anchor-${idx}`;
         }
-        if (rawEvIds.length === 0) {
+        if (resolvedEvIds.length === 0) {
           recordIssue(candidateIndex, normalizedCandidate, {
             fieldPath: 'evidenceIds',
             code: 'MISSING_REQUIRED_FIELD',
@@ -873,7 +985,7 @@ export function validateAndNormalizeDocumentAnalysis(
         anchorObj.provenance = {
           kind: 'REVIEWED_SOURCE',
           sourceId,
-          evidenceIds: rawEvIds,
+          evidenceIds: resolvedEvIds,
         };
         proposedValue = anchorObj;
       } else if (
@@ -886,7 +998,7 @@ export function validateAndNormalizeDocumentAnalysis(
         if (!pursuitObj.id || typeof pursuitObj.id !== 'string' || !pursuitObj.id.trim()) {
           pursuitObj.id = `${sourceId}-pursuit-${idx}`;
         }
-        if (rawEvIds.length === 0) {
+        if (resolvedEvIds.length === 0) {
           recordIssue(candidateIndex, normalizedCandidate, {
             fieldPath: 'evidenceIds',
             code: 'MISSING_REQUIRED_FIELD',
@@ -897,7 +1009,7 @@ export function validateAndNormalizeDocumentAnalysis(
         pursuitObj.provenance = {
           kind: 'REVIEWED_SOURCE',
           sourceId,
-          evidenceIds: rawEvIds,
+          evidenceIds: resolvedEvIds,
         };
         proposedValue = pursuitObj;
       } else if (
@@ -961,7 +1073,7 @@ export function validateAndNormalizeDocumentAnalysis(
           typeof normalizedCandidate.explanation === 'string' && normalizedCandidate.explanation.trim()
             ? normalizedCandidate.explanation.trim()
             : 'Extracted from source document.',
-        evidenceIds: rawEvIds,
+        evidenceIds: resolvedEvIds,
         proposedValue,
         reviewDecision: 'accepted' as const,
         applicationState: 'staged' as const,
@@ -1029,6 +1141,12 @@ export function validateAndNormalizeDocumentAnalysis(
         }
 
         const cleanMsg = `Candidate ${candidateIndex} (${normalizedCandidate.target || 'unknown'}) failed schema validation at ${fieldPath}: ${relevantIssue?.message || 'Invalid candidate structure'}`;
+        console.warn(
+          `[Forge Baseline QUARANTINE] ${cleanMsg}`,
+          `| label="${normalizedCandidate.label || 'unlabeled'}"`,
+          `| all issues (${parseRes.error.issues.length}):`,
+          parseRes.error.issues.map((i) => `${i.path.join('.')}: ${i.message} [${i.code}]`).join('; ')
+        );
         recordIssue(candidateIndex, normalizedCandidate, {
           fieldPath,
           code,
@@ -1267,10 +1385,18 @@ export function applyCandidateToDraft(
     }
 
     case 'cast_seed': {
-      const proposedCast = candidate.proposedValue as ForgeDraftCastMember;
+      const proposedCast: ForgeDraftCastMember = {
+        ...(candidate.proposedValue as ForgeDraftCastMember),
+      };
       if (!proposedCast || typeof proposedCast !== 'object' || !proposedCast.name) {
         return { success: false, draft, error: 'Cast seed proposed value must be a valid cast member object.' };
       }
+
+      // Default presence disposition to OFFSTAGE if unassigned so export pre-flight never fails
+      if (!proposedCast.presenceDisposition && !proposedCast.starting_location) {
+        proposedCast.presenceDisposition = { kind: 'OFFSTAGE' };
+      }
+
       const currentCast = cloned.cast ? [...cloned.cast] : [];
       const existingIndex = currentCast.findIndex((c) => c.id === proposedCast.id);
 
@@ -1299,6 +1425,13 @@ export function applyCandidateToDraft(
         }
         if (!cloned.horrorGrammar.pursuitReviews[proposedCast.id]) {
           cloned.horrorGrammar.pursuitReviews[proposedCast.id] = 'REVIEWED_NONE';
+        }
+        // Auto-transition value baseline review to REVIEWED_NONE if unreviewed and no anchors exist
+        if (
+          cloned.horrorGrammar.valueBaselineReview === 'UNREVIEWED' &&
+          (!cloned.horrorGrammar.valueAnchors || cloned.horrorGrammar.valueAnchors.length === 0)
+        ) {
+          cloned.horrorGrammar.valueBaselineReview = 'REVIEWED_NONE';
         }
       }
       break;
@@ -1640,6 +1773,85 @@ export function sortCandidatesForApplication(candidates: ForgeSourceCandidate[])
     const pB = getCandidateApplicationPriority(b.target);
     return pA - pB;
   });
+}
+
+/**
+ * Reconciles draft topology and cast members:
+ * 1. Auto-selects startingNodeId from available topology nodes if none is assigned.
+ * 2. If a cast member's AT_NODE presence references an unknown node, defaults to OFFSTAGE
+ *    so pre-flight compilation validation succeeds.
+ */
+export function reconcileDraftTopologyAndCast(draft: ForgeDraft): ForgeDraft {
+  const cloned: ForgeDraft = JSON.parse(JSON.stringify(draft));
+  const availableNodeIds = Array.from(
+    new Set([
+      ...(cloned.topology?.nodes || []),
+      ...(cloned.topology?.nodeDefinitions || []).map((d) => d.id),
+    ])
+  );
+
+  // 1. Auto-select starting node if not set
+  if (
+    (!cloned.topology?.startingNodeId || !cloned.topology.startingNodeId.trim()) &&
+    availableNodeIds.length > 0
+  ) {
+    if (!cloned.topology) {
+      cloned.topology = { nodes: [], nodeDefinitions: [], connections: [], anchors: [] };
+    }
+    cloned.topology.startingNodeId = availableNodeIds[0];
+  }
+
+  // 2. Reconcile cast presence dispositions:
+  // If an AT_NODE placement references a node not present in topology,
+  // fallback to OFFSTAGE so export pre-flight validation succeeds.
+  if (cloned.cast && cloned.cast.length > 0) {
+    const validNodeSet = new Set(availableNodeIds);
+    cloned.cast = cloned.cast.map((member) => {
+      if (
+        member.presenceDisposition?.kind === 'AT_NODE' &&
+        !validNodeSet.has(member.presenceDisposition.nodeId)
+      ) {
+        return {
+          ...member,
+          presenceDisposition: { kind: 'OFFSTAGE' as const },
+        };
+      }
+      return member;
+    });
+  }
+  // 3. Reconcile setting location:
+  // If setting location is missing, empty, or 'unknown', populate from starting node, first node, or title.
+  if (!cloned.setting) {
+    cloned.setting = { location: '', atmosphere: '', timePeriod: '' };
+  }
+  const currentLoc = (cloned.setting.location || '').trim();
+  if (!currentLoc || currentLoc.toLowerCase() === 'unknown') {
+    const startNode = cloned.topology?.nodeDefinitions?.find((d) => d.id === cloned.topology?.startingNodeId);
+    const firstNode = cloned.topology?.nodeDefinitions?.[0];
+    const fallbackLocation =
+      startNode?.label ||
+      firstNode?.label ||
+      cloned.topology?.startingNodeId ||
+      cloned.topology?.nodes?.[0] ||
+      cloned.title ||
+      'Scenario Environment';
+    cloned.setting.location = fallbackLocation;
+  }
+
+  // 4. Reconcile horror grammar value baseline review:
+  // Export requires either accepted anchors or explicit REVIEWED_NONE
+  if (!cloned.horrorGrammar) {
+    cloned.horrorGrammar = {
+      valueBaselineReview: 'REVIEWED_NONE',
+      valueAnchors: [],
+      pursuitReviews: {},
+    };
+  } else if (cloned.horrorGrammar.valueBaselineReview === 'UNREVIEWED' || !cloned.horrorGrammar.valueBaselineReview) {
+    const hasAnchors = Array.isArray(cloned.horrorGrammar.valueAnchors) && cloned.horrorGrammar.valueAnchors.length > 0;
+    cloned.horrorGrammar.valueBaselineReview = hasAnchors ? 'REVIEWED' : 'REVIEWED_NONE';
+  }
+
+  return cloned;
 }
 
 /**

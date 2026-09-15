@@ -337,4 +337,5 @@ export const ExtractBlueprintRequestSchema = z.object({
   base64Data: z.string().min(1, "base64Data is required").max(REFERENCE_IMPORT_MAX_BASE64_CHARS, "base64Data exceeds maximum allowed size"),
   mimeType: z.string().min(1, "mimeType is required"),
   fileName: z.string().min(1, "fileName is required"),
+  pageImages: z.array(z.string()).optional(),
 });

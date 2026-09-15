@@ -29,10 +29,17 @@ export const CharacterExpressionProfileSchema = z.object({
 });
 export type CharacterExpressionProfile = z.infer<typeof CharacterExpressionProfileSchema>;
 
+const normalizeVulnerabilityValue = (val: unknown): number => {
+  if (typeof val !== 'number' || !Number.isFinite(val)) return 0.5;
+  if (val > 10) return Math.min(1, Math.max(0, val / 100));
+  if (val > 1) return Math.min(1, Math.max(0, val / 10));
+  return Math.min(1, Math.max(0, val));
+};
+
 export const ForgeVulnerabilityIndexSchema = z.object({
-  resilience: z.number().min(0).max(1).default(0.5),
-  skepticism: z.number().min(0).max(1).default(0.5),
-  baggage: z.number().min(0).max(1).default(0.5),
+  resilience: z.preprocess(normalizeVulnerabilityValue, z.number().min(0).max(1)).default(0.5),
+  skepticism: z.preprocess(normalizeVulnerabilityValue, z.number().min(0).max(1)).default(0.5),
+  baggage: z.preprocess(normalizeVulnerabilityValue, z.number().min(0).max(1)).default(0.5),
 });
 
 export const ForgeDraftIdentitySchema = z.object({
@@ -223,6 +230,8 @@ export const ForgeDraftSchema = z.object({
     keyPlotElements: [],
   }),
   references: z.array(z.string()).optional().default([]),
+  coverImageUrl: z.string().optional(),
+  backCoverBlurb: z.string().optional(),
   terminalConditions: z.unknown().optional(),
   characters: z.array(z.unknown()).optional().default([]),
   hauntedHouse: HauntedHouseProvenanceSchema.optional(),
@@ -294,8 +303,10 @@ export const ForgeSourceRecordSchema = z
     kind: z.enum(['native_blueprint', 'document']),
     receivedAt: z.number(),
     fileSizeBytes: z.number().optional(),
+    coverImageUrl: z.string().optional(),
   })
   .strict();
+
 export type ForgeSourceRecord = z.infer<typeof ForgeSourceRecordSchema>;
 
 export const ForgeSourceEvidenceCategorySchema = z.enum([

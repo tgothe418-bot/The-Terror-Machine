@@ -713,10 +713,13 @@ export function compileForgeDraft(
     title: draft.identity?.title || draft.title,
     globalPremise: draft.globalPremise || draft.premise,
     premise: draft.premise || draft.globalPremise,
+    coverImageUrl: draft.coverImageUrl,
+    backCoverBlurb: draft.backCoverBlurb || draft.premise || draft.globalPremise,
     userCharacterId: undefined,
     cast: synchronizedCast,
     depictionContract: resolvedDepiction,
   });
+
 
   // Verify full canonical Blueprint compliance
   const parsedBlueprint = BlueprintSchema.parse(normalized);

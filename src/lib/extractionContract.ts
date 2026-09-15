@@ -339,6 +339,135 @@ export function normalizePresenceDisposition(raw: unknown): Record<string, unkno
   return obj;
 }
 
+const CANONICAL_CANDIDATE_TARGETS = new Set<string>([
+  'scenario_title',
+  'premise',
+  'setting_location',
+  'setting_atmosphere',
+  'setting_time_period',
+  'environmental_rule',
+  'narrative_rule',
+  'cast_seed',
+  'cast_expression_guidance',
+  'topology_node',
+  'topology_connection',
+  'expandable_space_anchor',
+  'cast_opening_placement',
+  'reference_attribution',
+  'value_anchor',
+  'character_pursuit',
+  'depiction_contract',
+]);
+
+const CANDIDATE_TARGET_ALIAS_MAP: Record<string, string> = {
+  // Cast aliases
+  character: 'cast_seed',
+  characters: 'cast_seed',
+  cast: 'cast_seed',
+  cast_member: 'cast_seed',
+  castmember: 'cast_seed',
+  person: 'cast_seed',
+  actor: 'cast_seed',
+  npc: 'cast_seed',
+  entity: 'cast_seed',
+  cast_seeds: 'cast_seed',
+  // Topology aliases
+  node: 'topology_node',
+  nodes: 'topology_node',
+  topology: 'topology_node',
+  room: 'topology_node',
+  area: 'topology_node',
+  initial_topology_node: 'topology_node',
+  topology_nodes: 'topology_node',
+  connection: 'topology_connection',
+  connections: 'topology_connection',
+  edge: 'topology_connection',
+  edges: 'topology_connection',
+  // Rule aliases
+  rule: 'narrative_rule',
+  rules: 'narrative_rule',
+  narrative_rules: 'narrative_rule',
+  environmental_rules: 'environmental_rule',
+  // Setting aliases
+  title: 'scenario_title',
+  name: 'scenario_title',
+  location: 'setting_location',
+  atmosphere: 'setting_atmosphere',
+  mood: 'setting_atmosphere',
+  time_period: 'setting_time_period',
+  time: 'setting_time_period',
+  setting_time: 'setting_time_period',
+  // Contract
+  contract: 'depiction_contract',
+  depiction: 'depiction_contract',
+  // Pursuit & anchor
+  pursuit: 'character_pursuit',
+  pursuits: 'character_pursuit',
+  anchor: 'value_anchor',
+  anchors: 'value_anchor',
+  value: 'value_anchor',
+};
+
+export function normalizeCandidateTarget(
+  rawTarget: unknown,
+  rawClassification: unknown,
+  proposedValue: unknown
+): string | undefined {
+  if (typeof rawTarget === 'string' && rawTarget.trim()) {
+    const cleaned = rawTarget.trim().toLowerCase().replace(/-/g, '_');
+    if (CANONICAL_CANDIDATE_TARGETS.has(cleaned)) return cleaned;
+    if (CANDIDATE_TARGET_ALIAS_MAP[cleaned]) return CANDIDATE_TARGET_ALIAS_MAP[cleaned];
+  }
+
+  // Model emitted target into classification
+  if (typeof rawClassification === 'string' && rawClassification.trim()) {
+    const cleanedClass = rawClassification.trim().toLowerCase().replace(/-/g, '_');
+    if (CANONICAL_CANDIDATE_TARGETS.has(cleanedClass)) return cleanedClass;
+    if (CANDIDATE_TARGET_ALIAS_MAP[cleanedClass]) return CANDIDATE_TARGET_ALIAS_MAP[cleanedClass];
+  }
+
+  // Fallback: Infer target from shape of proposedValue
+  if (proposedValue && typeof proposedValue === 'object' && !Array.isArray(proposedValue)) {
+    const obj = proposedValue as Record<string, unknown>;
+    if (
+      'name' in obj &&
+      ('role' in obj || 'personality' in obj || 'traits' in obj || 'isEntity' in obj || 'behaviorVector' in obj)
+    ) {
+      return 'cast_seed';
+    }
+    if (
+      ('label' in obj || 'id' in obj) &&
+      ('description' in obj || 'hazards' in obj || 'visualTone' in obj)
+    ) {
+      return 'topology_node';
+    }
+    if ('dramaticRegister' in obj || 'directness' in obj) {
+      return 'depiction_contract';
+    }
+    if ('fromNodeId' in obj && 'toNodeId' in obj) {
+      return 'topology_connection';
+    }
+    if ('objective' in obj && ('castMemberId' in obj || 'presentApproach' in obj)) {
+      return 'character_pursuit';
+    }
+    if ('holder' in obj && 'adverseProspect' in obj) {
+      return 'value_anchor';
+    }
+  }
+
+  return undefined;
+}
+
+export function normalizeCandidateClassification(
+  rawClassification: unknown
+): 'evidence' | 'inference' {
+  if (typeof rawClassification === 'string') {
+    const cleaned = rawClassification.trim().toLowerCase();
+    if (cleaned.includes('infer')) return 'inference';
+  }
+  return 'evidence';
+}
+
 /**
  * Normalizes candidate fields deterministically before schema validation.
  */
@@ -346,6 +475,16 @@ export function normalizeCandidateAliases(
   rawCandidate: Record<string, unknown>
 ): Record<string, unknown> {
   const candidate = { ...rawCandidate };
+  const resolvedTarget = normalizeCandidateTarget(
+    candidate.target,
+    candidate.classification,
+    candidate.proposedValue
+  );
+  if (resolvedTarget) {
+    candidate.target = resolvedTarget;
+  }
+  candidate.classification = normalizeCandidateClassification(candidate.classification);
+
   const target = candidate.target;
   let proposedValue = candidate.proposedValue;
 
@@ -410,6 +549,27 @@ export function normalizeCandidateAliases(
           }
         }
         obj.expressionProfile = expObj;
+      }
+      // Normalize vulnerabilityBase and aliases (vulnerability_base, stats)
+      const rawVb = (obj.vulnerabilityBase || obj.vulnerability_base || obj.vulnerability || obj.stats) as Record<string, unknown> | undefined;
+      if (rawVb && typeof rawVb === 'object' && !Array.isArray(rawVb)) {
+        const normalizeStat = (val: unknown): number => {
+          if (typeof val !== 'number' || !Number.isFinite(val)) {
+            if (typeof val === 'string') {
+              const parsed = parseFloat(val);
+              if (Number.isFinite(parsed)) return normalizeStat(parsed);
+            }
+            return 0.5;
+          }
+          if (val > 10) return Math.min(1, Math.max(0, val / 100));
+          if (val > 1) return Math.min(1, Math.max(0, val / 10));
+          return Math.min(1, Math.max(0, val));
+        };
+        obj.vulnerabilityBase = {
+          resilience: normalizeStat(rawVb.resilience ?? rawVb.resilence),
+          skepticism: normalizeStat(rawVb.skepticism ?? rawVb.skeptic),
+          baggage: normalizeStat(rawVb.baggage ?? rawVb.trauma),
+        };
       }
       proposedValue = obj;
     }
@@ -542,15 +702,32 @@ You MUST output ONLY a valid JSON object matching this schema. Do not include ma
   "candidates": [
     {
       "id": "cand-1",
-      "classification": "evidence or inference",
-      "target": "one of: ${EXTRACTION_CANDIDATE_TARGETS.join(', ')}",
-      "label": "Short human-readable label",
+      "classification": "evidence",
+      "target": "depiction_contract",
+      "label": "Document Depiction Contract",
+      "explanation": "Core narrative and dramatic tone extracted from source",
+      "evidenceIds": ["ev-1"],
+      "proposedValue": {
+        "dramaticRegister": "Atmospheric dread and psychological tension",
+        "directness": "Grounded sensory observation",
+        "aftermath": "Lingering psychological and physical fatigue",
+        "ambiguityHandling": "Ambiguous cosmic reality with concrete physical clues"
+      }
+    },
+    {
+      "id": "cand-2",
+      "classification": "evidence",
+      "target": "cast_seed",
+      "label": "Short human-readable label (e.g. character name)",
       "explanation": "Why this candidate was extracted from the evidence",
       "evidenceIds": ["ev-1"],
       "proposedValue": "Target-specific typed value matching EXACT schema rules below",
       "targetCastMemberId": "optional cast member ID (strictly required if target is cast_expression_guidance, cast_opening_placement, or character_pursuit)"
     }
   ],
+  NOTE ON CANDIDATE FIELDS:
+  - "classification": MUST be strictly "evidence" or "inference". NEVER put target names in classification!
+  - "target": MANDATORY on every candidate. MUST be one of: ${EXTRACTION_CANDIDATE_TARGETS.join(', ')}.
   "unknowns": [
     {
       "id": "unk-1",
@@ -562,7 +739,7 @@ You MUST output ONLY a valid JSON object matching this schema. Do not include ma
 }
 
 CRITICAL EXTRACTION SCHEMAS & ENUMS:
-1. 'depiction_contract' (MANDATORY - EXACTLY ONE):
+1. 'depiction_contract' (MANDATORY - EXACTLY ONE - MUST BE THE FIRST ENTRY IN "candidates"):
    - proposedValue: {
        "dramaticRegister": string (concrete reference-specific dramatic tone),
        "directness": string (concrete sensory and narrative camera directness),
@@ -624,12 +801,29 @@ CRITICAL EXTRACTION SCHEMAS & ENUMS:
    - Emit for each cast member with a readable source-derived opening objective. When no intent is readable, do not fabricate an objective.
 
 9. 'cast_seed':
-   - proposedValue: { "id"?: string, "name": string, "role": string, "description"?: string, "isEntity": boolean, "behaviorVector"?: string, "vulnerabilityBase"?: { "resilience": number, "skepticism": number, "baggage": number } }
+   - proposedValue: {
+       "id"?: string,
+       "name": string (Full character name as established in narrative scenes),
+       "role": string (Narrative role, e.g. "Subject", "Protagonist", "Antagonist", "Victim", "Entity", "Secondary"),
+       "description": string (Detailed physical appearance, age, and immediate physical circumstances from text),
+       "personality": string (Detailed psychological demeanor, temperament, and emotional posture under stress),
+       "goals": string (Primary objective, survival desire, or personal motivation in this scenario),
+       "traits": string[] (3-6 concrete descriptive psychological/behavioral traits, e.g. ["protective", "impulsive", "resourceful", "traumatized"]),
+       "isEntity": boolean (true for monsters, supernatural entities, or cosmic phenomena; false for mortal humans),
+       "behaviorVector"?: string ("ADAPTIVE" | "AGGRESSIVE" | "EVASIVE" | "RELENTLESS" | "DEFENSIVE"),
+       "presenceDisposition"?: { "kind": "AT_NODE", "nodeId": string } | { "kind": "OFFSTAGE" },
+       "vulnerabilityBase"?: { "resilience": number, "skepticism": number, "baggage": number }
+     }
+   - For 'vulnerabilityBase', specify numbers between 0.0 and 1.0 (e.g. { "resilience": 0.75, "skepticism": 0.4, "baggage": 0.8 }).
    - No cast member is designated as the player/user character. The simulation Engine chooses perspective dynamically.
+   - For every character, ALWAYS provide concrete, non-empty 'description', 'personality', 'goals', and at least 3 descriptive 'traits'.
+   - CRITICAL: COMPREHENSIVE CAST EXTRACTION (DO NOT TRUNCATE THE ROSTER):
+     Extract EVERY distinct named character, protagonist, antagonist, child, victim, guardian, employee, investigator, and entity who appears across the narrative scenes and chapters.
+     Do NOT limit the extraction to only 2 or 3 characters! If a story has 5, 8, 10, or 12 characters, extract ALL of them as separate 'cast_seed' candidates. It is vastly preferable to extract a comprehensive roster so the creator can trim unwanted characters in the Cast & Character Roster than to omit characters.
 
 10. String Targets:
    - 'scenario_title': String title.
-   - 'premise': String scenario premise.
+   - 'premise': String scenario premise / back-cover blurb.
    - 'setting_location': String location name.
    - 'setting_atmosphere': String atmosphere / tone.
    - 'setting_time_period': String time period.
@@ -637,11 +831,15 @@ CRITICAL EXTRACTION SCHEMAS & ENUMS:
    - 'narrative_rule': String narrative rule.
    - 'reference_attribution': String file name ("${fileName}").
 
-EXTRACTION POLICIES:
+EXTRACTION POLICIES & NEGATIVE DIRECTIVES:
 - Emit EXACTLY ONE complete 'depiction_contract' candidate tied to concrete evidence for every document.
-- Extract all primary characters and entities/monsters found in the document.
+- IGNORE FRONT MATTER: Skip copyright pages, ISBNs, publisher notices, tables of contents, and forewords/acknowledgments. Do NOT treat the table of contents as the entire document. Focus on the actual narrative prose chapters.
+- DO NOT EXTRACT REAL-WORLD PEOPLE: Never extract the author, friends/dedicatees mentioned in acknowledgments or forewords, other authors mentioned as inspirations, or book editors/illustrators as cast members. Only extract fictional characters actively existing in the narrative story.
+- IN-WORLD UNKNOWNS ONLY: The 'unknowns' array is strictly for unresolved in-universe story questions (e.g. unknown threats, missing character motives, locked doors, or rules). NEVER question or ask about the real-world author's identity or publication facts.
+- COMPLETE BLUEPRINT DATA: Every character extracted must include rich 'description', 'personality', 'goals', and 3-6 'traits'.
 - Link candidate evidenceIds to corresponding entries in the evidence list.
 - Keep opening topology compact: map primary spaces as topology_nodes and secondary areas as expandable_space_anchors.
 - Perspective neutrality: Every imported scenario is perspective-neutral. There is no global starting space, designated player character, or fixed user opening aim.
 `;
+
 }

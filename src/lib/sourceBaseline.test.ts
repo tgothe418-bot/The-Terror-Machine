@@ -8,6 +8,7 @@ import {
   sortCandidatesForApplication,
   validateAndNormalizeDocumentAnalysis,
   isCompleteAuthoredDepictionContract,
+  reconcileDraftTopologyAndCast,
 } from './sourceBaseline';
 import {
   ForgeDraft,
@@ -2007,6 +2008,322 @@ describe('sourceBaseline pure functions', () => {
         expect(result.updatedCandidate?.applicationState).toBe('staged');
         expect(result.updatedCandidate?.reviewDecision).toBe('accepted');
       });
+    });
+  });
+
+  describe('Candidate Discriminator Recovery & Target Alias Normalization', () => {
+    const sourceRecord: ForgeSourceRecord = {
+      id: 'src-recovery-test',
+      fileName: 'playground.txt',
+      mimeType: 'text/plain',
+      kind: 'document',
+      receivedAt: Date.now(),
+    };
+
+    it('recovers candidate when target is missing but classification is cast_seed', () => {
+      const rawAnalysis = {
+        summary: 'Story with characters.',
+        evidence: [
+          { id: 'ev-1', category: 'setting', claim: 'A park' },
+          { id: 'ev-2', category: 'identity', claim: 'Rock Stanley is large' },
+        ],
+        candidates: [
+          {
+            id: 'cand-1',
+            classification: 'evidence',
+            target: 'depiction_contract',
+            label: 'Depiction Contract',
+            explanation: 'Contract',
+            evidenceIds: ['ev-1'],
+            proposedValue: {
+              dramaticRegister: 'Dread',
+              directness: 'High',
+              aftermath: 'Severe',
+              ambiguityHandling: 'Clues',
+              specialBoundaries: '',
+            },
+          },
+          {
+            id: 'cand-5',
+            classification: 'cast_seed',
+            label: 'Rock Stanley',
+            explanation: 'Gentle giant',
+            evidenceIds: ['ev-2'],
+            proposedValue: {
+              name: 'Rock Stanley',
+              role: 'Outcast',
+              description: 'A large man',
+              personality: 'Deeply insecure',
+              goals: 'To survive',
+              traits: ['Insecure', 'Submissive'],
+              isEntity: false,
+            },
+          },
+        ],
+      };
+
+      const analysis = validateAndNormalizeDocumentAnalysis(rawAnalysis, sourceRecord);
+      expect(analysis.status).toBe('completed');
+      expect(analysis.validationIssues).toHaveLength(0);
+
+      const castCand = analysis.candidates.find((c) => c.label === 'Rock Stanley');
+      expect(castCand).toBeDefined();
+      expect(castCand?.target).toBe('cast_seed');
+      expect(castCand?.classification).toBe('evidence');
+      expect((castCand?.proposedValue as any).name).toBe('Rock Stanley');
+    });
+
+    it('maps target character alias to cast_seed and normalizes evidence or inference classification', () => {
+      const rawAnalysis = {
+        summary: 'Story with characters.',
+        evidence: [
+          { id: 'ev-1', category: 'setting', claim: 'A park' },
+          { id: 'ev-2', category: 'identity', claim: 'Geraldine is wealthy' },
+        ],
+        candidates: [
+          {
+            id: 'cand-1',
+            classification: 'evidence',
+            target: 'depiction_contract',
+            label: 'Depiction Contract',
+            explanation: 'Contract',
+            evidenceIds: ['ev-1'],
+            proposedValue: {
+              dramaticRegister: 'Dread',
+              directness: 'High',
+              aftermath: 'Severe',
+              ambiguityHandling: 'Clues',
+              specialBoundaries: '',
+            },
+          },
+          {
+            id: 'cand-6',
+            classification: 'evidence or inference',
+            target: 'character',
+            label: 'Geraldine Borden',
+            explanation: 'Antagonist',
+            evidenceIds: ['ev-2'],
+            proposedValue: {
+              name: 'Geraldine Borden',
+              role: 'Antagonist',
+              description: 'Wealthy matriarch',
+              personality: 'Manipulative',
+              goals: 'Maintain legacy',
+              traits: ['Arrogant', 'Controlling'],
+              isEntity: false,
+            },
+          },
+        ],
+      };
+
+      const analysis = validateAndNormalizeDocumentAnalysis(rawAnalysis, sourceRecord);
+      expect(analysis.status).toBe('completed');
+      expect(analysis.validationIssues).toHaveLength(0);
+
+      const charCand = analysis.candidates.find((c) => c.label === 'Geraldine Borden');
+      expect(charCand).toBeDefined();
+      expect(charCand?.target).toBe('cast_seed');
+      expect(charCand?.classification).toBe('inference');
+    });
+
+    it('infers topology_node target from proposedValue shape when target is omitted', () => {
+      const rawAnalysis = {
+        summary: 'Story with nodes.',
+        evidence: [{ id: 'ev-1', category: 'setting', claim: 'Playground park' }],
+        candidates: [
+          {
+            id: 'cand-1',
+            classification: 'evidence',
+            target: 'depiction_contract',
+            label: 'Depiction Contract',
+            explanation: 'Contract',
+            evidenceIds: ['ev-1'],
+            proposedValue: {
+              dramaticRegister: 'Dread',
+              directness: 'High',
+              aftermath: 'Severe',
+              ambiguityHandling: 'Clues',
+              specialBoundaries: '',
+            },
+          },
+          {
+            id: 'cand-11',
+            classification: 'topology_node',
+            label: 'The Playground Park',
+            explanation: 'Public park area',
+            evidenceIds: ['ev-1'],
+            proposedValue: {
+              id: 'playground_park',
+              label: 'The Playground Park',
+              description: 'A public recreational space with modern equipment',
+              visualTone: 'Weathered metal under pale skies',
+              hazards: ['Splintered wood'],
+            },
+          },
+        ],
+      };
+
+      const analysis = validateAndNormalizeDocumentAnalysis(rawAnalysis, sourceRecord);
+      expect(analysis.status).toBe('completed');
+      expect(analysis.validationIssues).toHaveLength(0);
+
+      const nodeCand = analysis.candidates.find((c) => c.label === 'The Playground Park');
+      expect(nodeCand).toBeDefined();
+      expect(nodeCand?.target).toBe('topology_node');
+      expect(nodeCand?.classification).toBe('evidence');
+    });
+  });
+
+  describe('reconcileDraftTopologyAndCast', () => {
+    it('auto-selects first topology node as startingNodeId when unassigned', () => {
+      const draft: ForgeDraft = {
+        title: 'Test Scenario',
+        topology: {
+          nodes: ['node-estate', 'node-playground'],
+          nodeDefinitions: [
+            { id: 'node-estate', label: 'Borden Estate', description: '' },
+            { id: 'node-playground', label: 'The Playground', description: '' },
+          ],
+          connections: [],
+          anchors: [],
+        },
+      };
+
+      const reconciled = reconcileDraftTopologyAndCast(draft);
+      expect(reconciled.topology?.startingNodeId).toBe('node-estate');
+    });
+
+    it('preserves existing valid startingNodeId', () => {
+      const draft: ForgeDraft = {
+        title: 'Test Scenario',
+        topology: {
+          startingNodeId: 'node-playground',
+          nodes: ['node-estate', 'node-playground'],
+          nodeDefinitions: [
+            { id: 'node-estate', label: 'Borden Estate', description: '' },
+            { id: 'node-playground', label: 'The Playground', description: '' },
+          ],
+          connections: [],
+          anchors: [],
+        },
+      };
+
+      const reconciled = reconcileDraftTopologyAndCast(draft);
+      expect(reconciled.topology?.startingNodeId).toBe('node-playground');
+    });
+
+    it('reconciles unknown AT_NODE placement to OFFSTAGE', () => {
+      const draft: ForgeDraft = {
+        title: 'Test Scenario',
+        topology: {
+          nodes: ['borden-estate', 'playground-main'],
+          nodeDefinitions: [
+            { id: 'borden-estate', label: 'The Borden Estate', description: '' },
+            { id: 'playground-main', label: 'The Playground', description: '' },
+          ],
+          connections: [],
+          anchors: [],
+        },
+        cast: [
+          {
+            id: 'rock-stanley',
+            name: 'Rock Stanley',
+            description: 'A survivor.',
+            presenceDisposition: { kind: 'AT_NODE', nodeId: 'borden-estate' },
+          },
+          {
+            id: 'tom-grimley',
+            name: 'Tom Grimley',
+            description: 'A troubled father.',
+            presenceDisposition: { kind: 'AT_NODE', nodeId: 'grimley-home' },
+          },
+          {
+            id: 'cj',
+            name: 'CJ',
+            description: 'Escapist son.',
+            presenceDisposition: { kind: 'AT_NODE', nodeId: 'matthews-home' },
+          },
+        ],
+      };
+
+      const reconciled = reconcileDraftTopologyAndCast(draft);
+
+      // Known node placement is preserved
+      expect(reconciled.cast?.[0].presenceDisposition).toEqual({
+        kind: 'AT_NODE',
+        nodeId: 'borden-estate',
+      });
+
+      // Unknown node placements are safely defaulted to OFFSTAGE
+      expect(reconciled.cast?.[1].presenceDisposition).toEqual({
+        kind: 'OFFSTAGE',
+      });
+      expect(reconciled.cast?.[2].presenceDisposition).toEqual({
+        kind: 'OFFSTAGE',
+      });
+    });
+
+    it('recovers stripped evidence IDs by linking to document baseline evidence', () => {
+      const sourceRecord: ForgeSourceRecord = {
+        id: 'src-recovered',
+        fileName: 'RecoveredDoc.pdf',
+        mimeType: 'application/pdf',
+        kind: 'document',
+        receivedAt: Date.now(),
+      };
+
+      const rawAnalysis = {
+        summary: 'A story of terror.',
+        evidence: [
+          {
+            id: 'ev-valid-1',
+            category: 'rule',
+            claim: 'The gates are locked.',
+          },
+        ],
+        candidates: [
+          {
+            id: 'cand-contract',
+            target: 'depiction_contract',
+            label: 'Depiction Contract',
+            explanation: 'Contract',
+            classification: 'evidence',
+            evidenceIds: ['ev-valid-1'],
+            proposedValue: {
+              dramaticRegister: 'Gothic dread',
+              directness: 'High directness',
+              aftermath: 'Lingering fear',
+              ambiguityHandling: 'Explicit physical evidence',
+              specialBoundaries: '',
+            },
+          },
+          {
+            id: 'cand-char-bad-ev',
+            target: 'cast_seed',
+            label: 'Adolpho Fuchs',
+            explanation: 'Doctor in narrative',
+            classification: 'evidence',
+            evidenceIds: ['ev-nonexistent-99'],
+            proposedValue: {
+              name: 'Adolpho Fuchs',
+              role: 'Physician',
+              description: 'An elderly doctor.',
+              personality: 'Clinical and detached.',
+              goals: 'Understand the biological anomalies.',
+              traits: ['observant', 'stoic', 'elderly'],
+              isEntity: false,
+            },
+          },
+        ],
+      };
+
+      const analysis = validateAndNormalizeDocumentAnalysis(rawAnalysis, sourceRecord);
+      expect(analysis.status).toBe('completed');
+      expect(analysis.validationIssues).toHaveLength(0);
+
+      const fuchs = analysis.candidates.find((c) => c.label === 'Adolpho Fuchs');
+      expect(fuchs).toBeDefined();
+      expect(fuchs?.evidenceIds).toEqual(['ev-valid-1']);
     });
   });
 });

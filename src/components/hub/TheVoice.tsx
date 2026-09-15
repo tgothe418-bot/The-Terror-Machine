@@ -17,7 +17,7 @@ export interface TheVoiceProps {
 }
 
 interface VoiceRuntime {
-  provider: 'gemini' | 'openai';
+  provider: 'gemini' | 'openai' | 'local';
   model: string;
 }
 
@@ -65,8 +65,18 @@ export default function TheVoice({ engineState }: TheVoiceProps = {}) {
       .then((response) => (response.ok ? response.json() : null))
       .then((config) => {
         if (cancelled || !config) return;
-        const provider = config.voiceProvider === 'openai' ? 'openai' : 'gemini';
-        const model = provider === 'openai' ? config.openAiModel : config.model;
+        const provider =
+          config.voiceProvider === 'openai'
+            ? 'openai'
+            : config.voiceProvider === 'local'
+              ? 'local'
+              : 'gemini';
+        const model =
+          provider === 'openai'
+            ? config.openAiModel
+            : provider === 'local'
+              ? config.localModel || 'auto-discover'
+              : config.model;
         if (typeof model === 'string') setVoiceRuntime({ provider, model });
       })
       .catch(() => {
@@ -160,7 +170,7 @@ Cast Size: ${forgeState.draftBlueprint?.cast?.length || 0}
       const data = await response.json();
 
       if (
-        (data.provider === 'gemini' || data.provider === 'openai') &&
+        (data.provider === 'gemini' || data.provider === 'openai' || data.provider === 'local') &&
         typeof data.model === 'string'
       ) {
         setVoiceRuntime({ provider: data.provider, model: data.model });
@@ -283,7 +293,7 @@ Cast Size: ${forgeState.draftBlueprint?.cast?.length || 0}
               className="hidden lg:block text-[9px] text-zinc-500 uppercase tracking-widest"
               title="Active provider and model"
             >
-              {voiceRuntime.provider === 'openai' ? 'OPENAI' : 'GEMINI'} // {voiceRuntime.model}
+              {voiceRuntime.provider.toUpperCase()} // {voiceRuntime.model}
             </div>
           )}
           <div className="flex items-center">

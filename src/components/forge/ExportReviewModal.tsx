@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { useForgeState } from '../../store/useForgeStore';
+import { useForgeState, forgeActions, useForgeStore } from '../../store/useForgeStore';
 import { validateForgeExportReadiness, ForgeExportReadinessResult } from '../../lib/forgeReadiness';
 import { prepareBlueprintExport, BlueprintExportArtifact } from '../../lib/compileBlueprintDraft';
+import { reconcileDraftTopologyAndCast } from '../../lib/sourceBaseline';
 import {
   FileCheck2,
   FileX2,
@@ -56,22 +57,25 @@ export const ExportReviewModal: React.FC<ExportReviewModalProps> = ({
     bRev: number
   ): BlueprintExportArtifact | null => {
     if (!draft) return null;
-    return prepareBlueprintExport(draft, {
+    const safeDraft = reconcileDraftTopologyAndCast(draft);
+    return prepareBlueprintExport(safeDraft, {
       draftRevision: dRev,
       sourceBaselineRevision: bRev,
       sourceAnalyses: sourceAnalyses || undefined,
     });
   };
 
+  const effectiveDraft = draftBlueprint ? reconcileDraftTopologyAndCast(draftBlueprint) : null;
+
   // Lazy snapshot initialization: captures exact revision-bound state when opened
   const [snapshot, setSnapshot] = useState<ReviewSnapshot | null>(() => {
     if (!isOpen) return null;
     const readiness = validateForgeExportReadiness({
-      draft: draftBlueprint,
+      draft: effectiveDraft,
       sourceAnalyses,
     });
 
-    if (!readiness.valid || !draftBlueprint) {
+    if (!readiness.valid || !effectiveDraft) {
       return {
         artifact: null,
         validation: readiness,
@@ -81,7 +85,7 @@ export const ExportReviewModal: React.FC<ExportReviewModalProps> = ({
     }
 
     try {
-      const artifact = executeCompilation(draftBlueprint, currentDraftRev, currentBaseRev);
+      const artifact = executeCompilation(effectiveDraft, currentDraftRev, currentBaseRev);
       return {
         artifact,
         validation: readiness,
@@ -111,7 +115,7 @@ export const ExportReviewModal: React.FC<ExportReviewModalProps> = ({
   const activeSnapshot = snapshot || {
     artifact: null,
     validation: validateForgeExportReadiness({
-      draft: draftBlueprint,
+      draft: effectiveDraft,
       sourceAnalyses,
     }),
     draftRevision: currentDraftRev,
@@ -125,25 +129,61 @@ export const ExportReviewModal: React.FC<ExportReviewModalProps> = ({
     !!artifact &&
     (capturedDraftRev !== currentDraftRev || capturedBaseRev !== currentBaseRev);
 
+  const handleCopyDiscrepancies = () => {
+    if (!validation?.errors) return;
+    const lines = Object.entries(validation.errors).map(
+      ([field, msgs]) => `${field}: ${msgs.join(', ')}`
+    );
+    navigator.clipboard.writeText(lines.join('\n'));
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const [isDelegatingAmbiguities, setIsDelegatingAmbiguities] = useState(false);
+  const hasOpenAmbiguities = Object.keys(validation?.errors || {}).some((k) =>
+    k.includes('openUnknowns')
+  );
+
+  const handleDelegateAllAmbiguities = () => {
+    setIsDelegatingAmbiguities(true);
+    forgeActions.leaveAllUnknownsUncertain();
+    setTimeout(() => {
+      handleRefresh();
+      setIsDelegatingAmbiguities(false);
+    }, 60);
+  };
+
   const handleRefresh = () => {
+    const freshState = useForgeStore.getState();
+    const currentDraft = freshState.draftBlueprint || freshState.forgeDraft;
+    const safeDraft = currentDraft ? reconcileDraftTopologyAndCast(currentDraft) : null;
+    const currentAnalyses = freshState.sourceAnalyses || sourceAnalyses;
     const freshReadiness = validateForgeExportReadiness({
-      draft: draftBlueprint,
-      sourceAnalyses,
+      draft: safeDraft,
+      sourceAnalyses: currentAnalyses,
     });
 
-    if (!freshReadiness.valid || !draftBlueprint) {
-      setExportError('Cannot refresh: Forge draft or baseline is not export ready.');
+    const dRev = freshState.draftRevision || currentDraftRev;
+    const bRev = freshState.sourceBaselineRevision || currentBaseRev;
+
+    if (!freshReadiness.valid || !safeDraft) {
+      setSnapshot({
+        artifact: null,
+        validation: freshReadiness,
+        draftRevision: dRev,
+        sourceBaselineRevision: bRev,
+      });
       return;
     }
 
     try {
-      const newArtifact = executeCompilation(draftBlueprint, currentDraftRev, currentBaseRev);
+      const newArtifact = executeCompilation(safeDraft, dRev, bRev);
       if (newArtifact) {
         setSnapshot({
           artifact: newArtifact,
           validation: freshReadiness,
-          draftRevision: currentDraftRev,
-          sourceBaselineRevision: currentBaseRev,
+          draftRevision: dRev,
+          sourceBaselineRevision: bRev,
         });
         setExportError(null);
       }
@@ -312,9 +352,20 @@ export const ExportReviewModal: React.FC<ExportReviewModalProps> = ({
                   <FileX2 className="w-4 h-4" />
                   <span>Validation Discrepancies Found ({Object.keys(validation.errors).length})</span>
                 </div>
-                <span className="px-2 py-0.5 bg-red-900/50 text-red-300 border border-red-800 font-bold uppercase text-[10px] rounded tracking-wider">
-                  ACTION REQUIRED
-                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleCopyDiscrepancies}
+                    className="flex items-center gap-1.5 px-2 py-0.5 bg-red-950/80 hover:bg-red-900 border border-red-800/80 text-red-200 text-[10px] font-bold uppercase rounded tracking-wider transition-colors cursor-pointer"
+                    title="Copy all validation discrepancies to clipboard"
+                  >
+                    {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                    <span>{copied ? 'Copied!' : 'Copy Discrepancies'}</span>
+                  </button>
+                  <span className="px-2 py-0.5 bg-red-900/50 text-red-300 border border-red-800 font-bold uppercase text-[10px] rounded tracking-wider">
+                    ACTION REQUIRED
+                  </span>
+                </div>
               </div>
               <p className="text-[11px] text-red-300/80">
                 The compilation pipeline requires all structural and Depiction Contract fields to be
@@ -330,6 +381,25 @@ export const ExportReviewModal: React.FC<ExportReviewModalProps> = ({
                   </div>
                 ))}
               </div>
+              {hasOpenAmbiguities && (
+                <div className="mt-2.5 p-2.5 bg-amber-950/40 border border-amber-800/60 rounded flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="text-[11px] text-amber-300">
+                    <strong>Ambiguities Blocking Export:</strong> Unresolved source ambiguities can be delegated to simulation contextual discretion.
+                  </div>
+                  <button
+                    type="button"
+                    disabled={isDelegatingAmbiguities}
+                    onClick={handleDelegateAllAmbiguities}
+                    className={`px-2.5 py-1 font-bold uppercase text-[10px] rounded tracking-wider transition-colors shrink-0 self-start sm:self-auto ${
+                      isDelegatingAmbiguities
+                        ? 'bg-zinc-700 text-zinc-400 cursor-not-allowed opacity-60'
+                        : 'bg-amber-600 hover:bg-amber-500 text-zinc-950 cursor-pointer'
+                    }`}
+                  >
+                    {isDelegatingAmbiguities ? 'Delegating...' : 'Delegate Ambiguities to Contextual Discretion'}
+                  </button>
+                </div>
+              )}
             </div>
           )}
 

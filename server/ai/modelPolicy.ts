@@ -17,6 +17,30 @@ export const DEFAULT_PAID_MODEL: GeminiModelId = 'gemini-3.7-flash';
 // Backwards compatibility alias
 export const GEMINI_MODEL_ID: GeminiModelId = DEFAULT_FREE_MODEL;
 
+export const ENGINE_PROVIDERS = ['gemini', 'local'] as const;
+export type EngineProvider = (typeof ENGINE_PROVIDERS)[number];
+export const DEFAULT_ENGINE_PROVIDER: EngineProvider = 'gemini';
+
+function readConfiguredEngineProvider(): EngineProvider {
+  const configured = process.env.ENGINE_AI_PROVIDER?.trim().toLowerCase();
+  if (configured === 'gemini') return 'gemini';
+  if (configured === 'local') return 'local';
+  return DEFAULT_ENGINE_PROVIDER;
+}
+
+let runtimeEngineProvider: EngineProvider = readConfiguredEngineProvider();
+
+export function getEngineProvider(): EngineProvider {
+  return runtimeEngineProvider;
+}
+
+export function setEngineProvider(provider: EngineProvider): void {
+  if (!ENGINE_PROVIDERS.includes(provider)) {
+    throw new Error(`Provider ${provider} is not supported for the simulation engine.`);
+  }
+  runtimeEngineProvider = provider;
+}
+
 let runtimeTier: GeminiTier = (process.env.GEMINI_TIER?.toLowerCase() === 'paid') ? 'paid' : 'free';
 let runtimeModelOverride: GeminiModelId | null = null;
 let runtimeThinkingOverride: ThinkingLevel | null = null;

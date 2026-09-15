@@ -992,32 +992,80 @@ export default function Runtime() {
         ref={scrollRef}
         className="flex-1 overflow-y-auto no-scrollbar px-8 py-12 scroll-smooth w-full"
       >
-        {/* Expanded desktop reading workspace with comfortable prose formatting */}
+        {/* Expanded desktop reading workspace with comfortable prose formatting & companion cover */}
         <div
-          className={`max-w-5xl lg:max-w-6xl mx-auto space-y-12 transition-all duration-[2500ms] ease-in-out ${isTelemetryOpen ? 'blur-sm opacity-30 pointer-events-none' : 'blur-none opacity-100'}`}
+          className={`max-w-7xl mx-auto flex flex-col lg:flex-row gap-8 xl:gap-14 items-start justify-between transition-all duration-[2500ms] ease-in-out ${isTelemetryOpen ? 'blur-sm opacity-30 pointer-events-none' : 'blur-none opacity-100'}`}
         >
-          <AnimatePresence initial={false}>
-            {engineMessages.map((msg, idx) => (
-              <TranscriptMessageItem
-                key={msg.id || idx}
-                msg={msg as any}
-                onEdit={editTranscriptMessage}
-                onForceCosmetic={forceAcceptCosmetic}
-                userCharName={userCharName}
-              />
-            ))}
-            {isLoading && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="flex items-center gap-2 text-zinc-500 text-xs uppercase tracking-widest"
-              >
-                <Loader2 className="w-3.5 h-3.5 animate-spin text-zinc-400" />
-                Processing Neural Input...
-              </motion.div>
-            )}
-          </AnimatePresence>
+          {/* Primary Prose Narrative Stream */}
+          <div className="flex-1 min-w-0 space-y-12 w-full max-w-3xl xl:max-w-4xl">
+            <AnimatePresence initial={false}>
+              {engineMessages.map((msg, idx) => (
+                <TranscriptMessageItem
+                  key={msg.id || idx}
+                  msg={msg as any}
+                  onEdit={editTranscriptMessage}
+                  onForceCosmetic={forceAcceptCosmetic}
+                  userCharName={userCharName}
+                />
+              ))}
+              {isLoading && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="flex items-center gap-2 text-zinc-500 text-xs uppercase tracking-widest"
+                >
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-zinc-400" />
+                  Processing Neural Input...
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* Companion Cover Art & Back Blurb Panel (Desktop Sidecar matching user layout) */}
+          {(activeBlueprint?.coverImageUrl || activeBlueprint?.backCoverBlurb || activeBlueprint?.premise || activeBlueprint?.title) && (
+            <aside className="hidden lg:flex flex-col gap-6 w-72 xl:w-80 shrink-0 sticky top-4 select-none self-start">
+              {/* Top Box: Scenario Cover Art */}
+              {activeBlueprint?.coverImageUrl ? (
+                <div className="w-full aspect-[2/3] rounded border border-zinc-800 bg-zinc-950/90 overflow-hidden shadow-2xl relative group">
+                  <img
+                    src={activeBlueprint.coverImageUrl}
+                    alt={activeBlueprint.title || 'Scenario Cover'}
+                    className="w-full h-full object-cover object-top transition-transform duration-700 group-hover:scale-105"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent pointer-events-none" />
+                  <div className="absolute bottom-3 left-3 right-3 text-xs uppercase tracking-widest text-zinc-300 font-bold truncate">
+                    {activeBlueprint.title}
+                  </div>
+                </div>
+              ) : (
+                <div className="w-full aspect-[2/3] rounded border border-zinc-800/80 bg-zinc-950/40 p-6 flex flex-col justify-between shadow-2xl relative">
+                  <div className="space-y-1">
+                    <span className="text-[10px] tracking-[0.3em] uppercase text-zinc-600 block font-mono">Scenario Dossier</span>
+                    <h3 className="text-sm uppercase tracking-widest text-zinc-200 font-bold leading-tight">
+                      {activeBlueprint?.title || 'Unknown Scenario'}
+                    </h3>
+                  </div>
+                  <div className="text-[11px] text-zinc-500 uppercase tracking-wider font-mono">
+                    {activeBlueprint?.setting?.location || 'Uncharted Topology'}
+                  </div>
+                </div>
+              )}
+
+              {/* Bottom Box: Back Cover Blurb in Italics */}
+              {(activeBlueprint?.backCoverBlurb || activeBlueprint?.premise || activeBlueprint?.globalPremise) && (
+                <div className="p-5 rounded border border-zinc-800/70 bg-zinc-950/50 backdrop-blur-sm shadow-xl space-y-2">
+                  <span className="text-[9px] uppercase tracking-[0.25em] text-zinc-500 block font-mono font-semibold">
+                    Synopsis // Reference
+                  </span>
+                  <p className="font-serif italic text-zinc-400 text-xs sm:text-sm leading-relaxed whitespace-pre-wrap">
+                    {activeBlueprint.backCoverBlurb || activeBlueprint.premise || activeBlueprint.globalPremise}
+                  </p>
+                </div>
+              )}
+            </aside>
+          )}
         </div>
+
       </div>
 
       {/* MINIMALIST INPUT CONSOLE */}

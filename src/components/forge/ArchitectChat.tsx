@@ -45,6 +45,7 @@ export const ArchitectChat: React.FC = () => {
     isRetryable?: boolean;
     guidance?: string;
   } | null>(null);
+  const [isLeavingUncertain, setIsLeavingUncertain] = useState(false);
 
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -100,7 +101,8 @@ export const ArchitectChat: React.FC = () => {
   };
 
   const handleLeaveUncertain = () => {
-    if (!sourceId || !activeUnk) return;
+    if (!sourceId || !activeUnk || isLeavingUncertain) return;
+    setIsLeavingUncertain(true);
     setLocalResolutionError(null);
     setClassifiedError(null);
     leaveUnknownUncertain(
@@ -108,6 +110,9 @@ export const ArchitectChat: React.FC = () => {
       activeUnk.id,
       'Creator chose runtime contextual discretion'
     );
+    setTimeout(() => {
+      setIsLeavingUncertain(false);
+    }, 300);
   };
 
   const handleRetry = () => {
@@ -630,10 +635,15 @@ export const ArchitectChat: React.FC = () => {
               {/* Action Controls for Resolution */}
               <div className="flex items-center justify-between gap-2 pt-1">
                 <button
+                  disabled={isLeavingUncertain}
                   onClick={handleLeaveUncertain}
-                  className="text-[10px] text-zinc-400 hover:text-indigo-300 uppercase font-bold cursor-pointer"
+                  className={`text-[10px] uppercase font-bold transition-colors ${
+                    isLeavingUncertain
+                      ? 'text-zinc-600 cursor-not-allowed opacity-50'
+                      : 'text-zinc-400 hover:text-indigo-300 cursor-pointer'
+                  }`}
                 >
-                  Leave Uncertain (Discretion)
+                  {isLeavingUncertain ? 'Delegating...' : 'Leave Uncertain (Discretion)'}
                 </button>
 
                 <button
@@ -651,10 +661,15 @@ export const ArchitectChat: React.FC = () => {
           {activeUnk.status === 'queued' && (
             <div className="flex justify-end pt-0.5">
               <button
+                disabled={isLeavingUncertain}
                 onClick={handleLeaveUncertain}
-                className="text-[10px] text-zinc-500 hover:text-indigo-300 uppercase font-bold flex items-center gap-1 cursor-pointer"
+                className={`text-[10px] uppercase font-bold flex items-center gap-1 transition-colors ${
+                  isLeavingUncertain
+                    ? 'text-zinc-600 cursor-not-allowed opacity-50'
+                    : 'text-zinc-500 hover:text-indigo-300 cursor-pointer'
+                }`}
               >
-                <span>Leave Uncertain (Contextual Discretion)</span>
+                <span>{isLeavingUncertain ? 'Delegating...' : 'Leave Uncertain (Contextual Discretion)'}</span>
                 <ArrowRight className="w-2.5 h-2.5" />
               </button>
             </div>

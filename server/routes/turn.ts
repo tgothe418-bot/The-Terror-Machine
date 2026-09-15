@@ -1125,7 +1125,7 @@ Current Psychological Status: ${psychStatusFormatted}
   • MEDIATED: intercom/radio/terminal.
   • LOCAL_TRACE: tangible environmental trace or disturbance left at the current location.
   • UNOBSERVED: activity occurs elsewhere with no immediate sensory perception (omit manifestationBlock).
-- An isolated manifestationBlock (prose or dialogue) describes ONLY this activity. Dialogue speaker must be the non-User actor.
+- An isolated manifestationBlock (prose or dialogue) describes ONLY this activity. If type is "dialogue", the "speaker" field is REQUIRED and must match the non-User actor (castMemberId). If speaker is omitted or unknown, you must set type to "prose".
 - NEVER propose actions, decisions, thoughts, feelings, or choices for the player-controlled character.
 - Do NOT copy unratified activity prose into base narrative_blocks, engine_thoughts, or logic_state.
 
@@ -1136,7 +1136,7 @@ Current Psychological Status: ${psychStatusFormatted}
 - Choose an operator (EXPOSE, CONSTRAIN_ACCESS, ACCELERATE, CORRUPT_TRUST, DEGRADE_CAPABILITY, CLOSE_DISTANCE, DESTABILIZE_KNOWLEDGE, VIOLATE_EXPECTATION, IMPOSE_COST, OTHER) and affectedDimension (ACCESS, KNOWLEDGE, TIME, TRUST, EXPOSURE, CAPABILITY, SAFETY, RELATIONSHIP, FREEDOM, IDENTITY, OTHER).
 - State an adverseProspect: a prospective threat to the value, not proof that the worst has already happened.
 - Set responseWindowOpen: true. Keep the response window open for the player.
-- An isolated manifestationBlock presents the sensory realization of this emerging threat.
+- An isolated manifestationBlock presents the sensory realization of this emerging threat. If type is "dialogue", "speaker" is required; otherwise use type "prose".
 - NEVER conclude the outcome, dictate the player's reaction, or choose for the player.
 - Do NOT copy unratified pressure prose into base narrative_blocks, engine_thoughts, or logic_state.
 
@@ -1281,9 +1281,9 @@ ${recentHistory}
         modelErr instanceof EmptyProviderResponseError ||
         (modelErr as { code?: string })?.code === 'EMPTY_PROVIDER_RESPONSE'
       ) {
-        console.error('[API /turn] AI Provider empty response');
+        console.error('[API /turn] AI Provider empty response:', (modelErr as Error)?.message);
         return res.status(502).json({
-          error: 'AI provider returned an empty response',
+          error: (modelErr as Error)?.message || 'AI provider returned an empty response',
           code: 'PROVIDER_FAILURE',
         });
       }
@@ -1293,7 +1293,7 @@ ${recentHistory}
       ) {
         console.error('[API /turn] AI Provider rejected request configuration');
         return res.status(502).json({
-          error: 'AI provider rejected the turn generation request',
+          error: (modelErr as Error)?.message || 'AI provider rejected the turn generation request',
           code: 'PROVIDER_REQUEST_REJECTED',
         });
       }
@@ -1322,7 +1322,7 @@ ${recentHistory}
       console.error('[API /turn] AI Provider failure:', modelErr);
       return res.status(502).json({
         error: 'AI provider turn generation failed',
-        code: 'PROVIDER_FAILURE',
+        code: (modelErr as { code?: string })?.code || 'PROVIDER_FAILURE',
       });
     }
 

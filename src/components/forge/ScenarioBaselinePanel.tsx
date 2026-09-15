@@ -20,6 +20,7 @@ import {
   AlertTriangle,
   Sparkles,
   ArrowUpRight,
+  Users,
 } from 'lucide-react';
 
 export const ScenarioBaselinePanel: React.FC = () => {
@@ -30,6 +31,7 @@ export const ScenarioBaselinePanel: React.FC = () => {
     editStagedCandidate,
     applyAcceptedCandidates,
     removeSourceAnalysis,
+    leaveAllUnknownsUncertain,
   } = forgeActions;
 
   const [expandedSources, setExpandedSources] = useState<Record<string, boolean>>({});
@@ -43,6 +45,7 @@ export const ScenarioBaselinePanel: React.FC = () => {
     sourceFileName: string;
     evidence: ForgeSourceEvidence[];
   } | null>(null);
+  const [delegatingSourceId, setDelegatingSourceId] = useState<string | null>(null);
 
   const rawEntries = Object.entries(sourceAnalyses);
   const validAnalyses: ForgeSourceAnalysis[] = [];
@@ -395,23 +398,51 @@ export const ScenarioBaselinePanel: React.FC = () => {
                       </div>
                     )}
 
+                    {/* CAST ROSTER POPULATION BANNER */}
+                    {analysis.candidates.filter((c) => c.target === 'cast_seed').length > 0 && (
+                      <div className="p-3 bg-cyan-950/20 border border-cyan-800/40 rounded flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs font-mono">
+                        <div className="flex items-center gap-2 text-cyan-300">
+                          <Users className="w-4 h-4 text-cyan-400 shrink-0" />
+                          <span>
+                            <strong className="text-zinc-100">
+                              {analysis.candidates.filter((c) => c.target === 'cast_seed').length} Character
+                              {analysis.candidates.filter((c) => c.target === 'cast_seed').length === 1 ? '' : 's'}
+                            </strong>{' '}
+                            populated into the <strong>Cast & Character Roster</strong>:
+                            <span className="text-zinc-400 ml-1.5 text-[11px]">
+                              {analysis.candidates
+                                .filter((c) => c.target === 'cast_seed')
+                                .map((c) => (c.proposedValue as any)?.name || c.label)
+                                .filter(Boolean)
+                                .join(', ')}
+                            </span>
+                          </span>
+                        </div>
+                        <span className="text-[10px] px-2 py-0.5 rounded uppercase font-bold bg-cyan-900/40 border border-cyan-700/60 text-cyan-300 shrink-0 self-start sm:self-auto">
+                          In Cast Roster
+                        </span>
+                      </div>
+                    )}
+
                     {/* CANDIDATES LIST */}
                     <div className="space-y-3">
                       <div className="flex items-center justify-between border-b border-zinc-900 pb-2">
                         <span className="text-[11px] font-mono uppercase tracking-wider text-zinc-400 font-bold flex items-center gap-2">
                           <span>Extracted Candidate Proposals</span>
                           <span className="text-[10px] text-zinc-500">
-                            ({analysis.candidates.length} total)
+                            ({analysis.candidates.filter((c) => c.target !== 'cast_seed').length} total)
                           </span>
                         </span>
-                        {stagedAccepted.length > 0 && (
+                        {stagedAccepted.filter((c) => c.target !== 'cast_seed').length > 0 && (
                           <span className="text-[10px] font-mono text-cyan-400">
-                            {stagedAccepted.length} staged for blueprint draft
+                            {stagedAccepted.filter((c) => c.target !== 'cast_seed').length} staged for blueprint draft
                           </span>
                         )}
                       </div>
 
-                      {analysis.candidates.map((cand) => {
+                      {analysis.candidates
+                        .filter((c) => c.target !== 'cast_seed')
+                        .map((cand) => {
                         const isEditing = editingCandidateId === cand.id;
                         const isApplied = cand.applicationState === 'applied';
                         const isRejected = cand.reviewDecision === 'rejected';
@@ -613,9 +644,29 @@ export const ScenarioBaselinePanel: React.FC = () => {
                               ({analysis.unknowns.length})
                             </span>
                           </span>
-                          <span className="text-[10px] font-mono text-zinc-500">
-                            {resolvedUnknowns} resolved
-                          </span>
+                          <div className="flex items-center gap-3">
+                            {analysis.unknowns.some((u) => u.status !== 'resolved' && u.status !== 'contextual_discretion') && (
+                              <button
+                                type="button"
+                                disabled={delegatingSourceId === analysis.id}
+                                onClick={() => {
+                                  setDelegatingSourceId(analysis.id);
+                                  leaveAllUnknownsUncertain(analysis.id);
+                                  setTimeout(() => setDelegatingSourceId(null), 300);
+                                }}
+                                className={`text-[10px] font-mono underline transition-colors ${
+                                  delegatingSourceId === analysis.id
+                                    ? 'text-zinc-600 cursor-not-allowed opacity-50'
+                                    : 'text-amber-400 hover:text-amber-300 cursor-pointer'
+                                }`}
+                              >
+                                {delegatingSourceId === analysis.id ? 'Delegating...' : 'Delegate all to Contextual Discretion'}
+                              </button>
+                            )}
+                            <span className="text-[10px] font-mono text-zinc-500">
+                              {resolvedUnknowns} resolved
+                            </span>
+                          </div>
                         </div>
 
                         <div className="space-y-2">

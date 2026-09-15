@@ -13,9 +13,12 @@ export default function Engine() {
 
   if (!isHydrated) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center font-mono">
-        <span className="text-[10px] text-zinc-800 uppercase tracking-[0.4em] animate-pulse">
+      <div className="min-h-screen bg-black flex flex-col items-center justify-center font-mono space-y-3">
+        <span className="text-xs text-zinc-300 uppercase tracking-[0.4em] animate-pulse">
           Synchronizing Neural Link...
+        </span>
+        <span className="text-[10px] text-zinc-500">
+          Hydrating durable session memory
         </span>
       </div>
     );

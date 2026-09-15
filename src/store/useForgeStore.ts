@@ -42,6 +42,7 @@ import {
   applyResolutionDraftPatch,
   resolveSourceEvidenceProvenance,
   isCompleteAuthoredDepictionContract,
+  reconcileDraftTopologyAndCast,
 } from '../lib/sourceBaseline';
 
 export const defaultStyleVector: ProseStyleVector = {
@@ -472,6 +473,7 @@ export interface ForgeActions {
     applyDraftPatch?: boolean
   ) => { success: true } | { success: false; error: string };
   leaveUnknownUncertain: (sourceId: string, unknownId: string, guidance?: string) => void;
+  leaveAllUnknownsUncertain: (sourceId?: string) => void;
   setUnknownError: (sourceId: string, unknownId: string, error: string) => void;
   retryUnknown: (sourceId: string, unknownId: string) => void;
   editUnknownProposal: (
@@ -1079,6 +1081,15 @@ export const useForgeStoreInternal = create<ForgeStore>()(
               return state;
             }
 
+            // If draft premise is empty, auto-populate from source summary
+            if (!workingDraft.premise?.trim() && analysis.summary?.trim()) {
+              workingDraft.premise = analysis.summary.trim();
+              workingDraft.globalPremise = analysis.summary.trim();
+            }
+
+            // Reconcile topology start node and cast presence with available topology nodes
+            workingDraft = reconcileDraftTopologyAndCast(workingDraft);
+
             // Commit atomic draft state and mark applied candidates
             const updatedCandidates = analysis.candidates.map((c) => {
               if (appliedIds.includes(c.id)) {
@@ -1176,6 +1187,22 @@ export const useForgeStoreInternal = create<ForgeStore>()(
               outcome = { success: false, error: firstErr };
               return state;
             }
+
+            // If draft premise is empty, auto-populate from source summary
+            if (!workingDraft.premise?.trim() && analysis.summary?.trim()) {
+              workingDraft.premise = analysis.summary.trim();
+              workingDraft.globalPremise = analysis.summary.trim();
+            }
+            if (!workingDraft.coverImageUrl && analysis.sourceRecord?.coverImageUrl) {
+              workingDraft.coverImageUrl = analysis.sourceRecord.coverImageUrl;
+            }
+            if (!workingDraft.backCoverBlurb && analysis.summary?.trim()) {
+              workingDraft.backCoverBlurb = analysis.summary.trim();
+            }
+
+            // Reconcile topology start node and cast presence with available topology nodes
+            workingDraft = reconcileDraftTopologyAndCast(workingDraft);
+
 
             const updatedCandidates = analysis.candidates.map((c) => {
               if (appliedIds.includes(c.id)) {
@@ -2383,6 +2410,71 @@ export const useForgeStoreInternal = create<ForgeStore>()(
           });
         },
 
+        leaveAllUnknownsUncertain: (sourceId?: string) => {
+          return set((state: ForgeState) => {
+            const analysesToUpdate = sourceId
+              ? [state.sourceAnalyses[sourceId]].filter(Boolean)
+              : Object.values(state.sourceAnalyses);
+
+            if (analysesToUpdate.length === 0) return state;
+
+            let currentDraft = state.forgeDraft || createInitialDraft();
+            const existingAmbiguities = currentDraft.ambiguities ? [...currentDraft.ambiguities] : [];
+            const updatedAnalyses = { ...state.sourceAnalyses };
+
+            for (const analysis of analysesToUpdate) {
+              const binding = getRuntimeSourceBinding(analysis.id);
+              const openUnknowns = analysis.unknowns.filter(
+                (u) => u.status !== 'resolved' && u.status !== 'contextual_discretion'
+              );
+
+              if (openUnknowns.length === 0) continue;
+
+              for (const unk of openUnknowns) {
+                if (binding) {
+                  notifyServerCloseUnknown(binding, unk.id);
+                }
+                const decision: BlueprintAmbiguityDecision = {
+                  id: unk.id,
+                  category: unk.category,
+                  question: unk.question,
+                  resolutionMode: 'CONTEXTUAL_DISCRETION',
+                };
+                const existingIdx = existingAmbiguities.findIndex((a) => a.id === unk.id);
+                if (existingIdx !== -1) {
+                  existingAmbiguities[existingIdx] = decision;
+                } else {
+                  existingAmbiguities.push(decision);
+                }
+              }
+
+              const updatedUnknowns = analysis.unknowns.map((u) =>
+                u.status !== 'resolved' && u.status !== 'contextual_discretion'
+                  ? { ...u, status: 'contextual_discretion' as const, lastError: undefined }
+                  : u
+              );
+
+              updatedAnalyses[analysis.id] = {
+                ...analysis,
+                unknowns: updatedUnknowns,
+              };
+            }
+
+            const updatedDraft: ForgeDraft = {
+              ...currentDraft,
+              ambiguities: existingAmbiguities,
+            };
+
+            return {
+              forgeDraft: updatedDraft,
+              draftBlueprint: updatedDraft,
+              draftRevision: (state.draftRevision || 0) + 1,
+              sourceBaselineRevision: (state.sourceBaselineRevision || 0) + 1,
+              sourceAnalyses: updatedAnalyses,
+            };
+          });
+        },
+
         setUnknownError: (sourceId: string, unknownId: string, error: string) =>
           set((state: ForgeState) => {
             const analysis = state.sourceAnalyses[sourceId];
@@ -2995,6 +3087,28 @@ export const useForgeStoreInternal = create<ForgeStore>()(
             }
           }
           state.sourceAnalyses = sanitizeSourceAnalyses(state.sourceAnalyses);
+          // Sync any accepted cast_seed candidates into draft cast
+          if (state.forgeDraft) {
+            if (!Array.isArray(state.forgeDraft.cast)) {
+              state.forgeDraft.cast = [];
+            }
+            for (const analysis of Object.values(state.sourceAnalyses || {})) {
+              for (const cand of (analysis.candidates || [])) {
+                if (cand.target === 'cast_seed' && cand.reviewDecision === 'accepted' && cand.proposedValue) {
+                  const castMember = cand.proposedValue as ForgeDraftCastMember;
+                  if (castMember && castMember.name) {
+                    const alreadyExists = state.forgeDraft.cast.some(
+                      (m) => m.id === castMember.id || m.name.toLowerCase() === castMember.name.toLowerCase()
+                    );
+                    if (!alreadyExists) {
+                      state.forgeDraft.cast.push(castMember);
+                    }
+                  }
+                }
+              }
+            }
+            state.forgeDraft = reconcileDraftTopologyAndCast(state.forgeDraft);
+          }
           // Ensure draftBlueprint is aligned with forgeDraft
           state.draftBlueprint = state.forgeDraft;
           state.castLedger = deriveCastLedger(state.forgeDraft);

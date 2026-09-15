@@ -26,8 +26,9 @@ export default function WelcomeScreen() {
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
   const [aiTier, setAiTier] = useState<'free' | 'paid'>('free');
   const [aiModel, setAiModel] = useState<string>('gemini-3.6-flash');
-  const [voiceProvider, setVoiceProvider] = useState<'gemini' | 'openai'>('openai');
+  const [voiceProvider, setVoiceProvider] = useState<'gemini' | 'openai' | 'local'>('openai');
   const [openAiVoiceModel, setOpenAiVoiceModel] = useState<string>('gpt-5.6-luna');
+  const [localVoiceModel, setLocalVoiceModel] = useState<string>('');
 
   const fetchAiConfig = useCallback(async () => {
     try {
@@ -38,6 +39,7 @@ export default function WelcomeScreen() {
         setAiModel(data.model || 'gemini-3.6-flash');
         setVoiceProvider(data.voiceProvider || 'openai');
         setOpenAiVoiceModel(data.openAiModel || 'gpt-5.6-luna');
+        setLocalVoiceModel(data.localModel || '');
       }
     } catch {
       // ignore network blips on initial render
@@ -55,6 +57,7 @@ export default function WelcomeScreen() {
           setAiModel(data.model || 'gemini-3.6-flash');
           setVoiceProvider(data.voiceProvider || 'openai');
           setOpenAiVoiceModel(data.openAiModel || 'gpt-5.6-luna');
+          setLocalVoiceModel(data.localModel || '');
         }
       } catch {
         // ignore initial network error
@@ -125,7 +128,12 @@ export default function WelcomeScreen() {
               // {aiModel}
             </span>
             <span className="text-[11px] font-mono text-blue-400/80 group-hover:text-blue-300 transition-colors pl-2 border-l border-zinc-800">
-              Voice: {voiceProvider === 'openai' ? `OpenAI / ${openAiVoiceModel}` : 'Gemini'}
+              Voice:{' '}
+              {voiceProvider === 'openai'
+                ? `OpenAI / ${openAiVoiceModel}`
+                : voiceProvider === 'local'
+                  ? `Local${localVoiceModel ? ` / ${localVoiceModel}` : ' / auto-discover'}`
+                  : 'Gemini'}
             </span>
             <span className="text-[11px] font-mono text-zinc-400 group-hover:text-white flex items-center gap-1 pl-2 border-l border-zinc-800">
               <Settings2 className="w-3.5 h-3.5 text-zinc-400 group-hover:text-white" />

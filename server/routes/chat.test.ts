@@ -1,6 +1,8 @@
 import http from 'http';
-import { describe, expect, it, beforeAll, afterAll, beforeEach, vi } from 'vitest';
+import { describe, expect, it, beforeAll, afterAll, beforeEach, afterEach, vi } from 'vitest';
 import { createApp } from '../app';
+import { setVoiceProvider, setLocalVoiceBaseUrl, setLocalVoiceModel } from '../ai/voiceProviderPolicy';
+import { setEngineProvider } from '../ai/modelPolicy';
 
 const mockGenerateContent = vi.fn();
 vi.mock('../utils/aiClient', async (importOriginal) => {
@@ -38,6 +40,18 @@ describe('Chat Routes - /api/simulate-player', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    setVoiceProvider('gemini');
+    setEngineProvider('gemini');
+    setLocalVoiceBaseUrl(null);
+    setLocalVoiceModel(null);
+  });
+
+  afterEach(() => {
+    setVoiceProvider('gemini');
+    setEngineProvider('gemini');
+    setLocalVoiceBaseUrl(null);
+    setLocalVoiceModel(null);
+    vi.restoreAllMocks();
   });
 
   const basePayload = {
@@ -136,5 +150,213 @@ describe('Chat Routes - /api/simulate-player', () => {
     expect(data.action).toBeUndefined();
     expect(JSON.stringify(data)).not.toContain('generativelanguage.googleapis.com');
     expect(JSON.stringify(data)).not.toContain('AIzaSy_Secret');
+  });
+
+  describe('when voiceProvider is local', () => {
+    const originalFetch = globalThis.fetch;
+
+    beforeEach(() => {
+      setVoiceProvider('local');
+      setLocalVoiceBaseUrl('http://127.0.0.1:1234/v1');
+      setLocalVoiceModel('google/gemma-4-e4b');
+    });
+
+    it('routes through local model, cleaning fences and prefixes', async () => {
+      vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+        const urlStr = String(input);
+        if (urlStr.startsWith(baseUrl)) {
+          return originalFetch(input, init);
+        }
+        if (urlStr.endsWith('/v1/models')) {
+          return new Response(JSON.stringify({ data: [{ id: 'google/gemma-4-e4b' }] }), {
+            status: 200,
+          });
+        }
+        if (urlStr.endsWith('/v1/chat/completions')) {
+          return new Response(
+            JSON.stringify({
+              choices: [
+                {
+                  message: {
+                    content: '```text\nPLAYER: "I check the locked drawer."\n```',
+                  },
+                },
+              ],
+            }),
+            { status: 200 }
+          );
+        }
+        return new Response('Not Found', { status: 404 });
+      });
+
+      const res = await fetch(`${baseUrl}/api/simulate-player`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(basePayload),
+      });
+
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as { action: string };
+      expect(data.action).toBe('I check the locked drawer.');
+      expect(mockGenerateContent).not.toHaveBeenCalled();
+    });
+
+    it('returns exact trimmed action for valid local provider response when engineProvider is local and voiceProvider is gemini', async () => {
+      setVoiceProvider('gemini');
+      setEngineProvider('local');
+
+      vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+        const urlStr = String(input);
+        if (urlStr.startsWith(baseUrl)) {
+          return originalFetch(input, init);
+        }
+        if (urlStr.endsWith('/v1/models')) {
+          return new Response(JSON.stringify({ data: [{ id: 'google/gemma-4-e4b' }] }), {
+            status: 200,
+          });
+        }
+        if (urlStr.endsWith('/v1/chat/completions')) {
+          return new Response(
+            JSON.stringify({
+              choices: [{ message: { content: 'Player: "I check the locked drawer."' } }],
+            }),
+            { status: 200 }
+          );
+        }
+        return new Response('Not Found', { status: 404 });
+      });
+
+      const res = await fetch(`${baseUrl}/api/simulate-player`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(basePayload),
+      });
+
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as { action: string };
+      expect(data.action).toBe('I check the locked drawer.');
+      expect(mockGenerateContent).not.toHaveBeenCalled();
+    });
+
+    it('returns HTTP 502 with AUTOPILOT_ACTION_FAILURE when local model returns empty response', async () => {
+      vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+        const urlStr = String(input);
+        if (urlStr.startsWith(baseUrl)) {
+          return originalFetch(input, init);
+        }
+        if (urlStr.endsWith('/v1/models')) {
+          return new Response(JSON.stringify({ data: [{ id: 'google/gemma-4-e4b' }] }), {
+            status: 200,
+          });
+        }
+        if (urlStr.endsWith('/v1/chat/completions')) {
+          return new Response(
+            JSON.stringify({
+              choices: [{ message: { content: '```\n\n```' } }],
+            }),
+            { status: 200 }
+          );
+        }
+        return new Response('Not Found', { status: 404 });
+      });
+
+      const res = await fetch(`${baseUrl}/api/simulate-player`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(basePayload),
+      });
+
+      expect(res.status).toBe(502);
+      const data = (await res.json()) as Record<string, unknown>;
+      expect(data.code).toBe('AUTOPILOT_ACTION_FAILURE');
+      expect(data.action).toBeUndefined();
+    });
+
+    it('returns HTTP 502 with AUTOPILOT_ACTION_FAILURE when local server is unreachable', async () => {
+      vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+        const urlStr = String(input);
+        if (urlStr.startsWith(baseUrl)) {
+          return originalFetch(input, init);
+        }
+        throw new Error('connect ECONNREFUSED 127.0.0.1:1234');
+      });
+
+      const res = await fetch(`${baseUrl}/api/simulate-player`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(basePayload),
+      });
+
+      expect(res.status).toBe(502);
+      const data = (await res.json()) as Record<string, unknown>;
+      expect(data.code).toBe('AUTOPILOT_ACTION_FAILURE');
+      expect(data.action).toBeUndefined();
+    });
+  });
+
+  describe('POST /api/init', () => {
+    const originalFetch = globalThis.fetch;
+
+    it('generates prose via Gemini by default', async () => {
+      setEngineProvider('gemini');
+      mockGenerateContent.mockResolvedValueOnce({
+        text: 'The limestone cavern drips in heavy silence.',
+      });
+
+      const res = await fetch(`${baseUrl}/api/init`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ setup: { aesthetic: 'subterranean', tone: 'dread' } }),
+      });
+
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as { prose: string };
+      expect(data.prose).toBe('The limestone cavern drips in heavy silence.');
+      expect(mockGenerateContent).toHaveBeenCalled();
+    });
+
+    it('generates prose via local model when engineProvider is local', async () => {
+      setEngineProvider('local');
+      setLocalVoiceBaseUrl('http://127.0.0.1:1234/v1');
+      setLocalVoiceModel('google/gemma-4-e4b');
+
+      vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+        const urlStr = String(input);
+        if (urlStr.startsWith(baseUrl)) {
+          return originalFetch(input, init);
+        }
+        if (urlStr.endsWith('/v1/models')) {
+          return new Response(JSON.stringify({ data: [{ id: 'google/gemma-4-e4b' }] }), {
+            status: 200,
+          });
+        }
+        if (urlStr.endsWith('/v1/chat/completions')) {
+          return new Response(
+            JSON.stringify({
+              choices: [
+                {
+                  message: {
+                    content: '```text\nThe station bulkhead seals with a hydraulic hiss.\n```',
+                  },
+                },
+              ],
+            }),
+            { status: 200 }
+          );
+        }
+        return new Response('Not Found', { status: 404 });
+      });
+
+      const res = await fetch(`${baseUrl}/api/init`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ setup: { aesthetic: 'industrial', tone: 'cold' } }),
+      });
+
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as { prose: string };
+      expect(data.prose).toBe('The station bulkhead seals with a hydraulic hiss.');
+      expect(mockGenerateContent).not.toHaveBeenCalled();
+    });
   });
 });

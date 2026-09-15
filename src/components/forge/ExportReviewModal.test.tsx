@@ -270,10 +270,21 @@ describe('ExportReviewModal Component Snapshot Lifecycle', () => {
 
     expect(container?.textContent).toContain('ACTION REQUIRED');
     expect(container?.textContent).toContain('Validation Discrepancies Found');
+    expect(container?.textContent).toContain('Copy Discrepancies');
     const invalidCopyBtn = container?.querySelector('#export-review-copy-json-btn') as HTMLButtonElement;
     const invalidDownloadBtn = container?.querySelector('#export-review-download-btn') as HTMLButtonElement;
     expect(invalidCopyBtn.disabled).toBe(true);
     expect(invalidDownloadBtn.disabled).toBe(true);
+
+    // Test copy discrepancies button click
+    const copyDiscrepanciesBtn = Array.from(container?.querySelectorAll('button') || []).find((b) =>
+      b.textContent?.includes('Copy Discrepancies')
+    );
+    expect(copyDiscrepanciesBtn).toBeDefined();
+    await act(async () => {
+      copyDiscrepanciesBtn?.click();
+    });
+    expect(navigator.clipboard.writeText).toHaveBeenCalled();
   });
 
   it('source-backed compliant Blueprint compiles and enables both export actions', async () => {

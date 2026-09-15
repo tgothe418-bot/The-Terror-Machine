@@ -1,12 +1,14 @@
 import { GoogleGenAI, Type, type Schema } from "@google/genai";
 import type { z } from "zod";
-import { getGeminiPolicy, getFallbackModelId, type GeminiModelId } from "../ai/modelPolicy";
+import { getGeminiPolicy, getFallbackModelId, getEngineProvider, type GeminiModelId } from "../ai/modelPolicy";
 import { TurnResultSchema, type TurnResult } from "../schemas/engine";
 import {
   type GeminiJsonSchema,
   geminiTurnResponseJsonSchema,
 } from "../ai/geminiTurnJsonSchema";
 import { normalizeGeminiTurnProviderPayload } from '../ai/geminiTurnTransport';
+import { generateLocalStructuredResponse } from './localVoiceClient';
+import { parseOrRepairJson } from './jsonRepair';
 
 let aiClient: GoogleGenAI | null = null;
 const STARTUP_API_KEY = process.env.GEMINI_API_KEY;
@@ -353,10 +355,106 @@ async function executeWithRetryAndFallback<R>(
   }
 }
 
+export function extractBalancedJson(text: string): string | null {
+  const firstBrace = text.indexOf('{');
+  const firstBracket = text.indexOf('[');
+
+  let startChar: '{' | '[';
+  let endChar: '}' | ']';
+  let startIndex = -1;
+
+  if (firstBrace !== -1 && (firstBracket === -1 || firstBrace < firstBracket)) {
+    startChar = '{';
+    endChar = '}';
+    startIndex = firstBrace;
+  } else if (firstBracket !== -1) {
+    startChar = '[';
+    endChar = ']';
+    startIndex = firstBracket;
+  } else {
+    return null;
+  }
+
+  let depth = 0;
+  let inString = false;
+  let isEscaped = false;
+
+  for (let i = startIndex; i < text.length; i++) {
+    const char = text[i];
+
+    if (inString) {
+      if (isEscaped) {
+        isEscaped = false;
+      } else if (char === '\\') {
+        isEscaped = true;
+      } else if (char === '"') {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (char === '"') {
+      inString = true;
+      continue;
+    }
+
+    if (char === startChar) {
+      depth++;
+    } else if (char === endChar) {
+      depth--;
+      if (depth === 0) {
+        return text.substring(startIndex, i + 1).trim();
+      }
+    }
+  }
+
+  return null;
+}
+
 export function unwrapStrictJsonResponse(text: string): string {
+  if (!text || typeof text !== 'string') return '';
   const trimmed = text.trim();
-  const fenced = trimmed.match(/^```(?:json)?[ \t]*\r?\n([\s\S]*?)\r?\n```$/i);
-  return fenced ? fenced[1].trim() : trimmed;
+  if (!trimmed) return '';
+
+  // 1. Direct JSON parse test
+  try {
+    JSON.parse(trimmed);
+    return trimmed;
+  } catch {}
+
+  // 2. Code fence extraction (```json ... ``` or ``` ... ```)
+  const fenceRegex = /```(?:json)?\s*([\s\S]*?)\s*```/gi;
+  let match: RegExpExecArray | null;
+  while ((match = fenceRegex.exec(trimmed)) !== null) {
+    const candidate = match[1].trim();
+    try {
+      JSON.parse(candidate);
+      return candidate;
+    } catch {
+      const extracted = extractBalancedJson(candidate);
+      if (extracted) {
+        try {
+          JSON.parse(extracted);
+          return extracted;
+        } catch {}
+      }
+    }
+  }
+
+  // 3. Extract balanced JSON from the raw text
+  const extracted = extractBalancedJson(trimmed);
+  if (extracted) {
+    try {
+      JSON.parse(extracted);
+      return extracted;
+    } catch {
+      return extracted;
+    }
+  }
+
+  // 4. Fallback: simple strip of starting/ending fences
+  const simpleFence = trimmed.match(/^```(?:json)?[ \t]*\r?\n?([\s\S]*?)\r?\n?```$/i);
+  return simpleFence ? simpleFence[1].trim() : trimmed;
 }
 
 /**
@@ -389,7 +487,13 @@ export function parseStructuredTurnResponse<T>(
   if (!unwrapped) {
     throw new EmptyProviderResponseError();
   }
-  const parsed = JSON.parse(unwrapped);
+  let parsed: unknown;
+  try {
+    parsed = parseOrRepairJson(unwrapped);
+  } catch (parseErr) {
+    console.error('[API /turn] Model JSON parse failure:', parseErr, '\nRaw text preview:', unwrapped.slice(0, 300));
+    throw parseErr;
+  }
   return zodSchema.parse(normalizeProviderPayload(parsed));
 }
 
@@ -397,6 +501,10 @@ export const generateStructuredResponse = async <T>(
   prompt: string,
   contract: StructuredResponseContract<T>
 ): Promise<T> => {
+  if (getEngineProvider() === 'local') {
+    return await generateLocalStructuredResponse(prompt, contract);
+  }
+
   const contents = [{ role: 'user', parts: [{ text: prompt }] }];
   const policy = getGeminiPolicy('ENGINE_TURN');
 
