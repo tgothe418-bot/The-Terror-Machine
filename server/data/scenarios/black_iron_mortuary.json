@@ -1,0 +1,190 @@
+{
+  "id": "blueprint-black-iron-mortuary",
+  "title": "The Black Iron Mortuary",
+  "identity": {
+    "title": "The Black Iron Mortuary",
+    "version": "1.0.0",
+    "author": "The Terror Machine Forge",
+    "thematicAnchor": "Forensic Somatic Dread & High-Fidelity Anatomical Realism"
+  },
+  "contentScale": 3,
+  "contentLevelDescription": "High-Fidelity Somatic Realism & Clinical Body Horror",
+  "globalPremise": "Following a catastrophic structural decompression in Sub-Basement 7 of the Black Iron Research Facility, Chief Pathologist Dr. Evelyn Vance and Security Officer Marcus Holt awaken inside the sealed autopsy complex. The automated bio-containment bulkheads have failed into lockdown, while an experimental surgical-autopsy apparatus—Entity-41—has uncoupled from its overhead rail cradle, methodically seeking living tissue to resect, suture, and preserve.",
+  "premise": "Following a catastrophic structural decompression in Sub-Basement 7 of the Black Iron Research Facility, Chief Pathologist Dr. Evelyn Vance and Security Officer Marcus Holt awaken inside the sealed autopsy complex. The automated bio-containment bulkheads have failed into lockdown, while an experimental surgical-autopsy apparatus—Entity-41—has uncoupled from its overhead rail cradle, methodically seeking living tissue to resect, suture, and preserve.",
+  "backCoverBlurb": "Locked beneath four thousand tons of reinforced sea-wall concrete, Sub-Basement 7 was built to dissect the unclassifiable. Now the power is dead, the water is rising in the drains, and the automated dissection cradle is hunting for warm tissue.",
+  "startingVector": "SOMATIC",
+  "startingTier": "LATENT",
+  "setting": {
+    "location": "Sub-Basement 7, Forensic Examination Wing",
+    "atmosphere": "Sub-zero ambient chill, flickering 4000K cold fluorescents, smell of formalin and stale coagulated blood, persistent hydraulic hum of pneumatic floor drains",
+    "timePeriod": "Present / Isolated Biocontainment Complex"
+  },
+  "environmentalRules": [
+    "Bio-containment bulkheads are hydraulically locked until primary diagnostic power is restored from the Histology substation breaker.",
+    "Sub-zero temperature in the Specimen Freezer induces progressive hypothermia, shivering, and loss of manual dexterity within 3 continuous turns.",
+    "Physical trauma is anatomically consequential: blunt, sharp, and crush trauma result in genuine physiological impairments (arterial pulsatile hemorrhage, periosteal tear, tissue avulsion, hypovolemic shock, and respiratory compromise)."
+  ],
+  "constraints": [
+    "No supernatural teleportation: Entity-41 traverses along ceiling-mounted pneumatic surgical rails or floor drainage channels.",
+    "Preserve epistemic uncertainty: Audio cues (scissoring bone shears, pneumatic valve hissing, metallic rail vibration) precede visual contact."
+  ],
+  "topology": {
+    "startingNodeId": "autopsy_suite_b",
+    "nodes": [
+      "autopsy_suite_b",
+      "decompression_airlock",
+      "histology_lab",
+      "specimen_freezer",
+      "incinerator_chute"
+    ],
+    "nodeDefinitions": [
+      {
+        "id": "autopsy_suite_b",
+        "label": "Autopsy Suite B (Examination Theater)",
+        "name": "Autopsy Suite B (Examination Theater)",
+        "description": "A sunken amphitheater tiled in frost-cracked seafoam ceramic. Two brushed stainless steel dissection tables occupy the center, equipped with recessed fluid channels and overhead articulating surgical lamps that hum with high-frequency coil vibration. Overhead, heavy pneumatic surgical track rails crisscross the ceiling."
+      },
+      {
+        "id": "decompression_airlock",
+        "label": "Decompression Airlock & Scrub Station",
+        "name": "Decompression Airlock & Scrub Station",
+        "description": "A heavy cylindrical chamber lined with chemical deluge showers, rusted brass foot pedals, and a shatterproof viewing port looking out into a flooded transit tunnel. The main pressure door is clamped shut with six hydraulic locking dogs, dripping rusty condensate onto rubber anti-fatigue matting."
+      },
+      {
+        "id": "histology_lab",
+        "label": "Histology & Biometrics Substation",
+        "name": "Histology & Biometrics Substation",
+        "description": "Narrow benches crowded with microtome slicing carousels, staining baths of eosin and hematoxylin, and shattered glass slides. A diagnostic auxiliary terminal hums on the northern counter, its phosphor screen blinking with yellow circuit-breaker telemetry."
+      },
+      {
+        "id": "specimen_freezer",
+        "label": "Cryogenic Specimen Vault",
+        "name": "Cryogenic Specimen Vault",
+        "description": "A heavy walk-in vault kept at -15°C. Racks of stainless steel body trays slide out from the walls on roller tracks. Frosted condensation plumes from every breath, and a deep, rhythmic mechanical knocking echoes from the ceiling ventilation duct."
+      },
+      {
+        "id": "incinerator_chute",
+        "label": "Bio-Waste Chute & Maintenance Flue",
+        "name": "Bio-Waste Chute & Maintenance Flue",
+        "description": "A vertical maintenance service passage lined with iron rungs and zinc-coated ductwork. The smell of carbonized bone and stale grease rises from the cold incinerator grate five meters below. A narrow inspection hatch leads back into the Histology Substation."
+      }
+    ],
+    "connections": [
+      {
+        "from": "autopsy_suite_b",
+        "to": "decompression_airlock",
+        "label": "Pressure-sealed bulkhead door with manual bleed valve",
+        "bidirectional": true
+      },
+      {
+        "from": "autopsy_suite_b",
+        "to": "histology_lab",
+        "label": "Swinging stainless steel preparation doors",
+        "bidirectional": true
+      },
+      {
+        "from": "autopsy_suite_b",
+        "to": "specimen_freezer",
+        "label": "Heavy vaulted freezer hatch with levered latch",
+        "bidirectional": true
+      },
+      {
+        "from": "histology_lab",
+        "to": "incinerator_chute",
+        "label": "Bolted maintenance crawl hatch",
+        "bidirectional": true
+      }
+    ],
+    "anchors": []
+  },
+  "cast": [
+    {
+      "id": "char-evelyn-vance",
+      "name": "Dr. Evelyn Vance",
+      "role": "Chief Forensic Pathologist",
+      "description": "A veteran forensic specialist whose calm, clinical demeanor masks acute post-traumatic hypervigilance. She instinctively catalogs physical trauma in precise anatomical terminology as a psychological defense mechanism against panic.",
+      "personality": "Rigorous, analytical, grounded, defensive",
+      "goals": "Restore diagnostic power to unlock the outer airlock dogs and escape Sub-Basement 7 with life intact.",
+      "traits": [
+        "Medical Precision",
+        "Forensic Observation",
+        "Vascular Knowledge",
+        "High Shock Threshold"
+      ],
+      "isUserCharacter": true,
+      "isEntity": false,
+      "behaviorVector": "ADAPTIVE",
+      "presenceDisposition": {
+        "kind": "AT_NODE",
+        "nodeId": "autopsy_suite_b"
+      }
+    },
+    {
+      "id": "char-marcus-holt",
+      "name": "Officer Marcus Holt",
+      "role": "Containment Security Officer",
+      "description": "A weathered facility security guard nursing a severe crush fracture to his left distal radius and ulna, immobilized with a makeshift wire splint. He is defensive, pale from pain, and armed only with a tactical utility crowbar.",
+      "personality": "Pragmatic, pain-fatigued, cautious, protective",
+      "goals": "Secure a route to the surface and keep Dr. Vance alive to operate the biometrics overrides.",
+      "traits": [
+        "Security Clearance",
+        "Tactical Spatial Awareness",
+        "Impaired Mobility"
+      ],
+      "isUserCharacter": false,
+      "isEntity": false,
+      "behaviorVector": "PRAGMATIC",
+      "presenceDisposition": {
+        "kind": "AT_NODE",
+        "nodeId": "decompression_airlock"
+      }
+    },
+    {
+      "id": "char-entity-41",
+      "name": "Entity-41 (The Suture Apparatus)",
+      "role": "Opposition / Autonomous Trauma Engine",
+      "description": "An automated surgical dissection cradle fused with reanimated human anatomical specimens and hydraulic trocar needles. Suspended from the overhead pneumatic rails, it moves with sudden, silent acceleration, seeking living subjects to perform rapid, mechanical avulsion and steel-wire suturing in accordance with a corrupt restorative protocol.",
+      "personality": "Relentless, sterile, methodical, devoid of malice or mercy",
+      "goals": "Capture subjects, immobilize biological motility through surgical resection, and anchor flesh to steel infrastructure.",
+      "traits": [
+        "Ceiling Rail Mobility",
+        "Pneumatic Trocar Array",
+        "Surgical Precision",
+        "Acoustic Stalking"
+      ],
+      "isUserCharacter": false,
+      "isEntity": true,
+      "behaviorVector": "PREDATORY",
+      "presenceDisposition": {
+        "kind": "AT_NODE",
+        "nodeId": "specimen_freezer"
+      }
+    }
+  ],
+  "depictionContract": {
+    "dramaticRegister": "Forensic visceral horror and clinical dread; observation emphasizes physiological truth over cinematic bravado.",
+    "directness": "High-fidelity anatomical and medical accuracy. When tissue fails, damage is described with forensic specificity (e.g. periosteal tear, capillary refill loss, degloving of epidermal planes, arterial pulsatile hemorrhage, blunt crush deformation).",
+    "aftermath": "Injuries carry immediate and permanent physiological consequences: blood loss causes orthostatic hypotension, shock induces tunnel vision, fractured extremities prevent weight-bearing, and nerve damage produces immediate paralysis or searing sensory deficit.",
+    "ambiguityHandling": "Preserve epistemic uncertainty without silent contradiction. Shadows, distant mechanical hums, and metallic rail vibrations foreshadow threats before direct visual confirmation.",
+    "specialBoundaries": "No sensationalized sexualized violence. Terror is rooted in biological vulnerability, bodily integrity violation, and the unforgiving mechanics of cold steel and sterile trauma."
+  },
+  "horrorGrammar": {
+    "valueBaselineReview": "REVIEWED_NONE",
+    "pursuitReviews": {
+      "char-entity-41": "REVIEWED"
+    },
+    "valueAnchors": [],
+    "characterPursuits": []
+  },
+  "narrativeRules": {
+    "incitingIncident": "The emergency battery in Autopsy Suite B clicks into failsafe mode with a high-pitched solenoid squeal, releasing Entity-41 from its ceiling docking cradle into the darkened examination wing.",
+    "currentTensionLevel": "buildup",
+    "keyPlotElements": [
+      "Evelyn must reach the Histology Substation to throw the diagnostic auxiliary breaker.",
+      "Marcus Holt is trapped at the airlock and cannot turn the manual locking wheel with his crushed left arm alone.",
+      "Entity-41 patrols the overhead rails between the Specimen Freezer and Autopsy Suite, dropping surgical trocars through ceiling access grates."
+    ]
+  },
+  "references": [],
+  "ambiguities": []
+}

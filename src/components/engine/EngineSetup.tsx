@@ -12,7 +12,9 @@ import {
   Sparkles,
   Film,
   Lock,
+  FlaskConical,
 } from 'lucide-react';
+import blackIronMortuary from '../../data/blueprints/black_iron_mortuary.json';
 import { useAppStore } from '../../store/useAppStore';
 import { useEngineStore } from '../../core/store';
 import { forgeActions, useForgeState } from '../../store/useForgeStore';
@@ -130,6 +132,32 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
     reader.readAsText(file);
   };
 
+  const handleLoadBespokeBlueprint = () => {
+    try {
+      const validated = normalizeBlueprint(blackIronMortuary as any);
+      setPreviewBlueprint(validated);
+      if (validated.userCharacterId) {
+        forgeActions.setActiveCharacterId(validated.userCharacterId);
+      } else {
+        forgeActions.setActiveCharacterId(null);
+      }
+
+      const availabilities = resolveSeatAvailabilities(validated);
+      if (availabilities.protagonist?.available) {
+        setSelectedRole('protagonist');
+      } else if (availabilities.antagonist?.available) {
+        setSelectedRole('antagonist');
+      } else {
+        setSelectedRole('director');
+      }
+      setError(null);
+    } catch (err: unknown) {
+      console.error('Failed to load bespoke blueprint:', err);
+      const msg = err instanceof Error ? err.message : String(err);
+      setError(`FAILED TO LOAD BESPOKE SCENARIO: ${msg}`);
+    }
+  };
+
   const handleStart = () => {
     if (!previewBlueprint || !selectedRole) return;
     if (!isRoleAvailable(selectedRole)) return;
@@ -204,7 +232,7 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {/* Option 1: Continue */}
                 <button
                   onClick={onContinue}
@@ -246,13 +274,29 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
                       Upload Blueprint
                     </span>
                     <span className="text-xs text-zinc-400 uppercase tracking-wider block">
-                      Import structured JSON or Haunted House scenario
+                      Import structured JSON or scenario
                     </span>
                   </div>
                 </div>
 
-                {/* Option 3: Haunted House Mode */}
-                <div className="md:col-span-2 p-8 border border-red-950/80 bg-zinc-950/60 rounded flex flex-col items-center justify-center gap-5 shadow-[inset_0_0_25px_rgba(239,68,68,0.05)]">
+                {/* Option 3: Bespoke Test Scenario */}
+                <div
+                  onClick={handleLoadBespokeBlueprint}
+                  className="p-8 border border-amber-900/50 hover:border-amber-500/80 transition-all duration-500 bg-zinc-950/60 hover:bg-amber-950/15 rounded flex flex-col items-center justify-center cursor-pointer group"
+                >
+                  <FlaskConical className="w-10 h-10 text-amber-500/70 group-hover:text-amber-400 transition-colors mb-3" />
+                  <div className="text-center space-y-1">
+                    <span className="text-xs uppercase tracking-[0.25em] block font-bold text-white">
+                      Black Iron Mortuary
+                    </span>
+                    <span className="text-xs text-amber-400/80 uppercase tracking-wider block text-[10px]">
+                      Bespoke Clinical Test Blueprint
+                    </span>
+                  </div>
+                </div>
+
+                {/* Option 4: Haunted House Mode */}
+                <div className="md:col-span-3 p-8 border border-red-950/80 bg-zinc-950/60 rounded flex flex-col items-center justify-center gap-5 shadow-[inset_0_0_25px_rgba(239,68,68,0.05)]">
                   <div className="text-center">
                     <Skull className="w-10 h-10 text-red-500 mx-auto mb-3" />
                     <span className="text-sm uppercase tracking-[0.25em] block mb-1 text-zinc-100 font-bold">
