@@ -320,14 +320,14 @@ export const ExportReviewModal: React.FC<ExportReviewModalProps> = ({
     >
       <div
         id="export-review-modal-content"
-        className="bg-zinc-950 border border-zinc-800 rounded-lg max-w-3xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden font-mono text-zinc-300"
+        className="obsidian-panel border border-stone-800 rounded-xl max-w-5xl 2xl:max-w-6xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden font-mono text-[#e6e4dc]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="p-5 border-b border-zinc-800 flex justify-between items-center bg-zinc-900/50 shrink-0">
+        <div className="p-5 border-b border-stone-800 flex justify-between items-center bg-[#0d0d12]/90 shrink-0">
           <div className="flex items-center gap-3">
             <div
-              className={`p-2 rounded border ${
+              className={`p-2 rounded-lg border ${
                 validation.valid
                   ? 'bg-emerald-950/40 border-emerald-800/80 text-emerald-400'
                   : 'bg-red-950/40 border-red-800/80 text-red-400'
@@ -340,10 +340,11 @@ export const ExportReviewModal: React.FC<ExportReviewModalProps> = ({
               )}
             </div>
             <div>
-              <h2 className="text-sm font-bold uppercase tracking-widest text-zinc-100 flex items-center gap-2">
+              <h2 className="text-sm font-serif font-bold uppercase tracking-[0.2em] text-[#e6e4dc] flex items-center gap-2">
+                <span className="jewel-amber w-2 h-2 rounded-full inline-block bg-amber-500" />
                 Blueprint Export Pre-Flight Review
               </h2>
-              <p className="text-[11px] text-zinc-500">
+              <p className="text-[11px] text-stone-400">
                 Snapshot: Draft r{capturedDraftRev} / Base r{capturedBaseRev}
               </p>
             </div>
@@ -351,7 +352,7 @@ export const ExportReviewModal: React.FC<ExportReviewModalProps> = ({
           <button
             id="export-review-close-btn"
             onClick={onClose}
-            className="p-1.5 text-zinc-500 hover:text-zinc-200 border border-zinc-800 hover:border-zinc-700 rounded transition-colors cursor-pointer"
+            className="p-1.5 text-stone-400 hover:text-amber-300 border border-stone-800 hover:border-stone-700 rounded transition-colors cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>

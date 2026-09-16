@@ -333,7 +333,7 @@ export default function AiCalibrationModal({
             Provider & Tier Settings
           </h2>
           <p className="text-xs text-zinc-400 font-mono">
-            Configure providers and model settings for both the Simulation Engine and The Voice.
+            Configure providers and model settings for both the Simulation Engine and The Historian.
           </p>
         </div>
 
@@ -373,7 +373,7 @@ export default function AiCalibrationModal({
         {/* Voice Provider Selection */}
         <div className="space-y-2">
           <label className="text-xs font-mono uppercase tracking-wider text-zinc-400">
-            The Voice Provider
+            The Historian Provider
           </label>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {(['gemini', 'openai', 'local'] as const).map((provider) => (
@@ -401,7 +401,7 @@ export default function AiCalibrationModal({
                   {provider === 'gemini'
                     ? 'Uses the active Gemini baseline below.'
                     : provider === 'openai'
-                      ? 'Uses the Responses API for The Voice only.'
+                      ? 'Uses the Responses API for The Historian only.'
                       : 'Uses an API server running on this computer.'}
                 </p>
               </button>
@@ -675,11 +675,11 @@ export default function AiCalibrationModal({
                     )}
                   </div>
 
-                  {/* The Voice */}
+                  {/* The Historian */}
                   <div className="space-y-1">
                     <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-mono text-zinc-300 font-semibold">The Voice</span>
-                      <span className="text-[10px] font-mono text-zinc-500">Audio Commentary & Atmosphere</span>
+                      <span className="text-[11px] font-mono text-zinc-300 font-semibold">The Historian</span>
+                      <span className="text-[10px] font-mono text-zinc-500">Continuity Oracle & Script Inscriptions</span>
                     </div>
                     {localModels.length > 0 ? (
                       <select

@@ -28,6 +28,20 @@ export const AdLibProtagonistInductionSchema = z.object({
 });
 export type AdLibProtagonistInduction = z.infer<typeof AdLibProtagonistInductionSchema>;
 
+export const AdLibAuthorityContractSchema = z.object({
+  authority: z
+    .string()
+    .trim()
+    .min(1, 'Authority scope is required')
+    .max(500, 'Authority scope cannot exceed 500 characters'),
+  limits: z
+    .string()
+    .trim()
+    .min(1, 'Limits, anchors, or counterplay boundaries are required')
+    .max(500, 'Limits cannot exceed 500 characters'),
+});
+export type AdLibAuthorityContract = z.infer<typeof AdLibAuthorityContractSchema>;
+
 /**
  * Phase 3B Antagonist Induction Schema.
  * Requires scenario seeds, opposition seat, canonical Authority Contract, and Victim Field.
@@ -45,7 +59,7 @@ export const AdLibAntagonistInductionSchema = z.object({
     ),
   unsettlingDetail: z.string().trim().max(200).optional(),
   oppositionSeat: OppositionSeatSchema,
-  authorityContract: AuthorityContractSchema,
+  authorityContract: AdLibAuthorityContractSchema,
   victimField: VictimFieldSchema,
 });
 export type AdLibAntagonistInduction = z.infer<typeof AdLibAntagonistInductionSchema>;

@@ -1344,24 +1344,49 @@ describe('Turn schemas validation', () => {
       )).toContain('at most one');
     });
 
-    it('accepts dialogue from the explicitly addressed speaker and rejects dialogue from a different speaker', () => {
-      // Explicitly addressed speaker matches returned dialogue block
+    it('supports multi-turn remote dialogue continuity across turns via recentHistory lookback', () => {
+      const contextWithRemoteJules = EngineTurnContextSchema.parse({
+        ...context,
+        cast: context.cast.map((c) =>
+          c.id === 'char-jules' ? { ...c, isPresent: false } : c
+        ),
+      });
+
+      // Turn 1: User calls on phone -> Jules is absent but remote action keyword matches
       expect(
         validateDialogueBlocks(
           [{ type: 'dialogue', speaker: 'Jules Mercer' }],
-          context,
-          'char-jules'
+          contextWithRemoteJules,
+          null,
+          'I call Jules on my cellular phone.'
         )
       ).toBeNull();
 
-      // Explicitly addressed speaker differs from returned dialogue block
+      // Turn 2: User says "Can you hear me?" (no phone keyword, Jules absent, but recentHistory has active call)
+      const historyWithCall = [
+        { role: 'user' as const, content: 'I call Jules on my cellular phone.' },
+        { role: 'assistant' as const, content: 'Static hisses across the line. Jules answers.' },
+      ];
       expect(
         validateDialogueBlocks(
-          [{ type: 'dialogue', speaker: 'Dr. Marcus Sterling' }],
-          context,
-          'char-jules'
+          [{ type: 'dialogue', speaker: 'Jules Mercer' }],
+          contextWithRemoteJules,
+          null,
+          'Can you hear me? Are you still on the line?',
+          historyWithCall
         )
-      ).toContain('does not match the explicitly addressed cast member');
+      ).toBeNull();
+
+      // Turn 3: User hangs up -> channel is closed, Jules cannot speak
+      expect(
+        validateDialogueBlocks(
+          [{ type: 'dialogue', speaker: 'Jules Mercer' }],
+          contextWithRemoteJules,
+          null,
+          'I hang up the phone and pocket it.',
+          historyWithCall
+        )
+      ).toBe('Dialogue speaker "Jules Mercer" is not present at the current node.');
     });
 
     it('preserves cast expression profile through EngineTurnContextSchema.parse', () => {

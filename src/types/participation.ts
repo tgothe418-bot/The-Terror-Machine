@@ -25,13 +25,23 @@ export function normalizeRoleCategory(
 export const OppositionSeatKindSchema = z.enum(['character', 'force']);
 export type OppositionSeatKind = z.infer<typeof OppositionSeatKindSchema>;
 
+export const MAX_AUTHORITY_LENGTH = 2500;
+export const MAX_SEAT_ABILITY_LENGTH = 2500;
+export const MAX_SEAT_LIMITATION_LENGTH = 2500;
+
 export const OppositionSeatSchema = z.object({
   kind: OppositionSeatKindSchema,
   name: z.string().trim().min(1, 'Name or designation is required').max(100),
   description: z.string().trim().min(1, 'Description is required').max(300),
   goal: z.string().trim().min(1, 'Opposition threat goal is required').max(200),
-  ability: z.string().trim().max(200).optional(),
-  limitation: z.string().trim().max(200).optional(),
+  ability: z.preprocess(
+    (val) => (typeof val === 'string' ? val.trim().slice(0, MAX_SEAT_ABILITY_LENGTH) : val),
+    z.string().trim().max(MAX_SEAT_ABILITY_LENGTH).optional()
+  ),
+  limitation: z.preprocess(
+    (val) => (typeof val === 'string' ? val.trim().slice(0, MAX_SEAT_LIMITATION_LENGTH) : val),
+    z.string().trim().max(MAX_SEAT_LIMITATION_LENGTH).optional()
+  ),
 });
 export type OppositionSeat = z.infer<typeof OppositionSeatSchema>;
 
@@ -40,16 +50,25 @@ export type OppositionSeat = z.infer<typeof OppositionSeatSchema>;
  * Defines the Antagonist's explicit in-world reach and non-negotiable boundaries.
  */
 export const AuthorityContractSchema = z.object({
-  authority: z
-    .string()
-    .trim()
-    .min(1, 'Authority scope is required')
-    .max(500, 'Authority scope cannot exceed 500 characters'),
-  limits: z
-    .string()
-    .trim()
-    .min(1, 'Limits, anchors, or counterplay boundaries are required')
-    .max(500, 'Limits cannot exceed 500 characters'),
+  authority: z.preprocess(
+    (val) => (typeof val === 'string' ? val.trim().slice(0, MAX_AUTHORITY_LENGTH) : val),
+    z
+      .string()
+      .trim()
+      .min(1, 'Authority scope is required')
+      .max(
+        MAX_AUTHORITY_LENGTH,
+        `Authority scope cannot exceed ${MAX_AUTHORITY_LENGTH.toLocaleString()} characters`
+      )
+  ),
+  limits: z.preprocess(
+    (val) => (typeof val === 'string' ? val.trim().slice(0, MAX_SEAT_LIMITATION_LENGTH) : val),
+    z
+      .string()
+      .trim()
+      .min(1, 'Limits, anchors, or counterplay boundaries are required')
+      .max(MAX_SEAT_LIMITATION_LENGTH, `Limits cannot exceed ${MAX_SEAT_LIMITATION_LENGTH.toLocaleString()} characters`)
+  ),
 });
 export type AuthorityContract = z.infer<typeof AuthorityContractSchema>;
 
@@ -116,8 +135,14 @@ export const ParticipationSeatSchema = z.object({
     .trim()
     .max(MAX_PARTICIPATION_SEAT_DESCRIPTION_LENGTH)
     .optional(),
-  ability: z.string().trim().max(500).optional(),
-  limitation: z.string().trim().max(500).optional(),
+  ability: z.preprocess(
+    (val) => (typeof val === 'string' ? val.trim().slice(0, MAX_SEAT_ABILITY_LENGTH) : val),
+    z.string().trim().max(MAX_SEAT_ABILITY_LENGTH).optional()
+  ),
+  limitation: z.preprocess(
+    (val) => (typeof val === 'string' ? val.trim().slice(0, MAX_SEAT_LIMITATION_LENGTH) : val),
+    z.string().trim().max(MAX_SEAT_LIMITATION_LENGTH).optional()
+  ),
 });
 export type ParticipationSeat = z.infer<typeof ParticipationSeatSchema>;
 
@@ -155,10 +180,10 @@ export function normalizeParticipationContext(
   }
 
   const fallbackAuthority =
-    context.seat?.ability?.trim() ||
+    context.seat?.ability?.trim().slice(0, MAX_AUTHORITY_LENGTH) ||
     'Only already authored and ratified scenario facts apply. Grants no new reach, perception, mutation, omniscience, or control until re-inducted with an explicit Authority Contract.';
   const fallbackLimits =
-    context.seat?.limitation?.trim() ||
+    context.seat?.limitation?.trim().slice(0, MAX_SEAT_LIMITATION_LENGTH) ||
     'Strictly bounded to authored scenario facts and ratified state. Grants no new reach, perception, mutation, omniscience, or control without an explicit Authority Contract.';
 
   return {

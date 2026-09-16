@@ -364,12 +364,20 @@ export function finalizeWorldMemory(input: {
   });
 }
 
+export const REMOTE_DISCONNECT_PATTERNS =
+  /\b(hang\s*up|hung\s*up|disconnect[singed]*|click[singed]*\s*off|shut[ting]*\s*off\s*(the\s*)?(radio|phone|comm)|end[singed]*\s*(the\s*)?(call|transmission))\b/i;
+
 export function validateDialogueBlocks(
   blocks: Array<{ type: string; speaker?: string | null }>,
   context: EngineTurnContext,
   explicitlyAddressedSpeakerId: string | null = null,
-  userAction?: string
+  userAction?: string,
+  recentHistory?: Array<{ role: string; content: string }>
 ): string | null {
+  if (!Array.isArray(blocks) || !context || !Array.isArray(context.cast)) {
+    return null;
+  }
+
   let dialogueCount = 0;
 
   for (const block of blocks) {
@@ -394,20 +402,41 @@ export function validateDialogueBlocks(
       return `Dialogue speaker "${speaker}" is the player-controlled character.`;
     }
 
-    if (!castMember.isPresent) {
-      const actionText = (userAction || '').toLowerCase();
-      const isRemoteAction = REMOTE_COMMUNICATION_CHANNELS.test(actionText);
-
-      if (!isRemoteAction) {
-        return `Dialogue speaker "${speaker}" is not present at the current node.`;
-      }
-    }
-
     const communicationModes = castMember.expressionProfile?.communicationModes ?? ['spoken'];
     const canSpeak = communicationModes.includes('spoken') || communicationModes.includes('mediated');
 
     if (!canSpeak) {
       return `Dialogue speaker "${speaker}" lacks spoken or mediated communication.`;
+    }
+
+    if (!castMember.isPresent) {
+      const actionText = typeof userAction === 'string' ? userAction.toLowerCase() : '';
+      const isDisconnectAction = REMOTE_DISCONNECT_PATTERNS.test(actionText);
+      const isRemoteAction = !isDisconnectAction && REMOTE_COMMUNICATION_CHANNELS.test(actionText);
+      const isAddressedMediated =
+        !isDisconnectAction &&
+        Boolean(explicitlyAddressedSpeakerId) &&
+        castMember.id === explicitlyAddressedSpeakerId &&
+        communicationModes.includes('mediated');
+
+      // Check recent history for an active remote connection if castMember has mediated comms and hasn't disconnected
+      let isHistoricalRemoteActive = false;
+      if (
+        !isDisconnectAction &&
+        communicationModes.includes('mediated') &&
+        Array.isArray(recentHistory) &&
+        recentHistory.length > 0
+      ) {
+        const recentMessages = recentHistory.slice(-4);
+        isHistoricalRemoteActive = recentMessages.some((msg) => {
+          if (typeof msg.content !== 'string') return false;
+          return REMOTE_COMMUNICATION_CHANNELS.test(msg.content);
+        });
+      }
+
+      if (!isRemoteAction && !isAddressedMediated && !isHistoricalRemoteActive) {
+        return `Dialogue speaker "${speaker}" is not present at the current node.`;
+      }
     }
 
     if (
@@ -508,11 +537,46 @@ export function formatCastLedger(context: EngineTurnContext): string {
     .join('\n');
 }
 
+export function normalizeTurnRequestPayload(body: unknown): unknown {
+  if (!body || typeof body !== 'object') return body;
+  const payload = body as Record<string, any>;
+
+  const sanitizeParticipation = (pc: any) => {
+    if (!pc || typeof pc !== 'object') return;
+    if (pc.seat && typeof pc.seat === 'object') {
+      if (typeof pc.seat.ability === 'string' && pc.seat.ability.length > 2500) {
+        pc.seat.ability = pc.seat.ability.trim().slice(0, 2500);
+      }
+      if (typeof pc.seat.limitation === 'string' && pc.seat.limitation.length > 2500) {
+        pc.seat.limitation = pc.seat.limitation.trim().slice(0, 2500);
+      }
+    }
+    if (pc.authorityContract && typeof pc.authorityContract === 'object') {
+      if (typeof pc.authorityContract.authority === 'string' && pc.authorityContract.authority.length > 2500) {
+        pc.authorityContract.authority = pc.authorityContract.authority.trim().slice(0, 2500);
+      }
+      if (typeof pc.authorityContract.limits === 'string' && pc.authorityContract.limits.length > 2500) {
+        pc.authorityContract.limits = pc.authorityContract.limits.trim().slice(0, 2500);
+      }
+    }
+  };
+
+  if (payload.context && typeof payload.context === 'object' && payload.context.participationContext) {
+    sanitizeParticipation(payload.context.participationContext);
+  }
+  if (payload.participationContext) {
+    sanitizeParticipation(payload.participationContext);
+  }
+
+  return payload;
+}
+
 export const turnRouter = Router();
 
 turnRouter.post('/', async (req, res) => {
   let parsedRequest;
   try {
+    normalizeTurnRequestPayload(req.body);
     parsedRequest = TurnRequestSchema.parse(req.body);
   } catch (err) {
     console.error('[API /turn] Request validation error:', err);
@@ -1379,7 +1443,8 @@ ${recentHistory}
       boundedResult.narrative_blocks,
       context,
       explicitlyAddressedSpeakerId,
-      userAction
+      userAction,
+      recentHistory
     );
 
     if (dialogueContractError) {

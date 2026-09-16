@@ -247,7 +247,7 @@ router.post("/chat", async (req, res) => {
     if (isHubMode) {
       res.json({
         engine_thoughts: '',
-        narrative_blocks: [{ type: 'prose', content: response.text || "Error: No response from The Voice." }],
+        narrative_blocks: [{ type: 'prose', content: response.text || "Error: No response from The Historian." }],
         logic_state: {} 
       });
       return;

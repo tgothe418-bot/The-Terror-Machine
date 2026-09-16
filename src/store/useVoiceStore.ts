@@ -12,7 +12,7 @@ interface VoiceState {
 }
 
 /**
- * Zustand store for The Voice's persistent memory.
+ * Zustand store for The Historian's persistent memory.
  * Uses IndexedDB via idb-keyval for asynchronous, non-blocking storage.
  */
 export const useVoiceStore = create<VoiceState>()(
@@ -21,7 +21,8 @@ export const useVoiceStore = create<VoiceState>()(
       messages: [
         {
           role: 'voice',
-          content: "Hello. I'm The Voice. I'm here to listen and chat. What's on your mind?",
+          content:
+            "The grimoire records lie open before me. I am The Historian, archivist of that which transpires between the margins of this machine. What chronologies, architectures, or binding rites do you seek to scry?",
           timestamp: Date.now(),
         },
       ],

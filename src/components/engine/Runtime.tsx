@@ -1,6 +1,27 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { ArrowLeft, Terminal, Loader2, Eye, Shield, Skull, Coffee, Film } from 'lucide-react';
+import {
+  ArrowLeft,
+  Terminal,
+  Loader2,
+  Eye,
+  Shield,
+  Skull,
+  Coffee,
+  Film,
+  PanelLeft,
+  PanelLeftClose,
+  PanelRight,
+  PanelRightClose,
+  BookOpen,
+  Compass,
+  MapPin,
+  Sparkles,
+} from 'lucide-react';
+import TheVoice from '../hub/TheVoice';
+import MapSketch from './MapSketch';
+import MortalLedger from './MortalLedger';
+import ScenarioDossier from './ScenarioDossier';
 import { normalizeRoleCategory } from '../../types/participation';
 import { useEngineStore } from '../../core/store';
 import { useAppStore } from '../../store/useAppStore';
@@ -34,8 +55,6 @@ import { toTurnFailureReceipt, TurnResponseError } from '../../lib/turnResponseR
 import { validateHorrorGrammarTurnReceipts } from '../../lib/horrorGrammarTurnValidation';
 import { fetchSimulatedPlayerAction, triggerMemoryForge } from '../../services/geminiService';
 import ErgodicTextRenderer from './ErgodicTextRenderer';
-import AntagonistContractDisplay from './AntagonistContractDisplay';
-import PreyCohortTelemetry from './PreyCohortTelemetry';
 import { useTelemetryStore } from '../../store/useTelemetryStore';
 import { captureRuntimeSnapshot } from '../../core/engine/snapshot';
 import { projectPresentationPatch } from '../../core/engine/presentationProjection';
@@ -278,6 +297,79 @@ export default function Runtime() {
   const [isHgForensicsOpen, setIsHgForensicsOpen] = useState(true);
   const [isTerminated, setIsTerminated] = useState(false);
   const [terminalResolution, setTerminalResolution] = useState<string | null>(null);
+  const [isLeftWingOpen, setIsLeftWingOpen] = useState(true);
+  const [isRightWingOpen, setIsRightWingOpen] = useState(true);
+  const [rightWingTab, setRightWingTab] = useState<'historian' | 'dossier'>('historian');
+  const [isAuthorityModalOpen, setIsAuthorityModalOpen] = useState(false);
+
+  // Compute visited nodes from history + current node + starting node for Fog of War
+  const visitedNodeIds = React.useMemo(() => {
+    const visited = new Set<string>();
+    if (gameState?.current_node_id) {
+      visited.add(gameState.current_node_id);
+    }
+    if (activeBlueprint?.topology?.startingNodeId) {
+      visited.add(activeBlueprint.topology.startingNodeId);
+    }
+    engineMessages.forEach((msg) => {
+      if (msg.turnReceipt?.nodeBefore) visited.add(msg.turnReceipt.nodeBefore);
+      if (msg.turnReceipt?.nodeAfter) visited.add(msg.turnReceipt.nodeAfter);
+    });
+    return visited;
+  }, [gameState?.current_node_id, activeBlueprint?.topology?.startingNodeId, engineMessages]);
+
+  // Compute node definitions for MapSketch
+  const nodeDefinitions = React.useMemo(() => {
+    if (!activeBlueprint?.topology) return [];
+    if (activeBlueprint.topology.nodeDefinitions && activeBlueprint.topology.nodeDefinitions.length > 0) {
+      return activeBlueprint.topology.nodeDefinitions.map((n) => ({
+        id: n.id,
+        label: n.label || (n as any).name || n.id,
+        description: n.description,
+      }));
+    }
+    if (activeBlueprint.topology.nodes && activeBlueprint.topology.nodes.length > 0) {
+      return activeBlueprint.topology.nodes.map((id) => ({
+        id,
+        label: id.replace(/_/g, ' '),
+        description: undefined,
+      }));
+    }
+    return [];
+  }, [activeBlueprint?.topology]);
+
+  // Compute connections for MapSketch
+  const topologyConnections = React.useMemo(() => {
+    return activeBlueprint?.topology?.connections || [];
+  }, [activeBlueprint?.topology?.connections]);
+
+  // Compute cohort members for MortalLedger
+  const cohortCastMembers = React.useMemo(() => {
+    if (!activeBlueprint?.cast) return [];
+    return activeBlueprint.cast.map((c) => {
+      const presence = gameState?.character_presence?.[c.id];
+      const continuity = gameState?.character_continuity?.[c.id];
+      const ledgerEntry = telemetry?.castLedger?.find(
+        (l: any) => l.character_id === c.id || l.character_name === c.name
+      );
+      return {
+        id: c.id,
+        name: c.name,
+        role: c.role,
+        location: presence?.node_id || ledgerEntry?.current_location || 'Co-present',
+        psychological_status:
+          ledgerEntry?.psychological_status || (c as any).psychological_status || 'Composed',
+        skepticism: typeof continuity?.skepticism === 'number' ? continuity.skepticism : undefined,
+        isCurrentPlayer: c.id === gameState?.player_character_id,
+      };
+    });
+  }, [
+    activeBlueprint?.cast,
+    gameState?.character_presence,
+    gameState?.character_continuity,
+    gameState?.player_character_id,
+    telemetry?.castLedger,
+  ]);
 
   const latestForensicRecord = React.useMemo(() => {
     for (let i = engineMessages.length - 1; i >= 0; i--) {
@@ -326,31 +418,18 @@ export default function Runtime() {
     }
   }, [systemFlags, activeBlueprint?.terminalConditions, isTerminated, dispatch]);
 
-  // Hijack the TAB key to toggle the X-Ray HUD
+  // Tab key shortcuts toggle between The Historian and Scenario Dossier
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Tab') {
         e.preventDefault();
-        setIsTelemetryOpen((prev) => !prev);
+        setIsRightWingOpen(true);
+        setRightWingTab((prev) => (prev === 'historian' ? 'dossier' : 'historian'));
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
-
-  // Dynamic body overflow controller to banish default browser scrollbars on open
-  useEffect(() => {
-    if (isTelemetryOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'unset';
-    }
-
-    // Cleanup hook to guarantee scroll restoration if the user exits mid-session
-    return () => {
-      document.body.style.overflow = 'unset';
-    };
-  }, [isTelemetryOpen]);
 
   const [autopilotTarget, setAutopilotTarget] = useState<number>(5);
   const [isAutopilotRunning, setIsAutopilotRunning] = useState<boolean>(false);
@@ -900,37 +979,61 @@ export default function Runtime() {
 
   return (
     <div
-      className="h-screen bg-black text-zinc-100 flex flex-col font-mono selection:bg-white selection:text-black overflow-hidden max-w-[2560px] mx-auto w-full"
+      className="h-screen bg-[#060608] text-zinc-100 flex flex-col font-mono selection:bg-stone-800 selection:text-amber-200 overflow-hidden w-full max-w-[3440px] mx-auto"
       onKeyDown={() => setLastActivity(Date.now())}
       onClick={() => setLastActivity(Date.now())}
     >
-      {/* Header */}
-      <header className="h-16 border-b border-zinc-900 flex items-center justify-between px-8 bg-black z-10 shrink-0">
-        <div className="flex items-center gap-6">
+      {/* Occult Scrying Apparatus Header */}
+      <header className="h-16 border-b border-zinc-900 flex items-center justify-between px-6 sm:px-8 bg-[#040406] z-10 shrink-0">
+        <div className="flex items-center gap-5">
           <button
             onClick={handleExit}
-            className="flex items-center gap-2 text-zinc-400 hover:text-white transition-colors uppercase text-xs tracking-[0.2em] cursor-pointer"
+            className="flex items-center gap-2 text-zinc-400 hover:text-amber-300 transition-colors uppercase text-xs tracking-[0.2em] font-serif cursor-pointer"
+            title="Return to The Portal"
           >
-            <ArrowLeft className="w-4 h-4" />
-            Exit
+            <ArrowLeft className="w-4 h-4 text-amber-500" />
+            Portal
           </button>
           <div className="h-4 w-[1px] bg-zinc-800" />
           <div className="flex flex-col">
-            <h1 className="text-xs sm:text-sm font-bold tracking-[0.3em] uppercase text-white">
-              {activeBlueprint?.title || 'Haunted House'}
-            </h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xs sm:text-sm font-bold tracking-[0.25em] uppercase text-zinc-100 font-serif">
+                {activeBlueprint?.title || 'Haunted House'}
+              </h1>
+              {/* Austin Osman Spare small sigil glyph */}
+              <svg
+                className="w-3.5 h-3.5 text-zinc-600 inline-block"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.2"
+              >
+                <circle cx="12" cy="12" r="9" strokeDasharray="2 2" />
+                <path d="M12 3v18M3 12h18M8 8l8 8M16 8l-8 8" />
+              </svg>
+            </div>
             <div className="flex items-center gap-3">
-              <span className="text-xs text-zinc-400 uppercase tracking-widest">
+              <span className="text-[11px] text-zinc-400 uppercase tracking-widest font-mono">
                 Scale: {activeBlueprint?.contentScale || 12}
               </span>
-              <span className="text-xs text-zinc-600 uppercase tracking-widest">
+              <span className="text-[11px] text-zinc-600 uppercase tracking-widest font-mono">
                 // {activeBlueprint?.contentLevelDescription || 'Procedural Architecture'}
               </span>
-              {/* Role Graphical Flair Badge */}
+              {/* Role Graphical Flair Badge & Optional Authority Pill */}
               {effectiveCategory === 'VILLAIN' ? (
-                <span className="px-2 py-0.5 rounded border border-red-800/80 bg-red-950/40 text-red-300 font-bold text-[10px] tracking-wider uppercase flex items-center gap-1.5 shadow-[0_0_10px_rgba(239,68,68,0.15)]">
-                  <Skull className="w-3 h-3 text-red-500 animate-pulse" /> VILLAIN PREDATOR LINK // ENGAGED
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="px-2 py-0.5 rounded border border-red-800/80 bg-red-950/40 text-red-300 font-bold text-[10px] tracking-wider uppercase flex items-center gap-1.5 shadow-[0_0_10px_rgba(239,68,68,0.15)]">
+                    <Skull className="w-3 h-3 text-red-500 animate-pulse" /> VILLAIN PREDATOR LINK // ENGAGED
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setIsAuthorityModalOpen(true)}
+                    className="px-2 py-0.5 rounded border border-red-800/80 bg-red-950/60 hover:bg-red-900/60 text-red-200 hover:text-white font-mono text-[10px] tracking-wider uppercase transition-colors cursor-pointer"
+                    title="Inspect Inscribed Authority Contract & Boundaries"
+                  >
+                    [ Authority Contract ]
+                  </button>
+                </div>
               ) : effectiveCategory === 'BYSTANDER' ? (
                 <span className="px-2 py-0.5 rounded border border-amber-800/80 bg-amber-950/40 text-amber-300 font-bold text-[10px] tracking-wider uppercase flex items-center gap-1.5 shadow-[0_0_10px_rgba(245,158,11,0.15)]">
                   <Coffee className="w-3 h-3 text-amber-400" /> BYSTANDER PERSPECTIVE // DETACHED
@@ -946,7 +1049,7 @@ export default function Runtime() {
               )}
               <button
                 onClick={() => setPhase('hub')}
-                className="ml-2 text-xs text-zinc-500 hover:text-white uppercase tracking-widest underline decoration-zinc-800 cursor-pointer"
+                className="ml-2 text-xs text-zinc-500 hover:text-white uppercase tracking-widest underline decoration-zinc-800 cursor-pointer font-mono"
               >
                 Change Scenario
               </button>
@@ -954,7 +1057,63 @@ export default function Runtime() {
           </div>
         </div>
 
+        {/* Center: Analog Rolling Tape Counter */}
+        <div className="hidden lg:flex items-center gap-3 px-3.5 py-1.5 rounded border border-zinc-800/90 bg-zinc-950/80 shadow-inner">
+          <span className="text-[10px] uppercase tracking-[0.25em] text-zinc-500 font-mono font-semibold">
+            Recorded Cycles
+          </span>
+          <div className="tape-counter" title={`Simulation Cycles: ${turnCount || 0}`}>
+            {(turnCount || 0)
+              .toString()
+              .padStart(5, '0')
+              .split('')
+              .map((digit, idx) => (
+                <span key={idx} className="tape-counter-digit">
+                  {digit}
+                </span>
+              ))}
+          </div>
+        </div>
+
+        {/* Right Header Controls */}
         <div className="flex items-center gap-3">
+          {/* Wing Toggle Buttons */}
+          <button
+            onClick={() => setIsLeftWingOpen(!isLeftWingOpen)}
+            className={`px-2.5 py-1.5 text-xs font-mono rounded border transition-colors flex items-center gap-1.5 cursor-pointer ${
+              isLeftWingOpen
+                ? 'bg-zinc-900 border-zinc-700 text-zinc-200 shadow-sm'
+                : 'bg-zinc-950 border-zinc-800 text-zinc-500 hover:text-zinc-300'
+            }`}
+            title="Toggle Chambers & Mortal Ledger Wing"
+          >
+            {isLeftWingOpen ? (
+              <PanelLeftClose className="w-3.5 h-3.5 text-amber-500" />
+            ) : (
+              <PanelLeft className="w-3.5 h-3.5" />
+            )}
+            <span className="text-[10px] uppercase tracking-wider hidden sm:inline">Chambers</span>
+          </button>
+
+          <button
+            onClick={() => setIsRightWingOpen(!isRightWingOpen)}
+            className={`px-2.5 py-1.5 text-xs font-mono rounded border transition-colors flex items-center gap-1.5 cursor-pointer ${
+              isRightWingOpen
+                ? 'bg-zinc-900 border-zinc-700 text-zinc-200 shadow-sm'
+                : 'bg-zinc-950 border-zinc-800 text-zinc-500 hover:text-zinc-300'
+            }`}
+            title="Toggle The Historian & Dossier Wing"
+          >
+            <span className="text-[10px] uppercase tracking-wider hidden sm:inline">Oracle</span>
+            {isRightWingOpen ? (
+              <PanelRightClose className="w-3.5 h-3.5 text-amber-500" />
+            ) : (
+              <PanelRight className="w-3.5 h-3.5" />
+            )}
+          </button>
+
+          <div className="h-4 w-[1px] bg-zinc-800" />
+
           <button
             onClick={() =>
               exportEngineLog(
@@ -964,7 +1123,7 @@ export default function Runtime() {
                 activeBlueprint || undefined
               )
             }
-            className="px-3 py-1.5 text-xs font-mono text-zinc-400 hover:text-zinc-100 bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800 transition-colors rounded cursor-pointer"
+            className="px-2.5 py-1 text-xs font-mono text-zinc-400 hover:text-zinc-100 bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800 transition-colors rounded cursor-pointer"
             title="Export to Markdown"
           >
             [ EXPORT .MD ]
@@ -978,7 +1137,7 @@ export default function Runtime() {
                 activeBlueprint || undefined
               )
             }
-            className="px-3 py-1.5 text-xs font-mono text-zinc-400 hover:text-zinc-100 bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800 transition-colors rounded cursor-pointer"
+            className="px-2.5 py-1 text-xs font-mono text-zinc-400 hover:text-zinc-100 bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800 transition-colors rounded cursor-pointer"
             title="Export to HTML"
           >
             [ EXPORT .HTML ]
@@ -987,7 +1146,7 @@ export default function Runtime() {
             onClick={() => {
               useAppStore.getState().resetSession();
             }}
-            className="px-3 py-1.5 text-xs font-mono text-red-400 hover:text-red-100 bg-red-900/20 hover:bg-red-900/50 border border-red-900/50 transition-colors duration-150 rounded cursor-pointer"
+            className="px-2.5 py-1 text-xs font-mono text-red-400 hover:text-red-100 bg-red-900/20 hover:bg-red-900/50 border border-red-900/50 transition-colors duration-150 rounded cursor-pointer"
             title="Hard Reset Engine"
           >
             [ FLUSH STATE ]
@@ -995,33 +1154,145 @@ export default function Runtime() {
           <button
             onClick={handleRetake}
             disabled={isLoading || isAutopilotRunning || !lastTurnCheckpoint}
-            className="px-3 py-1.5 text-xs font-mono text-amber-400 hover:text-amber-100 bg-amber-900/20 hover:bg-amber-900/50 border border-amber-900/50 disabled:opacity-30 disabled:pointer-events-none transition-colors duration-150 rounded mr-4 cursor-pointer"
+            className="px-2.5 py-1 text-xs font-mono text-amber-400 hover:text-amber-100 bg-amber-900/20 hover:bg-amber-900/50 border border-amber-900/50 disabled:opacity-30 disabled:pointer-events-none transition-colors duration-150 rounded cursor-pointer"
             title="Retake last turn (restore state and previous input)"
           >
             [ RETAKE ]
           </button>
-          <div className="flex items-center gap-2 text-zinc-500">
-            <Terminal className="w-4 h-4 text-zinc-400" />
-            <span className="text-xs uppercase tracking-[0.3em]">Simulation Active</span>
+
+          <div className="flex items-center gap-1.5 ml-1">
+            <span className="jewel-amber" title="Scrying link connected" />
+            <span className="text-[10px] uppercase tracking-widest text-zinc-400 font-mono hidden xl:inline">
+              Simulation Active
+            </span>
           </div>
         </div>
       </header>
 
-      {/* Persistent Antagonist Simulation Contract Strip (Read-Only) */}
-      <AntagonistContractDisplay />
-      <PreyCohortTelemetry />
+      {/* Authority Contract Modal for Villain / Antagonist */}
+      {isAuthorityModalOpen && participationContext && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#09090c] border border-red-900/80 rounded-lg shadow-2xl max-w-2xl w-full p-6 space-y-4 font-mono text-xs">
+            <div className="flex items-center justify-between border-b border-red-950/80 pb-3">
+              <div className="flex items-center gap-2">
+                <Skull className="w-4 h-4 text-red-500" />
+                <span className="font-serif font-bold text-sm text-red-300 uppercase tracking-widest">
+                  Inscribed Authority Contract // {participationContext.seat?.name || 'Opposition'}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAuthorityModalOpen(false)}
+                className="text-zinc-500 hover:text-zinc-200 text-xs px-2 py-1 rounded bg-zinc-900 border border-zinc-800 transition-colors cursor-pointer"
+              >
+                [ Close ]
+              </button>
+            </div>
 
-      {/* THE VOID (Primary Reading Area Container) */}
-      <div
-        ref={scrollRef}
-        className="flex-1 overflow-y-auto no-scrollbar px-8 py-12 scroll-smooth w-full"
-      >
-        {/* Expanded desktop reading workspace with comfortable prose formatting & companion cover */}
-        <div
-          className={`max-w-7xl mx-auto flex flex-col lg:flex-row gap-8 xl:gap-14 items-start justify-between transition-all duration-[2500ms] ease-in-out ${isTelemetryOpen ? 'blur-sm opacity-30 pointer-events-none' : 'blur-none opacity-100'}`}
+            <div className="space-y-3 max-h-[60vh] overflow-y-auto no-scrollbar text-zinc-300">
+              <div className="p-3 bg-black/60 rounded border border-zinc-850 space-y-1">
+                <span className="text-zinc-500 uppercase font-bold text-[10px] tracking-wider block">
+                  Designated Seat & Kind
+                </span>
+                <p className="text-zinc-200">
+                  {participationContext.seat?.name || 'Predatory Villain'} ({participationContext.seat?.kind || 'Entity'})
+                </p>
+                {participationContext.seat?.description && (
+                  <p className="text-zinc-400 text-[11px] italic mt-1">
+                    {participationContext.seat.description}
+                  </p>
+                )}
+              </div>
+
+              <div className="p-3 bg-black/60 rounded border border-amber-950/60 space-y-1">
+                <span className="text-amber-500 uppercase font-bold text-[10px] tracking-wider block">
+                  Inscribed Authority & Reach
+                </span>
+                <p className="text-zinc-200 leading-relaxed whitespace-pre-wrap">
+                  {participationContext.authorityContract?.authority ||
+                    participationContext.seat?.ability ||
+                    'Only already authored and ratified scenario facts apply. Bounded to authored reach.'}
+                </p>
+              </div>
+
+              <div className="p-3 bg-black/60 rounded border border-red-950/60 space-y-1">
+                <span className="text-red-400 uppercase font-bold text-[10px] tracking-wider block">
+                  Non-Negotiable Limitations & Anchors
+                </span>
+                <p className="text-zinc-200 leading-relaxed whitespace-pre-wrap">
+                  {participationContext.authorityContract?.limits ||
+                    participationContext.seat?.limitation ||
+                    'Strictly bounded to authored scenario facts and ratified state. No ungrounded omnipresence.'}
+                </p>
+              </div>
+
+              {participationContext.initialGoal && (
+                <div className="p-3 bg-black/60 rounded border border-zinc-850 space-y-1">
+                  <span className="text-zinc-500 uppercase font-bold text-[10px] tracking-wider block">
+                    Core Target / Primary Vector
+                  </span>
+                  <p className="text-zinc-300">
+                    {participationContext.initialGoal}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="pt-2 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setIsAuthorityModalOpen(false)}
+                className="px-4 py-2 bg-red-950 hover:bg-red-900 text-red-200 border border-red-800 rounded text-xs uppercase tracking-wider font-bold transition-colors cursor-pointer"
+              >
+                [ Veil Authority Dossier ]
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================= */}
+      {/* 4-PANE ULTRAWIDE 3440PX WORKSPACE         */}
+      {/* ========================================= */}
+      <div className="flex-1 min-h-0 flex gap-4 px-4 sm:px-6 py-3 overflow-hidden w-full">
+        {/* LEFT WING: Map Sketch & Mortal Ledger */}
+        {isLeftWingOpen && (
+          <aside
+            data-testid="engine-left-wing"
+            className="w-[580px] xl:w-[640px] 2xl:w-[700px] shrink-0 h-full flex flex-col gap-3 overflow-y-auto no-scrollbar select-none"
+          >
+            <MapSketch
+              currentNodeId={
+                gameState?.current_node_id || activeBlueprint?.topology?.startingNodeId || null
+              }
+              nodeDefinitions={nodeDefinitions}
+              connections={topologyConnections}
+              visitedNodeIds={visitedNodeIds}
+              className="shrink-0"
+            />
+            <MortalLedger
+              playerCharacterName={userCharName}
+              playerRoleCategory={effectiveCategory}
+              psychologicalStatus={gameState?.psychological_status || 'Stable'}
+              injuries={gameState?.player_injuries || []}
+              inventory={gameState?.inventory || []}
+              castMembers={cohortCastMembers}
+              className="flex-1 min-h-[320px]"
+            />
+          </aside>
+        )}
+
+        {/* CENTER STAGE: Primary Literary Prose & Impulse Slate */}
+        <main
+          data-testid="engine-center-stage"
+          className="flex-1 min-w-0 h-full flex flex-col overflow-hidden bg-[#09090c]/90 border border-zinc-800/80 rounded-lg shadow-2xl backdrop-blur-sm"
         >
-          {/* Primary Prose Narrative Stream */}
-          <div className="flex-1 min-w-0 space-y-12 w-full max-w-3xl xl:max-w-4xl">
+          {/* Scrollable Narrative Stream */}
+          <div
+            ref={scrollRef}
+            data-testid="narrative-stream-container"
+            className="flex-1 overflow-y-auto no-scrollbar px-6 sm:px-12 py-8 space-y-10 scroll-smooth"
+          >
             <AnimatePresence initial={false}>
               {engineMessages.map((msg, idx) => (
                 <TranscriptMessageItem
@@ -1036,474 +1307,179 @@ export default function Runtime() {
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  className="flex items-center gap-2 text-zinc-500 text-xs uppercase tracking-widest"
+                  className="flex items-center gap-2 text-amber-500/80 text-xs uppercase tracking-widest font-mono"
                 >
-                  <Loader2 className="w-3.5 h-3.5 animate-spin text-zinc-400" />
-                  Processing Neural Input...
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-400" />
+                  Channeling Inscription into the Obsidian Slate...
                 </motion.div>
               )}
             </AnimatePresence>
           </div>
 
-          {/* Companion Cover Art & Back Blurb Panel (Desktop Sidecar matching user layout) */}
-          {(activeBlueprint?.coverImageUrl || activeBlueprint?.backCoverBlurb || activeBlueprint?.premise || activeBlueprint?.title) && (
-            <aside className="hidden lg:flex flex-col gap-6 w-72 xl:w-80 shrink-0 sticky top-4 select-none self-start">
-              {/* Top Box: Scenario Cover Art */}
-              {activeBlueprint?.coverImageUrl ? (
-                <div className="w-full aspect-[2/3] rounded border border-zinc-800 bg-zinc-950/90 overflow-hidden shadow-2xl relative group">
-                  <img
-                    src={activeBlueprint.coverImageUrl}
-                    alt={activeBlueprint.title || 'Scenario Cover'}
-                    className="w-full h-full object-cover object-top transition-transform duration-700 group-hover:scale-105"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent pointer-events-none" />
-                  <div className="absolute bottom-3 left-3 right-3 text-xs uppercase tracking-widest text-zinc-300 font-bold truncate">
-                    {activeBlueprint.title}
-                  </div>
-                </div>
-              ) : (
-                <div className="w-full aspect-[2/3] rounded border border-zinc-800/80 bg-zinc-950/40 p-6 flex flex-col justify-between shadow-2xl relative">
-                  <div className="space-y-1">
-                    <span className="text-[10px] tracking-[0.3em] uppercase text-zinc-600 block font-mono">Scenario Dossier</span>
-                    <h3 className="text-sm uppercase tracking-widest text-zinc-200 font-bold leading-tight">
-                      {activeBlueprint?.title || 'Unknown Scenario'}
-                    </h3>
-                  </div>
-                  <div className="text-[11px] text-zinc-500 uppercase tracking-wider font-mono">
-                    {activeBlueprint?.setting?.location || 'Uncharted Topology'}
-                  </div>
-                </div>
-              )}
-
-              {/* Bottom Box: Back Cover Blurb in Italics */}
-              {(activeBlueprint?.backCoverBlurb || activeBlueprint?.premise || activeBlueprint?.globalPremise) && (
-                <div className="p-5 rounded border border-zinc-800/70 bg-zinc-950/50 backdrop-blur-sm shadow-xl space-y-2">
-                  <span className="text-[9px] uppercase tracking-[0.25em] text-zinc-500 block font-mono font-semibold">
-                    Synopsis // Reference
+          {/* Scalable Multi-line Impulse Slate */}
+          {isTerminated ? (
+            <div className="w-full shrink-0 p-6 bg-black/80 border-t border-red-900/80 text-center">
+              <div className="text-red-500 font-bold tracking-[0.3em] uppercase mb-2 text-sm sm:text-base font-serif">
+                [ SIMULATION TERMINATED ]
+              </div>
+              <p className="text-zinc-400 font-serif text-sm sm:text-base leading-relaxed">
+                {terminalResolution}
+              </p>
+            </div>
+          ) : (
+            <div className="w-full shrink-0 p-3 sm:p-4 bg-[#050507] border-t border-zinc-800/90 relative">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-[#d97706] shadow-[0_0_6px_#d97706] animate-pulse" />
+                  <span className="text-[11px] font-serif uppercase tracking-[0.2em] text-zinc-300 font-semibold">
+                    The Impulse Slate // {effectiveCategory} Offering
                   </span>
-                  <p className="font-serif italic text-zinc-400 text-xs sm:text-sm leading-relaxed whitespace-pre-wrap">
-                    {activeBlueprint.backCoverBlurb || activeBlueprint.premise || activeBlueprint.globalPremise}
-                  </p>
                 </div>
-              )}
-            </aside>
-          )}
-        </div>
+                <div className="text-[10px] text-zinc-500 font-mono">
+                  Shift+Enter for newline · Enter to channel
+                </div>
+              </div>
 
-      </div>
+              <div className="flex items-end gap-3">
+                <button
+                  onClick={() => handleCommand(undefined, '[USER_ACTION: OBSERVE]')}
+                  disabled={isLoading || isAutopilotRunning || isTerminated}
+                  className="flex flex-col items-center justify-center gap-1 px-3 py-2 rounded border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800 hover:text-white text-zinc-400 transition-colors disabled:opacity-30 shrink-0 h-[52px] cursor-pointer"
+                  title="Observe / Silence (Advance Simulation)"
+                >
+                  <Eye className="w-4 h-4" />
+                  <span className="text-[10px] uppercase tracking-wider font-mono">Observe</span>
+                </button>
 
-      {/* MINIMALIST INPUT CONSOLE */}
-      {isTerminated ? (
-        <div className="w-full shrink-0 pb-8 px-8 relative z-10 bg-black pt-4">
-          <div className="max-w-5xl lg:max-w-6xl mx-auto relative border-t border-red-900 bg-red-950/20 p-8 mt-4 text-center rounded">
-            <div className="text-red-500 font-bold tracking-[0.3em] uppercase mb-2 text-sm sm:text-base">
-              [ SIMULATION TERMINATED ]
-            </div>
-            <p className="text-zinc-400 font-serif text-sm sm:text-base leading-relaxed">{terminalResolution}</p>
-          </div>
-        </div>
-      ) : (
-        <div className="w-full shrink-0 pb-8 px-8 relative z-10 bg-black pt-4">
-          <div className="max-w-5xl lg:max-w-6xl mx-auto relative flex items-end">
-            <button
-              onClick={() => handleCommand(undefined, '[USER_ACTION: OBSERVE]')}
-              disabled={isLoading || isAutopilotRunning || isTerminated}
-              className="flex flex-col items-center gap-1.5 group text-zinc-600 hover:text-white transition-all disabled:opacity-30 mr-6 pb-3"
-              title="Observe / Wait (Advance Simulation)"
-            >
-              <Eye className="w-6 h-6 group-hover:scale-110 transition-transform" />
-              <span className="text-xs uppercase tracking-tight font-mono">Observe</span>
-            </button>
-
-            {/* The input container - seamlessly integrated into the void */}
-            <div className="flex-1 relative flex items-end border-b border-zinc-800 focus-within:border-zinc-500 transition-colors duration-1000">
-              <span className="text-xs sm:text-sm uppercase tracking-widest opacity-80 mr-4 mb-3.5 shrink-0 font-bold text-zinc-400">
-                {effectiveCategory === 'VILLAIN'
-                  ? '[ VILLAIN PREDATORY DIRECTIVE ]'
-                  : effectiveCategory === 'BYSTANDER'
-                    ? '[ BYSTANDER ACTION ]'
-                    : effectiveCategory === 'DIRECTOR'
-                      ? '[ DIRECTOR PROMPT ]'
-                      : '[ SURVIVOR INTENT ]'}
-              </span>
-
-              <textarea
-                autoFocus
-                value={input}
-                disabled={isLoading || isAutopilotRunning || isTerminated}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => {
-                  // Submit on Enter, allow line breaks with Shift+Enter
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleCommand();
-                  }
-                }}
-                placeholder={
-                  isTerminated
-                    ? 'TERMINAL CONDITION REACHED'
-                    : isLoading
-                      ? 'Processing...'
-                      : isAutopilotRunning
-                        ? 'Autopilot active...'
+                <div className="flex-1 relative flex items-center border border-zinc-800 focus-within:border-amber-600/80 rounded bg-zinc-950/80 transition-colors">
+                  <textarea
+                    autoFocus
+                    value={input}
+                    disabled={isLoading || isAutopilotRunning || isTerminated}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleCommand();
+                      }
+                    }}
+                    placeholder={
+                      isTerminated
+                        ? 'TERMINAL CONDITION REACHED'
+                        : isLoading
+                        ? 'Inscribing impulse...'
+                        : isAutopilotRunning
+                        ? 'Autopilot channeling...'
                         : effectiveCategory === 'VILLAIN'
-                          ? "Issue Predatory Directive or Actuate Environment (e.g. 'Fixate on Paul Allen's card with cold appraisal; test his confidence')..."
-                          : effectiveCategory === 'BYSTANDER'
-                            ? "Mundane civilian action or self-preservation (e.g. 'Mind my own business, finish my coffee, and dial 911 from the payphone')..."
-                            : effectiveCategory === 'DIRECTOR'
-                              ? "Frame scene, calibrate pacing, or introduce environmental tension..."
-                              : 'What do you do? (Shift+Enter for new line)'
-                }
-                className="w-full bg-transparent text-sm sm:text-base py-3 resize-none focus:outline-none placeholder:text-zinc-700 min-h-[48px] max-h-[30vh] custom-scrollbar leading-relaxed disabled:opacity-50 text-zinc-100"
-              />
+                        ? "Issue Predatory Directive or Actuate Environment (e.g. 'Fixate on Paul Allen\\'s card with cold appraisal; test his confidence')..."
+                        : effectiveCategory === 'BYSTANDER'
+                        ? "Mundane civilian action or self-preservation (e.g. 'Mind my own business, finish my coffee, and dial 911 from the payphone')..."
+                        : effectiveCategory === 'DIRECTOR'
+                        ? "Frame scene, calibrate pacing, or introduce environmental tension..."
+                        : 'What is your next impulse? (Shift+Enter for new line)'
+                    }
+                    className="w-full bg-transparent text-sm sm:text-base px-4 py-3 resize-none focus:outline-none placeholder:text-zinc-600 min-h-[52px] max-h-[25vh] custom-scrollbar leading-relaxed text-zinc-100 font-serif"
+                  />
+                </div>
 
-              {/* Blinking indicator dot */}
-              <div className="absolute right-0 bottom-4 w-2 h-2 rounded-full animate-pulse transition-colors duration-1000 bg-zinc-500" />
+                <button
+                  onClick={() => handleCommand()}
+                  disabled={isLoading || isAutopilotRunning || isTerminated || !input.trim()}
+                  className="px-5 py-2.5 rounded bg-amber-900/30 hover:bg-amber-900/60 border border-amber-700/80 text-amber-200 font-serif tracking-widest text-xs uppercase transition-all disabled:opacity-30 disabled:pointer-events-none shrink-0 h-[52px] flex items-center gap-2 cursor-pointer shadow-sm"
+                >
+                  <span>Channel</span>
+                </button>
+
+                {/* Autopilot Controls */}
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-zinc-950 border border-zinc-800 rounded shrink-0 h-[52px]">
+                  <div className="flex flex-col">
+                    <span className="text-[9px] uppercase tracking-wider text-zinc-500 font-mono">
+                      Autopilot
+                    </span>
+                    <input
+                      type="number"
+                      min="2"
+                      max="25"
+                      value={autopilotTarget}
+                      onChange={(e) => setAutopilotTarget(Number(e.target.value))}
+                      disabled={isAutopilotRunning || isLoading || isTerminated}
+                      className="w-10 bg-black text-zinc-200 text-xs p-0.5 border border-zinc-800 rounded text-center focus:outline-none"
+                    />
+                  </div>
+                  {!isAutopilotRunning ? (
+                    <button
+                      onClick={handleStartAutopilot}
+                      disabled={isLoading || isTerminated}
+                      className="text-[10px] uppercase tracking-wider bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-2.5 py-1.5 rounded transition-colors font-mono cursor-pointer disabled:opacity-30"
+                      type="button"
+                    >
+                      Engage
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleStopAutopilot}
+                      className="text-[10px] uppercase tracking-wider bg-red-950 hover:bg-red-900 text-red-200 px-2.5 py-1.5 border border-red-800 rounded transition-colors font-mono cursor-pointer"
+                      type="button"
+                    >
+                      Abort
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </main>
+
+        {/* RIGHT WING: The Historian Docked & Scenario Dossier */}
+        {isRightWingOpen && (
+          <aside
+            data-testid="engine-right-wing"
+            className="w-[460px] 2xl:w-[500px] shrink-0 h-full flex flex-col overflow-hidden bg-zinc-950/90 border border-zinc-800/80 rounded-lg shadow-2xl backdrop-blur-md"
+          >
+            {/* Wing Navigation Tabs */}
+            <div className="flex items-center border-b border-zinc-800/80 bg-black/60 shrink-0 select-none">
+              <button
+                type="button"
+                onClick={() => setRightWingTab('historian')}
+                className={`flex-1 py-3 px-3 text-xs font-serif tracking-widest uppercase transition-all flex items-center justify-center gap-2 border-r border-zinc-800/80 cursor-pointer ${
+                  rightWingTab === 'historian'
+                    ? 'bg-zinc-900/70 text-amber-300 font-bold border-b-2 border-b-amber-500'
+                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/30'
+                }`}
+              >
+                <BookOpen className="w-3.5 h-3.5 text-amber-500" />
+                The Historian
+              </button>
+              <button
+                type="button"
+                onClick={() => setRightWingTab('dossier')}
+                className={`flex-1 py-3 px-3 text-xs font-serif tracking-widest uppercase transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                  rightWingTab === 'dossier'
+                    ? 'bg-zinc-900/70 text-amber-300 font-bold border-b-2 border-b-amber-500'
+                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/30'
+                }`}
+              >
+                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                Scenario Dossier
+              </button>
             </div>
 
-            <div className="flex flex-col items-center gap-2 p-2.5 bg-zinc-900/40 border border-zinc-800/80 rounded ml-6 mb-1">
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-zinc-400 font-mono tracking-widest uppercase font-semibold">
-                  Autopilot
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  min="2"
-                  max="25"
-                  value={autopilotTarget}
-                  onChange={(e) => setAutopilotTarget(Number(e.target.value))}
-                  disabled={isAutopilotRunning || isLoading || isTerminated}
-                  className="w-14 bg-black text-zinc-200 text-xs p-1.5 border border-zinc-700 rounded text-center focus:outline-none"
+            {/* Wing Content Container */}
+            <div className="flex-1 overflow-hidden flex flex-col min-h-0">
+              {!isTerminated && rightWingTab === 'historian' ? (
+                <TheVoice isDocked={true} className="h-full border-none rounded-none shadow-none" />
+              ) : (
+                <ScenarioDossier
+                  blueprint={activeBlueprint}
+                  telemetry={telemetry}
+                  turnCount={turnCount}
+                  latestForensicRecord={latestForensicRecord}
+                  className="h-full border-none rounded-none shadow-none"
                 />
-                {!isAutopilotRunning ? (
-                  <button
-                    onClick={handleStartAutopilot}
-                    disabled={isLoading || isTerminated}
-                    className="text-xs uppercase tracking-wider bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-3 py-1.5 rounded transition-colors font-mono cursor-pointer disabled:opacity-30 disabled:pointer-events-none"
-                    type="button"
-                  >
-                    Engage
-                  </button>
-                ) : (
-                  <button
-                    onClick={handleStopAutopilot}
-                    className="text-xs uppercase tracking-wider bg-red-900/50 hover:bg-red-900 text-red-200 px-3 py-1.5 border border-red-800/50 rounded transition-colors font-mono cursor-pointer"
-                    type="button"
-                  >
-                    Abort
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ========================================= */}
-      {/* DUAL-PANE X-RAY TELEMETRY HUD             */}
-      {/* ========================================= */}
-
-      {/* Floating HUD Activation Trigger */}
-      <button
-        onClick={() => setIsTelemetryOpen(!isTelemetryOpen)}
-        className="absolute top-5 right-6 z-50 font-mono text-xs uppercase tracking-widest text-zinc-400 hover:text-zinc-100 transition-colors bg-black/80 backdrop-blur-md px-4 py-2 border border-zinc-800 rounded select-none shadow-lg cursor-pointer"
-      >
-        {isTelemetryOpen ? '[ CLOSE ]' : '[ TAB ] TELEMETRY'}
-      </button>
-
-      {/* Screen-locked absolute container block to isolate the overlay from text reflows */}
-      <div className={`fixed inset-0 pointer-events-none z-40 overflow-hidden`}>
-        {/* Clickable Backdrop Mask - Intensified blur to completely isolate focus to the side panels */}
-        <div
-          onClick={() => setIsTelemetryOpen(false)}
-          className={`absolute inset-0 bg-black/60 backdrop-blur-md transition-opacity duration-500 ease-out ${
-            isTelemetryOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
-          }`}
-        />
-
-        {/* ========================================= */}
-        {/* LEFT PANE: CAST LEDGER & LOCATION INFO    */}
-        {/* ========================================= */}
-        <div
-          className={`absolute top-0 left-0 h-full w-[520px] 2xl:w-[580px] max-w-full border-r border-zinc-800/80 bg-[#050505]/95 backdrop-blur-2xl shadow-[50px_0_50px_rgba(0,0,0,0.5)] transform transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] flex flex-col pointer-events-auto no-scrollbar ${
-            isTelemetryOpen ? 'translate-x-0' : '-translate-x-full'
-          }`}
-        >
-          {/* Header Console Bar */}
-          <div className="p-8 border-b border-zinc-800/80 bg-zinc-900/20 shrink-0 select-none">
-            <h3 className="text-zinc-300 text-sm sm:text-base font-mono tracking-widest uppercase mb-1 font-bold">
-              Subject Telemetry
-            </h3>
-            <div className="text-zinc-400 text-xs tracking-wider uppercase font-mono flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-cyan-500 animate-pulse" />
-              Tracking: Active
-            </div>
-          </div>
-
-          {/* Expanded Cast Ledger Scroll Track */}
-          <div className="flex-1 overflow-y-auto no-scrollbar p-8 space-y-6 font-mono selection:bg-zinc-800">
-            <h4 className="text-zinc-400 text-xs sm:text-sm tracking-widest uppercase border-b border-zinc-800 pb-2 font-semibold">
-              Cast Ledger [ Live Map ]
-            </h4>
-            <div className="space-y-4">
-              {telemetry?.castLedger && telemetry.castLedger.length > 0 ? (
-                telemetry.castLedger.map((member, index) => (
-                  <div
-                    key={index}
-                    className="bg-zinc-950/60 border border-zinc-800 p-5 rounded shadow-md space-y-2"
-                  >
-                    <div className="text-zinc-100 text-sm sm:text-base font-bold tracking-wide">
-                      {member.character_name || (member as any).name}
-                    </div>
-                    <div className="text-xs sm:text-sm text-zinc-300 leading-relaxed font-mono">
-                      <span className="text-cyan-400 uppercase tracking-widest text-xs mr-2 font-bold">
-                        LOC:
-                      </span>
-                      {member.current_location || 'Coordinates tracked internally.'}
-                    </div>
-                    <div className="text-xs sm:text-sm text-zinc-400 leading-relaxed font-mono">
-                      <span className="text-red-400 uppercase tracking-widest text-xs mr-2 font-bold">
-                        PSY:
-                      </span>
-                      {member.psychological_status || (member as any).description}
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="text-zinc-500 text-xs sm:text-sm uppercase tracking-widest text-center py-8 border border-dashed border-zinc-800 rounded bg-zinc-950/20">
-                  Awaiting target metrics...
-                </div>
               )}
             </div>
-          </div>
-        </div>
-
-        {/* ========================================= */}
-        {/* RIGHT PANE: ENGINE SCENARIO & VARIABLES   */}
-        {/* ========================================= */}
-        <div
-          className={`absolute top-0 right-0 h-full w-[520px] 2xl:w-[580px] max-w-full border-l border-zinc-800/80 bg-[#050505]/95 backdrop-blur-2xl shadow-[-50px_0_50px_rgba(0,0,0,0.5)] transform transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] flex flex-col pointer-events-auto no-scrollbar ${
-            isTelemetryOpen ? 'translate-x-0' : 'translate-x-full'
-          }`}
-        >
-          {/* Header Console Bar */}
-          <div className="p-8 border-b border-zinc-800/80 bg-zinc-900/20 shrink-0 select-none">
-            <h3 className="text-zinc-300 text-sm sm:text-base font-mono tracking-widest uppercase mb-1 font-bold">
-              System Diagnostics
-            </h3>
-            <div className="text-zinc-400 text-xs tracking-wider uppercase font-mono flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-              Engine Stream: Active
-            </div>
-          </div>
-
-          {/* Expanded Engine Data Scroll Track */}
-          <div className="flex-1 overflow-y-auto no-scrollbar p-8 space-y-8 font-mono selection:bg-zinc-800">
-            {/* Active Variables Section */}
-            <div className="space-y-4">
-              <h4 className="text-zinc-400 text-xs sm:text-sm tracking-widest uppercase border-b border-zinc-800 pb-2 font-semibold">
-                Active Variables
-              </h4>
-              <div className="flex justify-between items-center bg-zinc-950 border border-zinc-800 p-4 rounded shadow-inner mb-2">
-                <span className="text-zinc-300 text-xs sm:text-sm uppercase tracking-widest font-bold">
-                  Simulation Turn
-                </span>
-                <span className="text-white text-sm font-bold tracking-widest bg-zinc-900 px-3 py-1.5 rounded border border-zinc-700">
-                  [ {turnCount || 1} ]
-                </span>
-              </div>
-              <div className="flex justify-between items-center bg-zinc-950/80 border border-zinc-800/80 p-4 rounded">
-                <span className="text-zinc-300 text-xs sm:text-sm uppercase tracking-wider">
-                  Tension Level
-                </span>
-                <span className="text-red-400 text-xs sm:text-sm font-bold tracking-widest uppercase">
-                  {telemetry?.tension || 'LOW'}
-                </span>
-              </div>
-              <div className="flex justify-between items-center bg-zinc-950/80 border border-zinc-800/80 p-4 rounded">
-                <span className="text-zinc-300 text-xs sm:text-sm uppercase tracking-wider">
-                  Narrative Pacing
-                </span>
-                <span className="text-cyan-400 text-xs sm:text-sm font-bold tracking-widest uppercase">
-                  {telemetry?.pacing || 'CREEPING'}
-                </span>
-              </div>
-            </div>
-
-            {/* Engine Rationale Section */}
-            <div className="space-y-4 pb-4">
-              <h4 className="text-zinc-400 text-xs sm:text-sm tracking-widest uppercase border-b border-zinc-800 pb-2 font-semibold">
-                Engine Rationale
-              </h4>
-              <div className="bg-[#020202] border border-zinc-800 p-6 rounded text-xs sm:text-sm text-zinc-300 leading-relaxed italic shadow-[inset_0_0_20px_rgba(0,0,0,0.8)] whitespace-pre-wrap font-mono">
-                {telemetry?.engineLogic || 'Awaiting structural system rationale...'}
-              </div>
-            </div>
-
-            {/* Horror Grammar Forensics Section (Packet 1-8) */}
-            <div className="space-y-4 pb-4">
-              <div className="flex justify-between items-center border-b border-zinc-800 pb-2">
-                <h4 className="text-zinc-400 text-xs sm:text-sm tracking-widest uppercase font-semibold">
-                  Horror Grammar Forensics
-                </h4>
-                {latestForensicRecord && (
-                  <button
-                    onClick={() => setIsHgForensicsOpen(!isHgForensicsOpen)}
-                    className="text-[10px] uppercase tracking-wider text-zinc-500 hover:text-zinc-300 font-mono cursor-pointer"
-                    type="button"
-                  >
-                    {isHgForensicsOpen ? '[ COLLAPSE ]' : '[ EXPAND ]'}
-                  </button>
-                )}
-              </div>
-
-              {latestForensicRecord ? (
-                isHgForensicsOpen ? (
-                  <div className="space-y-4 text-xs font-mono">
-                    {/* Turn Identity & Fictional Time */}
-                    <div className="bg-zinc-950 border border-zinc-800 p-4 rounded space-y-2">
-                      <div className="text-zinc-400 text-xs uppercase tracking-wider font-bold">
-                        Turn Identity &amp; Selection
-                      </div>
-                      <div className="text-zinc-300">
-                        <span className="text-zinc-500">Turn:</span> {latestForensicRecord.turnNumber} |{' '}
-                        <span className="text-zinc-500">Fictional Time:</span> Moment{' '}
-                        {latestForensicRecord.preFictionalTime.moment_revision} →{' '}
-                        {latestForensicRecord.postFictionalTime?.moment_revision ?? latestForensicRecord.preFictionalTime.moment_revision}
-                      </div>
-                      <div className="text-zinc-300">
-                        <span className="text-zinc-500">Present Opportunities:</span>{' '}
-                        {latestForensicRecord.presentOpportunityIds.length > 0
-                          ? latestForensicRecord.presentOpportunityIds.join(', ')
-                          : 'None'}
-                      </div>
-                      <div className="text-zinc-300">
-                        <span className="text-zinc-500">Selected Offscreen:</span>{' '}
-                        {latestForensicRecord.selectedOffscreenPursuitIds.length > 0
-                          ? latestForensicRecord.selectedOffscreenPursuitIds.join(', ')
-                          : 'None'}
-                      </div>
-                    </div>
-
-                    {/* Activity Proposal Evidence */}
-                    <div className="bg-zinc-950 border border-zinc-800 p-4 rounded space-y-2">
-                      <div className="flex justify-between items-center">
-                        <span className="text-zinc-400 text-xs uppercase tracking-wider font-bold">
-                          Cast Activity Proposal
-                        </span>
-                        <span
-                          className={`text-xs font-bold uppercase tracking-wider ${
-                            latestForensicRecord.activityEvidence.disposition === 'ACCEPTED'
-                              ? 'text-emerald-400'
-                              : latestForensicRecord.activityEvidence.disposition === 'REJECTED'
-                              ? 'text-red-400'
-                              : 'text-zinc-500'
-                          }`}
-                        >
-                          {latestForensicRecord.activityEvidence.disposition === 'REJECTED'
-                            ? '[ REJECTED — NONCANONICAL ]'
-                            : latestForensicRecord.activityEvidence.disposition === 'ACCEPTED'
-                            ? '[ ACCEPTED — ADMITTED ]'
-                            : '[ NO PROPOSAL — STABLE ]'}
-                        </span>
-                      </div>
-                      <div className="text-zinc-300">
-                        <span className="text-zinc-500">Reason Code:</span>{' '}
-                        {latestForensicRecord.activityEvidence.reasonCode}
-                      </div>
-                      {latestForensicRecord.activityEvidence.castMemberId && (
-                        <div className="text-zinc-300">
-                          <span className="text-zinc-500">Actor:</span>{' '}
-                          {latestForensicRecord.activityEvidence.castMemberId} |{' '}
-                          <span className="text-zinc-500">Perception:</span>{' '}
-                          {latestForensicRecord.activityEvidence.perceptionPath || 'UNSPECIFIED'}
-                        </div>
-                      )}
-                      {latestForensicRecord.activityEvidence.activitySummary && (
-                        <div className="text-zinc-300">
-                          <span className="text-zinc-500">Summary:</span>{' '}
-                          {latestForensicRecord.activityEvidence.activitySummary}
-                        </div>
-                      )}
-                      {latestForensicRecord.activityEvidence.manifestationBlock && (
-                        <div className="mt-2 bg-black border border-zinc-800/80 p-3 rounded text-zinc-300">
-                          <div className="text-[10px] uppercase tracking-wider text-zinc-500 font-bold mb-1">
-                            {latestForensicRecord.activityEvidence.disposition === 'REJECTED'
-                              ? 'REJECTED MANIFESTATION CONTENT'
-                              : 'ACCEPTED MANIFESTATION CONTENT'}
-                          </div>
-                          <div className="italic text-xs leading-relaxed">
-                            "{latestForensicRecord.activityEvidence.manifestationBlock.content}"
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Situated Pressure Evidence */}
-                    <div className="bg-zinc-950 border border-zinc-800 p-4 rounded space-y-2">
-                      <div className="flex justify-between items-center">
-                        <span className="text-zinc-400 text-xs uppercase tracking-wider font-bold">
-                          Situated Pressure Proposal
-                        </span>
-                        <span
-                          className={`text-xs font-bold uppercase tracking-wider ${
-                            latestForensicRecord.pressureEvidence.disposition === 'ACCEPTED'
-                              ? 'text-emerald-400'
-                              : latestForensicRecord.pressureEvidence.disposition === 'REJECTED'
-                              ? 'text-red-400'
-                              : 'text-zinc-500'
-                          }`}
-                        >
-                          {latestForensicRecord.pressureEvidence.disposition === 'REJECTED'
-                            ? '[ REJECTED — NONCANONICAL ]'
-                            : latestForensicRecord.pressureEvidence.disposition === 'ACCEPTED'
-                            ? '[ ACCEPTED — ADMITTED ]'
-                            : '[ NO PROPOSAL — STABLE ]'}
-                        </span>
-                      </div>
-                      <div className="text-zinc-300">
-                        <span className="text-zinc-500">Reason Code:</span>{' '}
-                        {latestForensicRecord.pressureEvidence.reasonCode}
-                      </div>
-                      {latestForensicRecord.pressureEvidence.valueAnchorId && (
-                        <div className="text-zinc-300">
-                          <span className="text-zinc-500">Value Anchor:</span>{' '}
-                          {latestForensicRecord.pressureEvidence.valueAnchorId} |{' '}
-                          <span className="text-zinc-500">Operator:</span>{' '}
-                          {latestForensicRecord.pressureEvidence.operator || 'UNSPECIFIED'}
-                        </div>
-                      )}
-                      {latestForensicRecord.pressureEvidence.adverseProspect && (
-                        <div className="text-zinc-300">
-                          <span className="text-zinc-500">Prospect:</span>{' '}
-                          {latestForensicRecord.pressureEvidence.adverseProspect}
-                        </div>
-                      )}
-                      {latestForensicRecord.pressureEvidence.manifestationBlock && (
-                        <div className="mt-2 bg-black border border-zinc-800/80 p-3 rounded text-zinc-300">
-                          <div className="text-[10px] uppercase tracking-wider text-zinc-500 font-bold mb-1">
-                            {latestForensicRecord.pressureEvidence.disposition === 'REJECTED'
-                              ? 'REJECTED MANIFESTATION CONTENT'
-                              : 'ACCEPTED MANIFESTATION CONTENT'}
-                          </div>
-                          <div className="italic text-xs leading-relaxed">
-                            "{latestForensicRecord.pressureEvidence.manifestationBlock.content}"
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ) : null
-              ) : (
-                <div className="bg-[#020202] border border-zinc-800 p-4 rounded text-xs text-zinc-500 italic">
-                  Awaiting committed Horror Grammar turn telemetry...
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+          </aside>
+        )}
       </div>
     </div>
   );

@@ -54,7 +54,7 @@ export default function AntagonistContractDisplay() {
       className="w-full bg-zinc-950 border-b border-red-950/60 text-zinc-200 font-mono select-none"
     >
       {/* Compact Top Bar */}
-      <div className="max-w-7xl mx-auto px-6 py-3 flex flex-wrap items-center justify-between gap-4 text-xs sm:text-sm">
+      <div className="w-full px-6 lg:px-10 py-3 flex flex-wrap items-center justify-between gap-4 text-xs sm:text-sm">
         {/* Antagonist Seat Badge & Name */}
         <div className="flex items-center gap-2.5 shrink-0">
           <div className="flex items-center gap-1.5 px-2.5 py-1 bg-red-950/40 border border-red-800/60 rounded text-red-400 font-bold uppercase tracking-wider text-xs">
