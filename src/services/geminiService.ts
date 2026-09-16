@@ -200,13 +200,15 @@ export type SimulatedPlayerActionResult =
 
 export const fetchSimulatedPlayerAction = async (
   history: Message[],
-  logicState: LogicState | null
+  logicState: LogicState | null,
+  role?: string,
+  characterName?: string
 ): Promise<SimulatedPlayerActionResult> => {
   try {
     const response = await fetch('/api/simulate-player', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ history, logicState }),
+      body: JSON.stringify({ history, logicState, role, characterName }),
     });
 
     if (!response.ok) {

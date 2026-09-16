@@ -782,6 +782,38 @@ describe('Phase 3G.2A: Causal Feasibility Contracts', () => {
           suppressStructuralDeltas: false,
         });
       });
+
+      it('19. resolveExplicitCastTarget returns REMOTE_ELIGIBLE when calling absent character via phone', () => {
+        const context = createMockContext();
+        // char-002 is Gamma Delta (absent) in mock context
+        const userAction = 'Call Gamma Delta on the Nokia phone to see where they are.';
+        const target = resolveExplicitCastTarget(userAction, context);
+
+        expect(target).toEqual({
+          status: 'REMOTE_ELIGIBLE',
+          characterId: 'char-002',
+        });
+      });
+
+      it('20. COMMUNICATE with REMOTE_ELIGIBLE produces SUPPORTED / NONE and suppressStructuralDeltas: false', () => {
+        const context = createMockContext();
+        const commIntent = createMockIntent({ action_kind: 'COMMUNICATE' });
+        const transition = createMockTransition();
+        const res = evaluateCausalFeasibility({
+          intentReceipt: commIntent,
+          context,
+          transitionReceipt: transition,
+          castTarget: { status: 'REMOTE_ELIGIBLE', characterId: 'char-002' },
+        });
+
+        expect(res).toEqual({
+          feasibility: 'SUPPORTED',
+          reason_code: 'NONE',
+          authority_alignment: 'NOT_APPLICABLE',
+          suppressStructuralDeltas: false,
+        });
+      });
     });
   });
 });
+

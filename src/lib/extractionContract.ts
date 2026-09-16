@@ -1083,6 +1083,7 @@ CRITICAL EXTRACTION SCHEMAS & ENUMS:
 
 EXTRACTION POLICIES & DIRECTIVES:
 - ALWAYS EXTRACT TITLE AND PREMISE: The scenario title and premise must never be omitted.
+- BANNED AI CLICHÉ NAMES: Strictly prohibited from generating generic AI clichés: any character named ${'Van' + 'ce'}, ${'Thor' + 'ne'}, Evelyn Reed, The Whispering Man, The Watcher, Father Thomas, or Arthur Penhaligon. Always extract authentic names directly from the source text.
 - Emit EXACTLY ONE complete 'depiction_contract' candidate tied to concrete evidence for every document.
 - COMPREHENSIVE MULTI-LOCATION TOPOLOGY: Extract a rich, multi-room floorplan (minimum 5 to 10 distinct interconnected locations) so the horror simulation has spatial depth and tactical room-to-room navigation.
 - IGNORE FRONT MATTER: Skip copyright pages, ISBNs, publisher notices, tables of contents, and forewords/acknowledgments. Do NOT treat the table of contents as the entire document. Focus on the actual narrative prose chapters.

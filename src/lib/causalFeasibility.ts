@@ -9,6 +9,7 @@ export type CastTargetStatus =
   | 'NONE'
   | 'AMBIGUOUS'
   | 'PRESENT_ELIGIBLE'
+  | 'REMOTE_ELIGIBLE'
   | 'ABSENT'
   | 'INELIGIBLE';
 
@@ -40,6 +41,9 @@ function isDialogueEligible(member: EngineTurnContext['cast'][number]): boolean 
     communicationModes.includes('mediated')
   );
 }
+
+const REMOTE_COMMUNICATION_CHANNELS =
+  /\b(phone|call|calling|dial|ring|ringing|nokia|cellular|cell|telephone|intercom|radio|walkie|pager|beeper|voicemail|line|receiver|text|message)\b/i;
 
 export function resolveExplicitCastTarget(
   userAction: string,
@@ -74,6 +78,11 @@ export function resolveExplicitCastTarget(
   const match = matches[0];
 
   if (!match.isPresent) {
+    const isRemoteIntent = REMOTE_COMMUNICATION_CHANNELS.test(userAction);
+    const hasMediatedMode = match.expressionProfile?.communicationModes?.includes('mediated') ?? false;
+    if ((isRemoteIntent || hasMediatedMode) && isDialogueEligible(match)) {
+      return { status: 'REMOTE_ELIGIBLE', characterId: match.id };
+    }
     return { status: 'ABSENT', characterId: match.id };
   }
 
@@ -181,7 +190,10 @@ export function evaluateCausalFeasibility(input: {
       };
     }
 
-    if (input.castTarget.status === 'PRESENT_ELIGIBLE') {
+    if (
+      input.castTarget.status === 'PRESENT_ELIGIBLE' ||
+      input.castTarget.status === 'REMOTE_ELIGIBLE'
+    ) {
       return {
         feasibility: 'SUPPORTED',
         reason_code: 'NONE',

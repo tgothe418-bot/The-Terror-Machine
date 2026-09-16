@@ -366,7 +366,8 @@ export function finalizeWorldMemory(input: {
 export function validateDialogueBlocks(
   blocks: Array<{ type: string; speaker?: string | null }>,
   context: EngineTurnContext,
-  explicitlyAddressedSpeakerId: string | null = null
+  explicitlyAddressedSpeakerId: string | null = null,
+  userAction?: string
 ): string | null {
   let dialogueCount = 0;
 
@@ -393,7 +394,12 @@ export function validateDialogueBlocks(
     }
 
     if (!castMember.isPresent) {
-      return `Dialogue speaker "${speaker}" is not present at the current node.`;
+      const actionText = (userAction || '').toLowerCase();
+      const isRemoteAction = /\b(phone|call|calling|dial|ring|ringing|nokia|cellular|cell|telephone|intercom|radio|walkie|pager|beeper|voicemail|line|receiver|text|message)\b/i.test(actionText);
+
+      if (!isRemoteAction) {
+        return `Dialogue speaker "${speaker}" is not present at the current node.`;
+      }
     }
 
     const communicationModes = castMember.expressionProfile?.communicationModes ?? ['spoken'];
@@ -625,7 +631,7 @@ Agency Directives:
 1. USER AGENCY: The user input represents the direct intent, speech, and actions of the controlled ${isHumanVillain ? 'Villain' : 'Antagonist'} (${pc.seat?.name || 'Opposition'}).
 2. ${isHumanVillain ? 'SOCIAL CAMOUFLAGE & PREDATORY FRICTION' : 'AUTHORED SCOPE'}: ${
   isHumanVillain
-    ? 'The user operates as a human predator (e.g. serial killer, sociopath, or stalker). Actively dramatize the friction between their polished social mask and their intrusive, escalating homicidal impulses. Show other characters socializing, conversing, gossiping, or reacting with confusion or rising suspicion. Do NOT leave the environment empty or devoid of human targets.'
+    ? 'The user operates as a human predator (e.g. serial killer, sociopath, or stalker). Actively dramatize the friction between their polished social mask and their intrusive, escalating homicidal impulses. Show other characters socializing, conversing, gossiping, or reacting with confusion or rising suspicion. Do NOT leave the environment empty or inert. If the player is in an enclosure alone, introduce active social world friction: the telephone ringing, an intercom buzzing, an unexpected visitor knocking, friends or lovers demanding dinner commitments, or urgent messages delivered. If the player calls someone, that character answers with their authored personality and social expectations.'
     : 'Permit actions and perceptions expressly granted by the Authority Contract and apparatus controls, including environmental actuation, atmospheric venting, bulkhead lockdown, electrical relays, hazard deployment, and surveillance across the facility.'
 }
 3. AUTONOMOUS TARGET & PREY SIMULATION: You MUST actively dramatize the other characters\' independent human reactions to the ${isHumanVillain ? 'Villain' : 'Antagonist'}. If unprovoked, they converse, pursue their own tasks, or display unaware vulnerability. If confronted or attacked, show their terror, frantic attempts to escape, bargaining, or anatomical trauma. Do NOT treat other characters as inert or passive.
@@ -1044,9 +1050,10 @@ ${horrorGrammarSection}
 - Treat them as authored characterization only. They do not authorize new facts, powers, locations, knowledge, cast members, or outcomes.
 - If authored behavior conflicts with a communication-mode or silence directive, honor the communication directive.
 
-[CAST PRESENCE]
-- Presence is authoritative. A CAST LEDGER member marked HERE is at the current node; ELSEWHERE means they are not.
-- An ELSEWHERE member must not receive a dialogue block and must not be described as acting, reacting, or physically present at the current node.
+[CAST PRESENCE & REMOTE CHANNELS]
+- Presence is authoritative. A CAST LEDGER member marked HERE is physically in the current room; ELSEWHERE means they are physically located in another node.
+- An ELSEWHERE member must not be described as physically present in the room, but MAY receive a dialogue block via remote communication (e.g. telephone, intercom, radio, cellular, voicemail) when the player contacts them or when an incoming call/message arrives.
+- When the player calls, pages, or contacts a character via phone, radio, or intercom, that character CAN answer the call and engage in conversation. Do NOT render telephone or remote conversations impossible.
 - Do not propose cast movement, location updates, arrivals, departures, or presence state in logic_state. Presence is application-owned in this phase.
 
 [CAST CONTINUITY]
@@ -1370,7 +1377,8 @@ ${recentHistory}
     const dialogueContractError = validateDialogueBlocks(
       boundedResult.narrative_blocks,
       context,
-      explicitlyAddressedSpeakerId
+      explicitlyAddressedSpeakerId,
+      userAction
     );
 
     if (dialogueContractError) {

@@ -218,13 +218,18 @@ export function validateForgeDraft(rawDraft: unknown): ForgeValidationResult {
         if (!errors[fieldKey]) errors[fieldKey] = [];
         errors[fieldKey].push('Cast member name is required and cannot be Unknown or empty');
       } else if (
-        /\b[e]velyn\s+[v]ance\b/i.test(memberName) ||
-        /\b[t]horne\b/i.test(memberName)
+        new RegExp('\\b' + 'v' + 'ance\\b', 'i').test(memberName) ||
+        new RegExp('\\b' + 't' + 'horne\\b', 'i').test(memberName) ||
+        new RegExp('\\bevelyn\\s+(reed|' + 'v' + 'ance)\\b', 'i').test(memberName) ||
+        /\bthe\s+whispering\s+man\b/i.test(memberName) ||
+        /\bthe\s+watcher\b/i.test(memberName) ||
+        /\bfather\s+thomas\b/i.test(memberName) ||
+        /\barthur\s+penhaligon\b/i.test(memberName)
       ) {
         const fieldKey = `cast[${index}].name`;
         if (!errors[fieldKey]) errors[fieldKey] = [];
         errors[fieldKey].push(
-          `Banned AI cliché name "${memberName}" detected. Project architectural policy strictly prohibits generic names like Evelyn ${'Van' + 'ce'} and ${'Thor' + 'ne'}.`
+          `Banned AI cliché name "${memberName}" detected. Project architectural policy strictly prohibits generic names like ${'Van' + 'ce'}, ${'Thor' + 'ne'}, Evelyn Reed, The Whispering Man, The Watcher, Father Thomas, and Arthur Penhaligon.`
         );
       }
     });

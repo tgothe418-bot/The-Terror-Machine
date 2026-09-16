@@ -479,15 +479,26 @@ router.post("/simulate-player", async (req, res) => {
   const parsedBody = SimulatePlayerRequestSchema.safeParse(req.body);
   if (!parsedBody.success) return res.status(400).json({ error: "Invalid request" });
   try {
-    const { history, logicState } = parsedBody.data;
+    const { history, logicState, role, characterName } = parsedBody.data;
     
     const recentHistory = history.slice(-4).map((msg: any) => 
       `${msg.role === 'user' ? 'ME:' : 'THE ENGINE:'}\n${msg.content}`
     ).join('\n\n');
 
+    const isVillain = role === 'villain' || role === 'antagonist';
+    const isBystander = role === 'bystander';
+
+    let roleDirective = 'Your goal is to survive, investigate, and interact with the environment naturally. Be natural, occasionally hesitant, and react directly to the Engine\'s last output.';
+    if (isVillain) {
+      roleDirective = `You are playing ${characterName ? `"${characterName}"` : 'the PREDATORY VILLAIN'}. You are NOT a helpless victim. You are a cold, calculating predator/killer operating under a polished social facade. Your goal is to manage your schedule, make phone calls, manipulate acquaintances, assert dominance, check on targets, and seek opportunities to isolate victims. Act with chilling composure, vanity, and ruthless intent. Never cower or act hesitant.`;
+    } else if (isBystander) {
+      roleDirective = `You are playing ${characterName ? `"${characterName}"` : 'a civilian BYSTANDER'}. You are just an ordinary person caught in strange circumstances. Your goal is to mind your own business, avoid conflict, make phone calls, do your job, or look for normal exits. React with grounded civilian self-preservation.`;
+    }
+
     const systemPrompt = `
       You are the PLAYER in a clinical, atmospheric text-based horror simulation.
-      Your goal is to survive, investigate, and interact with the environment naturally.
+      ROLE DIRECTIVE:
+      ${roleDirective}
       
       CURRENT STATE:
       ${JSON.stringify(logicState, null, 2)}
@@ -497,7 +508,7 @@ router.post("/simulate-player", async (req, res) => {
 
       DIRECTIVE:
       Write your next immediate action or dialogue. 
-      Keep it between 1 and 3 sentences. Be natural, occasionally hesitant, and react directly to the Engine's last output.
+      Keep it between 1 and 3 sentences. React directly to the Engine's last output.
       Do NOT include your name, labels, or markdown. Output ONLY the raw text of your action.
     `;
 

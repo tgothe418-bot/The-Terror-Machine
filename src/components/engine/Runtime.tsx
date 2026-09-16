@@ -845,7 +845,9 @@ export default function Runtime() {
       // B. Fetch the Ghost Player's action
       const simulatedResult = await fetchSimulatedPlayerAction(
         canonicalState.app.history || [],
-        canonicalState.gameState || null
+        canonicalState.gameState || null,
+        participationContext?.mode || playerRole,
+        participationContext?.seat?.name
       );
 
       if (!isActiveRun()) {

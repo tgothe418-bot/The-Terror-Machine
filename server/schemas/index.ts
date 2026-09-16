@@ -24,6 +24,8 @@ export const EngineTurnRequestSchema = z.object({
 export const SimulatePlayerRequestSchema = z.object({
   history: z.array(z.any()),
   logicState: z.any().optional(),
+  role: z.string().optional(),
+  characterName: z.string().optional(),
 });
 
 export const TestSceneRequestSchema = z.object({
