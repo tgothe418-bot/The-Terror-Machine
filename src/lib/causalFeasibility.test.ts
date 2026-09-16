@@ -813,6 +813,21 @@ describe('Phase 3G.2A: Causal Feasibility Contracts', () => {
           suppressStructuralDeltas: false,
         });
       });
+
+      it('21. resolveExplicitCastTarget returns REMOTE_ELIGIBLE for inflected verbs (called, dialed, radioed, texted)', () => {
+        const context = createMockContext();
+        expect(resolveExplicitCastTarget('I called Gamma Delta immediately.', context).status).toBe('REMOTE_ELIGIBLE');
+        expect(resolveExplicitCastTarget('I dialed Gamma Delta on the console.', context).status).toBe('REMOTE_ELIGIBLE');
+        expect(resolveExplicitCastTarget('I radioed Gamma Delta about the situation.', context).status).toBe('REMOTE_ELIGIBLE');
+        expect(resolveExplicitCastTarget('I texted Gamma Delta the new code.', context).status).toBe('REMOTE_ELIGIBLE');
+      });
+
+      it('22. resolveExplicitCastTarget returns REMOTE_ELIGIBLE for headsets, commlinks, and speakerphones', () => {
+        const context = createMockContext();
+        expect(resolveExplicitCastTarget('I speak into my headset to Gamma Delta.', context).status).toBe('REMOTE_ELIGIBLE');
+        expect(resolveExplicitCastTarget('I patch Gamma Delta into the commlink.', context).status).toBe('REMOTE_ELIGIBLE');
+        expect(resolveExplicitCastTarget('I hail Gamma Delta over the speakerphone.', context).status).toBe('REMOTE_ELIGIBLE');
+      });
     });
   });
 });

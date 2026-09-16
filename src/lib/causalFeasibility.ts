@@ -42,8 +42,8 @@ function isDialogueEligible(member: EngineTurnContext['cast'][number]): boolean 
   );
 }
 
-const REMOTE_COMMUNICATION_CHANNELS =
-  /\b(phone|call|calling|dial|ring|ringing|nokia|cellular|cell|telephone|intercom|radio|walkie|pager|beeper|voicemail|line|receiver|text|message)\b/i;
+export const REMOTE_COMMUNICATION_CHANNELS =
+  /\b(phone[s]?|call[seding]*|dial[seding]*|ring[sing]*|rang|nokia|cellular|cell\s*phone|telephone[s]?|intercom[s]?|radio[seding]*|walkie[s]?|pager[s]?|page[d]?|paging|beeper[s]?|voicemail[s]?|receiver[s]?|text[seding]*|message[seding]*|comm[s]?|commlink[s]?|headset[s]?|earpiece[s]?|speakerphone[s]?|tannoy[s]?|transceiver[s]?|transmission[s]?|transmit[tsed]*|cctv|video\s*(feed|call|monitor)?|facetime|dispatch)\b/i;
 
 export function resolveExplicitCastTarget(
   userAction: string,

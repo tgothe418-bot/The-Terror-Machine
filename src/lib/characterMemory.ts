@@ -201,8 +201,16 @@ export function resolveCharacterMemory(input: {
           outcome = 'REJECTED';
           reason = 'PLAYER_CHARACTER';
           entry = null;
-        } else if (castMember.isPresent === false) {
-          // 6. CHARACTER_ABSENT when the target is not present
+        } else if (
+          castMember.isPresent === false &&
+          !(
+            candidate.source === 'TOLD' &&
+            input.intentReceipt.action_kind === 'COMMUNICATE' &&
+            (input.castInteractionReceipt.addressedCharacterId === rawCharId ||
+              input.castInteractionReceipt.respondingCharacterId === rawCharId)
+          )
+        ) {
+          // 6. CHARACTER_ABSENT when the target is not present and not engaged in remote communication
           outcome = 'REJECTED';
           reason = 'CHARACTER_ABSENT';
           entry = null;

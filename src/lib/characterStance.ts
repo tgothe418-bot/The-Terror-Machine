@@ -124,8 +124,15 @@ export function resolveCharacterStance(input: {
           // 5. PLAYER_CHARACTER when the ID is context.player.characterId or the cast member is isUserCharacter
           outcome = 'REJECTED';
           reason = 'PLAYER_CHARACTER';
-        } else if (castMember.isPresent === false) {
-          // 6. CHARACTER_ABSENT when the cast member is not present
+        } else if (
+          castMember.isPresent === false &&
+          !(
+            input.intentReceipt.action_kind === 'COMMUNICATE' &&
+            (input.castInteractionReceipt.addressedCharacterId === characterId ||
+              input.castInteractionReceipt.respondingCharacterId === characterId)
+          )
+        ) {
+          // 6. CHARACTER_ABSENT when the cast member is not present and not engaged in remote communication
           outcome = 'REJECTED';
           reason = 'CHARACTER_ABSENT';
         } else if (

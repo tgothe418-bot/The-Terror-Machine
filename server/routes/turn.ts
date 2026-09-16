@@ -69,6 +69,7 @@ import { resolveCanonicalConsequences } from '../../src/lib/canonicalConsequence
 import {
   evaluateCausalFeasibility,
   resolveExplicitCastTarget,
+  REMOTE_COMMUNICATION_CHANNELS,
   type CastTargetResolution,
   type CausalFeasibilityResult,
 } from '../../src/lib/causalFeasibility';
@@ -395,7 +396,7 @@ export function validateDialogueBlocks(
 
     if (!castMember.isPresent) {
       const actionText = (userAction || '').toLowerCase();
-      const isRemoteAction = /\b(phone|call|calling|dial|ring|ringing|nokia|cellular|cell|telephone|intercom|radio|walkie|pager|beeper|voicemail|line|receiver|text|message)\b/i.test(actionText);
+      const isRemoteAction = REMOTE_COMMUNICATION_CHANNELS.test(actionText);
 
       if (!isRemoteAction) {
         return `Dialogue speaker "${speaker}" is not present at the current node.`;
