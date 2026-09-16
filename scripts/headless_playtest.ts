@@ -41,8 +41,8 @@ interface PlaytestReport {
   summary: string;
 }
 
-// Default action heuristic for Dr. Evelyn Vance in Black Iron Mortuary
-const EVELYN_ACTIONS = [
+// Default action heuristic for Dr. Maren Ross in Black Iron Mortuary
+const MAREN_ACTIONS = [
   "Inspect the stainless steel dissection tables and examine the diagnostic telemetry panel in Autopsy Suite B.",
   "Check the swinging double doors and proceed into the Histology Substation to locate the circuit breaker.",
   "Search the histology counters for the auxiliary diagnostic power breaker while listening for ceiling rail vibrations.",
@@ -107,7 +107,7 @@ export async function runHeadlessPlaytest(options: {
       description: 'An enclosed industrial chamber.'
     };
 
-    const action = EVELYN_ACTIONS[t - 1] || `Cautiously explore adjacent avenues and observe ${currentNodeDef.label}.`;
+    const action = MAREN_ACTIONS[t - 1] || `Cautiously explore adjacent avenues and observe ${currentNodeDef.label}.`;
     
     // Find adjacent nodes
     const adjacentEdges = (blueprint.topology?.connections || []).filter(
@@ -128,7 +128,7 @@ DEPICTION CONTRACT & SOMATIC REALISM:
 
 CURRENT STATE:
 - Turn: ${t} of ${turnsCount}
-- Protagonist: Dr. Evelyn Vance (Chief Forensic Pathologist)
+- Protagonist: Dr. Maren Ross (Chief Forensic Pathologist)
 - Current Location: ${currentNodeDef.label} (ID: "${currentNodeId}")
 - Location Description: ${currentNodeDef.description}
 - Adjacent Exits: ${adjacentNodeIds.join(', ') || '(none direct)'}

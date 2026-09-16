@@ -217,6 +217,15 @@ export function validateForgeDraft(rawDraft: unknown): ForgeValidationResult {
         const fieldKey = `cast[${index}].name`;
         if (!errors[fieldKey]) errors[fieldKey] = [];
         errors[fieldKey].push('Cast member name is required and cannot be Unknown or empty');
+      } else if (
+        memberName.toLowerCase().includes('evelyn vance') ||
+        /\bthorne\b/i.test(memberName)
+      ) {
+        const fieldKey = `cast[${index}].name`;
+        if (!errors[fieldKey]) errors[fieldKey] = [];
+        errors[fieldKey].push(
+          `Banned AI cliché name "${memberName}" detected. Project architectural policy strictly prohibits generic names like Evelyn Vance and Thorne.`
+        );
       }
     });
   }

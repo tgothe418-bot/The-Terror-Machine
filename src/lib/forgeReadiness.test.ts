@@ -489,4 +489,31 @@ describe('Forge Readiness & Compilation (Packet 1-1)', () => {
       'Duplicate directed connection: "NODE_AIRLOCK->NODE_LAB"'
     );
   });
+
+  it('rejects banned AI cliché names like Evelyn Vance and Thorne', () => {
+    const draft = createValidBaseDraft();
+    draft.cast = [
+      {
+        id: 'c1',
+        name: 'Dr. Evelyn Vance',
+        role: 'Subject',
+        presenceDisposition: { kind: 'AT_NODE', nodeId: 'NODE_01' },
+      },
+      {
+        id: 'c2',
+        name: 'Silas Thorne',
+        role: 'Subject',
+        presenceDisposition: { kind: 'AT_NODE', nodeId: 'NODE_01' },
+      },
+    ];
+
+    const result = validateForgeDraft(draft);
+    expect(result.valid).toBe(false);
+    expect(result.errors['cast[0].name']).toContain(
+      'Banned AI cliché name "Dr. Evelyn Vance" detected. Project architectural policy strictly prohibits generic names like Evelyn Vance and Thorne.'
+    );
+    expect(result.errors['cast[1].name']).toContain(
+      'Banned AI cliché name "Silas Thorne" detected. Project architectural policy strictly prohibits generic names like Evelyn Vance and Thorne.'
+    );
+  });
 });

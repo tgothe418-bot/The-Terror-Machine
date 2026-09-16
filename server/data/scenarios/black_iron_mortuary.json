@@ -9,8 +9,8 @@
   },
   "contentScale": 3,
   "contentLevelDescription": "High-Fidelity Somatic Realism & Clinical Body Horror",
-  "globalPremise": "Following a catastrophic structural decompression in Sub-Basement 7 of the Black Iron Research Facility, Chief Pathologist Dr. Evelyn Vance and Security Officer Marcus Holt awaken inside the sealed autopsy complex. The automated bio-containment bulkheads have failed into lockdown, while an experimental surgical-autopsy apparatus—Entity-41—has uncoupled from its overhead rail cradle, methodically seeking living tissue to resect, suture, and preserve.",
-  "premise": "Following a catastrophic structural decompression in Sub-Basement 7 of the Black Iron Research Facility, Chief Pathologist Dr. Evelyn Vance and Security Officer Marcus Holt awaken inside the sealed autopsy complex. The automated bio-containment bulkheads have failed into lockdown, while an experimental surgical-autopsy apparatus—Entity-41—has uncoupled from its overhead rail cradle, methodically seeking living tissue to resect, suture, and preserve.",
+  "globalPremise": "Following a catastrophic structural decompression in Sub-Basement 7 of the Black Iron Research Facility, Chief Pathologist Dr. Maren Ross and Security Officer Marcus Holt awaken inside the sealed autopsy complex. The automated bio-containment bulkheads have failed into lockdown, while an experimental surgical-autopsy apparatus—Entity-41—has uncoupled from its overhead rail cradle, methodically seeking living tissue to resect, suture, and preserve.",
+  "premise": "Following a catastrophic structural decompression in Sub-Basement 7 of the Black Iron Research Facility, Chief Pathologist Dr. Maren Ross and Security Officer Marcus Holt awaken inside the sealed autopsy complex. The automated bio-containment bulkheads have failed into lockdown, while an experimental surgical-autopsy apparatus—Entity-41—has uncoupled from its overhead rail cradle, methodically seeking living tissue to resect, suture, and preserve.",
   "backCoverBlurb": "Locked beneath four thousand tons of reinforced sea-wall concrete, Sub-Basement 7 was built to dissect the unclassifiable. Now the power is dead, the water is rising in the drains, and the automated dissection cradle is hunting for warm tissue.",
   "startingVector": "SOMATIC",
   "startingTier": "LATENT",
@@ -99,8 +99,8 @@
   },
   "cast": [
     {
-      "id": "char-evelyn-vance",
-      "name": "Dr. Evelyn Vance",
+      "id": "char-maren-ross",
+      "name": "Dr. Maren Ross",
       "role": "Chief Forensic Pathologist",
       "description": "A veteran forensic specialist whose calm, clinical demeanor masks acute post-traumatic hypervigilance. She instinctively catalogs physical trauma in precise anatomical terminology as a psychological defense mechanism against panic.",
       "personality": "Rigorous, analytical, grounded, defensive",
@@ -125,7 +125,7 @@
       "role": "Containment Security Officer",
       "description": "A weathered facility security guard nursing a severe crush fracture to his left distal radius and ulna, immobilized with a makeshift wire splint. He is defensive, pale from pain, and armed only with a tactical utility crowbar.",
       "personality": "Pragmatic, pain-fatigued, cautious, protective",
-      "goals": "Secure a route to the surface and keep Dr. Vance alive to operate the biometrics overrides.",
+      "goals": "Secure a route to the surface and keep Dr. Ross alive to operate the biometrics overrides.",
       "traits": [
         "Security Clearance",
         "Tactical Spatial Awareness",
@@ -180,7 +180,7 @@
     "incitingIncident": "The emergency battery in Autopsy Suite B clicks into failsafe mode with a high-pitched solenoid squeal, releasing Entity-41 from its ceiling docking cradle into the darkened examination wing.",
     "currentTensionLevel": "buildup",
     "keyPlotElements": [
-      "Evelyn must reach the Histology Substation to throw the diagnostic auxiliary breaker.",
+      "Maren must reach the Histology Substation to throw the diagnostic auxiliary breaker.",
       "Marcus Holt is trapped at the airlock and cannot turn the manual locking wheel with his crushed left arm alone.",
       "Entity-41 patrols the overhead rails between the Specimen Freezer and Autopsy Suite, dropping surgical trocars through ceiling access grates."
     ]

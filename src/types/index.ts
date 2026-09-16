@@ -99,11 +99,11 @@ export const TopologyEdgeSchema = z.object({
 export const ForgeTopologyNodeSchema = z.preprocess(
   (val: any) => {
     if (val && typeof val === 'object') {
-      const effectiveLabel = (val.label || val.name || val.id || '').trim();
+      const effectiveLabel = (val.label || val.name || '').trim();
       return {
         ...val,
-        label: val.label ? String(val.label).trim() : effectiveLabel,
-        name: val.name ? String(val.name).trim() : effectiveLabel,
+        label: effectiveLabel,
+        name: (val.name || val.label || '').trim(),
       };
     }
     return val;
