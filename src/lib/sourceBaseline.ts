@@ -20,6 +20,7 @@ import {
   ForgeTopologyNode,
   DepictionContractSchema,
   CharacterPresenceDisposition,
+  AntagonistProfileSchema,
 } from '../types/forge';
 import { DepictionContract } from '../types';
 import { normalizeBlueprint } from './normalizeBlueprint';
@@ -783,11 +784,131 @@ export function validateAndNormalizeDocumentAnalysis(
     }
   };
 
-  if (Array.isArray(rawObj.candidates)) {
+  const rawCandidatesList: unknown[] = Array.isArray(rawObj.candidates) ? [...rawObj.candidates] : [];
+
+  // Harvest root-level properties if present
+  const existingTargets = new Set(
+    rawCandidatesList
+      .filter((c): c is Record<string, unknown> => Boolean(c && typeof c === 'object'))
+      .map((c) => c.target)
+  );
+
+  // 1. Root Title
+  const rootTitle =
+    (typeof rawObj.scenario_title === 'string' && rawObj.scenario_title.trim() ? rawObj.scenario_title.trim() : '') ||
+    (typeof rawObj.title === 'string' && rawObj.title.trim() ? rawObj.title.trim() : '') ||
+    (typeof rawObj.name === 'string' && rawObj.name.trim() ? rawObj.name.trim() : '');
+  if (rootTitle && !existingTargets.has('scenario_title')) {
+    rawCandidatesList.unshift({
+      id: `${sourceId}-cand-title`,
+      classification: 'evidence',
+      target: 'scenario_title',
+      label: 'Scenario Title',
+      explanation: 'Harvested from root-level scenario title',
+      proposedValue: rootTitle,
+    });
+    existingTargets.add('scenario_title');
+  }
+
+  // 2. Root Premise
+  const rootPremise =
+    (typeof rawObj.scenario_premise === 'string' && rawObj.scenario_premise.trim() ? rawObj.scenario_premise.trim() : '') ||
+    (typeof rawObj.globalPremise === 'string' && rawObj.globalPremise.trim() ? rawObj.globalPremise.trim() : '') ||
+    (typeof rawObj.premise === 'string' && rawObj.premise.trim() ? rawObj.premise.trim() : '');
+  if (rootPremise && !existingTargets.has('premise')) {
+    rawCandidatesList.push({
+      id: `${sourceId}-cand-premise`,
+      classification: 'evidence',
+      target: 'premise',
+      label: 'Scenario Premise',
+      explanation: 'Harvested from root-level premise',
+      proposedValue: rootPremise,
+    });
+    existingTargets.add('premise');
+  }
+
+  // 3. Root Locations / Nodes
+  const rootLocations =
+    Array.isArray(rawObj.locations) ? rawObj.locations :
+    Array.isArray(rawObj.nodes) ? rawObj.nodes :
+    rawObj.topology && typeof rawObj.topology === 'object' && Array.isArray((rawObj.topology as any).nodeDefinitions)
+      ? (rawObj.topology as any).nodeDefinitions
+      : rawObj.topology && typeof rawObj.topology === 'object' && Array.isArray((rawObj.topology as any).nodes)
+        ? (rawObj.topology as any).nodes
+        : [];
+  for (let li = 0; li < rootLocations.length; li++) {
+    const loc = rootLocations[li];
+    if (loc && typeof loc === 'object' && !Array.isArray(loc)) {
+      rawCandidatesList.push({
+        id: `${sourceId}-cand-node-${li}`,
+        classification: 'evidence',
+        target: 'topology_node',
+        label: typeof (loc as any).label === 'string' ? (loc as any).label : typeof (loc as any).name === 'string' ? (loc as any).name : `Chamber ${li + 1}`,
+        explanation: 'Harvested from root-level spatial definitions',
+        proposedValue: loc,
+      });
+    }
+  }
+
+  // 4. Root Connections / Edges
+  const rootEdges =
+    Array.isArray(rawObj.connections) ? rawObj.connections :
+    Array.isArray(rawObj.edges) ? rawObj.edges :
+    rawObj.topology && typeof rawObj.topology === 'object' && Array.isArray((rawObj.topology as any).connections)
+      ? (rawObj.topology as any).connections
+      : [];
+  for (let ei = 0; ei < rootEdges.length; ei++) {
+    const edge = rootEdges[ei];
+    if (edge && typeof edge === 'object' && !Array.isArray(edge)) {
+      rawCandidatesList.push({
+        id: `${sourceId}-cand-edge-${ei}`,
+        classification: 'evidence',
+        target: 'topology_connection',
+        label: `Connection ${ei + 1}`,
+        explanation: 'Harvested from root-level spatial connections',
+        proposedValue: edge,
+      });
+    }
+  }
+
+  // 5. Root Cast / Characters
+  const rootCast =
+    Array.isArray(rawObj.characters) ? rawObj.characters :
+    Array.isArray(rawObj.cast) ? rawObj.cast :
+    Array.isArray(rawObj.castMembers) ? rawObj.castMembers :
+    [];
+  for (let ci = 0; ci < rootCast.length; ci++) {
+    const charItem = rootCast[ci];
+    if (charItem && typeof charItem === 'object' && !Array.isArray(charItem)) {
+      rawCandidatesList.push({
+        id: `${sourceId}-cand-cast-${ci}`,
+        classification: 'evidence',
+        target: 'cast_seed',
+        label: typeof (charItem as any).name === 'string' ? (charItem as any).name : `Character ${ci + 1}`,
+        explanation: 'Harvested from root-level cast definitions',
+        proposedValue: charItem,
+      });
+    }
+  }
+
+  // 6. Root Antagonist
+  const rootAntagonist = rawObj.antagonist || rawObj.antagonistProfile || rawObj.apparatus;
+  if (rootAntagonist && typeof rootAntagonist === 'object' && !Array.isArray(rootAntagonist) && !existingTargets.has('antagonist_profile')) {
+    rawCandidatesList.push({
+      id: `${sourceId}-cand-antagonist`,
+      classification: 'evidence',
+      target: 'antagonist_profile',
+      label: 'Antagonist Profile',
+      explanation: 'Harvested from root-level antagonist definitions',
+      proposedValue: rootAntagonist,
+    });
+  }
+
+  if (rawCandidatesList.length > 0) {
     // Pre-process: expand candidates where proposedValue is an array of objects
     // (e.g. model emits one candidate with target "cast_seed" and proposedValue = [char1, char2, ...])
     const expandedCandidates: unknown[] = [];
-    for (const c of rawObj.candidates) {
+    for (const c of rawCandidatesList) {
       if (c && typeof c === 'object' && !Array.isArray(c)) {
         const item = c as Record<string, unknown>;
         let pv = item.proposedValue;
@@ -1728,6 +1849,15 @@ export function applyCandidateToDraft(
       cloned.depictionContract = structuredClone(contract.data);
       break;
     }
+
+    case 'antagonist_profile': {
+      const profile = AntagonistProfileSchema.safeParse(candidate.proposedValue);
+      if (!profile.success) {
+        return { success: false, draft, error: 'Antagonist profile candidate proposed value is malformed.' };
+      }
+      cloned.antagonistProfile = structuredClone(profile.data);
+      break;
+    }
   }
 
   // Provenance: append sourceFileName to references if not already present
@@ -1760,6 +1890,7 @@ export const IMPORT_APPLICATION_PRIORITY = {
   value_anchor: 4,
   character_pursuit: 4,
   depiction_contract: 5,
+  antagonist_profile: 5,
   reference_attribution: 5,
 } as const;
 
@@ -1891,6 +2022,50 @@ export function reconcileDraftTopologyAndCast(draft: ForgeDraft): ForgeDraft {
   } else if (cloned.horrorGrammar.valueBaselineReview === 'UNREVIEWED' || !cloned.horrorGrammar.valueBaselineReview) {
     const hasAnchors = Array.isArray(cloned.horrorGrammar.valueAnchors) && cloned.horrorGrammar.valueAnchors.length > 0;
     cloned.horrorGrammar.valueBaselineReview = hasAnchors ? 'REVIEWED' : 'REVIEWED_NONE';
+  }
+
+  // 5. Reconcile graph continuity:
+  // If there are multiple nodes (nodeDefinitions.length > 1) and zero connections,
+  // automatically synthesize sequential bidirectional connections so that the spatial map is navigable.
+  if (cloned.topology) {
+    const nodeDefs = cloned.topology.nodeDefinitions || [];
+    const currentConns = cloned.topology.connections || [];
+    if (nodeDefs.length > 1 && currentConns.length === 0) {
+      const synthConns: any[] = [];
+      for (let i = 0; i < nodeDefs.length - 1; i++) {
+        const fromId = nodeDefs[i].id;
+        const toId = nodeDefs[i + 1].id;
+        synthConns.push({
+          from: fromId,
+          to: toId,
+          kind: 'PHYSICAL',
+          userInitiated: true,
+        });
+        synthConns.push({
+          from: toId,
+          to: fromId,
+          kind: 'PHYSICAL',
+          userInitiated: true,
+        });
+      }
+      cloned.topology.connections = synthConns;
+    }
+  }
+
+  // 6. Reconcile title:
+  // Ensure title is never completely empty
+  if (!cloned.title || !cloned.title.trim()) {
+    if (cloned.identity?.title && cloned.identity.title.trim()) {
+      cloned.title = cloned.identity.title.trim();
+    } else if (cloned.setting?.location && cloned.setting.location.trim()) {
+      cloned.title = cloned.setting.location.trim();
+    }
+  }
+  if (cloned.title && (!cloned.identity?.title || !cloned.identity.title.trim())) {
+    cloned.identity = {
+      ...(cloned.identity || { version: '1.0', author: '', thematicAnchor: '' }),
+      title: cloned.title,
+    };
   }
 
   return cloned;

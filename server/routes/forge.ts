@@ -1072,22 +1072,22 @@ Review the reference material and generate ONLY the missing or invalid fields ne
 Do NOT regenerate or modify fields that are already valid.
 
 SPECIFIC FIELD GENERATION RULES:
-1. If 'topology.nodes' is in the discrepancies:
-   Extract or synthesize 3 to 6 distinct, atmospheric spatial locations (rooms, corridors, chambers, or areas) from the reference material.
+1. If 'topology.nodes' or 'topology' is in the discrepancies:
+   Extract or synthesize 6 to 8 distinct, interconnected atmospheric chambers (containment cells, hazardous vaults, corridors, examination suites, security airlocks, service ducts) from the reference material.
    Return a "topology" object containing:
    - "startingNodeId": ID of the primary entry or central node
-   - "nodes": array of node IDs (strings in snake_case, e.g. ["foyer", "study", "cellar"])
-    - "nodeDefinitions": array of objects with:
-      - "id": string (unique ID matching one in "nodes")
-      - "label": string (display name, e.g. "Grand Foyer")
-      - "description": 1-2 atmospheric sentences describing sensory details, exits, and mood
-      - "adjacentNodeIds": array of neighbor node IDs
-    - "connections": array of objects with:
-      - "from": string (node ID)
-      - "to": string (node ID)
-      - "label": string (e.g. "Heavy oak doors", "Narrow stone stairs")
-      - "bidirectional": true
-2. If 'identity.title' is in the discrepancies:
+   - "nodes": array of 6 to 8 node IDs (strings in snake_case, e.g. ["decompression_airlock", "autopsy_suite", "histology_substation", "specimen_freezer", "incinerator_chute", "prep_sump"])
+   - "nodeDefinitions": array of 6 to 8 objects with:
+     - "id": string (unique ID matching one in "nodes")
+     - "label": string (display name, e.g. "Decompression Airlock")
+     - "description": 1-2 atmospheric sentences describing sensory details (smell, cold, sound), exits, and mood
+     - "adjacentNodeIds": array of neighbor node IDs
+   - "connections": array of bidirectional connections linking ALL chambers together into a fully connected navigable floorplan (NO orphan or disconnected rooms!):
+     - "from": string (node ID)
+     - "to": string (node ID)
+     - "label": string (e.g. "Heavy hydraulic doors", "Cold frosted passage")
+     - "bidirectional": true
+2. If 'identity.title' or 'title' is in the discrepancies:
    Generate an evocative, authentic title string in "title".
 3. If 'premise' is in the discrepancies:
    Generate a 2-3 sentence horror premise in "premise".
@@ -1100,41 +1100,28 @@ SPECIFIC FIELD GENERATION RULES:
    - "aftermath": e.g. "Lingering somatic and psychological trauma"
    - "ambiguityHandling": e.g. "Preserve epistemic uncertainty without silent contradiction"
    - "specialBoundaries": "None"
+6. If 'cast' or 'characters' is in the discrepancies:
+   Generate 2 to 3 distinct mortal characters in a "cast" array:
+   - "id": string (e.g. "char_1", "char_2")
+   - "name": string (NEVER use generic placeholder names or stock character tropes; generate authentic names matching the narrative context)
+   - "role": string (e.g. "Chief Medical Examiner", "Deputy Sheriff", "Facility Technician")
+   - "description": string (concrete physical appearance, age, clothing, physical status)
+   - "personality": string (psychological demeanor under duress)
+   - "goals": string (primary survival objective or investigation intent)
+   - "traits": array of 3 to 5 psychological traits
+   - "isEntity": false
+   - "presenceDisposition": { "kind": "AT_NODE", "nodeId": "<valid_node_id>" } or { "kind": "OFFSTAGE" }
+7. If 'antagonistProfile' or 'antagonist' is in the discrepancies:
+   Generate an "antagonistProfile" object:
+   - "kind": "APPARATUS" | "ENTITY" | "FORCE"
+   - "name": string (e.g. "Automated Suture Apparatus")
+   - "apparatusControls": array of strings (e.g. ["pneumatic ceiling rail tracks", "trocar tensioner", "hydraulic airlock dogs"])
+   - "sadisticDirectives": array of strings (e.g. ["isolate separated survivors", "resect and suture living biological tissue"])
+   - "telemetryFeeds": array of strings (e.g. ["biometric vital grid", "overhead optical scanners"])
 
 OUTPUT FORMAT:
 Return a single valid JSON object containing ONLY the patch fields to merge.
-Do NOT wrap in markdown fences if possible. Do NOT include conversational filler.
-Example:
-{
-  "topology": {
-    "startingNodeId": "foyer",
-    "nodes": ["foyer", "study", "cellar"],
-    "nodeDefinitions": [
-      {
-        "id": "foyer",
-        "label": "Grand Foyer",
-        "description": "Peeling wallpaper and a cold draft from the front entrance.",
-        "adjacentNodeIds": ["study"]
-      },
-      {
-        "id": "study",
-        "label": "Library Study",
-        "description": "Floor-to-ceiling shelves of rotting books and a locked desk.",
-        "adjacentNodeIds": ["foyer", "cellar"]
-      },
-      {
-        "id": "cellar",
-        "label": "Root Cellar",
-        "description": "Damp earth floor smelling of brine and rust.",
-        "adjacentNodeIds": ["study"]
-      }
-    ],
-    "connections": [
-      { "from": "foyer", "to": "study", "label": "Archway", "bidirectional": true },
-      { "from": "study", "to": "cellar", "label": "Trapdoor stairs", "bidirectional": true }
-    ]
-  }
-}`;
+Do NOT wrap in markdown fences if possible. Do NOT include conversational filler.`;
 
     const rawText = await executeForgePrompt(prompt, {
       responseMimeType: 'application/json',
@@ -1143,6 +1130,23 @@ Example:
     const patch = parseOrRepairJson<Record<string, any>>(rawText);
     if (!patch || typeof patch !== 'object') {
       throw new Error("Model response could not be parsed as a JSON patch.");
+    }
+
+    // Sanitize title & identity
+    if (patch.title && typeof patch.title === 'string' && patch.title.trim()) {
+      const cleanTitle = patch.title.trim();
+      patch.title = cleanTitle;
+      patch.identity = {
+        ...(patch.identity || {}),
+        title: cleanTitle,
+      };
+    }
+
+    // Sanitize premise & globalPremise
+    if (patch.premise && typeof patch.premise === 'string' && patch.premise.trim()) {
+      const cleanPremise = patch.premise.trim();
+      patch.premise = cleanPremise;
+      patch.globalPremise = cleanPremise;
     }
 
     // Sanitize topology if returned
@@ -1174,9 +1178,83 @@ Example:
           description: `Atmospheric environment of ${id.replace(/_/g, ' ')}.`,
         }));
       }
+
       if (!patch.topology.startingNodeId && Array.isArray(patch.topology.nodes) && patch.topology.nodes.length > 0) {
         patch.topology.startingNodeId = patch.topology.nodes[0];
       }
+
+      // Graph continuity & edge sanitization: ensure no orphan or disconnected nodes
+      const nodeIds: string[] = patch.topology.nodes || [];
+      const rawConnections = Array.isArray(patch.topology.connections) ? patch.topology.connections : [];
+      const sanitizedConns: any[] = [];
+      const connectedNodes = new Set<string>();
+
+      for (const edge of rawConnections) {
+        if (!edge || typeof edge !== 'object') continue;
+        const from = (edge.from || edge.fromNodeId || '').trim();
+        const to = (edge.to || edge.toNodeId || '').trim();
+        if (from && to && from !== to) {
+          sanitizedConns.push({
+            from,
+            to,
+            kind: edge.kind || 'PHYSICAL',
+            userInitiated: edge.userInitiated ?? true,
+          });
+          connectedNodes.add(from);
+          connectedNodes.add(to);
+
+          if (edge.bidirectional) {
+            sanitizedConns.push({
+              from: to,
+              to: from,
+              kind: edge.kind || 'PHYSICAL',
+              userInitiated: edge.userInitiated ?? true,
+            });
+          }
+        }
+      }
+
+      // Wire any orphan nodes to neighbors or primary
+      if (nodeIds.length > 1) {
+        for (let i = 0; i < nodeIds.length; i++) {
+          const nid = nodeIds[i];
+          if (!connectedNodes.has(nid)) {
+            const neighbor = i > 0 ? nodeIds[i - 1] : nodeIds[1];
+            sanitizedConns.push({
+              from: nid,
+              to: neighbor,
+              kind: 'PHYSICAL',
+              userInitiated: true,
+            });
+            sanitizedConns.push({
+              from: neighbor,
+              to: nid,
+              kind: 'PHYSICAL',
+              userInitiated: true,
+            });
+            connectedNodes.add(nid);
+            connectedNodes.add(neighbor);
+          }
+        }
+      }
+
+      patch.topology.connections = sanitizedConns;
+    }
+
+    // Sanitize cast if returned
+    if (Array.isArray(patch.cast) && patch.cast.length > 0) {
+      patch.cast = patch.cast.map((c: any, idx: number) => ({
+        id: c.id || `char_${idx + 1}`,
+        name: c.name || `Character ${idx + 1}`,
+        role: c.role || 'Survivor',
+        description: c.description || 'A stressed survivor.',
+        personality: c.personality || 'Cautious and determined.',
+        goals: c.goals || 'Survive the containment breach.',
+        traits: Array.isArray(c.traits) && c.traits.length > 0 ? c.traits : ['hypervigilant', 'methodical'],
+        isEntity: Boolean(c.isEntity),
+        isUserCharacter: false,
+        presenceDisposition: c.presenceDisposition || { kind: 'OFFSTAGE' },
+      }));
     }
 
     res.json({

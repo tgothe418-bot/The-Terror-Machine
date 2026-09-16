@@ -357,6 +357,7 @@ const CANONICAL_CANDIDATE_TARGETS = new Set<string>([
   'value_anchor',
   'character_pursuit',
   'depiction_contract',
+  'antagonist_profile',
 ]);
 
 const CANDIDATE_TARGET_ALIAS_MAP: Record<string, string> = {
@@ -376,7 +377,14 @@ const CANDIDATE_TARGET_ALIAS_MAP: Record<string, string> = {
   nodes: 'topology_node',
   topology: 'topology_node',
   room: 'topology_node',
+  rooms: 'topology_node',
+  chamber: 'topology_node',
+  chambers: 'topology_node',
   area: 'topology_node',
+  areas: 'topology_node',
+  place: 'topology_node',
+  places: 'topology_node',
+  locations: 'topology_node',
   initial_topology_node: 'topology_node',
   topology_nodes: 'topology_node',
   connection: 'topology_connection',
@@ -391,7 +399,7 @@ const CANDIDATE_TARGET_ALIAS_MAP: Record<string, string> = {
   // Setting aliases
   title: 'scenario_title',
   name: 'scenario_title',
-  location: 'setting_location',
+  scenario_name: 'scenario_title',
   atmosphere: 'setting_atmosphere',
   mood: 'setting_atmosphere',
   time_period: 'setting_time_period',
@@ -400,6 +408,12 @@ const CANDIDATE_TARGET_ALIAS_MAP: Record<string, string> = {
   // Contract
   contract: 'depiction_contract',
   depiction: 'depiction_contract',
+  // Antagonist
+  antagonist: 'antagonist_profile',
+  antagonist_profile: 'antagonist_profile',
+  apparatus: 'antagonist_profile',
+  monster: 'antagonist_profile',
+  entity_profile: 'antagonist_profile',
   // Pursuit & anchor
   pursuit: 'character_pursuit',
   pursuits: 'character_pursuit',
@@ -413,15 +427,42 @@ export function normalizeCandidateTarget(
   rawClassification: unknown,
   proposedValue: unknown
 ): string | undefined {
+  let cleanedTarget: string | undefined;
   if (typeof rawTarget === 'string' && rawTarget.trim()) {
-    const cleaned = rawTarget.trim().toLowerCase().replace(/-/g, '_');
-    if (CANONICAL_CANDIDATE_TARGETS.has(cleaned)) return cleaned;
-    if (CANDIDATE_TARGET_ALIAS_MAP[cleaned]) return CANDIDATE_TARGET_ALIAS_MAP[cleaned];
+    cleanedTarget = rawTarget.trim().toLowerCase().replace(/-/g, '_');
+  }
+
+  // Location shape disambiguation:
+  // If target is "location", check proposedValue shape:
+  // An object with room/node properties (id, label, name, description, hazards, visualTone) is a topology_node.
+  // A string or non-node value is setting_location.
+  if (cleanedTarget === 'location' || cleanedTarget === 'setting_location') {
+    if (proposedValue && typeof proposedValue === 'object' && !Array.isArray(proposedValue)) {
+      const obj = proposedValue as Record<string, unknown>;
+      if ('id' in obj || 'label' in obj || 'description' in obj || 'hazards' in obj || 'visualTone' in obj) {
+        return 'topology_node';
+      }
+    }
+    return 'setting_location';
+  }
+
+  if (cleanedTarget) {
+    if (CANONICAL_CANDIDATE_TARGETS.has(cleanedTarget)) return cleanedTarget;
+    if (CANDIDATE_TARGET_ALIAS_MAP[cleanedTarget]) return CANDIDATE_TARGET_ALIAS_MAP[cleanedTarget];
   }
 
   // Model emitted target into classification
   if (typeof rawClassification === 'string' && rawClassification.trim()) {
     const cleanedClass = rawClassification.trim().toLowerCase().replace(/-/g, '_');
+    if (cleanedClass === 'location' || cleanedClass === 'setting_location') {
+      if (proposedValue && typeof proposedValue === 'object' && !Array.isArray(proposedValue)) {
+        const obj = proposedValue as Record<string, unknown>;
+        if ('id' in obj || 'label' in obj || 'description' in obj || 'hazards' in obj || 'visualTone' in obj) {
+          return 'topology_node';
+        }
+      }
+      return 'setting_location';
+    }
     if (CANONICAL_CANDIDATE_TARGETS.has(cleanedClass)) return cleanedClass;
     if (CANDIDATE_TARGET_ALIAS_MAP[cleanedClass]) return CANDIDATE_TARGET_ALIAS_MAP[cleanedClass];
   }
@@ -429,6 +470,14 @@ export function normalizeCandidateTarget(
   // Fallback: Infer target from shape of proposedValue
   if (proposedValue && typeof proposedValue === 'object' && !Array.isArray(proposedValue)) {
     const obj = proposedValue as Record<string, unknown>;
+    if (
+      'entityName' in obj ||
+      'apparatusControls' in obj ||
+      'sadisticDirectives' in obj ||
+      'telemetryFeeds' in obj
+    ) {
+      return 'antagonist_profile';
+    }
     if (
       'name' in obj &&
       ('role' in obj || 'personality' in obj || 'traits' in obj || 'isEntity' in obj || 'behaviorVector' in obj)
@@ -444,7 +493,7 @@ export function normalizeCandidateTarget(
     if ('dramaticRegister' in obj || 'directness' in obj) {
       return 'depiction_contract';
     }
-    if ('fromNodeId' in obj && 'toNodeId' in obj) {
+    if (('fromNodeId' in obj && 'toNodeId' in obj) || ('from' in obj && 'to' in obj)) {
       return 'topology_connection';
     }
     if ('objective' in obj && ('castMemberId' in obj || 'presentApproach' in obj)) {
@@ -488,26 +537,175 @@ export function normalizeCandidateAliases(
   const target = candidate.target;
   let proposedValue = candidate.proposedValue;
 
+  if (Array.isArray(proposedValue) && (target === 'environmental_rule' || target === 'narrative_rule')) {
+    proposedValue = proposedValue
+      .map((v) => (typeof v === 'string' ? v.trim() : typeof v === 'object' && v ? JSON.stringify(v) : ''))
+      .filter(Boolean)
+      .join('\n');
+  }
+
   if (proposedValue && typeof proposedValue === 'object' && !Array.isArray(proposedValue)) {
     const obj = { ...(proposedValue as Record<string, unknown>) };
 
-    // 1. Cast expression guidance
-    if (target === 'cast_expression_guidance') {
-      if (obj.communicationModes !== undefined) {
-        const normalizedModes = normalizeCommunicationModes(obj.communicationModes);
-        if (normalizedModes) {
-          obj.communicationModes = normalizedModes;
-        }
+    // String targets unwrapping (scenario_title, premise, setting_location, etc.)
+    if (
+      target === 'scenario_title' ||
+      target === 'premise' ||
+      target === 'setting_location' ||
+      target === 'setting_atmosphere' ||
+      target === 'setting_time_period' ||
+      target === 'environmental_rule' ||
+      target === 'narrative_rule' ||
+      target === 'starting_node_selection' ||
+      target === 'reference_attribution'
+    ) {
+      const extractedStr =
+        typeof obj.title === 'string' && obj.title.trim()
+          ? obj.title.trim()
+          : typeof obj.name === 'string' && obj.name.trim()
+            ? obj.name.trim()
+            : typeof obj.value === 'string' && obj.value.trim()
+              ? obj.value.trim()
+              : typeof obj.text === 'string' && obj.text.trim()
+                ? obj.text.trim()
+                : typeof obj.location === 'string' && obj.location.trim()
+                  ? obj.location.trim()
+                  : typeof obj.premise === 'string' && obj.premise.trim()
+                    ? obj.premise.trim()
+                    : typeof obj.rule === 'string' && obj.rule.trim()
+                      ? obj.rule.trim()
+                      : typeof obj.description === 'string' && obj.description.trim()
+                        ? obj.description.trim()
+                        : typeof obj.atmosphere === 'string' && obj.atmosphere.trim()
+                          ? obj.atmosphere.trim()
+                          : typeof obj.timePeriod === 'string' && obj.timePeriod.trim()
+                            ? obj.timePeriod.trim()
+                            : undefined;
+      if (extractedStr) {
+        proposedValue = extractedStr;
+      }
+    }
+
+    // Topology node normalization
+    else if (target === 'topology_node') {
+      const effectiveLabel =
+        typeof obj.label === 'string' && obj.label.trim()
+          ? obj.label.trim()
+          : typeof obj.name === 'string' && obj.name.trim()
+            ? obj.name.trim()
+            : typeof obj.title === 'string' && obj.title.trim()
+              ? obj.title.trim()
+              : 'Uncharted Chamber';
+      const effectiveId =
+        typeof obj.id === 'string' && obj.id.trim()
+          ? obj.id.trim()
+          : effectiveLabel
+              .toLowerCase()
+              .replace(/[^a-z0-9_]+/g, '_')
+              .replace(/^_+|_+$/g, '') || 'node_unnamed';
+      obj.id = effectiveId;
+      obj.label = effectiveLabel;
+      obj.name = effectiveLabel;
+      if (typeof obj.description !== 'string') {
+        obj.description =
+          typeof obj.details === 'string'
+            ? obj.details
+            : typeof obj.summary === 'string'
+              ? obj.summary
+              : '';
       }
       proposedValue = obj;
     }
 
-    // 2. Topology connection
+    // Topology connection
     else if (target === 'topology_connection') {
+      const from =
+        typeof obj.from === 'string' && obj.from.trim()
+          ? obj.from.trim()
+          : typeof obj.fromNodeId === 'string' && obj.fromNodeId.trim()
+            ? obj.fromNodeId.trim()
+            : typeof obj.source === 'string' && obj.source.trim()
+              ? obj.source.trim()
+              : undefined;
+      const to =
+        typeof obj.to === 'string' && obj.to.trim()
+          ? obj.to.trim()
+          : typeof obj.toNodeId === 'string' && obj.toNodeId.trim()
+            ? obj.toNodeId.trim()
+            : typeof obj.target === 'string' && obj.target.trim()
+              ? obj.target.trim()
+              : undefined;
+      if (from && to) {
+        obj.from = from;
+        obj.to = to;
+      }
       if (obj.kind !== undefined) {
         const normalizedKind = normalizeEdgeKind(obj.kind);
-        if (normalizedKind) {
-          obj.kind = normalizedKind;
+        obj.kind = normalizedKind || 'PHYSICAL';
+      } else {
+        obj.kind = 'PHYSICAL';
+      }
+      if (obj.userInitiated === undefined) {
+        obj.userInitiated = true;
+      }
+      proposedValue = obj;
+    }
+
+    // Antagonist profile normalization
+    else if (target === 'antagonist_profile') {
+      const entityName =
+        typeof obj.entityName === 'string' && obj.entityName.trim()
+          ? obj.entityName.trim()
+          : typeof obj.name === 'string' && obj.name.trim()
+            ? obj.name.trim()
+            : typeof obj.entity === 'string' && obj.entity.trim()
+              ? obj.entity.trim()
+              : 'Primary Threat';
+      const role =
+        typeof obj.role === 'string' && obj.role.trim()
+          ? obj.role.trim()
+          : typeof obj.description === 'string' && obj.description.trim()
+            ? obj.description.trim()
+            : 'Sadistic Overseer';
+      const toStrArray = (val: unknown): string[] => {
+        if (Array.isArray(val)) {
+          return val
+            .map((v) =>
+              typeof v === 'string'
+                ? v.trim()
+                : typeof v === 'object' && v
+                  ? JSON.stringify(v)
+                  : ''
+            )
+            .filter(Boolean);
+        }
+        if (typeof val === 'string' && val.trim()) return [val.trim()];
+        return [];
+      };
+      proposedValue = {
+        entityName,
+        role,
+        apparatusControls: toStrArray(
+          obj.apparatusControls || obj.controls || obj.apparatus
+        ),
+        sadisticDirectives: toStrArray(
+          obj.sadisticDirectives || obj.directives || obj.goals || obj.tactics
+        ),
+        telemetryFeeds: toStrArray(
+          obj.telemetryFeeds || obj.telemetry || obj.feeds || obj.sensors
+        ),
+        targetVictimIds: toStrArray(
+          obj.targetVictimIds || obj.victims || obj.targetVictims
+        ),
+      };
+    }
+
+    // 1. Cast expression guidance
+    else if (target === 'cast_expression_guidance') {
+      if (obj.communicationModes !== undefined) {
+        const normalizedModes = normalizeCommunicationModes(obj.communicationModes);
+        if (normalizedModes) {
+          obj.communicationModes = normalizedModes;
         }
       }
       proposedValue = obj;
@@ -701,6 +899,15 @@ You MUST output ONLY a valid JSON object matching this schema. Do not include ma
   ],
   "candidates": [
     {
+      "id": "cand-0",
+      "classification": "evidence",
+      "target": "scenario_title",
+      "label": "Scenario Title",
+      "explanation": "Extracted atmospheric scenario title",
+      "evidenceIds": ["ev-1"],
+      "proposedValue": "The Scenario Title"
+    },
+    {
       "id": "cand-1",
       "classification": "evidence",
       "target": "depiction_contract",
@@ -739,7 +946,11 @@ You MUST output ONLY a valid JSON object matching this schema. Do not include ma
 }
 
 CRITICAL EXTRACTION SCHEMAS & ENUMS:
-1. 'depiction_contract' (MANDATORY - EXACTLY ONE - MUST BE THE FIRST ENTRY IN "candidates"):
+1. 'scenario_title' and 'premise' (MANDATORY CANDIDATES):
+   - 'scenario_title': proposedValue: string (Clear, evocative, atmospheric title for the scenario derived directly from the source text). ALWAYS emit this candidate.
+   - 'premise': proposedValue: string (2-3 sentence evocative summary of the horror premise, scenario stakes, and looming threat).
+
+2. 'depiction_contract' (MANDATORY - EXACTLY ONE IN "candidates"):
    - proposedValue: {
        "dramaticRegister": string (concrete reference-specific dramatic tone),
        "directness": string (concrete sensory and narrative camera directness),
@@ -749,21 +960,35 @@ CRITICAL EXTRACTION SCHEMAS & ENUMS:
      }
    - Must be linked to 1 to 12 evidenceIds in the evidence registry.
 
-2. 'cast_expression_guidance':
-   - proposedValue: { "communicationModes": ["${EXTRACTION_COMMUNICATION_MODES.join('" | "')}"], "expressionGuidance": string, "silenceGuidance"?: string }
-   - targetCastMemberId: string (REQUIRED)
-
-3. 'topology_node':
+3. 'topology_node' (COMPREHENSIVE SPATIAL EXTRACTION - MINIMUM 5 TO 10 LOCATIONS):
    - proposedValue: { "id": string, "label": string, "description"?: string, "sensoryGuidance"?: string }
-   - Map story-important main spaces as rich topology_nodes. Never emit a raw string node.
+   - Extract ALL distinct physical chambers, containment cells, corridors, stairwells, service hatches, examination suites, and perimeter zones mentioned in the narrative.
+   - Aim for 5 to 10 distinct, interconnected chambers. Never emit a raw string node.
+   - For each room, provide vivid sensory details (temperature, odors, acoustics, lighting, hazards).
 
 4. 'topology_connection':
    - proposedValue: { "from": string, "to": string, "kind": "${EXTRACTION_EDGE_KINDS.join('" | "')}", "requires"?: string[], "userInitiated": boolean }
+   - For every room extracted, emit corresponding 'topology_connection' candidates connecting adjacent spaces into a navigable floorplan with userInitiated: true.
 
-5. 'expandable_space_anchor':
+5. 'antagonist_profile':
+   - proposedValue: {
+       "entityName": string,
+       "role": string,
+       "apparatusControls": string[],
+       "sadisticDirectives": string[],
+       "telemetryFeeds": string[],
+       "targetVictimIds"?: string[]
+     }
+   - If an antagonistic entity, automated containment apparatus, monster, or hostile overseer is present in the source material, extract its operational profile, controls, and sadistic directives.
+
+6. 'cast_expression_guidance':
+   - proposedValue: { "communicationModes": ["${EXTRACTION_COMMUNICATION_MODES.join('" | "')}"], "expressionGuidance": string, "silenceGuidance"?: string }
+   - targetCastMemberId: string (REQUIRED)
+
+7. 'expandable_space_anchor':
    - proposedValue: { "id": string, "parentNodeId": string, "label": string, "description"?: string, "statement"?: string }
 
-6. 'value_anchor':
+8. 'value_anchor':
    - proposedValue: {
        "id": string,
        "holder": 
@@ -777,14 +1002,14 @@ CRITICAL EXTRACTION SCHEMAS & ENUMS:
        "provenance": { "kind": "REVIEWED_SOURCE", "sourceId": string, "evidenceIds": string[] }
      }
 
-7. 'cast_opening_placement':
+9. 'cast_opening_placement':
    - proposedValue:
        | { "kind": "AT_NODE", "nodeId": string }
        | { "kind": "OFFSTAGE" }
        | { "kind": "NONLOCAL" }
    - targetCastMemberId: string (REQUIRED)
 
-8. 'character_pursuit':
+10. 'character_pursuit':
    - proposedValue: {
        "id": string,
        "castMemberId": string,
@@ -800,7 +1025,7 @@ CRITICAL EXTRACTION SCHEMAS & ENUMS:
    - targetCastMemberId: string (REQUIRED)
    - Emit for each cast member with a readable source-derived opening objective. When no intent is readable, do not fabricate an objective.
 
-9. 'cast_seed':
+11. 'cast_seed':
    - proposedValue: {
        "id"?: string,
        "name": string (Full character name as established in narrative scenes),
@@ -821,9 +1046,7 @@ CRITICAL EXTRACTION SCHEMAS & ENUMS:
      Extract EVERY distinct named character, protagonist, antagonist, child, victim, guardian, employee, investigator, and entity who appears across the narrative scenes and chapters.
      Do NOT limit the extraction to only 2 or 3 characters! If a story has 5, 8, 10, or 12 characters, extract ALL of them as separate 'cast_seed' candidates. It is vastly preferable to extract a comprehensive roster so the creator can trim unwanted characters in the Cast & Character Roster than to omit characters.
 
-10. String Targets:
-   - 'scenario_title': String title.
-   - 'premise': String scenario premise / back-cover blurb.
+12. Other String Targets:
    - 'setting_location': String location name.
    - 'setting_atmosphere': String atmosphere / tone.
    - 'setting_time_period': String time period.
@@ -831,14 +1054,15 @@ CRITICAL EXTRACTION SCHEMAS & ENUMS:
    - 'narrative_rule': String narrative rule.
    - 'reference_attribution': String file name ("${fileName}").
 
-EXTRACTION POLICIES & NEGATIVE DIRECTIVES:
+EXTRACTION POLICIES & DIRECTIVES:
+- ALWAYS EXTRACT TITLE AND PREMISE: The scenario title and premise must never be omitted.
 - Emit EXACTLY ONE complete 'depiction_contract' candidate tied to concrete evidence for every document.
+- COMPREHENSIVE MULTI-LOCATION TOPOLOGY: Extract a rich, multi-room floorplan (minimum 5 to 10 distinct interconnected locations) so the horror simulation has spatial depth and tactical room-to-room navigation.
 - IGNORE FRONT MATTER: Skip copyright pages, ISBNs, publisher notices, tables of contents, and forewords/acknowledgments. Do NOT treat the table of contents as the entire document. Focus on the actual narrative prose chapters.
 - DO NOT EXTRACT REAL-WORLD PEOPLE: Never extract the author, friends/dedicatees mentioned in acknowledgments or forewords, other authors mentioned as inspirations, or book editors/illustrators as cast members. Only extract fictional characters actively existing in the narrative story.
 - IN-WORLD UNKNOWNS ONLY: The 'unknowns' array is strictly for unresolved in-universe story questions (e.g. unknown threats, missing character motives, locked doors, or rules). NEVER question or ask about the real-world author's identity or publication facts.
 - COMPLETE BLUEPRINT DATA: Every character extracted must include rich 'description', 'personality', 'goals', and 3-6 'traits'.
 - Link candidate evidenceIds to corresponding entries in the evidence list.
-- Keep opening topology compact: map primary spaces as topology_nodes and secondary areas as expandable_space_anchors.
 - Perspective neutrality: Every imported scenario is perspective-neutral. There is no global starting space, designated player character, or fixed user opening aim.
 `;
 

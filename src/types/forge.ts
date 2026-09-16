@@ -71,14 +71,95 @@ export const TelemetryFeedSchema = z.object({
 });
 export type TelemetryFeed = z.infer<typeof TelemetryFeedSchema>;
 
-export const AntagonistProfileSchema = z.object({
-  kind: z.enum(['FORCE', 'APPARATUS', 'ENTITY']).default('APPARATUS'),
-  name: z.string().default('Opposition'),
-  apparatusControls: z.array(AntagonistApparatusControlSchema).default([]),
-  preyCohort: z.array(PreyCohortMemberSchema).default([]),
-  sadisticDirectives: z.array(z.string()).default([]),
-  telemetryFeeds: z.array(TelemetryFeedSchema).default([]),
-});
+export const AntagonistProfileSchema = z.preprocess(
+  (val: any) => {
+    if (val && typeof val === 'object') {
+      const name = (val.name || val.entityName || val.entity || 'Opposition').trim();
+      let kind = val.kind;
+      if (!kind || !['FORCE', 'APPARATUS', 'ENTITY'].includes(kind)) {
+        const lower = String(val.role || val.kind || '').toLowerCase();
+        if (lower.includes('entity') || lower.includes('monster') || lower.includes('creature')) kind = 'ENTITY';
+        else if (lower.includes('force') || lower.includes('cosmic') || lower.includes('phenomenon')) kind = 'FORCE';
+        else kind = 'APPARATUS';
+      }
+
+      const apparatusControls = Array.isArray(val.apparatusControls)
+        ? val.apparatusControls.map((ctrl: any, idx: number) => {
+            if (typeof ctrl === 'string') {
+              const cleaned = ctrl.trim();
+              return {
+                id: `control-${idx + 1}`,
+                name: cleaned,
+                kind: 'MECHANICAL',
+                affectedNodeIds: [],
+                availableActions: ['ACTIVATE', 'SEAL'],
+                status: 'ONLINE',
+              };
+            }
+            if (ctrl && typeof ctrl === 'object') {
+              return {
+                id: ctrl.id || `control-${idx + 1}`,
+                name: ctrl.name || `Control ${idx + 1}`,
+                kind: ctrl.kind || 'MECHANICAL',
+                affectedNodeIds: Array.isArray(ctrl.affectedNodeIds) ? ctrl.affectedNodeIds : [],
+                availableActions: Array.isArray(ctrl.availableActions) ? ctrl.availableActions : ['ACTIVATE'],
+                status: ctrl.status || 'ONLINE',
+              };
+            }
+            return ctrl;
+          })
+        : [];
+
+      const telemetryFeeds = Array.isArray(val.telemetryFeeds)
+        ? val.telemetryFeeds.map((feed: any, idx: number) => {
+            if (typeof feed === 'string') {
+              const cleaned = feed.trim();
+              return {
+                nodeId: 'all',
+                feedType: 'OPTICAL_CAM',
+                status: 'ONLINE',
+                label: cleaned,
+              };
+            }
+            if (feed && typeof feed === 'object') {
+              return {
+                nodeId: feed.nodeId || 'all',
+                feedType: feed.feedType || 'OPTICAL_CAM',
+                status: feed.status || 'ONLINE',
+                label: feed.label || feed.name,
+              };
+            }
+            return feed;
+          })
+        : [];
+
+      const sadisticDirectives = Array.isArray(val.sadisticDirectives)
+        ? val.sadisticDirectives.map((d: any) => (typeof d === 'string' ? d.trim() : typeof d === 'object' && d ? JSON.stringify(d) : '')).filter(Boolean)
+        : [];
+
+      const preyCohort = Array.isArray(val.preyCohort) ? val.preyCohort : [];
+
+      return {
+        ...val,
+        kind,
+        name,
+        apparatusControls,
+        telemetryFeeds,
+        sadisticDirectives,
+        preyCohort,
+      };
+    }
+    return val;
+  },
+  z.object({
+    kind: z.enum(['FORCE', 'APPARATUS', 'ENTITY']).default('APPARATUS'),
+    name: z.string().default('Opposition'),
+    apparatusControls: z.array(AntagonistApparatusControlSchema).default([]),
+    preyCohort: z.array(PreyCohortMemberSchema).default([]),
+    sadisticDirectives: z.array(z.string()).default([]),
+    telemetryFeeds: z.array(TelemetryFeedSchema).default([]),
+  })
+);
 export type AntagonistProfile = z.infer<typeof AntagonistProfileSchema>;
 
 const normalizeVulnerabilityValue = (val: unknown): number => {
@@ -419,6 +500,7 @@ export const ForgeSourceCandidateTargetSchema = z.enum([
   'value_anchor',
   'character_pursuit',
   'depiction_contract',
+  'antagonist_profile',
 ] as const);
 export type ForgeSourceCandidateTarget = z.infer<typeof ForgeSourceCandidateTargetSchema>;
 
@@ -625,6 +707,14 @@ export const DepictionContractCandidateSchema = z
   })
   .strict();
 
+export const AntagonistProfileCandidateSchema = z
+  .object({
+    ...BaseCandidateProps,
+    target: z.literal('antagonist_profile'),
+    proposedValue: AntagonistProfileSchema,
+  })
+  .strict();
+
 export const ForgeSourceCandidateSchema = z.discriminatedUnion('target', [
   ScenarioTitleCandidateSchema,
   PremiseCandidateSchema,
@@ -646,6 +736,7 @@ export const ForgeSourceCandidateSchema = z.discriminatedUnion('target', [
   CharacterPursuitCandidateSchema,
   UserOpeningAimCandidateSchema,
   DepictionContractCandidateSchema,
+  AntagonistProfileCandidateSchema,
 ]);
 export type ForgeSourceCandidate = z.infer<typeof ForgeSourceCandidateSchema>;
 

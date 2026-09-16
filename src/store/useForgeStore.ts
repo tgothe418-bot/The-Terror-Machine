@@ -1082,6 +1082,21 @@ export const useForgeStoreInternal = create<ForgeStore>()(
               return state;
             }
 
+            // If draft title is empty, auto-populate from source record filename or setting location
+            if (!workingDraft.title?.trim()) {
+              const cleanFileName = (analysis.sourceRecord?.fileName || '')
+                .replace(/\.[^/.]+$/, '')
+                .replace(/[_-]+/g, ' ')
+                .replace(/\b\w/g, (char) => char.toUpperCase())
+                .trim();
+              const autoTitle = cleanFileName || workingDraft.setting?.location || 'Untitled Scenario';
+              workingDraft.title = autoTitle;
+              workingDraft.identity = {
+                ...(workingDraft.identity || { version: '1.0', author: '', thematicAnchor: '' }),
+                title: autoTitle,
+              };
+            }
+
             // If draft premise is empty, auto-populate from source summary
             if (!workingDraft.premise?.trim() && analysis.summary?.trim()) {
               workingDraft.premise = analysis.summary.trim();
@@ -1187,6 +1202,21 @@ export const useForgeStoreInternal = create<ForgeStore>()(
               const firstErr = Object.values(errors)[0] || 'Failed to apply one or more baseline candidates.';
               outcome = { success: false, error: firstErr };
               return state;
+            }
+
+            // If draft title is empty, auto-populate from source record filename or setting location
+            if (!workingDraft.title?.trim()) {
+              const cleanFileName = (analysis.sourceRecord?.fileName || '')
+                .replace(/\.[^/.]+$/, '')
+                .replace(/[_-]+/g, ' ')
+                .replace(/\b\w/g, (char) => char.toUpperCase())
+                .trim();
+              const autoTitle = cleanFileName || workingDraft.setting?.location || 'Untitled Scenario';
+              workingDraft.title = autoTitle;
+              workingDraft.identity = {
+                ...(workingDraft.identity || { version: '1.0', author: '', thematicAnchor: '' }),
+                title: autoTitle,
+              };
             }
 
             // If draft premise is empty, auto-populate from source summary

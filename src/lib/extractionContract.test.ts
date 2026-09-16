@@ -315,4 +315,98 @@ describe('extractionContract — Sanitized Issues, Parity & Prompt', () => {
     expect(prompt).not.toContain('starting_node_selection');
     expect(prompt).not.toContain('user_opening_aim_default');
   });
+
+  it('routes "location" target to topology_node when proposedValue is an object with spatial properties', () => {
+    const rawCandidate = {
+      target: 'location',
+      classification: 'evidence',
+      proposedValue: {
+        id: 'autopsy-b',
+        label: 'Autopsy Suite B',
+        description: 'Tiled floors and dissection tables.',
+      },
+    };
+    const normalized = normalizeCandidateAliases(rawCandidate);
+    expect(normalized.target).toBe('topology_node');
+    expect(normalized.proposedValue).toEqual({
+      id: 'autopsy-b',
+      label: 'Autopsy Suite B',
+      name: 'Autopsy Suite B',
+      description: 'Tiled floors and dissection tables.',
+    });
+  });
+
+  it('routes "location" target to setting_location when proposedValue is a primitive string', () => {
+    const rawCandidate = {
+      target: 'location',
+      classification: 'evidence',
+      proposedValue: 'Subterranean Research Base',
+    };
+    const normalized = normalizeCandidateAliases(rawCandidate);
+    expect(normalized.target).toBe('setting_location');
+    expect(normalized.proposedValue).toBe('Subterranean Research Base');
+  });
+
+  it('unwraps object proposedValues for string targets', () => {
+    const titleCandidate = {
+      target: 'scenario_title',
+      classification: 'evidence',
+      proposedValue: { title: 'The Cold Iron Vault' },
+    };
+    expect(normalizeCandidateAliases(titleCandidate).proposedValue).toBe('The Cold Iron Vault');
+
+    const locCandidate = {
+      target: 'setting_location',
+      classification: 'evidence',
+      proposedValue: { location: 'Black Iron Ridge' },
+    };
+    expect(normalizeCandidateAliases(locCandidate).proposedValue).toBe('Black Iron Ridge');
+
+    const premiseCandidate = {
+      target: 'premise',
+      classification: 'evidence',
+      proposedValue: { premise: 'Trapped beneath the permafrost with an autonomous surgery drone.' },
+    };
+    expect(normalizeCandidateAliases(premiseCandidate).proposedValue).toBe('Trapped beneath the permafrost with an autonomous surgery drone.');
+  });
+
+  it('routes spatial chamber aliases to topology_node', () => {
+    const aliases = ['room', 'rooms', 'chamber', 'chambers', 'area', 'areas', 'place', 'places', 'locations', 'nodes'];
+    for (const alias of aliases) {
+      const cand = {
+        target: alias,
+        classification: 'evidence',
+        proposedValue: { label: 'Storage Sump' },
+      };
+      const res = normalizeCandidateAliases(cand);
+      expect(res.target).toBe('topology_node');
+      expect((res.proposedValue as any).id).toBe('storage_sump');
+      expect((res.proposedValue as any).label).toBe('Storage Sump');
+    }
+  });
+
+  it('routes antagonist aliases to antagonist_profile and normalizes arrays', () => {
+    const cand = {
+      target: 'antagonist',
+      classification: 'evidence',
+      proposedValue: {
+        name: 'The Suture Apparatus',
+        role: 'Automated Dissection Drone',
+        controls: ['rail locks', 'trocar feeder'],
+        directives: ['resect live tissue'],
+        telemetry: ['vital sensor 1'],
+      },
+    };
+    const res = normalizeCandidateAliases(cand);
+    expect(res.target).toBe('antagonist_profile');
+    expect(res.proposedValue).toEqual({
+      entityName: 'The Suture Apparatus',
+      role: 'Automated Dissection Drone',
+      apparatusControls: ['rail locks', 'trocar feeder'],
+      sadisticDirectives: ['resect live tissue'],
+      telemetryFeeds: ['vital sensor 1'],
+      targetVictimIds: [],
+    });
+  });
 });
+

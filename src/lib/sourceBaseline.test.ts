@@ -2325,5 +2325,123 @@ describe('sourceBaseline pure functions', () => {
       expect(fuchs).toBeDefined();
       expect(fuchs?.evidenceIds).toEqual(['ev-valid-1']);
     });
+
+    it('salvages root-level title, premise, and locations when omitted from candidates array', () => {
+      const sourceRecord: ForgeSourceRecord = {
+        id: 'src-salvage-1',
+        fileName: 'mortuary_report.md',
+        mimeType: 'text/markdown',
+        kind: 'document',
+        receivedAt: Date.now(),
+        fileSizeBytes: 1024,
+      };
+
+      const rawAnalysis = {
+        title: 'Black Iron Ridge Facility',
+        premise: 'A cryogenic station under catastrophic containment failure.',
+        locations: [
+          { id: 'airlock', label: 'Decompression Airlock', description: 'Cylindrical steel chamber.' },
+          { id: 'autopsy', label: 'Autopsy Suite', description: 'Stainless steel dissection tables.' },
+        ],
+        evidence: [{ id: 'ev-1', category: 'setting', claim: 'Facility description' }],
+        candidates: [
+          {
+            id: 'cand-dep-1',
+            target: 'depiction_contract',
+            label: 'Contract',
+            explanation: 'Dread tone',
+            classification: 'evidence',
+            evidenceIds: ['ev-1'],
+            proposedValue: {
+              dramaticRegister: 'Forensic dread',
+              directness: 'Clinical directness',
+              aftermath: 'Hypothermia',
+              ambiguityHandling: 'Explicit physical clues',
+            },
+          },
+        ],
+      };
+
+      const analysis = validateAndNormalizeDocumentAnalysis(rawAnalysis, sourceRecord);
+      expect(analysis.status).toBe('completed');
+      const titleCand = analysis.candidates.find((c) => c.target === 'scenario_title');
+      expect(titleCand).toBeDefined();
+      expect(titleCand?.proposedValue).toBe('Black Iron Ridge Facility');
+
+      const premiseCand = analysis.candidates.find((c) => c.target === 'premise');
+      expect(premiseCand).toBeDefined();
+      expect(premiseCand?.proposedValue).toBe('A cryogenic station under catastrophic containment failure.');
+
+      const nodeCands = analysis.candidates.filter((c) => c.target === 'topology_node');
+      expect(nodeCands).toHaveLength(2);
+      expect((nodeCands[0].proposedValue as any).label).toBe('Decompression Airlock');
+      expect((nodeCands[1].proposedValue as any).label).toBe('Autopsy Suite');
+    });
+
+    it('reconcileDraftTopologyAndCast synthesizes bidirectional sequential connections for unconnected nodes', () => {
+      const draft: ForgeDraft = {
+        id: 'draft-unconnected-1',
+        title: 'The Outpost',
+        identity: { title: 'The Outpost', version: '1.0', author: '', thematicAnchor: '' },
+        premise: 'Cold outpost.',
+        setting: { location: 'Outpost Delta', atmosphere: 'Frozen', timePeriod: 'Modern' },
+        topology: {
+          nodes: ['chamber_1', 'chamber_2', 'chamber_3'],
+          nodeDefinitions: [
+            { id: 'chamber_1', label: 'Airlock', description: 'Chilly airlock' },
+            { id: 'chamber_2', label: 'Main Hall', description: 'Frozen mess hall' },
+            { id: 'chamber_3', label: 'Generator', description: 'Humming turbine' },
+          ],
+          connections: [],
+          anchors: [],
+        },
+      };
+
+      const reconciled = reconcileDraftTopologyAndCast(draft);
+      expect(reconciled.topology?.connections).toBeDefined();
+      expect(reconciled.topology?.connections).toHaveLength(4); // 1->2, 2->1, 2->3, 3->2
+      const edges = reconciled.topology?.connections as any[];
+      expect(edges[0]).toEqual({ from: 'chamber_1', to: 'chamber_2', kind: 'PHYSICAL', userInitiated: true });
+      expect(edges[1]).toEqual({ from: 'chamber_2', to: 'chamber_1', kind: 'PHYSICAL', userInitiated: true });
+      expect(edges[2]).toEqual({ from: 'chamber_2', to: 'chamber_3', kind: 'PHYSICAL', userInitiated: true });
+      expect(edges[3]).toEqual({ from: 'chamber_3', to: 'chamber_2', kind: 'PHYSICAL', userInitiated: true });
+    });
+
+    it('applyCandidateToDraft applies antagonist_profile candidate into draft', () => {
+      const draft: ForgeDraft = {
+        id: 'draft-antagonist-1',
+        title: 'The Machine Facility',
+        identity: { title: 'The Machine Facility', version: '1.0', author: '', thematicAnchor: '' },
+        premise: 'Autonomous system gone mad.',
+        setting: { location: 'Core 4', atmosphere: 'Clinical', timePeriod: 'Future' },
+      };
+
+      const cand: ForgeSourceCandidate = {
+        id: 'cand-antag-1',
+        sourceId: 'src-1',
+        classification: 'evidence',
+        target: 'antagonist_profile',
+        label: 'The Automated Surgical Unit',
+        explanation: 'Extracted drone overseer',
+        evidenceIds: [],
+        reviewDecision: 'accepted',
+        applicationState: 'staged',
+        proposedValue: {
+          entityName: 'Unit 734',
+          role: 'Autopsy Drone',
+          apparatusControls: ['hydraulic arm', 'door locks'],
+          sadisticDirectives: ['excise anomalies'],
+          telemetryFeeds: ['vital pulse camera'],
+          targetVictimIds: [],
+        },
+      };
+
+      const res = applyCandidateToDraft(draft, cand);
+      expect(res.success).toBe(true);
+      expect(res.draft.antagonistProfile).toBeDefined();
+      expect(res.draft.antagonistProfile?.name).toBe('Unit 734');
+      expect(res.draft.antagonistProfile?.apparatusControls).toHaveLength(2);
+    });
   });
 });
+
