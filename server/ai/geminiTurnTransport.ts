@@ -358,7 +358,7 @@ export function normalizeGeminiTurnProviderPayload(payload: unknown): unknown {
         }
         return record;
       })
-      .slice(0, 2);
+      .slice(0, 3);
   }
 
   if (isJsonRecord(payload.intent_proposal)) {

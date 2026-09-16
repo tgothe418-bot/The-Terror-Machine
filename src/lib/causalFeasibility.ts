@@ -150,10 +150,10 @@ export function evaluateCausalFeasibility(input: {
 
     if (!isAntagonistRemoteActuation) {
       return {
-        feasibility: 'IMPOSSIBLE',
+        feasibility: 'CONSTRAINED',
         reason_code: 'TOPOLOGY_LIMIT',
         authority_alignment: authorityAlignment,
-        suppressStructuralDeltas: true,
+        suppressStructuralDeltas: false,
       };
     }
   }

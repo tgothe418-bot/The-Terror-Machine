@@ -367,12 +367,21 @@ export function finalizeWorldMemory(input: {
 export const REMOTE_DISCONNECT_PATTERNS =
   /\b(hang\s*up|hung\s*up|disconnect[singed]*|click[singed]*\s*off|shut[ting]*\s*off\s*(the\s*)?(radio|phone|comm)|end[singed]*\s*(the\s*)?(call|transmission))\b/i;
 
+export const RECOGNIZED_AMBIENT_SPEAKER_PATTERN =
+  /\b(waiter|waitress|server|bartender|sommelier|busboy|hostess|maitre\s*d'?|cab\s+driver|taxi\s+driver|driver|chauffeur|cabbie|doorman|concierge|bellhop|valet|porter|secretary|receptionist|clerk|cashier|teller|police\s+officer|cop|detective|investigator|dispatcher|operator|doctor|physician|surgeon|nurse|paramedic|orderly|security\s+guard|guard|watchman|passerby|patron|bystander|pedestrian|commuter|neighbor|courier|delivery\s+person|messenger|barista|attendant|ticket\s+agent|shopkeeper|mechanic)\b/i;
+
+export function isRecognizedAmbientSpeaker(speaker: string): boolean {
+  if (typeof speaker !== 'string') return false;
+  return RECOGNIZED_AMBIENT_SPEAKER_PATTERN.test(speaker.trim());
+}
+
 export function validateDialogueBlocks(
   blocks: Array<{ type: string; speaker?: string | null }>,
   context: EngineTurnContext,
   explicitlyAddressedSpeakerId: string | null = null,
   userAction?: string,
-  recentHistory?: Array<{ role: string; content: string }>
+  recentHistory?: Array<{ role: string; content: string }> | string,
+  arrivedCastIds?: ReadonlySet<string>
 ): string | null {
   if (!Array.isArray(blocks) || !context || !Array.isArray(context.cast)) {
     return null;
@@ -395,6 +404,11 @@ export function validateDialogueBlocks(
 
     const castMember = context.cast.find((member) => member.name === speaker);
     if (!castMember) {
+      if (isRecognizedAmbientSpeaker(speaker)) {
+        // Allowed as a recognized ambient extra!
+        // Skip cast-specific stance/presence checks for ambient extras.
+        continue;
+      }
       return `Dialogue speaker "${speaker}" is not in the authorized cast.`;
     }
 
@@ -410,32 +424,36 @@ export function validateDialogueBlocks(
     }
 
     if (!castMember.isPresent) {
-      const actionText = typeof userAction === 'string' ? userAction.toLowerCase() : '';
-      const isDisconnectAction = REMOTE_DISCONNECT_PATTERNS.test(actionText);
-      const isRemoteAction = !isDisconnectAction && REMOTE_COMMUNICATION_CHANNELS.test(actionText);
-      const isAddressedMediated =
-        !isDisconnectAction &&
-        Boolean(explicitlyAddressedSpeakerId) &&
-        castMember.id === explicitlyAddressedSpeakerId &&
-        communicationModes.includes('mediated');
+      if (arrivedCastIds?.has(castMember.id)) {
+        // Allowed dialogue as they arrive co-presently!
+      } else {
+        const actionText = typeof userAction === 'string' ? userAction.toLowerCase() : '';
+        const isDisconnectAction = REMOTE_DISCONNECT_PATTERNS.test(actionText);
+        const isRemoteAction = !isDisconnectAction && REMOTE_COMMUNICATION_CHANNELS.test(actionText);
+        const isAddressedMediated =
+          !isDisconnectAction &&
+          Boolean(explicitlyAddressedSpeakerId) &&
+          castMember.id === explicitlyAddressedSpeakerId &&
+          communicationModes.includes('mediated');
 
-      // Check recent history for an active remote connection if castMember has mediated comms and hasn't disconnected
-      let isHistoricalRemoteActive = false;
-      if (
-        !isDisconnectAction &&
-        communicationModes.includes('mediated') &&
-        Array.isArray(recentHistory) &&
-        recentHistory.length > 0
-      ) {
-        const recentMessages = recentHistory.slice(-4);
-        isHistoricalRemoteActive = recentMessages.some((msg) => {
-          if (typeof msg.content !== 'string') return false;
-          return REMOTE_COMMUNICATION_CHANNELS.test(msg.content);
-        });
-      }
+        // Check recent history for an active remote connection if castMember has mediated comms and hasn't disconnected
+        let isHistoricalRemoteActive = false;
+        if (
+          !isDisconnectAction &&
+          communicationModes.includes('mediated') &&
+          Array.isArray(recentHistory) &&
+          recentHistory.length > 0
+        ) {
+          const recentMessages = recentHistory.slice(-4);
+          isHistoricalRemoteActive = recentMessages.some((msg) => {
+            if (typeof msg.content !== 'string') return false;
+            return REMOTE_COMMUNICATION_CHANNELS.test(msg.content);
+          });
+        }
 
-      if (!isRemoteAction && !isAddressedMediated && !isHistoricalRemoteActive) {
-        return `Dialogue speaker "${speaker}" is not present at the current node.`;
+        if (!isRemoteAction && !isAddressedMediated && !isHistoricalRemoteActive) {
+          return `Dialogue speaker "${speaker}" is not present at the current node.`;
+        }
       }
     }
 
@@ -458,6 +476,9 @@ export function resolveDialogueSpeakerId(
   if (dialogueBlocks.length !== 1) return null;
   const speaker = dialogueBlocks[0].speaker?.trim();
   if (!speaker) return null;
+  if (isRecognizedAmbientSpeaker(speaker)) {
+    return null;
+  }
   const matchingMembers = context.cast.filter((member) => member.name === speaker);
   return matchingMembers.length === 1 ? matchingMembers[0].id : null;
 }
@@ -1102,8 +1123,10 @@ Entity Status: ${context.player.isEntity ? 'Entity' : 'Mortal'}${playerStartingO
 ${castLedgerFormatted}
 ${horrorGrammarSection}
 [CHARACTER DIALOGUE CONTRACT]
-- A dialogue block is optional. When the user's action directly addresses a cast member whose communication modes include spoken or mediated, answer with at most one dialogue block when that member gives a material response.
-- For a dialogue block, type must be "dialogue", speaker must be the exact existing CAST LEDGER name, and content must contain only that character's concise utterance.
+- A dialogue block is optional. When the user's action directly addresses a cast member whose communication modes include spoken or mediated, answer with at most one dialogue block when that member gives a material response. Up to 3 total narrative_blocks may be emitted in the turn response.
+- Recognized ambient service and background characters (waiters, cab drivers, doormen, etc.) may speak at most one concise dialogue block to provide living texture.
+- Arbitrary named characters or hallucinated major cast remain strictly forbidden.
+- For a dialogue block from an authorized cast member, type must be "dialogue", speaker must be the exact existing CAST LEDGER name, and content must contain only that character's concise utterance.
 - Never fabricate a speaker, an alias, a new cast member, or a line of dialogue for the player-controlled character. The user's typed action already represents that character's words and choices.
 - A cast member with nonverbal as its only communication mode must not receive a dialogue block. Render its response, if any, as prose or environmental description.
 - Treat expression and silence guidance as behavioral constraints, not permission to add facts, powers, locations, or knowledge.
@@ -1118,8 +1141,10 @@ ${horrorGrammarSection}
 [CAST PRESENCE & REMOTE CHANNELS]
 - Presence is authoritative. A CAST LEDGER member marked HERE is physically in the current room; ELSEWHERE means they are physically located in another node.
 - An ELSEWHERE member must not be described as physically present in the room, but MAY receive a dialogue block via remote communication (e.g. telephone, intercom, radio, cellular, voicemail) when the player contacts them or when an incoming call/message arrives.
-- When the player calls, pages, or contacts a character via phone, radio, or intercom, that character CAN answer the call and engage in conversation. Do NOT render telephone or remote conversations impossible.
-- Do not propose cast movement, location updates, arrivals, departures, or presence state in logic_state. Presence is application-owned in this phase.
+- When the player calls, pages, or radios a character, that character answers with their authored personality and social expectations, unless dead, incapacitated, or actively refusing to answer. Dialogue over telephone lines is encouraged.
+
+[DYNAMIC CAST ARRIVALS & AGENCY]
+Cast members have spatial agency. When summoned by the player (e.g. telephone invitation, intercom request) or driven by their authored goals (e.g. arriving for an appointment, meeting, or checking a disturbance), propose their arrival in logic_state.cast_arrivals: ['character-id']. Once arriving, that character may speak co-presently upon entry.
 
 [CAST CONTINUITY]
 - Each CAST LEDGER skepticism value is a bounded continuity signal: 1.00 is strongly rational/anchored; 0.00 is complete surrender to the scenario's abnormal reality.
@@ -1294,7 +1319,7 @@ Reconciliation Revision: ${context.runtime.reconciliationRevision}
 ${systemDirective}
 
 [NARRATIVE OUTPUT BOUNDARY]
-- Emit no more than 2 total narrative_blocks.
+- Emit no more than 3 total narrative_blocks.
 
 [SPATIAL INTERPRETATION CONTRACT]
 - action_kind records the dominant action only. A turn may also contain dialogue, observation, investigation, manipulation, and physical movement.
@@ -1325,7 +1350,39 @@ NON-MOVEMENT:
 ${recentHistory}
 --- END HISTORY ---
 
-[USER ACTION]: ${userAction}${isExpansionExpected ? '\n\n[SYSTEM OVERRIDE: Threshold entry detected. If the user action is a real movement attempt across the detected unmapped boundary, set `isExpansion: true` and populate `newNodeDef`. Otherwise, set isExpansion: false and omit newNodeDef.]' : '\n\n[TOPOLOGY DIRECTIVE: Static authored topology active. Do NOT create new canonical physical nodes. Set isExpansion: false and omit newNodeDef.]'}${stateContext.reconciliationRevision > 0 ? `\n[MEMORY REVISION ID: ${stateContext.reconciliationRevision}. User perception fractured.]` : ''}`;
+[USER ACTION]: ${userAction}${isExpansionExpected ? '\n\n[SYSTEM OVERRIDE: Threshold entry detected. If the user action is a real movement attempt across the detected unmapped boundary, set `isExpansion: true` and populate `newNodeDef`. Otherwise, set isExpansion: false and omit newNodeDef.]' : '\n\n[TOPOLOGY DIRECTIVE: Static authored topology active. Do NOT create new canonical physical nodes. Set isExpansion: false and omit newNodeDef.]'}${(() => {
+  const hasSurrealWorldRule = (context.scenario.worldRules || []).some((r) =>
+    /\b(surreal|hallucinat|perceptual breakdown|dream|nightmare|delusion|fractur)\b/i.test(r)
+  );
+  const isPerceptionFractured =
+    (context.runtime.coherence !== undefined && context.runtime.coherence < 0.5) ||
+    context.runtime.phase === 'SURREAL' ||
+    hasSurrealWorldRule;
+
+  let reconciliationDirective = '';
+  if (stateContext.reconciliationRevision > 0) {
+    if (isPerceptionFractured) {
+      reconciliationDirective = `\n[MEMORY REVISION ID: ${stateContext.reconciliationRevision}. User perception fractured.]`;
+    } else {
+      reconciliationDirective = `\n[NARRATIVE RECONCILIATION: Turn revision active. Maintain causal consistency.]`;
+    }
+  }
+
+  const isLastTransitionRejected = Boolean(
+    (stateContext as any)?.lastTransitionRejected ||
+    (stateContext as any)?.lastTransitionBlocked ||
+    (stateContext as any)?.lastTransition?.accepted === false ||
+    (context.runtime as any)?.lastTransitionRejected ||
+    (context.runtime as any)?.lastTransitionBlocked ||
+    (context.runtime as any)?.lastTransition?.accepted === false
+  );
+
+  const navigationNote = isLastTransitionRejected
+    ? '\n[NAVIGATION NOTE: The requested physical movement could not be completed. Narrate the physical obstacle, locked door, boundary, or hesitation naturally without breaking reality.]'
+    : '';
+
+  return `${reconciliationDirective}${navigationNote}`;
+})()}`;
 
     // Call the LLM with strict Zod schema enforcement
     let engineResponse;
@@ -1439,12 +1496,23 @@ ${recentHistory}
       castTarget
     );
 
+    const cast_arrivals = Array.isArray(engineResponse.logic_state?.cast_arrivals)
+      ? engineResponse.logic_state.cast_arrivals
+      : [];
+    const validArrivals = cast_arrivals.filter(
+      (id: string) =>
+        context.cast.some((member) => member.id === id) &&
+        id !== context.player.characterId
+    );
+    const arrivedCastIds = new Set<string>(validArrivals);
+
     const dialogueContractError = validateDialogueBlocks(
       boundedResult.narrative_blocks,
       context,
       explicitlyAddressedSpeakerId,
       userAction,
-      recentHistory
+      recentHistory,
+      arrivedCastIds
     );
 
     if (dialogueContractError) {

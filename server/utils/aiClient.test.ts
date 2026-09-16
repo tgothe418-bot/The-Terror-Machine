@@ -341,7 +341,7 @@ describe('Track D1: Provider schema subset tests (Packet 1-10B)', () => {
       string,
       GeminiJsonSchema
     >;
-    expect(properties.narrative_blocks.maxItems).toBe(2);
+    expect(properties.narrative_blocks.maxItems).toBe(3);
 
     const visit = (node: GeminiJsonSchema, path: string): void => {
       if (path !== '$.narrative_blocks') {
@@ -358,7 +358,7 @@ describe('Track D1: Provider schema subset tests (Packet 1-10B)', () => {
     }
 
     const oversized = createBaseValidPayload();
-    oversized.narrative_blocks = Array.from({ length: 3 }, () => ({
+    oversized.narrative_blocks = Array.from({ length: 4 }, () => ({
       type: 'prose',
       content: 'Bounded by the canonical Zod contract.',
     }));
@@ -916,6 +916,7 @@ describe('Track D2: Canonical ingress tests (Packet 1-10B)', () => {
       { type: 'prose', content: 'Block 1' },
       { type: 'prose', content: 'Block 2' },
       { type: 'prose', content: 'Block 3' },
+      { type: 'prose', content: 'Block 4' },
     ];
     expect(() => parseStructuredTurnResponse(JSON.stringify(overNarrative), TurnResultSchema)).toThrow();
 
@@ -1145,6 +1146,7 @@ describe('classifyProviderResponse', () => {
           { type: 'prose', content: 'Block 1' },
           { type: 'prose', content: 'Block 2' },
           { type: 'prose', content: 'Block 3' },
+          { type: 'prose', content: 'Block 4' },
         ],
         character_stance_proposal: {
           changes: [
@@ -1170,7 +1172,7 @@ describe('classifyProviderResponse', () => {
       };
 
       const normalized = normalizeGeminiTurnProviderPayload(payload) as any;
-      expect(normalized.narrative_blocks).toHaveLength(2);
+      expect(normalized.narrative_blocks).toHaveLength(3);
       expect(normalized.character_stance_proposal.changes).toHaveLength(2);
       expect(normalized.character_relationship_proposal.changes).toHaveLength(2);
       expect(normalized.character_memory_proposal.candidates).toHaveLength(2);

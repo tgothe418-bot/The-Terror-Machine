@@ -23,6 +23,7 @@ export function buildCharacterPresence(
   validNodeIds: readonly string[],
   currentNodeId?: string | null,
   playerCharacterId?: string | null,
+  presenceUpdates?: Record<string, string | null>,
 ): CharacterPresenceById {
   const result: CharacterPresenceById = {};
   const seenIds = new Set<string>();
@@ -66,6 +67,23 @@ export function buildCharacterPresence(
         };
       }
       continue;
+    }
+
+    if (presenceUpdates && Object.prototype.hasOwnProperty.call(presenceUpdates, charId)) {
+      const updateValue = presenceUpdates[charId];
+      if (updateValue === null || updateValue === 'OFFSTAGE') {
+        continue;
+      }
+      const trimmedUpdate = typeof updateValue === 'string' ? updateValue.trim() : '';
+      if (
+        trimmedUpdate.length > 0 &&
+        (validNodesSet.has(trimmedUpdate) || trimmedUpdate === cleanCurrentNodeId)
+      ) {
+        result[charId] = {
+          nodeId: trimmedUpdate,
+        };
+        continue;
+      }
     }
 
     const persistedNode = persisted?.[charId]?.nodeId;

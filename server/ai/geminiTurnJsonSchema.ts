@@ -196,7 +196,7 @@ export const geminiTurnResponseJsonSchema: GeminiJsonSchema = {
     },
     narrative_blocks: {
       type: 'array',
-      maxItems: 2,
+      maxItems: 3,
       items: {
         type: 'object',
         properties: {
@@ -551,6 +551,8 @@ export const geminiTurnResponseJsonSchema: GeminiJsonSchema = {
           maximum: 100,
         },
         terminal_flags: { type: 'array', items: { type: 'string' } },
+        cast_arrivals: { type: 'array', items: { type: 'string' } },
+        cast_departures: { type: 'array', items: { type: 'string' } },
         cast_deltas: {
           type: 'array',
           items: {

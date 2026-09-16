@@ -359,8 +359,9 @@ describe('Turn Route Scenario-Governed Physics (Packet 09 Acceptance)', () => {
     const body = await response.json();
 
     // The unsupported transition MUST be rejected by causal reconciliation
-    expect(body.logic_state.requested_transition).toBeNull();
+    expect(body.transitionReceipt.accepted).toBe(false);
     expect(body.topologyDelta.isExpansion).toBe(false);
-    expect(body.narrativeReconciliationReceipt.mode).toBe('EXPERIENTIAL_REANCHORED');
+    expect(body.narrativeReconciliationReceipt.feasibility).toBe('CONSTRAINED');
+    expect(body.narrativeReconciliationReceipt.reason_code).toBe('TOPOLOGY_LIMIT');
   });
 });

@@ -22,6 +22,7 @@ import {
 import {
   validateDialogueBlocks,
   resolveDialogueSpeakerId,
+  isRecognizedAmbientSpeaker,
   formatCastLedger,
   normalizeCastSkepticismDeltas,
   enforceNarrativeReconciliationBoundaries,
@@ -649,12 +650,13 @@ describe('Turn schemas validation', () => {
       ).toThrow();
     });
 
-    it('rejects more than 2 narrative blocks', () => {
+    it('rejects more than 3 narrative blocks', () => {
       const invalidResult = {
         narrative_blocks: [
           { type: 'prose', content: 'Block 1' },
           { type: 'prose', content: 'Block 2' },
           { type: 'prose', content: 'Block 3' },
+          { type: 'prose', content: 'Block 4' },
         ],
         intent_proposal: validIntentProposal,
         reconciliation_proposal: validReconciliationProposal,
@@ -1389,6 +1391,75 @@ describe('Turn schemas validation', () => {
       ).toBe('Dialogue speaker "Jules Mercer" is not present at the current node.');
     });
 
+    it('validates ambient speakers and rejects unauthorized arbitrary characters', () => {
+      expect(isRecognizedAmbientSpeaker('Waiter')).toBe(true);
+      expect(isRecognizedAmbientSpeaker('Cab Driver')).toBe(true);
+      expect(isRecognizedAmbientSpeaker('Dr. Montgomery')).toBe(false);
+
+      // Ambient speakers succeed
+      expect(
+        validateDialogueBlocks(
+          [{ type: 'dialogue', speaker: 'Waiter' }],
+          context
+        )
+      ).toBeNull();
+
+      expect(
+        validateDialogueBlocks(
+          [{ type: 'dialogue', speaker: 'Cab Driver' }],
+          context
+        )
+      ).toBeNull();
+
+      // Non-cast arbitrary character fails
+      expect(
+        validateDialogueBlocks(
+          [{ type: 'dialogue', speaker: 'Dr. Montgomery' }],
+          context
+        )
+      ).toBe('Dialogue speaker "Dr. Montgomery" is not in the authorized cast.');
+
+      // resolveDialogueSpeakerId safely resolves ambient speaker to null
+      expect(
+        resolveDialogueSpeakerId(
+          [{ type: 'dialogue', speaker: 'Waiter' }],
+          context
+        )
+      ).toBeNull();
+    });
+
+    it('allows dialogue on arrival turn when cast member arrives via arrivedCastIds', () => {
+      const contextWithAbsentJules = EngineTurnContextSchema.parse({
+        ...context,
+        cast: context.cast.map((c) =>
+          c.id === 'char-jules' ? { ...c, isPresent: false } : c
+        ),
+      });
+
+      // Without arrival: fails because absent
+      expect(
+        validateDialogueBlocks(
+          [{ type: 'dialogue', speaker: 'Jules Mercer' }],
+          contextWithAbsentJules,
+          null,
+          'I wait in the foyer.'
+        )
+      ).toBe('Dialogue speaker "Jules Mercer" is not present at the current node.');
+
+      // With arrivedCastIds including char-jules: succeeds!
+      const arrivedCastIds = new Set(['char-jules']);
+      expect(
+        validateDialogueBlocks(
+          [{ type: 'dialogue', speaker: 'Jules Mercer' }],
+          contextWithAbsentJules,
+          null,
+          'I wait in the foyer.',
+          undefined,
+          arrivedCastIds
+        )
+      ).toBeNull();
+    });
+
     it('preserves cast expression profile through EngineTurnContextSchema.parse', () => {
       const castWithProfile = [
         {
@@ -2075,19 +2146,19 @@ describe('Turn schemas validation', () => {
       });
 
       // Assert causal feasibility result
-      expect(output.causal.feasibility).toBe('IMPOSSIBLE');
+      expect(output.causal.feasibility).toBe('CONSTRAINED');
       expect(output.causal.reason_code).toBe('TOPOLOGY_LIMIT');
-      expect(output.causal.suppressStructuralDeltas).toBe(true);
+      expect(output.causal.suppressStructuralDeltas).toBe(false);
 
       // Assert narrative reconciliation receipt
-      expect(output.narrativeReconciliationReceipt.feasibility).toBe('IMPOSSIBLE');
+      expect(output.narrativeReconciliationReceipt.feasibility).toBe('CONSTRAINED');
       expect(output.narrativeReconciliationReceipt.reason_code).toBe('TOPOLOGY_LIMIT');
-      expect(output.narrativeReconciliationReceipt.mode).toBe('EXPERIENTIAL_REANCHORED');
-      expect(output.narrativeReconciliationReceipt.revision_increment).toBe(1);
+      expect(output.narrativeReconciliationReceipt.mode).toBe('CANONICAL');
+      expect(output.narrativeReconciliationReceipt.revision_increment).toBe(0);
 
-      // Assert structural suppression
-      expect(output.boundedResult.logic_state.requested_transition).toBeNull();
-      expect(output.boundedResult.logic_state.cast_deltas).toEqual([]);
+      // Assert structural suppression does not occur
+      expect(output.boundedResult.logic_state.requested_transition).toBe('UNCONNECTED_SECTOR_ZERO');
+      expect(output.boundedResult.logic_state.cast_deltas).toEqual([{ character_id: 'char-elena', skepticism_delta: -0.1 }]);
       expect(output.boundedResult.topologyDelta).toEqual({ isExpansion: false, newNodeDef: null });
 
       // Assert narrative blocks preserved
@@ -2095,7 +2166,7 @@ describe('Turn schemas validation', () => {
 
       // Assert final transition is not accepted
       expect(output.transitionReceipt.accepted).toBe(false);
-      expect(output.transitionReceipt.requestedNodeId).toBeNull();
+      expect(output.transitionReceipt.requestedNodeId).toBe('UNCONNECTED_SECTOR_ZERO');
     });
 
     it('handles accepted mapped move (Case 2)', () => {
@@ -4591,7 +4662,7 @@ describe('Turn schemas validation', () => {
         'SYSTEM_DIRECTIVE_CANARY: Keep prose clinical and objective.'
       );
       expect(capturedPrompt).toContain('[NARRATIVE OUTPUT BOUNDARY]');
-      expect(capturedPrompt).toContain('Emit no more than 2 total narrative_blocks.');
+      expect(capturedPrompt).toContain('Emit no more than 3 total narrative_blocks.');
       expect(capturedPrompt).toContain('[CHARACTER MEMORY CONTRACT]');
       expect(capturedPrompt).toContain('Dr. Evans (ID: char-a)');
       expect(capturedPrompt).toContain('PRESENT_A_MEMORY_ONLY');

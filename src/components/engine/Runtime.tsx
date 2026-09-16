@@ -719,12 +719,29 @@ export default function Runtime() {
         const blueprintNodes = activeBlueprint.topology?.nodes || [];
         const validNodeIds = runtimeNodeIds.length > 0 ? runtimeNodeIds : blueprintNodes;
 
+        const presenceUpdates: Record<string, string | null> = {};
+        if (Array.isArray(response.logic_state?.cast_arrivals)) {
+          for (const arrivingId of response.logic_state.cast_arrivals) {
+            if (typeof arrivingId === 'string' && arrivingId.trim().length > 0) {
+              presenceUpdates[arrivingId.trim()] = postTurnNodeId;
+            }
+          }
+        }
+        if (Array.isArray(response.logic_state?.cast_departures)) {
+          for (const departingId of response.logic_state.cast_departures) {
+            if (typeof departingId === 'string' && departingId.trim().length > 0) {
+              presenceUpdates[departingId.trim()] = null;
+            }
+          }
+        }
+
         nextCharacterPresence = buildCharacterPresence(
           activeBlueprint.cast || [],
           baseGameState.character_presence,
           validNodeIds,
           postTurnNodeId,
           baseGameState.player_character_id,
+          presenceUpdates,
         );
         castPresenceReceipt = createCastPresenceReceipt(nextCharacterPresence);
       } else {

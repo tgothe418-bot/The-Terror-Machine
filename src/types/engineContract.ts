@@ -206,6 +206,8 @@ export const TurnRequestSchema = z.object({
     reconciliationRevision: z.number(),
     activeVector: z.string().optional(),
     activeTier: z.string().optional(),
+    lastTransitionRejected: z.boolean().optional(),
+    lastTransitionBlocked: z.boolean().optional(),
   }),
   context: EngineTurnContextSchema,
 });
@@ -413,7 +415,7 @@ export const CastInteractionReceiptSchema = z.object({
 export type CastInteractionReceipt = z.infer<typeof CastInteractionReceiptSchema>;
 
 export const TurnResultSchema = z.object({
-  narrative_blocks: z.array(NarrativeBlockSchema).max(2),
+  narrative_blocks: z.array(NarrativeBlockSchema).max(3),
   engine_thoughts: z.string().optional(),
   intent_proposal: IntentProposalSchema,
   reconciliation_proposal: NarrativeReconciliationProposalSchema,
@@ -434,6 +436,8 @@ export const TurnResultSchema = z.object({
       requested_transition: z.string().nullable().optional().default(null),
       suggested_tension: z.number().int().min(0).max(100).optional(),
       terminal_flags: z.array(z.string()).default([]),
+      cast_arrivals: z.array(z.string()).default([]),
+      cast_departures: z.array(z.string()).default([]),
       cast_deltas: z
         .array(
           z.object({

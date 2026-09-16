@@ -319,6 +319,41 @@ describe('castPresence', () => {
       // AT_NODE with invalid nodeId -> absent, does NOT fall back to player NODE_START
       expect(result['char-broken']).toBeUndefined();
     });
+
+    it('applies presenceUpdates for cast arrivals and departures', () => {
+      const cast: CastPresenceSeed[] = [
+        { id: 'char-arriving', starting_location: 'NODE_OFFICE' },
+        { id: 'char-departing', starting_location: 'NODE_START' },
+        { id: 'char-stable', starting_location: 'NODE_START' },
+      ];
+      const validNodes = ['NODE_START', 'NODE_OFFICE', 'NODE_HALL'];
+      const persisted: CharacterPresenceById = {
+        'char-arriving': { nodeId: 'NODE_OFFICE' },
+        'char-departing': { nodeId: 'NODE_START' },
+        'char-stable': { nodeId: 'NODE_START' },
+      };
+
+      const presenceUpdates: Record<string, string | null> = {
+        'char-arriving': 'NODE_START',
+        'char-departing': null,
+      };
+
+      const result = buildCharacterPresence(
+        cast,
+        persisted,
+        validNodes,
+        'NODE_START',
+        undefined,
+        presenceUpdates
+      );
+
+      // char-arriving updated to NODE_START
+      expect(result['char-arriving']).toEqual({ nodeId: 'NODE_START' });
+      // char-departing departed (null) -> absent
+      expect(result['char-departing']).toBeUndefined();
+      // char-stable had no update -> retains persisted NODE_START
+      expect(result['char-stable']).toEqual({ nodeId: 'NODE_START' });
+    });
   });
 
   describe('createCastPresenceReceipt', () => {

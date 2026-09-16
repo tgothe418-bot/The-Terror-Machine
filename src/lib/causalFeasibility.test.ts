@@ -332,7 +332,7 @@ describe('Phase 3G.2A: Causal Feasibility Contracts', () => {
       });
     });
 
-    it('8. returns IMPOSSIBLE / TOPOLOGY_LIMIT and suppressStructuralDeltas: true for rejected MOVE with concrete target', () => {
+    it('8. returns CONSTRAINED / TOPOLOGY_LIMIT and suppressStructuralDeltas: false for rejected MOVE with concrete target', () => {
       const context = createMockContext();
       const intent = createMockIntent({ action_kind: 'MOVE' });
       const transition = createMockTransition({
@@ -350,10 +350,10 @@ describe('Phase 3G.2A: Causal Feasibility Contracts', () => {
       });
 
       expect(result).toEqual({
-        feasibility: 'IMPOSSIBLE',
+        feasibility: 'CONSTRAINED',
         reason_code: 'TOPOLOGY_LIMIT',
         authority_alignment: 'NOT_APPLICABLE',
-        suppressStructuralDeltas: true,
+        suppressStructuralDeltas: false,
       });
     });
 
@@ -623,10 +623,10 @@ describe('Phase 3G.2A: Causal Feasibility Contracts', () => {
       });
 
       expect(evalResult).toEqual({
-        feasibility: 'IMPOSSIBLE',
+        feasibility: 'CONSTRAINED',
         reason_code: 'TOPOLOGY_LIMIT',
         authority_alignment: 'NOT_APPLICABLE',
-        suppressStructuralDeltas: true,
+        suppressStructuralDeltas: false,
       });
 
       // Deep equality check against raw original values
@@ -698,10 +698,10 @@ describe('Phase 3G.2A: Causal Feasibility Contracts', () => {
           });
 
           expect(res).toEqual({
-            feasibility: 'IMPOSSIBLE',
+            feasibility: 'CONSTRAINED',
             reason_code: 'TOPOLOGY_LIMIT',
             authority_alignment: 'NOT_APPLICABLE',
-            suppressStructuralDeltas: true,
+            suppressStructuralDeltas: false,
           });
         }
       });
