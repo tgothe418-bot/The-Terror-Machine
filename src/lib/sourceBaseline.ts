@@ -1974,22 +1974,30 @@ export function reconcileDraftTopologyAndCast(draft: ForgeDraft): ForgeDraft {
     cloned.topology.startingNodeId = availableNodeIds[0];
   }
 
-  // 2. Reconcile cast presence dispositions:
+  // 2. Reconcile cast presence dispositions and disposition:
   // If an AT_NODE placement references a node not present in topology,
   // fallback to OFFSTAGE so export pre-flight validation succeeds.
   if (cloned.cast && cloned.cast.length > 0) {
     const validNodeSet = new Set(availableNodeIds);
     cloned.cast = cloned.cast.map((member) => {
-      if (
-        member.presenceDisposition?.kind === 'AT_NODE' &&
-        !validNodeSet.has(member.presenceDisposition.nodeId)
-      ) {
-        return {
-          ...member,
-          presenceDisposition: { kind: 'OFFSTAGE' as const },
-        };
+      let disposition = (member as any).disposition;
+      if (!disposition || !['SURVIVOR', 'VILLAIN', 'BYSTANDER'].includes(disposition)) {
+        if (member.isEntity || String(member.role).toUpperCase() === 'ANTAGONIST') {
+          disposition = 'VILLAIN';
+        } else {
+          disposition = 'SURVIVOR';
+        }
       }
-      return member;
+
+      const invalidPlacement =
+        member.presenceDisposition?.kind === 'AT_NODE' &&
+        !validNodeSet.has(member.presenceDisposition.nodeId);
+
+      return {
+        ...member,
+        disposition,
+        ...(invalidPlacement ? { presenceDisposition: { kind: 'OFFSTAGE' as const } } : {}),
+      };
     });
   }
   // 3. Reconcile setting location:

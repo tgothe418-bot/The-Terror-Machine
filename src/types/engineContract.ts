@@ -93,7 +93,16 @@ export const EngineTurnContextSchema = z.object({
   }),
   player: z
     .object({
-      role: z.enum(['protagonist', 'antagonist', 'director', 'witness', 'possessed']),
+      role: z.enum([
+        'protagonist',
+        'antagonist',
+        'director',
+        'witness',
+        'possessed',
+        'survivor',
+        'villain',
+        'bystander',
+      ]),
       characterId: z.string().nullable().optional(),
       name: z.string().default('Protagonist'),
       description: z.string().default(''),

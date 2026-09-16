@@ -76,7 +76,7 @@ export function classifyScenarioParadigm(context?: ScenarioPhysicsContext): Scen
     );
 
   const antagonistHasSupernaturalAuthority =
-    pc?.mode === 'antagonist' &&
+    (pc?.mode === 'antagonist' || pc?.mode === 'villain') &&
     (pc.seat?.kind === 'force' ||
       (pc.authorityContract?.authority &&
         /supernatural|paranormal|godlike|spectral|omnipresent|teleport/i.test(

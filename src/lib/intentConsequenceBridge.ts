@@ -82,7 +82,10 @@ export function isEmbodiedRole(role: string): boolean {
   return (
     normalized === 'protagonist' ||
     normalized === 'antagonist' ||
-    normalized === 'possessed'
+    normalized === 'possessed' ||
+    normalized === 'survivor' ||
+    normalized === 'villain' ||
+    normalized === 'bystander'
   );
 }
 

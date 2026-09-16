@@ -732,6 +732,29 @@ export function normalizeCandidateAliases(
 
     // 5. Cast seed presence disposition and expressionProfile
     else if (target === 'cast_seed') {
+      // Normalize disposition (SURVIVOR | VILLAIN | BYSTANDER)
+      let disp = String(obj.disposition || '').toUpperCase().trim();
+      if (!['SURVIVOR', 'VILLAIN', 'BYSTANDER'].includes(disp)) {
+        const textToCheck = `${obj.role || ''} ${obj.name || ''} ${obj.description || ''} ${obj.personality || ''}`.toLowerCase();
+        if (
+          obj.isEntity === true ||
+          /killer|villain|psychopath|slasher|stalker|monster|apparatus|antagonist|murderer/i.test(
+            textToCheck
+          )
+        ) {
+          disp = 'VILLAIN';
+        } else if (
+          /bystander|witness|civilian|clerk|cashier|janitor|neighbor|patron|bartender|passerby/i.test(
+            textToCheck
+          )
+        ) {
+          disp = 'BYSTANDER';
+        } else {
+          disp = 'SURVIVOR';
+        }
+      }
+      obj.disposition = disp;
+
       if (obj.presenceDisposition !== undefined) {
         const normalizedPlacement = normalizePresenceDisposition(obj.presenceDisposition);
         if (normalizedPlacement) {
@@ -1030,6 +1053,10 @@ CRITICAL EXTRACTION SCHEMAS & ENUMS:
        "id"?: string,
        "name": string (Full character name as established in narrative scenes),
        "role": string (Narrative role, e.g. "Subject", "Protagonist", "Antagonist", "Victim", "Entity", "Secondary"),
+       "disposition": "SURVIVOR" | "VILLAIN" | "BYSTANDER" (MANDATORY:
+         - "SURVIVOR": Characters resisting, fleeing, investigating, or enduring the horror.
+         - "VILLAIN": Predatory killers, psychopaths, stalkers, monsters, or hostile entities (e.g. Patrick Bateman, Ghostface, Michael Myers, Xenomorph).
+         - "BYSTANDER": Unaware civilians, clerks, neighbors, bar patrons, or collateral caught in the situation trying to mind their own business),
        "description": string (Detailed physical appearance, age, and immediate physical circumstances from text),
        "personality": string (Detailed psychological demeanor, temperament, and emotional posture under stress),
        "goals": string (Primary objective, survival desire, or personal motivation in this scenario),

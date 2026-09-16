@@ -248,6 +248,9 @@ export const ForgeExpandableAnchorSchema = z.object({
 });
 export type ForgeExpandableAnchor = z.infer<typeof ForgeExpandableAnchorSchema>;
 
+export const CastDispositionSchema = z.enum(['SURVIVOR', 'VILLAIN', 'BYSTANDER']);
+export type CastDisposition = z.infer<typeof CastDispositionSchema>;
+
 export const ForgeDraftCastMemberSchema = z.object({
   id: z.string().default(() => `char-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`),
   name: z.string().default(''),
@@ -259,6 +262,7 @@ export const ForgeDraftCastMemberSchema = z.object({
   isUserCharacter: z.boolean().optional().default(false),
   behaviorVector: z.string().optional().default('ADAPTIVE'),
   isEntity: z.boolean().optional().default(false),
+  disposition: CastDispositionSchema.optional().default('SURVIVOR'),
   psychological_status: z.string().optional(),
   starting_location: z.string().optional(),
   presenceDisposition: CharacterPresenceDispositionSchema.optional(),

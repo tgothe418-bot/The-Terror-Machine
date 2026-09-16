@@ -191,6 +191,9 @@ export const CharacterPresenceDispositionSchema = z.discriminatedUnion('kind', [
 
 export type CharacterPresenceDisposition = z.infer<typeof CharacterPresenceDispositionSchema>;
 
+export const CastDispositionSchema = z.enum(['SURVIVOR', 'VILLAIN', 'BYSTANDER']);
+export type CastDisposition = z.infer<typeof CastDispositionSchema>;
+
 export const CastMemberSchema = z.object({
   id: z.string().default(() => `char-${Date.now()}`),
   name: z.string().default('Unknown'),
@@ -202,6 +205,7 @@ export const CastMemberSchema = z.object({
   isUserCharacter: z.boolean().optional().default(false),
   behaviorVector: z.string().optional().default('ADAPTIVE'),
   isEntity: z.boolean().optional().default(false),
+  disposition: CastDispositionSchema.optional().default('SURVIVOR'),
   starting_location: z.string().optional().default(''),
   presenceDisposition: CharacterPresenceDispositionSchema.optional(),
   vulnerabilityBase: VulnerabilityIndexSchema.optional(),
@@ -288,6 +292,7 @@ export const BlueprintSchema = z.object({
         isUserCharacter: false,
         behaviorVector: 'ADAPTIVE',
         isEntity: false,
+        disposition: 'SURVIVOR',
         starting_location: '',
       },
     ]),
@@ -637,7 +642,15 @@ export interface AppState {
   setCurrentNodeId: (nodeId: string) => void;
 }
 
-export type PlayerRole = 'protagonist' | 'antagonist' | 'director' | 'witness' | 'possessed';
+export type PlayerRole =
+  | 'protagonist'
+  | 'antagonist'
+  | 'director'
+  | 'witness'
+  | 'possessed'
+  | 'survivor'
+  | 'villain'
+  | 'bystander';
 export type PerspectiveMode = 'embodied' | 'entity_embodied' | 'director' | 'witness';
 
 export type NarrativeBlockType =

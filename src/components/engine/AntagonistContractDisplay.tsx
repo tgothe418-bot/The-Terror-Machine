@@ -13,14 +13,22 @@ export default function AntagonistContractDisplay() {
   );
   const participationContext = normalizeParticipationContext(rawParticipationContext);
 
-  if (!participationContext || participationContext.mode !== 'antagonist') {
+  if (
+    !participationContext ||
+    (participationContext.mode !== 'antagonist' && participationContext.mode !== 'villain')
+  ) {
     return null;
   }
 
   const { seat, authorityContract, victimField, initialGoal } = participationContext;
   const isForce = seat?.kind === 'force';
-  const name = seat?.name || 'Opposition';
-  const seatKindLabel = isForce ? 'Environmental Force' : 'Physical Entity';
+  const isHumanVillain = participationContext.mode === 'villain';
+  const name = seat?.name || (isHumanVillain ? 'Predatory Villain' : 'Opposition');
+  const seatKindLabel = isHumanVillain
+    ? 'Human Predator'
+    : isForce
+    ? 'Environmental Force'
+    : 'Physical Entity';
 
   const authorityText =
     authorityContract?.authority ||

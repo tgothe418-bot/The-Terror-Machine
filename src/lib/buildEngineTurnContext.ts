@@ -252,10 +252,14 @@ export function buildEngineTurnContext(
   }
 
   if (!playerName) {
-    if (playerRole === 'antagonist') {
-      playerName = resolvedParticipation?.seat?.name || 'Opposition Force';
-      playerDescription = resolvedParticipation?.seat?.description || 'Hostile presence / adversary.';
-      playerIsEntity = true;
+    if (playerRole === 'antagonist' || playerRole === 'villain') {
+      playerName = resolvedParticipation?.seat?.name || (playerRole === 'villain' ? 'Predatory Villain' : 'Opposition Force');
+      playerDescription = resolvedParticipation?.seat?.description || (playerRole === 'villain' ? 'Predatory adversary / human sociopath.' : 'Hostile presence / adversary.');
+      playerIsEntity = playerRole !== 'villain';
+    } else if (playerRole === 'bystander') {
+      playerName = resolvedParticipation?.seat?.name || 'Bystander';
+      playerDescription = resolvedParticipation?.seat?.description || 'Civilian bystander / unaware collateral.';
+      playerIsEntity = false;
     } else if (playerRole === 'director') {
       playerName = 'Director';
       playerDescription = 'External narrative director.';
@@ -265,8 +269,8 @@ export function buildEngineTurnContext(
       playerDescription = 'External observer.';
       playerIsEntity = false;
     } else {
-      playerName = 'Protagonist';
-      playerDescription = 'Primary mortal focal perspective.';
+      playerName = 'Survivor';
+      playerDescription = 'Primary mortal survivor perspective.';
       playerIsEntity = false;
     }
   }

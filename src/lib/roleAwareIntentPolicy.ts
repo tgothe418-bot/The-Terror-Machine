@@ -6,7 +6,10 @@ import type {
 import type { CausalFeasibilityResult } from './causalFeasibility';
 
 function hasCompleteExplicitAntagonistContract(context: EngineTurnContext): boolean {
-  if (context.participationContext?.mode !== 'antagonist') {
+  if (
+    context.participationContext?.mode !== 'antagonist' &&
+    context.participationContext?.mode !== 'villain'
+  ) {
     return false;
   }
   const authorityContract = context.participationContext.authorityContract;
@@ -50,7 +53,7 @@ export function applyRoleAwareIntentPolicy(input: {
     let normalizedAuthorityAlignment: NarrativeReconciliationProposal['authority_alignment'] =
       'NOT_APPLICABLE';
 
-    if (effectiveRole === 'antagonist') {
+    if (effectiveRole === 'antagonist' || effectiveRole === 'villain') {
       if (!hasCompleteExplicitAntagonistContract(input.context)) {
         normalizedAuthorityAlignment = 'EXCEEDS_CONTRACT';
       } else {
@@ -70,7 +73,12 @@ export function applyRoleAwareIntentPolicy(input: {
     };
   }
 
-  if (effectiveRole === 'protagonist' || effectiveRole === 'possessed') {
+  if (
+    effectiveRole === 'protagonist' ||
+    effectiveRole === 'survivor' ||
+    effectiveRole === 'bystander' ||
+    effectiveRole === 'possessed'
+  ) {
     return {
       feasibility: input.base.feasibility,
       reason_code: input.base.reason_code,
@@ -123,7 +131,7 @@ export function applyRoleAwareIntentPolicy(input: {
     };
   }
 
-  if (effectiveRole === 'antagonist') {
+  if (effectiveRole === 'antagonist' || effectiveRole === 'villain') {
     if (!hasCompleteExplicitAntagonistContract(input.context)) {
       return {
         feasibility: 'IMPOSSIBLE',

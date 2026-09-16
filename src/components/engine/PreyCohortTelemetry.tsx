@@ -13,7 +13,10 @@ export default function PreyCohortTelemetry() {
   const participationContext = normalizeParticipationContext(rawParticipationContext);
   const activeBlueprint = useAppStore((state) => state.activeBlueprint);
 
-  if (!participationContext || participationContext.mode !== 'antagonist') {
+  if (
+    !participationContext ||
+    (participationContext.mode !== 'antagonist' && participationContext.mode !== 'villain')
+  ) {
     return null;
   }
 

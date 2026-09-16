@@ -1,7 +1,26 @@
 import { z } from 'zod';
 
-export const ParticipationModeSchema = z.enum(['protagonist', 'antagonist', 'director']);
+export const ParticipationModeSchema = z.enum([
+  'protagonist',
+  'antagonist',
+  'director',
+  'survivor',
+  'villain',
+  'bystander',
+]);
 export type ParticipationMode = z.infer<typeof ParticipationModeSchema>;
+
+export type CanonicalRoleCategory = 'SURVIVOR' | 'VILLAIN' | 'BYSTANDER' | 'DIRECTOR';
+
+export function normalizeRoleCategory(
+  mode: ParticipationMode | string | undefined | null
+): CanonicalRoleCategory {
+  const lower = String(mode || '').toLowerCase();
+  if (lower === 'villain' || lower === 'antagonist') return 'VILLAIN';
+  if (lower === 'bystander' || lower === 'witness') return 'BYSTANDER';
+  if (lower === 'director') return 'DIRECTOR';
+  return 'SURVIVOR';
+}
 
 export const OppositionSeatKindSchema = z.enum(['character', 'force']);
 export type OppositionSeatKind = z.infer<typeof OppositionSeatKindSchema>;
@@ -82,7 +101,15 @@ export type VictimField = z.infer<typeof VictimFieldSchema>;
 export const MAX_PARTICIPATION_SEAT_DESCRIPTION_LENGTH = 1000;
 
 export const ParticipationSeatSchema = z.object({
-  kind: z.enum(['protagonist', 'character', 'force', 'director']),
+  kind: z.enum([
+    'protagonist',
+    'character',
+    'force',
+    'director',
+    'survivor',
+    'villain',
+    'bystander',
+  ]),
   name: z.string().trim().min(1).max(100),
   description: z
     .string()
@@ -121,7 +148,7 @@ export function normalizeParticipationContext(
   context?: ParticipationContext | null
 ): ParticipationContext | null {
   if (!context) return null;
-  if (context.mode !== 'antagonist') return context;
+  if (context.mode !== 'antagonist' && context.mode !== 'villain') return context;
 
   if (context.authorityContract) {
     return context;

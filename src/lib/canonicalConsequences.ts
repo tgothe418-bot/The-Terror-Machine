@@ -127,8 +127,10 @@ export function resolveCanonicalConsequences(input: {
     // 2. Check ROLE_NOT_AUTHORIZED
     const isRoleAuthorized =
       normalizedRole === 'protagonist' ||
+      normalizedRole === 'survivor' ||
+      normalizedRole === 'bystander' ||
       normalizedRole === 'possessed' ||
-      (normalizedRole === 'antagonist' &&
+      ((normalizedRole === 'antagonist' || normalizedRole === 'villain') &&
         reconciliationReceipt.authority_alignment === 'WITHIN_CONTRACT');
 
     if (!isRoleAuthorized) {

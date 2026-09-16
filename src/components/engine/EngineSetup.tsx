@@ -13,6 +13,7 @@ import {
   Film,
   Lock,
   FlaskConical,
+  Coffee,
 } from 'lucide-react';
 import blackIronMortuary from '../../data/blueprints/black_iron_mortuary.json';
 import { useAppStore } from '../../store/useAppStore';
@@ -106,9 +107,9 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
           }
 
           // Legacy blueprint without Haunted House provenance: retain standard fallback selection
-          if (availabilities.protagonist.available) {
+          if (availabilities.protagonist?.available) {
             setSelectedRole('protagonist');
-          } else if (availabilities.antagonist.available) {
+          } else if (availabilities.antagonist?.available) {
             setSelectedRole('antagonist');
           } else {
             setSelectedRole('director');
@@ -185,7 +186,7 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
     const neuralLink =
       selectedRole === 'director'
         ? 'DIRECTOR'
-        : selectedRole === 'antagonist'
+        : selectedRole === 'antagonist' || selectedRole === 'villain'
         ? 'ANTAGONIST'
         : 'PROTAGONIST';
 
@@ -394,38 +395,70 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
                               key={char.id || i}
                               type="button"
                               data-character-id={char.id}
-                              disabled={!isEligible}
                               onClick={() => {
-                                if (!isEligible) return;
                                 if (isSelected) {
                                   forgeActions.setActiveCharacterId(null);
-                                } else {
-                                  forgeActions.setActiveCharacterId(char.id);
+                                  return;
                                 }
+                                // Auto-switch role if character not eligible under current role selection
+                                if (!selectedRole || !isCharacterEligibleForRole(char, selectedRole)) {
+                                  if (
+                                    char.disposition === 'VILLAIN' &&
+                                    (isRoleAvailable('villain') || isRoleAvailable('antagonist'))
+                                  ) {
+                                    handleSelectRole(isRoleAvailable('villain') ? 'villain' : 'antagonist');
+                                  } else if (
+                                    char.disposition === 'BYSTANDER' &&
+                                    isRoleAvailable('bystander')
+                                  ) {
+                                    handleSelectRole('bystander');
+                                  } else if (
+                                    isRoleAvailable('survivor') ||
+                                    isRoleAvailable('protagonist')
+                                  ) {
+                                    handleSelectRole(isRoleAvailable('survivor') ? 'survivor' : 'protagonist');
+                                  }
+                                }
+                                forgeActions.setActiveCharacterId(char.id);
                               }}
                               className={`p-4 border text-left w-full transition-all duration-200 rounded flex flex-col gap-2 ${
-                                !isEligible
-                                  ? 'border-zinc-900 bg-zinc-950/40 opacity-30 cursor-not-allowed text-zinc-600'
-                                  : isSelected
+                                isSelected
                                   ? 'border-red-500 bg-red-950/20 shadow-[0_0_15px_rgba(239,68,68,0.1)] cursor-pointer'
-                                  : 'border-zinc-800 hover:border-zinc-600 bg-black opacity-80 hover:opacity-100 cursor-pointer'
+                                  : isEligible
+                                  ? 'border-zinc-800 hover:border-zinc-600 bg-black opacity-90 hover:opacity-100 cursor-pointer'
+                                  : 'border-zinc-900/80 bg-zinc-950/30 hover:border-zinc-700 opacity-60 hover:opacity-90 cursor-pointer'
                               }`}
                             >
                               <div className="flex justify-between items-center w-full">
-                                <h4
-                                  className={`font-bold text-sm ${
-                                    isSelected ? 'text-red-400' : isEligible ? 'text-zinc-100' : 'text-zinc-600'
-                                  }`}
-                                >
-                                  {char.name}
-                                </h4>
-                                <div className="flex gap-2 items-center">
+                                <div className="flex items-center gap-2">
+                                  <h4
+                                    className={`font-bold text-sm ${
+                                      isSelected ? 'text-red-400' : 'text-zinc-100'
+                                    }`}
+                                  >
+                                    {char.name}
+                                  </h4>
+                                </div>
+                                <div className="flex gap-2 items-center flex-wrap">
+                                  {char.disposition === 'VILLAIN' ? (
+                                    <span className="text-[10px] text-red-400 border border-red-900/80 px-1.5 py-0.5 rounded font-mono uppercase bg-red-950/40 flex items-center gap-1">
+                                      <Skull className="w-2.5 h-2.5 text-red-500" /> VILLAIN
+                                    </span>
+                                  ) : char.disposition === 'BYSTANDER' ? (
+                                    <span className="text-[10px] text-amber-400 border border-amber-900/80 px-1.5 py-0.5 rounded font-mono uppercase bg-amber-950/40 flex items-center gap-1">
+                                      <Coffee className="w-2.5 h-2.5 text-amber-500" /> BYSTANDER
+                                    </span>
+                                  ) : (
+                                    <span className="text-[10px] text-emerald-400 border border-emerald-900/80 px-1.5 py-0.5 rounded font-mono uppercase bg-emerald-950/40 flex items-center gap-1">
+                                      <Shield className="w-2.5 h-2.5 text-emerald-500" /> SURVIVOR
+                                    </span>
+                                  )}
                                   {char.isEntity && (
-                                    <span className="text-xs text-red-400 border border-red-900 px-1.5 py-0.5 rounded font-mono uppercase bg-red-950/30">
+                                    <span className="text-[10px] text-red-400 border border-red-900 px-1.5 py-0.5 rounded font-mono uppercase bg-red-950/30">
                                       ENTITY
                                     </span>
                                   )}
-                                  <span className="text-xs uppercase font-mono text-cyan-400 px-2 py-0.5 border border-cyan-900 rounded bg-cyan-950/30">
+                                  <span className="text-[10px] uppercase font-mono text-cyan-400 px-1.5 py-0.5 border border-cyan-900 rounded bg-cyan-950/30">
                                     {char.behaviorVector || 'ADAPTIVE'}
                                   </span>
                                 </div>
@@ -523,7 +556,7 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
                         </h3>
                         {previewBlueprint.hauntedHouse && (
                           <span className="text-[10px] text-zinc-400 uppercase font-mono">
-                            3-Seat Matrix
+                            4-Seat Matrix
                           </span>
                         )}
                       </div>
@@ -548,95 +581,166 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
                         </div>
                       )}
 
-                      {/* 3-Role Seat Selection Grid */}
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        {/* Protagonist */}
-                        <button
-                          type="button"
-                          onClick={() => isRoleAvailable('protagonist') && handleSelectRole('protagonist')}
-                          disabled={!isRoleAvailable('protagonist')}
-                          className={`p-4 border flex flex-col items-center text-center gap-2 transition-all duration-300 rounded ${
-                            !isRoleAvailable('protagonist')
-                              ? 'border-zinc-900 bg-zinc-950/40 text-zinc-600 opacity-40 cursor-not-allowed'
-                              : selectedRole === 'protagonist'
-                              ? 'border-emerald-500 bg-emerald-950/30 text-white shadow-[0_0_15px_rgba(16,185,129,0.2)] cursor-pointer'
-                              : 'border-zinc-800 bg-black text-zinc-400 hover:border-zinc-600 cursor-pointer'
-                          }`}
-                        >
-                          <Shield className="w-5 h-5 text-emerald-400" />
-                          <div>
-                            <span className="text-xs uppercase font-bold tracking-wider block">
-                              Protagonist
-                            </span>
-                            <span className="text-[10px] text-zinc-500 block mt-0.5">
-                              {isRoleAvailable('protagonist')
-                                ? seatAvailabilities?.protagonist.boundCharacterName || 'Mortal Bound'
-                                : seatAvailabilities?.protagonist.reason || 'No Mortal Cast'}
-                            </span>
-                          </div>
-                        </button>
+                      {/* 4-Role Seat Selection Grid */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                        {/* Survivor */}
+                        {(() => {
+                          const survivorAvailable = isRoleAvailable('survivor') || isRoleAvailable('protagonist');
+                          const isSurvivorSelected = selectedRole === 'survivor' || selectedRole === 'protagonist';
+                          const survivorSeat = seatAvailabilities?.survivor || seatAvailabilities?.protagonist;
+                          return (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (!survivorAvailable) return;
+                                handleSelectRole(isRoleAvailable('survivor') ? 'survivor' : 'protagonist');
+                              }}
+                              disabled={!survivorAvailable}
+                              className={`p-4 border flex flex-col items-center text-center gap-2 transition-all duration-300 rounded ${
+                                !survivorAvailable
+                                  ? 'border-zinc-900 bg-zinc-950/40 text-zinc-600 opacity-40 cursor-not-allowed'
+                                  : isSurvivorSelected
+                                  ? 'border-emerald-500 bg-emerald-950/30 text-white shadow-[0_0_15px_rgba(16,185,129,0.2)] cursor-pointer'
+                                  : 'border-zinc-800 bg-black text-zinc-400 hover:border-zinc-600 cursor-pointer'
+                              }`}
+                            >
+                              <Shield className="w-5 h-5 text-emerald-400" />
+                              <div>
+                                <span className="text-xs uppercase font-bold tracking-wider block">
+                                  Survivor
+                                </span>
+                                <span className="text-[9px] text-zinc-500 uppercase tracking-widest block font-mono">
+                                  Protagonist
+                                </span>
+                                <span className="text-[10px] text-zinc-500 block mt-0.5 truncate max-w-[120px]">
+                                  {survivorAvailable
+                                    ? survivorSeat?.boundCharacterName || 'Mortal Operative'
+                                    : survivorSeat?.reason || 'No Mortal Cast'}
+                                </span>
+                              </div>
+                            </button>
+                          );
+                        })()}
 
-                        {/* Antagonist */}
-                        <button
-                          type="button"
-                          onClick={() => isRoleAvailable('antagonist') && handleSelectRole('antagonist')}
-                          disabled={!isRoleAvailable('antagonist')}
-                          className={`p-4 border flex flex-col items-center text-center gap-2 transition-all duration-300 rounded ${
-                            !isRoleAvailable('antagonist')
-                              ? 'border-zinc-900 bg-zinc-950/40 text-zinc-600 opacity-40 cursor-not-allowed'
-                              : selectedRole === 'antagonist'
-                              ? 'border-red-600 bg-red-950/30 text-white shadow-[0_0_15px_rgba(220,38,38,0.25)] cursor-pointer'
-                              : 'border-zinc-800 bg-black text-zinc-400 hover:border-zinc-600 cursor-pointer'
-                          }`}
-                        >
-                          <Skull className="w-5 h-5 text-red-500" />
-                          <div>
-                            <span className="text-xs uppercase font-bold tracking-wider block">
-                              Antagonist
-                            </span>
-                            <span className="text-[10px] text-zinc-500 block mt-0.5">
-                              {isRoleAvailable('antagonist')
-                                ? seatAvailabilities?.antagonist.boundCharacterName || 'Opposition'
-                                : seatAvailabilities?.antagonist.reason || 'No Entity Found'}
-                            </span>
-                          </div>
-                        </button>
+                        {/* Villain */}
+                        {(() => {
+                          const villainAvailable = isRoleAvailable('villain') || isRoleAvailable('antagonist');
+                          const isVillainSelected = selectedRole === 'villain' || selectedRole === 'antagonist';
+                          const villainSeat = seatAvailabilities?.villain || seatAvailabilities?.antagonist;
+                          return (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (!villainAvailable) return;
+                                handleSelectRole(isRoleAvailable('villain') ? 'villain' : 'antagonist');
+                              }}
+                              disabled={!villainAvailable}
+                              className={`p-4 border flex flex-col items-center text-center gap-2 transition-all duration-300 rounded ${
+                                !villainAvailable
+                                  ? 'border-zinc-900 bg-zinc-950/40 text-zinc-600 opacity-40 cursor-not-allowed'
+                                  : isVillainSelected
+                                  ? 'border-red-600 bg-red-950/30 text-white shadow-[0_0_15px_rgba(220,38,38,0.25)] cursor-pointer'
+                                  : 'border-zinc-800 bg-black text-zinc-400 hover:border-zinc-600 cursor-pointer'
+                              }`}
+                            >
+                              <Skull className="w-5 h-5 text-red-500" />
+                              <div>
+                                <span className="text-xs uppercase font-bold tracking-wider block">
+                                  Villain
+                                </span>
+                                <span className="text-[9px] text-zinc-500 uppercase tracking-widest block font-mono">
+                                  Antagonist
+                                </span>
+                                <span className="text-[10px] text-zinc-500 block mt-0.5 truncate max-w-[120px]">
+                                  {villainAvailable
+                                    ? villainSeat?.boundCharacterName || 'Predator / Entity'
+                                    : villainSeat?.reason || 'No Hostile Cast'}
+                                </span>
+                              </div>
+                            </button>
+                          );
+                        })()}
+
+                        {/* Bystander */}
+                        {(() => {
+                          const bystanderAvailable = isRoleAvailable('bystander');
+                          const isBystanderSelected = selectedRole === 'bystander';
+                          const bystanderSeat = seatAvailabilities?.bystander;
+                          return (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (!bystanderAvailable) return;
+                                handleSelectRole('bystander');
+                              }}
+                              disabled={!bystanderAvailable}
+                              className={`p-4 border flex flex-col items-center text-center gap-2 transition-all duration-300 rounded ${
+                                !bystanderAvailable
+                                  ? 'border-zinc-900 bg-zinc-950/40 text-zinc-600 opacity-40 cursor-not-allowed'
+                                  : isBystanderSelected
+                                  ? 'border-amber-500 bg-amber-950/30 text-white shadow-[0_0_15px_rgba(245,158,11,0.25)] cursor-pointer'
+                                  : 'border-zinc-800 bg-black text-zinc-400 hover:border-zinc-600 cursor-pointer'
+                              }`}
+                            >
+                              <Coffee className="w-5 h-5 text-amber-400" />
+                              <div>
+                                <span className="text-xs uppercase font-bold tracking-wider block">
+                                  Bystander
+                                </span>
+                                <span className="text-[10px] text-zinc-500 block mt-0.5 truncate max-w-[120px]">
+                                  {bystanderAvailable
+                                    ? bystanderSeat?.boundCharacterName || 'Civilian Collateral'
+                                    : bystanderSeat?.reason || 'No Bystander Cast'}
+                                </span>
+                              </div>
+                            </button>
+                          );
+                        })()}
 
                         {/* Director */}
-                        <button
-                          type="button"
-                          onClick={() => isRoleAvailable('director') && handleSelectRole('director')}
-                          disabled={!isRoleAvailable('director')}
-                          className={`p-4 border flex flex-col items-center text-center gap-2 transition-all duration-300 rounded ${
-                            !isRoleAvailable('director')
-                              ? 'border-zinc-900 bg-zinc-950/40 text-zinc-600 opacity-40 cursor-not-allowed'
-                              : selectedRole === 'director'
-                              ? 'border-purple-500 bg-purple-950/30 text-white shadow-[0_0_15px_rgba(168,85,247,0.25)] cursor-pointer'
-                              : 'border-zinc-800 bg-black text-zinc-400 hover:border-zinc-600 cursor-pointer'
-                          }`}
-                        >
-                          <Film className="w-5 h-5 text-purple-400" />
-                          <div>
-                            <span className="text-xs uppercase font-bold tracking-wider block">
-                              Director
-                            </span>
-                            <span className="text-[10px] text-zinc-500 block mt-0.5">
-                              {isRoleAvailable('director')
-                                ? 'Narrative Framing'
-                                : seatAvailabilities?.director.reason || 'Unavailable'}
-                            </span>
-                          </div>
-                        </button>
+                        {(() => {
+                          const directorAvailable = isRoleAvailable('director');
+                          const isDirectorSelected = selectedRole === 'director';
+                          return (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (!directorAvailable) return;
+                                handleSelectRole('director');
+                              }}
+                              disabled={!directorAvailable}
+                              className={`p-4 border flex flex-col items-center text-center gap-2 transition-all duration-300 rounded ${
+                                !directorAvailable
+                                  ? 'border-zinc-900 bg-zinc-950/40 text-zinc-600 opacity-40 cursor-not-allowed'
+                                  : isDirectorSelected
+                                  ? 'border-purple-500 bg-purple-950/30 text-white shadow-[0_0_15px_rgba(168,85,247,0.25)] cursor-pointer'
+                                  : 'border-zinc-800 bg-black text-zinc-400 hover:border-zinc-600 cursor-pointer'
+                              }`}
+                            >
+                              <Film className="w-5 h-5 text-purple-400" />
+                              <div>
+                                <span className="text-xs uppercase font-bold tracking-wider block">
+                                  Director
+                                </span>
+                                <span className="text-[10px] text-zinc-500 block mt-0.5">
+                                  Narrative Framing
+                                </span>
+                              </div>
+                            </button>
+                          );
+                        })()}
                       </div>
 
                       {/* Selected seat summary description */}
                       <p className="text-xs text-zinc-400 mt-4 leading-relaxed uppercase tracking-wider text-center font-sans">
-                        {selectedRole === 'protagonist' &&
-                          'Embodying mortal operative subject to local physical constraints.'}
-                        {selectedRole === 'antagonist' &&
-                          'Operating hostile opposition agency under explicit authority terms.'}
+                        {(selectedRole === 'survivor' || selectedRole === 'protagonist') &&
+                          'Embodying mortal operative subject to local physical constraints and escalating dread.'}
+                        {(selectedRole === 'villain' || selectedRole === 'antagonist') &&
+                          'Operating predatory villain or hostile opposition agency under explicit authority terms.'}
+                        {selectedRole === 'bystander' &&
+                          'Operating civilian bystander with mundane priorities, survival instincts, and detached perspective.'}
                         {selectedRole === 'director' &&
-                          'External pacing and scene framing authority.'}
+                          'External pacing, framing, and dramaturgical oversight authority.'}
                         {!selectedRole &&
                           'Select an available seat above to configure your active neural link.'}
                       </p>

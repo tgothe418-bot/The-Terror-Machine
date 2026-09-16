@@ -13,8 +13,8 @@ export function createNarrativeReconciliationReceipt(
   proposal: NarrativeReconciliationProposal,
   playerRole?: string,
 ): NarrativeReconciliationReceipt {
-  const isAntagonist =
-    typeof playerRole === 'string' && playerRole.trim().toLowerCase() === 'antagonist';
+  const role = typeof playerRole === 'string' ? playerRole.trim().toLowerCase() : '';
+  const isAntagonist = role === 'antagonist' || role === 'villain';
 
   const authorityAlignment = isAntagonist
     ? proposal.authority_alignment

@@ -10,6 +10,9 @@ import {
   ChevronDown,
   ChevronRight,
   Ghost,
+  Shield,
+  Skull,
+  Coffee,
 } from 'lucide-react';
 
 export const CharacterAuthoringPanel: React.FC = () => {
@@ -168,6 +171,19 @@ export const CharacterAuthoringPanel: React.FC = () => {
                   <span className="font-bold text-zinc-200 text-xs sm:text-sm truncate">
                     {char.name || 'Unnamed Character'}
                   </span>
+                  {((char as any).disposition === 'VILLAIN' || char.isEntity) ? (
+                    <span className="text-[9px] px-1.5 py-0.5 bg-red-950/70 border border-red-800 text-red-300 rounded font-bold uppercase shrink-0 flex items-center gap-1">
+                      <Skull className="w-2.5 h-2.5" /> VILLAIN
+                    </span>
+                  ) : (char as any).disposition === 'BYSTANDER' ? (
+                    <span className="text-[9px] px-1.5 py-0.5 bg-amber-950/70 border border-amber-800 text-amber-300 rounded font-bold uppercase shrink-0 flex items-center gap-1">
+                      <Coffee className="w-2.5 h-2.5" /> BYSTANDER
+                    </span>
+                  ) : (
+                    <span className="text-[9px] px-1.5 py-0.5 bg-emerald-950/70 border border-emerald-800 text-emerald-300 rounded font-bold uppercase shrink-0 flex items-center gap-1">
+                      <Shield className="w-2.5 h-2.5" /> SURVIVOR
+                    </span>
+                  )}
                   {char.isEntity && (
                     <span className="text-[9px] px-1.5 py-0.2 bg-purple-900/60 border border-purple-700 text-purple-200 rounded font-bold uppercase shrink-0">
                       Entity
@@ -211,8 +227,8 @@ export const CharacterAuthoringPanel: React.FC = () => {
               {/* Card Body */}
               {isExpanded && (
                 <div className="flex flex-col gap-3 font-mono">
-                  {/* 1. Identity & Role Fields */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {/* 1. Identity, Role & Disposition Fields */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                     <div>
                       <label className="text-[10px] text-zinc-500 uppercase font-bold block mb-1">
                         Name *
@@ -242,6 +258,21 @@ export const CharacterAuthoringPanel: React.FC = () => {
                         className="w-full bg-zinc-900/80 border border-zinc-800 text-zinc-200 text-xs p-1.5 rounded focus:outline-none focus:border-cyan-500"
                         placeholder="e.g. Chief Engineer, Subject"
                       />
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] text-zinc-500 uppercase font-bold block mb-1">
+                        Disposition
+                      </label>
+                      <select
+                        value={(char as any).disposition || (char.isEntity ? 'VILLAIN' : 'SURVIVOR')}
+                        onChange={(e) => updateCastMember(char.id, { disposition: e.target.value as any })}
+                        className="w-full bg-zinc-900/80 border border-zinc-800 text-zinc-200 text-xs p-1.5 rounded focus:outline-none focus:border-cyan-500"
+                      >
+                        <option value="SURVIVOR">🛡️ SURVIVOR</option>
+                        <option value="VILLAIN">💀 VILLAIN</option>
+                        <option value="BYSTANDER">☕ BYSTANDER</option>
+                      </select>
                     </div>
                   </div>
 

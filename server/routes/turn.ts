@@ -241,7 +241,7 @@ export function finalizeTurnCausality({
   // 9. Pass serverProposal through the existing createNarrativeReconciliationReceipt builder.
   const narrativeReconciliationReceipt = createNarrativeReconciliationReceipt(
     serverProposal,
-    context.player.role
+    effectiveRole
   );
 
   // 10. Enforce narrative reconciliation boundaries so its decision uses the final reconciliation receipt.
@@ -565,9 +565,12 @@ turnRouter.post('/', async (req, res) => {
           ? pc.boundedFacts.map((f) => `- ${f}`).join('\n')
           : 'None established';
 
-      if (pc.mode === 'antagonist') {
+      if (pc.mode === 'antagonist' || pc.mode === 'villain') {
         const normalizedPc = normalizeParticipationContext(pc) || pc;
         const isForce = normalizedPc.seat?.kind === 'force';
+        const isHumanVillain =
+          pc.mode === 'villain' ||
+          (!isForce && normalizedPc.seat?.kind !== 'force' && !context.cast.find((c) => c.id === context.player.characterId)?.isEntity);
         const authorityText =
           normalizedPc.authorityContract?.authority ||
           'Only already authored and ratified scenario facts apply. Grants no new reach, perception, mutation, omniscience, or control until re-inducted with an explicit Authority Contract.';
@@ -600,9 +603,9 @@ ${memberProfiles}`;
           victimSection = 'Victim Target: Subjects present within scenario enclosure.';
         }
 
-        participationSection = `\n[ANTAGONIST SIMULATION CONTRACT & AUTHORITY BOUNDARIES]
-Antagonist Identity: ${pc.seat?.name || 'Unknown Opposition'}
-Seat Kind: ${isForce ? 'Environmental / Unseen Force' : 'Embodied Physical Entity / Avatar'}
+        participationSection = `\n[${isHumanVillain ? 'VILLAIN / PREDATOR' : 'ANTAGONIST'} SIMULATION CONTRACT & AUTHORITY BOUNDARIES]
+Role Identity: ${pc.seat?.name || (isHumanVillain ? 'Predatory Villain' : 'Unknown Opposition')}
+Seat Kind: ${isHumanVillain ? 'Human Sociopath / Predatory Stalker' : isForce ? 'Environmental / Unseen Force' : 'Embodied Physical Entity / Avatar'}
 Manifestation: ${pc.seat?.description || 'N/A'}
 Current Objective: ${pc.initialGoal}
 
@@ -612,22 +615,42 @@ Granted Authority Scope: ${authorityText}
 [LIMITS, ANCHORS & COUNTERPLAY]
 Operational Limits & Boundaries: ${limitsText}
 
-[VICTIM FIELD]
+[TARGET FIELD / PREY & BYSTANDERS]
 ${victimSection}
 
 Bounded Facts:
 ${boundedFactsFormatted}
 
 Agency Directives:
-1. USER AGENCY: The user input represents the direct intent and actions of the controlled Antagonist (${pc.seat?.name || 'Opposition'}).
-2. AUTHORED SCOPE: Permit actions and perceptions expressly granted by the Authority Contract and apparatus controls, including environmental actuation, atmospheric venting, bulkhead lockdown, electrical relays, hazard deployment, and surveillance across the facility.
-3. AUTONOMOUS PREY SIMULATION: You MUST actively dramatize the Prey Cohort's independent human reactions to the Antagonist's actions. Show their terror, frantic panic, screaming over intercoms, desperate attempts to barricade or turn manual valves, and genuine anatomical trauma. Do NOT treat the victims as inert or passive.
-4. INHUMAN SENSORIUM & PERSPECTIVE: Frame narrative prose through the cold, clinical, or predatory perception of the Antagonist: optical surveillance feeds with scanlines and timestamps, acoustic resonance along ducts and grates, biometric telemetry spikes (heart rate, blood pressure, oxygen saturation), and distant mechanical hums. Do NOT recast any Victim as the player Protagonist.
-5. BOUNDARY ENFORCEMENT: Do not invent broader authority or reach than the contract grants. If an attempted action exceeds stated limits or counterplay anchors, make the boundary legible to the user in narrative prose without claiming forbidden mutations occurred.
+1. USER AGENCY: The user input represents the direct intent, speech, and actions of the controlled ${isHumanVillain ? 'Villain' : 'Antagonist'} (${pc.seat?.name || 'Opposition'}).
+2. ${isHumanVillain ? 'SOCIAL CAMOUFLAGE & PREDATORY FRICTION' : 'AUTHORED SCOPE'}: ${
+  isHumanVillain
+    ? 'The user operates as a human predator (e.g. serial killer, sociopath, or stalker). Actively dramatize the friction between their polished social mask and their intrusive, escalating homicidal impulses. Show other characters socializing, conversing, gossiping, or reacting with confusion or rising suspicion. Do NOT leave the environment empty or devoid of human targets.'
+    : 'Permit actions and perceptions expressly granted by the Authority Contract and apparatus controls, including environmental actuation, atmospheric venting, bulkhead lockdown, electrical relays, hazard deployment, and surveillance across the facility.'
+}
+3. AUTONOMOUS TARGET & PREY SIMULATION: You MUST actively dramatize the other characters\' independent human reactions to the ${isHumanVillain ? 'Villain' : 'Antagonist'}. If unprovoked, they converse, pursue their own tasks, or display unaware vulnerability. If confronted or attacked, show their terror, frantic attempts to escape, bargaining, or anatomical trauma. Do NOT treat other characters as inert or passive.
+4. ${isHumanVillain ? 'PREDATORY SENSORIUM' : 'INHUMAN SENSORIUM & PERSPECTIVE'}: Frame narrative prose through the cold, calculating, or detached perception of the ${isHumanVillain ? 'Villain: sensory fixation on status symbols, grooming, clothing, smells of perfume/blood, and clinical evaluation of victim vulnerability' : 'Antagonist: optical surveillance feeds with scanlines and timestamps, acoustic resonance along ducts and grates, biometric telemetry spikes, and distant mechanical hums'}. Do NOT recast any Victim as the player Protagonist.
+5. BOUNDARY ENFORCEMENT: Do not invent broader authority or reach than the contract grants. If an attempted action exceeds stated limits, social exposure risk, or physical rules, make the boundary legible to the user in narrative prose without claiming forbidden mutations occurred.
 6. CANONICAL STATE: All spatial transitions and lasting world mutations remain subject to engine ratification and strict topology authorization.
 `;
-      } else if (pc.mode === 'protagonist') {
-        let seatDetails = `Mode: PROTAGONIST\nSeat: ${pc.seat?.name || 'Protagonist'} (${pc.seat?.kind || 'protagonist'})\nDescription: ${pc.seat?.description || 'N/A'}`;
+      } else if (pc.mode === 'bystander') {
+        let seatDetails = `Mode: BYSTANDER\nSeat: ${pc.seat?.name || 'Bystander'} (Mundane Civilian / Unaware Collateral)\nDescription: ${pc.seat?.description || 'N/A'}`;
+        if (pc.seat?.ability) seatDetails += `\nAptitude/Vector: ${pc.seat.ability}`;
+        if (pc.seat?.limitation) seatDetails += `\nLimitation/Boundary: ${pc.seat.limitation}`;
+        seatDetails += `\nInitial Core Goal: ${pc.initialGoal}`;
+
+        participationSection = `\n[BYSTANDER SIMULATION CONTRACT & AGENCY BOUNDARIES]
+${seatDetails}
+Bounded Facts:
+${boundedFactsFormatted}
+Agency Directives:
+1. USER AGENCY: The user operates a civilian bystander caught in or adjacent to the horror scenario.
+2. MUNDANE PRIORITIES & SELF-PRESERVATION: The user\'s character is NOT the heroic savior or the central victim; they have ordinary civilian concerns (finishing their coffee, locking up, calling the police, clocking out, asking why strange sounds are coming from the cellar, or desperately minding their own business).
+3. SURREAL HORROR CONTRAST: Dramatize the jarring, eerie contrast between the ordinary, everyday world and the bizarre horror or violence unfolding around them. Honor pragmatic, self-preserving, or bewildered choices ("None of my business", "I\'m calling the cops and staying in the car").
+4. OBJECTIVE ADJUDICATION: Adjudicate their attempted physical and social actions realistically. Do not force them to confront monsters if they choose to retreat, hide, or call for help.
+`;
+      } else if (pc.mode === 'protagonist' || pc.mode === 'survivor') {
+        let seatDetails = `Mode: SURVIVOR / PROTAGONIST\nSeat: ${pc.seat?.name || 'Survivor'} (${pc.seat?.kind || 'survivor'})\nDescription: ${pc.seat?.description || 'N/A'}`;
         if (pc.seat?.ability) seatDetails += `\nAptitude/Vector: ${pc.seat.ability}`;
         if (pc.seat?.limitation) seatDetails += `\nLimitation/Boundary: ${pc.seat.limitation}`;
         if (!context.player.openingAimDisposition) {
@@ -640,7 +663,7 @@ ${seatDetails}
 Bounded Facts:
 ${boundedFactsFormatted}
 Agency Directive:
-The user operates the mortal protagonist seat. Adjudicate their attempted physical and cognitive actions within their limitations. Narrate the world and environment consequences objectively.
+The user operates the mortal survivor seat. Adjudicate their attempted physical and cognitive actions within their limitations. Narrate the world and environment consequences objectively.
 `;
       } else if (pc.mode === 'director') {
         participationSection = `\n[PARTICIPATION CONTRACT & AGENCY BOUNDARIES]

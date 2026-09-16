@@ -170,8 +170,10 @@ export function resolveCharacterMemory(input: {
 
       const isAuthorizedRole =
         effectiveRole === 'protagonist' ||
+        effectiveRole === 'survivor' ||
+        effectiveRole === 'bystander' ||
         effectiveRole === 'possessed' ||
-        (effectiveRole === 'antagonist' &&
+        ((effectiveRole === 'antagonist' || effectiveRole === 'villain') &&
           input.reconciliationReceipt.authority_alignment === 'WITHIN_CONTRACT');
 
       if (!isAuthorizedRole) {

@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { ArrowLeft, Terminal, Loader2, Eye } from 'lucide-react';
+import { ArrowLeft, Terminal, Loader2, Eye, Shield, Skull, Coffee, Film } from 'lucide-react';
+import { normalizeRoleCategory } from '../../types/participation';
 import { useEngineStore } from '../../core/store';
 import { useAppStore } from '../../store/useAppStore';
 import { useHydratedStores } from '../../lib/sessionReconciliation';
@@ -238,6 +239,7 @@ export default function Runtime() {
   const telemetry = useEngineStore((state) => state.telemetry);
   const playerRole = useEngineStore((state) => state.gameState?.player_role);
   const participationContext = useAppStore((state) => state.participationContext);
+  const effectiveCategory = normalizeRoleCategory(participationContext?.mode || playerRole);
   const turnCount = useAppStore((state) => state.turnCount);
   const currentSimulationPhase = useTelemetryStore((state) => state.currentPhase);
   const lastTurnCheckpoint = useAppStore((state) => state.lastTurnCheckpoint);
@@ -922,9 +924,27 @@ export default function Runtime() {
               <span className="text-xs text-zinc-600 uppercase tracking-widest">
                 // {activeBlueprint?.contentLevelDescription || 'Procedural Architecture'}
               </span>
+              {/* Role Graphical Flair Badge */}
+              {effectiveCategory === 'VILLAIN' ? (
+                <span className="px-2 py-0.5 rounded border border-red-800/80 bg-red-950/40 text-red-300 font-bold text-[10px] tracking-wider uppercase flex items-center gap-1.5 shadow-[0_0_10px_rgba(239,68,68,0.15)]">
+                  <Skull className="w-3 h-3 text-red-500 animate-pulse" /> VILLAIN PREDATOR LINK // ENGAGED
+                </span>
+              ) : effectiveCategory === 'BYSTANDER' ? (
+                <span className="px-2 py-0.5 rounded border border-amber-800/80 bg-amber-950/40 text-amber-300 font-bold text-[10px] tracking-wider uppercase flex items-center gap-1.5 shadow-[0_0_10px_rgba(245,158,11,0.15)]">
+                  <Coffee className="w-3 h-3 text-amber-400" /> BYSTANDER PERSPECTIVE // DETACHED
+                </span>
+              ) : effectiveCategory === 'DIRECTOR' ? (
+                <span className="px-2 py-0.5 rounded border border-purple-800/80 bg-purple-950/40 text-purple-300 font-bold text-[10px] tracking-wider uppercase flex items-center gap-1.5 shadow-[0_0_10px_rgba(168,85,247,0.15)]">
+                  <Film className="w-3 h-3 text-purple-400" /> DIRECTOR SLATE // FRAMING
+                </span>
+              ) : (
+                <span className="px-2 py-0.5 rounded border border-emerald-800/80 bg-emerald-950/40 text-emerald-300 font-bold text-[10px] tracking-wider uppercase flex items-center gap-1.5 shadow-[0_0_10px_rgba(16,185,129,0.15)]">
+                  <Shield className="w-3 h-3 text-emerald-400" /> SURVIVOR LINK // ACTIVE
+                </span>
+              )}
               <button
                 onClick={() => setPhase('hub')}
-                className="ml-4 text-xs text-zinc-500 hover:text-white uppercase tracking-widest underline decoration-zinc-800 cursor-pointer"
+                className="ml-2 text-xs text-zinc-500 hover:text-white uppercase tracking-widest underline decoration-zinc-800 cursor-pointer"
               >
                 Change Scenario
               </button>
@@ -1096,11 +1116,13 @@ export default function Runtime() {
             {/* The input container - seamlessly integrated into the void */}
             <div className="flex-1 relative flex items-end border-b border-zinc-800 focus-within:border-zinc-500 transition-colors duration-1000">
               <span className="text-xs sm:text-sm uppercase tracking-widest opacity-80 mr-4 mb-3.5 shrink-0 font-bold text-zinc-400">
-                {participationContext?.mode === 'antagonist' || playerRole === 'antagonist'
-                  ? '[ ANTAGONIST APPARATUS DIRECTIVE ]'
-                  : participationContext?.mode === 'director' || playerRole === 'director'
-                    ? '[ DIRECTOR ]'
-                    : '[ PROTAGONIST ]'}
+                {effectiveCategory === 'VILLAIN'
+                  ? '[ VILLAIN PREDATORY DIRECTIVE ]'
+                  : effectiveCategory === 'BYSTANDER'
+                    ? '[ BYSTANDER ACTION ]'
+                    : effectiveCategory === 'DIRECTOR'
+                      ? '[ DIRECTOR PROMPT ]'
+                      : '[ SURVIVOR INTENT ]'}
               </span>
 
               <textarea
@@ -1122,9 +1144,13 @@ export default function Runtime() {
                       ? 'Processing...'
                       : isAutopilotRunning
                         ? 'Autopilot active...'
-                        : participationContext?.mode === 'antagonist' || playerRole === 'antagonist'
-                          ? "Issue Apparatus Directive / Torment Command (e.g. 'Seal the airlock dogs and vent refrigerant into Suite B')..."
-                          : 'What do you do? (Shift+Enter for new line)'
+                        : effectiveCategory === 'VILLAIN'
+                          ? "Issue Predatory Directive or Actuate Environment (e.g. 'Fixate on Paul Allen's card with cold appraisal; test his confidence')..."
+                          : effectiveCategory === 'BYSTANDER'
+                            ? "Mundane civilian action or self-preservation (e.g. 'Mind my own business, finish my coffee, and dial 911 from the payphone')..."
+                            : effectiveCategory === 'DIRECTOR'
+                              ? "Frame scene, calibrate pacing, or introduce environmental tension..."
+                              : 'What do you do? (Shift+Enter for new line)'
                 }
                 className="w-full bg-transparent text-sm sm:text-base py-3 resize-none focus:outline-none placeholder:text-zinc-700 min-h-[48px] max-h-[30vh] custom-scrollbar leading-relaxed disabled:opacity-50 text-zinc-100"
               />

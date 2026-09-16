@@ -223,4 +223,92 @@ describe('Seat Availability Resolver & Participation Context Builder', () => {
 
     expect(parsed.success).toBe(false);
   });
+
+  it('correctly resolves Villain, Survivor, and Bystander seats for human predator scenario (e.g. American Psycho)', () => {
+    const americanPsychoBlueprint: Blueprint = normalizeBlueprint({
+      title: 'American Psycho - Manhattan Enclosure',
+      setting: {
+        location: "Evelyn's Townhouse",
+        timePeriod: '1987',
+        atmosphere: 'Polished marble, high-end caterers, underlying homicidal dread',
+      },
+      cast: [
+        {
+          id: 'char-bateman',
+          name: 'Patrick Bateman',
+          role: 'Vice President',
+          isEntity: false,
+          disposition: 'VILLAIN',
+          description: 'Wealthy investment banker concealing escalating predatory impulses.',
+        },
+        {
+          id: 'char-evelyn',
+          name: 'Evelyn Williams',
+          role: 'Fiancée',
+          isEntity: false,
+          disposition: 'SURVIVOR',
+          description: 'Socialite trapped in shallow surface pleasantries.',
+        },
+        {
+          id: 'char-waiter',
+          name: 'Catering Waiter',
+          role: 'Staff',
+          isEntity: false,
+          disposition: 'BYSTANDER',
+          description: 'Temporary staff trying to get through the evening shift without incident.',
+        },
+      ],
+    });
+
+    const seats = resolveSeatAvailabilities(americanPsychoBlueprint);
+
+    // Villain seat should be available and bound to Bateman
+    expect(seats.villain.available).toBe(true);
+    expect(seats.villain.boundCharacterName).toBe('Patrick Bateman');
+    expect(seats.villain.boundCharacterId).toBe('char-bateman');
+
+    // Survivor seat should be available and bound to Evelyn
+    expect(seats.survivor.available).toBe(true);
+    expect(seats.survivor.boundCharacterName).toBe('Evelyn Williams');
+    expect(seats.survivor.boundCharacterId).toBe('char-evelyn');
+
+    // Bystander seat should be available and bound to Waiter
+    expect(seats.bystander.available).toBe(true);
+    expect(seats.bystander.boundCharacterName).toBe('Catering Waiter');
+    expect(seats.bystander.boundCharacterId).toBe('char-waiter');
+
+    // Director seat is always available
+    expect(seats.director.available).toBe(true);
+
+    // Active context for Villain
+    const villainContext = buildActiveParticipationContext(
+      americanPsychoBlueprint,
+      'villain',
+      'char-bateman'
+    );
+    expect(villainContext?.mode).toBe('villain');
+    expect(villainContext?.seat.name).toBe('Patrick Bateman');
+    expect(villainContext?.authorityContract?.authority).toContain('stalk');
+    expect(villainContext?.victimField?.kind).toBe('group');
+    expect(villainContext?.victimField?.members?.some((m) => m.name === 'Evelyn Williams')).toBe(true);
+
+    // Active context for Bystander
+    const bystanderContext = buildActiveParticipationContext(
+      americanPsychoBlueprint,
+      'bystander',
+      'char-waiter'
+    );
+    expect(bystanderContext?.mode).toBe('bystander');
+    expect(bystanderContext?.seat.name).toBe('Catering Waiter');
+    expect(bystanderContext?.initialGoal).toContain('Mind your own business');
+
+    // Active context for Survivor
+    const survivorContext = buildActiveParticipationContext(
+      americanPsychoBlueprint,
+      'survivor',
+      'char-evelyn'
+    );
+    expect(survivorContext?.mode).toBe('survivor');
+    expect(survivorContext?.seat.name).toBe('Evelyn Williams');
+  });
 });

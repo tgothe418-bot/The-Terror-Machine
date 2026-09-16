@@ -92,7 +92,8 @@ export function evaluateCausalFeasibility(input: {
 }): CausalFeasibilityResult {
   const effectiveRole =
     input.context.participationContext?.mode ?? input.context.player.role;
-  const isAntagonist = effectiveRole.toLowerCase() === 'antagonist';
+  const lowerRole = effectiveRole.toLowerCase();
+  const isAntagonist = lowerRole === 'antagonist' || lowerRole === 'villain';
 
   const authorityAlignment: NarrativeReconciliationReceipt['authority_alignment'] =
     input.intentReceipt.action_kind === 'SYSTEM'

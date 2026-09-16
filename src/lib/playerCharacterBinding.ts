@@ -28,7 +28,14 @@ export function isCharacterEligibleForRole(
   character: Blueprint['cast'][number],
   role: PlayerRole
 ): boolean {
-  if (role === 'protagonist' || role === 'antagonist' || role === 'possessed') {
+  if (
+    role === 'protagonist' ||
+    role === 'antagonist' ||
+    role === 'possessed' ||
+    role === 'survivor' ||
+    role === 'villain' ||
+    role === 'bystander'
+  ) {
     return Boolean(character && character.id);
   }
   return false;
@@ -234,6 +241,45 @@ export function resolvePerspectiveBinding(
     return {
       playerRole: 'protagonist',
       characterId: firstMortal ? firstMortal.id : null,
+      perspectiveMode: 'embodied',
+    };
+  }
+
+  if (role === 'survivor') {
+    const survivorChar =
+      cast.find((c) => (c as any).disposition === 'SURVIVOR') ||
+      cast.find((c) => !c.isEntity) ||
+      cast[0];
+    return {
+      playerRole: 'survivor',
+      characterId: survivorChar ? survivorChar.id : null,
+      perspectiveMode: 'embodied',
+    };
+  }
+
+  if (role === 'villain') {
+    const villainChar =
+      cast.find(
+        (c) =>
+          (c as any).disposition === 'VILLAIN' ||
+          c.isEntity ||
+          String(c.role).toUpperCase() === 'ANTAGONIST'
+      ) || cast[0];
+    return {
+      playerRole: 'villain',
+      characterId: villainChar ? villainChar.id : null,
+      perspectiveMode: 'entity_embodied',
+    };
+  }
+
+  if (role === 'bystander') {
+    const bystanderChar =
+      cast.find((c) => (c as any).disposition === 'BYSTANDER') ||
+      cast.find((c) => !c.isEntity) ||
+      cast[0];
+    return {
+      playerRole: 'bystander',
+      characterId: bystanderChar ? bystanderChar.id : null,
       perspectiveMode: 'embodied',
     };
   }
