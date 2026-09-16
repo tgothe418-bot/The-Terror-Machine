@@ -565,6 +565,42 @@ export function validateForgeDraft(rawDraft: unknown): ForgeValidationResult {
     });
   }
 
+  // 10. Antagonist Profile Validation (if present)
+  if (draft.antagonistProfile) {
+    const ap = draft.antagonistProfile;
+    if (ap.apparatusControls && Array.isArray(ap.apparatusControls)) {
+      ap.apparatusControls.forEach((ctrl, idx) => {
+        const prefix = `antagonistProfile.apparatusControls[${idx}]`;
+        if (!ctrl.id || !ctrl.id.trim()) {
+          errors[`${prefix}.id`] = ['Apparatus control ID cannot be empty'];
+        }
+        if (!ctrl.name || !ctrl.name.trim()) {
+          errors[`${prefix}.name`] = ['Apparatus control name cannot be empty'];
+        }
+        if (ctrl.affectedNodeIds && Array.isArray(ctrl.affectedNodeIds)) {
+          ctrl.affectedNodeIds.forEach((nId, nIdx) => {
+            if (validNodeIds.size > 0 && !validNodeIds.has(nId)) {
+              errors[`${prefix}.affectedNodeIds[${nIdx}]`] = [
+                `Apparatus control references unknown topology node ID: "${nId}"`,
+              ];
+            }
+          });
+        }
+      });
+    }
+
+    if (ap.telemetryFeeds && Array.isArray(ap.telemetryFeeds)) {
+      ap.telemetryFeeds.forEach((feed, idx) => {
+        const prefix = `antagonistProfile.telemetryFeeds[${idx}]`;
+        if (validNodeIds.size > 0 && !validNodeIds.has(feed.nodeId)) {
+          errors[`${prefix}.nodeId`] = [
+            `Telemetry feed references unknown topology node ID: "${feed.nodeId}"`,
+          ];
+        }
+      });
+    }
+  }
+
   return {
     valid: Object.keys(errors).length === 0,
     errors,

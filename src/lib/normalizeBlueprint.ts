@@ -214,6 +214,36 @@ function normalizeLegacyBlueprintShape(raw: unknown): unknown {
     userOpeningAimNormalized = rawRecord.horrorGrammar.userOpeningAim;
   }
 
+  // Normalize antagonistProfile - synthesize default if absent
+  let antagonistProfileNormalized: unknown = undefined;
+  const topologyNodes: string[] = [];
+  if (isRecord(topologyNormalized) && Array.isArray((topologyNormalized as any).nodes)) {
+    topologyNodes.push(...(topologyNormalized as any).nodes);
+  } else if (isRecord(rawRecord.topology) && Array.isArray((rawRecord.topology as any).nodes)) {
+    topologyNodes.push(...(rawRecord.topology as any).nodes);
+  }
+
+  const castList: Array<Record<string, unknown>> = [];
+  if (Array.isArray(castNormalized)) {
+    castList.push(...(castNormalized as any[]).filter(isRecord));
+  } else if (Array.isArray(rawRecord.cast)) {
+    castList.push(...(rawRecord.cast as any[]).filter(isRecord));
+  }
+
+  if (
+    hasOwn(rawRecord, 'antagonistProfile') &&
+    rawRecord.antagonistProfile !== undefined &&
+    isRecord(rawRecord.antagonistProfile)
+  ) {
+    antagonistProfileNormalized = rawRecord.antagonistProfile;
+  } else {
+    antagonistProfileNormalized = synthesizeDefaultAntagonistProfile(
+      rawRecord,
+      topologyNodes,
+      castList
+    );
+  }
+
   return {
     ...rawRecord,
     ...(topologyNormalized !== undefined ? { topology: topologyNormalized } : {}),
@@ -224,6 +254,115 @@ function normalizeLegacyBlueprintShape(raw: unknown): unknown {
     ...(protagonistId !== undefined ? { userCharacterId: protagonistId } : {}),
     ...(castNormalized !== undefined ? { cast: castNormalized } : {}),
     ...(userOpeningAimNormalized !== undefined ? { userOpeningAim: userOpeningAimNormalized } : {}),
+    ...(antagonistProfileNormalized !== undefined ? { antagonistProfile: antagonistProfileNormalized } : {}),
+  };
+}
+
+function synthesizeDefaultAntagonistProfile(
+  _rawRecord: Record<string, unknown>,
+  topologyNodes: string[],
+  castList: Array<Record<string, unknown>>
+): Record<string, unknown> {
+  const entityMember = castList.find(
+    (c) =>
+      c.isEntity === true ||
+      String(c.role || '').toUpperCase().includes('ANTAGONIST') ||
+      String(c.role || '').toUpperCase().includes('OPPOSITION')
+  );
+
+  const entityName =
+    entityMember && typeof entityMember.name === 'string' && entityMember.name.trim()
+      ? entityMember.name.trim()
+      : 'The Facility Subsystem';
+
+  const isEntityAvatar = entityMember && entityMember.isEntity === true;
+  const validNodes = topologyNodes.length > 0 ? topologyNodes : ['NODE_ENTRY'];
+
+  const apparatusControls = [
+    {
+      id: 'apparatus-hydraulic-bulkheads',
+      name: 'Hydraulic Bulkheads & Lockdown Dogs',
+      affectedNodeIds: [...validNodes],
+      kind: 'HYDRAULICS',
+      availableActions: ['SEAL_BULKHEAD', 'LOCK_PRESSURE_DOGS', 'FORCE_DECOMPRESSION'],
+      status: 'ONLINE',
+    },
+    {
+      id: 'apparatus-atmospheric-matrix',
+      name: 'Atmospheric Scrubber & Vent Matrix',
+      affectedNodeIds: [...validNodes],
+      kind: 'ATMOSPHERE',
+      availableActions: ['VENT_REFRIGERANT', 'OXYGEN_DEPRIVATION', 'EXHAUST_TOXIC_COAGULUM'],
+      status: 'ONLINE',
+    },
+    {
+      id: 'apparatus-lighting-relays',
+      name: 'Auxiliary Electrical Relay & Lighting Grid',
+      affectedNodeIds: [...validNodes],
+      kind: 'ELECTRICAL',
+      availableActions: ['KILL_LIGHTING', 'STROBE_ALARM', 'OVERLOAD_SOLENOID'],
+      status: 'ONLINE',
+    },
+    {
+      id: 'apparatus-intercom-grid',
+      name: 'Facility Acoustic Intercom & Grate Resonator',
+      affectedNodeIds: [...validNodes],
+      kind: 'ACOUSTIC',
+      availableActions: ['BROADCAST_FEEDBACK', 'RESONATE_GRATE', 'WHISPER_VOICE'],
+      status: 'ONLINE',
+    },
+  ];
+
+  const mortalMembers = castList.filter(
+    (c) => !c.isEntity && !String(c.role || '').toUpperCase().includes('ANTAGONIST')
+  );
+
+  const preyCohort = mortalMembers.map((m, idx) => {
+    const name =
+      typeof m.name === 'string' && m.name.trim() ? m.name.trim() : `Subject-${idx + 1}`;
+    const id = typeof m.id === 'string' && m.id.trim() ? m.id.trim() : `prey-${idx + 1}`;
+    const startLoc =
+      typeof m.starting_location === 'string' && m.starting_location
+        ? m.starting_location
+        : validNodes[0];
+
+    return {
+      id,
+      name,
+      vulnerabilities: [
+        'Acute physiological shock under sustained trauma',
+        'Loss of coordination in darkness or sub-zero temperature',
+        'Psychological panic when isolated from companions',
+      ],
+      psychologicalTriggers: [
+        'Sounds of automated machinery or impending containment',
+        'Failure of life-support and lighting systems',
+      ],
+      breakingPoint: 'Catatonic panic or physiological shock collapse',
+      initialNodeId: startLoc,
+    };
+  });
+
+  const telemetryFeeds = validNodes.map((nodeId) => ({
+    nodeId,
+    feedType: 'ACOUSTIC_PICKUP' as const,
+    status: 'ONLINE' as const,
+    label: `Sensor Grid - ${nodeId}`,
+  }));
+
+  const sadisticDirectives = [
+    'Preserve physiological viability of subjects until terminal containment or extraction.',
+    'Methodically exploit acoustic and environmental tells to induce psychological breakdown.',
+    'Isolate subjects to prevent cooperative mechanical bypass of containment bulkheads.',
+  ];
+
+  return {
+    kind: isEntityAvatar ? 'APPARATUS' : 'FORCE',
+    name: entityName,
+    apparatusControls,
+    preyCohort,
+    sadisticDirectives,
+    telemetryFeeds,
   };
 }
 

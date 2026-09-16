@@ -318,7 +318,15 @@ describe('Track D1: Provider schema subset tests (Packet 1-10B)', () => {
     const reconciliation = props.reconciliation_proposal;
 
     expect(intent.required).not.toContain('action_subtype');
-    expect(intentProps.action_subtype.enum).toEqual(['FLEE', 'HIDE']);
+    expect(intentProps.action_subtype.enum).toEqual([
+      'FLEE',
+      'HIDE',
+      'CORNER',
+      'BAIT',
+      'ISOLATE',
+      'OVERWHELM',
+      'FALSE_HOPE',
+    ]);
     expect(reconciliation.required).not.toContain('memory_echo_candidate');
 
     const worldCandidate = (

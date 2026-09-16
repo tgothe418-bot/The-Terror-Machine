@@ -131,12 +131,39 @@ export function evaluateCausalFeasibility(input: {
     input.transitionReceipt.requestedNodeId !== null &&
     !input.transitionReceipt.accepted
   ) {
-    return {
-      feasibility: 'IMPOSSIBLE',
-      reason_code: 'TOPOLOGY_LIMIT',
-      authority_alignment: authorityAlignment,
-      suppressStructuralDeltas: true,
-    };
+    const isAntagonistRemoteActuation =
+      isAntagonist &&
+      (actionKind === 'ACTUATE_ENVIRONMENT' ||
+        actionKind === 'PSYCHOLOGICAL_TORMENT' ||
+        actionKind === 'DEPLOY_HAZARD' ||
+        actionKind === 'OBSERVE_TELEMETRY');
+
+    if (!isAntagonistRemoteActuation) {
+      return {
+        feasibility: 'IMPOSSIBLE',
+        reason_code: 'TOPOLOGY_LIMIT',
+        authority_alignment: authorityAlignment,
+        suppressStructuralDeltas: true,
+      };
+    }
+  }
+
+  // 3b. Native Antagonist apparatus and torment actions
+  if (isAntagonist) {
+    if (
+      actionKind === 'ACTUATE_ENVIRONMENT' ||
+      actionKind === 'PSYCHOLOGICAL_TORMENT' ||
+      actionKind === 'DEPLOY_HAZARD' ||
+      actionKind === 'OBSERVE_TELEMETRY' ||
+      actionKind === 'HARVEST_OR_CONFRONT'
+    ) {
+      return {
+        feasibility: 'SUPPORTED',
+        reason_code: 'NONE',
+        authority_alignment: 'WITHIN_CONTRACT',
+        suppressStructuralDeltas: false,
+      };
+    }
   }
 
   // 4. COMMUNICATE cast-target semantics

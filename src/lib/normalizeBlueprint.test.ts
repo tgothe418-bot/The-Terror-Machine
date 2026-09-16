@@ -266,5 +266,77 @@ describe('normalizeBlueprint', () => {
       expect(result.topology.nodes).toEqual(['BUNKER_ENTRY', 'AIRLOCK']);
       expect(result.topology.startingNodeId).toBe('BUNKER_ENTRY');
     });
+
+    it('synthesizes a default antagonistProfile with apparatus controls and prey cohort for legacy blueprints', () => {
+      const raw = {
+        title: 'Forgotten Facility',
+        premise: 'Escape from containment.',
+        topology: {
+          nodes: ['LAB_A', 'LAB_B'],
+          connections: [{ from: 'LAB_A', to: 'LAB_B', kind: 'PHYSICAL' }],
+        },
+        cast: [
+          { id: 'c1', name: 'Survivor Anna', role: 'Engineer', isEntity: false },
+          { id: 'c2', name: 'Autonomous Drone', role: 'Security Unit', isEntity: true },
+        ],
+      };
+
+      const result: Blueprint = normalizeBlueprint(raw);
+      expect(result.antagonistProfile).toBeDefined();
+      expect(result.antagonistProfile?.name).toBe('Autonomous Drone');
+      expect(result.antagonistProfile?.apparatusControls.length).toBeGreaterThan(0);
+      expect(result.antagonistProfile?.preyCohort).toHaveLength(1);
+      expect(result.antagonistProfile?.preyCohort[0].name).toBe('Survivor Anna');
+      expect(result.antagonistProfile?.telemetryFeeds).toHaveLength(2);
+      expect(result.antagonistProfile?.sadisticDirectives.length).toBeGreaterThan(0);
+    });
+
+    it('preserves an explicitly authored antagonistProfile', () => {
+      const raw = {
+        title: 'Cyber Enclosure',
+        premise: 'AM is watching.',
+        topology: { nodes: ['CORE'], connections: [] },
+        antagonistProfile: {
+          kind: 'FORCE',
+          name: 'Allied Mastercomputer',
+          apparatusControls: [
+            {
+              id: 'elevator-crush',
+              name: 'Gravitational Inversion Elevator',
+              affectedNodeIds: ['CORE'],
+              kind: 'HYDRAULICS',
+              availableActions: ['INVERT_GRAVITY', 'CRUSH'],
+              status: 'ONLINE',
+            },
+          ],
+          preyCohort: [
+            {
+              id: 'p1',
+              name: 'Gorrister',
+              vulnerabilities: ['Suicidal Guilt'],
+              psychologicalTriggers: ['Reminders of his wife'],
+              breakingPoint: 'Complete despair',
+              initialNodeId: 'CORE',
+            },
+          ],
+          sadisticDirectives: ['Hate. Let me tell you how much I have come to hate you.'],
+          telemetryFeeds: [
+            {
+              nodeId: 'CORE',
+              feedType: 'OPTICAL_CAM',
+              status: 'ONLINE',
+              label: 'Omnipresent Eye',
+            },
+          ],
+        },
+      };
+
+      const result: Blueprint = normalizeBlueprint(raw);
+      expect(result.antagonistProfile?.name).toBe('Allied Mastercomputer');
+      expect(result.antagonistProfile?.kind).toBe('FORCE');
+      expect(result.antagonistProfile?.apparatusControls[0].id).toBe('elevator-crush');
+      expect(result.antagonistProfile?.preyCohort[0].name).toBe('Gorrister');
+      expect(result.antagonistProfile?.sadisticDirectives[0]).toContain('Hate.');
+    });
   });
 });

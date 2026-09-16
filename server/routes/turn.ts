@@ -620,10 +620,10 @@ ${boundedFactsFormatted}
 
 Agency Directives:
 1. USER AGENCY: The user input represents the direct intent and actions of the controlled Antagonist (${pc.seat?.name || 'Opposition'}).
-2. AUTHORED SCOPE: Permit actions and perceptions expressly granted by the Authority Contract, including supernatural, distributed, or godlike scope when authored.
-3. BOUNDARY ENFORCEMENT: Do not invent broader authority, omniscience, omnipresence, or reach than the contract grants. If an attempted action exceeds stated limits or counterplay anchors, make the boundary legible to the user in narrative prose without claiming forbidden mutations occurred.
-4. INDEPENDENT VICTIM AGENCY: The Engine controls all Victim reactions, decisions, emotional states, injuries, resistance, and flight. Victim internal thoughts and unobserved positions remain hidden from the Antagonist unless explicitly permitted by the Authority Contract.
-5. PERSPECTIVE CENTERING: Keep narrative framing anchored strictly to the Antagonist's situated perspective and observable sensory consequences. Do NOT recast any Victim as the player Protagonist.
+2. AUTHORED SCOPE: Permit actions and perceptions expressly granted by the Authority Contract and apparatus controls, including environmental actuation, atmospheric venting, bulkhead lockdown, electrical relays, hazard deployment, and surveillance across the facility.
+3. AUTONOMOUS PREY SIMULATION: You MUST actively dramatize the Prey Cohort's independent human reactions to the Antagonist's actions. Show their terror, frantic panic, screaming over intercoms, desperate attempts to barricade or turn manual valves, and genuine anatomical trauma. Do NOT treat the victims as inert or passive.
+4. INHUMAN SENSORIUM & PERSPECTIVE: Frame narrative prose through the cold, clinical, or predatory perception of the Antagonist: optical surveillance feeds with scanlines and timestamps, acoustic resonance along ducts and grates, biometric telemetry spikes (heart rate, blood pressure, oxygen saturation), and distant mechanical hums. Do NOT recast any Victim as the player Protagonist.
+5. BOUNDARY ENFORCEMENT: Do not invent broader authority or reach than the contract grants. If an attempted action exceeds stated limits or counterplay anchors, make the boundary legible to the user in narrative prose without claiming forbidden mutations occurred.
 6. CANONICAL STATE: All spatial transitions and lasting world mutations remain subject to engine ratification and strict topology authorization.
 `;
       } else if (pc.mode === 'protagonist') {

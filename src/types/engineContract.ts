@@ -252,11 +252,24 @@ export const ACTION_KINDS = [
   'MOVE',
   'MANIPULATE',
   'WAIT',
+  'ACTUATE_ENVIRONMENT',
+  'PSYCHOLOGICAL_TORMENT',
+  'DEPLOY_HAZARD',
+  'OBSERVE_TELEMETRY',
+  'HARVEST_OR_CONFRONT',
   'SYSTEM',
   'OTHER',
 ] as const;
 
-export const ACTION_SUBTYPES = ['FLEE', 'HIDE'] as const;
+export const ACTION_SUBTYPES = [
+  'FLEE',
+  'HIDE',
+  'CORNER',
+  'BAIT',
+  'ISOLATE',
+  'OVERWHELM',
+  'FALSE_HOPE',
+] as const;
 
 export const PRESSURE_DIRECTIONS = [
   'DE_ESCALATE',

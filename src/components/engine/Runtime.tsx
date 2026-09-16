@@ -34,6 +34,7 @@ import { validateHorrorGrammarTurnReceipts } from '../../lib/horrorGrammarTurnVa
 import { fetchSimulatedPlayerAction, triggerMemoryForge } from '../../services/geminiService';
 import ErgodicTextRenderer from './ErgodicTextRenderer';
 import AntagonistContractDisplay from './AntagonistContractDisplay';
+import PreyCohortTelemetry from './PreyCohortTelemetry';
 import { useTelemetryStore } from '../../store/useTelemetryStore';
 import { captureRuntimeSnapshot } from '../../core/engine/snapshot';
 import { projectPresentationPatch } from '../../core/engine/presentationProjection';
@@ -986,6 +987,7 @@ export default function Runtime() {
 
       {/* Persistent Antagonist Simulation Contract Strip (Read-Only) */}
       <AntagonistContractDisplay />
+      <PreyCohortTelemetry />
 
       {/* THE VOID (Primary Reading Area Container) */}
       <div
@@ -1095,7 +1097,7 @@ export default function Runtime() {
             <div className="flex-1 relative flex items-end border-b border-zinc-800 focus-within:border-zinc-500 transition-colors duration-1000">
               <span className="text-xs sm:text-sm uppercase tracking-widest opacity-80 mr-4 mb-3.5 shrink-0 font-bold text-zinc-400">
                 {participationContext?.mode === 'antagonist' || playerRole === 'antagonist'
-                  ? '[ ANTAGONIST ]'
+                  ? '[ ANTAGONIST APPARATUS DIRECTIVE ]'
                   : participationContext?.mode === 'director' || playerRole === 'director'
                     ? '[ DIRECTOR ]'
                     : '[ PROTAGONIST ]'}
@@ -1120,7 +1122,9 @@ export default function Runtime() {
                       ? 'Processing...'
                       : isAutopilotRunning
                         ? 'Autopilot active...'
-                        : 'What do you do? (Shift+Enter for new line)'
+                        : participationContext?.mode === 'antagonist' || playerRole === 'antagonist'
+                          ? "Issue Apparatus Directive / Torment Command (e.g. 'Seal the airlock dogs and vent refrigerant into Suite B')..."
+                          : 'What do you do? (Shift+Enter for new line)'
                 }
                 className="w-full bg-transparent text-sm sm:text-base py-3 resize-none focus:outline-none placeholder:text-zinc-700 min-h-[48px] max-h-[30vh] custom-scrollbar leading-relaxed disabled:opacity-50 text-zinc-100"
               />

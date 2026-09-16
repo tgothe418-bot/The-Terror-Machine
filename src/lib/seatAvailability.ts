@@ -170,52 +170,85 @@ export function buildActiveParticipationContext(
       );
     }
 
-    const existing =
-      blueprint.hauntedHouse?.participationContext?.mode === 'antagonist'
-        ? normalizeParticipationContext(blueprint.hauntedHouse.participationContext)
-        : null;
+    const ap = blueprint.antagonistProfile;
+    const name = ap?.name || boundMember?.name || 'Opposition Force';
+    const isForce = ap ? ap.kind === 'FORCE' : !boundMember;
 
-    if (existing) {
-      if (boundMember) {
-        return {
-          ...existing,
-          mode: 'antagonist',
-          seat: {
-            ...existing.seat,
-            kind: 'character',
-            name: boundMember.name,
-            description: boundMember.description,
-          },
+    const authorityText =
+      ap && ap.apparatusControls.length > 0
+        ? `Authorized to actuate facility apparatus across nodes: ${ap.apparatusControls
+            .map(
+              (c) =>
+                `${c.name} [${c.kind}] affecting (${c.affectedNodeIds.join(', ') || 'all'}) with actions: ${c.availableActions.join(', ')}`
+            )
+            .join('; ')}`
+        : 'Authored scenario apparatus and environmental reach.';
+
+    const limitsText =
+      ap && ap.sadisticDirectives.length > 0
+        ? `Operational boundaries & directives: ${ap.sadisticDirectives.join('; ')}`
+        : 'Bounded strictly to scenario rules and apparatus reach.';
+
+    let victimField: any = undefined;
+    if (ap && ap.preyCohort.length > 0) {
+      if (ap.preyCohort.length === 1) {
+        const p = ap.preyCohort[0];
+        victimField = {
+          kind: 'individual',
+          name: p.name,
+          description: `Vulnerabilities: ${p.vulnerabilities.join(', ')}`,
+          goal: 'Survive and escape enclosure.',
+          knownFact: `Breaking point: ${p.breakingPoint}`,
+        };
+      } else {
+        victimField = {
+          kind: 'group',
+          collectiveDesignation: 'Trapped Subjects / Prey Cohort',
+          description: 'Autonomous mortal survivors trapped within enclosure.',
+          members: ap.preyCohort.map((p) => ({
+            id: p.id,
+            name: p.name,
+            description: `Vulnerabilities: ${p.vulnerabilities.join(', ')}`,
+            goal: 'Survive and escape enclosure.',
+            knownFact: `Breaking point: ${p.breakingPoint}`,
+          })),
         };
       }
-      return {
-        ...existing,
-        mode: 'antagonist',
-        seat: {
-          ...existing.seat,
-          kind: existing.seat.kind || 'force',
-        },
-      };
     }
 
-    const name = boundMember?.name || 'Opposition Force';
+    const boundedFacts: string[] = [
+      `Location: ${blueprint.setting?.location || 'Unknown'}`,
+      `Antagonist: ${name} (${isForce ? 'Environmental Force' : 'Autonomous Apparatus'})`,
+      `Apparatus Count: ${ap?.apparatusControls?.length ?? 0} active subsystems`,
+      `Prey Cohort: ${ap?.preyCohort?.length ?? 0} tracked subjects`,
+    ];
+    if (ap?.sadisticDirectives) {
+      ap.sadisticDirectives.forEach((d) => {
+        if (boundedFacts.length < 8) boundedFacts.push(`Directive: ${d}`);
+      });
+    }
+
     return normalizeParticipationContext({
       mode: 'antagonist',
       seat: {
-        kind: boundMember ? 'character' : 'force',
+        kind: isForce ? 'force' : 'character',
         name,
-        description: boundMember?.description,
-        ability: 'Authored scenario entity presence.',
-        limitation: 'Bounded strictly to scenario rules.',
+        description:
+          boundMember?.description ||
+          (ap ? `Autonomous ${ap.kind.toLowerCase()} controlling enclosure subsystems.` : undefined),
+        ability: authorityText,
+        limitation: limitsText,
       },
       initialGoal:
         blueprint.narrativeRules?.incitingIncident ||
         blueprint.globalPremise ||
         'Enforce environmental pressure and containment.',
-      boundedFacts: [
-        `Location: ${blueprint.setting?.location || 'Unknown'}`,
-        `Entity: ${name}`,
-      ].slice(0, 8),
+      boundedFacts: boundedFacts.slice(0, 8),
+      authorityContract: {
+        authority: authorityText,
+        limits: limitsText,
+      },
+      victimField,
     });
   }
 

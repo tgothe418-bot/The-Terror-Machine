@@ -9,7 +9,30 @@ import {
   NarrativeReconciliationReceipt,
 } from './engineContract';
 import { HauntedHouseProvenanceSchema, HauntedHouseProvenance } from './participation';
-import { CharacterExpressionProfileSchema, CharacterExpressionProfile } from './forge';
+import {
+  CharacterExpressionProfileSchema,
+  CharacterExpressionProfile,
+  AntagonistApparatusControlSchema,
+  AntagonistApparatusControl,
+  PreyCohortMemberSchema,
+  PreyCohortMember,
+  TelemetryFeedSchema,
+  TelemetryFeed,
+  AntagonistProfileSchema,
+  AntagonistProfile,
+} from './forge';
+export {
+  AntagonistApparatusControlSchema,
+  PreyCohortMemberSchema,
+  TelemetryFeedSchema,
+  AntagonistProfileSchema,
+};
+export type {
+  AntagonistApparatusControl,
+  PreyCohortMember,
+  TelemetryFeed,
+  AntagonistProfile,
+};
 import { CanonicalConsequenceReceipt } from './consequence';
 import { CharacterStanceById, CharacterStanceReceipt } from './characterStance';
 import { CharacterRelationshipState, CharacterRelationshipReceipt } from './characterRelationships';
@@ -279,6 +302,7 @@ export const BlueprintSchema = z.object({
   ambiguities: BlueprintAmbiguityDecisionsSchema.optional().default([]),
   depictionContract: DepictionContractSchema.optional(),
   userOpeningAim: UserOpeningAimSchema.optional(),
+  antagonistProfile: AntagonistProfileSchema.optional(),
   horrorGrammar: HorrorGrammarAuthoringSchema.optional().default(() => ({
     valueBaselineReview: 'UNREVIEWED' as const,
     pursuitReviews: {},
@@ -411,6 +435,7 @@ export interface ScenarioBlueprint {
   styleProfile?: ProseStyleVector; // A synthesized description of the user's writing style
   perspectives?: SubjectivePerspective[];
   hauntedHouse?: HauntedHouseProvenance;
+  antagonistProfile?: AntagonistProfile;
 }
 
 export interface ContextReceipt {

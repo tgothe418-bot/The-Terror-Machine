@@ -22,4 +22,25 @@ describe('Bespoke Test Blueprint: The Black Iron Mortuary', () => {
     expect(seats.antagonist.available).toBe(true);
     expect(seats.director.available).toBe(true);
   });
+
+  it('binds Entity-41 apparatus controls and prey cohort into Antagonist participation context', async () => {
+    const { buildActiveParticipationContext } = await import('../../lib/seatAvailability');
+    const normalized = normalizeBlueprint(blackIronMortuary as any);
+    expect(normalized.antagonistProfile).toBeDefined();
+    expect(normalized.antagonistProfile?.name).toBe('Entity-41 (The Suture Apparatus)');
+    expect(normalized.antagonistProfile?.apparatusControls).toHaveLength(4);
+    expect(normalized.antagonistProfile?.preyCohort).toHaveLength(2);
+
+    const context = buildActiveParticipationContext(normalized, 'antagonist');
+    expect(context).not.toBeNull();
+    expect(context?.mode).toBe('antagonist');
+    expect(context?.authorityContract?.authority).toContain('Authorized to actuate facility apparatus');
+    expect(context?.authorityContract?.limits).toContain('Preserve physiological viability');
+    expect(context?.victimField?.kind).toBe('group');
+    if (context?.victimField?.kind === 'group') {
+      expect(context.victimField.members).toHaveLength(2);
+      expect(context.victimField.members[0].name).toBe('Dr. Maren Ross');
+      expect(context.victimField.members[1].name).toBe('Officer Marcus Holt');
+    }
+  });
 });

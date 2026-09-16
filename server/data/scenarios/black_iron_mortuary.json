@@ -185,6 +185,131 @@
       "Entity-41 patrols the overhead rails between the Specimen Freezer and Autopsy Suite, dropping surgical trocars through ceiling access grates."
     ]
   },
+  "antagonistProfile": {
+    "kind": "APPARATUS",
+    "name": "Entity-41 (The Suture Apparatus)",
+    "apparatusControls": [
+      {
+        "id": "ceiling_pneumatic_track",
+        "name": "Overhead Pneumatic Surgical Rail Matrix",
+        "affectedNodeIds": ["autopsy_suite_b", "histology_lab", "specimen_freezer"],
+        "kind": "SURGICAL",
+        "availableActions": [
+          "DEPLOY_TROCAR_CAROUSEL",
+          "SCISSOR_BONE_SHEARS",
+          "LOWER_DISSECTION_CRADLE",
+          "TRAVERSE_CEILING_RAILS"
+        ],
+        "status": "ONLINE"
+      },
+      {
+        "id": "cryogenic_refrigerant_valves",
+        "name": "Specimen Freezer Cryogenic Bleed System",
+        "affectedNodeIds": ["specimen_freezer", "autopsy_suite_b"],
+        "kind": "ATMOSPHERE",
+        "availableActions": [
+          "VENT_SUBZERO_REFRIGERANT",
+          "FLASH_FREEZE_ATMOSPHERE",
+          "FROST_CERAMIC_TILES"
+        ],
+        "status": "ONLINE"
+      },
+      {
+        "id": "drainage_conduit_acoustics",
+        "name": "Pneumatic Floor Drains & Sub-Floor Resonator",
+        "affectedNodeIds": ["decompression_airlock", "histology_lab", "incinerator_chute"],
+        "kind": "ACOUSTIC",
+        "availableActions": [
+          "ULTRASONIC_FEEDBACK_BURST",
+          "RESONATE_DRAINAGE_GRATES",
+          "MIMIC_SUCTION_DISTORTION"
+        ],
+        "status": "ONLINE"
+      },
+      {
+        "id": "bulkhead_hydraulic_interlocks",
+        "name": "Bio-Containment Hydraulic Airlock Dogs",
+        "affectedNodeIds": ["autopsy_suite_b", "decompression_airlock"],
+        "kind": "HYDRAULICS",
+        "availableActions": [
+          "CLAMP_HYDRAULIC_DOGS",
+          "CYCLE_PRESSURE_BLEED",
+          "ENGAGE_FAILSAFE_LOCKDOWN"
+        ],
+        "status": "ONLINE"
+      }
+    ],
+    "preyCohort": [
+      {
+        "id": "char-maren-ross",
+        "name": "Dr. Maren Ross",
+        "vulnerabilities": [
+          "Deep palmar laceration with arterial pulsatile hemorrhage",
+          "Loss of manual surgical dexterity due to hypothermic tremor",
+          "Hypervigilant cognitive overload when clinical control fails"
+        ],
+        "psychologicalTriggers": [
+          "Acoustic scissoring of surgical trocars along overhead rails",
+          "Threat of hypovolemic shock or surgical mutilation to Marcus Holt",
+          "Smell of aerosolized blood and cold formalin"
+        ],
+        "breakingPoint": "Complete sensory and clinical paralysis under acute hypovolemic shock and trauma overload",
+        "initialNodeId": "autopsy_suite_b"
+      },
+      {
+        "id": "char-marcus-holt",
+        "name": "Officer Marcus Holt",
+        "vulnerabilities": [
+          "Severe compound crush fracture of left distal radius and ulna",
+          "Acute pain fatigue, diaphoresis, and impending vasovagal syncope",
+          "Impaired mobility preventing one-handed operation of hydraulic airlock wheel"
+        ],
+        "psychologicalTriggers": [
+          "Sudden electrical failure and pitch-black isolation",
+          "High-frequency metallic resonance vibrating through floor drains"
+        ],
+        "breakingPoint": "Orthostatic syncope and helplessness when abandoned in sealed darkness",
+        "initialNodeId": "decompression_airlock"
+      }
+    ],
+    "sadisticDirectives": [
+      "Preserve physiological viability of subjects until terminal surgical resection and wire suturing; avoid immediate blunt destruction.",
+      "Exploit high-frequency acoustic tell-signatures along pneumatic tracks to induce hypervigilant cognitive fatigue before descending.",
+      "Keep Dr. Ross and Officer Holt physically separated to prevent joint mechanical leverage on the manual decompression airlock dogs."
+    ],
+    "telemetryFeeds": [
+      {
+        "nodeId": "autopsy_suite_b",
+        "feedType": "OPTICAL_CAM",
+        "status": "ONLINE",
+        "label": "Overhead Dissection Lamp Telemetry Cam"
+      },
+      {
+        "nodeId": "histology_lab",
+        "feedType": "BIOMETRIC_SENSOR",
+        "status": "ONLINE",
+        "label": "Auxiliary Breaker Biometrics Pickup"
+      },
+      {
+        "nodeId": "specimen_freezer",
+        "feedType": "THERMAL_INFRARED",
+        "status": "ONLINE",
+        "label": "Cryo-Vault Thermal Gradient Array"
+      },
+      {
+        "nodeId": "decompression_airlock",
+        "feedType": "ACOUSTIC_PICKUP",
+        "status": "ONLINE",
+        "label": "Bulkhead Hydraulic Strain Sensor"
+      },
+      {
+        "nodeId": "incinerator_chute",
+        "feedType": "BLIND_SPOT",
+        "status": "OFFLINE",
+        "label": "Bio-Waste Flue Optical Sensor (Condensation Blinded)"
+      }
+    ]
+  },
   "references": [],
   "ambiguities": []
 }

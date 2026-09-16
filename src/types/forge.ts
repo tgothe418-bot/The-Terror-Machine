@@ -29,6 +29,58 @@ export const CharacterExpressionProfileSchema = z.object({
 });
 export type CharacterExpressionProfile = z.infer<typeof CharacterExpressionProfileSchema>;
 
+export const AntagonistApparatusControlSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  affectedNodeIds: z.array(z.string()).default([]),
+  kind: z.enum([
+    'ATMOSPHERE',
+    'HYDRAULICS',
+    'ELECTRICAL',
+    'SURVEILLANCE',
+    'SURGICAL',
+    'MECHANICAL',
+    'ACOUSTIC',
+  ]),
+  availableActions: z.array(z.string()).default([]),
+  status: z.enum(['ONLINE', 'DAMAGED', 'OFFLINE']).default('ONLINE'),
+});
+export type AntagonistApparatusControl = z.infer<typeof AntagonistApparatusControlSchema>;
+
+export const PreyCohortMemberSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  vulnerabilities: z.array(z.string()).default([]),
+  psychologicalTriggers: z.array(z.string()).default([]),
+  breakingPoint: z.string().default('Psychological or physiological collapse'),
+  initialNodeId: z.string().optional(),
+});
+export type PreyCohortMember = z.infer<typeof PreyCohortMemberSchema>;
+
+export const TelemetryFeedSchema = z.object({
+  nodeId: z.string().min(1),
+  feedType: z.enum([
+    'OPTICAL_CAM',
+    'ACOUSTIC_PICKUP',
+    'BIOMETRIC_SENSOR',
+    'THERMAL_INFRARED',
+    'BLIND_SPOT',
+  ]),
+  status: z.enum(['ONLINE', 'INTERMITTENT', 'OFFLINE']).default('ONLINE'),
+  label: z.string().optional(),
+});
+export type TelemetryFeed = z.infer<typeof TelemetryFeedSchema>;
+
+export const AntagonistProfileSchema = z.object({
+  kind: z.enum(['FORCE', 'APPARATUS', 'ENTITY']).default('APPARATUS'),
+  name: z.string().default('Opposition'),
+  apparatusControls: z.array(AntagonistApparatusControlSchema).default([]),
+  preyCohort: z.array(PreyCohortMemberSchema).default([]),
+  sadisticDirectives: z.array(z.string()).default([]),
+  telemetryFeeds: z.array(TelemetryFeedSchema).default([]),
+});
+export type AntagonistProfile = z.infer<typeof AntagonistProfileSchema>;
+
 const normalizeVulnerabilityValue = (val: unknown): number => {
   if (typeof val !== 'number' || !Number.isFinite(val)) return 0.5;
   if (val > 10) return Math.min(1, Math.max(0, val / 100));
@@ -249,6 +301,7 @@ export const ForgeDraftSchema = z.object({
   terminalConditions: z.unknown().optional(),
   characters: z.array(z.unknown()).optional().default([]),
   hauntedHouse: HauntedHouseProvenanceSchema.optional(),
+  antagonistProfile: AntagonistProfileSchema.optional(),
   ambiguities: BlueprintAmbiguityDecisionsSchema.optional().default([]),
   depictionContract: DepictionContractSchema.optional(),
   userOpeningAim: UserOpeningAimSchema.optional(),
