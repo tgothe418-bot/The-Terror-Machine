@@ -88,6 +88,7 @@ These are recorded for later audit once the critical integration closure is work
 - Reconcile opportunity-selection wording between Blueprint baseline activity and runtime overlays after state threading is complete.
 - Review turn and revision display identifiers for any off-by-one presentation without changing canonical identity.
 - Tighten free-form reason codes, bounded array limits, and enum/provenance wording where real traces show that the current contracts are too loose.
+- **Forge Intake Progress Bar & Stage Flow Smoothing (QOL):** During document intake, the progress bar currently advances rapidly through client-side parsing/layout estimation (~90%) and then plateaus while waiting for backend LLM inference and structured candidate generation (the final 10%). Update `FileDropzone.tsx` to clearly separate intake stages: (1) Reference Ingestion & Text Extraction (0–30%), (2) Model Inference & Deep Scenario Extraction (30–85% with dynamic asymptotic pacing based on selected model/provider latency), and (3) Candidate Synthesis & Graph Resolution (85–100%), keeping user visibility accurate throughout long inference windows.
 - Expand broader multi-turn fixtures and CI coverage after the real boundary proofs exist; helper-only coverage is not a substitute for that proof, but its absence is not itself a reason to stop construction.
 - Polish forensic drawer presentation and export labeling after the typed forensic record is in the correct place.
 
