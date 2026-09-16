@@ -163,7 +163,7 @@ Return a single JSON object with these EXACT keys:
         model: modelId,
         jsonMode: true,
         temperature: 0.3,
-        max_tokens: 1500,
+        max_tokens: 4096,
         timeoutMs: 60000,
       });
 
@@ -171,7 +171,7 @@ Return a single JSON object with these EXACT keys:
     } catch (err: any) {
       console.error(`  ! Model error on Turn ${t}:`, err?.message || err);
       parsedTurn = {
-        narration: `The hum of emergency fluorescents falters as Dr. Vance proceeds. The icy air bites into exposed skin, smelling of old formaldehyde and rust.`,
+        narration: `The hum of emergency fluorescents falters as Dr. Ross proceeds. The icy air bites into exposed skin, smelling of old formaldehyde and rust.`,
         currentNodeId: currentNodeId,
         tensionLevel: currentTension,
         anatomicalTrauma: null,

@@ -1136,28 +1136,9 @@ Example:
   }
 }`;
 
-    let rawText = '';
-    const engineProvider = getEngineProvider();
-    if (engineProvider === 'local') {
-      const localModel = getLocalForgeModel();
-      rawText = await generateLocalText(prompt, {
-        model: localModel,
-        temperature: 0.3,
-        jsonMode: true,
-      });
-    } else {
-      const ai = getAiClient();
-      const policy = getGeminiPolicy();
-      const response = await ai.models.generateContent({
-        model: policy.model,
-        contents: prompt,
-        config: {
-          temperature: 0.2,
-          responseMimeType: "application/json",
-        },
-      });
-      rawText = response.text || '';
-    }
+    const rawText = await executeForgePrompt(prompt, {
+      responseMimeType: 'application/json',
+    });
 
     const patch = parseOrRepairJson<Record<string, any>>(rawText);
     if (!patch || typeof patch !== 'object') {
