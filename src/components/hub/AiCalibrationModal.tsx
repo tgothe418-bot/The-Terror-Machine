@@ -22,10 +22,10 @@ interface AiConfigResponse {
   defaultPaidModel: string;
   hasApiKey: boolean;
   maskedApiKey: string;
-  engineProvider: 'gemini' | 'local';
-  engineProviders?: Array<'gemini' | 'local'>;
-  voiceProvider: 'gemini' | 'openai' | 'local';
-  voiceProviders: Array<'gemini' | 'openai' | 'local'>;
+  engineProvider: 'gemini' | 'zai' | 'local';
+  engineProviders?: Array<'gemini' | 'zai' | 'local'>;
+  voiceProvider: 'gemini' | 'openai' | 'zai' | 'local';
+  voiceProviders: Array<'gemini' | 'openai' | 'zai' | 'local'>;
   openAiModel: string;
   approvedOpenAiModels: string[];
   defaultOpenAiModel: string;
@@ -77,6 +77,7 @@ export default function AiCalibrationModal({
   const [openAiModel, setOpenAiModel] = useState<string>('gpt-5.6-luna');
   const [openAiApiKeyInput, setOpenAiApiKeyInput] = useState<string>('');
   const [zaiModel, setZaiModel] = useState<string>('glm-4.6');
+  const [zaiEndpoint, setZaiEndpoint] = useState<'general' | 'coding'>('general');
   const [zaiApiKeyInput, setZaiApiKeyInput] = useState<string>('');
   const [localBaseUrl, setLocalBaseUrl] = useState<string>('http://127.0.0.1:1234/v1');
   const [localModel, setLocalModel] = useState<string>('');
@@ -107,6 +108,7 @@ export default function AiCalibrationModal({
           setVoiceProvider(data.voiceProvider || 'gemini');
           setOpenAiModel(data.openAiModel || data.defaultOpenAiModel || 'gpt-6-astra');
           setZaiModel(data.zaiModel || data.defaultZaiModel || 'glm-4.6');
+          setZaiEndpoint(data.zaiEndpoint || 'general');
           setLocalBaseUrl(
             data.localBaseUrl || data.defaultLocalBaseUrl || 'http://127.0.0.1:1234/v1'
           );
@@ -157,6 +159,7 @@ export default function AiCalibrationModal({
         openAiModel: string;
         openAiApiKey?: string;
         zaiModel: string;
+        zaiEndpoint?: 'general' | 'coding';
         zaiApiKey?: string;
         localBaseUrl: string;
         localModel: string;
@@ -171,6 +174,7 @@ export default function AiCalibrationModal({
         voiceProvider,
         openAiModel,
         zaiModel,
+        zaiEndpoint,
         localBaseUrl,
         localModel,
         localEngineModel: useDedicatedSubsystemModels ? localEngineModel : localModel,
@@ -597,6 +601,41 @@ export default function AiCalibrationModal({
               </select>
               <p className="text-[11px] text-zinc-500 font-mono">
                 Applies to every Z.ai subsystem. GLM runs your Engine contracts through JSON mode + the same fail-closed ratification as every other provider.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-mono uppercase tracking-wider text-zinc-400">
+                Z.ai Endpoint
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setZaiEndpoint('general')}
+                  className={`px-3 py-2 rounded text-xs font-mono text-left border transition-all cursor-pointer ${
+                    zaiEndpoint === 'general'
+                      ? 'border-violet-500 bg-violet-950/40 text-violet-200'
+                      : 'border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-700'
+                  }`}
+                >
+                  <div className="font-bold text-zinc-200">General API</div>
+                  <div className="text-[10px] text-zinc-500 truncate">api.z.ai/api/paas/v4</div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setZaiEndpoint('coding')}
+                  className={`px-3 py-2 rounded text-xs font-mono text-left border transition-all cursor-pointer ${
+                    zaiEndpoint === 'coding'
+                      ? 'border-violet-500 bg-violet-950/40 text-violet-200'
+                      : 'border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-700'
+                  }`}
+                >
+                  <div className="font-bold text-zinc-200">Coding Plan</div>
+                  <div className="text-[10px] text-zinc-500 truncate">api.z.ai/api/coding/paas/v4</div>
+                </button>
+              </div>
+              <p className="text-[11px] text-zinc-500 font-mono">
+                Select &apos;Coding Plan&apos; if you have a Z.ai GLM Coding subscription; otherwise use &apos;General API&apos;.
               </p>
             </div>
 
