@@ -473,5 +473,65 @@ describe('vocalizationEngine', () => {
       expect(directive).toContain('[MANDATORY DIALOGUE REQUIREMENT]');
       expect(directive).toContain('The user explicitly spoke to Jules Mercer');
     });
+
+    it('gracefully normalizes player dialogue on SYSTEM_INIT opening turn for verbal characters', () => {
+      const auditory = buildAuditoryContext(baseContext, 'SYSTEM_INIT');
+      const blocks = [
+        {
+          type: 'dialogue',
+          speaker: 'Dr. Aria Bell',
+          delivery: 'spoken',
+          content: 'The air in this ward is freezing.',
+        },
+      ];
+
+      const { error, normalizedBlocks } = validateAndNormalizeVocalization(blocks, auditory);
+      expect(error).toBeNull();
+      expect(normalizedBlocks).toHaveLength(1);
+      expect(normalizedBlocks[0].type).toBe('dialogue');
+      expect(normalizedBlocks[0].speaker).toBe('Dr. Aria Bell');
+      expect(normalizedBlocks[0].content).toBe('The air in this ward is freezing.');
+    });
+
+    it('gracefully converts player dialogue on SYSTEM_INIT to prose for nonverbal entities', () => {
+      const nonverbalContext = EngineTurnContextSchema.parse({
+        ...baseContext,
+        player: {
+          name: 'Entity-41',
+          characterId: 'char-entity-41',
+          role: 'antagonist',
+          isEntity: true,
+        },
+        cast: [
+          {
+            id: 'char-entity-41',
+            name: 'Entity-41',
+            role: 'antagonist',
+            isUserCharacter: true,
+            isEntity: true,
+            isPresent: true,
+            expressionProfile: {
+              communicationModes: ['nonverbal'],
+              expressionGuidance: 'Silent mechanical movements only.',
+            },
+          },
+        ],
+      });
+
+      const auditory = buildAuditoryContext(nonverbalContext, 'SYSTEM_INIT');
+      const blocks = [
+        {
+          type: 'dialogue',
+          speaker: 'Entity-41',
+          content: 'Pneumatic valves hiss along the ceiling track.',
+        },
+      ];
+
+      const { error, normalizedBlocks } = validateAndNormalizeVocalization(blocks, auditory);
+      expect(error).toBeNull();
+      expect(normalizedBlocks).toHaveLength(1);
+      expect(normalizedBlocks[0].type).toBe('prose');
+      expect(normalizedBlocks[0].content).toBe('Pneumatic valves hiss along the ceiling track.');
+    });
   });
 });

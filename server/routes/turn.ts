@@ -1073,11 +1073,16 @@ Follow these opening establishment mandates:
    - Ground who they are through natural observation and physical embodiment, avoiding artificial exposition dumps or breaking character.
 
 3. ESTABLISH PRESENT CAST MEMBERS & OPENING DIALOGUE:
-   - Visibly introduce all cast members physically present in the room (marked HERE in CAST LEDGER:
-${eligiblePresentCharactersFormatted}
-).
+${
+  eligiblePresentCharacters.length > 0
+    ? `   - Visibly introduce all cast members physically present in the room (marked HERE in CAST LEDGER: ${eligiblePresentCharacters.map((c) => c.name).join(', ')}).
    - Describe where they are located relative to the player, what they are currently doing, and their observable emotional baseline.
-   - You MUST include exactly ONE dialogue block from a present companion or ambient attendant (e.g. an eager question from a child, an anxious remark from a spouse, or a formal announcement from an attendant) to break the silence and establish living character voices right from the opening turn.
+   - You MUST include exactly ONE dialogue block from a present companion (${eligiblePresentCharacters.map((c) => c.name).join(', ')}) or an ambient attendant (e.g. an eager question from a child, an anxious remark from a spouse, or a formal announcement from an attendant) to break the silence and establish living character voices right from the opening turn.
+   - DO NOT make the player-controlled character (${context.player.name}) the speaker of a dialogue block.`
+    : `   - The player character (${context.player.name}) is currently ALONE in this starting chamber. There are NO non-player companions present here.
+   - Do NOT emit interpersonal room dialogue blocks.
+   - You may include an internal monologue block (type: "internal_monologue", speaker: "${context.player.name}") reflecting their private thoughts or psychological state, or a muttered soliloquy block (type: "soliloquy", speaker: "${context.player.name}"), or emit pure prose blocks.`
+}
 
 4. AVOID "IN MEDIA RES" CHAOS:
    - Do NOT drop the player mid-sprint, mid-screaming, or in the middle of sudden physical violence.

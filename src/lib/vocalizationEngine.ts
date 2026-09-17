@@ -325,6 +325,35 @@ export function validateAndNormalizeVocalization(
         castMember.id === context.player.characterId || castMember.isUserCharacter;
 
       if (isPlayer) {
+        const isSystemInit = auditoryContext.userAction === 'SYSTEM_INIT';
+        const communicationModes =
+          castMember.expressionProfile?.communicationModes ?? ['spoken'];
+        const canSpeak =
+          communicationModes.includes('spoken') ||
+          communicationModes.includes('mediated');
+
+        if (isSystemInit) {
+          dialogueCount -= 1;
+          if (!canSpeak) {
+            normalizedBlocks.push({
+              ...block,
+              type: 'prose',
+              content,
+            });
+          } else {
+            normalizedBlocks.push({
+              ...block,
+              type: auditoryContext.isSolitary ? 'soliloquy' : 'dialogue',
+              speaker: activeName,
+              medium: 'direct',
+              delivery: block.delivery || 'spoken',
+              target: auditoryContext.isSolitary ? 'self' : 'cohort',
+              content,
+            });
+          }
+          continue;
+        }
+
         const isMuttering =
           block.delivery === 'mutter' ||
           block.delivery === 'whisper' ||
@@ -364,16 +393,6 @@ export function validateAndNormalizeVocalization(
       }
 
       if (castMember.isPresent) {
-        if (
-          explicitlyAddressedSpeakerId &&
-          castMember.id !== explicitlyAddressedSpeakerId
-        ) {
-          return {
-            error: `Dialogue speaker "${speaker}" does not match the explicitly addressed cast member.`,
-            normalizedBlocks: [],
-          };
-        }
-
         normalizedBlocks.push({
           ...block,
           type: 'dialogue',
