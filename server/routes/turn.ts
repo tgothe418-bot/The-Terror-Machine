@@ -80,6 +80,15 @@ import {
   getSpatiallyRatifiableRequestedTransition,
   getThresholdBoundTopologyDelta,
 } from '../../src/lib/intentConsequenceBridge';
+import {
+  buildAuditoryContext,
+  validateAndNormalizeVocalization,
+  formatVocalizationPromptDirective,
+  isRecognizedAmbientSpeaker,
+  REMOTE_DISCONNECT_PATTERNS,
+  RECOGNIZED_AMBIENT_SPEAKER_PATTERN,
+  type AuditoryContext,
+} from '../../src/lib/vocalizationEngine';
 import type {
   IntentReceipt,
   NarrativeReconciliationReceipt,
@@ -364,19 +373,17 @@ export function finalizeWorldMemory(input: {
   });
 }
 
-export const REMOTE_DISCONNECT_PATTERNS =
-  /\b(hang\s*up|hung\s*up|disconnect[singed]*|click[singed]*\s*off|shut[ting]*\s*off\s*(the\s*)?(radio|phone|comm)|end[singed]*\s*(the\s*)?(call|transmission))\b/i;
-
-export const RECOGNIZED_AMBIENT_SPEAKER_PATTERN =
-  /\b(waiter|waitress|server|bartender|sommelier|busboy|hostess|maitre\s*d'?|cab\s+driver|taxi\s+driver|driver|chauffeur|cabbie|doorman|concierge|bellhop|valet|porter|secretary|receptionist|clerk|cashier|teller|police\s+officer|cop|detective|investigator|dispatcher|operator|doctor|physician|surgeon|nurse|paramedic|orderly|security\s+guard|guard|watchman|passerby|patron|bystander|pedestrian|commuter|neighbor|courier|delivery\s+person|messenger|barista|attendant|flight\s+attendant|steward|stewardess|announcer|technician|engineer|automated\s+voice|intercom\s+voice|ticket\s+agent|shopkeeper|mechanic)\b/i;
-
-export function isRecognizedAmbientSpeaker(speaker: string): boolean {
-  if (typeof speaker !== 'string') return false;
-  return RECOGNIZED_AMBIENT_SPEAKER_PATTERN.test(speaker.trim());
-}
+export {
+  REMOTE_DISCONNECT_PATTERNS,
+  RECOGNIZED_AMBIENT_SPEAKER_PATTERN,
+  isRecognizedAmbientSpeaker,
+  buildAuditoryContext,
+  validateAndNormalizeVocalization,
+  formatVocalizationPromptDirective,
+};
 
 export function validateDialogueBlocks(
-  blocks: Array<{ type: string; speaker?: string | null }>,
+  blocks: Array<{ type: string; speaker?: string | null; [key: string]: any }>,
   context: EngineTurnContext,
   explicitlyAddressedSpeakerId: string | null = null,
   userAction?: string,
@@ -387,107 +394,28 @@ export function validateDialogueBlocks(
     return null;
   }
 
-  let dialogueCount = 0;
+  const auditoryContext = buildAuditoryContext(
+    context,
+    userAction,
+    recentHistory,
+    arrivedCastIds,
+    explicitlyAddressedSpeakerId
+  );
 
-  for (const block of blocks) {
-    if (block.type !== 'dialogue') continue;
-    dialogueCount += 1;
+  const { error, normalizedBlocks } = validateAndNormalizeVocalization(
+    blocks,
+    auditoryContext
+  );
 
-    if (dialogueCount > 1) {
-      return 'Turn response may contain at most one dialogue block.';
-    }
-
-    const speaker = block.speaker?.trim();
-    if (!speaker) {
-      return 'Dialogue block is missing a speaker.';
-    }
-
-    const castMember = context.cast.find(
-      (member) => member.name === speaker || member.id === speaker
-    );
-    if (!castMember) {
-      if (isRecognizedAmbientSpeaker(speaker)) {
-        // Allowed as a recognized ambient extra!
-        // Clean duplicate speaker prefix if model emitted "Flight Attendant: Utterance" inside content
-        if (block.content && typeof block.content === 'string') {
-          const escapedSpeaker = speaker.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-          block.content = block.content
-            .replace(new RegExp(`^["']?\\s*${escapedSpeaker}\\s*:\\s*`, 'i'), '')
-            .trim();
-        }
-        continue;
+  if (!error && Array.isArray(blocks)) {
+    for (let i = 0; i < normalizedBlocks.length; i++) {
+      if (blocks[i]) {
+        Object.assign(blocks[i], normalizedBlocks[i]);
       }
-      return `Dialogue speaker "${speaker}" is not in the authorized cast.`;
-    }
-
-    // Normalize block.speaker to display name if model used the character ID or alias
-    if (castMember && block.speaker !== castMember.name) {
-      block.speaker = castMember.name;
-    }
-
-    // Clean duplicate speaker prefix if model emitted "Name: Utterance" inside content
-    if (block.content && typeof block.content === 'string') {
-      const activeName = castMember ? castMember.name : speaker;
-      const escapedSpeaker = activeName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      block.content = block.content
-        .replace(new RegExp(`^["']?\\s*${escapedSpeaker}\\s*:\\s*`, 'i'), '')
-        .trim();
-    }
-
-    if (castMember.id === context.player.characterId || castMember.isUserCharacter) {
-      return `Dialogue speaker "${speaker}" is the player-controlled character.`;
-    }
-
-    const communicationModes = castMember.expressionProfile?.communicationModes ?? ['spoken'];
-    const canSpeak = communicationModes.includes('spoken') || communicationModes.includes('mediated');
-
-    if (!canSpeak) {
-      return `Dialogue speaker "${speaker}" lacks spoken or mediated communication.`;
-    }
-
-    if (!castMember.isPresent) {
-      if (arrivedCastIds?.has(castMember.id)) {
-        // Allowed dialogue as they arrive co-presently!
-      } else {
-        const actionText = typeof userAction === 'string' ? userAction.toLowerCase() : '';
-        const isDisconnectAction = REMOTE_DISCONNECT_PATTERNS.test(actionText);
-        const isRemoteAction = !isDisconnectAction && REMOTE_COMMUNICATION_CHANNELS.test(actionText);
-        const isAddressedMediated =
-          !isDisconnectAction &&
-          Boolean(explicitlyAddressedSpeakerId) &&
-          castMember.id === explicitlyAddressedSpeakerId &&
-          communicationModes.includes('mediated');
-
-        // Check recent history for an active remote connection if castMember has mediated comms and hasn't disconnected
-        let isHistoricalRemoteActive = false;
-        if (
-          !isDisconnectAction &&
-          communicationModes.includes('mediated') &&
-          Array.isArray(recentHistory) &&
-          recentHistory.length > 0
-        ) {
-          const recentMessages = recentHistory.slice(-4);
-          isHistoricalRemoteActive = recentMessages.some((msg) => {
-            if (typeof msg.content !== 'string') return false;
-            return REMOTE_COMMUNICATION_CHANNELS.test(msg.content);
-          });
-        }
-
-        if (!isRemoteAction && !isAddressedMediated && !isHistoricalRemoteActive) {
-          return `Dialogue speaker "${speaker}" is not present at the current node.`;
-        }
-      }
-    }
-
-    if (
-      explicitlyAddressedSpeakerId &&
-      castMember.id !== explicitlyAddressedSpeakerId
-    ) {
-      return `Dialogue speaker "${speaker}" does not match the explicitly addressed cast member.`;
     }
   }
 
-  return null;
+  return error;
 }
 
 export function resolveDialogueSpeakerId(
@@ -1157,34 +1085,21 @@ ${eligiblePresentCharactersFormatted}
    - Allow the user room to observe, orient themselves, and decide their first action.`
       : '';
 
-    const presentSpeakerNames = eligiblePresentCharacters
-      .filter((c) => {
-        const modes = c.expressionProfile?.communicationModes ?? ['spoken'];
-        return modes.includes('spoken') || modes.includes('mediated');
-      })
-      .map((c) => c.name);
-
     const castResolution = resolveExplicitCastTarget(userAction, context);
     const explicitlyAddressedMember =
       castResolution.status === 'EXPLICIT_NAME'
         ? context.cast.find((c) => c.id === castResolution.characterId)
         : null;
 
-    let livingDialogueMandate = '';
-    if (explicitlyAddressedMember) {
-      livingDialogueMandate = `\n\n[MANDATORY DIALOGUE REQUIREMENT]
-The user explicitly spoke to ${explicitlyAddressedMember.name}.
-In narrative_blocks, you MUST include 1-2 prose blocks AND exactly ONE dialogue block answering the player:
-{"type": "dialogue", "speaker": "${explicitlyAddressedMember.name}", "content": "<The spoken response without prepending speaker name>"}
-Do NOT emit only prose blocks. Do NOT put spoken dialogue into a prose block. Exactly ONE block must have type "dialogue".`;
-    } else if (presentSpeakerNames.length > 0) {
-      livingDialogueMandate = `\n\n[MANDATORY DIALOGUE REQUIREMENT]
-The following characters are physically present in this room: ${presentSpeakerNames.join(', ')}.
-To keep the world alive, people in the same room do not stand in absolute silence. In narrative_blocks, you MUST include 1-2 prose blocks AND exactly ONE dialogue block:
-{"type": "dialogue", "speaker": "<Speaker Name>", "content": "<Spoken words without prepending speaker name>"}
-The speaker must be one of the present companions (${presentSpeakerNames.join(', ')}) or a recognized ambient attendant.
-Do NOT emit only prose blocks when companions are present in the room. Exactly ONE block must have type "dialogue".`;
-    }
+    const preTurnAuditoryContext = buildAuditoryContext(
+      context,
+      userAction,
+      recentHistory,
+      undefined,
+      explicitlyAddressedMember?.id ?? null
+    );
+    const vocalizationPromptDirective =
+      formatVocalizationPromptDirective(preTurnAuditoryContext);
 
     // Construct the dense, authoritative contract prompt
     const prompt = `[SCENARIO CONTRACT]
@@ -1470,7 +1385,7 @@ ${recentHistory}
     : '';
 
   return `${reconciliationDirective}${navigationNote}`;
-})()}${livingDialogueMandate}`;
+})()}${vocalizationPromptDirective}`;
 
     // Call the LLM with strict Zod schema enforcement
     let engineResponse;
@@ -1594,14 +1509,19 @@ ${recentHistory}
     );
     const arrivedCastIds = new Set<string>(validArrivals);
 
-    const dialogueContractError = validateDialogueBlocks(
-      boundedResult.narrative_blocks,
+    const auditoryContext = buildAuditoryContext(
       context,
-      explicitlyAddressedSpeakerId,
       userAction,
       recentHistory,
-      arrivedCastIds
+      arrivedCastIds,
+      explicitlyAddressedSpeakerId
     );
+
+    const { error: dialogueContractError, normalizedBlocks } =
+      validateAndNormalizeVocalization(
+        boundedResult.narrative_blocks,
+        auditoryContext
+      );
 
     if (dialogueContractError) {
       console.error('[API /turn] Model dialogue contract mismatch:', dialogueContractError);
@@ -1612,6 +1532,8 @@ ${recentHistory}
         diagnostics,
       });
     }
+
+    boundedResult.narrative_blocks = normalizedBlocks;
 
     const respondingCharacterId = resolveDialogueSpeakerId(
       boundedResult.narrative_blocks,

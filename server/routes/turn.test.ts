@@ -1332,10 +1332,13 @@ describe('Turn schemas validation', () => {
         ),
       });
 
+      const remoteBlock = { type: 'dialogue', speaker: 'Jules Mercer' };
       expect(validateDialogueBlocks(
-        [{ type: 'dialogue', speaker: 'Jules Mercer' }],
+        [remoteBlock],
         contextWithRemote
-      )).toBe('Dialogue speaker "Jules Mercer" is not present at the current node.');
+      )).toBeNull();
+      expect(remoteBlock.type).toBe('transmission');
+      expect(remoteBlock.medium).toBe('acoustic_bleed');
 
       expect(validateDialogueBlocks(
         [
@@ -1384,16 +1387,19 @@ describe('Turn schemas validation', () => {
         )
       ).toBeNull();
 
-      // Turn 3: User hangs up -> channel is closed, Jules cannot speak
+      // Turn 3: User hangs up -> channel is closed, Jules speech auto-resolves to acoustic bleed transmission rather than 502 error
+      const hungUpBlock = { type: 'dialogue', speaker: 'Jules Mercer' };
       expect(
         validateDialogueBlocks(
-          [{ type: 'dialogue', speaker: 'Jules Mercer' }],
+          [hungUpBlock],
           contextWithRemoteJules,
           null,
           'I hang up the phone and pocket it.',
           historyWithCall
         )
-      ).toBe('Dialogue speaker "Jules Mercer" is not present at the current node.');
+      ).toBeNull();
+      expect(hungUpBlock.type).toBe('transmission');
+      expect(hungUpBlock.medium).toBe('acoustic_bleed');
     });
 
     it('validates ambient speakers and rejects unauthorized arbitrary characters', () => {
@@ -1441,15 +1447,18 @@ describe('Turn schemas validation', () => {
         ),
       });
 
-      // Without arrival: fails because absent
+      // Without arrival: auto-remediates to acoustic bleed transmission rather than failing
+      const absentBlock = { type: 'dialogue', speaker: 'Jules Mercer' };
       expect(
         validateDialogueBlocks(
-          [{ type: 'dialogue', speaker: 'Jules Mercer' }],
+          [absentBlock],
           contextWithAbsentJules,
           null,
           'I wait in the foyer.'
         )
-      ).toBe('Dialogue speaker "Jules Mercer" is not present at the current node.');
+      ).toBeNull();
+      expect(absentBlock.type).toBe('transmission');
+      expect(absentBlock.medium).toBe('acoustic_bleed');
 
       // With arrivedCastIds including char-jules: succeeds!
       const arrivedCastIds = new Set(['char-jules']);

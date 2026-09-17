@@ -346,7 +346,10 @@ export function normalizeGeminiTurnProviderPayload(payload: unknown): unknown {
       .map((b) => {
         const record = b as JsonRecord;
         if (
-          record.type === 'dialogue' &&
+          (record.type === 'dialogue' ||
+            record.type === 'internal_monologue' ||
+            record.type === 'soliloquy' ||
+            record.type === 'transmission') &&
           (!record.speaker ||
             typeof record.speaker !== 'string' ||
             record.speaker.trim().length === 0)

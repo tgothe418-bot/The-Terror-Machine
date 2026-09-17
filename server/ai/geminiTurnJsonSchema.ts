@@ -198,21 +198,44 @@ export const geminiTurnResponseJsonSchema: GeminiJsonSchema = {
       type: 'array',
       maxItems: 3,
       description:
-        'Sequence of 1-3 narrative blocks. When companions or attendants are present in the room, emit 1-2 prose blocks and exactly 1 dialogue block for living voices.',
+        'Sequence of 1-3 narrative blocks. Supports descriptive prose, spoken dialogue, internal monologue (private thoughts), soliloquy (speaking aloud when alone), and acoustic transmissions.',
       items: {
         type: 'object',
         properties: {
           type: {
             type: 'string',
-            enum: ['prose', 'dialogue', 'system_voice', 'environmental_description'],
+            enum: [
+              'prose',
+              'dialogue',
+              'internal_monologue',
+              'soliloquy',
+              'transmission',
+              'system_voice',
+              'environmental_description',
+            ],
           },
           speaker: {
             type: 'string',
-            description: 'Name or ID of the authorized speaker. Omit for prose.',
+            description: 'Name or ID of the authorized speaker or thinker. Omit for prose.',
+          },
+          medium: {
+            type: 'string',
+            enum: ['direct', 'internal', 'intercom', 'radio', 'acoustic_bleed', 'port_observation'],
+            description: 'Acoustic medium. Use direct for room speech, internal for monologue, intercom/radio/acoustic_bleed for remote voices.',
+          },
+          delivery: {
+            type: 'string',
+            enum: ['spoken', 'whisper', 'mutter', 'shout', 'strained', 'synthetic'],
+            description: 'Vocal delivery style.',
+          },
+          target: {
+            type: 'string',
+            enum: ['addressed', 'cohort', 'self', 'broadcast', 'unseen'],
+            description: 'Who is addressed. Use self for muttering/soliloquy/monologue.',
           },
           content: {
             type: 'string',
-            description: 'Prose description or spoken utterance. For dialogue, include ONLY the words spoken without prepending the speaker name.',
+            description: 'Prose description, thought, or spoken utterance. For speech/thought, include ONLY the content without prepending the speaker name.',
           },
         },
         required: ['type', 'content'],

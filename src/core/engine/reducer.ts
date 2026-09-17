@@ -617,13 +617,21 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
         if (!blocks || !Array.isArray(blocks)) return '';
         return blocks
           .map((block) => {
-            if (
-              (block.type === 'dialogue' || block.type === 'internal_monologue') &&
-              block.speaker
-            ) {
-              return `${String(block.speaker).toUpperCase()}: ${String(block.content)}`;
+            const speaker = typeof block.speaker === 'string' && block.speaker ? block.speaker : undefined;
+            const content = block.content !== undefined && block.content !== null ? String(block.content) : '';
+            if (block.type === 'internal_monologue') {
+              return `[THOUGHT // ${speaker || 'POV'}]: ${content}`;
             }
-            return String(block.content || '');
+            if (block.type === 'soliloquy') {
+              return `[MUTTERED // ${speaker || 'SELF'}]: ${content}`;
+            }
+            if (block.type === 'transmission') {
+              return `[TRANSMISSION // ${speaker || 'INTERCOM'}]: ${content}`;
+            }
+            if (block.type === 'dialogue') {
+              return `${speaker?.toUpperCase()}: ${content}`;
+            }
+            return content;
           })
           .join('\n\n');
       };

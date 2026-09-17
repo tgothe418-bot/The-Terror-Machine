@@ -53,6 +53,7 @@ export * from './characterStance';
 export * from './characterRelationships';
 export * from './characterMemory';
 export * from './worldMemory';
+export * from './vocalization';
 
 export const EdgeKindSchema = z.enum([
   'PHYSICAL',
@@ -225,8 +226,19 @@ export const TransitionReceiptSchema = z.object({
 export type TransitionReceipt = z.infer<typeof TransitionReceiptSchema>;
 
 export const NarrativeBlockSchema = z.object({
-  type: z.enum(['prose', 'dialogue', 'system_voice', 'environmental_description']),
+  type: z.enum([
+    'prose',
+    'dialogue',
+    'internal_monologue',
+    'soliloquy',
+    'transmission',
+    'system_voice',
+    'environmental_description',
+  ]),
   speaker: z.string().nullable().optional(),
+  medium: z.enum(['direct', 'internal', 'intercom', 'radio', 'acoustic_bleed', 'port_observation']).optional().default('direct'),
+  delivery: z.enum(['spoken', 'whisper', 'mutter', 'shout', 'strained', 'synthetic']).optional().default('spoken'),
+  target: z.enum(['addressed', 'cohort', 'self', 'broadcast', 'unseen']).optional().default('addressed'),
   content: z.string(),
 });
 

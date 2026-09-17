@@ -1627,4 +1627,40 @@ describe('engineReducer atomic turn commits', () => {
       expect(state4.storyLog).toHaveLength(0); // Excluded from storyLog
     });
   });
+
+  describe('Phase 3 Vocalization formatBlocks in reducer', () => {
+    it('formats narrative_blocks into state.history using Phase 3 formatting rules', () => {
+      const startState = {
+        ...initialEngineState,
+      };
+
+      const nextState = engineReducer(startState, {
+        type: 'TURN_RESOLVED',
+        payload: {
+          narrative_blocks: [
+            { type: 'prose', content: 'Darkness blankets the sub-station.' },
+            { type: 'dialogue', speaker: 'kane', content: 'Did you hear that noise?' },
+            { type: 'internal_monologue', speaker: 'Dr. Evans', content: 'The air has turned acidic.' },
+            { type: 'internal_monologue', content: 'I should stay still.' },
+            { type: 'soliloquy', speaker: 'Mercer', content: 'Not like this, not today.' },
+            { type: 'soliloquy', content: 'Just breath.' },
+            { type: 'transmission', speaker: 'COMM-RELAY', content: 'Signal degraded 80%.' },
+            { type: 'transmission', content: 'Static hum.' },
+          ],
+        } as any,
+      });
+
+      const lastMessage = nextState.history[nextState.history.length - 1];
+      expect(lastMessage.content).toBe(
+        'Darkness blankets the sub-station.\n\n' +
+        'KANE: Did you hear that noise?\n\n' +
+        '[THOUGHT // Dr. Evans]: The air has turned acidic.\n\n' +
+        '[THOUGHT // POV]: I should stay still.\n\n' +
+        '[MUTTERED // Mercer]: Not like this, not today.\n\n' +
+        '[MUTTERED // SELF]: Just breath.\n\n' +
+        '[TRANSMISSION // COMM-RELAY]: Signal degraded 80%.\n\n' +
+        '[TRANSMISSION // INTERCOM]: Static hum.'
+      );
+    });
+  });
 });

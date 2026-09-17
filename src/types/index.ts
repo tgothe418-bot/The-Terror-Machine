@@ -78,6 +78,7 @@ export * from './characterStance';
 export * from './characterRelationships';
 export * from './characterMemory';
 export * from './worldMemory';
+export * from './vocalization';
 export * from './blueprintAuthoring';
 export * from './horrorGrammar';
 
@@ -1061,8 +1062,9 @@ export interface PerspectiveShiftReceipt {
 
 export interface UITranscriptMessage {
   id: string;
-  role: 'user' | 'system' | 'narrative' | 'director';
+  role: 'user' | 'system' | 'narrative' | 'director' | 'assistant' | 'engine';
   content: string;
+  blocks?: NarrativeBlock[];
   systemLogic?: SystemLogicIntervention[];
   isEdited?: boolean;
   cosmetic?: boolean;

@@ -1,0 +1,525 @@
+import { EngineTurnContext } from '../types/engineContract';
+import { REMOTE_COMMUNICATION_CHANNELS } from './causalFeasibility';
+
+export const REMOTE_DISCONNECT_PATTERNS =
+  /\b(hang\s*up|hung\s*up|disconnect[singed]*|click[singed]*\s*off|shut[ting]*\s*off\s*(the\s*)?(radio|phone|comm)|end[singed]*\s*(the\s*)?(call|transmission))\b/i;
+
+export const RECOGNIZED_AMBIENT_SPEAKER_PATTERN =
+  /\b(waiter|waitress|server|bartender|sommelier|busboy|hostess|maitre\s*d'?|cab\s+driver|taxi\s+driver|driver|chauffeur|cabbie|doorman|concierge|bellhop|valet|porter|secretary|receptionist|clerk|cashier|teller|police\s+officer|cop|detective|investigator|dispatcher|operator|doctor|physician|surgeon|nurse|paramedic|orderly|security\s+guard|guard|watchman|passerby|patron|bystander|pedestrian|commuter|neighbor|courier|delivery\s+person|messenger|barista|attendant|flight\s+attendant|steward|stewardess|announcer|technician|engineer|automated\s+voice|intercom\s+voice|ticket\s+agent|shopkeeper|mechanic)\b/i;
+
+export const ACOUSTIC_LINK_PATTERNS =
+  /\b(observation\s*(?:port|window|glass)|intercom|airlock|duct|vent(?:ilation)?|grate|partition|speaker|pipe|hatch|window|glass|camera|feed|monitor|tannoy|pa\s*system|bulkhead)\b/i;
+
+export function isRecognizedAmbientSpeaker(speaker: string): boolean {
+  if (typeof speaker !== 'string') return false;
+  return RECOGNIZED_AMBIENT_SPEAKER_PATTERN.test(speaker.trim());
+}
+
+export interface AuditoryCharacterSummary {
+  id: string;
+  name: string;
+  role?: string;
+  isPresent: boolean;
+  isUserCharacter: boolean;
+  communicationModes: Array<'spoken' | 'nonverbal' | 'mediated'>;
+}
+
+export interface AuditoryContext {
+  coPresentCharacters: AuditoryCharacterSummary[];
+  adjacentOrElsewhereCharacters: AuditoryCharacterSummary[];
+  presentSpeakerNames: string[];
+  isSolitary: boolean;
+  hasActiveRemoteChannel: boolean;
+  remoteChannelMedium: 'radio' | 'intercom' | null;
+  hasAcousticTopologyLinks: boolean;
+  detectedAcousticLinkMedium: 'intercom' | 'port_observation' | 'acoustic_bleed';
+  arrivedCastIds: ReadonlySet<string>;
+  hasArrivals: boolean;
+  explicitlyAddressedSpeakerId: string | null;
+  context: EngineTurnContext;
+  userAction?: string;
+  recentHistory?: Array<{ role: string; content: string }> | string;
+}
+
+export function buildAuditoryContext(
+  context: EngineTurnContext,
+  userAction?: string,
+  recentHistory?: Array<{ role: string; content: string }> | string,
+  arrivedCastIds?: ReadonlySet<string>,
+  explicitlyAddressedSpeakerId: string | null = null
+): AuditoryContext {
+  const nonPlayerCast = (context.cast || []).filter(
+    (c) => c.id !== context.player.characterId && !c.isUserCharacter
+  );
+
+  const coPresentCharacters: AuditoryCharacterSummary[] = nonPlayerCast
+    .filter((c) => c.isPresent)
+    .map((c) => ({
+      id: c.id,
+      name: c.name,
+      role: c.role,
+      isPresent: true,
+      isUserCharacter: false,
+      communicationModes: c.expressionProfile?.communicationModes ?? ['spoken'],
+    }));
+
+  const adjacentOrElsewhereCharacters: AuditoryCharacterSummary[] = nonPlayerCast
+    .filter((c) => !c.isPresent)
+    .map((c) => ({
+      id: c.id,
+      name: c.name,
+      role: c.role,
+      isPresent: false,
+      isUserCharacter: false,
+      communicationModes: c.expressionProfile?.communicationModes ?? ['spoken'],
+    }));
+
+  const presentSpeakerNames = coPresentCharacters
+    .filter(
+      (c) =>
+        c.communicationModes.includes('spoken') ||
+        c.communicationModes.includes('mediated')
+    )
+    .map((c) => c.name);
+
+  const isSolitary = presentSpeakerNames.length === 0;
+
+  const actionText = typeof userAction === 'string' ? userAction.toLowerCase() : '';
+  const isDisconnectAction = REMOTE_DISCONNECT_PATTERNS.test(actionText);
+  let hasActiveRemoteChannel = false;
+  let remoteChannelMedium: 'radio' | 'intercom' | null = null;
+
+  if (!isDisconnectAction) {
+    if (REMOTE_COMMUNICATION_CHANNELS.test(actionText)) {
+      hasActiveRemoteChannel = true;
+      if (/\b(intercom|tannoy|pa\b|speaker)/i.test(actionText)) {
+        remoteChannelMedium = 'intercom';
+      } else {
+        remoteChannelMedium = 'radio';
+      }
+    } else if (Array.isArray(recentHistory) && recentHistory.length > 0) {
+      const recentMessages = recentHistory.slice(-4);
+      for (const msg of recentMessages) {
+        if (typeof msg.content === 'string' && REMOTE_COMMUNICATION_CHANNELS.test(msg.content)) {
+          hasActiveRemoteChannel = true;
+          if (/\b(intercom|tannoy|pa\b|speaker)/i.test(msg.content)) {
+            remoteChannelMedium = 'intercom';
+          } else {
+            remoteChannelMedium = 'radio';
+          }
+          break;
+        }
+      }
+    } else if (typeof recentHistory === 'string' && recentHistory.trim().length > 0) {
+      if (REMOTE_COMMUNICATION_CHANNELS.test(recentHistory)) {
+        hasActiveRemoteChannel = true;
+        if (/\b(intercom|tannoy|pa\b|speaker)/i.test(recentHistory)) {
+          remoteChannelMedium = 'intercom';
+        } else {
+          remoteChannelMedium = 'radio';
+        }
+      }
+    }
+  }
+
+  const topologyText = [
+    context.topology?.readableNodeLabel || '',
+    context.topology?.currentNodeId || '',
+    ...(context.topology?.allowedOutgoingExits?.map(
+      (e) => `${e.from} ${e.to} ${(e.requires || []).join(' ')}`
+    ) || []),
+    context.scenario?.setting?.location || '',
+    context.scenario?.setting?.atmosphere || '',
+    context.scenario?.premise || '',
+    ...(context.scenario?.worldRules || []),
+    ...(context.scenario?.keyPlotElements || []),
+    ...nonPlayerCast.map((c) => `${c.description} ${c.goals}`),
+    actionText,
+  ].join(' ');
+
+  const hasAcousticTopologyLinks = ACOUSTIC_LINK_PATTERNS.test(topologyText);
+  let detectedAcousticLinkMedium: 'intercom' | 'port_observation' | 'acoustic_bleed' =
+    'acoustic_bleed';
+  if (/\b(intercom|tannoy|speaker|pa\s*system)\b/i.test(topologyText)) {
+    detectedAcousticLinkMedium = 'intercom';
+  } else if (
+    /\b(observation\s*(?:port|window|glass)|partition|window|glass)\b/i.test(
+      topologyText
+    )
+  ) {
+    detectedAcousticLinkMedium = 'port_observation';
+  }
+
+  const safeArrivals = arrivedCastIds ?? new Set<string>();
+  const hasArrivals = safeArrivals.size > 0;
+
+  return {
+    coPresentCharacters,
+    adjacentOrElsewhereCharacters,
+    presentSpeakerNames,
+    isSolitary,
+    hasActiveRemoteChannel,
+    remoteChannelMedium,
+    hasAcousticTopologyLinks,
+    detectedAcousticLinkMedium,
+    arrivedCastIds: safeArrivals,
+    hasArrivals,
+    explicitlyAddressedSpeakerId,
+    context,
+    userAction,
+    recentHistory,
+  };
+}
+
+function cleanSpeakerContent(content: string, speakerName?: string): string {
+  let cleaned = typeof content === 'string' ? content : '';
+  if (speakerName) {
+    const escapedSpeaker = speakerName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    cleaned = cleaned.replace(new RegExp(`^["']?\\s*${escapedSpeaker}\\s*:\\s*`, 'i'), '').trim();
+  }
+  if (
+    (cleaned.startsWith('"') && cleaned.endsWith('"') && cleaned.length >= 2) ||
+    (cleaned.startsWith("'") && cleaned.endsWith("'") && cleaned.length >= 2)
+  ) {
+    cleaned = cleaned.slice(1, -1).trim();
+  }
+  return cleaned;
+}
+
+export function validateAndNormalizeVocalization(
+  blocks: Array<Record<string, any>>,
+  auditoryContext: AuditoryContext
+): { error: string | null; normalizedBlocks: Array<Record<string, any>> } {
+  if (!Array.isArray(blocks)) {
+    return { error: null, normalizedBlocks: [] };
+  }
+
+  const { context, arrivedCastIds, explicitlyAddressedSpeakerId } = auditoryContext;
+  const normalizedBlocks: Array<Record<string, any>> = [];
+  let dialogueCount = 0;
+
+  for (const rawBlock of blocks) {
+    if (!rawBlock || typeof rawBlock !== 'object') continue;
+    const block = { ...rawBlock };
+    const type = block.type;
+
+    if (type === 'internal_monologue') {
+      let speaker = typeof block.speaker === 'string' ? block.speaker.trim() : '';
+      if (!speaker) {
+        speaker = context.player.name;
+      }
+      const castMember = context.cast.find(
+        (m) => m.name.toLowerCase() === speaker.toLowerCase() || m.id === speaker
+      );
+      if (castMember) {
+        speaker = castMember.name;
+      } else if (
+        context.player.name.toLowerCase() === speaker.toLowerCase() ||
+        context.player.characterId === speaker
+      ) {
+        speaker = context.player.name;
+      } else if (!isRecognizedAmbientSpeaker(speaker)) {
+        return {
+          error: `Dialogue speaker "${speaker}" is not in the authorized cast.`,
+          normalizedBlocks: [],
+        };
+      }
+
+      const content = cleanSpeakerContent(block.content, speaker);
+
+      normalizedBlocks.push({
+        ...block,
+        type: 'internal_monologue',
+        speaker,
+        medium: 'internal',
+        target: 'self',
+        delivery: block.delivery || 'spoken',
+        content,
+      });
+      continue;
+    }
+
+    if (type === 'soliloquy') {
+      let speaker = typeof block.speaker === 'string' ? block.speaker.trim() : '';
+      if (!speaker) {
+        speaker = context.player.name;
+      }
+      const castMember = context.cast.find(
+        (m) => m.name.toLowerCase() === speaker.toLowerCase() || m.id === speaker
+      );
+      if (castMember) {
+        speaker = castMember.name;
+      } else if (
+        context.player.name.toLowerCase() === speaker.toLowerCase() ||
+        context.player.characterId === speaker
+      ) {
+        speaker = context.player.name;
+      } else if (!isRecognizedAmbientSpeaker(speaker)) {
+        return {
+          error: `Dialogue speaker "${speaker}" is not in the authorized cast.`,
+          normalizedBlocks: [],
+        };
+      }
+
+      const content = cleanSpeakerContent(block.content, speaker);
+
+      normalizedBlocks.push({
+        ...block,
+        type: 'soliloquy',
+        speaker,
+        medium: block.medium || 'direct',
+        target: 'self',
+        delivery: block.delivery || 'mutter',
+        content,
+      });
+      continue;
+    }
+
+    if (type === 'dialogue') {
+      dialogueCount += 1;
+      if (dialogueCount > 1) {
+        return {
+          error: 'Turn response may contain at most one dialogue block.',
+          normalizedBlocks: [],
+        };
+      }
+
+      const speaker = typeof block.speaker === 'string' ? block.speaker.trim() : '';
+      if (!speaker) {
+        return {
+          error: 'Dialogue block is missing a speaker.',
+          normalizedBlocks: [],
+        };
+      }
+
+      const castMember = context.cast.find(
+        (m) => m.name.toLowerCase() === speaker.toLowerCase() || m.id === speaker
+      );
+
+      if (!castMember) {
+        if (isRecognizedAmbientSpeaker(speaker)) {
+          const content = cleanSpeakerContent(block.content, speaker);
+
+          normalizedBlocks.push({
+            ...block,
+            type: 'dialogue',
+            speaker,
+            medium: block.medium || 'direct',
+            delivery: block.delivery || 'spoken',
+            target: block.target || 'addressed',
+            content,
+          });
+          continue;
+        }
+
+        return {
+          error: `Dialogue speaker "${speaker}" is not in the authorized cast.`,
+          normalizedBlocks: [],
+        };
+      }
+
+      const activeName = castMember.name;
+      const content = cleanSpeakerContent(block.content, activeName);
+
+      const isPlayer =
+        castMember.id === context.player.characterId || castMember.isUserCharacter;
+
+      if (isPlayer) {
+        const isMuttering =
+          block.delivery === 'mutter' ||
+          block.delivery === 'whisper' ||
+          block.target === 'self';
+
+        if (auditoryContext.isSolitary || isMuttering) {
+          dialogueCount -= 1;
+          normalizedBlocks.push({
+            ...block,
+            type: 'soliloquy',
+            speaker: activeName,
+            medium: 'direct',
+            delivery: block.delivery || 'mutter',
+            target: 'self',
+            content,
+          });
+          continue;
+        }
+
+        return {
+          error: `Dialogue speaker "${speaker}" is the player-controlled character.`,
+          normalizedBlocks: [],
+        };
+      }
+
+      const communicationModes =
+        castMember.expressionProfile?.communicationModes ?? ['spoken'];
+      const canSpeak =
+        communicationModes.includes('spoken') ||
+        communicationModes.includes('mediated');
+
+      if (!canSpeak) {
+        return {
+          error: `Dialogue speaker "${speaker}" lacks spoken or mediated communication.`,
+          normalizedBlocks: [],
+        };
+      }
+
+      if (castMember.isPresent) {
+        if (
+          explicitlyAddressedSpeakerId &&
+          castMember.id !== explicitlyAddressedSpeakerId
+        ) {
+          return {
+            error: `Dialogue speaker "${speaker}" does not match the explicitly addressed cast member.`,
+            normalizedBlocks: [],
+          };
+        }
+
+        normalizedBlocks.push({
+          ...block,
+          type: 'dialogue',
+          speaker: activeName,
+          medium: block.medium || 'direct',
+          delivery: block.delivery || 'spoken',
+          target: block.target || 'addressed',
+          content,
+        });
+        continue;
+      }
+
+      // If !castMember.isPresent:
+      if (arrivedCastIds?.has(castMember.id)) {
+        normalizedBlocks.push({
+          ...block,
+          type: 'dialogue',
+          speaker: activeName,
+          medium: block.medium || 'direct',
+          delivery: block.delivery || 'spoken',
+          target: block.target || 'addressed',
+          content,
+        });
+        continue;
+      }
+
+      if (auditoryContext.hasActiveRemoteChannel) {
+        const medium =
+          auditoryContext.remoteChannelMedium === 'intercom' ? 'intercom' : 'radio';
+        normalizedBlocks.push({
+          ...block,
+          type: 'dialogue',
+          speaker: activeName,
+          medium,
+          delivery: block.delivery || 'spoken',
+          target: block.target || 'addressed',
+          content,
+        });
+        continue;
+      }
+
+      // Graceful Acoustic Resolution: auto-remediate to type: 'transmission'
+      dialogueCount -= 1;
+      const medium =
+        auditoryContext.detectedAcousticLinkMedium === 'intercom'
+          ? 'intercom'
+          : auditoryContext.detectedAcousticLinkMedium === 'port_observation'
+            ? 'port_observation'
+            : 'acoustic_bleed';
+
+      normalizedBlocks.push({
+        ...block,
+        type: 'transmission',
+        speaker: activeName,
+        medium,
+        delivery: block.delivery || 'mutter',
+        target: 'unseen',
+        content,
+      });
+      continue;
+    }
+
+    if (type === 'transmission' || type === 'system_voice') {
+      let speaker = typeof block.speaker === 'string' ? block.speaker.trim() : '';
+      const content = cleanSpeakerContent(block.content, speaker);
+
+      normalizedBlocks.push({
+        ...block,
+        type,
+        speaker: speaker || (type === 'system_voice' ? 'Automated Voice' : null),
+        medium: block.medium || (type === 'system_voice' ? 'intercom' : 'radio'),
+        delivery: block.delivery || (type === 'system_voice' ? 'synthetic' : 'spoken'),
+        target: block.target || 'broadcast',
+        content,
+      });
+      continue;
+    }
+
+    if (type === 'prose' || type === 'environmental_description') {
+      normalizedBlocks.push({
+        ...block,
+        type,
+        speaker: null,
+        medium: 'direct',
+        delivery: 'spoken',
+        target: 'addressed',
+        content: typeof block.content === 'string' ? block.content : '',
+      });
+      continue;
+    }
+
+    normalizedBlocks.push(block);
+  }
+
+  return { error: null, normalizedBlocks };
+}
+
+export function formatVocalizationPromptDirective(
+  auditoryContext: AuditoryContext
+): string {
+  const {
+    isSolitary,
+    presentSpeakerNames,
+    explicitlyAddressedSpeakerId,
+    context,
+    hasActiveRemoteChannel,
+    remoteChannelMedium,
+  } = auditoryContext;
+
+  const explicitlyAddressedMember = explicitlyAddressedSpeakerId
+    ? context.cast.find((c) => c.id === explicitlyAddressedSpeakerId)
+    : null;
+
+  if (explicitlyAddressedMember) {
+    return `\n\n[MANDATORY DIALOGUE REQUIREMENT]
+The user explicitly spoke to ${explicitlyAddressedMember.name}.
+In narrative_blocks, you MUST include 1-2 prose blocks AND exactly ONE dialogue block answering the player:
+{"type": "dialogue", "speaker": "${explicitlyAddressedMember.name}", "medium": "direct", "delivery": "spoken", "target": "addressed", "content": "<The spoken response without prepending speaker name>"}
+Do NOT emit only prose blocks. Do NOT put spoken dialogue into a prose block. Exactly ONE block must have type "dialogue".`;
+  }
+
+  if (isSolitary) {
+    return `\n\n[SOLITARY VOCALIZATION DIRECTIVE]
+The player character (${context.player.name}) is SOLITARY in this chamber (no living companions are physically co-present).
+- FORBIDDEN: Do NOT emit interpersonal room dialogue ({"type": "dialogue"}) directed to people in the room, as no one is present to hear it${
+      hasActiveRemoteChannel
+        ? ' (unless speaking over the active remote ' + (remoteChannelMedium || 'radio') + ' channel)'
+        : ''
+    }.
+- INTERNAL MONOLOGUE ALLOWED: Private thoughts, cognitive dread, realizations, or suppressed terror are emitted as:
+  {"type": "internal_monologue", "speaker": "${context.player.name}", "medium": "internal", "target": "self", "content": "<Private internal thought>"}
+- SOLILOQUY MUTTERING ALLOWED: Speaking aloud to oneself under stress, muttering in disbelief, or quiet despair is emitted as:
+  {"type": "soliloquy", "speaker": "${context.player.name}", "medium": "direct", "delivery": "mutter", "target": "self", "content": "<Muttered words to self>"}
+- TRANSMISSIONS / SYSTEM VOICES: Facility PA announcements, automated security voices, radio static, or acoustic bleed muffled through bulkheads/ducts are emitted as:
+  {"type": "transmission", "speaker": "<Source or null>", "medium": "intercom" | "radio" | "acoustic_bleed", "content": "<Heard transmission>"}`;
+  }
+
+  return `\n\n[MANDATORY DIALOGUE REQUIREMENT]
+The following characters are physically present in this room: ${presentSpeakerNames.join(', ')}.
+To keep the world alive, people in the same room do not stand in absolute silence. In narrative_blocks, you MUST include 1-2 prose blocks AND exactly ONE dialogue block:
+{"type": "dialogue", "speaker": "<Speaker Name>", "medium": "direct", "delivery": "spoken", "target": "addressed", "content": "<Spoken words without prepending speaker name>"}
+The speaker must be one of the present companions (${presentSpeakerNames.join(', ')}) or a recognized ambient attendant.
+Do NOT emit only prose blocks when companions are present in the room. Exactly ONE block must have type "dialogue".
+VOCALIZATION FORMATS:
+- Dialogue: {"type": "dialogue", "speaker": "Name", "medium": "direct", "delivery": "spoken", "target": "addressed", "content": "..."}
+- Internal Monologue: {"type": "internal_monologue", "speaker": "Name", "medium": "internal", "target": "self", "content": "..."}
+- Soliloquy: {"type": "soliloquy", "speaker": "Name", "medium": "direct", "delivery": "mutter", "target": "self", "content": "..."}
+- Transmission: {"type": "transmission", "speaker": "Name", "medium": "intercom"|"radio"|"acoustic_bleed", "content": "..."}`;
+}

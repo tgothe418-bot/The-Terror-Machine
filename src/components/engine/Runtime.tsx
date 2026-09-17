@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   ArrowLeft,
   Terminal,
@@ -31,14 +31,25 @@ import { NarrativeBlock, TurnReceipt } from '../../types';
 
 /* eslint-disable @typescript-eslint/no-unused-vars */
 // Helper to format blocks for plain text fallback
-const formatBlocks = (blocks?: NarrativeBlock[]): string => {
+export const formatBlocks = (blocks?: NarrativeBlock[]): string => {
   if (!blocks || !Array.isArray(blocks)) return '';
   return blocks
     .map((block) => {
-      if ((block.type === 'dialogue' || block.type === 'internal_monologue') && block.speaker) {
-        return `${block.speaker.toUpperCase()}: ${block.content}`;
+      const speaker = block.speaker || undefined;
+      const content = block.content !== undefined && block.content !== null ? String(block.content) : '';
+      if (block.type === 'internal_monologue') {
+        return `[THOUGHT // ${speaker || 'POV'}]: ${content}`;
       }
-      return block.content;
+      if (block.type === 'soliloquy') {
+        return `[MUTTERED // ${speaker || 'SELF'}]: ${content}`;
+      }
+      if (block.type === 'transmission') {
+        return `[TRANSMISSION // ${speaker || 'INTERCOM'}]: ${content}`;
+      }
+      if (block.type === 'dialogue') {
+        return `${speaker?.toUpperCase()}: ${content}`;
+      }
+      return content;
     })
     .join('\n\n');
 };
@@ -85,7 +96,173 @@ export const AUTOPILOT_MINIMUM_TURN_INTERVAL_MS = 5000;
 import { Edit2, Check, X } from 'lucide-react';
 import type { UITranscriptMessage } from '../../types';
 
-const TranscriptMessageItem = ({
+type VocalizationDisplayKind =
+  | 'internal_monologue'
+  | 'soliloquy'
+  | 'transmission'
+  | 'dialogue'
+  | 'prose';
+
+interface ProcessedVocalizationBlock {
+  kind: VocalizationDisplayKind;
+  speaker: string;
+  content: string;
+}
+
+function classifyNarrativeBlock(
+  block: NarrativeBlock | Record<string, unknown>
+): ProcessedVocalizationBlock {
+  const type = String(block.type || '');
+  const speaker = typeof block.speaker === 'string' && block.speaker ? block.speaker : '';
+  const content = String(block.content || (block as any).text || '');
+  const medium = (block as any).medium ? String((block as any).medium) : '';
+  const delivery = (block as any).delivery ? String((block as any).delivery) : '';
+  const target = (block as any).target ? String((block as any).target) : '';
+
+  if (type === 'internal_monologue') {
+    return {
+      kind: 'internal_monologue',
+      speaker: speaker || 'POV',
+      content,
+    };
+  }
+
+  if (
+    type === 'transmission' ||
+    medium === 'intercom' ||
+    medium === 'acoustic_bleed' ||
+    medium === 'radio'
+  ) {
+    return {
+      kind: 'transmission',
+      speaker: speaker || 'INTERCOM',
+      content,
+    };
+  }
+
+  if (type === 'soliloquy' || delivery === 'mutter' || target === 'self') {
+    return {
+      kind: 'soliloquy',
+      speaker: speaker || 'SELF',
+      content,
+    };
+  }
+
+  if (type === 'dialogue') {
+    return {
+      kind: 'dialogue',
+      speaker: speaker || 'SPEAKER',
+      content,
+    };
+  }
+
+  return {
+    kind: 'prose',
+    speaker: '',
+    content,
+  };
+}
+
+function parseLinesToBlocks(content: string): ProcessedVocalizationBlock[] {
+  if (!content || !content.trim()) return [];
+
+  const lines = content.split(/\n+/);
+  const result: ProcessedVocalizationBlock[] = [];
+  let currentProse: string[] = [];
+
+  const flushProse = () => {
+    if (currentProse.length > 0) {
+      result.push({
+        kind: 'prose',
+        speaker: '',
+        content: currentProse.join('\n'),
+      });
+      currentProse = [];
+    }
+  };
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+
+    const thoughtMatch = trimmed.match(
+      /^\[(?:THOUGHT|INTROSPECTION)\s*\/\/\s*([^\]]+)\]:?\s*([\s\S]*)$/i
+    );
+    if (thoughtMatch) {
+      flushProse();
+      result.push({
+        kind: 'internal_monologue',
+        speaker: thoughtMatch[1].trim(),
+        content: thoughtMatch[2].trim(),
+      });
+      continue;
+    }
+
+    const transmissionMatch = trimmed.match(
+      /^\[(?:TRANSMISSION|INTERCOM \/ ACOUSTIC BLEED|INTERCOM|RADIO|ACOUSTIC BLEED)\s*\/\/\s*([^\]]+)\]:?\s*([\s\S]*)$/i
+    );
+    if (transmissionMatch) {
+      flushProse();
+      result.push({
+        kind: 'transmission',
+        speaker: transmissionMatch[1].trim(),
+        content: transmissionMatch[2].trim(),
+      });
+      continue;
+    }
+
+    const soliloquyMatch = trimmed.match(
+      /^\[(?:MUTTERED|MUTTERED SOTTO VOCE|SOLILOQUY)\s*\/\/\s*([^\]]+)\]:?\s*([\s\S]*)$/i
+    );
+    if (soliloquyMatch) {
+      flushProse();
+      result.push({
+        kind: 'soliloquy',
+        speaker: soliloquyMatch[1].trim(),
+        content: soliloquyMatch[2].trim(),
+      });
+      continue;
+    }
+
+    const dialogueBadgeMatch = trimmed.match(
+      /^\[DIALOGUE\s*\/\/\s*([^\]]+)\]:?\s*([\s\S]*)$/i
+    );
+    if (dialogueBadgeMatch) {
+      flushProse();
+      result.push({
+        kind: 'dialogue',
+        speaker: dialogueBadgeMatch[1].trim(),
+        content: dialogueBadgeMatch[2].trim(),
+      });
+      continue;
+    }
+
+    const dialogueLineMatch = trimmed.match(
+      /^([A-Z][A-Z0-9_.\s\-']{1,30}):\s+([\s\S]+)$/
+    );
+    if (
+      dialogueLineMatch &&
+      !['NOTE', 'WARNING', 'DIRECTOR', 'NARRATIVE', 'SYSTEM'].includes(
+        dialogueLineMatch[1].trim().toUpperCase()
+      )
+    ) {
+      flushProse();
+      result.push({
+        kind: 'dialogue',
+        speaker: dialogueLineMatch[1].trim(),
+        content: dialogueLineMatch[2].trim(),
+      });
+      continue;
+    }
+
+    currentProse.push(trimmed);
+  }
+
+  flushProse();
+  return result;
+}
+
+export const TranscriptMessageItem = ({
   msg,
   onEdit,
   onForceCosmetic,
@@ -109,18 +286,77 @@ const TranscriptMessageItem = ({
     setIsEditing(false);
   };
 
+  const rawBlocks = (msg as any).blocks as NarrativeBlock[] | undefined;
+  const blocks: ProcessedVocalizationBlock[] = useMemo(() => {
+    if (!msg.isEdited && Array.isArray(rawBlocks) && rawBlocks.length > 0) {
+      return rawBlocks.map(classifyNarrativeBlock);
+    }
+    return parseLinesToBlocks(msg.content);
+  }, [rawBlocks, msg.content, msg.isEdited]);
+
+  const isDirector = msg.role === 'director';
+  const isSystem = msg.role === 'system';
+  const isSingleBlock = !isDirector && !isSystem && blocks.length === 1 && blocks[0].kind !== 'prose';
+  const singleBlock = isSingleBlock ? blocks[0] : null;
+
   const getBorderColor = () => {
-    if (msg.role === 'director') return 'border-l-2 border-zinc-700 pl-4 sm:pl-6';
+    if (isDirector) return 'border-l-2 border-zinc-700 pl-4 sm:pl-6';
+    if (isSystem) return 'border-l-2 border-red-900/50 pl-4 sm:pl-6 bg-red-950/20 py-3';
+
+    if (singleBlock) {
+      if (singleBlock.kind === 'internal_monologue') {
+        return 'border-l-2 border-indigo-900/60 pl-4 sm:pl-6';
+      }
+      if (singleBlock.kind === 'soliloquy') {
+        return 'border-l-2 border-dashed border-amber-800/80 pl-4 sm:pl-6';
+      }
+      if (singleBlock.kind === 'transmission') {
+        return 'border-l-2 border-cyan-900/70 bg-cyan-950/10 pl-4 sm:pl-6';
+      }
+      if (singleBlock.kind === 'dialogue') {
+        return 'border-l-2 border-[#d97706]/70 pl-4 sm:pl-6';
+      }
+    }
+
     if (msg.role === 'narrative') return 'border-l-2 border-zinc-800 pl-4 sm:pl-6';
-    if (msg.role === 'system') return 'border-l-2 border-red-900/50 pl-4 sm:pl-6 bg-red-950/20 py-3';
     return 'border-l-2 border-zinc-800 pl-4 sm:pl-6';
   };
 
   const getHeader = () => {
-    if (msg.role === 'director') return `[ DIRECTOR: ${userCharName} ]`;
+    if (isDirector) return `[ DIRECTOR: ${userCharName} ]`;
+    if (isSystem) return `[ SYSTEM DIRECTIVE ]`;
+
+    if (singleBlock) {
+      if (singleBlock.kind === 'internal_monologue') {
+        return `[ INTROSPECTION // ${singleBlock.speaker} ]`;
+      }
+      if (singleBlock.kind === 'soliloquy') {
+        return `[ MUTTERED SOTTO VOCE // ${singleBlock.speaker} ]`;
+      }
+      if (singleBlock.kind === 'transmission') {
+        return `[ INTERCOM / ACOUSTIC BLEED // ${singleBlock.speaker} ]`;
+      }
+      if (singleBlock.kind === 'dialogue') {
+        return `[ DIALOGUE // ${singleBlock.speaker} ]`;
+      }
+    }
+
     if (msg.role === 'narrative') return `[ NARRATIVE ]`;
-    if (msg.role === 'system') return `[ SYSTEM DIRECTIVE ]`;
     return '';
+  };
+
+  const getHeaderColor = () => {
+    if (isDirector) return 'text-zinc-400';
+    if (isSystem) return 'text-red-400';
+
+    if (singleBlock) {
+      if (singleBlock.kind === 'internal_monologue') return 'text-indigo-400/90';
+      if (singleBlock.kind === 'soliloquy') return 'text-amber-600/90';
+      if (singleBlock.kind === 'transmission') return 'text-cyan-400';
+      if (singleBlock.kind === 'dialogue') return 'text-[#d97706]';
+    }
+
+    return 'text-zinc-400';
   };
 
   return (
@@ -131,7 +367,7 @@ const TranscriptMessageItem = ({
       className={`text-sm sm:text-base leading-relaxed whitespace-pre-wrap group relative ${getBorderColor()}`}
     >
       <div className="flex items-center gap-2.5 mb-2 flex-wrap">
-        <span className="text-xs uppercase tracking-widest text-zinc-400 font-mono font-bold">
+        <span className={`text-xs uppercase tracking-widest font-mono font-bold ${getHeaderColor()}`}>
           {getHeader()}
         </span>
         {msg.isEdited && (
@@ -195,10 +431,102 @@ const TranscriptMessageItem = ({
             </button>
           </div>
         </div>
-      ) : (
+      ) : isDirector ? (
+        <div className="text-zinc-200 italic">
+          <ErgodicTextRenderer text={msg.content} psychologicalStatus="Stable" />
+        </div>
+      ) : isSystem ? (
+        <div className="text-red-400 font-mono">
+          <ErgodicTextRenderer text={msg.content} psychologicalStatus="Stable" />
+        </div>
+      ) : isSingleBlock && singleBlock ? (
         <div
-          className={`text-zinc-200 ${msg.role === 'director' ? 'italic' : ''} ${msg.role === 'system' ? 'text-red-400 font-mono' : ''}`}
+          className={
+            singleBlock.kind === 'internal_monologue'
+              ? 'italic text-indigo-100/90'
+              : singleBlock.kind === 'soliloquy'
+              ? 'text-zinc-400'
+              : singleBlock.kind === 'transmission'
+              ? 'font-mono text-cyan-200/90 text-sm'
+              : singleBlock.kind === 'dialogue'
+              ? 'text-[#e6e4dc]'
+              : 'text-zinc-200'
+          }
         >
+          <ErgodicTextRenderer text={singleBlock.content} psychologicalStatus="Stable" />
+        </div>
+      ) : blocks.length > 0 ? (
+        <div className="space-y-4">
+          {blocks.map((block, idx) => {
+            if (block.kind === 'internal_monologue') {
+              return (
+                <div
+                  key={idx}
+                  className="border-l-2 border-indigo-900/60 pl-4 py-2 bg-indigo-950/10 rounded-r my-2"
+                >
+                  <div className="text-xs uppercase tracking-widest text-indigo-400/90 font-mono font-bold mb-1.5">
+                    [ INTROSPECTION // {block.speaker} ]
+                  </div>
+                  <div className="italic text-indigo-100/90">
+                    <ErgodicTextRenderer text={block.content} psychologicalStatus="Stable" />
+                  </div>
+                </div>
+              );
+            }
+            if (block.kind === 'soliloquy') {
+              return (
+                <div
+                  key={idx}
+                  className="border-l-2 border-dashed border-amber-800/80 pl-4 py-2 bg-amber-950/5 rounded-r my-2"
+                >
+                  <div className="text-xs uppercase tracking-widest text-amber-600/90 font-mono font-bold mb-1.5">
+                    [ MUTTERED SOTTO VOCE // {block.speaker} ]
+                  </div>
+                  <div className="text-zinc-400">
+                    <ErgodicTextRenderer text={block.content} psychologicalStatus="Stable" />
+                  </div>
+                </div>
+              );
+            }
+            if (block.kind === 'transmission') {
+              return (
+                <div
+                  key={idx}
+                  className="border-l-2 border-cyan-900/70 bg-cyan-950/10 pl-4 py-2.5 rounded-r font-mono my-2"
+                >
+                  <div className="text-xs uppercase tracking-widest text-cyan-400 font-mono font-bold mb-1.5">
+                    [ INTERCOM / ACOUSTIC BLEED // {block.speaker} ]
+                  </div>
+                  <div className="text-cyan-200/90 font-mono text-sm">
+                    <ErgodicTextRenderer text={block.content} psychologicalStatus="Stable" />
+                  </div>
+                </div>
+              );
+            }
+            if (block.kind === 'dialogue') {
+              return (
+                <div
+                  key={idx}
+                  className="border-l-2 border-[#d97706]/70 pl-4 py-2 bg-amber-950/5 rounded-r my-2"
+                >
+                  <div className="text-xs uppercase tracking-widest text-[#d97706] font-mono font-bold mb-1.5">
+                    [ DIALOGUE // {block.speaker} ]
+                  </div>
+                  <div className="text-[#e6e4dc]">
+                    <ErgodicTextRenderer text={block.content} psychologicalStatus="Stable" />
+                  </div>
+                </div>
+              );
+            }
+            return (
+              <div key={idx} className="text-zinc-200 my-1">
+                <ErgodicTextRenderer text={block.content} psychologicalStatus="Stable" />
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="text-zinc-200">
           <ErgodicTextRenderer text={msg.content} psychologicalStatus="Stable" />
         </div>
       )}
