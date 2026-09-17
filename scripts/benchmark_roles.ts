@@ -207,7 +207,7 @@ Return a JSON object with:
     try {
       const responseText = await generateLocalText(run.prompt, {
         temperature: 0.7,
-        max_tokens: 600,
+        max_tokens: 3000,
         model: 'google/gemma-4-26b-a4b-qat',
         jsonMode: true,
       });

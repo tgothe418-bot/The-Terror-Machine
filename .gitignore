@@ -9,3 +9,5 @@ coverage/
 
 # Debug Artifacts
 tmp-voice-hit.txt
+scratch/overnight*
+scratch/test_*.js

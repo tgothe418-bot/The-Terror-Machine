@@ -13,6 +13,7 @@ import {
   normalizeValueHolder,
   normalizePresenceDisposition,
   normalizeCandidateAliases,
+  normalizeCandidateTarget,
   createQuarantinedIssue,
   getForgeExtractionPrompt,
 } from './extractionContract';
@@ -247,6 +248,17 @@ describe('extractionContract — Deterministic Alias Normalization', () => {
       const result = normalizeCandidateAliases(input);
       const val = result.proposedValue as { holder: { kind: string; nodeId: string } };
       expect(val.holder).toEqual({ kind: 'PLACE', nodeId: 'node-cellar' });
+    });
+
+    it('normalizes rule and note aliases including unknowns, lore, and misc', () => {
+      expect(normalizeCandidateTarget('unknowns', undefined, undefined)).toBe('narrative_rule');
+      expect(normalizeCandidateTarget('unknown', undefined, undefined)).toBe('narrative_rule');
+      expect(normalizeCandidateTarget('misc', undefined, undefined)).toBe('narrative_rule');
+      expect(normalizeCandidateTarget('notes', undefined, undefined)).toBe('narrative_rule');
+      expect(normalizeCandidateTarget('lore', undefined, undefined)).toBe('narrative_rule');
+      expect(normalizeCandidateTarget('world_rule', undefined, undefined)).toBe('narrative_rule');
+      expect(normalizeCandidateTarget('environmental', undefined, undefined)).toBe('environmental_rule');
+      expect(normalizeCandidateTarget('environment', undefined, undefined)).toBe('environmental_rule');
     });
   });
 });

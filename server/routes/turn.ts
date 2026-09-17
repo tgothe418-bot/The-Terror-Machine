@@ -368,7 +368,7 @@ export const REMOTE_DISCONNECT_PATTERNS =
   /\b(hang\s*up|hung\s*up|disconnect[singed]*|click[singed]*\s*off|shut[ting]*\s*off\s*(the\s*)?(radio|phone|comm)|end[singed]*\s*(the\s*)?(call|transmission))\b/i;
 
 export const RECOGNIZED_AMBIENT_SPEAKER_PATTERN =
-  /\b(waiter|waitress|server|bartender|sommelier|busboy|hostess|maitre\s*d'?|cab\s+driver|taxi\s+driver|driver|chauffeur|cabbie|doorman|concierge|bellhop|valet|porter|secretary|receptionist|clerk|cashier|teller|police\s+officer|cop|detective|investigator|dispatcher|operator|doctor|physician|surgeon|nurse|paramedic|orderly|security\s+guard|guard|watchman|passerby|patron|bystander|pedestrian|commuter|neighbor|courier|delivery\s+person|messenger|barista|attendant|ticket\s+agent|shopkeeper|mechanic)\b/i;
+  /\b(waiter|waitress|server|bartender|sommelier|busboy|hostess|maitre\s*d'?|cab\s+driver|taxi\s+driver|driver|chauffeur|cabbie|doorman|concierge|bellhop|valet|porter|secretary|receptionist|clerk|cashier|teller|police\s+officer|cop|detective|investigator|dispatcher|operator|doctor|physician|surgeon|nurse|paramedic|orderly|security\s+guard|guard|watchman|passerby|patron|bystander|pedestrian|commuter|neighbor|courier|delivery\s+person|messenger|barista|attendant|flight\s+attendant|steward|stewardess|announcer|technician|engineer|automated\s+voice|intercom\s+voice|ticket\s+agent|shopkeeper|mechanic)\b/i;
 
 export function isRecognizedAmbientSpeaker(speaker: string): boolean {
   if (typeof speaker !== 'string') return false;
@@ -402,14 +402,36 @@ export function validateDialogueBlocks(
       return 'Dialogue block is missing a speaker.';
     }
 
-    const castMember = context.cast.find((member) => member.name === speaker);
+    const castMember = context.cast.find(
+      (member) => member.name === speaker || member.id === speaker
+    );
     if (!castMember) {
       if (isRecognizedAmbientSpeaker(speaker)) {
         // Allowed as a recognized ambient extra!
-        // Skip cast-specific stance/presence checks for ambient extras.
+        // Clean duplicate speaker prefix if model emitted "Flight Attendant: Utterance" inside content
+        if (block.content && typeof block.content === 'string') {
+          const escapedSpeaker = speaker.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          block.content = block.content
+            .replace(new RegExp(`^["']?\\s*${escapedSpeaker}\\s*:\\s*`, 'i'), '')
+            .trim();
+        }
         continue;
       }
       return `Dialogue speaker "${speaker}" is not in the authorized cast.`;
+    }
+
+    // Normalize block.speaker to display name if model used the character ID or alias
+    if (castMember && block.speaker !== castMember.name) {
+      block.speaker = castMember.name;
+    }
+
+    // Clean duplicate speaker prefix if model emitted "Name: Utterance" inside content
+    if (block.content && typeof block.content === 'string') {
+      const activeName = castMember ? castMember.name : speaker;
+      const escapedSpeaker = activeName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      block.content = block.content
+        .replace(new RegExp(`^["']?\\s*${escapedSpeaker}\\s*:\\s*`, 'i'), '')
+        .trim();
     }
 
     if (castMember.id === context.player.characterId || castMember.isUserCharacter) {
@@ -479,7 +501,9 @@ export function resolveDialogueSpeakerId(
   if (isRecognizedAmbientSpeaker(speaker)) {
     return null;
   }
-  const matchingMembers = context.cast.filter((member) => member.name === speaker);
+  const matchingMembers = context.cast.filter(
+    (member) => member.name === speaker || member.id === speaker
+  );
   return matchingMembers.length === 1 ? matchingMembers[0].id : null;
 }
 
@@ -754,8 +778,9 @@ Agency Directives:
 ${seatDetails}
 Bounded Facts:
 ${boundedFactsFormatted}
-Agency Directive:
-The user operates the mortal survivor seat. Adjudicate their attempted physical and cognitive actions within their limitations. Narrate the world and environment consequences objectively.
+Agency Directives:
+1. USER AGENCY: The user operates the mortal survivor seat. Adjudicate their attempted physical and cognitive actions within their limitations. Narrate the world and environment consequences objectively.
+2. LIVING COMPANION INTERACTION: Present companions sharing the space are independent mortals with their own fears, social friction, and observations. Weave their presence, body language, tension, and occasional spontaneous comments naturally into the scene alongside the player's actions. Never isolate the player in an empty void when companions are present.
 `;
       } else if (pc.mode === 'director') {
         participationSection = `\n[PARTICIPATION CONTRACT & AGENCY BOUNDARIES]
@@ -1103,6 +1128,64 @@ ${hg.authorityInstruction}
       }`;
     }
 
+    const isSystemInit = userAction === 'SYSTEM_INIT';
+    const openingEstablishmentDirective = isSystemInit
+      ? `\n\n[OPENING SCENE ESTABLISHMENT DIRECTIVE - SYSTEM_INIT]
+This is the opening turn of the simulation (Turn 0). Your primary purpose is to establish the foundation of the story, setting the scene, sensory tone, characters, and playable perspective in a natural, atmospheric way. DO NOT plunge immediately into violent crisis, screaming, sprinting, or chaotic action (avoid in media res).
+
+Follow these opening establishment mandates:
+1. SET THE SCENE & SENSORY TONE:
+   - Ground the narration in the physical architecture and spatial reality of the starting chamber: ${context.topology.readableNodeLabel} (Location: ${context.scenario.setting.location}).
+   - Evoke sensory textures: lighting, acoustics, temperature, smells, machinery hums or weather, and the prevailing atmosphere (${context.scenario.setting.atmosphere || 'tense, ominous'}).
+   - Establish the tangible boundaries and physical enclosure before any crisis or anomaly erupts.
+
+2. DEFINE THE PLAYABLE PERSPECTIVE:
+   - Introduce the user-controlled character naturally: ${context.player.name} (${context.player.role}) - ${context.player.description || 'operative'}.
+   - Ground their physical posture, immediate sensory focus, what they are wearing or holding, and their baseline orientation in the space.
+   - Ground who they are through natural observation and physical embodiment, avoiding artificial exposition dumps or breaking character.
+
+3. ESTABLISH PRESENT CAST MEMBERS & OPENING DIALOGUE:
+   - Visibly introduce all cast members physically present in the room (marked HERE in CAST LEDGER:
+${eligiblePresentCharactersFormatted}
+).
+   - Describe where they are located relative to the player, what they are currently doing, and their observable emotional baseline.
+   - You MUST include exactly ONE dialogue block from a present companion or ambient attendant (e.g. an eager question from a child, an anxious remark from a spouse, or a formal announcement from an attendant) to break the silence and establish living character voices right from the opening turn.
+
+4. AVOID "IN MEDIA RES" CHAOS:
+   - Do NOT drop the player mid-sprint, mid-screaming, or in the middle of sudden physical violence.
+   - Begin at the quiet threshold: the moments immediately preceding or leading into the anomaly, the arrival, the waiting room, the quiet briefing, the ticking clock, or the subtle initial tremor.
+   - Allow the user room to observe, orient themselves, and decide their first action.`
+      : '';
+
+    const presentSpeakerNames = eligiblePresentCharacters
+      .filter((c) => {
+        const modes = c.expressionProfile?.communicationModes ?? ['spoken'];
+        return modes.includes('spoken') || modes.includes('mediated');
+      })
+      .map((c) => c.name);
+
+    const castResolution = resolveExplicitCastTarget(userAction, context);
+    const explicitlyAddressedMember =
+      castResolution.status === 'EXPLICIT_NAME'
+        ? context.cast.find((c) => c.id === castResolution.characterId)
+        : null;
+
+    let livingDialogueMandate = '';
+    if (explicitlyAddressedMember) {
+      livingDialogueMandate = `\n\n[MANDATORY DIALOGUE REQUIREMENT]
+The user explicitly spoke to ${explicitlyAddressedMember.name}.
+In narrative_blocks, you MUST include 1-2 prose blocks AND exactly ONE dialogue block answering the player:
+{"type": "dialogue", "speaker": "${explicitlyAddressedMember.name}", "content": "<The spoken response without prepending speaker name>"}
+Do NOT emit only prose blocks. Do NOT put spoken dialogue into a prose block. Exactly ONE block must have type "dialogue".`;
+    } else if (presentSpeakerNames.length > 0) {
+      livingDialogueMandate = `\n\n[MANDATORY DIALOGUE REQUIREMENT]
+The following characters are physically present in this room: ${presentSpeakerNames.join(', ')}.
+To keep the world alive, people in the same room do not stand in absolute silence. In narrative_blocks, you MUST include 1-2 prose blocks AND exactly ONE dialogue block:
+{"type": "dialogue", "speaker": "<Speaker Name>", "content": "<Spoken words without prepending speaker name>"}
+The speaker must be one of the present companions (${presentSpeakerNames.join(', ')}) or a recognized ambient attendant.
+Do NOT emit only prose blocks when companions are present in the room. Exactly ONE block must have type "dialogue".`;
+    }
+
     // Construct the dense, authoritative contract prompt
     const prompt = `[SCENARIO CONTRACT]
 Title: ${context.scenario.title}
@@ -1123,17 +1206,21 @@ Entity Status: ${context.player.isEntity ? 'Entity' : 'Mortal'}${playerStartingO
 ${castLedgerFormatted}
 ${horrorGrammarSection}
 [CHARACTER DIALOGUE CONTRACT]
-- A dialogue block is optional. When the user's action directly addresses a cast member whose communication modes include spoken or mediated, answer with at most one dialogue block when that member gives a material response. Up to 3 total narrative_blocks may be emitted in the turn response.
-- Recognized ambient service and background characters (waiters, cab drivers, doormen, etc.) may speak at most one concise dialogue block to provide living texture.
+- DIALOGUE EXPECTATION & LIVING VOICES: Fiction lives through conversation. When non-player companions or ambient attendants are physically co-present (marked HERE in CAST LEDGER), you SHOULD include exactly ONE dialogue block in the turn response (typically alongside 1–2 prose blocks). Do not leave scenes entirely mute when people share the space.
+- SPONTANEOUS COMPANION SPEECH: Characters have independent agency. Even during non-communicative actions (e.g. OBSERVE, INVESTIGATE, WAIT, MANIPULATE, MOVE), a present companion or ambient figure SHOULD speak, whisper, ask an anxious question, or react aloud to what is happening.
+- ADDRESSED COMMUNICATE TARGET: When the USER ACTION explicitly addresses a cast member (COMMUNICATE <Name>), that member is the primary and only permitted dialogue speaker for this turn.
+- UNSOLICITED OR AMBIENT SPEAKER: When no specific cast member was addressed, any eligible present companion (or a recognized ambient extra) may speak.
+- Up to 3 total narrative_blocks may be emitted in the turn response (the ideal rhythm is 1–2 prose blocks and 1 dialogue block).
+- Recognized ambient service and background characters (waiters, cab drivers, doormen, attendants, flight attendants, technicians, etc.) may speak at most one concise dialogue block to provide living texture.
 - Arbitrary named characters or hallucinated major cast remain strictly forbidden.
-- For a dialogue block from an authorized cast member, type must be "dialogue", speaker must be the exact existing CAST LEDGER name, and content must contain only that character's concise utterance.
+- For a dialogue block from an authorized cast member, type must be "dialogue", speaker must be the character's exact CAST LEDGER name or ID, and content must contain only that character's concise utterance.
 - Never fabricate a speaker, an alias, a new cast member, or a line of dialogue for the player-controlled character. The user's typed action already represents that character's words and choices.
 - A cast member with nonverbal as its only communication mode must not receive a dialogue block. Render its response, if any, as prose or environmental description.
 - Treat expression and silence guidance as behavioral constraints, not permission to add facts, powers, locations, or knowledge.
-- If the USER ACTION explicitly names exactly one eligible non-player CAST LEDGER member, that member is the only permitted dialogue speaker for this turn. If it names none or more than one eligible member, do not infer a deterministic target.
 - A cast member's full name is an addressed-speaker target only when action_kind is COMMUNICATE. In other action kinds, a name may identify the subject, object, or observed person and must not be treated as an attempted conversation merely because it appears in the action text.
 
-[AUTHORED CAST BEHAVIOR]
+[AUTHORED CAST BEHAVIOR & LIVING PRESENCE]
+- LIVING DRAMATIZATION: Present characters (marked HERE in CAST LEDGER) are physically co-present in the room with the player. They are NOT static props or silent statues. Narrative prose should actively depict their visible reactions, physical posture, nervous habits, breathing, glances, or interactions with the environment and each other.
 - Personality, goals, and traits constrain each cast member's tone, immediate priorities, and willingness to disclose information.
 - Treat them as authored characterization only. They do not authorize new facts, powers, locations, knowledge, cast members, or outcomes.
 - If authored behavior conflicts with a communication-mode or silence directive, honor the communication directive.
@@ -1320,6 +1407,7 @@ ${systemDirective}
 
 [NARRATIVE OUTPUT BOUNDARY]
 - Emit no more than 3 total narrative_blocks.
+- When companions or ambient figures are present, include exactly 1 dialogue block alongside 1–2 prose blocks so the room is not mute.
 
 [SPATIAL INTERPRETATION CONTRACT]
 - action_kind records the dominant action only. A turn may also contain dialogue, observation, investigation, manipulation, and physical movement.
@@ -1350,7 +1438,7 @@ NON-MOVEMENT:
 ${recentHistory}
 --- END HISTORY ---
 
-[USER ACTION]: ${userAction}${isExpansionExpected ? '\n\n[SYSTEM OVERRIDE: Threshold entry detected. If the user action is a real movement attempt across the detected unmapped boundary, set `isExpansion: true` and populate `newNodeDef`. Otherwise, set isExpansion: false and omit newNodeDef.]' : '\n\n[TOPOLOGY DIRECTIVE: Static authored topology active. Do NOT create new canonical physical nodes. Set isExpansion: false and omit newNodeDef.]'}${(() => {
+[USER ACTION]: ${userAction}${openingEstablishmentDirective}${isExpansionExpected ? '\n\n[SYSTEM OVERRIDE: Threshold entry detected. If the user action is a real movement attempt across the detected unmapped boundary, set `isExpansion: true` and populate `newNodeDef`. Otherwise, set isExpansion: false and omit newNodeDef.]' : '\n\n[TOPOLOGY DIRECTIVE: Static authored topology active. Do NOT create new canonical physical nodes. Set isExpansion: false and omit newNodeDef.]'}${(() => {
   const hasSurrealWorldRule = (context.scenario.worldRules || []).some((r) =>
     /\b(surreal|hallucinat|perceptual breakdown|dream|nightmare|delusion|fractur)\b/i.test(r)
   );
@@ -1382,7 +1470,7 @@ ${recentHistory}
     : '';
 
   return `${reconciliationDirective}${navigationNote}`;
-})()}`;
+})()}${livingDialogueMandate}`;
 
     // Call the LLM with strict Zod schema enforcement
     let engineResponse;

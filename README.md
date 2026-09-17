@@ -318,11 +318,16 @@ This edition brings that continuity through the complete session: the opening, s
 
 The same attention extends to the prose. Dramatic pressure follows the scenario's physical possibilities. A character can reassure you, lie to you, or offer shelter without their dialogue being replaced by system-error text. Provider refusals remain visible failures outside the fiction.
 
+The latest update cures the silence and disorientation of simulation turns:
+- **Atmospheric Opening Scene Establishment**: `SYSTEM_INIT` (Turn 0) grounds the sensory architecture, physical lighting, air, acoustics, and player embodiment at the quiet threshold before the anomaly erupts, eliminating chaotic *in media res* starts.
+- **Living Character Voices & Spoken Dialogue**: When companions or ambient personnel share the room, the engine mandates structured dialogue blocks alongside sensory prose. Companions speak when addressed (`COMMUNICATE`) and react aloud with independent agency during quiet observation (`OBSERVE`), while strict speaker-presence and communication-mode validation prevents hallucinations.
+- **1440p Ultrawide (`3440×1440`) Occult Scrying Apparatus**: A persistent 4-pane workstation featuring a 2.5× scaled, Fog-of-War `MapSketch` styled after Austin Osman Spare, a pure-text `MortalLedger` tracking active vessels and companion cohorts, and live-docked communion with The Historian.
+
 The machine now supports runtime provider switching across every subsystem. The Engine, Forge, Voice, and Autopilot can each target Gemini, OpenAI, or a local OpenAI-compatible inference server—independently, through AI Calibration. A local server requires no API key: point it at an endpoint, discover loaded models, and the same Engine contracts apply. Each subsystem can run a different model if the scenario calls for it.
 
-This is not cosmetic. The architecture is designed so that the contracts—not the provider—define what the machine can accept. A local 26-billion-parameter model running on your hardware is subject to the same ratification path as a cloud endpoint. Provider neutrality is a direction the machine is actively moving toward, not a future aspiration.
+This is not cosmetic. The architecture is designed so that the contracts—not the provider—define what the machine can accept. A local 26-billion-parameter model (such as Gemma 26B QAT) running on your hardware is subject to the same ratification path as a cloud endpoint. Provider neutrality is a direction the machine is actively moving toward, not a future aspiration.
 
-The Forge has hardened its extraction and candidate normalization pipeline. Source-backed defaults apply atomically—complete Depiction Contracts, rich topology definitions, and per-character opening placement—regardless of which provider produced the extraction. The exported Blueprint remains perspective-neutral and schema-valid.
+The Forge has hardened its extraction and candidate normalization pipeline. Source-backed defaults apply atomically—complete Depiction Contracts, rich topology definitions, expanded rule aliases, and per-character opening placement—regardless of which provider produced the extraction. The exported Blueprint remains perspective-neutral and schema-valid.
 
 The next work begins with playing the assembled machine across varied scenarios, then addressing the failures and rough edges those sessions reveal. Further work on authored treatment, the Voice, campaign continuity, and later Horror Grammar remains on the roadmaps.
 

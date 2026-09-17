@@ -1344,6 +1344,11 @@ describe('Turn schemas validation', () => {
         ],
         context
       )).toContain('at most one');
+
+      // Speaker ID matching and normalization
+      const idBlock = { type: 'dialogue', speaker: 'char-jules' };
+      expect(validateDialogueBlocks([idBlock], context)).toBeNull();
+      expect(idBlock.speaker).toBe('Jules Mercer');
     });
 
     it('supports multi-turn remote dialogue continuity across turns via recentHistory lookback', () => {
@@ -1727,6 +1732,16 @@ describe('Turn schemas validation', () => {
       const resolvedId = resolveDialogueSpeakerId(blocks, testContext);
       expect(resolvedId).toBe('char-a');
       expect(resolvedId).not.toBe('Operative A');
+    });
+
+    it('resolves dialogue speaker when speaker is provided as character ID', () => {
+      const blocks = [
+        { type: 'prose', content: 'Observation recorded.' },
+        { type: 'dialogue', speaker: 'char-a', content: 'Status normal.' },
+      ];
+
+      const resolvedId = resolveDialogueSpeakerId(blocks, testContext);
+      expect(resolvedId).toBe('char-a');
     });
 
     it('returns null when no dialogue block is present', () => {
@@ -5358,6 +5373,155 @@ describe('Turn schemas validation', () => {
       expect(capturedPrompt).toContain('None declared. Note:');
       expect(capturedPrompt).toContain('never infer, fabricate, or supply');
       expect(capturedPrompt).not.toContain('Initial Core Goal:');
+    });
+
+    it('injects OPENING SCENE ESTABLISHMENT DIRECTIVE on SYSTEM_INIT with scene, cast, perspective, and anti-in-media-res mandates', async () => {
+      let capturedPrompt = '';
+      const dummyValidResult = {
+        narrative_blocks: [
+          { type: 'prose', content: 'The Whitehall Jaunting facility is sterile and cold.' },
+          { type: 'dialogue', speaker: 'Ricky Oates', content: 'Dad, how much longer until we jaunt?' },
+        ],
+        intent_proposal: {
+          action_kind: 'SYSTEM',
+          action_subtype: null,
+          pressure_direction: 'MAINTAIN',
+          dramatic_tactic: 'NONE',
+          intent_synergy: 'N/A',
+        },
+        reconciliation_proposal: {
+          mode: 'NOT_REQUIRED',
+          feasibility: 'SUPPORTED',
+          reason_code: 'NONE',
+          fictional_time_cost: 'NONE',
+          authority_alignment: 'NOT_APPLICABLE',
+          memory_echo_candidate: null,
+        },
+        consequence_proposal: { mutations: [] },
+        character_stance_proposal: { changes: [] },
+        character_relationship_proposal: { changes: [] },
+        character_memory_proposal: { candidates: [] },
+        world_memory_proposal: { candidates: [] },
+        cast_activity_proposal: { kind: 'NONE', reason: 'NO_OPPORTUNITY_CHOSEN' },
+        situated_pressure_proposal: { kind: 'NONE', reason: 'NO_PRESSURE_CHOSEN' },
+        value_state_proposal: { changes: [] },
+        character_pursuit_proposal: { changes: [] },
+        character_development_proposal: { changes: [] },
+        pressure_transition_proposal: { transitions: [] },
+        logic_state: {
+          current_phase: 'LATENT',
+          suggested_tension: 0,
+          requested_transition: null,
+          terminal_flags: [],
+          cast_deltas: [],
+          cast_ledger: [],
+        },
+        topologyDelta: { isExpansion: false, newNodeDef: null },
+      };
+
+      mockGenerateStructuredResponse.mockReset();
+      mockGenerateStructuredResponse.mockImplementation((prompt: string) => {
+        capturedPrompt = prompt;
+        return Promise.resolve(dummyValidResult);
+      });
+
+      const systemInitPayload = {
+        userAction: 'SYSTEM_INIT',
+        recentHistory: '',
+        systemDirective: 'Keep prose clinical and atmospheric.',
+        isExpansionExpected: false,
+        stateContext: {
+          currentNodeId: 'WHITEHALL_LOUNGE',
+          currentPhase: 'LATENT',
+          tensionLevel: 0,
+          reconciliationRevision: 0,
+        },
+        context: {
+          version: 1,
+          scenario: {
+            title: 'The Jaunt',
+            premise: 'A family prepares for teleportation to Mars.',
+            worldRules: ['One must be asleep during the Jaunt.'],
+            setting: {
+              location: 'Whitehall Jaunting Facility',
+              atmosphere: 'Antiseptic dread and low machinery hum',
+              timePeriod: '24th Century',
+            },
+            startingVector: 'COGNITIVE',
+            startingTier: 'LATENT',
+            incitingIncident: 'The flight attendant prepares the sleeping gas.',
+            pacingDirective: 'Slow burn psychological dread.',
+            keyPlotElements: ['The Jaunt portal', 'The masks'],
+          },
+          player: {
+            role: 'survivor',
+            characterId: 'char-mark',
+            name: 'Mark Oates',
+            description: 'Father traveling with his family',
+            isEntity: false,
+          },
+          cast: [
+            {
+              id: 'char-mark',
+              name: 'Mark Oates',
+              role: 'Survivor',
+              description: 'Father',
+              isUserCharacter: true,
+              isPresent: true,
+            },
+            {
+              id: 'char-ricky',
+              name: 'Ricky Oates',
+              role: 'Prey',
+              description: 'Inquisitive 12-year-old son',
+              isUserCharacter: false,
+              isPresent: true,
+            },
+            {
+              id: 'char-marilena',
+              name: 'Marilena Oates',
+              role: 'Survivor',
+              description: 'Nervous mother',
+              isUserCharacter: false,
+              isPresent: true,
+            },
+          ],
+          topology: {
+            currentNodeId: 'WHITEHALL_LOUNGE',
+            readableNodeLabel: 'Departure Lounge B',
+            allowedOutgoingExits: [],
+          },
+          runtime: {
+            turnNumber: 0,
+            phase: 'LATENT',
+            tension: 0,
+            coherence: 1.0,
+            reconciliationRevision: 0,
+            activeVector: 'COGNITIVE',
+            activeTier: 'LATENT',
+          },
+          horrorGrammar: defaultTestHorrorGrammarContext,
+        },
+      };
+
+      const res = await fetch(`${baseUrl}/api/turn`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(systemInitPayload),
+      });
+
+      expect(res.status).toBe(200);
+      expect(capturedPrompt).toContain('[OPENING SCENE ESTABLISHMENT DIRECTIVE - SYSTEM_INIT]');
+      expect(capturedPrompt).toContain('SET THE SCENE & SENSORY TONE:');
+      expect(capturedPrompt).toContain('Departure Lounge B');
+      expect(capturedPrompt).toContain('Whitehall Jaunting Facility');
+      expect(capturedPrompt).toContain('DEFINE THE PLAYABLE PERSPECTIVE:');
+      expect(capturedPrompt).toContain('ESTABLISH PRESENT CAST MEMBERS & OPENING DIALOGUE:');
+      expect(capturedPrompt).toContain('Ricky Oates');
+      expect(capturedPrompt).toContain('Marilena Oates');
+      expect(capturedPrompt).toContain('AVOID "IN MEDIA RES" CHAOS:');
+      expect(capturedPrompt).toContain('DIALOGUE EXPECTATION & LIVING VOICES:');
+      expect(capturedPrompt).toContain('LIVING DRAMATIZATION:');
     });
   });
 });

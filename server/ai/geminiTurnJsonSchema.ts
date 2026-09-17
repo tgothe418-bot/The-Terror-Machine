@@ -197,6 +197,8 @@ export const geminiTurnResponseJsonSchema: GeminiJsonSchema = {
     narrative_blocks: {
       type: 'array',
       maxItems: 3,
+      description:
+        'Sequence of 1-3 narrative blocks. When companions or attendants are present in the room, emit 1-2 prose blocks and exactly 1 dialogue block for living voices.',
       items: {
         type: 'object',
         properties: {
@@ -204,8 +206,14 @@ export const geminiTurnResponseJsonSchema: GeminiJsonSchema = {
             type: 'string',
             enum: ['prose', 'dialogue', 'system_voice', 'environmental_description'],
           },
-          speaker: { type: 'string' },
-          content: { type: 'string' },
+          speaker: {
+            type: 'string',
+            description: 'Name or ID of the authorized speaker. Omit for prose.',
+          },
+          content: {
+            type: 'string',
+            description: 'Prose description or spoken utterance. For dialogue, include ONLY the words spoken without prepending the speaker name.',
+          },
         },
         required: ['type', 'content'],
       },

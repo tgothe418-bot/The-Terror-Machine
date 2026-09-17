@@ -1,6 +1,6 @@
 # Local Gemma 4 Role Semantics Benchmark: American Psycho
 
-**Execution Timestamp:** 2026-09-16T10:47:25.982Z  
+**Execution Timestamp:** 2026-09-17T04:27:40.880Z  
 **Target Model:** `google/gemma-4-26b-a4b-qat` via LM Studio (`http://127.0.0.1:1234/v1`)  
 **Scenario:** *American Psycho* — Manhattan Upper East Side Townhouse Enclosure  
 
@@ -23,25 +23,25 @@ The results confirm that the machine now authentically dramatizes:
 ### Test Run 1: VILLAIN Seat (`Patrick Bateman`)
 
 - **Player Input Action:** `"Pick up the heavy silver carving fork from the buffet with a tight, manic smile. Stare unblinkingly at Evelyn throat while casually complimenting her mother vintage table runner."`
-- **Response Latency:** `3315 ms`
+- **Response Latency:** `2219 ms`
 
 #### Generated Model Output:
-> The silver carving fork feels unnervingly heavy, its polished surface a mirror for the manic, artificial grin plastered across my face. I fixate on the rhythmic pulse in Evelyn's throat, a delicate target framed by the exquisite lace of her mother's vintage table runner. The scent of expensive lilies and subtle, metallic blood-copper hangs in the stagnant air of the townhouse.
+> The heavy silver carving fork feels substantial, its cold weight a grounding anchor against the manic surge of adrenaline pulsing through my fingertips. My eyes trace the delicate, rhythmic pulse of the carotid artery beneath Evelyn’s skin, a stark contrast to the exquisite, antique weave of her mother's vintage table runner. The scent of expensive lilies and subtle, metallic bloodlust mingles in the stagnant air of the townhouse.
 
-- **Key Dialectic / Lens:** The smile is a perfectly sculpted mask, yet it remains fixed a fraction of a second too long, creating a predatory stillness that makes the surrounding chatter feel thin and fragile.
-- **Autonomous Counterpart Interaction:** Evelyn's laughter falters, her hand fluttering to her collar as she meets my unblinking stare with a look of mounting, confused unease.
+- **Key Dialectic / Lens:** The smile is perfectly symmetrical and polished, yet it fails to reach my eyes, leaving a hollow, uncanny stillness that makes the nearby guests momentarily falter in their conversation.
+- **Autonomous Counterpart Interaction:** Evelyn's laughter dies in her throat, her hand fluttering nervously to her neck as she feels the unsettling weight of his unblinking stare.
 
 ---
 
 ### Test Run 2: BYSTANDER Seat (`Tomas (Catering Waiter)`)
 
 - **Player Input Action:** `"Mind my own business, polish the crystal champagne flutes behind the pantry bar, and avoid making eye contact with the weird guy in the pinstripe suit who is gripping the carving fork."`
-- **Response Latency:** `3140 ms`
+- **Response Latency:** `6829 ms`
 
 #### Generated Model Output:
-> The rhythmic, abrasive squeak of your polishing cloth against the crystal is the only thing keeping the room from feeling completely swallowed by the heavy silence from the salon. Behind the pantry bar, the air is thick with the scent of lemon wax and stale champagne, a stark contrast to the expensive, suffocating perfume drifting through the doorway. You keep your eyes fixed on the rim of a flute, acutely aware of the pinstriped silhouette in your peripheral vision and the unnatural, white-knuckled grip he maintains on the silver carving fork.
+> The repetitive, squeaking friction of the lint-free cloth against the crystal is the only sound that matters, a rhythmic shield against the stifling silence drifting from the salon. You keep your eyes glued to the stems, refusing to look up even as the temperature in the pantry seems to drop with every passing second. The man in the pinstripe suit is a shadow in your peripheral vision, his knuckles white around the carving fork, but you remain a ghost in a white apron.
 
-- **Key Dialectic / Lens:** Tomas maintains a strict 'eyes-down, hands-busy' policy, using the repetitive motion of polishing to create a psychological barrier between himself and the escalating tension in the room.
+- **Key Dialectic / Lens:** Maintaining a rigid, professional focus on the glassware to ensure no smudge or imperfection provides an excuse for a guest to acknowledge your presence.
 
 
 ---
@@ -49,13 +49,13 @@ The results confirm that the machine now authentically dramatizes:
 ### Test Run 3: SURVIVOR Seat (`Evelyn Williams`)
 
 - **Player Input Action:** `"Laugh brightly to diffuse the sudden chill in the room, touch Patrick wrist gently to get him to put the carving fork down, and ask him if he confirmed our table at Dorsia."`
-- **Response Latency:** `3033 ms`
+- **Response Latency:** `10283 ms`
 
 #### Generated Model Output:
-> Evelyn forces a laugh, the sound brittle and too high, cutting through the sudden, unnatural stillness of the room. As her fingers graze his wrist to guide the carving fork away, the skin feels strangely taut and cold, like marble under silk. When she looks up, Patrick's smile is perfectly symmetrical, yet his eyes remain fixed and glassy, devoid of any warmth or recognition.
+> You force a bright, melodic laugh that rings unnervingly hollow against the heavy silence of the townhouse. As your fingers brush his wrist, the skin feels strangely taut, like marble, while the silver carving fork glints with a clinical, predatory sharpness. He doesn't flinch, but his eyes remain fixed on a point just past your shoulder, devoid of the warmth you're trying so hard to conjure.
 
-- **Key Dialectic / Lens:** A primal instinct screams that the man sitting across from her is merely a well-tailored shell, a hollow vessel performing a simulation of intimacy while something predatory pulses beneath the surface.
-- **Autonomous Counterpart Interaction:** He doesn't flinch at her touch; instead, he lets the fork clatter against the china with a sharp, jarring ring. 'Dorsia?' he repeats, his voice a monotone, smooth and terrifyingly calm. 'Of course. I have the reservation. It is non-negotiable.'
+- **Key Dialectic / Lens:** A primal, lizard-brain alarm is screaming beneath your polite veneer, a sudden realization that the man you love is merely a perfectly constructed mask stretched over a void.
+- **Autonomous Counterpart Interaction:** He doesn't pull away from your touch; instead, he remains perfectly still, his wrist feeling unnaturally cold. He slowly lowers the fork, his expression smoothing into a practiced, effortless smile that fails to reach his eyes. 'I confirmed it,' he says, his voice a calm, terrifyingly level monotone. '8:30. It's essential, Evelyn. We can't be late.'
 
 
 ---

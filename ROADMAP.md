@@ -27,8 +27,13 @@ A Blueprint or a Haunted House Induction enters the same Engine path. The core t
 - Local model support through any OpenAI-compatible endpoint (LM Studio, llama.cpp, Ollama, or equivalent). No API key required; the machine discovers loaded models at the configured server URL.
 - Per-subsystem local model assignment: the Engine, Autopilot, Voice, and Forge can each run a different local model when dedicated assignment is enabled.
 - Gemini Free Tier support with resilient backoff, automatic model fallback on rate limits, and AI Calibration for tier and model selection.
-- Hardened Forge extraction and candidate normalization pipeline with robust handling of malformed or truncated provider responses.
+- Atmospheric Opening Scene Establishment (`SYSTEM_INIT`): grounds starting node architecture, sensory textures (lighting, acoustics, scent), and player character posture at the quiet threshold, preventing *in media res* narrative whiplash.
+- Living Spoken Dialogue & Companion Agency: Present companions and ambient personnel are actively expected and mandated to speak exactly one structured dialogue block alongside prose, reacting both when directly addressed (`COMMUNICATE`) and spontaneously during observation turns (`OBSERVE`).
+- Dual-tier dialogue validation and speaker normalization: Automatic speaker ID-to-name mapping (`char-ricky` -> `Ricky Oates`), duplicate speaker prefix stripping in content, and recognized ambient extra whitelisting.
+- 1440p Ultrawide (`3440×1440`) Occult Scrying Workstation: Persistent 4-pane layout with 2.5× scaled Fog-of-War `MapSketch` (Austin Osman Spare aesthetic, zero portrait placeholders), pure-text `MortalLedger` tracking active vessels and companion cohorts, and live-docked communion with The Historian.
+- Causal Traversal Hardening: Unaccepted movement resolves as `CONSTRAINED / TOPOLOGY_LIMIT` without falsely triggering perceptual fracture hallucination loops.
 - Structured-output compatibility on the live turn path, with the supported JSON-schema subset owned at the provider boundary and provider failures returned as structured API errors.
+- Hardened Forge extraction and candidate normalization pipeline with rule alias expansion (`unknowns`, `misc`, `notes`, `lore`, `world_rule`, `environmental`) preventing spurious candidate quarantine.
 - Express API mounting and `/api` fallback protection in local and Vite preview runtimes, so a backend failure cannot masquerade as an HTML success response.
 - Development recovery through Clear System Memory and Autopilot as a soak-testing instrument.
 
