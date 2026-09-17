@@ -36,7 +36,7 @@ Jump to: [Run it](#running-the-machine) · [The House is Free](#the-house-is-fre
 
 Before the tour, the doorknob.
 
-The application uses React, TypeScript, Vite, Express, Zustand, Zod, Tailwind CSS, Vitest, and IndexedDB utilities. The Engine, Forge, Voice, and Autopilot can each be switched between providers—Gemini, OpenAI, and local OpenAI-compatible inference servers—through AI Calibration. Gemini is the current default; provider-neutral operation is an active design direction.
+The application uses React, TypeScript, Vite, Express, Zustand, Zod, Tailwind CSS, Vitest, and IndexedDB utilities. The Engine, Forge, Voice, and Autopilot can each be switched between providers—Gemini, OpenAI, Z.ai (GLM), and local OpenAI-compatible inference servers—through AI Calibration. Gemini is the current default; provider-neutral operation is an active design direction.
 
 ```bash
 npm install
@@ -44,7 +44,7 @@ cp .env.example .env
 npm run dev
 ```
 
-Add a Gemini API key to `.env` if using Gemini. Add an OpenAI key if using OpenAI for The Voice. For a local server, no API key is required: select **Local** in AI Calibration, enter the server URL, and discover its loaded models. Each subsystem—Engine, Forge, Voice, and Autopilot—can target a different provider or model independently.
+Add a Gemini API key to `.env` if using Gemini. Add an OpenAI key if using OpenAI for The Voice. Add a Z.ai key (created at z.ai → API Keys) if using Z.ai GLM for a subsystem. For a local server, no API key is required: select **Local** in AI Calibration, enter the server URL, and discover its loaded models. Each subsystem—Engine, Forge, Voice, and Autopilot—can target a different provider or model independently.
 
 For a production-style compilation:
 

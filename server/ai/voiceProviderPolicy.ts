@@ -1,4 +1,4 @@
-export const VOICE_PROVIDERS = ['openai', 'gemini', 'local'] as const;
+export const VOICE_PROVIDERS = ['openai', 'gemini', 'zai', 'local'] as const;
 export type VoiceProvider = (typeof VOICE_PROVIDERS)[number];
 
 export const APPROVED_OPENAI_VOICE_MODELS = [
@@ -17,6 +17,7 @@ function readConfiguredProvider(): VoiceProvider {
   const configured = process.env.VOICE_AI_PROVIDER?.trim().toLowerCase();
   if (configured === 'gemini') return 'gemini';
   if (configured === 'openai') return 'openai';
+  if (configured === 'zai') return 'zai';
   if (configured === 'local') return 'local';
   return DEFAULT_VOICE_PROVIDER;
 }

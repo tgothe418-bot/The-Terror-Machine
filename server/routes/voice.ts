@@ -5,6 +5,7 @@ import { getGeminiPolicy } from '../ai/modelPolicy';
 import { getVoiceProvider } from '../ai/voiceProviderPolicy';
 import { generateOpenAiVoice, OpenAiVoiceError } from '../utils/openaiVoiceClient';
 import { generateLocalVoice, LocalVoiceError } from '../utils/localVoiceClient';
+import { generateZaiVoice, ZaiProviderError } from '../utils/zaiClient';
 import { VoiceRequestSchema } from '../schemas/index';
 import { VOICE_SYSTEM_PROMPT } from '../../src/core/prompts/voice';
 
@@ -60,6 +61,13 @@ router.post(['/voice', '/gemini/voice'], async (req, res) => {
       model = result.model;
     } else if (provider === 'local') {
       const result = await generateLocalVoice({
+        instructions: finalSystemPrompt,
+        history: history || [],
+      });
+      responseText = result.text;
+      model = result.model;
+    } else if (provider === 'zai') {
+      const result = await generateZaiVoice({
         instructions: finalSystemPrompt,
         history: history || [],
       });
@@ -172,13 +180,27 @@ router.post(['/voice', '/gemini/voice'], async (req, res) => {
       });
     }
 
-    if (getVoiceProvider() === 'openai' || getVoiceProvider() === 'local') {
+    if (error instanceof ZaiProviderError) {
+      return res.status(error.status).json({
+        error: error.message,
+        code: error.code,
+        provider: 'zai',
+      });
+    }
+
+    if (
+      getVoiceProvider() === 'openai' ||
+      getVoiceProvider() === 'local' ||
+      getVoiceProvider() === 'zai'
+    ) {
       const provider = getVoiceProvider();
       return res.status(502).json({
         error:
           provider === 'local'
             ? 'The Local Voice request failed before a response was completed.'
-            : 'The OpenAI Voice request failed before a response was completed.',
+            : provider === 'zai'
+              ? 'The Z.ai Voice request failed before a response was completed.'
+              : 'The OpenAI Voice request failed before a response was completed.',
         code: 'PROVIDER_FAILURE',
         provider,
       });

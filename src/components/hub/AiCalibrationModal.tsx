@@ -31,6 +31,12 @@ interface AiConfigResponse {
   defaultOpenAiModel: string;
   hasOpenAiApiKey: boolean;
   maskedOpenAiApiKey: string;
+  zaiModel: string;
+  approvedZaiModels?: string[];
+  defaultZaiModel: string;
+  zaiEndpoint?: 'general' | 'coding';
+  hasZaiApiKey: boolean;
+  maskedZaiApiKey: string;
   localBaseUrl: string;
   localModel: string;
   localEngineModel?: string;
@@ -42,7 +48,7 @@ interface AiConfigResponse {
 
 interface AiPingResponse {
   ok: boolean;
-  provider?: 'gemini' | 'openai' | 'local';
+  provider?: 'gemini' | 'openai' | 'zai' | 'local';
   model: string;
   models?: string[];
   latencyMs: number;
@@ -66,10 +72,12 @@ export default function AiCalibrationModal({
   const [tier, setTier] = useState<'free' | 'paid'>('free');
   const [model, setModel] = useState<string>('gemini-3.6-flash');
   const [apiKeyInput, setApiKeyInput] = useState<string>('');
-  const [engineProvider, setEngineProvider] = useState<'gemini' | 'local'>('gemini');
-  const [voiceProvider, setVoiceProvider] = useState<'gemini' | 'openai' | 'local'>('openai');
+  const [engineProvider, setEngineProvider] = useState<'gemini' | 'zai' | 'local'>('gemini');
+  const [voiceProvider, setVoiceProvider] = useState<'gemini' | 'openai' | 'zai' | 'local'>('openai');
   const [openAiModel, setOpenAiModel] = useState<string>('gpt-5.6-luna');
   const [openAiApiKeyInput, setOpenAiApiKeyInput] = useState<string>('');
+  const [zaiModel, setZaiModel] = useState<string>('glm-4.6');
+  const [zaiApiKeyInput, setZaiApiKeyInput] = useState<string>('');
   const [localBaseUrl, setLocalBaseUrl] = useState<string>('http://127.0.0.1:1234/v1');
   const [localModel, setLocalModel] = useState<string>('');
   const [localEngineModel, setLocalEngineModel] = useState<string>('');
@@ -98,6 +106,7 @@ export default function AiCalibrationModal({
           setEngineProvider(data.engineProvider || 'gemini');
           setVoiceProvider(data.voiceProvider || 'gemini');
           setOpenAiModel(data.openAiModel || data.defaultOpenAiModel || 'gpt-6-astra');
+          setZaiModel(data.zaiModel || data.defaultZaiModel || 'glm-4.6');
           setLocalBaseUrl(
             data.localBaseUrl || data.defaultLocalBaseUrl || 'http://127.0.0.1:1234/v1'
           );
@@ -129,6 +138,7 @@ export default function AiCalibrationModal({
     setStatusMessage(null);
     setApiKeyInput('');
     setOpenAiApiKeyInput('');
+    setZaiApiKeyInput('');
     onClose();
   };
 
@@ -142,10 +152,12 @@ export default function AiCalibrationModal({
         tier: 'free' | 'paid';
         model: string;
         apiKey?: string;
-        engineProvider: 'gemini' | 'local';
-        voiceProvider: 'gemini' | 'openai' | 'local';
+        engineProvider: 'gemini' | 'zai' | 'local';
+        voiceProvider: 'gemini' | 'openai' | 'zai' | 'local';
         openAiModel: string;
         openAiApiKey?: string;
+        zaiModel: string;
+        zaiApiKey?: string;
         localBaseUrl: string;
         localModel: string;
         localEngineModel?: string;
@@ -158,6 +170,7 @@ export default function AiCalibrationModal({
         engineProvider,
         voiceProvider,
         openAiModel,
+        zaiModel,
         localBaseUrl,
         localModel,
         localEngineModel: useDedicatedSubsystemModels ? localEngineModel : localModel,
@@ -171,6 +184,9 @@ export default function AiCalibrationModal({
       if (openAiApiKeyInput.trim().length > 0) {
         payload.openAiApiKey = openAiApiKeyInput.trim();
       }
+      if (zaiApiKeyInput.trim().length > 0) {
+        payload.zaiApiKey = zaiApiKeyInput.trim();
+      }
 
       const res = await fetch('/api/ai/config', {
         method: 'POST',
@@ -183,6 +199,7 @@ export default function AiCalibrationModal({
         setConfig(updated);
         setApiKeyInput('');
         setOpenAiApiKeyInput('');
+        setZaiApiKeyInput('');
         onConfigChanged?.();
 
         const modelsToWarmup = Array.from(
@@ -286,9 +303,14 @@ export default function AiCalibrationModal({
                 model: openAiModel,
                 ...(openAiApiKeyInput.trim() ? { apiKey: openAiApiKeyInput.trim() } : {}),
               }
-            : voiceProvider === 'local'
-              ? { model: localModel, baseUrl: localBaseUrl }
-              : {}),
+            : voiceProvider === 'zai'
+              ? {
+                  model: zaiModel,
+                  ...(zaiApiKeyInput.trim() ? { apiKey: zaiApiKeyInput.trim() } : {}),
+                }
+              : voiceProvider === 'local'
+                ? { model: localModel, baseUrl: localBaseUrl }
+                : {}),
         }),
       });
       const data: AiPingResponse = await res.json();
@@ -297,7 +319,13 @@ export default function AiCalibrationModal({
       setPingResult({
         ok: false,
         model:
-          voiceProvider === 'openai' ? openAiModel : voiceProvider === 'local' ? localModel : model,
+          voiceProvider === 'openai'
+            ? openAiModel
+            : voiceProvider === 'zai'
+              ? zaiModel
+              : voiceProvider === 'local'
+                ? localModel
+                : model,
         latencyMs: 0,
         code: 'NETWORK_ERROR',
         message: 'Could not connect to /api/ai/ping',
@@ -342,8 +370,8 @@ export default function AiCalibrationModal({
           <label className="text-xs font-mono uppercase tracking-wider text-zinc-400">
             Simulation Engine Provider
           </label>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {(['gemini', 'local'] as const).map((provider) => (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {(['gemini', 'zai', 'local'] as const).map((provider) => (
               <button
                 key={provider}
                 type="button"
@@ -356,14 +384,20 @@ export default function AiCalibrationModal({
               >
                 <div className="flex items-center justify-between pb-1">
                   <span className="font-mono text-xs font-bold uppercase tracking-wider text-emerald-300">
-                    {provider === 'gemini' ? 'Google Gemini' : 'Local Model'}
+                    {provider === 'gemini'
+                      ? 'Google Gemini'
+                      : provider === 'zai'
+                        ? 'Z.ai GLM'
+                        : 'Local Model'}
                   </span>
                   {engineProvider === provider && <CheckCircle2 className="w-4 h-4 text-emerald-400" />}
                 </div>
                 <p className="text-xs text-zinc-300 font-mono">
                   {provider === 'gemini'
                     ? 'Uses the cloud Gemini baseline for turns and initialization.'
-                    : 'Uses the active local API server (LM Studio / Ollama) below.'}
+                    : provider === 'zai'
+                      ? 'Uses Z.ai GLM models with your API key for turns and initialization.'
+                      : 'Uses the active local API server (LM Studio / Ollama) below.'}
                 </p>
               </button>
             ))}
@@ -375,8 +409,8 @@ export default function AiCalibrationModal({
           <label className="text-xs font-mono uppercase tracking-wider text-zinc-400">
             The Historian Provider
           </label>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {(['gemini', 'openai', 'local'] as const).map((provider) => (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {(['gemini', 'openai', 'zai', 'local'] as const).map((provider) => (
               <button
                 key={provider}
                 type="button"
@@ -393,7 +427,9 @@ export default function AiCalibrationModal({
                       ? 'Google Gemini'
                       : provider === 'openai'
                         ? 'OpenAI'
-                        : 'Local'}
+                        : provider === 'zai'
+                          ? 'Z.ai GLM'
+                          : 'Local'}
                   </span>
                   {voiceProvider === provider && <CheckCircle2 className="w-4 h-4 text-blue-400" />}
                 </div>
@@ -402,7 +438,9 @@ export default function AiCalibrationModal({
                     ? 'Uses the active Gemini baseline below.'
                     : provider === 'openai'
                       ? 'Uses the Responses API for The Historian only.'
-                      : 'Uses an API server running on this computer.'}
+                      : provider === 'zai'
+                        ? 'Uses Z.ai GLM models with your API key.'
+                        : 'Uses an API server running on this computer.'}
                 </p>
               </button>
             ))}
@@ -530,6 +568,59 @@ export default function AiCalibrationModal({
               />
               <p className="text-[11px] text-zinc-500 font-mono">
                 The key stays on the server process and is never returned to the browser.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {(voiceProvider === 'zai' || engineProvider === 'zai') && (
+          <div className="space-y-4 p-4 border border-violet-900/50 bg-violet-950/10 rounded">
+            <div className="space-y-2">
+              <label className="text-xs font-mono uppercase tracking-wider text-zinc-400">
+                Z.ai GLM Model
+              </label>
+              <select
+                value={zaiModel}
+                onChange={(e) => setZaiModel(e.target.value)}
+                className="w-full bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-xs font-mono text-zinc-200 focus:outline-none focus:border-violet-500 transition-colors"
+              >
+                {(
+                  config?.approvedZaiModels || ['glm-5', 'glm-4.7', 'glm-4.6', 'glm-4.5-air', 'glm-4.5-flash']
+                ).map((approvedModel) => (
+                  <option key={approvedModel} value={approvedModel}>
+                    {approvedModel}
+                    {approvedModel === (config?.defaultZaiModel || 'glm-4.6')
+                      ? ' (Recommended)'
+                      : ''}
+                  </option>
+                ))}
+              </select>
+              <p className="text-[11px] text-zinc-500 font-mono">
+                Applies to every Z.ai subsystem. GLM runs your Engine contracts through JSON mode + the same fail-closed ratification as every other provider.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-mono uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
+                  <Key className="w-3.5 h-3.5" />
+                  Z.ai API Key
+                </label>
+                {config?.hasZaiApiKey && (
+                  <span className="text-[11px] font-mono text-zinc-400">
+                    Active: <code className="text-zinc-300">{config.maskedZaiApiKey}</code>
+                  </span>
+                )}
+              </div>
+              <input
+                type="password"
+                placeholder="Paste a new Z.ai API key to update (optional)..."
+                value={zaiApiKeyInput}
+                onChange={(e) => setZaiApiKeyInput(e.target.value)}
+                className="w-full bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-xs font-mono text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-violet-500 transition-colors"
+              />
+              <p className="text-[11px] text-zinc-500 font-mono">
+                Create a key at z.ai → API Keys. The key stays on the server process and is never returned to the browser.
               </p>
             </div>
           </div>

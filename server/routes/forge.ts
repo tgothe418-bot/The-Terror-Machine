@@ -4,6 +4,7 @@ import { getAiClient } from "../utils/aiClient";
 import { getGeminiPolicy, getEngineProvider } from "../ai/modelPolicy";
 import { getLocalForgeModel } from "../ai/voiceProviderPolicy";
 import { generateLocalText } from "../utils/localVoiceClient";
+import { generateZaiText } from "../utils/zaiClient";
 import { parseOrRepairJson } from "../utils/jsonRepair";
 import { 
   LORE_EXTRACTION_PROMPT, 
@@ -104,7 +105,8 @@ export async function executeForgePrompt(
     pageImages?: string[];
   }
 ): Promise<string> {
-  if (getEngineProvider() === 'local') {
+  const engineProvider = getEngineProvider();
+  if (engineProvider === 'local' || engineProvider === 'zai') {
     let textPrompt = '';
     if (options?.systemInstruction) {
       textPrompt += `[SYSTEM INSTRUCTION]\n${options.systemInstruction}\n\n`;
@@ -124,7 +126,7 @@ export async function executeForgePrompt(
         try {
           const { PDFParse } = await import('pdf-parse');
           const parser = new PDFParse({ data: pdfBuffer });
-          const isLocal = getEngineProvider() === 'local';
+          const isLocal = engineProvider === 'local';
           const maxPages = isLocal ? 25 : 100;
           const textResult = await parser.getText({ first: maxPages });
           let extractedText = textResult?.text ? textResult.text.trim() : '';
@@ -162,7 +164,7 @@ export async function executeForgePrompt(
         mimeType.includes('xml')
       ) {
         let docText = Buffer.from(data, 'base64').toString('utf-8');
-        const isLocal = getEngineProvider() === 'local';
+        const isLocal = engineProvider === 'local';
         const maxChars = isLocal ? 28000 : 120000;
         if (docText.length > maxChars) {
           docText = docText.slice(0, maxChars) + '\n\n[... Remaining text truncated for local 16K context budget ...]';
@@ -170,6 +172,15 @@ export async function executeForgePrompt(
         textPrompt += `\n\n--- SOURCE DOCUMENT CONTENT ---\n${docText}\n--- END SOURCE DOCUMENT CONTENT ---`;
       }
     }
+
+    if (engineProvider === 'zai') {
+      return await generateZaiText(textPrompt, {
+        jsonMode: options?.responseMimeType === 'application/json',
+        maxTokens: 4096,
+        timeoutMs: 300_000,
+      });
+    }
+
     const forgeModel = getLocalForgeModel();
     const isVisionModel = /vl|vision|minicpm-v|llava|pixtral|omni/i.test(forgeModel);
     const localImages = isVisionModel ? images : undefined;
@@ -782,6 +793,13 @@ router.post("/analyze-reference", async (req, res) => {
         model: getLocalForgeModel(),
         jsonMode: true,
       });
+    } else if (getEngineProvider() === 'zai') {
+      const textParts = materials
+        .filter((mat: any) => mat.type !== 'image')
+        .map((mat: any) => `--- SOURCE FILE: ${mat.fileName} ---\n${mat.content}\n--- END SOURCE FILE ---`)
+        .join('\n\n');
+      const prompt = `Extract the lore from the following materials.\n\n${textParts}`;
+      responseText = await generateZaiText(prompt, { jsonMode: true });
     } else {
       const policy = getGeminiPolicy("LORE_ANALYSIS");
       const response = await getAiClient().models.generateContent({

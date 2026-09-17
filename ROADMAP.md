@@ -23,7 +23,8 @@ A Blueprint or a Haunted House Induction enters the same Engine path. The core t
 - Deterministic consequences, receipts, telemetry, Markdown/HTML diagnostics, and retake of the most recent completed turn.
 - A shared human/Autopilot response contract: concise creator input is preserved verbatim, one bounded generation is ratified or refused, and safe field-path diagnostics appear in failure receipts and exports.
 - Provider-refusal containment at the live generation boundaries: explicit declines and empty responses fail closed, never become player input, and leave canonical state available for retry or Retake.
-- Runtime provider switching across Engine, Forge, Voice, and Autopilot through AI Calibration. Gemini, OpenAI, and local OpenAI-compatible inference servers are supported providers. Each subsystem can target its own provider and model independently.
+- Runtime provider switching across Engine, Forge, Voice, and Autopilot through AI Calibration. Gemini, OpenAI, Z.ai (GLM), and local OpenAI-compatible inference servers are supported providers. Each subsystem can target its own provider and model independently.
+- Z.ai (GLM) provider integration: the Engine, Forge, Voice, and Autopilot can run on Z.ai GLM models with a user-supplied API key. GLM turns travel the same structured JSON-mode path with the authoritative Zod contract validating every response at ingress, thinking-mode mapped per purpose, and approved-model fallback on provider failure.
 - Local model support through any OpenAI-compatible endpoint (LM Studio, llama.cpp, Ollama, or equivalent). No API key required; the machine discovers loaded models at the configured server URL.
 - Per-subsystem local model assignment: the Engine, Autopilot, Voice, and Forge can each run a different local model when dedicated assignment is enabled.
 - Gemini Free Tier support with resilient backoff, automatic model fallback on rate limits, and AI Calibration for tier and model selection.

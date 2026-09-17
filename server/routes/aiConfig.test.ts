@@ -40,6 +40,39 @@ describe('AI Config and Warmup routes', () => {
       expect(data).toHaveProperty('localBaseUrl');
       expect(data).toHaveProperty('localForgeModel');
     });
+
+    it('exposes the Z.ai provider on both subsystem provider lists with its policy surface', async () => {
+      const res = await fetch(`${baseUrl}/api/ai/config`);
+      expect(res.status).toBe(200);
+      const data = await res.json();
+      expect(data.engineProviders).toContain('zai');
+      expect(data.voiceProviders).toContain('zai');
+      expect(data.approvedZaiModels).toContain('glm-4.6');
+      expect(data).toHaveProperty('zaiModel');
+      expect(data).toHaveProperty('defaultZaiModel');
+      expect(data).toHaveProperty('zaiEndpoint');
+      expect(data).toHaveProperty('hasZaiApiKey');
+      expect(data).toHaveProperty('maskedZaiApiKey');
+    });
+  });
+
+  describe('POST /api/ai/ping for Z.ai', () => {
+    it('rejects unapproved Z.ai model IDs before any provider request', async () => {
+      const fetchSpy = vi.spyOn(global, 'fetch');
+      const res = await fetch(`${baseUrl}/api/ai/ping`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider: 'zai', model: 'not-a-glm-model' }),
+      });
+      expect(res.status).toBe(400);
+      const data = await res.json();
+      expect(data.error).toContain('Z.ai model must be one of');
+      const outboundProviderCalls = fetchSpy.mock.calls.filter(
+        ([url]) => typeof url === 'string' && url.includes('api.z.ai')
+      );
+      expect(outboundProviderCalls).toHaveLength(0);
+      vi.restoreAllMocks();
+    });
   });
 
   describe('POST /api/ai/warmup', () => {

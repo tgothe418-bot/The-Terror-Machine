@@ -17,13 +17,14 @@ export const DEFAULT_PAID_MODEL: GeminiModelId = 'gemini-3.7-flash';
 // Backwards compatibility alias
 export const GEMINI_MODEL_ID: GeminiModelId = DEFAULT_FREE_MODEL;
 
-export const ENGINE_PROVIDERS = ['gemini', 'local'] as const;
+export const ENGINE_PROVIDERS = ['gemini', 'zai', 'local'] as const;
 export type EngineProvider = (typeof ENGINE_PROVIDERS)[number];
 export const DEFAULT_ENGINE_PROVIDER: EngineProvider = 'gemini';
 
 function readConfiguredEngineProvider(): EngineProvider {
   const configured = process.env.ENGINE_AI_PROVIDER?.trim().toLowerCase();
   if (configured === 'gemini') return 'gemini';
+  if (configured === 'zai') return 'zai';
   if (configured === 'local') return 'local';
   return DEFAULT_ENGINE_PROVIDER;
 }

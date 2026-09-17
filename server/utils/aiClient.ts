@@ -8,6 +8,7 @@ import {
 } from "../ai/geminiTurnJsonSchema";
 import { normalizeGeminiTurnProviderPayload } from '../ai/geminiTurnTransport';
 import { generateLocalStructuredResponse } from './localVoiceClient';
+import { generateZaiStructuredResponse } from './zaiClient';
 import { parseOrRepairJson } from './jsonRepair';
 
 let aiClient: GoogleGenAI | null = null;
@@ -503,6 +504,9 @@ export const generateStructuredResponse = async <T>(
 ): Promise<T> => {
   if (getEngineProvider() === 'local') {
     return await generateLocalStructuredResponse(prompt, contract);
+  }
+  if (getEngineProvider() === 'zai') {
+    return await generateZaiStructuredResponse(prompt, contract);
   }
 
   const contents = [{ role: 'user', parts: [{ text: prompt }] }];

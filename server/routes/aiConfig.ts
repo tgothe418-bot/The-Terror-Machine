@@ -45,6 +45,17 @@ import {
 } from '../ai/voiceProviderPolicy';
 import { hasOpenAiApiKey, pingOpenAiVoice, resetOpenAiApiKey } from '../utils/openaiVoiceClient';
 import { discoverLocalVoiceModels, pingLocalVoice, normalizeLocalBaseUrl } from '../utils/localVoiceClient';
+import {
+  APPROVED_ZAI_MODELS,
+  DEFAULT_ZAI_MODEL,
+  getZaiEndpointVariant,
+  getZaiModel,
+  setZaiEndpointVariant,
+  setZaiModel,
+  type ZaiEndpointVariant,
+  type ZaiModelId,
+} from '../ai/zaiPolicy';
+import { hasZaiApiKey, pingZai, resetZaiApiKey } from '../utils/zaiClient';
 
 
 export const aiConfigRouter = Router();
@@ -97,6 +108,7 @@ function maskApiKey(key?: string): string {
 function getConfigResponse() {
   const currentKey = process.env.GEMINI_API_KEY;
   const currentOpenAiKey = process.env.OPENAI_API_KEY;
+  const currentZaiKey = process.env.ZAI_API_KEY;
   return {
     tier: getActiveTier(),
     model: getActiveModelId(),
@@ -114,6 +126,12 @@ function getConfigResponse() {
     defaultOpenAiModel: DEFAULT_OPENAI_VOICE_MODEL,
     hasOpenAiApiKey: hasOpenAiApiKey(),
     maskedOpenAiApiKey: maskApiKey(currentOpenAiKey),
+    zaiModel: getZaiModel(),
+    approvedZaiModels: APPROVED_ZAI_MODELS,
+    defaultZaiModel: DEFAULT_ZAI_MODEL,
+    zaiEndpoint: getZaiEndpointVariant(),
+    hasZaiApiKey: hasZaiApiKey(),
+    maskedZaiApiKey: maskApiKey(currentZaiKey),
     localBaseUrl: getLocalVoiceBaseUrl(),
     localModel: getLocalVoiceModel(),
     localEngineModel: getLocalEngineModel(),
@@ -137,6 +155,9 @@ aiConfigRouter.post('/config', (req, res) => {
     voiceProvider,
     openAiModel,
     openAiApiKey,
+    zaiModel,
+    zaiApiKey,
+    zaiEndpoint,
     localBaseUrl,
     localModel,
     localEngineModel,
@@ -166,11 +187,35 @@ aiConfigRouter.post('/config', (req, res) => {
     engineProvider !== undefined &&
     !ENGINE_PROVIDERS.includes(engineProvider as EngineProvider)
   ) {
-    return res.status(400).json({ error: 'Engine provider must be "gemini" or "local"' });
+    return res
+      .status(400)
+      .json({ error: 'Engine provider must be "gemini", "zai", or "local"' });
   }
 
   if (voiceProvider !== undefined && !VOICE_PROVIDERS.includes(voiceProvider as VoiceProvider)) {
-    return res.status(400).json({ error: 'Voice provider must be "gemini", "openai", or "local"' });
+    return res
+      .status(400)
+      .json({ error: 'Voice provider must be "gemini", "openai", "zai", or "local"' });
+  }
+
+  if (
+    zaiModel !== undefined &&
+    zaiModel !== null &&
+    zaiModel !== '' &&
+    !APPROVED_ZAI_MODELS.includes(zaiModel as ZaiModelId)
+  ) {
+    return res.status(400).json({
+      error: `Z.ai model must be one of: ${APPROVED_ZAI_MODELS.join(', ')}`,
+    });
+  }
+
+  if (
+    zaiEndpoint !== undefined &&
+    zaiEndpoint !== null &&
+    zaiEndpoint !== 'general' &&
+    zaiEndpoint !== 'coding'
+  ) {
+    return res.status(400).json({ error: 'Z.ai endpoint must be "general" or "coding"' });
   }
 
   if (
@@ -222,9 +267,26 @@ aiConfigRouter.post('/config', (req, res) => {
     resetOpenAiApiKey(openAiApiKey);
   }
 
+  if (zaiModel !== undefined) {
+    setZaiModel(zaiModel === null || zaiModel === '' ? null : (zaiModel as ZaiModelId));
+  }
+  if (zaiEndpoint !== undefined) {
+    setZaiEndpointVariant(
+      zaiEndpoint === null || zaiEndpoint === '' ? null : (zaiEndpoint as ZaiEndpointVariant)
+    );
+  }
+  if (typeof zaiApiKey === 'string' && zaiApiKey.trim().length > 0) {
+    resetZaiApiKey(zaiApiKey);
+  }
+
   const envUpdates: Record<string, string | undefined> = {};
   if (engineProvider !== undefined) envUpdates.ENGINE_AI_PROVIDER = engineProvider;
   if (voiceProvider !== undefined) envUpdates.VOICE_AI_PROVIDER = voiceProvider;
+  if (zaiModel !== undefined) envUpdates.ZAI_MODEL = zaiModel;
+  if (zaiEndpoint !== undefined) envUpdates.ZAI_ENDPOINT = zaiEndpoint;
+  if (typeof zaiApiKey === 'string' && zaiApiKey.trim().length > 0) {
+    envUpdates.ZAI_API_KEY = zaiApiKey.trim();
+  }
   if (localModel !== undefined) envUpdates.LOCAL_AI_MODEL = localModel;
   if (localVoiceModel !== undefined) envUpdates.LOCAL_VOICE_MODEL = localVoiceModel;
   if (localEngineModel !== undefined) envUpdates.LOCAL_ENGINE_MODEL = localEngineModel;
@@ -268,7 +330,9 @@ aiConfigRouter.get('/local-models', async (req, res) => {
 aiConfigRouter.post('/ping', async (req, res) => {
   const requestedProvider = req.body?.provider ?? getVoiceProvider();
   if (!VOICE_PROVIDERS.includes(requestedProvider as VoiceProvider)) {
-    return res.status(400).json({ error: 'Provider must be "gemini", "openai", or "local"' });
+    return res
+      .status(400)
+      .json({ error: 'Provider must be "gemini", "openai", "zai", or "local"' });
   }
 
   let pingResult;
@@ -281,6 +345,17 @@ aiConfigRouter.post('/ping', async (req, res) => {
     }
     pingResult = await pingOpenAiVoice({
       model: requestedModel as OpenAiVoiceModelId,
+      apiKey: typeof req.body?.apiKey === 'string' ? req.body.apiKey : undefined,
+    });
+  } else if (requestedProvider === 'zai') {
+    const requestedModel = req.body?.model ?? getZaiModel();
+    if (!APPROVED_ZAI_MODELS.includes(requestedModel as ZaiModelId)) {
+      return res.status(400).json({
+        error: `Z.ai model must be one of: ${APPROVED_ZAI_MODELS.join(', ')}`,
+      });
+    }
+    pingResult = await pingZai({
+      model: requestedModel as ZaiModelId,
       apiKey: typeof req.body?.apiKey === 'string' ? req.body.apiKey : undefined,
     });
   } else if (requestedProvider === 'local') {
