@@ -1538,6 +1538,20 @@ ${recentHistory}
     );
     const arrivedCastIds = new Set<string>(validArrivals);
 
+    const cast_departures = Array.isArray(engineResponse.logic_state?.cast_departures)
+      ? engineResponse.logic_state.cast_departures
+      : [];
+    const validDepartures = cast_departures.filter(
+      (id: string) =>
+        context.cast.some((member) => member.id === id) &&
+        id !== context.player.characterId
+    );
+
+    // Publish the validated arrival/departure lists — never the raw model
+    // proposals — so the client presence ledger can apply them deterministically.
+    boundedResult.logic_state.cast_arrivals = validArrivals;
+    boundedResult.logic_state.cast_departures = validDepartures;
+
     const auditoryContext = buildAuditoryContext(
       context,
       userAction,

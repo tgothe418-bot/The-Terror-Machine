@@ -260,6 +260,13 @@ export const validateEngineFrame = (rawPayload: any): RatifiedEngineFrame => {
       terminal_flags: Array.isArray(logic.terminal_flags) ? logic.terminal_flags : [],
       cast_ledger: Array.isArray(logic.cast_ledger) ? logic.cast_ledger : [],
       cast_deltas: Array.isArray(logic.cast_deltas) ? logic.cast_deltas : [],
+      cast_arrivals: Array.isArray(logic.cast_arrivals)
+        ? logic.cast_arrivals.filter((id: unknown) => typeof id === 'string')
+        : [],
+      cast_departures: Array.isArray(logic.cast_departures)
+        ? logic.cast_departures.filter((id: unknown) => typeof id === 'string')
+        : [],
+      dramaturgyState: logic.dramaturgyState || null,
     },
     topologyDelta: rawPayload.topologyDelta || null,
     validation: {

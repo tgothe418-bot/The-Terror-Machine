@@ -749,6 +749,9 @@ export interface LogicState {
   dramaturgy_state?: import('./dramaturgy').DramaturgyRuntimeState | null;
   dramaturgyState?: import('./dramaturgy').DramaturgyRuntimeState | null;
   dramatic_turn_receipt?: import('./dramaturgy').DramaticTurnReceipt;
+  cast_arrivals?: string[];
+  cast_departures?: string[];
+  current_node_id?: string | null;
   current_location?: string;
   player_character_id?: string | null;
   player_role?: PlayerRole | string;

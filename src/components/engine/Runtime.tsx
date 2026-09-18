@@ -730,8 +730,15 @@ export default function Runtime() {
   const topology = activeBlueprint?.topology;
   const startingNodeId = topology?.startingNodeId;
   const rawCurrentNodeId = readLogicStateKey(gameState, 'current_node_id');
-  const currentNodeId =
+  const playerPresenceNodeId =
+    gameState?.player_character_id != null
+      ? gameState?.character_presence?.[String(gameState.player_character_id)]?.nodeId
+      : undefined;
+  const legacyNodeId =
     typeof rawCurrentNodeId === 'string' && rawCurrentNodeId ? rawCurrentNodeId : null;
+  const presenceNodeId =
+    typeof playerPresenceNodeId === 'string' && playerPresenceNodeId ? playerPresenceNodeId : null;
+  const currentNodeId = legacyNodeId ?? presenceNodeId;
 
   // Compute visited nodes from history + current node + starting node for Fog of War
   const visitedNodeIds = React.useMemo(() => {
@@ -1301,6 +1308,7 @@ export default function Runtime() {
           : {}),
         ...(nextCharacterContinuity ? { character_continuity: nextCharacterContinuity } : {}),
         ...(nextCharacterPresence ? { character_presence: nextCharacterPresence } : {}),
+        ...(postTurnNodeId ? { current_node_id: postTurnNodeId } : {}),
       };
 
       // 2. Coordinated Canonical Publication

@@ -250,6 +250,67 @@ describe('executeRatificationPipeline single pre-turn snapshot lifecycle', () =>
     expect(frame.preSnapshot?.activeVector).toBe('SOMATIC');
   });
 
+  it('passes cast arrivals/departures and dramaturgy state into the ratified frame (R4)', async () => {
+    const suppliedSnapshot: RuntimeStateSnapshot = {
+      version: 1,
+      sessionId: 'sess_arrivals_1',
+      blueprintId: 'bp_arrivals_1',
+      turnCount: 2,
+      currentNodeId: 'AUTOPSY_B',
+      activeVector: 'SOMATIC',
+      activeTier: 'MANIFEST',
+      phase: 'MANIFEST',
+      tension: 50,
+      coherence: 0.9,
+      decayRate: 0.01,
+      reconciliationRevision: 1,
+      activeFlags: [],
+    };
+
+    globalThis.fetch = vi.fn().mockImplementation(async () =>
+      new Response(
+        JSON.stringify({
+          narrative_blocks: [
+            { type: 'prose', content: 'Footsteps scrape somewhere beyond the bulkhead wall.' },
+          ],
+          logic_state: {
+            current_phase: 'MANIFEST',
+            cast_arrivals: ['char-holt', 42],
+            cast_departures: ['char-orderly'],
+            dramaturgyState: {
+              currentMacroPhase: 'COMPLICATION_ENCLOSURE',
+              activePacingCadence: 'MOUNTING_COMPLICATION',
+              consecutiveTurnsInCadence: 1,
+              impendingClocks: {},
+              characterStakes: {},
+              milestones: [],
+              receiptHistory: [],
+            },
+          },
+          topologyDelta: { isExpansion: false },
+          validation: { accepted: true },
+          canonicalConsequenceReceipt: defaultConsequenceReceipt,
+          characterStanceReceipt: defaultCharacterStanceReceipt,
+          characterRelationshipReceipt: defaultCharacterRelationshipReceipt,
+          characterMemoryReceipt: defaultCharacterMemoryReceipt,
+          worldMemoryReceipt: defaultWorldMemoryReceipt,
+          ...defaultHG1Receipts,
+        }),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      )
+    );
+
+    const frame = await executeRatificationPipeline('Listen at the bulkhead', suppliedSnapshot);
+
+    expect(frame.logic_state.cast_arrivals).toEqual(['char-holt']);
+    expect(frame.logic_state.cast_departures).toEqual(['char-orderly']);
+    expect(frame.logic_state.dramaturgyState?.activePacingCadence).toBe('MOUNTING_COMPLICATION');
+    expect(frame.logic_state.dramaturgyState?.currentMacroPhase).toBe('COMPLICATION_ENCLOSURE');
+  });
+
   it('passes characterContinuity from engine gameState and preserves cast_deltas in ratified frame', async () => {
     useEngineStore.setState({
       activeBlueprint: {
