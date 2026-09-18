@@ -35,13 +35,58 @@ The central rule is simple:
 
 Everything else follows from that.
 
-Jump to: [Run it](#running-the-machine) · [The House is Free](#the-house-is-free) · [The Three Nodes](#the-three-nodes) · [The Laws of the House](#the-laws-of-the-house) · [Live status →](./ROADMAP.md)
+Jump to: [Current Edition](#current-edition) · [Running the Machine](#running-the-machine) · [The House is Free](#the-house-is-free) · [The Three Nodes](#the-three-nodes) · [The Laws of the House](#the-laws-of-the-house) · [Roadmaps →](./ROADMAP.md)
+
+## CURRENT EDITION
+
+The Terror Machine is an open-source solo project in active development.
+
+The first Horror Grammar gives the world a life between the player's actions. A glance, a conversation, and a long search need not cost the same amount of night. While the player studies one door, someone else may be testing a lock. An accepted change in a character's purpose follows them when they leave the room. The machine can place pressure in the scene without choosing the player's answer.
+
+This edition brings that continuity through the complete session: the opening, successive turns, failed attempts, Retake, and recovery after reload. It strengthens the boundaries around cast presence, authored authority, User commitments, and the facts the world has already accepted. Recovery is built around complete saved revisions, with an explicit recovery state when a trustworthy continuation is unavailable.
+
+The same attention extends to the prose. Dramatic pressure follows the scenario's physical possibilities. A character can reassure you, lie to you, or offer shelter without their dialogue being replaced by system-error text. Provider refusals remain visible failures outside the fiction.
+
+The latest updates bring auditory presence, pure-text acoustic soundscapes, and contract lockstep resilience to simulation turns:
+- **Comprehensive Vocalization & Acoustic Subsystem**: Beyond standard dialogue, the engine introduces first-class literary vocalization categories: spoken dialogue, internal monologue (private introspective thought), muttered soliloquy (`sotto voce`), radio/intercom transmissions, and acoustic bleed through observation ports and ductwork. Center Stage typography visually frames introspection (indigo italic), soliloquies (dashed amber), intercom/bleed (phosphor-cyan), and spoken speech (candle-amber).
+- **Pure-Text Acoustic Soundscapes (Strictly Non-Audio)**: Zero Web Audio, zero synthesizers, zero speech synthesis, and zero audio hardware dependencies. Soundscapes and vocalizations are rendered purely via literary narrative text, CRT typography, typographic squelch markers (`> [CHIRP] ... [STATIC]`), shrouded obsidian acoustic bleed styling with chamber provenance (`[ ACOUSTIC BLEED // Name (via node) ]`), and em-dash broken delivery for interrupted speech.
+- **Topological Adjacency & Epistemic Boundaries**: The auditory engine evaluates physical co-presence, open remote communication lines, and acoustic architectural links. Fail-closed adjacency validation checks offstage speech sources against connected rooms, auto-remediating single links and strictly enforcing one-directional epistemic constraints for overheard speech.
+- **Forge Voice & Acoustic Dossiers**: First-class authoring of character expression profiles directly in the Forge: free-text cadence & rhythm notes, vocal tells (acoustic quirks), voice tone and texture, lexicon notes, silence directives, and scenario-agnostic camouflage leak guidance that triggers when character composure fractures under climax tension.
+- **Engine Contract Lockstep & Provider Projection**: Full Zod schema synchronization between Forge authoring and `EngineTurnContext`, with provider JSON schema projection of `interrupted` and `acousticSourceNodeId`.
+- **Conditioned Opening Establishment (`SYSTEM_INIT`) & Fail-Safe Invariants**: Solitary opening chambers dynamically permit internal monologue and muttered soliloquies while strictly forbidding room dialogue. Auto-remediation converts opening player speech to soliloquy or prose (for nonverbal mechanical entities like Entity-41), completely eliminating the solitary-character Critical Engine Failure.
+- **1440p Ultrawide (`3440×1440`) Occult Scrying Apparatus**: A persistent 4-pane workstation featuring a 2.5× scaled, Fog-of-War `MapSketch` styled after Austin Osman Spare, a pure-text `MortalLedger` tracking active vessels and companion cohorts, and live-docked communion with The Historian.
+
+The machine supports runtime provider switching across every subsystem. The Engine, Forge, Voice, and Autopilot can each target Gemini, OpenAI, Z.ai (GLM), or a local OpenAI-compatible inference server—independently, through AI Calibration. A local server requires no API key: point it at an endpoint, discover loaded models, and the same Engine contracts apply. Each subsystem can run a different model if the scenario calls for it.
+
+This is not cosmetic. The architecture is designed so that the contracts—not the provider—define what the machine can accept. A local 26-billion-parameter model (such as Gemma 4 26B QAT) running on your hardware is subject to the same ratification path as a cloud endpoint. In recent 80-turn playtest batteries across Protagonist, Antagonist, Villain, and Survivor roles, local Gemma demonstrated complete somatic fidelity, psychological depth, and 100% schema accuracy with 0 cloud token expenditure.
+
+The Forge has hardened its extraction and candidate normalization pipeline. Source-backed defaults apply atomically—complete Depiction Contracts, rich topology definitions, expanded rule aliases, and per-character opening placement—regardless of which provider produced the extraction. The exported Blueprint remains perspective-neutral and schema-valid.
+
+The next work begins with playing the assembled machine across varied scenarios, then addressing the failures and rough edges those sessions reveal. Further work on authored treatment, the Voice, campaign continuity, and later Horror Grammar remains on the roadmaps.
+
+For how the project has developed, what the machine can do, and where it is heading, read the [Technical (Public) Roadmap](./ROADMAP.md). The [Development Roadmap](./DEVELOPMENT-ROADMAP.md) explores the architectural foundations and technical questions guiding that direction.
+
+Two commitments hold throughout development: a refusal or an empty response from the model is never allowed to pass itself off as something the player did or said, and any consequence the machine records traces back to reviewed evidence or deliberate authorship—never a hidden score nudging the story toward a prepared ending.
 
 ## RUNNING THE MACHINE
 
 Before the tour, the doorknob.
 
-The application uses React, TypeScript, Vite, Express, Zustand, Zod, Tailwind CSS, Vitest, and IndexedDB utilities. The Engine, Forge, Voice, and Autopilot can each be switched between providers—Gemini, OpenAI, Z.ai (GLM), and local OpenAI-compatible inference servers—through AI Calibration. Gemini is the current default; provider-neutral operation is an active design direction.
+The application is built with React, TypeScript, Vite, Express, Zustand, Zod, Tailwind CSS, Vitest, and IndexedDB.
+
+### Model-Agnostic Architecture
+
+The Terror Machine is designed from the foundation to be **strictly model- and provider-agnostic**. The language model is an improvisational narrative generator; the machine is a deterministic continuity engine. Any model that can emit structured JSON against the application's Zod schemas can operate the machine—whether running locally on private hardware or via cloud APIs.
+
+Through **AI Calibration**, each of the machine's four core subsystems can be calibrated to an independent provider and model:
+- **The Engine**: Drives live turn progression, spatial adjudication, and dialogue synthesis.
+- **The Forge**: Powers Haunted House Induction, source extraction, and Blueprint authoring.
+- **The Voice**: Acts as the out-of-character analytical companion and research oracle.
+- **The Autopilot**: Drives headless automated exploration and soak-testing.
+
+Supported providers include **Local Inference** (LM Studio, Ollama, llama.cpp, vLLM, or any OpenAI-compatible server), **Google Gemini**, **OpenAI**, and **Z.ai (GLM)**.
+
+### Quickstart
 
 ```bash
 npm install
@@ -49,24 +94,27 @@ cp .env.example .env
 npm run dev
 ```
 
-Add a Gemini API key to `.env` if using Gemini. Add an OpenAI key if using OpenAI for The Voice. Add a Z.ai key (created at z.ai → API Keys) if using Z.ai GLM for a subsystem. For a local server, no API key is required: select **Local** in AI Calibration, enter the server URL, and discover its loaded models. Each subsystem—Engine, Forge, Voice, and Autopilot—can target a different provider or model independently.
+### Provider Configuration
 
-For a production-style compilation:
+- **Zero-Token Local Play (Recommended for Private Offline Simulation)**:
+  No API key or external internet connection is required. Start your local server (e.g., LM Studio at `http://localhost:1234/v1`), open **AI Calibration** in the app header, select **Local**, enter your endpoint URL, and click **Discover Models**. You can assign different local models to each subsystem or run a single model across all four.
+- **Cloud Providers**:
+  Add keys to `.env` or enter them dynamically inside the AI Calibration modal:
+  - Gemini: `GEMINI_API_KEY` (Gemini Free Tier is supported with automatic exponential backoff and rate-limit model fallback)
+  - OpenAI: `OPENAI_API_KEY`
+  - Z.ai GLM: `ZAI_API_KEY` (keyed OpenAI-compatible transport with purpose-mapped thinking modes)
 
 ```bash
+# Production build & server start
 npm run build
 npm start
-```
 
-For the automated test suite:
-
-```bash
+# Automated test battery (1,440+ deterministic tests)
 npm test
 ```
 
-Never commit `.env`, expose an API key in source code, or paste a key into a public issue.
-
-The machine is currently being built and tested in Antigravity. The Engine's contracts define what any model can propose and what the application can accept; provider-specific behavior cannot bypass those boundaries.
+> [!IMPORTANT]
+> Never commit `.env`, expose an API key in source code, or paste keys into public issues. The Engine's authoritative Zod contracts enforce state validation at ingress; provider-specific peculiarities cannot bypass or weaken those boundaries.
 
 ## THE HOUSE IS FREE
 
@@ -312,37 +360,6 @@ It is interested in:
 The target is not a perfect story.
 
 The target is a story that has become a place—and a place that remembers being entered.
-
-## CURRENT EDITION
-
-The Terror Machine is an open-source solo project in active development.
-
-The first Horror Grammar gives the world a life between the player's actions. A glance, a conversation, and a long search need not cost the same amount of night. While the player studies one door, someone else may be testing a lock. An accepted change in a character's purpose follows them when they leave the room. The machine can place pressure in the scene without choosing the player's answer.
-
-This edition brings that continuity through the complete session: the opening, successive turns, failed attempts, Retake, and recovery after reload. It strengthens the boundaries around cast presence, authored authority, User commitments, and the facts the world has already accepted. Recovery is built around complete saved revisions, with an explicit recovery state when a trustworthy continuation is unavailable.
-
-The same attention extends to the prose. Dramatic pressure follows the scenario's physical possibilities. A character can reassure you, lie to you, or offer shelter without their dialogue being replaced by system-error text. Provider refusals remain visible failures outside the fiction.
-
-The latest updates bring auditory presence, pure-text acoustic soundscapes, and contract lockstep resilience to simulation turns:
-- **Comprehensive Vocalization & Acoustic Subsystem**: Beyond standard dialogue, the engine introduces first-class literary vocalization categories: spoken dialogue, internal monologue (private introspective thought), muttered soliloquy (`sotto voce`), radio/intercom transmissions, and acoustic bleed through observation ports and ductwork. Center Stage typography visually frames introspection (indigo italic), soliloquies (dashed amber), intercom/bleed (phosphor-cyan), and spoken speech (candle-amber).
-- **Pure-Text Acoustic Soundscapes (Strictly Non-Audio)**: Zero Web Audio, zero synthesizers, zero speech synthesis, and zero audio hardware dependencies. Soundscapes and vocalizations are rendered purely via literary narrative text, CRT typography, typographic squelch markers (`> [CHIRP] ... [STATIC]`), shrouded obsidian acoustic bleed styling with chamber provenance (`[ ACOUSTIC BLEED // Name (via node) ]`), and em-dash broken delivery for interrupted speech.
-- **Topological Adjacency & Epistemic Boundaries**: The auditory engine evaluates physical co-presence, open remote communication lines, and acoustic architectural links. Fail-closed adjacency validation checks offstage speech sources against connected rooms, auto-remediating single links and strictly enforcing one-directional epistemic constraints for overheard speech.
-- **Forge Voice & Acoustic Dossiers**: First-class authoring of character expression profiles directly in the Forge: free-text cadence & rhythm notes, vocal tells (acoustic quirks), voice tone and texture, lexicon notes, silence directives, and scenario-agnostic camouflage leak guidance that triggers when character composure fractures under climax tension.
-- **Engine Contract Lockstep & Provider Projection**: Full Zod schema synchronization between Forge authoring and `EngineTurnContext`, with provider JSON schema projection of `interrupted` and `acousticSourceNodeId`.
-- **Conditioned Opening Establishment (`SYSTEM_INIT`) & Fail-Safe Invariants**: Solitary opening chambers dynamically permit internal monologue and muttered soliloquies while strictly forbidding room dialogue. Auto-remediation converts opening player speech to soliloquy or prose (for nonverbal mechanical entities like Entity-41), completely eliminating the solitary-character Critical Engine Failure.
-- **1440p Ultrawide (`3440×1440`) Occult Scrying Apparatus**: A persistent 4-pane workstation featuring a 2.5× scaled, Fog-of-War `MapSketch` styled after Austin Osman Spare, a pure-text `MortalLedger` tracking active vessels and companion cohorts, and live-docked communion with The Historian.
-
-The machine supports runtime provider switching across every subsystem. The Engine, Forge, Voice, and Autopilot can each target Gemini, OpenAI, Z.ai (GLM), or a local OpenAI-compatible inference server—independently, through AI Calibration. A local server requires no API key: point it at an endpoint, discover loaded models, and the same Engine contracts apply. Each subsystem can run a different model if the scenario calls for it.
-
-This is not cosmetic. The architecture is designed so that the contracts—not the provider—define what the machine can accept. A local 26-billion-parameter model (such as Gemma 4 26B QAT) running on your hardware is subject to the same ratification path as a cloud endpoint. In recent 80-turn playtest batteries across Protagonist, Antagonist, Villain, and Survivor roles, local Gemma demonstrated complete somatic fidelity, psychological depth, and 100% schema accuracy with 0 cloud token expenditure.
-
-The Forge has hardened its extraction and candidate normalization pipeline. Source-backed defaults apply atomically—complete Depiction Contracts, rich topology definitions, expanded rule aliases, and per-character opening placement—regardless of which provider produced the extraction. The exported Blueprint remains perspective-neutral and schema-valid.
-
-The next work begins with playing the assembled machine across varied scenarios, then addressing the failures and rough edges those sessions reveal. Further work on authored treatment, the Voice, campaign continuity, and later Horror Grammar remains on the roadmaps.
-
-For how the project has developed, what the machine can do, and where it is heading, read the [Technical (Public) Roadmap](./ROADMAP.md). The [Development Roadmap](./DEVELOPMENT-ROADMAP.md) explores the architectural foundations and technical questions guiding that direction.
-
-Two commitments hold throughout development: a refusal or an empty response from the model is never allowed to pass itself off as something the player did or said, and any consequence the machine records traces back to reviewed evidence or deliberate authorship—never a hidden score nudging the story toward a prepared ending.
 
 ## FINAL NOTICE TO OPERATORS
 
