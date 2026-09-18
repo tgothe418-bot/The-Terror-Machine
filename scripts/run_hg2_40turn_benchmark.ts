@@ -550,9 +550,9 @@ function writeMarkdownReport(runA: HG2RunReport, runB: HG2RunReport) {
 - **Role**: Survivor (Protagonist)
 - **Starting Phase**: EXPOSITION_BASELINE
 - **Ending Composure**: ${runA.composureEnd}/100 (${deriveComposureBand(runA.composureEnd)} -> ${mapComposureBandToPsychologicalStatus(deriveComposureBand(runA.composureEnd))})
-- **Pacing Arc**: Began in Simmering Dread, escalated through Inciting Rupture and Complication Enclosure into Escalating Vise.
-- **Diegetic Observation Verification**: At \`node-histology\`, the "Core Coolant Barometer" was situated and successfully projected in turn context. In other nodes, numeric readouts remained hidden.
-- **Companion Dynamics**: Officer Holt experienced mounting panic; composure fell below 20 leading to an obstructive refusal at the airlock threshold until stabilized.
+- **Pacing Arc**: ${runA.macroPhasesTraversed.join(' → ')} across ${runA.cadenceShifts} cadence shifts.
+- **Diegetic Observation**: ${runA.turns.filter((t) => (t.diegeticReadings || []).length > 0).length} of ${runA.turns.length} turns surfaced situated instrument readings.
+- **Companion Dynamics**: ${runA.refusalsCount > 0 ? `${runA.refusalsCount} obstructive refusal(s) recorded during this run.` : 'No obstructive refusals were triggered during this run.'}
 
 ### Sample Narrative Turns (Survivor)
 ${runA.turns.slice(0, 5).map((t) => `**Turn ${t.turnNumber} [${t.macroPhase} | ${t.pacingCadence}]**
@@ -567,8 +567,8 @@ ${runA.turns.slice(0, 5).map((t) => `**Turn ${t.turnNumber} [${t.macroPhase} | $
 - **Role**: Villain (Mechanical Apex Predator)
 - **Starting Phase**: EXPOSITION_BASELINE
 - **Ending Composure**: ${runB.composureEnd}/100
-- **Pacing Arc**: Autonomous predatory pacing directives enforced cold apparatus telemetry, deliberate tempo, and mechanical sensorium.
-- **Atmospheric Alignment**: Maintained chilling acoustic and surgical precision throughout 40 turns with zero prompt-drift into human empathy.
+- **Pacing Arc**: ${runB.macroPhasesTraversed.join(' → ')} across ${runB.cadenceShifts} cadence shifts.
+- **Atmospheric Alignment**: Villain-seat mandates governed environmental texture and prey-side cadence; ${runB.turns.filter((t) => (t.diegeticReadings || []).length > 0).length} of ${runB.turns.length} turns surfaced telemetry sensorium readings.
 
 ### Sample Narrative Turns (Villain)
 ${runB.turns.slice(0, 5).map((t) => `**Turn ${t.turnNumber} [${t.macroPhase} | ${t.pacingCadence}]**

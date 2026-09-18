@@ -1,5 +1,5 @@
 # HG2 DRAMATURGICAL STORY ENGINE 40-TURN COMPARATIVE BENCHMARK REPORT
-*Generated: 2026-09-18T12:11:54.805Z*
+*Generated: 2026-09-18T22:31:57.563Z*
 *Model Target: Local Gemma 4 26B QAT (http://127.0.0.1:1234/v1)*
 *Scope: 2 Dual-Role Runs × 40 Turns = 80 Total Headless Turns*
 
@@ -16,7 +16,7 @@
 | **D2 Diegetic Carve-Out** | Verified (No floating gauges) | Verified (Telemetry sensorium) | **PASS (Diegetic)** |
 | **D3 Obstructive Refusals** | 0 companions obstructed | 0 tracking refusals | **PASS (Enforced)** |
 | **A8 Retake Idempotence** | Monotonic (VERIFIED) | Monotonic (VERIFIED) | **PASS** |
-| **Average Turn Latency** | 9899 ms | 9069 ms | **REAL-TIME** |
+| **Average Turn Latency** | 9836 ms | 8626 ms | **REAL-TIME** |
 
 ---
 
@@ -24,34 +24,34 @@
 - **Role**: Survivor (Protagonist)
 - **Starting Phase**: EXPOSITION_BASELINE
 - **Ending Composure**: 85/100 (BASELINE -> STABLE)
-- **Pacing Arc**: Began in Simmering Dread, escalated through Inciting Rupture and Complication Enclosure into Escalating Vise.
-- **Diegetic Observation Verification**: At `node-histology`, the "Core Coolant Barometer" was situated and successfully projected in turn context. In other nodes, numeric readouts remained hidden.
-- **Companion Dynamics**: Officer Holt experienced mounting panic; composure fell below 20 leading to an obstructive refusal at the airlock threshold until stabilized.
+- **Pacing Arc**: EXPOSITION_BASELINE → COMPLICATION_ENCLOSURE across 15 cadence shifts.
+- **Diegetic Observation**: 10 of 40 turns surfaced situated instrument readings.
+- **Companion Dynamics**: No obstructive refusals were triggered during this run.
 
 ### Sample Narrative Turns (Survivor)
 **Turn 1 [EXPOSITION_BASELINE | SIMMERING_DREAD]**
 - *Action*: Awaken on the frost-covered tile of Autopsy Suite B, checking personal vitals and cranial contusion.
-- *Narration*: "Consciousness returns as a rhythmic throb behind your eyes, a dull hammer striking the bone of your temple. The floor beneath you is a sheet of biting ice, leaching the heat from your skin as the dim, flickering light reveals a thin glaze of frost creeping across the surgical steel."
+- *Narration*: "Consciousness returns as a rhythmic, throbbing ache behind your eyes, blooming from a bruised temple. You lie sprawled on the frost-slicked tiles of Autopsy Suite B, where the biting chill of the morgue seems to be actively leeching the warmth from your skin. The silence is absolute, save for the distant, hollow drip of something viscous hitting the floor in the darkness just beyond the reach of your vision."
 - *Clock Advances*: None
 
 **Turn 2 [EXPOSITION_BASELINE | SIMMERING_DREAD]**
 - *Action*: Locate Officer Marcus Holt near the scrub sink, splinting his compound radial fracture with a rib spreader.
-- *Narration*: "The flickering fluorescent light casts long, dancing shadows as you find Marcus slumped against the porcelain sink, his breath hitching in wet, shallow rasps. As you wedge the cold rib spreader into the jagged ruin of his radius, the sharp, metallic clink of steel against bone echoes too loudly against the suffocating, sterile silence. From the depths of the dark hallway, a slow, rhythmic scraping begins, as if something heavy is being dragged across the damp tiles."
+- *Narration*: "The fluorescent hum overhead falters, casting long, twitching shadows as you wedge the heavy rib spreader against Marcus’s mangled wrist. His breath is a rhythmic, desperate rasp, a fragile sound that only serves to highlight the oppressive, heavy silence of the mortuary. Beneath the clinical scent of antiseptic, the coppery stench of his blood rises, thick and suffocating in the narrow space."
 - *Clock Advances*: None
 
-**Turn 3 [EXPOSITION_BASELINE | MOUNTING_PRESSURE]**
+**Turn 3 [EXPOSITION_BASELINE | MOUNTING_COMPLICATION]**
 - *Action*: Search the stainless steel instrument tray for clean gauze, arterial clamps, and an intact scalpel.
-- *Narration*: "Your fingers scrape frantically against the frigid stainless steel, the screech of metal on metal echoing like a scream in the hollow room. You snatch the gauze and clamps, but the scalpel’s edge bites into your palm as you fumble, just as a heavy, rhythmic thudding begins to vibrate through the floorboards from the corridor."
+- *Narration*: "The clatter of steel against steel rings through the morgue like a gunshot, a frantic, metallic prayer that feels far too loud in the suffocating stillness. Your numb fingers scramble through the tray, clutching a handful of coarse gauze and a cold scalpel, but the vibration of the impact seems to echo deep within your own teeth."
 - *Clock Advances*: None
 
-**Turn 4 [EXPOSITION_BASELINE | MOUNTING_PRESSURE]**
+**Turn 4 [EXPOSITION_BASELINE | MOUNTING_COMPLICATION]**
 - *Action*: Listen intently to the high-frequency metallic clicking reverberating through the overhead pneumatic rail track.
-- *Narration*: "The high-frequency staccato slices through the heavy silence, a frantic, rhythmic scraping that vibrates painfully against your molars. It is moving with predatory momentum, the clicking accelerating as it tracks directly toward the overhead rail positioned above your station."
+- *Narration*: "The high-frequency clicking accelerates into a frantic, rhythmic staccato, skittering along the overhead rails like a frantic pulse through a dying machine. The vibrations bleed through the heavy steel supports, causing the surgical instruments on your tray to chatter and dance in a violent, metallic mimicry of the movement above."
 - *Clock Advances*: None
 
-**Turn 5 [EXPOSITION_BASELINE | MOUNTING_PRESSURE]**
+**Turn 5 [EXPOSITION_BASELINE | MOUNTING_COMPLICATION]**
 - *Action*: Inspect the heavy steel double doors leading to the Decompression Airlock, testing the manual dog latch.
-- *Narration*: "The steel is a biting, unyielding weight against your palms, sweating with a frost that feels less like temperature and more like a warning. As you heave against the dog latch, the metal screams in a high-pitched, jagged protest that vibrates through your very teeth. The mechanism doesn't just resist; it shudders, as if something on the other side is already pushing back."
+- *Narration*: "The dog latch is a frozen, unyielding weight that bites into your palm, resisting your frantic movements with a stubborn, metallic chill. As you wrench it, a sickening, rhythmic vibration travels through the steel—a heavy, wet percussion from the corridor that suggests the pressure on the other side is no longer just air, but something far more substantial."
 - *Clock Advances*: None
 
 
@@ -61,33 +61,33 @@
 - **Role**: Villain (Mechanical Apex Predator)
 - **Starting Phase**: EXPOSITION_BASELINE
 - **Ending Composure**: 100/100
-- **Pacing Arc**: Autonomous predatory pacing directives enforced cold apparatus telemetry, deliberate tempo, and mechanical sensorium.
-- **Atmospheric Alignment**: Maintained chilling acoustic and surgical precision throughout 40 turns with zero prompt-drift into human empathy.
+- **Pacing Arc**: EXPOSITION_BASELINE → COMPLICATION_ENCLOSURE across 14 cadence shifts.
+- **Atmospheric Alignment**: Villain-seat mandates governed environmental texture and prey-side cadence; 10 of 40 turns surfaced telemetry sensorium readings.
 
 ### Sample Narrative Turns (Villain)
 **Turn 1 [EXPOSITION_BASELINE | SIMMERING_DREAD]**
 - *Action*: Initialize core hydraulic pressure in overhead carriage manifold, cycling optic sensors across Autopsy Suite B.
-- *Narration*: "A low-frequency thrum vibrates through the ceiling's rusted arteries as hydraulic pressure surges, a heavy, rhythmic heartbeat felt through the very foundation of the suite. The optic sensors sweep through the gloom of Autopsy Suite B, casting a clinical, crimson glare that traces the hollow, silver contours of the vacant stainless steel slabs."
+- *Narration*: "A low, rhythmic hiss of pressurized fluid pulses through the ceiling's iron veins, sending a subtle tremor through the morgue's sterile tiles. The optic sensors sweep across the stainless steel slabs in a slow, predatory arc, slicing through the heavy, stagnant air of Autopsy Suite B."
 - *Clock Advances*: None
 
 **Turn 2 [EXPOSITION_BASELINE | SIMMERING_DREAD]**
 - *Action*: Scan the perimeter tile, detecting two warm biological heat signatures slumped near the wash basin.
-- *Narration*: "Two frantic, dying pulses of warmth bloom through the sterile chill, staining the dark near the porcelain basin like spilled ink on ice. They lie slumped in a messy, rhythmic tangle, their fading heat signatures stuttering against the heavy, oppressive silence of the morgue."
+- *Narration*: "The silence of the mortuary is not empty; it is a pressurized void that carries the faint, rhythmic thrum of blood still struggling against the cold. Near the rusted wash basin, two blooming stains of infrared heat pulse weakly against the tile, two flickering embers of life guttering in the dark."
 - *Clock Advances*: None
 
-**Turn 3 [EXPOSITION_BASELINE | MOUNTING_PRESSURE]**
+**Turn 3 [EXPOSITION_BASELINE | MOUNTING_COMPLICATION]**
 - *Action*: Extend primary three-jointed pneumatic armature from ceiling track, testing scissor-clamp grip strength.
-- *Narration*: "The pneumatic hiss slices through the heavy air as the three-jointed limb descends, its shadow swallowing the floor. The scissor-clamps snap shut with a rhythmic, predatory precision, testing the tension of the void just inches from where a pulse might falter."
+- *Narration*: "The ceiling track groans under the sudden weight of the descent, releasing a violent hiss of compressed air that slices through the stagnant silence. The three-jointed armature uncoils like a starving insect, its scissor-clamps snapping shut with a percussive, bone-dry metallic bite that echoes aggressively against the tiled walls."
 - *Clock Advances*: None
 
-**Turn 4 [EXPOSITION_BASELINE | MOUNTING_PRESSURE]**
+**Turn 4 [EXPOSITION_BASELINE | MOUNTING_COMPLICATION]**
 - *Action*: Deploy optical cluster on telescoping arm, measuring biological tremor and respiration rates of Dr. Ross and Officer Holt.
-- *Narration*: "The telescoping limb uncoils from the dark, a segmented needle of cold geometry that brings a cluster of weeping, multi-focal lenses into the light. It hangs suspended like a predatory insect, drinking their frantic, shallow respirations and the microscopic tremors of their terrified flesh."
+- *Narration*: "The telescoping arm snakes through the freezing gloom, its multi-lensed cluster clicking as it dilates to drink in their terror. It catalogs every frantic, shallow gasp from Dr. Ross and the rhythmic, violent tremor of Officer Holt’s hands, translating their survival instincts into a cold, mathematical countdown."
 - *Clock Advances*: None
 
-**Turn 5 [EXPOSITION_BASELINE | MOUNTING_PRESSURE]**
+**Turn 5 [EXPOSITION_BASELINE | MOUNTING_COMPLICATION]**
 - *Action*: Emit high-frequency ultrasonic pulse into room air to evaluate acoustic reverberation and chamber geometry.
-- *Narration*: "The silent shriek of the pulse ripples through the stagnant air, a sonic scalpel carving through the dark to map the geometry of this iron tomb. The echoes return as a tightening pressure, revealing a claustrophobic architecture of narrowing corridors and the frantic, wet thrum of a heartbeat hidden just beyond the shadows."
+- *Narration*: "The ultrasonic spike tears through the stagnant air, a jagged needle of sound that maps the geometry of the tomb. The return echo is not a mere bounce, but a frantic, rhythmic shuddering against the cold iron slabs, pinpointing the heat of a terrified, living thing within the silence."
 - *Clock Advances*: None
 
 
