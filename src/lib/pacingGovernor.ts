@@ -80,7 +80,7 @@ export function compileSeatAwarePacingMandate(
         return 'The prey has temporarily broken line-of-sight to nurse wounds or catch breath. Savor the acoustic silence and architectural resonance. Maintain predatory patience; you dictate the timing of the next approach.';
       case 'SIMMERING_DREAD':
         return 'Track subtle environmental vibrations, distant prey footsteps, and sensory leakages through the facility. Let your unseen presence permeate the corridors without immediate kinetic collision. Exercise predatory patience.';
-      case 'MOUNTING_PRESSURE':
+      case 'MOUNTING_COMPLICATION':
         return 'The prey\'s escape vectors tighten. Manifest closer sensory pressure, acoustic distortion, or structural manipulation. Corner the prey with deliberate, inevitable closure.';
       case 'KINETIC_RUPTURE':
         return 'Direct physical collision or terrifying sensory breach. Strike with visceral impact; dictate the physical geometry of terror while preserving fair counterplay opportunities.';
@@ -93,7 +93,7 @@ export function compileSeatAwarePacingMandate(
       return 'Allow a necessary lull in direct physical aggression. Focus on somatic trauma, binding injuries, the acoustic weight of the silence, and quiet dread before the next escalation.';
     case 'SIMMERING_DREAD':
       return 'Build atmospheric dread through environmental decay, distant auditory cues, and claustrophobic isolation. The horror remains unseen but palpably encroaching.';
-    case 'MOUNTING_PRESSURE':
+    case 'MOUNTING_COMPLICATION':
       return 'Escalate urgency. Tighten the perimeter, introduce closer auditory or somatic cues, and increase the cost of delay. Escape routes feel precarious and strained.';
     case 'KINETIC_RUPTURE':
       return 'Deliver acute physical confrontation, violent containment failure, or desperate flight. High kinetic stakes; maintain visceral sensory shock.';
@@ -144,16 +144,16 @@ export function evaluateNextCadence(
     case 'SIMMERING_DREAD':
       // If lingering in quiet for 2+ consecutive turns, escalate to mounting pressure
       if (consecutiveTurns >= 2) {
-        return { nextCadence: 'MOUNTING_PRESSURE', nextConsecutiveTurns: 0 };
+        return { nextCadence: 'MOUNTING_COMPLICATION', nextConsecutiveTurns: 0 };
       }
       return { nextCadence: 'SIMMERING_DREAD', nextConsecutiveTurns: consecutiveTurns + 1 };
 
-    case 'MOUNTING_PRESSURE':
+    case 'MOUNTING_COMPLICATION':
       // After mounting pressure, either rupture or release back to simmering dread
       if (consecutiveTurns >= 2) {
         return { nextCadence: 'SIMMERING_DREAD', nextConsecutiveTurns: 0 };
       }
-      return { nextCadence: 'MOUNTING_PRESSURE', nextConsecutiveTurns: consecutiveTurns + 1 };
+      return { nextCadence: 'MOUNTING_COMPLICATION', nextConsecutiveTurns: consecutiveTurns + 1 };
   }
 }
 

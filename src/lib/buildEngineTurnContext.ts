@@ -49,10 +49,11 @@ import {
   resolveDiegeticObservation,
 } from './composureDerivation';
 import { compileSeatAwarePacingMandate } from './pacingGovernor';
-import type {
-  DramaturgyRuntimeState,
-  DramaturgyTurnContext,
-  DramaticSpine,
+import {
+  DramaturgyRuntimeStateSchema,
+  type DramaturgyRuntimeState,
+  type DramaturgyTurnContext,
+  type DramaticSpine,
 } from '../types/dramaturgy';
 import { buildEvidenceRegistry } from './evidenceRegistry';
 
@@ -109,6 +110,34 @@ export interface BuildEngineTurnContextOptions {
     dramaturgy_state?: DramaturgyRuntimeState | null;
   };
   dramaturgyRuntimeState?: DramaturgyRuntimeState | null;
+}
+
+/**
+ * Resolves the turn's dramaturgy runtime state and enforces the
+ * DramaturgyRuntimeStateSchema contract at the hydration boundary: schema-valid
+ * persisted state passes through with schema defaults filled; corrupt state is
+ * repaired to authored defaults with a visible forensic note rather than
+ * entering the governor unvalidated.
+ */
+export function hydrateValidatedDramaturgyRuntimeState(
+  opts: Pick<BuildEngineTurnContextOptions, 'dramaturgyRuntimeState' | 'runtimeState'>,
+  normBp: Blueprint
+): DramaturgyRuntimeState | undefined {
+  const candidate =
+    opts.dramaturgyRuntimeState ||
+    opts.runtimeState?.dramaturgyRuntimeState ||
+    opts.runtimeState?.dramaturgy_state;
+  if (candidate) {
+    const parsed = DramaturgyRuntimeStateSchema.safeParse(candidate);
+    if (parsed.success) {
+      return parsed.data;
+    }
+    console.warn(
+      '[DRAMATURGY HYDRATION REPAIR] Persisted dramaturgy state failed schema validation; repairing to authored defaults.',
+      JSON.stringify(parsed.error.issues.slice(0, 4))
+    );
+  }
+  return normBp.dramaticSpine ? initializeDramaturgyRuntimeState(normBp) : undefined;
 }
 
 /**
@@ -639,11 +668,7 @@ export function buildEngineTurnContext(
     worldMemory,
     horrorGrammar: horrorGrammarContext,
     dramaturgyContext: (() => {
-      const dramState: DramaturgyRuntimeState | undefined =
-        opts.dramaturgyRuntimeState ||
-        opts.runtimeState?.dramaturgyRuntimeState ||
-        opts.runtimeState?.dramaturgy_state ||
-        (normBp.dramaticSpine ? initializeDramaturgyRuntimeState(normBp) : undefined);
+      const dramState = hydrateValidatedDramaturgyRuntimeState(opts, normBp);
 
       if (!dramState) return undefined;
 
@@ -653,7 +678,7 @@ export function buildEngineTurnContext(
         playerRole,
         macroPhase,
         activePacingCadence,
-        normBp.dramaticSpine?.pacingProfile
+        dramState.consecutiveTurnsInCadence
       );
 
       const activeClockManifestations: string[] = [];
@@ -691,11 +716,7 @@ export function buildEngineTurnContext(
       };
       return ctx;
     })(),
-    dramaturgyRuntimeState:
-      opts.dramaturgyRuntimeState ||
-      opts.runtimeState?.dramaturgyRuntimeState ||
-      opts.runtimeState?.dramaturgy_state ||
-      (normBp.dramaticSpine ? initializeDramaturgyRuntimeState(normBp) : undefined),
+    dramaturgyRuntimeState: hydrateValidatedDramaturgyRuntimeState(opts, normBp),
     dramaticSpine: normBp.dramaticSpine,
   };
 }

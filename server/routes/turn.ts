@@ -51,7 +51,11 @@ import type {
   PursuitScheduleReceipt,
 } from '../../src/types/horrorGrammar';
 import { executePacingGovernor } from '../../src/lib/pacingGovernor';
-import type { DramaturgyRuntimeState, DramaticTurnReceipt } from '../../src/types/dramaturgy';
+import {
+  DramaturgyRuntimeStateSchema,
+  type DramaturgyRuntimeState,
+  type DramaticTurnReceipt,
+} from '../../src/types/dramaturgy';
 import {
   generateStructuredResponse,
   EngineTurnStructuredResponseContract,
@@ -1763,6 +1767,25 @@ ${recentHistory}
       fictionalTimeMarker: `MOMENT:${fictionalTimeReceipt.postState.moment_revision}_BEAT:${fictionalTimeReceipt.postState.scene_beat_revision}`,
       turnNumber: context.runtime.turnNumber + 1,
     });
+
+    // Fail-closed admission: engine-computed dramaturgy state must satisfy the
+    // schema before it may enter canonical post-state. The response is the
+    // state carrier, so refusing the response preserves the client's prior
+    // canonical state untouched.
+    const dramaticOutputCheck = DramaturgyRuntimeStateSchema.safeParse(
+      dramaticGovResult.nextRuntimeState
+    );
+    if (!dramaticOutputCheck.success) {
+      console.error(
+        '[HG2 GOVERNOR OUTPUT INVALID] Pacing governor produced schema-invalid dramaturgy state; failing turn closed.',
+        JSON.stringify(dramaticOutputCheck.error.issues.slice(0, 4))
+      );
+      return res.status(500).json({
+        error:
+          'The pacing governor produced invalid dramaturgy state. The turn was refused and canonical state is unchanged.',
+        code: 'DRAMATURGY_STATE_INVALID',
+      });
+    }
 
     const dramaticTurnReceipt: DramaticTurnReceipt = dramaticGovResult.receipt;
 

@@ -7,6 +7,7 @@ import {
 } from './pacingGovernor';
 import {
   DramaticTurnReceiptSchema,
+  PacingCadenceSchema,
   type DramaturgyRuntimeState,
   type DramaticSpine,
 } from '../types/dramaturgy';
@@ -29,7 +30,7 @@ describe('Horror Grammar 2: Pacing Governor (Packet 2)', () => {
       expect(turn2.nextConsecutiveTurns).toBe(0);
     });
 
-    it('escalates from SIMMERING_DREAD to MOUNTING_PRESSURE after prolonged quiet (2 turns)', () => {
+    it('escalates from SIMMERING_DREAD to MOUNTING_COMPLICATION after prolonged quiet (2 turns)', () => {
       const turn1 = evaluateNextCadence('SIMMERING_DREAD', 0);
       expect(turn1.nextCadence).toBe('SIMMERING_DREAD');
       expect(turn1.nextConsecutiveTurns).toBe(1);
@@ -39,7 +40,7 @@ describe('Horror Grammar 2: Pacing Governor (Packet 2)', () => {
       expect(turn2.nextConsecutiveTurns).toBe(2);
 
       const turn3 = evaluateNextCadence('SIMMERING_DREAD', 2);
-      expect(turn3.nextCadence).toBe('MOUNTING_PRESSURE');
+      expect(turn3.nextCadence).toBe('MOUNTING_COMPLICATION');
       expect(turn3.nextConsecutiveTurns).toBe(0);
     });
 
@@ -207,10 +208,44 @@ describe('Horror Grammar 2: Pacing Governor (Packet 2)', () => {
       const directorMandate = compileSeatAwarePacingMandate(
         'director',
         'MIDPOINT_CRISIS',
-        'MOUNTING_PRESSURE',
+        'MOUNTING_COMPLICATION',
         1
       );
       expect(directorMandate).toContain('[PACING TELEMETRY');
+    });
+
+    it('renders a non-empty mandate for every cadence across every seat branch', () => {
+      const seats = ['survivor', 'villain', 'director'] as const;
+      for (const seat of seats) {
+        for (const cadence of PacingCadenceSchema.options) {
+          const mandate = compileSeatAwarePacingMandate(
+            seat,
+            'COMPLICATION_ENCLOSURE',
+            cadence,
+            0
+          );
+          expect(typeof mandate).toBe('string');
+          expect(mandate.length).toBeGreaterThan(0);
+          expect(mandate).not.toContain('undefined');
+        }
+      }
+    });
+  });
+
+  describe('R1: Cadence State Machine Schema Validity', () => {
+    it('emits schema-valid cadences across the full state machine sweep', () => {
+      // Regression: the governor previously transitioned to a phantom
+      // 'MOUNTING_PRESSURE' value absent from PacingCadenceSchema.
+      for (const cadence of PacingCadenceSchema.options) {
+        for (let consecutiveTurns = 0; consecutiveTurns <= 3; consecutiveTurns++) {
+          const res = evaluateNextCadence(cadence, consecutiveTurns);
+          const parsed = PacingCadenceSchema.safeParse(res.nextCadence);
+          expect(
+            parsed.success,
+            `cadence ${cadence} @ turns=${consecutiveTurns} produced invalid nextCadence ${String(res.nextCadence)}`
+          ).toBe(true);
+        }
+      }
     });
   });
 

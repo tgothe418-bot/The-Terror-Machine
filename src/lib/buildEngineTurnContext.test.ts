@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { buildEngineTurnContext, buildContextReceipt } from './buildEngineTurnContext';
 import { deriveCharacterMemoryId } from './characterMemory';
 import { SpatialNode, CastActivityEvent, SituatedPressureThread } from '../types';
@@ -1057,6 +1057,66 @@ describe('buildEngineTurnContext & buildContextReceipt', () => {
         lexiconNotes: 'Uses Wall Street financial jargon and Latin anatomical terminology.',
         camouflageLeakGuidance: 'When composure fractures, pleasantries give way to dismemberment vocabulary.',
       });
+    });
+  });
+
+  describe('R1: Dramaturgy Runtime State Hydration Enforcement', () => {
+    const spineBlueprint = { ...mockBlueprint, dramaticSpine: { thematicPremise: 'Repair test spine' } };
+
+    it('repairs schema-invalid persisted dramaturgy state to authored defaults', () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      try {
+        const context = buildEngineTurnContext({
+          blueprint: spineBlueprint,
+          selectedRole: 'protagonist',
+          dramaturgyRuntimeState: {
+            currentMacroPhase: 'EXPOSITION_BASELINE',
+            // Phantom value emitted by the pre-repair governor (R1 regression).
+            activePacingCadence: 'MOUNTING_PRESSURE',
+            consecutiveTurnsInCadence: 0,
+            impendingClocks: {},
+            characterStakes: {},
+            milestones: [],
+            receiptHistory: [],
+          },
+          runtimeState: {
+            currentNodeId: 'WARD_4B',
+          },
+        });
+
+        expect(context.dramaturgyRuntimeState).toBeDefined();
+        expect(context.dramaturgyRuntimeState?.activePacingCadence).toBe('SIMMERING_DREAD');
+        expect(context.dramaturgyRuntimeState?.currentMacroPhase).toBe('EXPOSITION_BASELINE');
+        expect(warnSpy).toHaveBeenCalledWith(
+          expect.stringContaining('[DRAMATURGY HYDRATION REPAIR]'),
+          expect.any(String)
+        );
+      } finally {
+        warnSpy.mockRestore();
+      }
+    });
+
+    it('passes schema-valid persisted dramaturgy state through untouched', () => {
+      const context = buildEngineTurnContext({
+        blueprint: spineBlueprint,
+        selectedRole: 'protagonist',
+        dramaturgyRuntimeState: {
+          currentMacroPhase: 'COMPLICATION_ENCLOSURE',
+          activePacingCadence: 'KINETIC_RUPTURE',
+          consecutiveTurnsInCadence: 2,
+          impendingClocks: {},
+          characterStakes: {},
+          milestones: [],
+          receiptHistory: [],
+        },
+        runtimeState: {
+          currentNodeId: 'WARD_4B',
+        },
+      });
+
+      expect(context.dramaturgyRuntimeState?.activePacingCadence).toBe('KINETIC_RUPTURE');
+      expect(context.dramaturgyRuntimeState?.currentMacroPhase).toBe('COMPLICATION_ENCLOSURE');
+      expect(context.dramaturgyRuntimeState?.consecutiveTurnsInCadence).toBe(2);
     });
   });
 });
