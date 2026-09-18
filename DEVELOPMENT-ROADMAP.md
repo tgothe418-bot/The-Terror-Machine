@@ -218,13 +218,17 @@ Refine Runtime diagnostic drawer presentation, add dedicated prose-only export f
 
 Extend character and World Memory through campaign handoff between authored Blueprints with scoped, inspectable transfer. Campaign handoff must remain explicit rather than becoming an implicit global ledger.
 
-### 8. Horror Grammar 2 (Independent Future Milestone)
+### 8. Horror Grammar 2: Packet Series 1 — Pacing, Clocks & Character Stakes (Active Implementation)
 
-Once HG1 stabilization and authored boundary enforcement are complete, research generative dread pacing, revelation staging, and tension decay as generative principles rather than genre presets.
+Horror Grammar 2 has been consciously re-sequenced ahead of packages 2–7 by owner decision. The vocalization subsystem's live play review is folded into HG2's experiential verification.
 
-- define explicit multi-Blueprint campaign handoff;
-- research pressure, pacing, fear, revelation, and recovery as generative principles rather than preset plots;
-- preserve a provider-neutral Engine boundary without allowing provider behavior to bypass established contracts.
+This active implementation encompasses **HG2 Packet Series 1 — Pacing, Clocks & Stakes**:
+- **Undulating Tension Cadence (The Breath)**: Autonomous pacing oscillation (Respite / Simmering Dread / Mounting Complication / Kinetic Rupture) preventing flatline panic without overriding player actions or causal consequences.
+- **Impending Environmental Clocks**: Non-scripted situational decay vectors advancing via fictional time or ratified consequence events, featuring threshold-keyed manifestation cues and situated diegetic instrument observations.
+- **Character Psychological Stakes**: Human drama, coping mechanisms, and breaking points that enforce physical obstruction when triggered, with deterministic lift conditions.
+- **Causal Macro-Phase Milestones**: Narrative movements (Exposition, Inciting Rupture, Complication, Midpoint Crisis, Escalating Vise, Climax, Aftermath) gating phase transitions strictly on authored milestone achievements or clock crisis crossings.
+
+*Note*: Revelation staging, thematic lore unpeeling, and tension-decay dynamics remain open research areas for **HG2 Packet Series 2**.
 
 ## Construction environment
 
@@ -237,6 +241,8 @@ The construction environment and the application provider are separate concerns.
 - Blueprint data is input, never a hidden runtime instruction. Production code and implementation packets remain scenario-agnostic.
 - The model proposes; deterministic application code decides what becomes true.
 - Failed validation preserves canonical state and emits useful evidence.
+- No numeric pressure gauges in ordinary play (diegetic instruments excepted per D2).
+- No phase transition without a causal, authored milestone.
 - Required schemas become stricter. Stale fixtures are repaired at their source.
 - Broad type escapes, suppression comments, permissive defaults, and fallback receipts are not ordinary gate-repair tools. Any unavoidable test-only bridge must remain isolated and justified.
 - When a contract crosses a UI or route boundary, tests must exercise that real boundary; helper-only tests are insufficient.

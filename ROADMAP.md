@@ -136,9 +136,17 @@ Refine Runtime diagnostic drawer presentation, add dedicated prose-only export f
 
 Campaign continuity can move scoped state between authored Blueprints without merging them into an implicit global ledger.
 
-### 8. Horror Grammar 2 (Independent Future Milestone)
+### 8. Horror Grammar 2: Packet Series 1 — Pacing, Clocks & Character Stakes (Active Implementation)
 
-Horror Grammar 2 remains an unstarted, independent milestone. Research into generative dread pacing, revelation staging, and tension decay will begin only on this stable, verified HG1 foundation.
+Horror Grammar 2 has been consciously re-sequenced ahead of packages 2–7 by owner decision. The vocalization subsystem's live play review is folded into HG2's experiential verification.
+
+This work is **HG2 Packet Series 1 — Pacing, Clocks & Stakes**:
+- **Undulating Tension Cadence (The Breath)**: Dynamic pacing oscillation (Respite / Simmering Dread / Mounting Complication / Kinetic Rupture) preventing flatline panic without overriding player actions or causal consequences.
+- **Impending Environmental Clocks**: Non-scripted situational decay vectors advancing via fictional time or ratified consequence events, featuring threshold-keyed manifestation cues and situated diegetic instrument observations.
+- **Character Psychological Stakes**: Human drama, coping mechanisms, and breaking points that enforce physical obstruction when triggered, with deterministic lift conditions.
+- **Causal Macro-Phase Milestones**: Narrative movements (Exposition, Inciting Rupture, Complication, Midpoint Crisis, Escalating Vise, Climax, Aftermath) gating phase transitions strictly on authored milestone achievements or clock crisis crossings.
+
+*Note*: Revelation staging, thematic lore unpeeling, and tension-decay dynamics remain open research areas for **HG2 Packet Series 2**.
 
 Active construction has moved to Antigravity. The machine supports Gemini, OpenAI, and local inference servers as providers. Gemini remains the default; provider neutrality is an active engineering direction with the Voice already operating across all three types and the Engine and Forge infrastructure in place.
 
@@ -148,6 +156,8 @@ Active construction has moved to Antigravity. The machine supports Gemini, OpenA
 - A proposal is not a commit, whether it came from source extraction, an Architect response, a turn generator, or a memory suggestion.
 - Blueprint data supplies authored context; it does not become a hidden runtime instruction or a scenario-specific exception in Engine code.
 - Values, pursuits, and fictional time are Blueprint-derived literary scaffolding, not stats the User must track or a hidden game mechanic.
+- No numeric pressure gauges in ordinary play (diegetic instruments excepted per D2).
+- No phase transition without a causal, authored milestone.
 - Failed validation preserves canonical state and leaves useful evidence.
 - Characters have situated knowledge. The player, author, model, and character do not automatically know the same things.
 - Retake, exit, recovery, and diagnostics remain available to the person using the machine.
