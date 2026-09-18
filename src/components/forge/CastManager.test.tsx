@@ -221,4 +221,100 @@ describe('CastManager Pure Text Cast Dossier Component', () => {
     expect(card1?.textContent).toContain('Fear:');
     expect(card1?.textContent).toContain('Placement:');
   });
+
+  it('allows authoring Voice & Acoustic Dossier fields and toggling communication modes', async () => {
+    await act(async () => {
+      root?.render(<CastManager />);
+    });
+
+    const card1 = container?.querySelector('#character-card-char-occ-1');
+    expect(card1).toBeDefined();
+
+    // Verify Voice & Acoustic Dossier section exists
+    expect(card1?.textContent).toContain('Voice & Acoustic Dossier');
+
+    // Toggle 'mediated' communication mode
+    const mediatedBtn = card1?.querySelector('#comm-mode-char-occ-1-mediated') as HTMLButtonElement;
+    expect(mediatedBtn).toBeDefined();
+
+    await act(async () => {
+      mediatedBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    let updatedMember = useForgeStoreInternal
+      .getState()
+      .forgeDraft?.cast?.find((c) => c.id === 'char-occ-1');
+    expect(updatedMember?.expressionProfile?.communicationModes).toContain('mediated');
+    expect(updatedMember?.expressionProfile?.communicationModes).toContain('spoken');
+
+    // Enter Cadence Notes (Amendment 5)
+    const cadenceInput = card1?.querySelector('#voice-cadence-char-occ-1') as HTMLInputElement;
+    expect(cadenceInput).toBeDefined();
+    await act(async () => {
+      const nativeSetter = Object.getOwnPropertyDescriptor(
+        window.HTMLInputElement.prototype,
+        'value'
+      )?.set;
+      nativeSetter?.call(cadenceInput, 'Clipped, staccato syllables with breathless pauses');
+      cadenceInput.dispatchEvent(new Event('input', { bubbles: true }));
+      cadenceInput.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+
+    // Enter Voice Tone
+    const toneInput = card1?.querySelector('#voice-tone-char-occ-1') as HTMLInputElement;
+    expect(toneInput).toBeDefined();
+    await act(async () => {
+      const nativeSetter = Object.getOwnPropertyDescriptor(
+        window.HTMLInputElement.prototype,
+        'value'
+      )?.set;
+      nativeSetter?.call(toneInput, 'Dry academic gravel, strained composure');
+      toneInput.dispatchEvent(new Event('input', { bubbles: true }));
+      toneInput.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+
+    // Enter Vocal Tells
+    const tellsInput = card1?.querySelector('#voice-tells-char-occ-1') as HTMLInputElement;
+    expect(tellsInput).toBeDefined();
+    await act(async () => {
+      const nativeSetter = Object.getOwnPropertyDescriptor(
+        window.HTMLInputElement.prototype,
+        'value'
+      )?.set;
+      nativeSetter?.call(tellsInput, 'swallows hard, whistling sibilants');
+      tellsInput.dispatchEvent(new Event('input', { bubbles: true }));
+      tellsInput.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+
+    // Enter Camouflage Leak Guidance (Amendment 3)
+    const camouflageInput = card1?.querySelector('#voice-camouflage-char-occ-1') as HTMLInputElement;
+    expect(camouflageInput).toBeDefined();
+    await act(async () => {
+      const nativeSetter = Object.getOwnPropertyDescriptor(
+        window.HTMLInputElement.prototype,
+        'value'
+      )?.set;
+      nativeSetter?.call(camouflageInput, 'Mask slips into unmodulated monotone under critical pressure');
+      camouflageInput.dispatchEvent(new Event('input', { bubbles: true }));
+      camouflageInput.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+
+    updatedMember = useForgeStoreInternal
+      .getState()
+      .forgeDraft?.cast?.find((c) => c.id === 'char-occ-1');
+
+    expect(updatedMember?.expressionProfile?.cadenceNotes).toBe(
+      'Clipped, staccato syllables with breathless pauses'
+    );
+    expect(updatedMember?.expressionProfile?.voiceTone).toBe(
+      'Dry academic gravel, strained composure'
+    );
+    expect(updatedMember?.expressionProfile?.vocalTells).toEqual([
+      'swallows hard',
+      'whistling sibilants',
+    ]);
+    expect(updatedMember?.expressionProfile?.camouflageLeakGuidance).toBe(
+      'Mask slips into unmodulated monotone under critical pressure'
+    );
+  });
 });

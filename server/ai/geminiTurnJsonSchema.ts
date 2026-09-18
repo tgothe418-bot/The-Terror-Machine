@@ -233,6 +233,14 @@ export const geminiTurnResponseJsonSchema: GeminiJsonSchema = {
             enum: ['addressed', 'cohort', 'self', 'broadcast', 'unseen'],
             description: 'Who is addressed. Use self for muttering/soliloquy/monologue.',
           },
+          interrupted: {
+            type: 'boolean',
+            description: 'True when speech is cut off mid-sentence by trauma, shock, or interruption. Render the cutoff with a trailing em-dash.',
+          },
+          acousticSourceNodeId: {
+            type: 'string',
+            description: 'Topology node ID of the remote chamber a transmission or acoustic bleed originates from. Only for intercom, radio, acoustic_bleed, or port_observation mediums.',
+          },
           content: {
             type: 'string',
             description: 'Prose description, thought, or spoken utterance. For speech/thought, include ONLY the content without prepending the speaker name.',

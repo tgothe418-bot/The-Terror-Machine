@@ -26,6 +26,11 @@ export const CharacterExpressionProfileSchema = z.object({
   communicationModes: z.array(CharacterCommunicationModeSchema).min(1).default(['spoken']),
   expressionGuidance: z.string().min(1, 'Expression guidance is required'),
   silenceGuidance: z.string().optional(),
+  cadenceNotes: z.string().optional(),
+  voiceTone: z.string().optional(),
+  vocalTells: z.array(z.string()).optional(),
+  lexiconNotes: z.string().optional(),
+  camouflageLeakGuidance: z.string().optional(),
 });
 export type CharacterExpressionProfile = z.infer<typeof CharacterExpressionProfileSchema>;
 

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useForgeState, forgeActions } from '../../store/useForgeStore';
 import { AutopilotVector } from '../../types';
+import { CharacterExpressionProfile } from '../../types/forge';
 import {
   Compass,
   MapPin,
@@ -17,6 +18,7 @@ import {
   Flame,
   FileText,
   AlertCircle,
+  Volume2,
 } from 'lucide-react';
 
 const COMMON_PSYCH_FLAGS = [
@@ -110,6 +112,60 @@ export const CastManager: React.FC = () => {
       updateCastMember(charId, { traits: [...currentTraits, val] });
     }
     setCustomFlagInput((prev) => ({ ...prev, [charId]: '' }));
+  };
+
+  const handleUpdateVoiceDossier = (
+    charId: string,
+    existingProfile: CharacterExpressionProfile | undefined,
+    fieldUpdates: Partial<CharacterExpressionProfile>
+  ) => {
+    const currentModes = fieldUpdates.communicationModes ?? existingProfile?.communicationModes ?? ['spoken'];
+    const currentGuidance = (fieldUpdates.expressionGuidance !== undefined
+      ? fieldUpdates.expressionGuidance
+      : existingProfile?.expressionGuidance) ?? '';
+    const currentSilence = (fieldUpdates.silenceGuidance !== undefined
+      ? fieldUpdates.silenceGuidance
+      : existingProfile?.silenceGuidance) ?? '';
+    const currentCadence = (fieldUpdates.cadenceNotes !== undefined
+      ? fieldUpdates.cadenceNotes
+      : existingProfile?.cadenceNotes) ?? '';
+    const currentTone = (fieldUpdates.voiceTone !== undefined
+      ? fieldUpdates.voiceTone
+      : existingProfile?.voiceTone) ?? '';
+    const currentTells = fieldUpdates.vocalTells ?? existingProfile?.vocalTells ?? [];
+    const currentLexicon = (fieldUpdates.lexiconNotes !== undefined
+      ? fieldUpdates.lexiconNotes
+      : existingProfile?.lexiconNotes) ?? '';
+    const currentLeak = (fieldUpdates.camouflageLeakGuidance !== undefined
+      ? fieldUpdates.camouflageLeakGuidance
+      : existingProfile?.camouflageLeakGuidance) ?? '';
+
+    const hasAnyContent =
+      currentGuidance.trim().length > 0 ||
+      currentSilence.trim().length > 0 ||
+      currentCadence.trim().length > 0 ||
+      currentTone.trim().length > 0 ||
+      currentTells.length > 0 ||
+      currentLexicon.trim().length > 0 ||
+      currentLeak.trim().length > 0 ||
+      currentModes.some((m) => m !== 'spoken');
+
+    if (!hasAnyContent) {
+      updateCastMember(charId, { expressionProfile: undefined });
+    } else {
+      updateCastMember(charId, {
+        expressionProfile: {
+          communicationModes: currentModes.length > 0 ? currentModes : ['spoken'],
+          expressionGuidance: currentGuidance.trim() || 'Direct verbal response.',
+          silenceGuidance: currentSilence.trim() || undefined,
+          cadenceNotes: currentCadence.trim() || undefined,
+          voiceTone: currentTone.trim() || undefined,
+          vocalTells: currentTells,
+          lexiconNotes: currentLexicon.trim() || undefined,
+          camouflageLeakGuidance: currentLeak.trim() || undefined,
+        },
+      });
+    }
   };
 
   const handleSavePursuit = (charId: string) => {
@@ -583,22 +639,209 @@ export const CastManager: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* 6. EXPRESSION PROFILE (PASSIVE DATA SEAM) */}
-                  {char.expressionProfile && (
-                    <div className="p-3 bg-stone-950/60 border border-stone-800/80 rounded-lg space-y-1.5 text-[11px]">
-                      <span className="text-[10px] uppercase font-bold text-amber-400 block tracking-wider font-serif">
-                        Expression Profile
-                      </span>
-                      {char.expressionProfile.expressionGuidance && (
-                        <p className="text-stone-300">{char.expressionProfile.expressionGuidance}</p>
-                      )}
-                      {char.expressionProfile.silenceGuidance && (
-                        <p className="text-stone-500 italic">
-                          Silence: {char.expressionProfile.silenceGuidance}
-                        </p>
-                      )}
+                  {/* 6. VOICE & ACOUSTIC DOSSIER */}
+                  <div
+                    id={`voice-dossier-${char.id}`}
+                    className="p-3 bg-stone-950/70 border border-stone-800/80 rounded-lg space-y-3"
+                  >
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <div className="flex items-center gap-2">
+                        <Volume2 className="w-3.5 h-3.5 text-amber-400" />
+                        <span className="text-[10px] uppercase font-bold text-amber-400 tracking-wider font-serif">
+                          Voice & Acoustic Dossier
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        {(['spoken', 'nonverbal', 'mediated'] as const).map((mode) => {
+                          const activeModes = char.expressionProfile?.communicationModes || ['spoken'];
+                          const isActive = activeModes.includes(mode);
+                          return (
+                            <button
+                              key={mode}
+                              id={`comm-mode-${char.id}-${mode}`}
+                              type="button"
+                              onClick={() => {
+                                const nextModes = isActive
+                                  ? activeModes.filter((m) => m !== mode)
+                                  : [...activeModes, mode];
+                                if (nextModes.length === 0) return; // min 1 mode required
+                                handleUpdateVoiceDossier(char.id, char.expressionProfile, {
+                                  communicationModes: nextModes,
+                                });
+                              }}
+                              className={`text-[9px] uppercase px-1.5 py-0.5 rounded border transition-colors cursor-pointer ${
+                                isActive
+                                  ? 'bg-amber-500/20 border-amber-500/60 text-amber-300 font-bold'
+                                  : 'bg-stone-900 border-stone-800 text-stone-500 hover:text-stone-300'
+                              }`}
+                              title={`Toggle ${mode} communication mode`}
+                            >
+                              {mode}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
-                  )}
+
+                    {/* Expression Guidance */}
+                    <div>
+                      <label
+                        htmlFor={`voice-expression-${char.id}`}
+                        className="text-[10px] text-stone-400 uppercase font-bold tracking-wider block mb-1"
+                      >
+                        Expression Guidance
+                      </label>
+                      <input
+                        id={`voice-expression-${char.id}`}
+                        type="text"
+                        value={char.expressionProfile?.expressionGuidance || ''}
+                        onChange={(e) =>
+                          handleUpdateVoiceDossier(char.id, char.expressionProfile, {
+                            expressionGuidance: e.target.value,
+                          })
+                        }
+                        placeholder="Dramatic verbal delivery guidance (e.g., clipped sentences, guarded tone)..."
+                        className="w-full bg-[#0c0c10] border border-stone-800 text-stone-200 text-xs px-2.5 py-1.5 rounded focus:outline-none focus:border-amber-500/80 leading-relaxed placeholder:text-stone-600"
+                      />
+                    </div>
+
+                    {/* Cadence Notes (Amendment 5) & Voice Tone */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      <div>
+                        <label
+                          htmlFor={`voice-cadence-${char.id}`}
+                          className="text-[10px] text-stone-400 uppercase font-bold tracking-wider block mb-1"
+                        >
+                          Cadence & Rhythm Notes
+                        </label>
+                        <input
+                          id={`voice-cadence-${char.id}`}
+                          type="text"
+                          value={char.expressionProfile?.cadenceNotes || ''}
+                          onChange={(e) =>
+                            handleUpdateVoiceDossier(char.id, char.expressionProfile, {
+                              cadenceNotes: e.target.value,
+                            })
+                          }
+                          placeholder="Clipped, staccato syllables; breathless pauses..."
+                          className="w-full bg-[#0c0c10] border border-stone-800 text-stone-200 text-xs px-2.5 py-1.5 rounded focus:outline-none focus:border-amber-500/80 leading-relaxed placeholder:text-stone-600"
+                        />
+                      </div>
+                      <div>
+                        <label
+                          htmlFor={`voice-tone-${char.id}`}
+                          className="text-[10px] text-stone-400 uppercase font-bold tracking-wider block mb-1"
+                        >
+                          Voice Tone & Texture
+                        </label>
+                        <input
+                          id={`voice-tone-${char.id}`}
+                          type="text"
+                          value={char.expressionProfile?.voiceTone || ''}
+                          onChange={(e) =>
+                            handleUpdateVoiceDossier(char.id, char.expressionProfile, {
+                              voiceTone: e.target.value,
+                            })
+                          }
+                          placeholder="Low rasp, strained authority, dry gravel..."
+                          className="w-full bg-[#0c0c10] border border-stone-800 text-stone-200 text-xs px-2.5 py-1.5 rounded focus:outline-none focus:border-amber-500/80 leading-relaxed placeholder:text-stone-600"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Vocal Tells & Lexicon Notes */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      <div>
+                        <label
+                          htmlFor={`voice-tells-${char.id}`}
+                          className="text-[10px] text-stone-400 uppercase font-bold tracking-wider block mb-1"
+                        >
+                          Vocal Tells (Acoustic quirks)
+                        </label>
+                        <input
+                          id={`voice-tells-${char.id}`}
+                          type="text"
+                          value={(char.expressionProfile?.vocalTells || []).join(', ')}
+                          onChange={(e) => {
+                            const raw = e.target.value;
+                            const tells = raw
+                              .split(',')
+                              .map((t) => t.trim())
+                              .filter(Boolean);
+                            handleUpdateVoiceDossier(char.id, char.expressionProfile, {
+                              vocalTells: tells,
+                            });
+                          }}
+                          placeholder="whistle on sibilants, swallows hard (comma-separated)..."
+                          className="w-full bg-[#0c0c10] border border-stone-800 text-stone-200 text-xs px-2.5 py-1.5 rounded focus:outline-none focus:border-amber-500/80 leading-relaxed placeholder:text-stone-600"
+                        />
+                      </div>
+                      <div>
+                        <label
+                          htmlFor={`voice-lexicon-${char.id}`}
+                          className="text-[10px] text-stone-400 uppercase font-bold tracking-wider block mb-1"
+                        >
+                          Lexicon & Dialect Notes
+                        </label>
+                        <input
+                          id={`voice-lexicon-${char.id}`}
+                          type="text"
+                          value={char.expressionProfile?.lexiconNotes || ''}
+                          onChange={(e) =>
+                            handleUpdateVoiceDossier(char.id, char.expressionProfile, {
+                              lexiconNotes: e.target.value,
+                            })
+                          }
+                          placeholder="Clinical terminology, archaic diction..."
+                          className="w-full bg-[#0c0c10] border border-stone-800 text-stone-200 text-xs px-2.5 py-1.5 rounded focus:outline-none focus:border-amber-500/80 leading-relaxed placeholder:text-stone-600"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Silence Guidance & Camouflage Leak Guidance (Amendment 3) */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      <div>
+                        <label
+                          htmlFor={`voice-silence-${char.id}`}
+                          className="text-[10px] text-stone-400 uppercase font-bold tracking-wider block mb-1"
+                        >
+                          Silence Guidance
+                        </label>
+                        <input
+                          id={`voice-silence-${char.id}`}
+                          type="text"
+                          value={char.expressionProfile?.silenceGuidance || ''}
+                          onChange={(e) =>
+                            handleUpdateVoiceDossier(char.id, char.expressionProfile, {
+                              silenceGuidance: e.target.value,
+                            })
+                          }
+                          placeholder="Evades direct queries with tactile distraction..."
+                          className="w-full bg-[#0c0c10] border border-stone-800 text-stone-200 text-xs px-2.5 py-1.5 rounded focus:outline-none focus:border-amber-500/80 leading-relaxed placeholder:text-stone-600"
+                        />
+                      </div>
+                      <div>
+                        <label
+                          htmlFor={`voice-camouflage-${char.id}`}
+                          className="text-[10px] text-stone-400 uppercase font-bold tracking-wider block mb-1"
+                        >
+                          Camouflage Leak Guidance (Climax Escalation)
+                        </label>
+                        <input
+                          id={`voice-camouflage-${char.id}`}
+                          type="text"
+                          value={char.expressionProfile?.camouflageLeakGuidance || ''}
+                          onChange={(e) =>
+                            handleUpdateVoiceDossier(char.id, char.expressionProfile, {
+                              camouflageLeakGuidance: e.target.value,
+                            })
+                          }
+                          placeholder="Vocal mask slips into unmodulated monotone..."
+                          className="w-full bg-[#0c0c10] border border-stone-800 text-stone-200 text-xs px-2.5 py-1.5 rounded focus:outline-none focus:border-amber-500/80 leading-relaxed placeholder:text-stone-600"
+                        />
+                      </div>
+                    </div>
+                  </div>
 
                   {/* 7. OPENING PLACEMENT (SPATIAL CHOROGRAPHY) */}
                   <div className="p-3 bg-black/40 border border-stone-900 rounded-lg space-y-2">

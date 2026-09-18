@@ -70,6 +70,11 @@ export const EngineCharacterExpressionProfileSchema = z.object({
   communicationModes: z.array(z.enum(['spoken', 'nonverbal', 'mediated'])).min(1),
   expressionGuidance: z.string().min(1),
   silenceGuidance: z.string().optional(),
+  cadenceNotes: z.string().optional(),
+  voiceTone: z.string().optional(),
+  vocalTells: z.array(z.string()).optional(),
+  lexiconNotes: z.string().optional(),
+  camouflageLeakGuidance: z.string().optional(),
 });
 
 export type EngineCharacterExpressionProfile = z.infer<typeof EngineCharacterExpressionProfileSchema>;

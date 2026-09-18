@@ -7,6 +7,7 @@ import type {
 import {
   evaluateCausalFeasibility,
   resolveExplicitCastTarget,
+  extractConversationalUtterance,
   type CastTargetResolution,
 } from './causalFeasibility';
 
@@ -829,6 +830,55 @@ describe('Phase 3G.2A: Causal Feasibility Contracts', () => {
         expect(resolveExplicitCastTarget('I hail Gamma Delta over the speakerphone.', context).status).toBe('REMOTE_ELIGIBLE');
       });
     });
+
+    describe('extractConversationalUtterance (Amendment 8)', () => {
+      it('extracts double-quoted utterances with straight quotes', () => {
+        const context = createMockContext();
+        const res = extractConversationalUtterance('I look at Alpha Beta and say, "We need to get out of here."', context);
+        expect(res.conversationalUtterance).toBe('We need to get out of here.');
+        expect(res.addressedTargetId).toBe('char-001');
+      });
+
+      it('extracts double-quoted utterances with typographic curved quotes', () => {
+        const context = createMockContext();
+        const res = extractConversationalUtterance('I ask Alpha Beta “Can you reach the valve?”', context);
+        expect(res.conversationalUtterance).toBe('Can you reach the valve?');
+        expect(res.addressedTargetId).toBe('char-001');
+      });
+
+      it('extracts single-quoted utterances when co-occurring with speech verb and having >= 2 words', () => {
+        const context = createMockContext();
+        const res = extractConversationalUtterance("I whisper to Alpha Beta, 'hold your breath'", context);
+        expect(res.conversationalUtterance).toBe('hold your breath');
+        expect(res.addressedTargetId).toBe('char-001');
+      });
+
+      it('extracts single-quoted utterances with typographic curved quotes', () => {
+        const context = createMockContext();
+        const res = extractConversationalUtterance('I shout to Alpha Beta ‘take cover now’', context);
+        expect(res.conversationalUtterance).toBe('take cover now');
+        expect(res.addressedTargetId).toBe('char-001');
+      });
+
+      it('prevents apostrophe false-positives when no quotation is intended', () => {
+        const context = createMockContext();
+        const res = extractConversationalUtterance("I said don't touch the thing's seal.", context);
+        expect(res.conversationalUtterance).toBeUndefined();
+      });
+
+      it('rejects single-word single-quote captures', () => {
+        const context = createMockContext();
+        const res = extractConversationalUtterance("I said 'Wait' to Alpha Beta.", context);
+        expect(res.conversationalUtterance).toBeUndefined();
+      });
+
+      it('rejects single-quoted spans when no speech verb or cast name co-occurs', () => {
+        const context = createMockContext();
+        const res = extractConversationalUtterance("The 'rusted iron door' was completely sealed.", context);
+        expect(res.conversationalUtterance).toBeUndefined();
+      });
+    });
   });
 });
+
 

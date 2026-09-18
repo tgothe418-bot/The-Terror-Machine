@@ -106,6 +106,9 @@ type VocalizationDisplayKind =
 interface ProcessedVocalizationBlock {
   kind: VocalizationDisplayKind;
   speaker: string;
+  medium?: string;
+  interrupted?: boolean;
+  acousticSourceNodeId?: string;
   content: string;
 }
 
@@ -118,11 +121,18 @@ function classifyNarrativeBlock(
   const medium = (block as any).medium ? String((block as any).medium) : '';
   const delivery = (block as any).delivery ? String((block as any).delivery) : '';
   const target = (block as any).target ? String((block as any).target) : '';
+  const interrupted = Boolean((block as any).interrupted);
+  const acousticSourceNodeId =
+    typeof (block as any).acousticSourceNodeId === 'string' && (block as any).acousticSourceNodeId
+      ? String((block as any).acousticSourceNodeId)
+      : undefined;
 
   if (type === 'internal_monologue') {
     return {
       kind: 'internal_monologue',
       speaker: speaker || 'POV',
+      medium: 'internal',
+      interrupted,
       content,
     };
   }
@@ -131,11 +141,17 @@ function classifyNarrativeBlock(
     type === 'transmission' ||
     medium === 'intercom' ||
     medium === 'acoustic_bleed' ||
+    medium === 'port_observation' ||
     medium === 'radio'
   ) {
+    const isAcousticBleed = medium === 'acoustic_bleed' || medium === 'port_observation';
+    const fallbackSpeaker = isAcousticBleed ? 'ADJACENT' : medium === 'radio' ? 'RADIO' : 'INTERCOM';
     return {
       kind: 'transmission',
-      speaker: speaker || 'INTERCOM',
+      speaker: speaker || fallbackSpeaker,
+      medium: medium || 'intercom',
+      interrupted,
+      acousticSourceNodeId,
       content,
     };
   }
@@ -144,6 +160,8 @@ function classifyNarrativeBlock(
     return {
       kind: 'soliloquy',
       speaker: speaker || 'SELF',
+      medium: medium || 'direct',
+      interrupted,
       content,
     };
   }
@@ -152,6 +170,9 @@ function classifyNarrativeBlock(
     return {
       kind: 'dialogue',
       speaker: speaker || 'SPEAKER',
+      medium: medium || 'direct',
+      interrupted,
+      acousticSourceNodeId,
       content,
     };
   }
@@ -159,6 +180,7 @@ function classifyNarrativeBlock(
   return {
     kind: 'prose',
     speaker: '',
+    interrupted,
     content,
   };
 }
@@ -311,6 +333,9 @@ export const TranscriptMessageItem = ({
         return 'border-l-2 border-dashed border-amber-800/80 pl-4 sm:pl-6';
       }
       if (singleBlock.kind === 'transmission') {
+        if (singleBlock.medium === 'acoustic_bleed' || singleBlock.medium === 'port_observation') {
+          return 'border-l-2 border-slate-700/80 bg-slate-950/40 pl-4 sm:pl-6';
+        }
         return 'border-l-2 border-cyan-900/70 bg-cyan-950/10 pl-4 sm:pl-6';
       }
       if (singleBlock.kind === 'dialogue') {
@@ -334,6 +359,13 @@ export const TranscriptMessageItem = ({
         return `[ MUTTERED SOTTO VOCE // ${singleBlock.speaker} ]`;
       }
       if (singleBlock.kind === 'transmission') {
+        if (singleBlock.medium === 'acoustic_bleed' || singleBlock.medium === 'port_observation') {
+          const prov = singleBlock.acousticSourceNodeId ? ` (via ${singleBlock.acousticSourceNodeId})` : '';
+          return `[ ACOUSTIC BLEED // ${singleBlock.speaker}${prov} ]`;
+        }
+        if (singleBlock.medium === 'radio') {
+          return `[ TRANSMISSION // RADIO // ${singleBlock.speaker} ]`;
+        }
         return `[ INTERCOM / ACOUSTIC BLEED // ${singleBlock.speaker} ]`;
       }
       if (singleBlock.kind === 'dialogue') {
@@ -352,7 +384,12 @@ export const TranscriptMessageItem = ({
     if (singleBlock) {
       if (singleBlock.kind === 'internal_monologue') return 'text-indigo-400/90';
       if (singleBlock.kind === 'soliloquy') return 'text-amber-600/90';
-      if (singleBlock.kind === 'transmission') return 'text-cyan-400';
+      if (singleBlock.kind === 'transmission') {
+        if (singleBlock.medium === 'acoustic_bleed' || singleBlock.medium === 'port_observation') {
+          return 'text-slate-400 font-mono font-bold';
+        }
+        return 'text-cyan-400';
+      }
       if (singleBlock.kind === 'dialogue') return 'text-[#d97706]';
     }
 
@@ -447,13 +484,25 @@ export const TranscriptMessageItem = ({
               : singleBlock.kind === 'soliloquy'
               ? 'text-zinc-400'
               : singleBlock.kind === 'transmission'
-              ? 'font-mono text-cyan-200/90 text-sm'
+              ? singleBlock.medium === 'acoustic_bleed' || singleBlock.medium === 'port_observation'
+                ? 'font-mono text-slate-300 text-sm'
+                : 'font-mono text-cyan-200/90 text-sm'
               : singleBlock.kind === 'dialogue'
-              ? 'text-[#e6e4dc]'
+              ? `text-[#e6e4dc] ${singleBlock.interrupted ? 'italic text-amber-200/90' : ''}`
               : 'text-zinc-200'
           }
         >
+          {singleBlock.kind === 'transmission' &&
+            (singleBlock.medium === 'radio' || singleBlock.medium === 'intercom') &&
+            !singleBlock.content.includes('[CHIRP]') && (
+              <span className="text-cyan-500/70 select-none mr-1 font-bold">&gt; [CHIRP] </span>
+            )}
           <ErgodicTextRenderer text={singleBlock.content} psychologicalStatus="Stable" />
+          {singleBlock.kind === 'transmission' &&
+            (singleBlock.medium === 'radio' || singleBlock.medium === 'intercom') &&
+            !singleBlock.content.includes('[CHIRP]') && (
+              <span className="text-cyan-500/70 select-none ml-1 font-bold"> [STATIC]</span>
+            )}
         </div>
       ) : blocks.length > 0 ? (
         <div className="space-y-4">
@@ -489,21 +538,60 @@ export const TranscriptMessageItem = ({
               );
             }
             if (block.kind === 'transmission') {
+              const isAcoustic =
+                block.medium === 'acoustic_bleed' || block.medium === 'port_observation';
+              const prov = block.acousticSourceNodeId
+                ? ` (via ${block.acousticSourceNodeId})`
+                : '';
+              const headerText = isAcoustic
+                ? `[ ACOUSTIC BLEED // ${block.speaker}${prov} ]`
+                : block.medium === 'radio'
+                ? `[ TRANSMISSION // RADIO // ${block.speaker} ]`
+                : `[ INTERCOM / ACOUSTIC BLEED // ${block.speaker} ]`;
+
+              const showSquelch =
+                !isAcoustic &&
+                (block.medium === 'radio' || block.medium === 'intercom') &&
+                !block.content.includes('[CHIRP]');
+
               return (
                 <div
                   key={idx}
-                  className="border-l-2 border-cyan-900/70 bg-cyan-950/10 pl-4 py-2.5 rounded-r font-mono my-2"
+                  className={
+                    isAcoustic
+                      ? 'border-l-2 border-slate-700/80 bg-slate-950/40 pl-4 py-2.5 rounded-r font-mono my-2'
+                      : 'border-l-2 border-cyan-900/70 bg-cyan-950/10 pl-4 py-2.5 rounded-r font-mono my-2'
+                  }
                 >
-                  <div className="text-xs uppercase tracking-widest text-cyan-400 font-mono font-bold mb-1.5">
-                    [ INTERCOM / ACOUSTIC BLEED // {block.speaker} ]
+                  <div
+                    className={
+                      isAcoustic
+                        ? 'text-xs uppercase tracking-widest text-slate-400 font-mono font-bold mb-1.5'
+                        : 'text-xs uppercase tracking-widest text-cyan-400 font-mono font-bold mb-1.5'
+                    }
+                  >
+                    {headerText}
                   </div>
-                  <div className="text-cyan-200/90 font-mono text-sm">
+                  <div
+                    className={
+                      isAcoustic
+                        ? 'text-slate-300 font-mono text-sm'
+                        : 'text-cyan-200/90 font-mono text-sm'
+                    }
+                  >
+                    {showSquelch && (
+                      <span className="text-cyan-500/70 select-none mr-1 font-bold">&gt; [CHIRP] </span>
+                    )}
                     <ErgodicTextRenderer text={block.content} psychologicalStatus="Stable" />
+                    {showSquelch && (
+                      <span className="text-cyan-500/70 select-none ml-1 font-bold"> [STATIC]</span>
+                    )}
                   </div>
                 </div>
               );
             }
             if (block.kind === 'dialogue') {
+              const isInterrupted = block.interrupted || block.content.endsWith('—');
               return (
                 <div
                   key={idx}
@@ -512,7 +600,7 @@ export const TranscriptMessageItem = ({
                   <div className="text-xs uppercase tracking-widest text-[#d97706] font-mono font-bold mb-1.5">
                     [ DIALOGUE // {block.speaker} ]
                   </div>
-                  <div className="text-[#e6e4dc]">
+                  <div className={`text-[#e6e4dc] ${isInterrupted ? 'italic text-amber-200/90' : ''}`}>
                     <ErgodicTextRenderer text={block.content} psychologicalStatus="Stable" />
                   </div>
                 </div>

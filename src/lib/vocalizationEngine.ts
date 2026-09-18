@@ -1,5 +1,8 @@
 import { EngineTurnContext } from '../types/engineContract';
-import { REMOTE_COMMUNICATION_CHANNELS } from './causalFeasibility';
+import {
+  REMOTE_COMMUNICATION_CHANNELS,
+  extractConversationalUtterance,
+} from './causalFeasibility';
 
 export const REMOTE_DISCONNECT_PATTERNS =
   /\b(hang\s*up|hung\s*up|disconnect[singed]*|click[singed]*\s*off|shut[ting]*\s*off\s*(the\s*)?(radio|phone|comm)|end[singed]*\s*(the\s*)?(call|transmission))\b/i;
@@ -33,9 +36,11 @@ export interface AuditoryContext {
   remoteChannelMedium: 'radio' | 'intercom' | null;
   hasAcousticTopologyLinks: boolean;
   detectedAcousticLinkMedium: 'intercom' | 'port_observation' | 'acoustic_bleed';
+  adjacentNodeIds: ReadonlySet<string>;
   arrivedCastIds: ReadonlySet<string>;
   hasArrivals: boolean;
   explicitlyAddressedSpeakerId: string | null;
+  extractedUtterance?: string;
   context: EngineTurnContext;
   userAction?: string;
   recentHistory?: Array<{ role: string; content: string }> | string;
@@ -153,6 +158,23 @@ export function buildAuditoryContext(
   const safeArrivals = arrivedCastIds ?? new Set<string>();
   const hasArrivals = safeArrivals.size > 0;
 
+  const adjacentNodeIds = new Set<string>(
+    (context.topology?.allowedOutgoingExits || []).map((e) => e.to)
+  );
+
+  let effectiveAddressedSpeakerId = explicitlyAddressedSpeakerId;
+  let extractedUtterance: string | undefined;
+
+  if (userAction) {
+    const extracted = extractConversationalUtterance(userAction, context);
+    if (extracted.conversationalUtterance) {
+      extractedUtterance = extracted.conversationalUtterance;
+    }
+    if (!effectiveAddressedSpeakerId && extracted.addressedTargetId) {
+      effectiveAddressedSpeakerId = extracted.addressedTargetId;
+    }
+  }
+
   return {
     coPresentCharacters,
     adjacentOrElsewhereCharacters,
@@ -162,9 +184,11 @@ export function buildAuditoryContext(
     remoteChannelMedium,
     hasAcousticTopologyLinks,
     detectedAcousticLinkMedium,
+    adjacentNodeIds,
     arrivedCastIds: safeArrivals,
     hasArrivals,
-    explicitlyAddressedSpeakerId,
+    explicitlyAddressedSpeakerId: effectiveAddressedSpeakerId,
+    extractedUtterance,
     context,
     userAction,
     recentHistory,
@@ -186,6 +210,12 @@ function cleanSpeakerContent(content: string, speakerName?: string): string {
   return cleaned;
 }
 
+function formatContentWithInterruption(content: string, interrupted: boolean): string {
+  if (!interrupted) return content;
+  if (content.endsWith('—') || content.endsWith('--')) return content;
+  return content.replace(/[\s.,;:!?]+$/, '') + '—';
+}
+
 export function validateAndNormalizeVocalization(
   blocks: Array<Record<string, any>>,
   auditoryContext: AuditoryContext
@@ -194,7 +224,8 @@ export function validateAndNormalizeVocalization(
     return { error: null, normalizedBlocks: [] };
   }
 
-  const { context, arrivedCastIds, explicitlyAddressedSpeakerId } = auditoryContext;
+  const { context, arrivedCastIds, explicitlyAddressedSpeakerId, adjacentNodeIds } =
+    auditoryContext;
   const normalizedBlocks: Array<Record<string, any>> = [];
   let dialogueCount = 0;
 
@@ -202,6 +233,29 @@ export function validateAndNormalizeVocalization(
     if (!rawBlock || typeof rawBlock !== 'object') continue;
     const block = { ...rawBlock };
     const type = block.type;
+    const interrupted = Boolean(block.interrupted);
+
+    // Adjudicate acousticSourceNodeId for remote acoustic mediums (Amendment 7: Fail-Closed Adjacency)
+    let acousticSourceNodeId =
+      typeof block.acousticSourceNodeId === 'string' && block.acousticSourceNodeId.trim()
+        ? block.acousticSourceNodeId.trim()
+        : undefined;
+
+    const isAcousticMedium =
+      block.medium === 'acoustic_bleed' || block.medium === 'port_observation';
+
+    if (isAcousticMedium) {
+      if (acousticSourceNodeId) {
+        if (!adjacentNodeIds.has(acousticSourceNodeId)) {
+          return {
+            error: `Acoustic source node "${acousticSourceNodeId}" is not a valid adjacent chamber link.`,
+            normalizedBlocks: [],
+          };
+        }
+      } else if (adjacentNodeIds.size > 0) {
+        acousticSourceNodeId = Array.from(adjacentNodeIds)[0];
+      }
+    }
 
     if (type === 'internal_monologue') {
       let speaker = typeof block.speaker === 'string' ? block.speaker.trim() : '';
@@ -225,7 +279,10 @@ export function validateAndNormalizeVocalization(
         };
       }
 
-      const content = cleanSpeakerContent(block.content, speaker);
+      const content = formatContentWithInterruption(
+        cleanSpeakerContent(block.content, speaker),
+        interrupted
+      );
 
       normalizedBlocks.push({
         ...block,
@@ -234,6 +291,7 @@ export function validateAndNormalizeVocalization(
         medium: 'internal',
         target: 'self',
         delivery: block.delivery || 'spoken',
+        interrupted,
         content,
       });
       continue;
@@ -261,7 +319,10 @@ export function validateAndNormalizeVocalization(
         };
       }
 
-      const content = cleanSpeakerContent(block.content, speaker);
+      const content = formatContentWithInterruption(
+        cleanSpeakerContent(block.content, speaker),
+        interrupted
+      );
 
       normalizedBlocks.push({
         ...block,
@@ -270,6 +331,7 @@ export function validateAndNormalizeVocalization(
         medium: block.medium || 'direct',
         target: 'self',
         delivery: block.delivery || 'mutter',
+        interrupted,
         content,
       });
       continue;
@@ -298,7 +360,10 @@ export function validateAndNormalizeVocalization(
 
       if (!castMember) {
         if (isRecognizedAmbientSpeaker(speaker)) {
-          const content = cleanSpeakerContent(block.content, speaker);
+          const content = formatContentWithInterruption(
+            cleanSpeakerContent(block.content, speaker),
+            interrupted
+          );
 
           normalizedBlocks.push({
             ...block,
@@ -307,6 +372,8 @@ export function validateAndNormalizeVocalization(
             medium: block.medium || 'direct',
             delivery: block.delivery || 'spoken',
             target: block.target || 'addressed',
+            interrupted,
+            ...(acousticSourceNodeId ? { acousticSourceNodeId } : {}),
             content,
           });
           continue;
@@ -319,7 +386,10 @@ export function validateAndNormalizeVocalization(
       }
 
       const activeName = castMember.name;
-      const content = cleanSpeakerContent(block.content, activeName);
+      const content = formatContentWithInterruption(
+        cleanSpeakerContent(block.content, activeName),
+        interrupted
+      );
 
       const isPlayer =
         castMember.id === context.player.characterId || castMember.isUserCharacter;
@@ -348,6 +418,7 @@ export function validateAndNormalizeVocalization(
               medium: 'direct',
               delivery: block.delivery || 'spoken',
               target: auditoryContext.isSolitary ? 'self' : 'cohort',
+              interrupted,
               content,
             });
           }
@@ -368,6 +439,7 @@ export function validateAndNormalizeVocalization(
             medium: 'direct',
             delivery: block.delivery || 'mutter',
             target: 'self',
+            interrupted,
             content,
           });
           continue;
@@ -400,6 +472,7 @@ export function validateAndNormalizeVocalization(
           medium: block.medium || 'direct',
           delivery: block.delivery || 'spoken',
           target: block.target || 'addressed',
+          interrupted,
           content,
         });
         continue;
@@ -414,6 +487,7 @@ export function validateAndNormalizeVocalization(
           medium: block.medium || 'direct',
           delivery: block.delivery || 'spoken',
           target: block.target || 'addressed',
+          interrupted,
           content,
         });
         continue;
@@ -429,6 +503,7 @@ export function validateAndNormalizeVocalization(
           medium,
           delivery: block.delivery || 'spoken',
           target: block.target || 'addressed',
+          interrupted,
           content,
         });
         continue;
@@ -450,6 +525,8 @@ export function validateAndNormalizeVocalization(
         medium,
         delivery: block.delivery || 'mutter',
         target: 'unseen',
+        interrupted,
+        ...(acousticSourceNodeId ? { acousticSourceNodeId } : {}),
         content,
       });
       continue;
@@ -457,15 +534,21 @@ export function validateAndNormalizeVocalization(
 
     if (type === 'transmission' || type === 'system_voice') {
       let speaker = typeof block.speaker === 'string' ? block.speaker.trim() : '';
-      const content = cleanSpeakerContent(block.content, speaker);
+      const content = formatContentWithInterruption(
+        cleanSpeakerContent(block.content, speaker),
+        interrupted
+      );
+      const medium = block.medium || (type === 'system_voice' ? 'intercom' : 'radio');
 
       normalizedBlocks.push({
         ...block,
         type,
         speaker: speaker || (type === 'system_voice' ? 'Automated Voice' : null),
-        medium: block.medium || (type === 'system_voice' ? 'intercom' : 'radio'),
+        medium,
         delivery: block.delivery || (type === 'system_voice' ? 'synthetic' : 'spoken'),
         target: block.target || 'broadcast',
+        interrupted,
+        ...(acousticSourceNodeId ? { acousticSourceNodeId } : {}),
         content,
       });
       continue;
@@ -479,6 +562,7 @@ export function validateAndNormalizeVocalization(
         medium: 'direct',
         delivery: 'spoken',
         target: 'addressed',
+        interrupted: false,
         content: typeof block.content === 'string' ? block.content : '',
       });
       continue;
@@ -497,21 +581,70 @@ export function formatVocalizationPromptDirective(
     isSolitary,
     presentSpeakerNames,
     explicitlyAddressedSpeakerId,
+    extractedUtterance,
     context,
     hasActiveRemoteChannel,
     remoteChannelMedium,
+    hasAcousticTopologyLinks,
+    detectedAcousticLinkMedium,
   } = auditoryContext;
 
   const explicitlyAddressedMember = explicitlyAddressedSpeakerId
     ? context.cast.find((c) => c.id === explicitlyAddressedSpeakerId)
     : null;
 
+  // 1. Somatic & Psychological Sourcing Section (Amendment 4)
+  const playerInjuriesText =
+    context.consequenceState.player_injuries && context.consequenceState.player_injuries.length > 0
+      ? ` (Injuries: ${context.consequenceState.player_injuries.join(', ')})`
+      : '';
+  const somaticSection = `\n\n[SOMATIC & PSYCHOLOGICAL SOURCING]
+• Player Character (${context.player.name}): Psychological status is ${
+    context.consequenceState.psychological_status || 'STABLE'
+  }${playerInjuriesText}.
+• Companions / Cast: Each companion's somatic and psychological state is sourced STRICTLY from their own cast ledger record. Companion absence of status is silence and vigilance—NEVER default to PANICKED, and NEVER project player hypothermia, shock, or injuries onto companions.`;
+
+  // 2. Authored Camouflage Leaks (Amendment 3)
+  const tension = typeof context.runtime.tension === 'number' ? context.runtime.tension : 0;
+  const phase = (context.runtime.phase || '').toUpperCase();
+  const isHighTension = tension >= 7 || phase === 'CLIMAX' || phase === 'CRITICAL';
+
+  let leakSection = '';
+  if (isHighTension) {
+    const leakDirectives = context.cast
+      .filter((c) => c.expressionProfile?.camouflageLeakGuidance)
+      .map(
+        (c) =>
+          `• ${c.name}: Under escalating climax tension, surface composure fractures: ${c.expressionProfile!.camouflageLeakGuidance}`
+      );
+    if (leakDirectives.length > 0) {
+      leakSection = `\n\n[AUTHORED CAMOUFLAGE LEAK DIRECTIVES]\n${leakDirectives.join('\n')}`;
+    }
+  }
+
+  // 3. One-Directional Epistemic Constraints (Amendment 6)
+  let epistemicSection = '';
+  if (hasAcousticTopologyLinks || detectedAcousticLinkMedium === 'acoustic_bleed' || detectedAcousticLinkMedium === 'port_observation') {
+    epistemicSection = `\n\n[ACOUSTIC BLEED & EPISTEMIC CONSTRAINTS]
+When emitting overheard speech from adjacent chambers (medium: 'acoustic_bleed' or 'port_observation'):
+The overheard character does not know they were heard. Their dialogue must not acknowledge, react to, or reference the listener unless the medium is explicitly two-way (an open intercom, a directly addressed radio call).`;
+  }
+
+  // Common attribute reminder
+  const attributeReminder = `\nVOCALIZATION ATTRIBUTES:
+- "interrupted": set to true when speech is abruptly cut off mid-sentence by shock, trauma, or interruption (end content with a trailing em-dash "—").
+- "acousticSourceNodeId": topology node ID of the remote chamber where transmission or acoustic bleed originates.`;
+
   if (explicitlyAddressedMember) {
+    const replyObligation = extractedUtterance
+      ? `\n[MANDATORY CONVERSATIONAL REPLY: You MUST include a dialogue block from ${explicitlyAddressedMember.name} answering the player's statement: "${extractedUtterance}"]`
+      : '';
+
     return `\n\n[MANDATORY DIALOGUE REQUIREMENT]
-The user explicitly spoke to ${explicitlyAddressedMember.name}.
+The user explicitly spoke to ${explicitlyAddressedMember.name}.${replyObligation}
 In narrative_blocks, you MUST include 1-2 prose blocks AND exactly ONE dialogue block answering the player:
 {"type": "dialogue", "speaker": "${explicitlyAddressedMember.name}", "medium": "direct", "delivery": "spoken", "target": "addressed", "content": "<The spoken response without prepending speaker name>"}
-Do NOT emit only prose blocks. Do NOT put spoken dialogue into a prose block. Exactly ONE block must have type "dialogue".`;
+Do NOT emit only prose blocks. Do NOT put spoken dialogue into a prose block. Exactly ONE block must have type "dialogue".${somaticSection}${leakSection}${epistemicSection}${attributeReminder}`;
   }
 
   if (isSolitary) {
@@ -527,7 +660,7 @@ The player character (${context.player.name}) is SOLITARY in this chamber (no li
 - SOLILOQUY MUTTERING ALLOWED: Speaking aloud to oneself under stress, muttering in disbelief, or quiet despair is emitted as:
   {"type": "soliloquy", "speaker": "${context.player.name}", "medium": "direct", "delivery": "mutter", "target": "self", "content": "<Muttered words to self>"}
 - TRANSMISSIONS / SYSTEM VOICES: Facility PA announcements, automated security voices, radio static, or acoustic bleed muffled through bulkheads/ducts are emitted as:
-  {"type": "transmission", "speaker": "<Source or null>", "medium": "intercom" | "radio" | "acoustic_bleed", "content": "<Heard transmission>"}`;
+  {"type": "transmission", "speaker": "<Source or null>", "medium": "intercom" | "radio" | "acoustic_bleed", "content": "<Heard transmission>"}${somaticSection}${leakSection}${epistemicSection}${attributeReminder}`;
   }
 
   return `\n\n[MANDATORY DIALOGUE REQUIREMENT]
@@ -540,5 +673,5 @@ VOCALIZATION FORMATS:
 - Dialogue: {"type": "dialogue", "speaker": "Name", "medium": "direct", "delivery": "spoken", "target": "addressed", "content": "..."}
 - Internal Monologue: {"type": "internal_monologue", "speaker": "Name", "medium": "internal", "target": "self", "content": "..."}
 - Soliloquy: {"type": "soliloquy", "speaker": "Name", "medium": "direct", "delivery": "mutter", "target": "self", "content": "..."}
-- Transmission: {"type": "transmission", "speaker": "Name", "medium": "intercom"|"radio"|"acoustic_bleed", "content": "..."}`;
+- Transmission: {"type": "transmission", "speaker": "Name", "medium": "intercom"|"radio"|"acoustic_bleed", "content": "..."}${somaticSection}${leakSection}${epistemicSection}${attributeReminder}`;
 }

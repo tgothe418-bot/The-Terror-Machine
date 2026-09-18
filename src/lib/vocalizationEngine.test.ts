@@ -533,5 +533,138 @@ describe('vocalizationEngine', () => {
       expect(normalizedBlocks[0].type).toBe('prose');
       expect(normalizedBlocks[0].content).toBe('Pneumatic valves hiss along the ceiling track.');
     });
+
+    it('appends em-dash to interrupted speech when missing (Amendment 2)', () => {
+      const auditory = buildAuditoryContext(baseContext);
+      const blocks = [
+        {
+          type: 'dialogue',
+          speaker: 'Jules Mercer',
+          content: 'Wait, what is that behind you',
+          interrupted: true,
+        },
+      ];
+
+      const { error, normalizedBlocks } = validateAndNormalizeVocalization(blocks, auditory);
+      expect(error).toBeNull();
+      expect(normalizedBlocks[0].interrupted).toBe(true);
+      expect(normalizedBlocks[0].content).toBe('Wait, what is that behind you—');
+    });
+
+    it('enforces fail-closed validation for fabricated acousticSourceNodeId (Amendment 7)', () => {
+      const auditory = buildAuditoryContext(baseContext);
+      // 'node-cell' is the only valid exit from 'node-hub' in baseContext
+      const validBlocks = [
+        {
+          type: 'transmission',
+          speaker: 'Dr. Marcus Sterling',
+          medium: 'acoustic_bleed',
+          acousticSourceNodeId: 'node-cell',
+          content: 'The cold is seeping under the door...',
+        },
+      ];
+
+      const validResult = validateAndNormalizeVocalization(validBlocks, auditory);
+      expect(validResult.error).toBeNull();
+      expect(validResult.normalizedBlocks[0].acousticSourceNodeId).toBe('node-cell');
+
+      const fabricatedBlocks = [
+        {
+          type: 'transmission',
+          speaker: 'Dr. Marcus Sterling',
+          medium: 'acoustic_bleed',
+          acousticSourceNodeId: 'fabricated-secret-lab-99',
+          content: 'Can anyone hear me?',
+        },
+      ];
+
+      const invalidResult = validateAndNormalizeVocalization(fabricatedBlocks, auditory);
+      expect(invalidResult.error).toContain('is not a valid adjacent chamber link');
+      expect(invalidResult.normalizedBlocks).toHaveLength(0);
+    });
+  });
+
+  describe('formatVocalizationPromptDirective Amendments (Amendments 3, 4, 6, 8)', () => {
+    it('generates mandatory conversational reply directive with extracted utterance (Amendment 8)', () => {
+      const auditory = buildAuditoryContext(
+        baseContext,
+        'I turn to Jules Mercer and say, "Can you bypass the security lock?"'
+      );
+      const directive = formatVocalizationPromptDirective(auditory);
+
+      expect(directive).toContain('[MANDATORY CONVERSATIONAL REPLY: You MUST include a dialogue block from Jules Mercer answering the player\'s statement: "Can you bypass the security lock?"]');
+    });
+
+    it('injects somatic and psychological sourcing separating player from companions (Amendment 4)', () => {
+      const hypothermicContext = EngineTurnContextSchema.parse({
+        ...baseContext,
+        consequenceState: {
+          inventory: [],
+          player_injuries: ['Hypothermia stage 2'],
+          psychological_status: 'DISTRESSED',
+        },
+      });
+
+      const auditory = buildAuditoryContext(hypothermicContext);
+      const directive = formatVocalizationPromptDirective(auditory);
+
+      expect(directive).toContain('Player Character (Dr. Aria Bell): Psychological status is DISTRESSED (Injuries: Hypothermia stage 2).');
+      expect(directive).toContain('Companion absence of status is silence and vigilance—NEVER default to PANICKED, and NEVER project player hypothermia, shock, or injuries onto companions.');
+    });
+
+    it('injects authored camouflage leak guidance only during high tension (Amendment 3)', () => {
+      const castWithCamouflage = baseContext.cast.map((c) =>
+        c.id === 'char-jules'
+          ? {
+              ...c,
+              expressionProfile: {
+                ...c.expressionProfile!,
+                camouflageLeakGuidance:
+                  'Staccato stuttering slips into frenzied whispers about the air vents.',
+              },
+            }
+          : c
+      );
+
+      const lowTensionContext = EngineTurnContextSchema.parse({
+        ...baseContext,
+        cast: castWithCamouflage,
+        runtime: {
+          ...baseContext.runtime,
+          tension: 3,
+          phase: 'MANIFEST',
+        },
+      });
+
+      const lowTensionDirective = formatVocalizationPromptDirective(
+        buildAuditoryContext(lowTensionContext)
+      );
+      expect(lowTensionDirective).not.toContain('[AUTHORED CAMOUFLAGE LEAK DIRECTIVES]');
+
+      const highTensionContext = EngineTurnContextSchema.parse({
+        ...baseContext,
+        cast: castWithCamouflage,
+        runtime: {
+          ...baseContext.runtime,
+          tension: 8,
+          phase: 'CLIMAX',
+        },
+      });
+
+      const highTensionDirective = formatVocalizationPromptDirective(
+        buildAuditoryContext(highTensionContext)
+      );
+      expect(highTensionDirective).toContain('[AUTHORED CAMOUFLAGE LEAK DIRECTIVES]');
+      expect(highTensionDirective).toContain('Jules Mercer: Under escalating climax tension, surface composure fractures: Staccato stuttering slips into frenzied whispers about the air vents.');
+    });
+
+    it('appends one-directional epistemic constraints when acoustic links exist (Amendment 6)', () => {
+      const auditory = buildAuditoryContext(baseContext);
+      const directive = formatVocalizationPromptDirective(auditory);
+
+      expect(directive).toContain('[ACOUSTIC BLEED & EPISTEMIC CONSTRAINTS]');
+      expect(directive).toContain('The overheard character does not know they were heard. Their dialogue must not acknowledge, react to, or reference the listener unless the medium is explicitly two-way');
+    });
   });
 });
+

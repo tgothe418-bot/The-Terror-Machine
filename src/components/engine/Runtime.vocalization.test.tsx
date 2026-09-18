@@ -355,5 +355,101 @@ describe('Vocalization & Dialogue Subsystem - Phase 3', () => {
       expect(container!.querySelector('.border-cyan-900\\/70')).toBeTruthy();
       expect(container!.querySelector('.border-indigo-900\\/60')).toBeTruthy();
     });
+
+    it('renders mediated radio transmission with typographic squelch markers (Amendment 2 & Lane 3)', async () => {
+      const msg: UITranscriptMessage = {
+        id: 'msg-squelch-1',
+        role: 'assistant',
+        content: 'Officer Marcus Holt over radio.',
+        blocks: [
+          {
+            type: 'transmission',
+            speaker: 'Officer Marcus Holt',
+            medium: 'radio',
+            content: 'Pressure is venting from the airlock.',
+          },
+        ],
+      };
+
+      await act(async () => {
+        root!.render(
+          <TranscriptMessageItem
+            msg={msg}
+            onEdit={vi.fn()}
+            onForceCosmetic={vi.fn()}
+            userCharName="Dr. Evans"
+          />
+        );
+      });
+
+      expect(container!.textContent).toContain('[ TRANSMISSION // RADIO // Officer Marcus Holt ]');
+      expect(container!.textContent).toContain('> [CHIRP]');
+      expect(container!.textContent).toContain('[STATIC]');
+      expect(container!.textContent).toContain('Pressure is venting from the airlock.');
+    });
+
+    it('renders acoustic bleed with shrouded styling and chamber provenance (Lane 3)', async () => {
+      const msg: UITranscriptMessage = {
+        id: 'msg-bleed-1',
+        role: 'assistant',
+        content: 'Muffled sounds through ventilation.',
+        blocks: [
+          {
+            type: 'transmission',
+            speaker: 'Orderly Thomas',
+            medium: 'acoustic_bleed',
+            acousticSourceNodeId: 'Histology Substation',
+            content: 'The lights went out on Sub-Level 3...',
+          },
+        ],
+      };
+
+      await act(async () => {
+        root!.render(
+          <TranscriptMessageItem
+            msg={msg}
+            onEdit={vi.fn()}
+            onForceCosmetic={vi.fn()}
+            userCharName="Dr. Evans"
+          />
+        );
+      });
+
+      expect(container!.textContent).toContain('[ ACOUSTIC BLEED // Orderly Thomas (via Histology Substation) ]');
+      expect(container!.textContent).toContain('The lights went out on Sub-Level 3...');
+      expect(container!.querySelector('.border-slate-700\\/80')).toBeTruthy();
+    });
+
+    it('renders interrupted dialogue with italic stress styling (Amendment 2 & Lane 3)', async () => {
+      const msg: UITranscriptMessage = {
+        id: 'msg-interrupted-1',
+        role: 'assistant',
+        content: 'Wait, behind you—',
+        blocks: [
+          {
+            type: 'dialogue',
+            speaker: 'Jules Mercer',
+            interrupted: true,
+            content: 'Wait, behind you—',
+          },
+        ],
+      };
+
+      await act(async () => {
+        root!.render(
+          <TranscriptMessageItem
+            msg={msg}
+            onEdit={vi.fn()}
+            onForceCosmetic={vi.fn()}
+            userCharName="Dr. Evans"
+          />
+        );
+      });
+
+      expect(container!.textContent).toContain('[ DIALOGUE // Jules Mercer ]');
+      expect(container!.textContent).toContain('Wait, behind you—');
+      expect(container!.querySelector('.italic')).toBeTruthy();
+    });
   });
 });
+

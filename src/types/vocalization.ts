@@ -54,6 +54,8 @@ export const VocalizationBlockSchema = z.object({
   medium: AcousticMediumSchema.optional().default('direct'),
   delivery: VocalDeliverySchema.optional().default('spoken'),
   target: VocalizationTargetSchema.optional().default('addressed'),
+  interrupted: z.boolean().optional().default(false),
+  acousticSourceNodeId: z.string().optional(),
   content: z.string(),
 });
 

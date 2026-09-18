@@ -1015,4 +1015,48 @@ describe('buildEngineTurnContext & buildContextReceipt', () => {
       expect(context.horrorGrammar?.runtimeState.characterDevelopment).toEqual(sentinelDevelopmentLedger);
     });
   });
+
+  describe('Voice Dossier Contract Lockstep (Phase 3E / Amendment 1)', () => {
+    it('preserves all voice dossier fields when compiling Blueprint cast into EngineTurnContext without Zod stripping', () => {
+      const blueprintWithDossiers = {
+        ...mockBlueprint,
+        cast: [
+          {
+            ...mockBlueprint.cast[0],
+            expressionProfile: {
+              communicationModes: ['spoken'] as const,
+              expressionGuidance: 'Speaks with clipped clinical precision.',
+              silenceGuidance: 'Hesitates when asked about the basement.',
+              cadenceNotes: 'Rapid staccato cadence; clips ends of sentences.',
+              voiceTone: 'Cold, cultured, and unhurried.',
+              vocalTells: ['Clears throat before answering', 'Drops volume when cornered'],
+              lexiconNotes: 'Uses Wall Street financial jargon and Latin anatomical terminology.',
+              camouflageLeakGuidance: 'When composure fractures, pleasantries give way to dismemberment vocabulary.',
+            },
+          },
+        ],
+      };
+
+      const context = buildEngineTurnContext({
+        blueprint: blueprintWithDossiers,
+        selectedRole: 'protagonist',
+        runtimeState: {
+          currentNodeId: 'WARD_4B',
+        },
+      });
+
+      const clara = context.cast.find((c) => c.id === 'char-clara');
+      expect(clara).toBeDefined();
+      expect(clara?.expressionProfile).toEqual({
+        communicationModes: ['spoken'],
+        expressionGuidance: 'Speaks with clipped clinical precision.',
+        silenceGuidance: 'Hesitates when asked about the basement.',
+        cadenceNotes: 'Rapid staccato cadence; clips ends of sentences.',
+        voiceTone: 'Cold, cultured, and unhurried.',
+        vocalTells: ['Clears throat before answering', 'Drops volume when cornered'],
+        lexiconNotes: 'Uses Wall Street financial jargon and Latin anatomical terminology.',
+        camouflageLeakGuidance: 'When composure fractures, pleasantries give way to dismemberment vocabulary.',
+      });
+    });
+  });
 });

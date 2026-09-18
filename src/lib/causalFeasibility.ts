@@ -228,3 +228,65 @@ export function evaluateCausalFeasibility(input: {
     suppressStructuralDeltas: false,
   };
 }
+
+export const SPEECH_VERB_PATTERN =
+  /\b(say[s]?|said|saying|ask[s]?|asked|asking|tell[s]?|told|telling|whisper[s]?|whispered|whispering|shout[s]?|shouted|shouting|demand[s]?|demanded|demanding|inquire[s]?|inquired|inquiring|yell[s]?|yelled|yelling|call[s]?|called|calling|murmur[s]?|murmured|murmuring|mutter[s]?|muttered|muttering|plead[s]?|pleaded|pleading|scream[s]?|screamed|screaming|snap[s]?|snapped|snapping|hiss[es]*|hissed|hissing)\b/i;
+
+export interface SpeechExtractionResult {
+  conversationalUtterance?: string;
+  addressedTargetId?: string | null;
+}
+
+export function extractConversationalUtterance(
+  userAction: string,
+  context: EngineTurnContext
+): SpeechExtractionResult {
+  if (!userAction || typeof userAction !== 'string') {
+    return { addressedTargetId: null };
+  }
+
+  const targetResolution = resolveExplicitCastTarget(userAction, context);
+  const addressedTargetId = targetResolution.characterId;
+
+  // 1. Double quotes: straight " or typographic “ ”
+  const doubleQuoteRegex = /[“"]([^“”"]+)[”"]/g;
+  let match: RegExpExecArray | null;
+  while ((match = doubleQuoteRegex.exec(userAction)) !== null) {
+    const candidate = match[1].trim();
+    if (candidate.length > 0) {
+      return { conversationalUtterance: candidate, addressedTargetId };
+    }
+  }
+
+  // 2. Single quotes: straight ' or typographic ‘ ’
+  // Safeguards to prevent apostrophe false-positives (e.g. "don't touch the thing's seal"):
+  // - Must NOT be preceded or followed by word/alphanumeric characters
+  // - Must contain >= 2 words
+  // - Must co-occur with a speech verb or an addressed cast member's name
+  const nonWordBefore = '(?:^|[^\\p{L}\\p{N}])';
+  const nonWordAfter = '(?:[^\\p{L}\\p{N}]|$)';
+  const singleQuoteRegex = new RegExp(`${nonWordBefore}['‘]([^'‘’]+)['’]${nonWordAfter}`, 'gu');
+
+  const hasSpeechVerb = SPEECH_VERB_PATTERN.test(userAction);
+  const hasAddressedName =
+    Boolean(addressedTargetId) ||
+    context.cast.some(
+      (c) =>
+        !c.isUserCharacter &&
+        c.name.trim().length > 0 &&
+        userAction.toLowerCase().includes(c.name.toLowerCase())
+    );
+
+  if (hasSpeechVerb || hasAddressedName) {
+    while ((match = singleQuoteRegex.exec(userAction)) !== null) {
+      const candidate = match[1].trim();
+      const wordCount = candidate.split(/\s+/).filter(Boolean).length;
+      if (wordCount >= 2) {
+        return { conversationalUtterance: candidate, addressedTargetId };
+      }
+    }
+  }
+
+  return { addressedTargetId };
+}
+
