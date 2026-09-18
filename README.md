@@ -1,16 +1,21 @@
----
-title: The Terror Machine
-emoji: 🩸
-colorFrom: red
-colorTo: gray
-sdk: docker
-app_port: 7860
-pinned: false
-license: mit
-short_description: A persistent horror simulator
----
+<p align="center">
+  <strong>FREE HAUNTED <span style="color: #60a5fa;">HOUSE</span></strong>
+</p>
 
-<p align="center"><strong>FREE HAUNTED <span style="color: #60a5fa;">HOUSE</span></strong></p>
+<h1 align="center">THE TERROR MACHINE</h1>
+
+<p align="center">
+  <em>A persistent horror simulator for building, entering, and surviving impossible places.</em>
+</p>
+
+<p align="center">
+  <a href="./ROADMAP.md"><strong>Technical Roadmap</strong></a> &middot;
+  <a href="./DEVELOPMENT-ROADMAP.md"><strong>Development Roadmap</strong></a> &middot;
+  <a href="#running-the-machine"><strong>Quickstart</strong></a> &middot;
+  <a href="./LICENSE"><strong>MIT License</strong></a>
+</p>
+
+---
 
 > **The room exists even when the prose looks away.**
 
