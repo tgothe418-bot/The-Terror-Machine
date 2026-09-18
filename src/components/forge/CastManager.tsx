@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { useForgeState, forgeActions } from '../../store/useForgeStore';
 import { AutopilotVector } from '../../types';
-import { CharacterExpressionProfile } from '../../types/forge';
 import {
-  CharacterPsychologicalStakes,
-  DeterministicLiftCondition,
-} from '../../types/dramaturgy';
+  CastDisposition,
+  CharacterExpressionProfile,
+  ForgeDraftCastMember,
+} from '../../types/forge';
+import { DeterministicLiftCondition } from '../../types/dramaturgy';
 import {
   Compass,
   MapPin,
@@ -36,6 +37,17 @@ const COMMON_PSYCH_FLAGS = [
   'Obsessive Delusion',
   'Dissociation',
 ];
+
+// The forge draft stores the *input* variants of these schemas (fields with
+// schema defaults are still optional until the draft is parsed/compiled), so
+// handlers accept the input shape rather than the fully-defaulted output type.
+type ExpressionProfileInput = NonNullable<ForgeDraftCastMember['expressionProfile']>;
+type PsychologicalStakesInput = NonNullable<ForgeDraftCastMember['psychologicalStakes']>;
+
+// `nodeDefinitions` is the raw input of a preprocess schema (unknown[] at the
+// type level), so entries are narrowed with a structural guard before use.
+const isNodeDefinitionSeed = (n: unknown): n is { id: string; label?: string } =>
+  typeof n === 'object' && n !== null && 'id' in n && typeof n.id === 'string';
 
 export const CastManager: React.FC = () => {
   const blueprint = useForgeState((state) => state.draftBlueprint);
@@ -72,7 +84,7 @@ export const CastManager: React.FC = () => {
   const rawNodes = topology?.nodes || [];
   const nodeMap = new Map<string, string>();
   nodeDefs.forEach((n) => {
-    if (n.id) nodeMap.set(n.id, n.label || n.id);
+    if (isNodeDefinitionSeed(n) && n.id) nodeMap.set(n.id, n.label || n.id);
   });
   rawNodes.forEach((n) => {
     if (n && !nodeMap.has(n)) nodeMap.set(n, n);
@@ -122,7 +134,7 @@ export const CastManager: React.FC = () => {
 
   const handleUpdateVoiceDossier = (
     charId: string,
-    existingProfile: CharacterExpressionProfile | undefined,
+    existingProfile: ExpressionProfileInput | undefined,
     fieldUpdates: Partial<CharacterExpressionProfile>
   ) => {
     const currentModes = fieldUpdates.communicationModes ?? existingProfile?.communicationModes ?? ['spoken'];
@@ -176,10 +188,10 @@ export const CastManager: React.FC = () => {
 
   const handleUpdateStakes = (
     charId: string,
-    currentStakes?: CharacterPsychologicalStakes,
-    patch: Partial<CharacterPsychologicalStakes> = {}
+    currentStakes?: PsychologicalStakesInput,
+    patch: Partial<PsychologicalStakesInput> = {}
   ) => {
-    const base: CharacterPsychologicalStakes = currentStakes || {
+    const base: PsychologicalStakesInput = currentStakes || {
       characterId: charId,
       coreDesireOrNeed: 'Survive and maintain cognitive equilibrium',
       copingMechanism: 'Strict adherence to operational protocol',
@@ -210,7 +222,7 @@ export const CastManager: React.FC = () => {
     });
   };
 
-  const handleAddLiftCondition = (charId: string, currentStakes?: CharacterPsychologicalStakes) => {
+  const handleAddLiftCondition = (charId: string, currentStakes?: PsychologicalStakesInput) => {
     const stakes = currentStakes || {
       characterId: charId,
       coreDesireOrNeed: 'Survive and maintain cognitive equilibrium',
@@ -236,7 +248,7 @@ export const CastManager: React.FC = () => {
   const handleUpdateLiftCondition = (
     charId: string,
     condIdx: number,
-    currentStakes: CharacterPsychologicalStakes,
+    currentStakes: PsychologicalStakesInput,
     patch: Partial<DeterministicLiftCondition>
   ) => {
     const updated = (currentStakes.liftConditions || []).map((cond, idx) => {
@@ -249,7 +261,7 @@ export const CastManager: React.FC = () => {
   const handleRemoveLiftCondition = (
     charId: string,
     condIdx: number,
-    currentStakes: CharacterPsychologicalStakes
+    currentStakes: PsychologicalStakesInput
   ) => {
     const updated = (currentStakes.liftConditions || []).filter((_, idx) => idx !== condIdx);
     handleUpdateStakes(charId, currentStakes, { liftConditions: updated });
@@ -360,7 +372,6 @@ export const CastManager: React.FC = () => {
           const archetype = char.role || 'Subject';
           const motive = char.goals || memberPursuits[0]?.objective || '';
           const fear = char.psychological_status || '';
-          const secret = char.personality || '';
 
           return (
             <div
@@ -394,11 +405,11 @@ export const CastManager: React.FC = () => {
                   </span>
 
                   {/* Disposition Pill */}
-                  {((char as any).disposition === 'VILLAIN' || char.isEntity) ? (
+                  {(char.disposition === 'VILLAIN' || char.isEntity) ? (
                     <span className="text-[9px] font-mono px-2 py-0.5 bg-red-950/70 border border-red-800 text-red-300 rounded font-bold uppercase shrink-0 flex items-center gap-1 shadow-sm">
                       <Skull className="w-2.5 h-2.5" /> VILLAIN
                     </span>
-                  ) : (char as any).disposition === 'BYSTANDER' ? (
+                  ) : char.disposition === 'BYSTANDER' ? (
                     <span className="text-[9px] font-mono px-2 py-0.5 bg-amber-950/70 border border-amber-800 text-amber-300 rounded font-bold uppercase shrink-0 flex items-center gap-1 shadow-sm">
                       <Coffee className="w-2.5 h-2.5" /> BYSTANDER
                     </span>
@@ -537,8 +548,12 @@ export const CastManager: React.FC = () => {
                         Disposition
                       </label>
                       <select
-                        value={(char as any).disposition || (char.isEntity ? 'VILLAIN' : 'SURVIVOR')}
-                        onChange={(e) => updateCastMember(char.id, { disposition: e.target.value as any })}
+                        value={char.disposition || (char.isEntity ? 'VILLAIN' : 'SURVIVOR')}
+                        onChange={(e) =>
+                          updateCastMember(char.id, {
+                            disposition: e.target.value as CastDisposition,
+                          })
+                        }
                         className="w-full bg-[#0c0c10] border border-stone-800 text-[#e6e4dc] text-xs p-2 rounded focus:outline-none focus:border-amber-500/80 transition-colors cursor-pointer"
                       >
                         <option value="SURVIVOR">🛡️ SURVIVOR</option>

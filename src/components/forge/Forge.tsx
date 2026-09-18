@@ -5,7 +5,7 @@ import { ArchitectChat } from './ArchitectChat';
 import { FileDropzone } from './FileDropzone';
 import { CastManager } from './CastManager';
 import { SpatialManager } from './SpatialManager';
-import { ArrowLeft, Trash2, Flame, MapPin, Compass, Shield, Layers, FileText, Sparkles } from 'lucide-react';
+import { ArrowLeft, Trash2, MapPin, Compass, Shield } from 'lucide-react';
 
 import { CampaignTopologyPanel } from './CampaignTopologyPanel';
 import { ScenarioBaselinePanel } from './ScenarioBaselinePanel';

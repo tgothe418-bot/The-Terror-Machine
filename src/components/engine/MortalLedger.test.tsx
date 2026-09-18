@@ -2,6 +2,7 @@ import React, { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import MortalLedger from './MortalLedger';
+import type { ImpendingClock } from '../../types/dramaturgy';
 
 describe('MortalLedger Component (Occult Vessel Matrix)', () => {
   let container: HTMLDivElement | null = null;
@@ -104,31 +105,33 @@ describe('MortalLedger Component (Occult Vessel Matrix)', () => {
   });
 
   it('renders impending clocks with literary manifestation cues and diegetic instrument carve-out', () => {
-    const clocks = [
+    const clocks: ImpendingClock[] = [
       {
         id: 'clock-containment',
         name: 'Containment Core Decay',
+        domain: 'ENVIRONMENTAL',
         currentLevel: 2,
-        maxLevel: 4,
-        advanceMode: 'TIME' as const,
+        advanceMode: { mode: 'TIME', rate: 'MODERATE', minutesPerPoint: 5 },
         manifestationCues: [
           { atLevel: 1, cue: 'A faint mechanical thrum vibrates through the deck plating.' },
           { atLevel: 2, cue: 'Warning klaxons beep at low volume; exhaust smells of burning ozone.' },
         ],
         diegeticInstrument: 'Coolant Pressure Dial',
         instrumentNodeId: 'node-generator-room',
-        isTripped: false,
+        crisisThreshold: 4,
+        accumulatedMinutes: 0,
       },
       {
         id: 'clock-hull',
         name: 'Hull Breach Strain',
+        domain: 'STRUCTURAL',
         currentLevel: 1,
-        maxLevel: 3,
-        advanceMode: 'TIME' as const,
+        advanceMode: { mode: 'TIME', rate: 'MODERATE', minutesPerPoint: 5 },
         manifestationCues: [
           { atLevel: 1, cue: 'Moaning rivets pop from the bulkheads.' },
         ],
-        isTripped: false,
+        crisisThreshold: 80,
+        accumulatedMinutes: 0,
       },
     ];
 
@@ -140,13 +143,13 @@ describe('MortalLedger Component (Occult Vessel Matrix)', () => {
           impendingClocks={clocks}
           currentLocationNodeId="node-generator-room"
           macroPhase="ESCALATING_VISE"
-          pacingCadence="RATCHET_TENSION"
+          pacingCadence="MOUNTING_COMPLICATION"
         />
       );
     });
 
     expect(container?.querySelector('[data-testid="mortal-ledger-pacing-bar"]')?.textContent).toContain('ESCALATING VISE');
-    expect(container?.querySelector('[data-testid="mortal-ledger-pacing-bar"]')?.textContent).toContain('RATCHET TENSION');
+    expect(container?.querySelector('[data-testid="mortal-ledger-pacing-bar"]')?.textContent).toContain('MOUNTING COMPLICATION');
     expect(container?.textContent).toContain('Containment Core Decay');
     expect(container?.textContent).toContain('Warning klaxons beep at low volume; exhaust smells of burning ozone.');
     expect(container?.querySelector('[data-testid="diegetic-gauge-clock-containment"]')?.textContent).toContain('Coolant Pressure Dial: 2/4');

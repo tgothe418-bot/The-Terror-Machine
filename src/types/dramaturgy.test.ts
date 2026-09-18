@@ -130,6 +130,7 @@ describe('Horror Grammar 2: Dramaturgy Schemas & Contracts (Packet 1)', () => {
         { atLevel: 90, cue: 'Liquid coolant lines groan and fracture under thermal shock.' },
       ],
       crisisThreshold: 80,
+      accumulatedMinutes: 0,
     };
 
     it('selects the deepest reached manifestation cue', () => {
@@ -197,6 +198,7 @@ describe('Horror Grammar 2: Dramaturgy Schemas & Contracts (Packet 1)', () => {
         },
         manifestationCues: [],
         crisisThreshold: 90,
+        accumulatedMinutes: 0,
       };
 
       // Event 1 matches both 'acoustic' and 'screech', but must only count ONCE
@@ -221,6 +223,7 @@ describe('Horror Grammar 2: Dramaturgy Schemas & Contracts (Packet 1)', () => {
         },
         manifestationCues: [],
         crisisThreshold: 90,
+        accumulatedMinutes: 0,
       };
 
       const res = advanceClock(eventClock, {
@@ -242,6 +245,7 @@ describe('Horror Grammar 2: Dramaturgy Schemas & Contracts (Packet 1)', () => {
         },
         manifestationCues: [],
         crisisThreshold: 90,
+        accumulatedMinutes: 0,
       };
 
       const res = advanceClock(eventClock, {
@@ -263,6 +267,7 @@ describe('Horror Grammar 2: Dramaturgy Schemas & Contracts (Packet 1)', () => {
       diegeticInstrument: 'Auxiliary Pressure Gauge AG-04',
       instrumentNodeId: 'histology_lab',
       crisisThreshold: 85,
+      accumulatedMinutes: 0,
     };
 
     it('permits observation when character is at the instrument node', () => {

@@ -319,7 +319,15 @@ export function resolveDiegeticObservation(
  * Initializes a clean DramaturgyRuntimeState from an authored blueprint.
  */
 export function initializeDramaturgyRuntimeState(
-  blueprint?: { dramaticSpine?: any | null; cast?: any[] } | null
+  blueprint?: {
+    dramaticSpine?: (Partial<DramaticSpine> & {
+      startingMacroPhase?: DramaturgyRuntimeState['currentMacroPhase'];
+      startingPacingCadence?: DramaturgyRuntimeState['activePacingCadence'];
+      clocks?: ImpendingClock[];
+      milestones?: DramaturgyRuntimeState['milestones'];
+    }) | null;
+    cast?: Array<{ id?: string; psychologicalStakes?: CharacterPsychologicalStakes }> | null;
+  } | null
 ): DramaturgyRuntimeState {
   const spine = blueprint?.dramaticSpine;
   const clocks: Record<string, ImpendingClock> = {};

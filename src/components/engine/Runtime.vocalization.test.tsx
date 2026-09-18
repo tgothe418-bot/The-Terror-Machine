@@ -1,8 +1,15 @@
 import React, { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { z } from 'zod';
 import { TranscriptMessageItem, formatBlocks } from './Runtime';
 import type { UITranscriptMessage, NarrativeBlock } from '../../types';
+import { VocalizationBlockSchema } from '../../types/vocalization';
+
+// The engine contract carries vocalization fields (medium/delivery/target/
+// interrupted) that the legacy NarrativeBlock interface does not declare; the
+// fixtures below author blocks in the vocalization schema's input shape.
+type VocalizationBlockFixture = z.input<typeof VocalizationBlockSchema>;
 
 describe('Vocalization & Dialogue Subsystem - Phase 3', () => {
   let container: HTMLDivElement | null = null;
@@ -77,7 +84,7 @@ describe('Vocalization & Dialogue Subsystem - Phase 3', () => {
 
     it('returns empty string for null or non-array inputs', () => {
       expect(formatBlocks(undefined)).toBe('');
-      expect(formatBlocks([] as any)).toBe('');
+      expect(formatBlocks([])).toBe('');
     });
   });
 
@@ -138,18 +145,19 @@ describe('Vocalization & Dialogue Subsystem - Phase 3', () => {
     });
 
     it('renders transmission / intercom / acoustic bleed with CRT phosphor-cyan scanline border and monospace audio badge', async () => {
+      const blocks: VocalizationBlockFixture[] = [
+        {
+          type: 'transmission',
+          speaker: 'STATION CONTROL',
+          medium: 'intercom',
+          content: 'Pressure drop in corridor 4.',
+        },
+      ];
       const msg: UITranscriptMessage = {
         id: 'msg-transmission-1',
         role: 'assistant',
         content: '[TRANSMISSION // STATION CONTROL]: Pressure drop in corridor 4.',
-        blocks: [
-          {
-            type: 'transmission',
-            speaker: 'STATION CONTROL',
-            medium: 'intercom' as any,
-            content: 'Pressure drop in corridor 4.',
-          },
-        ],
+        blocks,
       };
 
       await act(async () => {
@@ -357,18 +365,19 @@ describe('Vocalization & Dialogue Subsystem - Phase 3', () => {
     });
 
     it('renders mediated radio transmission with typographic squelch markers (Amendment 2 & Lane 3)', async () => {
+      const blocks: VocalizationBlockFixture[] = [
+        {
+          type: 'transmission',
+          speaker: 'Officer Marcus Holt',
+          medium: 'radio',
+          content: 'Pressure is venting from the airlock.',
+        },
+      ];
       const msg: UITranscriptMessage = {
         id: 'msg-squelch-1',
         role: 'assistant',
         content: 'Officer Marcus Holt over radio.',
-        blocks: [
-          {
-            type: 'transmission',
-            speaker: 'Officer Marcus Holt',
-            medium: 'radio',
-            content: 'Pressure is venting from the airlock.',
-          },
-        ],
+        blocks,
       };
 
       await act(async () => {
@@ -389,19 +398,20 @@ describe('Vocalization & Dialogue Subsystem - Phase 3', () => {
     });
 
     it('renders acoustic bleed with shrouded styling and chamber provenance (Lane 3)', async () => {
+      const blocks: VocalizationBlockFixture[] = [
+        {
+          type: 'transmission',
+          speaker: 'Orderly Thomas',
+          medium: 'acoustic_bleed',
+          acousticSourceNodeId: 'Histology Substation',
+          content: 'The lights went out on Sub-Level 3...',
+        },
+      ];
       const msg: UITranscriptMessage = {
         id: 'msg-bleed-1',
         role: 'assistant',
         content: 'Muffled sounds through ventilation.',
-        blocks: [
-          {
-            type: 'transmission',
-            speaker: 'Orderly Thomas',
-            medium: 'acoustic_bleed',
-            acousticSourceNodeId: 'Histology Substation',
-            content: 'The lights went out on Sub-Level 3...',
-          },
-        ],
+        blocks,
       };
 
       await act(async () => {
@@ -421,18 +431,19 @@ describe('Vocalization & Dialogue Subsystem - Phase 3', () => {
     });
 
     it('renders interrupted dialogue with italic stress styling (Amendment 2 & Lane 3)', async () => {
+      const blocks: VocalizationBlockFixture[] = [
+        {
+          type: 'dialogue',
+          speaker: 'Jules Mercer',
+          interrupted: true,
+          content: 'Wait, behind you—',
+        },
+      ];
       const msg: UITranscriptMessage = {
         id: 'msg-interrupted-1',
         role: 'assistant',
         content: 'Wait, behind you—',
-        blocks: [
-          {
-            type: 'dialogue',
-            speaker: 'Jules Mercer',
-            interrupted: true,
-            content: 'Wait, behind you—',
-          },
-        ],
+        blocks,
       };
 
       await act(async () => {

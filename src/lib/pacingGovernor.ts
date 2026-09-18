@@ -13,8 +13,6 @@ import {
   selectManifestationCue,
   resolveDiegeticObservation,
   calculateComposureDelta,
-  deriveComposureBand,
-  derivePsychologicalStatus,
   evaluateBreakingPoint,
   evaluateObstructionLift,
 } from './composureDerivation';

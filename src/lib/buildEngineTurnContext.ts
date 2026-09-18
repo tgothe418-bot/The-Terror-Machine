@@ -53,7 +53,6 @@ import {
   DramaturgyRuntimeStateSchema,
   type DramaturgyRuntimeState,
   type DramaturgyTurnContext,
-  type DramaticSpine,
 } from '../types/dramaturgy';
 import { buildEvidenceRegistry } from './evidenceRegistry';
 

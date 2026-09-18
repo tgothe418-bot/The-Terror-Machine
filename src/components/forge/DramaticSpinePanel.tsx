@@ -7,6 +7,7 @@ import {
   ClockManifestationCue,
   MacroPhase,
 } from '../../types/dramaturgy';
+import type { ForgeDraft } from '../../types/forge';
 import {
   Clock,
   HelpCircle,
@@ -21,6 +22,17 @@ import {
   Sparkles,
 } from 'lucide-react';
 
+// The forge draft stores the *input* variant of the spine (fields with schema
+// defaults such as pacingProfile/milestoneConditions are optional until the
+// draft is parsed), so the panel works against that shape and only applies
+// defaults for display fallbacks.
+type DramaticSpineInput = NonNullable<ForgeDraft['dramaticSpine']>;
+
+// `nodeDefinitions` is the raw input of a preprocess schema (unknown[] at the
+// type level), so entries are narrowed with a structural guard before use.
+const isNodeDefinitionSeed = (n: unknown): n is { id: string; label?: string } =>
+  typeof n === 'object' && n !== null && 'id' in n && typeof n.id === 'string';
+
 const DEFAULT_SPINE: DramaticSpine = {
   thematicPremise: '',
   dramaticQuestions: [],
@@ -31,7 +43,7 @@ const DEFAULT_SPINE: DramaticSpine = {
 
 export const DramaticSpinePanel: React.FC = () => {
   const blueprint = useForgeState((state) => state.draftBlueprint);
-  const spine: DramaticSpine = blueprint?.dramaticSpine || DEFAULT_SPINE;
+  const spine: DramaticSpineInput = blueprint?.dramaticSpine || DEFAULT_SPINE;
   const cast = blueprint?.cast || [];
   const topology = blueprint?.topology;
 
@@ -39,7 +51,7 @@ export const DramaticSpinePanel: React.FC = () => {
   const availableNodes: Array<{ id: string; label: string }> = [];
   if (topology?.nodeDefinitions && topology.nodeDefinitions.length > 0) {
     topology.nodeDefinitions.forEach((n) => {
-      if (n.id) availableNodes.push({ id: n.id, label: n.label || n.id });
+      if (isNodeDefinitionSeed(n) && n.id) availableNodes.push({ id: n.id, label: n.label || n.id });
     });
   } else if (topology?.nodes) {
     topology.nodes.forEach((n) => {
@@ -51,8 +63,8 @@ export const DramaticSpinePanel: React.FC = () => {
   const [expandedClocks, setExpandedClocks] = useState<Record<string, boolean>>({});
   const [newQuestionText, setNewQuestionText] = useState('');
 
-  const updateSpine = (patch: Partial<DramaticSpine>) => {
-    const updatedSpine: DramaticSpine = {
+  const updateSpine = (patch: Partial<DramaticSpineInput>) => {
+    const updatedSpine: DramaticSpineInput = {
       ...spine,
       ...patch,
     };

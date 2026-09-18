@@ -259,7 +259,7 @@ export default function MortalLedger({
                           className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-950/40 border border-amber-800/80 text-amber-300 flex items-center gap-1 shrink-0"
                         >
                           <Gauge className="w-3 h-3 text-amber-400" />
-                          {clock.diegeticInstrument}: {clock.currentLevel}/{clock.maxLevel}
+                          {clock.diegeticInstrument}: {clock.currentLevel}/{clock.crisisThreshold}
                         </span>
                       ) : clock.diegeticInstrument ? (
                         <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-500 shrink-0">
@@ -272,7 +272,7 @@ export default function MortalLedger({
                       &ldquo;{manifestationProse}&rdquo;
                     </p>
 
-                    {clock.isTripped && (
+                    {clock.currentLevel >= clock.crisisThreshold && (
                       <div className="text-[10px] text-red-400 font-bold uppercase tracking-wider">
                         CRISIS THRESHOLD BREACHED
                       </div>

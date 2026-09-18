@@ -746,6 +746,9 @@ export interface LogicState {
   value_state_ledger?: ValueStateLedger;
   character_pursuit_ledger?: CharacterPursuitLedger;
   character_development_ledger?: CharacterDevelopmentLedger;
+  dramaturgy_state?: import('./dramaturgy').DramaturgyRuntimeState | null;
+  dramaturgyState?: import('./dramaturgy').DramaturgyRuntimeState | null;
+  dramatic_turn_receipt?: import('./dramaturgy').DramaticTurnReceipt;
   current_location?: string;
   player_character_id?: string | null;
   player_role?: PlayerRole | string;
@@ -860,6 +863,7 @@ export interface RatifiedEngineFrame {
   characterDevelopmentReceipt?: CharacterDevelopmentReceipt;
   pressureThreadTransitionReceipt?: PressureThreadTransitionReceipt;
   horrorGrammarForensics?: HorrorGrammarForensicRecord;
+  dramaticTurnReceipt?: import('./dramaturgy').DramaticTurnReceipt;
   preSnapshot?: RuntimeStateSnapshot;
   reconciliation?: {
     isHallucinationCollision: boolean;

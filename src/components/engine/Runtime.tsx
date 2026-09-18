@@ -2,7 +2,6 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   ArrowLeft,
-  Terminal,
   Loader2,
   Eye,
   Shield,
@@ -14,8 +13,6 @@ import {
   PanelRight,
   PanelRightClose,
   BookOpen,
-  Compass,
-  MapPin,
   Sparkles,
 } from 'lucide-react';
 import TheVoice from '../hub/TheVoice';
@@ -92,6 +89,17 @@ const HEARTBEAT_INTERVAL = 30000; // 30 seconds
  * observable human-scale pause before every simulated action/turn attempt.
  */
 export const AUTOPILOT_MINIMUM_TURN_INTERVAL_MS = 5000;
+
+/**
+ * The engine LogicState is a passthrough record at runtime (LogicStateSchema is
+ * `.passthrough()`), so legacy keys that are not part of the canonical
+ * `LogicState` interface are read defensively through this typed accessor and
+ * narrowed with guards at the call site.
+ */
+function readLogicStateKey(state: unknown, key: string): unknown {
+  if (typeof state !== 'object' || state === null) return undefined;
+  return (state as Record<string, unknown>)[key];
+}
 
 import { Edit2, Check, X } from 'lucide-react';
 import type { UITranscriptMessage } from '../../types';
@@ -718,41 +726,48 @@ export default function Runtime() {
   const [rightWingTab, setRightWingTab] = useState<'historian' | 'dossier'>('historian');
   const [isAuthorityModalOpen, setIsAuthorityModalOpen] = useState(false);
 
+  // Hoisted accessors so the memo dependency lists stay statically analyzable.
+  const topology = activeBlueprint?.topology;
+  const startingNodeId = topology?.startingNodeId;
+  const rawCurrentNodeId = readLogicStateKey(gameState, 'current_node_id');
+  const currentNodeId =
+    typeof rawCurrentNodeId === 'string' && rawCurrentNodeId ? rawCurrentNodeId : null;
+
   // Compute visited nodes from history + current node + starting node for Fog of War
   const visitedNodeIds = React.useMemo(() => {
     const visited = new Set<string>();
-    if (gameState?.current_node_id) {
-      visited.add(gameState.current_node_id);
+    if (currentNodeId) {
+      visited.add(currentNodeId);
     }
-    if (activeBlueprint?.topology?.startingNodeId) {
-      visited.add(activeBlueprint.topology.startingNodeId);
+    if (startingNodeId) {
+      visited.add(startingNodeId);
     }
     engineMessages.forEach((msg) => {
       if (msg.turnReceipt?.nodeBefore) visited.add(msg.turnReceipt.nodeBefore);
       if (msg.turnReceipt?.nodeAfter) visited.add(msg.turnReceipt.nodeAfter);
     });
     return visited;
-  }, [gameState?.current_node_id, activeBlueprint?.topology?.startingNodeId, engineMessages]);
+  }, [currentNodeId, startingNodeId, engineMessages]);
 
   // Compute node definitions for MapSketch
   const nodeDefinitions = React.useMemo(() => {
-    if (!activeBlueprint?.topology) return [];
-    if (activeBlueprint.topology.nodeDefinitions && activeBlueprint.topology.nodeDefinitions.length > 0) {
-      return activeBlueprint.topology.nodeDefinitions.map((n) => ({
+    if (!topology) return [];
+    if (topology.nodeDefinitions && topology.nodeDefinitions.length > 0) {
+      return topology.nodeDefinitions.map((n) => ({
         id: n.id,
         label: n.label || (n as any).name || n.id,
         description: n.description,
       }));
     }
-    if (activeBlueprint.topology.nodes && activeBlueprint.topology.nodes.length > 0) {
-      return activeBlueprint.topology.nodes.map((id) => ({
+    if (topology.nodes && topology.nodes.length > 0) {
+      return topology.nodes.map((id) => ({
         id,
         label: id.replace(/_/g, ' '),
         description: undefined,
       }));
     }
     return [];
-  }, [activeBlueprint?.topology]);
+  }, [topology]);
 
   // Compute connections for MapSketch
   const topologyConnections = React.useMemo(() => {
@@ -761,9 +776,8 @@ export default function Runtime() {
 
   // Compute cohort members for MortalLedger
   const cohortCastMembers = React.useMemo(() => {
-    if (!activeBlueprint?.cast) return [];
-    const dramaturgyStakes = (gameState as any)?.dramaturgy_state?.characterStakes;
-    return activeBlueprint.cast.map((c) => {
+    const dramaturgyStakes = gameState?.dramaturgy_state?.characterStakes;
+    return (activeBlueprint?.cast || []).map((c) => {
       const presence = gameState?.character_presence?.[c.id];
       const continuity = gameState?.character_continuity?.[c.id];
       const ledgerEntry = telemetry?.castLedger?.find(
@@ -774,7 +788,7 @@ export default function Runtime() {
         id: c.id,
         name: c.name,
         role: c.role,
-        location: presence?.node_id || ledgerEntry?.current_location || 'Co-present',
+        location: presence?.nodeId || ledgerEntry?.current_location || 'Co-present',
         psychological_status:
           ledgerEntry?.psychological_status || (c as any).psychological_status || 'Composed',
         skepticism: typeof continuity?.skepticism === 'number' ? continuity.skepticism : undefined,
@@ -789,7 +803,7 @@ export default function Runtime() {
     gameState?.character_presence,
     gameState?.character_continuity,
     gameState?.player_character_id,
-    (gameState as any)?.dramaturgy_state,
+    gameState?.dramaturgy_state,
     telemetry?.castLedger,
   ]);
 
@@ -1142,15 +1156,17 @@ export default function Runtime() {
         const validNodeIds = runtimeNodeIds.length > 0 ? runtimeNodeIds : blueprintNodes;
 
         const presenceUpdates: Record<string, string | null> = {};
-        if (Array.isArray(response.logic_state?.cast_arrivals)) {
-          for (const arrivingId of response.logic_state.cast_arrivals) {
+        const castArrivals = readLogicStateKey(response.logic_state, 'cast_arrivals');
+        if (Array.isArray(castArrivals)) {
+          for (const arrivingId of castArrivals) {
             if (typeof arrivingId === 'string' && arrivingId.trim().length > 0) {
               presenceUpdates[arrivingId.trim()] = postTurnNodeId;
             }
           }
         }
-        if (Array.isArray(response.logic_state?.cast_departures)) {
-          for (const departingId of response.logic_state.cast_departures) {
+        const castDepartures = readLogicStateKey(response.logic_state, 'cast_departures');
+        if (Array.isArray(castDepartures)) {
+          for (const departingId of castDepartures) {
             if (typeof departingId === 'string' && departingId.trim().length > 0) {
               presenceUpdates[departingId.trim()] = null;
             }
@@ -1522,7 +1538,7 @@ export default function Runtime() {
             </div>
           </div>
 
-          {((gameState as any)?.dramaturgy_state || activeBlueprint?.dramaticSpine) && (
+          {(gameState?.dramaturgy_state || activeBlueprint?.dramaticSpine) && (
             <div
               data-testid="runtime-pacing-indicator"
               className="flex items-center gap-2 px-3 py-1.5 rounded border border-amber-950/70 bg-amber-950/20 text-[10px] font-mono tracking-wider text-amber-200/90 shadow-sm"
@@ -1531,16 +1547,18 @@ export default function Runtime() {
               <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
               <span className="uppercase text-zinc-400">Phase:</span>
               <span className="font-semibold text-amber-300">
-                {(((gameState as any)?.dramaturgy_state?.currentMacroPhase ||
-                  activeBlueprint?.dramaticSpine?.startingMacroPhase ||
-                  'EXPOSITION_BASELINE') as string).replace(/_/g, ' ')}
+                {(gameState?.dramaturgy_state?.currentMacroPhase || 'EXPOSITION_BASELINE').replace(
+                  /_/g,
+                  ' '
+                )}
               </span>
               <span className="text-zinc-600">|</span>
               <span className="uppercase text-zinc-400">Cadence:</span>
               <span className="font-semibold text-amber-400">
-                {(((gameState as any)?.dramaturgy_state?.activePacingCadence ||
-                  activeBlueprint?.dramaticSpine?.startingPacingCadence ||
-                  'SIMMERING_DREAD') as string).replace(/_/g, ' ')}
+                {(gameState?.dramaturgy_state?.activePacingCadence || 'SIMMERING_DREAD').replace(
+                  /_/g,
+                  ' '
+                )}
               </span>
             </div>
           )}
@@ -1733,9 +1751,7 @@ export default function Runtime() {
             className="w-[580px] xl:w-[640px] 2xl:w-[700px] shrink-0 h-full flex flex-col gap-3 overflow-y-auto no-scrollbar select-none"
           >
             <MapSketch
-              currentNodeId={
-                gameState?.current_node_id || activeBlueprint?.topology?.startingNodeId || null
-              }
+              currentNodeId={currentNodeId || startingNodeId || null}
               nodeDefinitions={nodeDefinitions}
               connections={topologyConnections}
               visitedNodeIds={visitedNodeIds}
@@ -1749,21 +1765,13 @@ export default function Runtime() {
               inventory={gameState?.inventory || []}
               castMembers={cohortCastMembers}
               impendingClocks={
-                (gameState as any)?.dramaturgy_state?.impendingClocks
-                  ? Object.values((gameState as any).dramaturgy_state.impendingClocks)
-                  : activeBlueprint?.dramaticSpine?.clocks || []
+                gameState?.dramaturgy_state?.impendingClocks
+                  ? Object.values(gameState.dramaturgy_state.impendingClocks)
+                  : activeBlueprint?.dramaticSpine?.impendingClocks || []
               }
-              currentLocationNodeId={
-                gameState?.current_node_id || activeBlueprint?.topology?.startingNodeId || undefined
-              }
-              macroPhase={
-                (gameState as any)?.dramaturgy_state?.currentMacroPhase ||
-                activeBlueprint?.dramaticSpine?.startingMacroPhase
-              }
-              pacingCadence={
-                (gameState as any)?.dramaturgy_state?.activePacingCadence ||
-                activeBlueprint?.dramaticSpine?.startingPacingCadence
-              }
+              currentLocationNodeId={currentNodeId || startingNodeId || undefined}
+              macroPhase={gameState?.dramaturgy_state?.currentMacroPhase}
+              pacingCadence={gameState?.dramaturgy_state?.activePacingCadence}
               className="flex-1 min-h-[320px]"
             />
           </aside>

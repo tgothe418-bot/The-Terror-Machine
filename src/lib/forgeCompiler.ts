@@ -284,7 +284,13 @@ export function validateForgeDraft(rawDraft: unknown): ForgeValidationResult {
   const allNodeIds = new Set<string>();
   const seenNodeIds = new Set<string>();
 
-  nodeDefs.forEach((def, idx) => {
+  nodeDefs.forEach((rawDef, idx) => {
+    const def = (rawDef ?? {}) as {
+      id?: string;
+      label?: string;
+      name?: string;
+      description?: string;
+    };
     const fieldPrefix = `topology.nodeDefinitions[${idx}]`;
     if (!def.id || !def.id.trim()) {
       errors[`${fieldPrefix}.id`] = ['Node definition ID cannot be empty'];
@@ -297,7 +303,7 @@ export function validateForgeDraft(rawDraft: unknown): ForgeValidationResult {
       allNodeIds.add(cleanId);
     }
 
-    const effectiveLabel = (def.label || (def as any).name || '').trim();
+    const effectiveLabel = (def.label || def.name || '').trim();
     if (!effectiveLabel) {
       errors[`${fieldPrefix}.label`] = ['Node definition label cannot be empty'];
     }
@@ -572,7 +578,10 @@ export function validateForgeDraft(rawDraft: unknown): ForgeValidationResult {
 
   // 10. Antagonist Profile Validation (if present)
   if (draft.antagonistProfile) {
-    const ap = draft.antagonistProfile;
+    const ap = draft.antagonistProfile as {
+      apparatusControls?: Array<{ id?: string; name?: string; affectedNodeIds?: string[] }>;
+      telemetryFeeds?: Array<{ nodeId?: string }>;
+    };
     if (ap.apparatusControls && Array.isArray(ap.apparatusControls)) {
       ap.apparatusControls.forEach((ctrl, idx) => {
         const prefix = `antagonistProfile.apparatusControls[${idx}]`;
@@ -647,9 +656,15 @@ export function validateForgeDraft(rawDraft: unknown): ForgeValidationResult {
       });
     }
 
-    if (ds.milestones && Array.isArray(ds.milestones)) {
-      ds.milestones.forEach((milestone, idx) => {
-        const prefix = `dramaticSpine.milestones[${idx}]`;
+    // Canonical field is milestoneConditions; tolerate the legacy `milestones`
+    // spelling that initializeDramaturgyRuntimeState also accepts.
+    const milestoneList: Array<{ kind?: string; referenceId?: string }> =
+      ds.milestoneConditions ??
+      ((ds as { milestones?: Array<{ kind?: string; referenceId?: string }> }).milestones ||
+        []);
+    if (milestoneList.length > 0) {
+      milestoneList.forEach((milestone, idx) => {
+        const prefix = `dramaticSpine.milestoneConditions[${idx}]`;
         if (milestone.kind === 'CLOCK_CRISIS' && milestone.referenceId) {
           if (clockIds.size > 0 && !clockIds.has(milestone.referenceId)) {
             errors[`${prefix}.referenceId`] = [

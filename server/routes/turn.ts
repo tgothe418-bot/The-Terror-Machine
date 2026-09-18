@@ -75,7 +75,6 @@ import { resolveCanonicalConsequences } from '../../src/lib/canonicalConsequence
 import {
   evaluateCausalFeasibility,
   resolveExplicitCastTarget,
-  REMOTE_COMMUNICATION_CHANNELS,
   type CastTargetResolution,
   type CausalFeasibilityResult,
 } from '../../src/lib/causalFeasibility';
@@ -93,7 +92,6 @@ import {
   isRecognizedAmbientSpeaker,
   REMOTE_DISCONNECT_PATTERNS,
   RECOGNIZED_AMBIENT_SPEAKER_PATTERN,
-  type AuditoryContext,
 } from '../../src/lib/vocalizationEngine';
 import type {
   IntentReceipt,
@@ -678,7 +676,7 @@ Agency Directives:
     ? 'The user operates as a human predator (e.g. serial killer, sociopath, or stalker). Actively dramatize the friction between their polished social mask and their intrusive, escalating homicidal impulses. Show other characters socializing, conversing, gossiping, or reacting with confusion or rising suspicion. Do NOT leave the environment empty or inert. If the player is in an enclosure alone, introduce active social world friction: the telephone ringing, an intercom buzzing, an unexpected visitor knocking, friends or lovers demanding dinner commitments, or urgent messages delivered. If the player calls someone, that character answers with their authored personality and social expectations.'
     : 'Permit actions and perceptions expressly granted by the Authority Contract and apparatus controls, including environmental actuation, atmospheric venting, bulkhead lockdown, electrical relays, hazard deployment, and surveillance across the facility.'
 }
-3. AUTONOMOUS TARGET & PREY SIMULATION: You MUST actively dramatize the other characters\' independent human reactions to the ${isHumanVillain ? 'Villain' : 'Antagonist'}. If unprovoked, they converse, pursue their own tasks, or display unaware vulnerability. If confronted or attacked, show their terror, frantic attempts to escape, bargaining, or anatomical trauma. Do NOT treat other characters as inert or passive.
+3. AUTONOMOUS TARGET & PREY SIMULATION: You MUST actively dramatize the other characters' independent human reactions to the ${isHumanVillain ? 'Villain' : 'Antagonist'}. If unprovoked, they converse, pursue their own tasks, or display unaware vulnerability. If confronted or attacked, show their terror, frantic attempts to escape, bargaining, or anatomical trauma. Do NOT treat other characters as inert or passive.
 4. ${isHumanVillain ? 'PREDATORY SENSORIUM' : 'INHUMAN SENSORIUM & PERSPECTIVE'}: Frame narrative prose through the cold, calculating, or detached perception of the ${isHumanVillain ? 'Villain: sensory fixation on status symbols, grooming, clothing, smells of perfume/blood, and clinical evaluation of victim vulnerability' : 'Antagonist: optical surveillance feeds with scanlines and timestamps, acoustic resonance along ducts and grates, biometric telemetry spikes, and distant mechanical hums'}. Do NOT recast any Victim as the player Protagonist.
 5. BOUNDARY ENFORCEMENT: Do not invent broader authority or reach than the contract grants. If an attempted action exceeds stated limits, social exposure risk, or physical rules, make the boundary legible to the user in narrative prose without claiming forbidden mutations occurred.
 6. CANONICAL STATE: All spatial transitions and lasting world mutations remain subject to engine ratification and strict topology authorization.
@@ -695,8 +693,8 @@ Bounded Facts:
 ${boundedFactsFormatted}
 Agency Directives:
 1. USER AGENCY: The user operates a civilian bystander caught in or adjacent to the horror scenario.
-2. MUNDANE PRIORITIES & SELF-PRESERVATION: The user\'s character is NOT the heroic savior or the central victim; they have ordinary civilian concerns (finishing their coffee, locking up, calling the police, clocking out, asking why strange sounds are coming from the cellar, or desperately minding their own business).
-3. SURREAL HORROR CONTRAST: Dramatize the jarring, eerie contrast between the ordinary, everyday world and the bizarre horror or violence unfolding around them. Honor pragmatic, self-preserving, or bewildered choices ("None of my business", "I\'m calling the cops and staying in the car").
+2. MUNDANE PRIORITIES & SELF-PRESERVATION: The user's character is NOT the heroic savior or the central victim; they have ordinary civilian concerns (finishing their coffee, locking up, calling the police, clocking out, asking why strange sounds are coming from the cellar, or desperately minding their own business).
+3. SURREAL HORROR CONTRAST: Dramatize the jarring, eerie contrast between the ordinary, everyday world and the bizarre horror or violence unfolding around them. Honor pragmatic, self-preserving, or bewildered choices ("None of my business", "I'm calling the cops and staying in the car").
 4. OBJECTIVE ADJUDICATION: Adjudicate their attempted physical and social actions realistically. Do not force them to confront monsters if they choose to retreat, hide, or call for help.
 `;
       } else if (pc.mode === 'protagonist' || pc.mode === 'survivor') {
@@ -1566,10 +1564,7 @@ ${recentHistory}
 
     boundedResult.narrative_blocks = normalizedBlocks;
 
-    const respondingCharacterId = resolveDialogueSpeakerId(
-      boundedResult.narrative_blocks,
-      context
-    );
+    const respondingCharacterId = resolveDialogueSpeakerId(normalizedBlocks, context);
 
     const castInteractionReceipt = createIntentBoundCastInteractionReceipt({
       intentReceipt,
