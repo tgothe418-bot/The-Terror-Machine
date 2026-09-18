@@ -35,7 +35,7 @@ The central rule is simple:
 
 Everything else follows from that.
 
-Jump to: [Current Edition](#current-edition) · [Running the Machine](#running-the-machine) · [The House is Free](#the-house-is-free) · [The Three Nodes](#the-three-nodes) · [The Laws of the House](#the-laws-of-the-house) · [Roadmaps →](./ROADMAP.md)
+Jump to: [Current Edition](#current-edition) · [Running the Machine](#running-the-machine) · [The Three Nodes](#the-three-nodes) · [Choose Your Seat](#choose-your-seat) · [A Turn in the Machine](#a-turn-in-the-machine) · [The Laws of the House](#the-laws-of-the-house) · [Roadmaps →](./ROADMAP.md)
 
 ## CURRENT EDITION
 
@@ -210,112 +210,149 @@ The opening belongs to the conversation that follows it. An accepted fact surviv
 
 ## CHOOSE YOUR SEAT
 
-The machine supports three ways to stand inside the nightmare.
+In The Terror Machine, role selection is not an aesthetic prompt label—it is an authoritative structural contract. When you choose a seat, the Engine projects a specialized role envelope into the model context and binds your inputs to strict causal feasibility rules.
 
-### PROTAGONIST
+The engine resolves six participation modes across four canonical seat categories:
 
-You inhabit a character.
+### 1. SURVIVOR (`survivor` / `protagonist`)
+*You are fragile, situated flesh.*
 
-That character has a position, a body, a history, a point of view, relationships, memories, and limits. The character does not automatically know what you know. The world does not automatically know what you intended.
+You inhabit a mortal character anchored to a single node on the spatial map. You possess a physical body, an immediate sensory horizon, psychological trauma triggers, and hard physiological limits.
+- **Physical Grounding**: You cannot walk through locked bulkheads without keys, tools, or forced breach. You cannot speak without functional vocal cords, and you cannot sprint if your legs are mangled.
+- **Epistemic Isolation**: You know only what your character has witnessed, discovered, or overheard. You cannot perceive adjacent chambers unless an observation port or an open doorway permits line of sight.
+- **Somatic Continuity**: The Engine tracks consequence states (hypothermia, panic, fractures, hemorrhagic shock) deterministically. The language model generates the sensory horror of your rapid breathing; the engine adjudicates whether your lungs still draw air.
 
-Your character may misunderstand the room. That misunderstanding is part of the room.
+### 2. VILLAIN (`villain` / `antagonist`)
+*You are the horror that stalks the perimeter.*
 
-### ANTAGONIST
+You embody the scenario's opposition force—whether an intimate human murderer, a predatory stalker, or an anomalous architectural parasite (such as Entity-41 in *The Black Iron Mortuary*).
+- **The Authority Contract**: Playing the villain is not a license to puppeteer the victims. You operate under explicit, authored capabilities and hard limitations. An antagonist with surveillance access can track telemetry feeds; an antagonist with acoustic authority can pipe whispers through drainage pipes.
+- **Autonomous Prey Cohort**: The survivors are not passive props waiting to be slaughtered. They possess independent behavioral vectors (`ADAPTIVE`, `INSURGENT`, `PANIC`), authored vulnerabilities, and survival instincts. They hide, barricade doors, construct improvised weapons, and strike back based on their own cast ledgers.
+- **Apparatus Controls**: The Engine exposes scenario-specific apparatus controls (hydraulics, atmosphere, electrical grids, acoustic feedback, surgical machinery) that you can trigger to herd and corner your prey.
 
-You act through an opposing character or force.
+### 3. BYSTANDER (`bystander` / `witness`)
+*You are trapped in the periphery.*
 
-An antagonist is not a license to puppeteer every other person in the scenario. Antagonist play uses an explicit **Authority Contract**: what the force can control, what it can influence, and what remains outside its reach.
+You are neither the destined hero nor the calculating mastermind. You are the night-shift custodian, the intern trapped in the observation booth, or the radio technician huddled under a console.
+- **High Vulnerability, Narrow Agency**: You lack the combat training of a protagonist or the systemic reach of an antagonist. Your survival depends on evasion, stealth, and quiet observation.
+- **The Observer's Horror**: You experience the unraveling of the world through overheard transmissions, vibrating bulkheads, and flickering monitors. Zero plot armor; maximum dread.
 
-The victims are not cardboard scenery waiting for the villain to move them. They remain situated participants in the world, with their own presence, knowledge, fear, and ability to resist.
+### 4. DIRECTOR (`director`)
+*You stand outside the flesh.*
 
-The machine can support an intimate human antagonist, a predatory intelligence, or something operating at Barker, King, or Lovecraft scale. Each remains subject to its authored capabilities and limits.
+You do not inhabit a body in the hallway. You are the unseen hand adjusting the atmospheric vise.
+- **Environmental & Atmospheric Manipulation**: You introduce situational pressure, advance structural decay, alter lighting and ambient temperatures, and stage encounters without violating the causal topology of the scenario.
+- **Pacing Without Usurpation**: A Director cannot mind-control the survivors or teleport the monster into a sealed safe room. You shape circumstances and challenge commitments, leaving the choices and consequences to the participants.
 
-### DIRECTOR
-
-You remain outside the fiction.
-
-The Director can shape pressure, attention, framing, and circumstance without becoming another person waiting in the hallway. This is the seat for arranging the nightmare rather than pretending to be one of its residents.
-
-A Director does not need a body in the house. They need a hand on the thermostat.
-
-These roles are not cosmetic labels. They are part of the simulation contract.
+---
 
 ## THE HOUSE REMEMBERS
 
-TTM is interested in the things that survive the page turn.
+The Terror Machine is built for the things that survive the turn of the page.
 
-A character can remember a warning but not its source. A room can retain the consequence of an earlier action. A relationship can be altered by something that was never spoken aloud. Evidence can remain discoverable after the scene that revealed it is gone. A boundary can stay mapped even when the prose stops looking at it.
+In standard LLM chat interfaces, history is a lossy rolling text buffer. A character who breaks their arm on Turn 2 is happily sprinting by Turn 6. A door kicked off its hinges is mysteriously locked again when the model forgets.
 
-The machine's memory is bounded on purpose. It preserves accepted information that matters beyond the current turn:
+The Terror Machine replaces context drift with deterministic state persistence:
+- **Canonical Topology**: Discovered chambers remain mapped in the interactive SVG `MapSketch`. If an exit is welded shut, it stays shut.
+- **Cast Ledger & Relationship Stance**: Every character retains an independent ledger of known facts, secret suspicions, psychological stability, and relationship stances toward other characters.
+- **Somatic & Consequence State**: Irreversible physiological trauma and psychological shocks persist across turns and survive page reloads.
+- **World Memory & Evidence Vault**: Documents, keys, audio tapes, and strange artifacts collected during exploration are permanently cataloged with explicit causal provenance.
+- **Fictional Time Ledger**: Time is not uniform. A glance takes seconds; a thorough search of a medical cabinet takes five minutes; picking a mortuary lock takes fifteen. The clock advances deterministically, driving offscreen antagonist patrols and scheduled pursuit triggers.
 
-- established facts;
-- discovered evidence;
-- environmental conditions;
-- persistent consequences;
-- character knowledge and memory;
-- relationships and stance;
-- the topology that makes movement meaningful.
+Memory has scope. Memory has provenance. Memory has an acceptance boundary. The goal is not infinite recall—the goal is an authoritative world that remembers you were there.
 
-Memory has scope. Memory has provenance. Memory has an acceptance boundary.
-
-The goal is not infinite recall.
-
-The goal is a world that can be inspected, challenged, and trusted.
+---
 
 ## A TURN IN THE MACHINE
 
-Every turn follows the same sequence.
+Every action submitted to The Terror Machine executes through an atomic, multi-stage ratification pipeline:
 
-| Stage              | What happens                                                                                                         |
-| ------------------ | -------------------------------------------------------------------------------------------------------------------- |
-| **Snapshot**       | The Engine captures the authoritative state before anything new is proposed.                                         |
-| **Generation**     | The model interprets the action and proposes narrative and structured changes inside the active contract.            |
-| **Ratification**   | Deterministic rules check intent, feasibility, topology, roles, presence, cast, relationships, and other boundaries. |
-| **Commit or fail** | Accepted changes are committed once. Invalid proposals preserve canonical state and produce a failure receipt.       |
-| **Telemetry**      | The machine records what was proposed, what was accepted, what changed, and what was refused.                        |
-| **Retake**         | The person at the controls may restore the immediately preceding completed checkpoint and try again.                 |
+```
+[ User Action / Autopilot Vector ]
+              │
+              ▼
+  ┌───────────────────────┐
+  │  1. CONTEXT ASSEMBLY  │ ──► Pulls topological graph, co-present cast,
+  └───────────────────────┘     acoustic links, and Horror Grammar ledgers
+              │
+              ▼
+  ┌───────────────────────┐
+  │ 2. MODEL GENERATION   │ ──► Model emits structured JSON matching
+  └───────────────────────┘     turn contract schema (narrative & logic)
+              │
+              ▼
+  ┌───────────────────────┐
+  │ 3. CAUSAL RATIFIER    │ ──► Verifies spatial adjacency, acoustic bleed,
+  └───────────────────────┘     somatic feasibility, and authority limits
+         │         │
+    [ Ratified ] [ Failed ]
+         │         │
+         ▼         ▼
+  ┌───────────┐ ┌───────────────┐
+  │ 4. COMMIT │ │ 4. FAIL-CLOSE │ ──► Rejects invalid proposals, preserves
+  └───────────┘ └───────────────┘     canonical state, generates forensic receipt
+         │
+         ▼
+  ┌───────────────────────┐
+  │ 5. TELEMETRY & VIEW   │ ──► Updates Center Stage CRT typography,
+  └───────────────────────┘     Austin Osman Spare MapSketch, and MortalLedger
+```
 
-The prose presents the scene. The receipt records how the Engine evaluated it and what changed.
+### The 6 Stages of an Atomic Turn:
+
+1. **Snapshot & Auditory Context Assembly**:
+   The Engine pulls the authoritative state from dual-store IndexedDB. It resolves the spatial topology, identifies co-present cast members, audits open remote channels (telephones, radios, surveillance feeds), and maps physical acoustic links (observation ports, airlocks, ventilation ducts).
+2. **Constrained Model Generation**:
+   The active provider (local weights server or cloud API) receives the turn prompt with strict role directives. It must respond with a strictly conformant JSON object adhering to the engine's schema: narrative blocks (with typed dialogue, internal monologue, soliloquies, or transmissions), intended spatial transitions, proposed consequence tags, and logic state deltas.
+3. **Deterministic Causal Ratification**:
+   The Engine's TypeScript validator adjudicates the proposal against immutable scenario rules:
+   - **Spatial Adjacency**: Did the character attempt to cross a valid, unlocked topology connection?
+   - **Acoustic Grounding**: If an offstage character spoke, is there an open radio or acoustic duct path? If so, the engine auto-remediates the block's medium; if not, it fails closed.
+   - **Role & Authority Boundaries**: Did the action violate the player's seat authority or attempt unearned omniscient manipulation?
+   - **Quote Parsing**: Conversational utterances are extracted using robust straight/curly quote parsers with speech-verb detection and contraction guards.
+4. **Atomic Commit or Fail-Closed Quarantine**:
+   - **On Success**: All validated deltas (new location, altered relationships, discovered evidence, somatic damage) are committed atomically in a single monotonic revision across IndexedDB.
+   - **On Validation Failure or Provider Refusal**: The canonical state remains completely untouched. The proposal is quarantined, zero synthetic player dialogue is generated, and a structured failure receipt is published.
+5. **Center Stage Presentation & Workstation Projection**:
+   The validated narrative blocks are formatted into Center Stage CRT typography with distinct visual framing: Introspection (indigo italic), Soliloquies (dashed amber), Intercom/Bleed with chamber provenance (phosphor-cyan), and Spoken Dialogue (candle-amber). The 1440p `MapSketch` and pure-text `MortalLedger` update in real time.
+6. **Zero-Leak Monotonic Retake**:
+   If the operator chooses to step back from a catastrophic decision or explore an alternate branch, the Retake coordinator rolls back the simulation to the preceding completed checkpoint with zero orphaned state or memory leaks.
+
+---
 
 ## THE LAWS OF THE HOUSE
 
-These rules matter more than any individual model, prompt, or attractive paragraph.
+These laws govern every turn, regardless of whether you are running a 70B local model on an RTX rig or connecting to a frontier cloud endpoint.
 
-### Canon belongs to the application
+### 1. Canon Belongs to the Application, Not the Weights
+The language model is an untrusted generative improviser; the application is the cold, immutable truth. A model can hallucinate a hidden staircase or claim an entity has been banished. The Engine checks the topological graph and state ledgers, saying: *No. That did not happen.*
 
-The language model may propose a new state. It does not own the state. The application does not ask for permission to disagree.
+### 2. A Proposal is Not a Commit (The Zod Citadel)
+No raw text or unvalidated JSON from an AI provider ever touches simulation state directly. Every token passes through authoritative Zod schema validation and causal feasibility gates at ingress. What fails validation fails closed.
 
-### A proposal is not a commit
+### 3. Topology is Causal, Not Prose
+Space in The Terror Machine is a directed adjacency graph, not a literary metaphor. If the Morgue does not connect to the Drainage Crypt, the character cannot step between them—no matter how vividly the model describes the descent. Movement requires an authorized topological connection.
 
-Source candidates, Architect suggestions, generated consequences, memory entries, and authoring changes remain provisional until they cross the appropriate acceptance boundary.
+### 4. Strictly Text-Based Acoustic Grounding
+Zero Web Audio, zero audio hardware dependencies, zero voice synthesizers. Dialogue and soundscapes are pure literary prose and CRT typography. Characters cannot speak across rooms without a physical transmission medium (radio, intercom, telephone) or structural acoustic bleed (ductwork, observation ports).
 
-### Failed validation preserves the world
+### 5. Epistemic Isolation (Anti-Omniscience)
+Knowledge is situated in space and time. An event occurring in the boiler room is unknown to characters in the chapel until someone arrives to report it or a transmission is received. NPCs do not have telepathic access to the player's thoughts, inventory, or secret aims.
 
-If a proposal is impossible, malformed, or outside the active contract, the canonical state remains intact. A failure produces evidence, not a convenient fiction.
+### 6. Somatic State Isolation
+Player physiological trauma (hypothermia, fractures, blood loss) and psychological status (paranoia, panic, tremor) belong strictly to the player's active vessel. Companion NPCs maintain their own distinct cast ledgers and never inherit player consequence states.
 
-### Topology is not decoration
+### 7. The User Owns the Intent (Zero Synthetic Agency)
+The machine will never fabricate player dialogue or invent player actions to paper over a model refusal, empty response, or network timeout. If a model fails, the turn halts cleanly with a diagnostic receipt, leaving the character's agency in the hands of the operator.
 
-A room is not a mood. A doorway is not a metaphor. Spatial change requires an authorized path through the topology contract. If the hallway does not connect to the basement, then the character cannot walk there—no matter how well the model describes the stairs.
+### 8. Consequences Stay
+A shattered seal remains broken. A spent adrenaline syringe is empty. An ally betrayed in the dark remembers being abandoned. The machine does not quietly reset consequences between turns to make the next paragraph easier to generate.
 
-### Knowledge is situated
+### 9. Zero Gamification / No Hidden Dials
+There are no artificial fear meters, sanity meters, or invisible morality scores nudging the story toward a scripted ending. Horror in The Terror Machine emerges naturally from authored constraints, physical vulnerability, acoustic isolation, and the weight of irreversible choices.
 
-Characters do not act on information merely because the model, player, or author possesses it. Knowledge belongs to someone, somewhere, at a particular point in the story.
-
-### The User owns the choice
-
-The machine may describe a racing pulse, a flinch, or the cost of a bad decision. It must still leave the character's chosen action, intent, and commitments with the person playing them. Other characters can act on their own concerns within the authority the scenario gives them.
-
-### Consequences are allowed to stay
-
-The machine is not obligated to reset a relationship, erase a discovery, or restore a room because the next paragraph would be easier that way.
-
-### The machine may be hostile to the character
-
-It should never be hostile to the person using it. Retake, exit, recovery, and diagnostic controls exist outside the fiction for a reason.
-
-### Zero gamification
-
-There is no horror score to optimize or pursuit clock the player must manage. Internal records carry time, pressure, and consequence without turning them into a dashboard for ordinary play or a mechanism for forcing a prepared ending. The machine keeps its own books.
+### 10. Hostile to the Character, Transparent to the Operator
+The house is designed to test the character's survival to the breaking point. But outside the fiction, the operator has total control: transparent receipts, forensic inspectors, live model calibration, instant retakes, and portable JSON export artifacts.
 
 ## WHAT YOU CAN BRING INSIDE
 
