@@ -50,6 +50,8 @@ import type {
   FictionalTimeReceipt,
   PursuitScheduleReceipt,
 } from '../../src/types/horrorGrammar';
+import { executePacingGovernor } from '../../src/lib/pacingGovernor';
+import type { DramaturgyRuntimeState, DramaticTurnReceipt } from '../../src/types/dramaturgy';
 import {
   generateStructuredResponse,
   EngineTurnStructuredResponseContract,
@@ -1039,6 +1041,25 @@ ${hg.authorityInstruction}
 `;
     }
 
+    let dramaturgySection = '';
+    if (context.dramaturgyContext) {
+      const dCtx = context.dramaturgyContext;
+      const clockLines = (dCtx.activeClockManifestations || [])
+        .map((m) => `• [IMPENDING CLOCK MANIFESTATION]: ${m}`)
+        .join('\n');
+      const diegeticLines = (dCtx.diegeticReadings || [])
+        .map((r) => `• [DIAGNOSTIC INSTRUMENT READING // ${r.instrumentName}]: ${r.readingText}`)
+        .join('\n');
+      const frictionLines = Object.entries(dCtx.companionFrictionDirectives || {})
+        .map(([id, directive]) => `• [COMPANION FRICTION // ${id}]: ${directive}`)
+        .join('\n');
+
+      dramaturgySection = `\n[DRAMATURGICAL STATE // PHASE: ${dCtx.macroPhase} // CADENCE: ${dCtx.activePacingCadence}]
+Pacing Mandate (${context.player.role.toUpperCase()} Seat):
+${dCtx.pacingDirective}
+${clockLines ? `${clockLines}\n` : ''}${diegeticLines ? `${diegeticLines}\n` : ''}${frictionLines ? `${frictionLines}\n` : ''}`;
+    }
+
     let playerStartingOrientationBlock = '';
     if (
       context.player.openingAimDisposition === 'ACCEPTED_REFERENCE' ||
@@ -1125,6 +1146,7 @@ Entity Status: ${context.player.isEntity ? 'Entity' : 'Mortal'}${playerStartingO
 [CAST LEDGER]
 ${castLedgerFormatted}
 ${horrorGrammarSection}
+${dramaturgySection}
 [CHARACTER DIALOGUE CONTRACT]
 - DIALOGUE EXPECTATION & LIVING VOICES: Fiction lives through conversation. When non-player companions or ambient attendants are physically co-present (marked HERE in CAST LEDGER), you SHOULD include exactly ONE dialogue block in the turn response (typically alongside 1–2 prose blocks). Do not leave scenes entirely mute when people share the space.
 - SPONTANEOUS COMPANION SPEECH: Characters have independent agency. Even during non-communicative actions (e.g. OBSERVE, INVESTIGATE, WAIT, MANIPULATE, MOVE), a present companion or ambient figure SHOULD speak, whisper, ask an anxious question, or react aloud to what is happening.
@@ -1696,6 +1718,54 @@ ${recentHistory}
       };
     }
 
+    // 5b. Deterministic Dramaturgical Story Engine Derivation (HG2 Packet 2)
+    const dramaturgyRuntime: DramaturgyRuntimeState =
+      context.dramaturgyRuntimeState ||
+      (context.dramaturgyContext
+        ? {
+            currentMacroPhase: context.dramaturgyContext.macroPhase,
+            activePacingCadence: context.dramaturgyContext.activePacingCadence,
+            consecutiveTurnsInCadence: 0,
+            impendingClocks: {},
+            characterStakes: {},
+            milestones: [],
+            receiptHistory: [],
+          }
+        : {
+            currentMacroPhase: 'EXPOSITION_BASELINE',
+            activePacingCadence: 'SIMMERING_DREAD',
+            consecutiveTurnsInCadence: 0,
+            impendingClocks: {},
+            characterStakes: {},
+            milestones: [],
+            receiptHistory: [],
+          });
+
+    const dramaticGovResult = executePacingGovernor({
+      runtimeState: dramaturgyRuntime,
+      spine: context.dramaticSpine || null,
+      playerRole: context.player.role,
+      userAction,
+      currentNodeId: context.topology.currentNodeId,
+      ratifiedConsequences: canonicalConsequenceReceipt.decisions
+        .filter((d) => d.outcome === 'APPLIED')
+        .map((d) => ({
+          domain: d.mutation.domain,
+          operation: d.mutation.operation,
+          value: d.mutation.value,
+        })),
+      elapsedFictionalMinutes:
+        fictionalTimeReceipt.acceptedCost === 'EXTENDED'
+          ? 15
+          : fictionalTimeReceipt.acceptedCost === 'SCENE_BEAT'
+            ? 5
+            : 1,
+      fictionalTimeMarker: `MOMENT:${fictionalTimeReceipt.postState.moment_revision}_BEAT:${fictionalTimeReceipt.postState.scene_beat_revision}`,
+      turnNumber: context.runtime.turnNumber + 1,
+    });
+
+    const dramaticTurnReceipt: DramaticTurnReceipt = dramaticGovResult.receipt;
+
     // 6. Isolated narrative composition
     const composedNarrativeBlocks = [...boundedResult.narrative_blocks];
     if (
@@ -1786,7 +1856,10 @@ ${recentHistory}
 
     const finalResponse: TurnResponse = {
       narrative_blocks: composedNarrativeBlocks,
-      logic_state: boundedResult.logic_state,
+      logic_state: {
+        ...boundedResult.logic_state,
+        dramaturgyState: dramaticGovResult.nextRuntimeState,
+      },
       topologyDelta: boundedResult.topologyDelta,
       transitionReceipt,
       castInteractionReceipt,
@@ -1807,6 +1880,7 @@ ${recentHistory}
       characterDevelopmentReceipt,
       pressureThreadTransitionReceipt,
       horrorGrammarForensics,
+      dramaticTurnReceipt,
     };
 
     return res.json(finalResponse);

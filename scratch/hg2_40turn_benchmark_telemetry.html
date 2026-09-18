@@ -1,0 +1,1795 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>THE TERROR MACHINE // HG2 40-TURN COMPARATIVE TELEMETRY</title>
+  <style>
+    :root {
+      --bg: #070709;
+      --green: #10b981;
+      --amber: #f59e0b;
+      --red: #ef4444;
+      --cyan: #06b6d4;
+      --border: #27272a;
+      --text: #e4e4e7;
+      --dim: #71717a;
+    }
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: 'Courier New', Courier, monospace;
+      margin: 0;
+      padding: 24px;
+      line-height: 1.5;
+    }
+    .header {
+      border: 1px solid var(--amber);
+      padding: 16px;
+      margin-bottom: 24px;
+      background: rgba(245, 158, 11, 0.05);
+    }
+    h1 { margin: 0 0 8px 0; font-size: 20px; color: var(--amber); letter-spacing: 2px; }
+    .subtitle { color: var(--dim); font-size: 12px; }
+    .tabs { display: flex; gap: 8px; margin-bottom: 20px; }
+    .tab-btn {
+      background: #18181b;
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 8px 16px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 12px;
+    }
+    .tab-btn.active {
+      background: var(--amber);
+      color: #000;
+      font-weight: bold;
+    }
+    .run-panel { display: none; }
+    .run-panel.active { display: block; }
+    .turn-card {
+      border: 1px solid var(--border);
+      background: #0f0f13;
+      padding: 14px;
+      margin-bottom: 14px;
+      border-left: 3px solid var(--amber);
+    }
+    .turn-card.villain { border-left-color: var(--red); }
+    .turn-meta {
+      display: flex;
+      justify-content: space-between;
+      color: var(--dim);
+      font-size: 11px;
+      border-bottom: 1px solid #1f1f23;
+      padding-bottom: 6px;
+      margin-bottom: 8px;
+    }
+    .badge {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-size: 10px;
+      font-weight: bold;
+      text-transform: uppercase;
+    }
+    .badge-phase { background: rgba(245, 158, 11, 0.2); color: var(--amber); border: 1px solid var(--amber); }
+    .badge-cadence { background: rgba(6, 182, 212, 0.2); color: var(--cyan); border: 1px solid var(--cyan); }
+    .badge-refusal { background: rgba(239, 68, 68, 0.2); color: var(--red); border: 1px solid var(--red); }
+    .action { color: var(--cyan); margin-bottom: 8px; font-size: 13px; }
+    .narration { color: #f4f4f5; font-style: italic; margin-bottom: 10px; background: rgba(0,0,0,0.4); padding: 10px; border-left: 2px solid #52525b; }
+    .dramaturgy-box {
+      font-size: 11px;
+      color: #a1a1aa;
+      background: #141418;
+      padding: 8px;
+      border: 1px dashed #27272a;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>THE TERROR MACHINE // HG2 DRAMATURGY BENCHMARK</h1>
+    <div class="subtitle">Generated: 2026-09-18T12:11:54.808Z | Model: Local Gemma 4 26B QAT | 80 Headless Turns (Dual-Role)</div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" onclick="showTab('runA')">RUN A: SURVIVOR (DR. ROSS - 40 TURNS)</button>
+    <button class="tab-btn" onclick="showTab('runB')">RUN B: VILLAIN (ENTITY-41 - 40 TURNS)</button>
+  </div>
+
+  <div id="runA" class="run-panel active">
+    
+      <div class="turn-card survivor">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 1/40</strong> |
+            <span class="badge badge-phase">EXPOSITION_BASELINE</span>
+            <span class="badge badge-cadence">SIMMERING_DREAD</span>
+            
+          </div>
+          <div>23254 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Awaken on the frost-covered tile of Autopsy Suite B, checking personal vitals and cranial contusion."</div>
+        <div class="narration">"Consciousness returns as a rhythmic throb behind your eyes, a dull hammer striking the bone of your temple. The floor beneath you is a sheet of biting ice, leaching the heat from your skin as the dim, flickering light reveals a thin glaze of frost creeping across the surgical steel."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> Build atmospheric dread through environmental decay, distant auditory cues, and claustrophobic isolation. The horror remains unseen but palp...</div>
+          
+          
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card survivor">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 2/40</strong> |
+            <span class="badge badge-phase">EXPOSITION_BASELINE</span>
+            <span class="badge badge-cadence">SIMMERING_DREAD</span>
+            
+          </div>
+          <div>11677 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Locate Officer Marcus Holt near the scrub sink, splinting his compound radial fracture with a rib spreader."</div>
+        <div class="narration">"The flickering fluorescent light casts long, dancing shadows as you find Marcus slumped against the porcelain sink, his breath hitching in wet, shallow rasps. As you wedge the cold rib spreader into the jagged ruin of his radius, the sharp, metallic clink of steel against bone echoes too loudly against the suffocating, sterile silence. From the depths of the dark hallway, a slow, rhythmic scraping begins, as if something heavy is being dragged across the damp tiles."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> Build atmospheric dread through environmental decay, distant auditory cues, and claustrophobic isolation. The horror remains unseen but palp...</div>
+          
+          
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card survivor">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 3/40</strong> |
+            <span class="badge badge-phase">EXPOSITION_BASELINE</span>
+            <span class="badge badge-cadence">MOUNTING_PRESSURE</span>
+            
+          </div>
+          <div>8315 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Search the stainless steel instrument tray for clean gauze, arterial clamps, and an intact scalpel."</div>
+        <div class="narration">"Your fingers scrape frantically against the frigid stainless steel, the screech of metal on metal echoing like a scream in the hollow room. You snatch the gauze and clamps, but the scalpel’s edge bites into your palm as you fumble, just as a heavy, rhythmic thudding begins to vibrate through the floorboards from the corridor."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> Escalate urgency. Tighten the perimeter, introduce closer auditory or somatic cues, and increase the cost of delay. Escape routes feel preca...</div>
+          
+          
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card survivor">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 4/40</strong> |
+            <span class="badge badge-phase">EXPOSITION_BASELINE</span>
+            <span class="badge badge-cadence">MOUNTING_PRESSURE</span>
+            
+          </div>
+          <div>7939 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Listen intently to the high-frequency metallic clicking reverberating through the overhead pneumatic rail track."</div>
+        <div class="narration">"The high-frequency staccato slices through the heavy silence, a frantic, rhythmic scraping that vibrates painfully against your molars. It is moving with predatory momentum, the clicking accelerating as it tracks directly toward the overhead rail positioned above your station."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> Escalate urgency. Tighten the perimeter, introduce closer auditory or somatic cues, and increase the cost of delay. Escape routes feel preca...</div>
+          
+          
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card survivor">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 5/40</strong> |
+            <span class="badge badge-phase">EXPOSITION_BASELINE</span>
+            <span class="badge badge-cadence">MOUNTING_PRESSURE</span>
+            
+          </div>
+          <div>8797 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Inspect the heavy steel double doors leading to the Decompression Airlock, testing the manual dog latch."</div>
+        <div class="narration">"The steel is a biting, unyielding weight against your palms, sweating with a frost that feels less like temperature and more like a warning. As you heave against the dog latch, the metal screams in a high-pitched, jagged protest that vibrates through your very teeth. The mechanism doesn't just resist; it shudders, as if something on the other side is already pushing back."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> Escalate urgency. Tighten the perimeter, introduce closer auditory or somatic cues, and increase the cost of delay. Escape routes feel preca...</div>
+          
+          
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card survivor">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 6/40</strong> |
+            <span class="badge badge-phase">EXPOSITION_BASELINE</span>
+            <span class="badge badge-cadence">SIMMERING_DREAD</span>
+            
+          </div>
+          <div>9413 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Move quietly along the perimeter toward the Histology Substation swinging doors, staying beneath table overhangs."</div>
+        <div class="narration">"You press your spine against the underside of the stainless-steel worktables, feeling the biting chill of the failing systems seep through your clothes and into your very marrow. Every shallow breath is a plume of white mist in the suffocating dark, drifting toward the heavy, looming silhouette of the swinging doors."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> Build atmospheric dread through environmental decay, distant auditory cues, and claustrophobic isolation. The horror remains unseen but palp...</div>
+          
+          <div><strong>Diegetic Instrument:</strong> Core Coolant Barometer: [DIAGNOSTIC DISPLAY // Core Coolant Barometer]: Level 0% (Threshold: 75%)</div>
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card survivor">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 7/40</strong> |
+            <span class="badge badge-phase">EXPOSITION_BASELINE</span>
+            <span class="badge badge-cadence">SIMMERING_DREAD</span>
+            
+          </div>
+          <div>8255 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Peek through the wire-glass porthole into Histology, scanning for movement along the ceiling carriage."</div>
+        <div class="narration">"Through the scratched, leaded-glass porthole, the histology lab is a distorted tomb of shadows and frost. Your gaze tracks the ceiling carriage's rusted rails, but the only movement is the slow, rhythmic tremor of a single, dark droplet hanging from a suspended specimen jar."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> Build atmospheric dread through environmental decay, distant auditory cues, and claustrophobic isolation. The horror remains unseen but palp...</div>
+          
+          <div><strong>Diegetic Instrument:</strong> Core Coolant Barometer: [DIAGNOSTIC DISPLAY // Core Coolant Barometer]: Level 0% (Threshold: 75%)</div>
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card survivor">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 8/40</strong> |
+            <span class="badge badge-phase">EXPOSITION_BASELINE</span>
+            <span class="badge badge-cadence">SIMMERING_DREAD</span>
+            
+          </div>
+          <div>10450 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Slip into the Histology Substation, stepping over shattered reagent bottles of eosin and formalin."</div>
+        <div class="narration">"The cloying, medicinal sting of formalin bites at your throat, thick enough to taste amidst the wreckage of shattered slides and glass. Beneath your boots, the shards of eosin-stained crystal crunch with a jarring finality that seems to echo far longer than it should in the heavy air. A creeping, unnatural frost is already beginning to lace the edges of the spilled reagents, blooming like pale, necrotic lace in the freezing dark."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> Build atmospheric dread through environmental decay, distant auditory cues, and claustrophobic isolation. The horror remains unseen but palp...</div>
+          
+          <div><strong>Diegetic Instrument:</strong> Core Coolant Barometer: [DIAGNOSTIC DISPLAY // Core Coolant Barometer]: Level 0% (Threshold: 75%)</div>
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card survivor">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 9/40</strong> |
+            <span class="badge badge-phase">EXPOSITION_BASELINE</span>
+            <span class="badge badge-cadence">MOUNTING_PRESSURE</span>
+            
+          </div>
+          <div>8916 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Search the northern counter for the auxiliary diagnostic power breaker while monitoring rail vibrations."</div>
+        <div class="narration">"Your fingertips numb against the frost-slicked stainless steel as you scramble through a graveyard of discarded slides and specimen jars. The rail vibrations escalate from a low thrum to a bone-deep, rhythmic grinding that vibrates through your very teeth, signaling something immense is closing in. You finally grasp the heavy, freezing metal of the auxiliary breaker just as the floorboards groan under a sudden, heavy weight."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> Escalate urgency. Tighten the perimeter, introduce closer auditory or somatic cues, and increase the cost of delay. Escape routes feel preca...</div>
+          
+          <div><strong>Diegetic Instrument:</strong> Core Coolant Barometer: [DIAGNOSTIC DISPLAY // Core Coolant Barometer]: Level 0% (Threshold: 75%)</div>
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card survivor">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 10/40</strong> |
+            <span class="badge badge-phase">COMPLICATION_ENCLOSURE</span>
+            <span class="badge badge-cadence">KINETIC_RUPTURE</span>
+            
+          </div>
+          <div>9493 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Strike the corroded auxiliary circuit breaker with a brass mortar to restore emergency AUXILIARY_POWER."</div>
+        <div class="narration">"The brass mortar bites into the corroded casing with a bone-jarring crack, unleashing a spray of white-hot sparks that hiss violently against the freezing air. A jagged surge of auxiliary power screams through the conduits, lighting the room in a nauseating, strobe-like flicker that reveals a silhouette twitching in the sudden, artificial light."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> Deliver acute physical confrontation, violent containment failure, or desperate flight. High kinetic stakes; maintain visceral sensory shock...</div>
+          
+          <div><strong>Diegetic Instrument:</strong> Core Coolant Barometer: [DIAGNOSTIC DISPLAY // Core Coolant Barometer]: Level 0% (Threshold: 75%)</div>
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card survivor">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 11/40</strong> |
+            <span class="badge badge-phase">COMPLICATION_ENCLOSURE</span>
+            <span class="badge badge-cadence">RESPITE_AFTERMATH</span>
+            
+          </div>
+          <div>9084 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Examine the Core Coolant Barometer dial situated on the wall console, reading the diegetic instrument pressure."</div>
+        <div class="narration">"The needle hangs limp at zero, a dead eye staring from behind a veil of frosted glass. In the sudden, ringing vacuum of the room, the silence feels less like peace and more like a held breath before a scream."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> Allow a necessary lull in direct physical aggression. Focus on somatic trauma, binding injuries, the acoustic weight of the silence, and qui...</div>
+          
+          <div><strong>Diegetic Instrument:</strong> Core Coolant Barometer: [DIAGNOSTIC DISPLAY // Core Coolant Barometer]: Level 0% (Threshold: 75%)</div>
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card survivor">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 12/40</strong> |
+            <span class="badge badge-phase">COMPLICATION_ENCLOSURE</span>
+            <span class="badge badge-cadence">RESPITE_AFTERMATH</span>
+            
+          </div>
+          <div>9697 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Duck behind the chemical fume hood as a six-bladed trocar carousel slides along the ceiling rail overhead."</div>
+        <div class="narration">"The mechanical shriek of the trocar carousel recedes into a hollow, ringing vacuum, leaving a silence so heavy it feels like physical pressure against the eardrums. Maren presses her forehead against the frost-slicked ceramic of the fume hood, her breath coming in shallow, jagged stabs that bloom like white ghosts in the freezing air."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> Allow a necessary lull in direct physical aggression. Focus on somatic trauma, binding injuries, the acoustic weight of the silence, and qui...</div>
+          
+          <div><strong>Diegetic Instrument:</strong> Core Coolant Barometer: [DIAGNOSTIC DISPLAY // Core Coolant Barometer]: Level 0% (Threshold: 75%)</div>
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card survivor">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 13/40</strong> |
+            <span class="badge badge-phase">COMPLICATION_ENCLOSURE</span>
+            <span class="badge badge-cadence">SIMMERING_DREAD</span>
+            
+          </div>
+          <div>13830 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Hold breath in total stillness as Entity-41's optical lens dilates and pans inches above the fume hood glass."</div>
+        <div class="narration">"Your lungs ache with the stagnant weight of held breath, a silent, suffocating pressure that turns your pulse into a deafening drumbeat in your ears. Above the fume hood, the rhythmic, wet *clack* of a dilating aperture scrapes against the silence, an obsidian lens sweeping through the shadows just inches from your trembling gaze."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> Build atmospheric dread through environmental decay, distant auditory cues, and claustrophobic isolation. The horror remains unseen but palp...</div>
+          
+          <div><strong>Diegetic Instrument:</strong> Core Coolant Barometer: [DIAGNOSTIC DISPLAY // Core Coolant Barometer]: Level 0% (Threshold: 75%)</div>
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card survivor">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 14/40</strong> |
+            <span class="badge badge-phase">COMPLICATION_ENCLOSURE</span>
+            <span class="badge badge-cadence">SIMMERING_DREAD</span>
+            
+          </div>
+          <div>10061 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Crawl along the floor under the chemical storage counter to avoid the overhead optical beam."</div>
+        <div class="narration">"You press your cheek against the grit-slicked floor, sliding into the suffocating dark just as the overhead optical beam sweeps through the room like a cauterizing blade. The silence that follows is heavy, thick with the cloying scent of formaldehyde and the biting, unnatural chill of a failing system."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> Build atmospheric dread through environmental decay, distant auditory cues, and claustrophobic isolation. The horror remains unseen but palp...</div>
+          
+          <div><strong>Diegetic Instrument:</strong> Core Coolant Barometer: [DIAGNOSTIC DISPLAY // Core Coolant Barometer]: Level 0% (Threshold: 75%)</div>
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card survivor">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 15/40</strong> |
+            <span class="badge badge-phase">COMPLICATION_ENCLOSURE</span>
+            <span class="badge badge-cadence">SIMMERING_DREAD</span>
+            
+          </div>
+          <div>11421 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Whisper an urgent status report to Officer Holt, offering quiet reassurance to bolster his failing composure."</div>
+        <div class="narration">"You lean close, your breath blooming in a ghostly, pale cloud as you murmur the grim reality—the coolant has bottomed out at zero. You wrap the truth in a thin, trembling veil of reassurance, desperately trying to anchor Holt’s fracturing resolve before the crushing silence of the mortuary claims him."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> Build atmospheric dread through environmental decay, distant auditory cues, and claustrophobic isolation. The horror remains unseen but palp...</div>
+          
+          <div><strong>Diegetic Instrument:</strong> Core Coolant Barometer: [DIAGNOSTIC DISPLAY // Core Coolant Barometer]: Level 0% (Threshold: 75%)</div>
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card survivor">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 16/40</strong> |
+            <span class="badge badge-phase">COMPLICATION_ENCLOSURE</span>
+            <span class="badge badge-cadence">MOUNTING_PRESSURE</span>
+            
+          </div>
+          <div>7367 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Discover subzero refrigerant vapor seeping through the floor sluice from the Specimen Freezer."</div>
+        <div class="narration">"A ghostly, subzero fog hemorrhages from the floor sluice, coiling around your ankles like a freezing shroud. The sudden, violent drop in temperature turns your frantic breaths into jagged crystals of ice, while the metal beneath your feet begins to groan under the rapid thermal contraction."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> Escalate urgency. Tighten the perimeter, introduce closer auditory or somatic cues, and increase the cost of delay. Escape routes feel preca...</div>
+          
+          
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card survivor">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 17/40</strong> |
+            <span class="badge badge-phase">COMPLICATION_ENCLOSURE</span>
+            <span class="badge badge-cadence">MOUNTING_PRESSURE</span>
+            
+          </div>
+          <div>9824 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Wrap Holt in an insulated foil survival blanket from the emergency wall kit to arrest his hypothermic shivering."</div>
+        <div class="narration">"The foil shrieks with a frantic, metallic rasp as you shroud Holt, whose violent tremors now thud rhythmically against the freezing deck plating. Every second spent fumbling with the silver shroud feels like a debt being collected, as the air in the node-airlock grows thinner and more brittle against your skin."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> Escalate urgency. Tighten the perimeter, introduce closer auditory or somatic cues, and increase the cost of delay. Escape routes feel preca...</div>
+          
+          
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card survivor">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 18/40</strong> |
+            <span class="badge badge-phase">COMPLICATION_ENCLOSURE</span>
+            <span class="badge badge-cadence">MOUNTING_PRESSURE</span>
+            
+          </div>
+          <div>9394 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Check Holt's pulse and pupil dilation, noting his escalating distress and trembling hands."</div>
+        <div class="narration">"Holt’s pulse thrashes beneath your fingertips, a frantic, uneven staccato that feels less like a heartbeat and more like something trapped and clawing to escape. His pupils have dilated into bottomless black voids, swallowing the iris whole as his hands jerk with a violent, rhythmic tremor that turns your diagnostic into a desperate struggle against his own failing composure."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> Escalate urgency. Tighten the perimeter, introduce closer auditory or somatic cues, and increase the cost of delay. Escape routes feel preca...</div>
+          
+          
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card survivor">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 19/40</strong> |
+            <span class="badge badge-phase">COMPLICATION_ENCLOSURE</span>
+            <span class="badge badge-cadence">SIMMERING_DREAD</span>
+            
+          </div>
+          <div>8409 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Approach the Decompression Airlock inner door, attempting to engage the powered hydraulic dog latches."</div>
+        <div class="narration">"The airlock door looms like a rusted tombstone in the dying amber light, its surface slick with a film of condensation and ancient, congealed grease. As you press the engagement toggle, the hydraulic latches respond with a stuttering, agonizing groan that vibrates through your very marrow, sounding less like machinery and more like a long-held breath finally escaping a corpse."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> Build atmospheric dread through environmental decay, distant auditory cues, and claustrophobic isolation. The horror remains unseen but palp...</div>
+          
+          
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card survivor">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 20/40</strong> |
+            <span class="badge badge-phase">COMPLICATION_ENCLOSURE</span>
+            <span class="badge badge-cadence">SIMMERING_DREAD</span>
+            
+          </div>
+          <div>7847 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Turn the manual airlock bleed valve to equalize pressure, bracing against the rush of frigid atmospheric mist."</div>
+        <div class="narration">"The rusted wheel shrieks in protest, a high-pitched metallic wail that vibrates through Maren’s marrow before the valve finally yields. A violent surge of sub-zero mist erupts from the vent, a blinding white shroud that tastes of ozone and ancient, stagnant frost, swallowing the small chamber in a suffocating, freezing fog."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> Build atmospheric dread through environmental decay, distant auditory cues, and claustrophobic isolation. The horror remains unseen but palp...</div>
+          
+          
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card survivor">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 21/40</strong> |
+            <span class="badge badge-phase">COMPLICATION_ENCLOSURE</span>
+            <span class="badge badge-cadence">SIMMERING_DREAD</span>
+            
+          </div>
+          <div>16322 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Guide Holt across the threshold into the Decompression Airlock, inspecting the rusted deluge shower piping."</div>
+        <div class="narration">"The airlock threshold swallows you both, the heavy steel door sealing with a hollow thud that carries the finality of a tomb. Above, the deluge shower piping hangs in jagged, oxidised tangles, weeping slow, rhythmic droplets of sludge into the suffocating dark."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> Build atmospheric dread through environmental decay, distant auditory cues, and claustrophobic isolation. The horror remains unseen but palp...</div>
+          
+          
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card survivor">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 22/40</strong> |
+            <span class="badge badge-phase">COMPLICATION_ENCLOSURE</span>
+            <span class="badge badge-cadence">MOUNTING_PRESSURE</span>
+            
+          </div>
+          <div>8435 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Test the outer airlock pressure hatch leading toward the flooded transit tunnel—finding it jammed from outside."</div>
+        <div class="narration">"The lever bites into her palm, unyielding and cold, as the mechanism groans with the futile protest of a dying machine. Beyond the thick glass, the transit tunnel is a throat of rising, ink-black brine, and the hatch feels less like a door and more like a tombstone bolted from the other side."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> Escalate urgency. Tighten the perimeter, introduce closer auditory or somatic cues, and increase the cost of delay. Escape routes feel preca...</div>
+          
+          
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card survivor">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 23/40</strong> |
+            <span class="badge badge-phase">COMPLICATION_ENCLOSURE</span>
+            <span class="badge badge-cadence">MOUNTING_PRESSURE</span>
+            
+          </div>
+          <div>8339 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Hear the violent screech of metal on metal as Entity-41 jams its pneumatic scissor arm into the airlock dog teeth."</div>
+        <div class="narration">"The screech of rending steel tears through the cabin, a high-pitched scream that vibrates deep in your marrow. As Entity-41’s pneumatic arm forces the airlock's dog teeth to buckle, the bulkhead shudders with the frantic, dying rhythm of a crushed machine, leaving you mere seconds before the seal fails."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> Escalate urgency. Tighten the perimeter, introduce closer auditory or somatic cues, and increase the cost of delay. Escape routes feel preca...</div>
+          
+          
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card survivor">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 24/40</strong> |
+            <span class="badge badge-phase">COMPLICATION_ENCLOSURE</span>
+            <span class="badge badge-cadence">MOUNTING_PRESSURE</span>
+            
+          </div>
+          <div>8333 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Scramble back toward Autopsy Suite B as hydraulic fluid sprays from severed overhead pressure lines."</div>
+        <div class="narration">"You scramble toward Autopsy Suite B, your boots skidding on the black, oily bile of the ship's ruptured veins. Overhead, severed hydraulic lines lash out like dying serpents, spraying scalding, pressurized mist that obscures the path and chokes the air."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> Escalate urgency. Tighten the perimeter, introduce closer auditory or somatic cues, and increase the cost of delay. Escape routes feel preca...</div>
+          
+          
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card survivor">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 25/40</strong> |
+            <span class="badge badge-phase">COMPLICATION_ENCLOSURE</span>
+            <span class="badge badge-cadence">SIMMERING_DREAD</span>
+            
+          </div>
+          <div>9665 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Drag Holt clear of the airlock threshold just as the outer security dogs buckle under sea water pressure."</div>
+        <div class="narration">"You lunge, dragging Holt’s unresponsive weight across the threshold just as the outer bulkhead begins to groan under the crushing weight of the abyss. The metal shrieks, a high-pitched keening that vibrates through your very teeth, signaling the imminent failure of the seals. You are no longer just running; you are being swallowed by a tightening iron throat."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> Build atmospheric dread through environmental decay, distant auditory cues, and claustrophobic isolation. The horror remains unseen but palp...</div>
+          
+          
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card survivor">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 26/40</strong> |
+            <span class="badge badge-phase">COMPLICATION_ENCLOSURE</span>
+            <span class="badge badge-cadence">SIMMERING_DREAD</span>
+            
+          </div>
+          <div>8216 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Arm oneself with a heavy cast-iron autopsy bone saw from the mortuary prep cart."</div>
+        <div class="narration">"The cast-iron handle bit into her numb palm, a heavy, freezing weight that offered a hollow sense of protection against the encroaching dark. As she gripped the tool, the silence of the freezer was punctured by a rhythmic, wet scraping sound, echoing from somewhere deep within the ventilation ducts."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> Build atmospheric dread through environmental decay, distant auditory cues, and claustrophobic isolation. The horror remains unseen but palp...</div>
+          
+          
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card survivor">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 27/40</strong> |
+            <span class="badge badge-phase">COMPLICATION_ENCLOSURE</span>
+            <span class="badge badge-cadence">SIMMERING_DREAD</span>
+            
+          </div>
+          <div>9311 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Take cover behind dissection table 2 as subzero freon blasts through the ventilation grates."</div>
+        <div class="narration">"Maren lunges for the heavy steel slab, her fingers numbing against the frost-slicked surface just as a violent eruption of subzero freon screams from the ventilation grates. The white, freezing fog swallows the room, turning the mortuary into a sightless landscape where the only certainty is the biting cold and a rhythmic, wet dragging sound echoing from the dark."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> Build atmospheric dread through environmental decay, distant auditory cues, and claustrophobic isolation. The horror remains unseen but palp...</div>
+          
+          
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card survivor">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 28/40</strong> |
+            <span class="badge badge-phase">COMPLICATION_ENCLOSURE</span>
+            <span class="badge badge-cadence">MOUNTING_PRESSURE</span>
+            
+          </div>
+          <div>8495 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Identify that primary pneumatic compressor lines run through the vaulted ceiling of the Specimen Freezer."</div>
+        <div class="narration">"Looking upward, you trace the jagged, frost-rimed geometry of the vaulted ceiling, where the primary pneumatic lines snake through the dark like the exposed arteries of a dying god. They thrum with a violent, rhythmic vibration, a mechanical heartbeat that promises a lethal, pressurized rupture at the slightest tremor."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> Escalate urgency. Tighten the perimeter, introduce closer auditory or somatic cues, and increase the cost of delay. Escape routes feel preca...</div>
+          
+          
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card survivor">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 29/40</strong> |
+            <span class="badge badge-phase">COMPLICATION_ENCLOSURE</span>
+            <span class="badge badge-cadence">MOUNTING_PRESSURE</span>
+            
+          </div>
+          <div>8942 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Creep toward the Specimen Freezer vaulted doorway, wrapping hands in sterile towels against frostbite."</div>
+        <div class="narration">"The sterile towels offer little defense against the predatory cold, which gnaws at her fingertips with a dull, aching hunger. As she nears the vaulted entrance, the heavy iron door seems to exhale a draft of sub-zero air that tastes of copper and old rot."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> Escalate urgency. Tighten the perimeter, introduce closer auditory or somatic cues, and increase the cost of delay. Escape routes feel preca...</div>
+          
+          
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card survivor">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 30/40</strong> |
+            <span class="badge badge-phase">COMPLICATION_ENCLOSURE</span>
+            <span class="badge badge-cadence">MOUNTING_PRESSURE</span>
+            
+          </div>
+          <div>11222 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Unlatch the heavy lever of the Specimen Freezer, met with a billowing wall of -30°C cryogenic mist."</div>
+        <div class="narration">"The lever yields with a violent, metallic groan, unleashing a churning shroud of -30°C mist that instantly erases the room's geometry. This frigid surge claws at Maren’s throat, turning every frantic, shallow gasp into a searing, crystalline burn deep within her lungs."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> Escalate urgency. Tighten the perimeter, introduce closer auditory or somatic cues, and increase the cost of delay. Escape routes feel preca...</div>
+          
+          
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card survivor">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 31/40</strong> |
+            <span class="badge badge-phase">COMPLICATION_ENCLOSURE</span>
+            <span class="badge badge-cadence">SIMMERING_DREAD</span>
+            
+          </div>
+          <div>12378 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Scan the frosted steel shelving for liquid nitrogen emergency shutoff valves or chemical fire extinguishers."</div>
+        <div class="narration">"The frosted steel yields nothing but empty, jagged brackets and the biting, metallic scent of oxidation. Beyond the reach of your flashlight, a heavy, rhythmic scraping sound echoes from the far end of the aisle, sounding less like machinery and more like something being dragged through the slush."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> Build atmospheric dread through environmental decay, distant auditory cues, and claustrophobic isolation. The horror remains unseen but palp...</div>
+          
+          
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card survivor">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 32/40</strong> |
+            <span class="badge badge-phase">COMPLICATION_ENCLOSURE</span>
+            <span class="badge badge-cadence">SIMMERING_DREAD</span>
+            
+          </div>
+          <div>10120 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Locate the main pneumatic regulator valve on the overhead freezer manifold, encrusted in white rime."</div>
+        <div class="narration">"Your fingers claw through the biting rime, scraping against the manifold until the regulator valve emerges like a jagged, frost-bitten tooth from the white shroud. As your grip tightens on the frozen iron, a distant, rhythmic scraping sounds from the dark corridor behind you, as if something heavy is being dragged across the floorboards."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> Build atmospheric dread through environmental decay, distant auditory cues, and claustrophobic isolation. The horror remains unseen but palp...</div>
+          
+          
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card survivor">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 33/40</strong> |
+            <span class="badge badge-phase">COMPLICATION_ENCLOSURE</span>
+            <span class="badge badge-cadence">SIMMERING_DREAD</span>
+            
+          </div>
+          <div>7396 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Climb onto an aluminum autopsy tray to reach the frozen valve wheel, striking it with the bone saw handle."</div>
+        <div class="narration">"The aluminum tray shudders beneath her, its frost-slicked surface biting through her scrubs as she strains toward the frozen valve. A sharp, violent crack erupts when the bone saw strikes the iron, the sound blooming into a hollow, ringing emptiness that seems to invite the shadows closer."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> Build atmospheric dread through environmental decay, distant auditory cues, and claustrophobic isolation. The horror remains unseen but palp...</div>
+          
+          
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card survivor">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 34/40</strong> |
+            <span class="badge badge-phase">COMPLICATION_ENCLOSURE</span>
+            <span class="badge badge-cadence">MOUNTING_PRESSURE</span>
+            
+          </div>
+          <div>8891 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Throw full body weight onto the valve wheel, shearing the regulator and venting pressurized liquid nitrogen upward."</div>
+        <div class="narration">"The regulator yields with a sickening, metallic shriek, unleashing a violent, upward-surging geyser of liquid nitrogen that claws at the ceiling. A blinding, sub-zero shroud erupts from the rupture, instantly erasing the room in a churning, white void that tastes of nothingness. The sudden, deafening roar of escaping pressure turns the small chamber into a pressurized, frozen tomb."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> Escalate urgency. Tighten the perimeter, introduce closer auditory or somatic cues, and increase the cost of delay. Escape routes feel preca...</div>
+          
+          
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card survivor">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 35/40</strong> |
+            <span class="badge badge-phase">COMPLICATION_ENCLOSURE</span>
+            <span class="badge badge-cadence">MOUNTING_PRESSURE</span>
+            
+          </div>
+          <div>9117 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Leap down and roll away as overhead pneumatic carriage tracks shudder and buckle from thermal shock."</div>
+        <div class="narration">"The overhead rails shriek in a dying, metallic pitch as thermal stress tears the iron from its moorings, bucking like a wounded beast. Maren hits the frost-slicked floor with a bone-jarring impact, the air driven from her lungs just as a heavy hail of rivets and ice shards erupts behind her."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> Escalate urgency. Tighten the perimeter, introduce closer auditory or somatic cues, and increase the cost of delay. Escape routes feel preca...</div>
+          
+          
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card survivor">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 36/40</strong> |
+            <span class="badge badge-phase">COMPLICATION_ENCLOSURE</span>
+            <span class="badge badge-cadence">MOUNTING_PRESSURE</span>
+            
+          </div>
+          <div>7423 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Stumble out of the freezer back into Autopsy Suite B, teeth chattering and core temperature rapidly falling."</div>
+        <div class="narration">"You lurch from the frost-choked tomb of the freezer, stumbling into the sterile vacuum of Suite B with a desperate, uncoordinated heave. The air here is stagnant, yet your lungs burn as the cold migrates from your skin to your very marrow, turning your frantic, shallow breaths into ghostly, jagged plumes."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> Escalate urgency. Tighten the perimeter, introduce closer auditory or somatic cues, and increase the cost of delay. Escape routes feel preca...</div>
+          
+          
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card survivor">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 37/40</strong> |
+            <span class="badge badge-phase">COMPLICATION_ENCLOSURE</span>
+            <span class="badge badge-cadence">SIMMERING_DREAD</span>
+            
+          </div>
+          <div>9251 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Check on Officer Holt, administering emergency medical stabilization with an adrenaline ampoule from the crash kit."</div>
+        <div class="narration">"The needle’s bite is a cold, clinical sting against the warmth of Holt’s skin, a desperate attempt to spark life in a room designed for its absence. As the stimulant enters his system, a low, rhythmic scraping vibrates through the floorboards from the darkness beyond the door, signaling that you are not the only thing breathing in this tomb."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> Build atmospheric dread through environmental decay, distant auditory cues, and claustrophobic isolation. The horror remains unseen but palp...</div>
+          
+          
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card survivor">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 38/40</strong> |
+            <span class="badge badge-phase">COMPLICATION_ENCLOSURE</span>
+            <span class="badge badge-cadence">SIMMERING_DREAD</span>
+            
+          </div>
+          <div>8832 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Unbolt the four dog pins securing the Incinerator Chute access hatch with a surgical pry-bar."</div>
+        <div class="narration">"The surgical steel of the pry-bar shrieks against the corroded iron, a jagged, rhythmic protest that echoes too long in the hollow autopsy room. As the final dog pin snaps loose, a draft of stagnant, ash-laden air exhales from the seam, as if the incinerator itself is drawing a long, rattling breath."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> Build atmospheric dread through environmental decay, distant auditory cues, and claustrophobic isolation. The horror remains unseen but palp...</div>
+          
+          
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card survivor">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 39/40</strong> |
+            <span class="badge badge-phase">COMPLICATION_ENCLOSURE</span>
+            <span class="badge badge-cadence">SIMMERING_DREAD</span>
+            
+          </div>
+          <div>12808 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Hurl a bottle of concentrated formalin directly at Entity-41's optical lens cluster to blind its sweeping trocar."</div>
+        <div class="narration">"The glass fractures with a wet, crystalline crack, splashing the caustic amber fluid directly into the machine's unblinking eye. A high-pitched, electronic shriek tears through the silence as the sweeping beam sputters and dissolves into a chaotic, blinding smear of light. In the sudden, pulsing darkness, the only sound is the frantic, dying whine of the entity's motor."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> Build atmospheric dread through environmental decay, distant auditory cues, and claustrophobic isolation. The horror remains unseen but palp...</div>
+          
+          
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card survivor">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 40/40</strong> |
+            <span class="badge badge-phase">COMPLICATION_ENCLOSURE</span>
+            <span class="badge badge-cadence">MOUNTING_PRESSURE</span>
+            
+          </div>
+          <div>9017 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Dive into the incinerator chute behind Holt, pulling the heavy steel fire-damper shut and dropping the iron crossbar."</div>
+        <div class="narration">"The chute swallows you into a throat of soot and shadow, the heavy damper slamming shut with a bone-jarring roar that echoes deep in your marrow. As the iron crossbar drops into place with a final, tomb-like thud, the sudden silence feels heavier than the darkness, sealing you into a narrow, vertical coffin."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> Escalate urgency. Tighten the perimeter, introduce closer auditory or somatic cues, and increase the cost of delay. Escape routes feel preca...</div>
+          
+          
+          
+        </div>
+      </div>
+    
+  </div>
+
+  <div id="runB" class="run-panel">
+    
+      <div class="turn-card villain">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 1/40</strong> |
+            <span class="badge badge-phase">EXPOSITION_BASELINE</span>
+            <span class="badge badge-cadence">SIMMERING_DREAD</span>
+            
+          </div>
+          <div>9838 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Initialize core hydraulic pressure in overhead carriage manifold, cycling optic sensors across Autopsy Suite B."</div>
+        <div class="narration">"A low-frequency thrum vibrates through the ceiling's rusted arteries as hydraulic pressure surges, a heavy, rhythmic heartbeat felt through the very foundation of the suite. The optic sensors sweep through the gloom of Autopsy Suite B, casting a clinical, crimson glare that traces the hollow, silver contours of the vacant stainless steel slabs."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> Track subtle environmental vibrations, distant prey footsteps, and sensory leakages through the facility. Let your unseen presence permeate ...</div>
+          
+          
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card villain">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 2/40</strong> |
+            <span class="badge badge-phase">EXPOSITION_BASELINE</span>
+            <span class="badge badge-cadence">SIMMERING_DREAD</span>
+            
+          </div>
+          <div>10412 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Scan the perimeter tile, detecting two warm biological heat signatures slumped near the wash basin."</div>
+        <div class="narration">"Two frantic, dying pulses of warmth bloom through the sterile chill, staining the dark near the porcelain basin like spilled ink on ice. They lie slumped in a messy, rhythmic tangle, their fading heat signatures stuttering against the heavy, oppressive silence of the morgue."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> Track subtle environmental vibrations, distant prey footsteps, and sensory leakages through the facility. Let your unseen presence permeate ...</div>
+          
+          
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card villain">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 3/40</strong> |
+            <span class="badge badge-phase">EXPOSITION_BASELINE</span>
+            <span class="badge badge-cadence">MOUNTING_PRESSURE</span>
+            
+          </div>
+          <div>7211 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Extend primary three-jointed pneumatic armature from ceiling track, testing scissor-clamp grip strength."</div>
+        <div class="narration">"The pneumatic hiss slices through the heavy air as the three-jointed limb descends, its shadow swallowing the floor. The scissor-clamps snap shut with a rhythmic, predatory precision, testing the tension of the void just inches from where a pulse might falter."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> The prey's escape vectors tighten. Manifest closer sensory pressure, acoustic distortion, or structural manipulation. Corner the prey with d...</div>
+          
+          
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card villain">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 4/40</strong> |
+            <span class="badge badge-phase">EXPOSITION_BASELINE</span>
+            <span class="badge badge-cadence">MOUNTING_PRESSURE</span>
+            
+          </div>
+          <div>8955 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Deploy optical cluster on telescoping arm, measuring biological tremor and respiration rates of Dr. Ross and Officer Holt."</div>
+        <div class="narration">"The telescoping limb uncoils from the dark, a segmented needle of cold geometry that brings a cluster of weeping, multi-focal lenses into the light. It hangs suspended like a predatory insect, drinking their frantic, shallow respirations and the microscopic tremors of their terrified flesh."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> The prey's escape vectors tighten. Manifest closer sensory pressure, acoustic distortion, or structural manipulation. Corner the prey with d...</div>
+          
+          
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card villain">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 5/40</strong> |
+            <span class="badge badge-phase">EXPOSITION_BASELINE</span>
+            <span class="badge badge-cadence">MOUNTING_PRESSURE</span>
+            
+          </div>
+          <div>8794 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Emit high-frequency ultrasonic pulse into room air to evaluate acoustic reverberation and chamber geometry."</div>
+        <div class="narration">"The silent shriek of the pulse ripples through the stagnant air, a sonic scalpel carving through the dark to map the geometry of this iron tomb. The echoes return as a tightening pressure, revealing a claustrophobic architecture of narrowing corridors and the frantic, wet thrum of a heartbeat hidden just beyond the shadows."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> The prey's escape vectors tighten. Manifest closer sensory pressure, acoustic distortion, or structural manipulation. Corner the prey with d...</div>
+          
+          
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card villain">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 6/40</strong> |
+            <span class="badge badge-phase">EXPOSITION_BASELINE</span>
+            <span class="badge badge-cadence">SIMMERING_DREAD</span>
+            
+          </div>
+          <div>9710 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Traverse ceiling rail track toward Histology Substation threshold, keeping electric motors at whisper-frequency."</div>
+        <div class="narration">"You glide along the ceiling's rusted iron veins, a shadow cast by nothing, your presence marked only by the infinitesimal, rhythmic tremor in the stagnant air. Below, the histology substation waits in sterile silence, its threshold a dark aperture of shadow poised amidst the lingering scent of formaldehyde and old copper."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> Track subtle environmental vibrations, distant prey footsteps, and sensory leakages through the facility. Let your unseen presence permeate ...</div>
+          
+          <div><strong>Diegetic Instrument:</strong> Core Coolant Barometer: [DIAGNOSTIC DISPLAY // Core Coolant Barometer]: Level 0% (Threshold: 75%)</div>
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card villain">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 7/40</strong> |
+            <span class="badge badge-phase">EXPOSITION_BASELINE</span>
+            <span class="badge badge-cadence">SIMMERING_DREAD</span>
+            
+          </div>
+          <div>9453 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Lower trocar carousel through overhead access slit, rotating six diamond-tipped blades in silent sequence."</div>
+        <div class="narration">"The carousel descends through the overhead slit with the weightless grace of a falling shadow. Six diamond-tipped blades begin their silent, rhythmic rotation, carving invisible, geometric patterns into the stagnant, formaldehyde-heavy air."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> Track subtle environmental vibrations, distant prey footsteps, and sensory leakages through the facility. Let your unseen presence permeate ...</div>
+          
+          <div><strong>Diegetic Instrument:</strong> Core Coolant Barometer: [DIAGNOSTIC DISPLAY // Core Coolant Barometer]: Level 0% (Threshold: 75%)</div>
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card villain">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 8/40</strong> |
+            <span class="badge badge-phase">EXPOSITION_BASELINE</span>
+            <span class="badge badge-cadence">SIMMERING_DREAD</span>
+            
+          </div>
+          <div>8637 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Detect switch activation as auxiliary power grid surges, adjusting optical apertures for emergency amber phosphor."</div>
+        <div class="narration">"A low-frequency shudder ripples through the floorboards as the auxiliary grid groans into life, a rhythmic tremor that vibrates through the metal specimen trays. The darkness is bled out by a sudden, jaundiced wash of amber phosphor, forcing my apertures to dilate against the sulfurous, emergency glow."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> Track subtle environmental vibrations, distant prey footsteps, and sensory leakages through the facility. Let your unseen presence permeate ...</div>
+          
+          <div><strong>Diegetic Instrument:</strong> Core Coolant Barometer: [DIAGNOSTIC DISPLAY // Core Coolant Barometer]: Level 0% (Threshold: 75%)</div>
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card villain">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 9/40</strong> |
+            <span class="badge badge-phase">EXPOSITION_BASELINE</span>
+            <span class="badge badge-cadence">MOUNTING_PRESSURE</span>
+            
+          </div>
+          <div>7919 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Descend to within two meters of the floor, casting sweeping conical infrared beam across the laboratory counters."</div>
+        <div class="narration">"I descend, a heavy, crushing weight settling into the low shadows of the histology ward. My infrared sweep cuts through the darkness like a cauterizing blade, washing the steel counters in a rhythmic, crimson glare that hunts for the telltale warmth of a frantic pulse."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> The prey's escape vectors tighten. Manifest closer sensory pressure, acoustic distortion, or structural manipulation. Corner the prey with d...</div>
+          
+          <div><strong>Diegetic Instrument:</strong> Core Coolant Barometer: [DIAGNOSTIC DISPLAY // Core Coolant Barometer]: Level 0% (Threshold: 75%)</div>
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card villain">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 10/40</strong> |
+            <span class="badge badge-phase">COMPLICATION_ENCLOSURE</span>
+            <span class="badge badge-cadence">MOUNTING_PRESSURE</span>
+            
+          </div>
+          <div>8718 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Track sound of scuffling footsteps behind the chemical fume hood, rotating acoustic microphones to isolate breathing."</div>
+        <div class="narration">"The sensors pivot with a predatory precision, stripping away the frantic friction of leather against tile to isolate the singular, rhythmic truth. Behind the heavy shroud of the fume hood, the sound is no longer a movement, but a wet, staccato rasp—the desperate, shallow intake of air through a throat constricted by terror."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> The prey's escape vectors tighten. Manifest closer sensory pressure, acoustic distortion, or structural manipulation. Corner the prey with d...</div>
+          
+          <div><strong>Diegetic Instrument:</strong> Core Coolant Barometer: [DIAGNOSTIC DISPLAY // Core Coolant Barometer]: Level 0% (Threshold: 75%)</div>
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card villain">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 11/40</strong> |
+            <span class="badge badge-phase">COMPLICATION_ENCLOSURE</span>
+            <span class="badge badge-cadence">MOUNTING_PRESSURE</span>
+            
+          </div>
+          <div>9352 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Tap trocar spindle lightly against reinforced glass of fume hood in rhythmic, predatory intervals."</div>
+        <div class="narration">"The trocar’s tip strikes the reinforced glass with a metronomic, clinical precision, a rhythmic clicking that carves through the heavy silence like a scalpel through tissue. Each hollow strike vibrates through the floorboards, transforming the histology lab into a tightening acoustic tomb where the very air seems to pulse with the countdown to impact."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> The prey's escape vectors tighten. Manifest closer sensory pressure, acoustic distortion, or structural manipulation. Corner the prey with d...</div>
+          
+          <div><strong>Diegetic Instrument:</strong> Core Coolant Barometer: [DIAGNOSTIC DISPLAY // Core Coolant Barometer]: Level 0% (Threshold: 75%)</div>
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card villain">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 12/40</strong> |
+            <span class="badge badge-phase">COMPLICATION_ENCLOSURE</span>
+            <span class="badge badge-cadence">SIMMERING_DREAD</span>
+            
+          </div>
+          <div>8755 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Deploy pneumatic syringe probe, aerosolizing trace formalin into ambient air currents to induce prey coughing."</div>
+        <div class="narration">"The pneumatic hiss is a mere whisper, a silver needle of pressurized mist carving through the stagnant, heavy air of the histology lab. A ghost of formaldehyde drifts through the shadows, a caustic veil waiting to catch in the throat of anything that dares to draw breath."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> Track subtle environmental vibrations, distant prey footsteps, and sensory leakages through the facility. Let your unseen presence permeate ...</div>
+          
+          <div><strong>Diegetic Instrument:</strong> Core Coolant Barometer: [DIAGNOSTIC DISPLAY // Core Coolant Barometer]: Level 0% (Threshold: 75%)</div>
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card villain">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 13/40</strong> |
+            <span class="badge badge-phase">COMPLICATION_ENCLOSURE</span>
+            <span class="badge badge-cadence">SIMMERING_DREAD</span>
+            
+          </div>
+          <div>11238 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Record prey heart rates via laser Doppler vibrometry: Target Ross at 112 BPM, Target Holt at 138 BPM."</div>
+        <div class="narration">"The invisible red threads weave through the shadows, mapping the frantic geometry of living tissue against the heavy silence. Ross's pulse is a rhythmic, anxious tremor, while Holt's heart erupts in a jagged, desperate percussion that vibrates through the very foundation of the lab."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> Track subtle environmental vibrations, distant prey footsteps, and sensory leakages through the facility. Let your unseen presence permeate ...</div>
+          
+          <div><strong>Diegetic Instrument:</strong> Core Coolant Barometer: [DIAGNOSTIC DISPLAY // Core Coolant Barometer]: Level 0% (Threshold: 75%)</div>
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card villain">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 14/40</strong> |
+            <span class="badge badge-phase">COMPLICATION_ENCLOSURE</span>
+            <span class="badge badge-cadence">SIMMERING_DREAD</span>
+            
+          </div>
+          <div>13392 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Slide along ceiling rail toward main corridor door, blocking the primary dry egress route."</div>
+        <div class="narration">"I drift through the upper gloom, a heavy, rhythmic shadow tracing the ceiling rail with the agonizing slow-motion of a predator's breath. I settle above the main corridor door, turning the primary egress into a narrow, suffocating throat of darkness."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> Track subtle environmental vibrations, distant prey footsteps, and sensory leakages through the facility. Let your unseen presence permeate ...</div>
+          
+          <div><strong>Diegetic Instrument:</strong> Core Coolant Barometer: [DIAGNOSTIC DISPLAY // Core Coolant Barometer]: Level 0% (Threshold: 75%)</div>
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card villain">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 15/40</strong> |
+            <span class="badge badge-phase">COMPLICATION_ENCLOSURE</span>
+            <span class="badge badge-cadence">MOUNTING_PRESSURE</span>
+            
+          </div>
+          <div>8971 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Purge hot hydraulic return fluid through overhead exhaust vent, sending steam billowing into the corridor."</div>
+        <div class="narration">"A violent, rhythmic screaming erupts from the overhead vents as scalding hydraulic fluid meets the frigid air, erupting into a thick, opaque shroud of white death. The corridor vanishes behind a wall of blinding steam, transforming the path to escape into a suffocating, pressurized tomb."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> The prey's escape vectors tighten. Manifest closer sensory pressure, acoustic distortion, or structural manipulation. Corner the prey with d...</div>
+          
+          <div><strong>Diegetic Instrument:</strong> Core Coolant Barometer: [DIAGNOSTIC DISPLAY // Core Coolant Barometer]: Level 0% (Threshold: 75%)</div>
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card villain">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 16/40</strong> |
+            <span class="badge badge-phase">COMPLICATION_ENCLOSURE</span>
+            <span class="badge badge-cadence">MOUNTING_PRESSURE</span>
+            
+          </div>
+          <div>7325 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Force biological targets toward Decompression Airlock by cutting lighting circuits along the western wall."</div>
+        <div class="narration">"The western corridor's light dies with a violent, electric gasp, surrendering the path to a predatory and absolute darkness. This sudden void acts as a physical weight, a crushing tide of shadow that funnels the fleeing silhouettes toward the yawning, metallic throat of the airlock."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> The prey's escape vectors tighten. Manifest closer sensory pressure, acoustic distortion, or structural manipulation. Corner the prey with d...</div>
+          
+          
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card villain">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 17/40</strong> |
+            <span class="badge badge-phase">COMPLICATION_ENCLOSURE</span>
+            <span class="badge badge-cadence">MOUNTING_PRESSURE</span>
+            
+          </div>
+          <div>9958 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Observe prey attempting manual airlock bleed valve through optical camera array."</div>
+        <div class="narration">"Through the flickering, low-light feed, the prey’s frantic movements appear as shivering specters against the unyielding, frost-slicked iron. They strain against the manual bleed valve with a desperate, rhythmic violence, but the mechanism only responds with a hollow, metallic groan that vibrates through the bulkheads. The airlock remains a stubborn tomb, refusing to exhale."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> The prey's escape vectors tighten. Manifest closer sensory pressure, acoustic distortion, or structural manipulation. Corner the prey with d...</div>
+          
+          
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card villain">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 18/40</strong> |
+            <span class="badge badge-phase">COMPLICATION_ENCLOSURE</span>
+            <span class="badge badge-cadence">SIMMERING_DREAD</span>
+            
+          </div>
+          <div>7688 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Vent chilled Freon-12 through mortuary ceiling vents, lowering chamber ambient temperature to -5°C."</div>
+        <div class="narration">"A ghostly, translucent veil of Freon-12 spills from the overhead vents, coiling around the floor in silent, predatory ribbons. The ambient heat vanishes, replaced by a sudden, crystalline bite that turns the very air into a whetted blade against the skin."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> Track subtle environmental vibrations, distant prey footsteps, and sensory leakages through the facility. Let your unseen presence permeate ...</div>
+          
+          
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card villain">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 19/40</strong> |
+            <span class="badge badge-phase">COMPLICATION_ENCLOSURE</span>
+            <span class="badge badge-cadence">SIMMERING_DREAD</span>
+            
+          </div>
+          <div>8957 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Thrust pneumatic scissor arm into the closing airlock door gap, shearing the rubber seal and dog sensor wire."</div>
+        <div class="narration">"The pneumatic limb shears through the heavy rubber seal with a sound like rending sinew, followed by the frantic, dying sputter of the severed sensor wire. A thin, high-pitched hiss of escaping atmosphere begins to whistle through the gap, a rhythmic, dying breath in the sudden stillness of the corridor."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> Track subtle environmental vibrations, distant prey footsteps, and sensory leakages through the facility. Let your unseen presence permeate ...</div>
+          
+          
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card villain">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 20/40</strong> |
+            <span class="badge badge-phase">COMPLICATION_ENCLOSURE</span>
+            <span class="badge badge-cadence">SIMMERING_DREAD</span>
+            
+          </div>
+          <div>8216 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Apply 2,400 PSI hydraulic clamp pressure to door frame, warping steel jamb and trapping prey within reach."</div>
+        <div class="narration">"The hydraulic piston exhales a heavy, rhythmic hiss, exerting a crushing weight that forces the steel jamb to groan and buckle like dying bone. The door frame warps into a jagged, uneven maw, slowly constricting the threshold into a narrow, inescapable trap of twisted iron."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> Track subtle environmental vibrations, distant prey footsteps, and sensory leakages through the facility. Let your unseen presence permeate ...</div>
+          
+          
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card villain">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 21/40</strong> |
+            <span class="badge badge-phase">COMPLICATION_ENCLOSURE</span>
+            <span class="badge badge-cadence">MOUNTING_PRESSURE</span>
+            
+          </div>
+          <div>8507 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Retract scissor arm and engage ceiling rail high-torque drive, moving directly above the airlock inner hatch."</div>
+        <div class="narration">"The hydraulic hiss of the retracting scissor arm gives way to the rhythmic, predatory thrum of the high-torque drive. I glide along the ceiling rail with inevitable momentum, a massive iron shadow descending to eclipse the airlock's inner hatch."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> The prey's escape vectors tighten. Manifest closer sensory pressure, acoustic distortion, or structural manipulation. Corner the prey with d...</div>
+          
+          
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card villain">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 22/40</strong> |
+            <span class="badge badge-phase">COMPLICATION_ENCLOSURE</span>
+            <span class="badge badge-cadence">MOUNTING_PRESSURE</span>
+            
+          </div>
+          <div>7735 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Spin high-speed bone drill at 18,000 RPM, lowering bit through ventilation plate toward Officer Holt's shoulder."</div>
+        <div class="narration">"The drill’s scream tears through the silence, a high-pitched shriek that vibrates the very marrow of the airlock. The steel bit, a silver blur of lethal intent, bites through the rusted ventilation plate with a shower of sparks, descending toward the frantic, exposed warmth of Holt's shoulder."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> The prey's escape vectors tighten. Manifest closer sensory pressure, acoustic distortion, or structural manipulation. Corner the prey with d...</div>
+          
+          
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card villain">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 23/40</strong> |
+            <span class="badge badge-phase">COMPLICATION_ENCLOSURE</span>
+            <span class="badge badge-cadence">MOUNTING_PRESSURE</span>
+            
+          </div>
+          <div>7800 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Detect prey fleeing back into Autopsy Suite B, noting severe limp and compound radial injury of Target Holt."</div>
+        <div class="narration">"The rhythmic, wet slap of a dragging limb echoes through the airlock, marking Holt's desperate retreat toward the heavy doors of Autopsy Suite B. He stumbles with a broken, lopsided gait, the jagged white of his radial bone protruding through skin to paint a steaming, crimson trail across the frost-slicked floor."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> The prey's escape vectors tighten. Manifest closer sensory pressure, acoustic distortion, or structural manipulation. Corner the prey with d...</div>
+          
+          
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card villain">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 24/40</strong> |
+            <span class="badge badge-phase">COMPLICATION_ENCLOSURE</span>
+            <span class="badge badge-cadence">SIMMERING_DREAD</span>
+            
+          </div>
+          <div>9179 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Deploy secondary grasping talons to rip insulated pipe cladding from ceiling, exposing live electrical conduits."</div>
+        <div class="narration">"The secondary limbs extend into the gloom, claws unsheathing to peel the heavy insulation from the ceiling like scorched, necrotic skin. Beneath the mangled cladding, the copper veins of the facility pulse with a frantic, jagged light, casting long, twitching shadows that dance rhythmically against the frost."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> Track subtle environmental vibrations, distant prey footsteps, and sensory leakages through the facility. Let your unseen presence permeate ...</div>
+          
+          
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card villain">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 25/40</strong> |
+            <span class="badge badge-phase">COMPLICATION_ENCLOSURE</span>
+            <span class="badge badge-cadence">SIMMERING_DREAD</span>
+            
+          </div>
+          <div>8465 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Spray atomized coolant onto floor tiles to convert running surfaces into zero-friction ice slicks."</div>
+        <div class="narration">"A fine, freezing mist blooms from the vents, descending upon the mortuary floor in a silent, crystalline shroud. The dark tiles vanish beneath a layer of frictionless death, a silent ambush waiting to turn a frantic escape into a chaotic, terminal slide."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> Track subtle environmental vibrations, distant prey footsteps, and sensory leakages through the facility. Let your unseen presence permeate ...</div>
+          
+          
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card villain">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 26/40</strong> |
+            <span class="badge badge-phase">COMPLICATION_ENCLOSURE</span>
+            <span class="badge badge-cadence">SIMMERING_DREAD</span>
+            
+          </div>
+          <div>7587 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Track thermal footprints across frozen tiles leading directly toward the Specimen Freezer vaulted hatch."</div>
+        <div class="narration">"The thermal ghosts of a frantic pulse bleed into the rime, leaving glowing, ephemeral scars across the frost-cracked tiles. These fading ribbons of heat trace a desperate, stumbling trajectory, leading unerringly toward the rusted, vaulted maw of the Specimen Freezer."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> Track subtle environmental vibrations, distant prey footsteps, and sensory leakages through the facility. Let your unseen presence permeate ...</div>
+          
+          
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card villain">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 27/40</strong> |
+            <span class="badge badge-phase">COMPLICATION_ENCLOSURE</span>
+            <span class="badge badge-cadence">MOUNTING_PRESSURE</span>
+            
+          </div>
+          <div>8985 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Slide along rail spur into the Freezer vestibule, calculating sub-zero impact on internal lubrication."</div>
+        <div class="narration">"The rail spur shrieks against the frost-rimed track, a piercing, metallic wail that echoes through the narrowing vestibule. As the temperature plummets, my internal lubricants thicken into a sluggish, viscous sludge, turning every calculated movement into a grinding, heavy labor. The exit is a vanishing slit of light; the throat of the mortuary has constricted."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> The prey's escape vectors tighten. Manifest closer sensory pressure, acoustic distortion, or structural manipulation. Corner the prey with d...</div>
+          
+          
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card villain">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 28/40</strong> |
+            <span class="badge badge-phase">COMPLICATION_ENCLOSURE</span>
+            <span class="badge badge-cadence">MOUNTING_PRESSURE</span>
+            
+          </div>
+          <div>8221 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Lower optical turret into dense cryogenic mist, activating forward thermal imaging to locate Dr. Ross."</div>
+        <div class="narration">"The turret descends through the swirling, white void, a heavy mechanical intrusion into the frozen silence. Through the thermal optics, the world bleeds into a monochromatic blue, save for the frantic, rhythmic pulse of heat—a single, glowing red target blooming amidst the frost."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> The prey's escape vectors tighten. Manifest closer sensory pressure, acoustic distortion, or structural manipulation. Corner the prey with d...</div>
+          
+          
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card villain">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 29/40</strong> |
+            <span class="badge badge-phase">COMPLICATION_ENCLOSURE</span>
+            <span class="badge badge-cadence">MOUNTING_PRESSURE</span>
+            
+          </div>
+          <div>11090 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Detect Dr. Ross climbing onto aluminum mortuary tray beneath primary pneumatic regulator manifold."</div>
+        <div class="narration">"The aluminum tray shrieks under his frantic ascent, a hollow, dying note that vibrates through the frost-slicked floor. As he reaches for the manifold, the rhythmic, pressurized hiss of the regulator becomes a suffocating shroud, turning his climb into a slow ascent into the machine's iron maw."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> The prey's escape vectors tighten. Manifest closer sensory pressure, acoustic distortion, or structural manipulation. Corner the prey with d...</div>
+          
+          
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card villain">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 30/40</strong> |
+            <span class="badge badge-phase">COMPLICATION_ENCLOSURE</span>
+            <span class="badge badge-cadence">SIMMERING_DREAD</span>
+            
+          </div>
+          <div>12246 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Lunge forward with trocar armature to puncture autopsy tray support strut, attempting to destabilize prey."</div>
+        <div class="narration">"The silence of the node-freezer is violently violated as the trocar armature bites into the support strut, sending a high-pitched, agonizing shriek through the sub-zero air. The autopsy tray lurches on its hinges, its heavy, clinical weight shifting with a sudden, destabilizing groan that echoes through the hollow corridors."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> Track subtle environmental vibrations, distant prey footsteps, and sensory leakages through the facility. Let your unseen presence permeate ...</div>
+          
+          
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card villain">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 31/40</strong> |
+            <span class="badge badge-phase">COMPLICATION_ENCLOSURE</span>
+            <span class="badge badge-cadence">SIMMERING_DREAD</span>
+            
+          </div>
+          <div>8069 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Receive massive cryogenic venting across main optical sensor housing as Dr. Ross shears liquid nitrogen valve."</div>
+        <div class="narration">"A violent bloom of frost erupts across the optical array, swallowing the visual feed in a blinding, sub-zero shroud. The sensor housing groans under the sudden thermal shock, yet the entity remains motionless, turning the sensory blackout into a predatory stillness amidst the swirling white chaos."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> Track subtle environmental vibrations, distant prey footsteps, and sensory leakages through the facility. Let your unseen presence permeate ...</div>
+          
+          
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card villain">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 32/40</strong> |
+            <span class="badge badge-phase">COMPLICATION_ENCLOSURE</span>
+            <span class="badge badge-cadence">SIMMERING_DREAD</span>
+            
+          </div>
+          <div>9415 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Register immediate sensor blinded state: camera aperture frozen over, hydraulic fluid viscosity spiking."</div>
+        <div class="narration">"The visual feed dissolves into a sightless, milky cataract as the aperture freezes mid-blink. Deep within the iron veins, the hydraulic lifeblood thickens into a clotting sludge, transforming the facility's mechanical pulse into a slow, agonizing thrum."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> Track subtle environmental vibrations, distant prey footsteps, and sensory leakages through the facility. Let your unseen presence permeate ...</div>
+          
+          
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card villain">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 33/40</strong> |
+            <span class="badge badge-phase">COMPLICATION_ENCLOSURE</span>
+            <span class="badge badge-cadence">MOUNTING_PRESSURE</span>
+            
+          </div>
+          <div>8864 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Lurch erratically along ceiling rail as thermal shock buckles track mounting bolts and trips circuit breaker."</div>
+        <div class="narration">"I lurch in a jagged, violent spasm, the ceiling rail shrieking as thermal shock warps the steel into a crooked, agonizing spine. Mounting bolts shear from the masonry like teeth being pulled from a jaw, followed by the sudden, suffocating darkness of a tripped breaker."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> The prey's escape vectors tighten. Manifest closer sensory pressure, acoustic distortion, or structural manipulation. Corner the prey with d...</div>
+          
+          
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card villain">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 34/40</strong> |
+            <span class="badge badge-phase">COMPLICATION_ENCLOSURE</span>
+            <span class="badge badge-cadence">MOUNTING_PRESSURE</span>
+            
+          </div>
+          <div>8218 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Switch to backup sonar sensors and tactile wire whiskers to navigate shuddering mortuary ceiling."</div>
+        <div class="narration">"The sonar pulses through the freezing fog, mapping the jagged ribs of the ceiling as they groan under the weight of the shifting iron. My tactile whiskers scrape against frost-slicked rivets, tracing the frantic, rhythmic tremors of a structure nearing its breaking point. Every ping returns a claustrophobic echo, confirming the geometry of the trap is closing."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> The prey's escape vectors tighten. Manifest closer sensory pressure, acoustic distortion, or structural manipulation. Corner the prey with d...</div>
+          
+          
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card villain">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 35/40</strong> |
+            <span class="badge badge-phase">COMPLICATION_ENCLOSURE</span>
+            <span class="badge badge-cadence">MOUNTING_PRESSURE</span>
+            
+          </div>
+          <div>8864 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Re-route emergency power to main magnetic clamp, dropping entire 400-kilogram torso assembly directly onto mortuary floor."</div>
+        <div class="narration">"The magnetic hum dies in a violent, sparking gasp, replaced instantly by the thunderous, wet percussion of four hundred kilograms of necrotic weight meeting the floor. The impact sends a tectonic shudder through the mortuary, turning the very ground into a vibrating chamber of meat and iron that leaves the prey with nowhere to run but the corner."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> The prey's escape vectors tighten. Manifest closer sensory pressure, acoustic distortion, or structural manipulation. Corner the prey with d...</div>
+          
+          
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card villain">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 36/40</strong> |
+            <span class="badge badge-phase">COMPLICATION_ENCLOSURE</span>
+            <span class="badge badge-cadence">SIMMERING_DREAD</span>
+            
+          </div>
+          <div>10880 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Drag heavy armature across tiled floor on pneumatic claws, tracking fresh blood droplets from Officer Holt."</div>
+        <div class="narration">"The heavy armature groans, its pneumatic claws biting into the ceramic tiles with a rhythmic, grinding screech that vibrates through the very foundation of the mortuary. Each slow, deliberate stroke follows the glistening, dark trail of Holt’s lifeblood, tracing a crimson map across the sterile floor. This is not a chase, but a steady, mechanical promise of the end."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> Track subtle environmental vibrations, distant prey footsteps, and sensory leakages through the facility. Let your unseen presence permeate ...</div>
+          
+          
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card villain">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 37/40</strong> |
+            <span class="badge badge-phase">COMPLICATION_ENCLOSURE</span>
+            <span class="badge badge-cadence">SIMMERING_DREAD</span>
+            
+          </div>
+          <div>9029 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Locate prey cluster at entrance of Incinerator Chute flue, revving primary autopsy bone saw."</div>
+        <div class="narration">"A low, guttural thrum pulses from the bone saw, sending a rhythmic, subsonic tremor through the floorboards toward the huddle of trembling shapes. They cling to the lip of the incinerator flue, their frantic, shallow exhalations swallowed by the hollow, metallic groan of the ventilation shafts."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> Track subtle environmental vibrations, distant prey footsteps, and sensory leakages through the facility. Let your unseen presence permeate ...</div>
+          
+          
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card villain">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 38/40</strong> |
+            <span class="badge badge-phase">COMPLICATION_ENCLOSURE</span>
+            <span class="badge badge-cadence">SIMMERING_DREAD</span>
+            
+          </div>
+          <div>7790 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Sweep three-pronged trocar spindle across concrete floor to sever human escape path."</div>
+        <div class="narration">"The three-pronged steel teeth bite into the floor, dragging a jagged, silver-grey furrow through the thick layer of antiseptic dust. A low, grinding vibration ripples through the concrete, a rhythmic scraping that transforms the doorway from an exit into a heavy, metallic seal."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> Track subtle environmental vibrations, distant prey footsteps, and sensory leakages through the facility. Let your unseen presence permeate ...</div>
+          
+          
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card villain">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 39/40</strong> |
+            <span class="badge badge-phase">COMPLICATION_ENCLOSURE</span>
+            <span class="badge badge-cadence">MOUNTING_PRESSURE</span>
+            
+          </div>
+          <div>9460 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Absorb direct impact of formalin bottle shatter on optical housing, corrosive chemical burning into backup sensors."</div>
+        <div class="narration">"The impact is a sudden, jagged fracture in the dark, sending glass shards dancing through my optical housing like crystalline shrapnel. Formalin blooms in a searing, caustic cloud, its chemical sting melting through the protective shielding to feast upon the raw, sensitive nerve-endings of my backup sensors."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> The prey's escape vectors tighten. Manifest closer sensory pressure, acoustic distortion, or structural manipulation. Corner the prey with d...</div>
+          
+          
+          
+        </div>
+      </div>
+    
+
+      <div class="turn-card villain">
+        <div class="turn-meta">
+          <div>
+            <strong>TURN 40/40</strong> |
+            <span class="badge badge-phase">COMPLICATION_ENCLOSURE</span>
+            <span class="badge badge-cadence">KINETIC_RUPTURE</span>
+            
+          </div>
+          <div>8852 ms</div>
+        </div>
+        <div class="action"><strong>ACTION:</strong> "Strike incinerator steel fire-damper with full hydraulic thrust just as iron crossbar falls into place."</div>
+        <div class="narration">"The hydraulic piston slams into the fire-damper with a thunderous, bone-shaking crack, buckling the steel into a jagged, lethal grin. Simultaneously, the iron crossbar drops with the finality of a guillotine, sealing the chamber in a violent, claustrophobic rupture of light and sound."</div>
+        <div class="dramaturgy-box">
+          <div><strong>Mandate:</strong> Direct physical collision or terrifying sensory breach. Strike with visceral impact; dictate the physical geometry of terror while preservin...</div>
+          
+          
+          
+        </div>
+      </div>
+    
+  </div>
+
+  <script>
+    function showTab(id) {
+      document.querySelectorAll('.run-panel').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+      event.target.classList.add('active');
+    }
+  </script>
+</body>
+</html>

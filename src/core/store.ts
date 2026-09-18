@@ -22,6 +22,7 @@ import { createInitialFictionalTimeLedger } from '../lib/fictionalTime';
 import { createInitialValueStateLedger } from '../lib/valueState';
 import { createInitialCharacterPursuitLedger } from '../lib/characterPursuits';
 import { createInitialCharacterDevelopmentLedger } from '../lib/characterDevelopment';
+import { initializeDramaturgyRuntimeState } from '../lib/composureDerivation';
 import {
   FictionalTimeLedgerSchema,
   PursuitScheduleLedgerSchema,
@@ -259,6 +260,7 @@ export const useEngineStore = create<EngineState>()(
             value_state_ledger: createInitialValueStateLedger(normalizedBlueprint),
             character_pursuit_ledger: createInitialCharacterPursuitLedger(normalizedBlueprint),
             character_development_ledger: createInitialCharacterDevelopmentLedger(),
+            dramaturgy_state: initializeDramaturgyRuntimeState(normalizedBlueprint),
           },
         });
       },

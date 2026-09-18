@@ -43,6 +43,14 @@ import {
   CharacterDevelopmentReceiptSchema,
   PressureThreadTransitionProposalSchema,
   PressureThreadTransitionReceiptSchema,
+} from './horrorGrammar';
+import {
+  DramaturgyTurnContextSchema,
+  DramaticTurnReceiptSchema,
+  DramaturgyRuntimeStateSchema,
+  DramaticSpineSchema,
+} from './dramaturgy';
+import {
   PursuitScheduleReceiptSchema,
   HorrorGrammarForensicRecordSchema,
   UserOpeningAimReviewDispositionSchema,
@@ -196,6 +204,9 @@ export const EngineTurnContextSchema = z.object({
   memoryState: CharacterMemoryByIdSchema.default({}),
   worldMemory: WorldMemoryStateSchema.default([]),
   horrorGrammar: HorrorGrammarTurnContextSchema.optional(),
+  dramaturgyContext: DramaturgyTurnContextSchema.optional(),
+  dramaturgyRuntimeState: DramaturgyRuntimeStateSchema.optional(),
+  dramaticSpine: DramaticSpineSchema.optional(),
 });
 
 export type EngineTurnContext = z.infer<typeof EngineTurnContextSchema>;
@@ -538,6 +549,7 @@ export const TurnResponseSchema = TurnResultSchema.omit({
   characterDevelopmentReceipt: CharacterDevelopmentReceiptSchema,
   pressureThreadTransitionReceipt: PressureThreadTransitionReceiptSchema,
   horrorGrammarForensics: HorrorGrammarForensicRecordSchema.optional(),
+  dramaticTurnReceipt: DramaticTurnReceiptSchema.optional(),
 });
 
 export type TurnResponse = z.infer<typeof TurnResponseSchema>;

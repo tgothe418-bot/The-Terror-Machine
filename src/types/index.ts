@@ -81,6 +81,12 @@ export * from './worldMemory';
 export * from './vocalization';
 export * from './blueprintAuthoring';
 export * from './horrorGrammar';
+export * from './dramaturgy';
+import {
+  CharacterPsychologicalStakesSchema,
+  DramaticSpineSchema,
+  DramaticTurnReceipt,
+} from './dramaturgy';
 
 export type AppPhase = 'hub' | 'forge' | 'engine' | 'voice';
 
@@ -211,6 +217,7 @@ export const CastMemberSchema = z.object({
   presenceDisposition: CharacterPresenceDispositionSchema.optional(),
   vulnerabilityBase: VulnerabilityIndexSchema.optional(),
   expressionProfile: CharacterExpressionProfileSchema.optional(),
+  psychologicalStakes: CharacterPsychologicalStakesSchema.optional(),
 });
 
 export const BlueprintSchema = z.object({
@@ -293,7 +300,7 @@ export const BlueprintSchema = z.object({
         isUserCharacter: false,
         behaviorVector: 'ADAPTIVE',
         isEntity: false,
-        disposition: 'SURVIVOR',
+        disposition: 'SURVIVOR' as const,
         starting_location: '',
       },
     ]),
@@ -315,6 +322,7 @@ export const BlueprintSchema = z.object({
     valueAnchors: [],
     characterPursuits: [],
   })),
+  dramaticSpine: DramaticSpineSchema.optional(),
 });
 
 // For compatibility with previous types, though we augment them
@@ -510,6 +518,7 @@ export interface TurnReceipt {
   characterDevelopmentReceipt?: CharacterDevelopmentReceipt;
   pressureThreadTransitionReceipt?: PressureThreadTransitionReceipt;
   horrorGrammarForensics?: HorrorGrammarForensicRecord;
+  dramaticTurnReceipt?: DramaticTurnReceipt;
 }
 
 export interface TurnFailureDiagnosticIssue {

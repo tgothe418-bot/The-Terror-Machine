@@ -446,6 +446,7 @@ export const executeRatificationPipeline = async (
     valueStateLedger: engineState.gameState?.value_state_ledger,
     characterPursuitLedger: engineState.gameState?.character_pursuit_ledger,
     characterDevelopmentLedger: engineState.gameState?.character_development_ledger,
+    dramaturgyRuntimeState: engineState.gameState?.dramaturgy_state,
     acceptedTriggerReferences,
     runtimeState: {
       ...preSnapshot,
@@ -458,6 +459,7 @@ export const executeRatificationPipeline = async (
       valueStateLedger: engineState.gameState?.value_state_ledger,
       characterPursuitLedger: engineState.gameState?.character_pursuit_ledger,
       characterDevelopmentLedger: engineState.gameState?.character_development_ledger,
+      dramaturgyRuntimeState: engineState.gameState?.dramaturgy_state,
     },
   });
 
@@ -621,11 +623,17 @@ export const executeRatificationPipeline = async (
   validatedEvent.fictionalTimeReceipt = parsedResult.data.fictionalTimeReceipt;
   validatedEvent.castActivityReceipt = parsedResult.data.castActivityReceipt;
   validatedEvent.pursuitScheduleReceipt = parsedResult.data.pursuitScheduleReceipt;
+  if (parsedResult.data.dramaticTurnReceipt) {
+    validatedEvent.dramaticTurnReceipt = parsedResult.data.dramaticTurnReceipt;
+  }
 
   validatedEvent.logic_state = {
     ...validatedEvent.logic_state,
     fictional_time_ledger: parsedResult.data.fictionalTimeReceipt.postState,
     pursuit_schedule_ledger: parsedResult.data.pursuitScheduleReceipt.postState,
+    ...(parsedResult.data.dramaticTurnReceipt
+      ? { dramatic_turn_receipt: parsedResult.data.dramaticTurnReceipt }
+      : {}),
   };
 
   // Expansion Guard:

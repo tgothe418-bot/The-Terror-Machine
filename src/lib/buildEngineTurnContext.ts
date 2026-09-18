@@ -43,6 +43,17 @@ import {
   MAX_RECENT_ACTIVITY_EVENTS,
   MAX_ACTIVE_PRESSURE_THREADS,
 } from '../types/horrorGrammar';
+import {
+  initializeDramaturgyRuntimeState,
+  selectManifestationCue,
+  resolveDiegeticObservation,
+} from './composureDerivation';
+import { compileSeatAwarePacingMandate } from './pacingGovernor';
+import type {
+  DramaturgyRuntimeState,
+  DramaturgyTurnContext,
+  DramaticSpine,
+} from '../types/dramaturgy';
 import { buildEvidenceRegistry } from './evidenceRegistry';
 
 export interface BuildEngineTurnContextOptions {
@@ -94,7 +105,10 @@ export interface BuildEngineTurnContextOptions {
     value_state_ledger?: import('../types/horrorGrammar').ValueStateLedger | null;
     characterDevelopmentLedger?: import('../types/horrorGrammar').CharacterDevelopmentLedger | null;
     character_development_ledger?: import('../types/horrorGrammar').CharacterDevelopmentLedger | null;
+    dramaturgyRuntimeState?: DramaturgyRuntimeState | null;
+    dramaturgy_state?: DramaturgyRuntimeState | null;
   };
+  dramaturgyRuntimeState?: DramaturgyRuntimeState | null;
 }
 
 /**
@@ -624,6 +638,65 @@ export function buildEngineTurnContext(
     memoryState,
     worldMemory,
     horrorGrammar: horrorGrammarContext,
+    dramaturgyContext: (() => {
+      const dramState: DramaturgyRuntimeState | undefined =
+        opts.dramaturgyRuntimeState ||
+        opts.runtimeState?.dramaturgyRuntimeState ||
+        opts.runtimeState?.dramaturgy_state ||
+        (normBp.dramaticSpine ? initializeDramaturgyRuntimeState(normBp) : undefined);
+
+      if (!dramState) return undefined;
+
+      const macroPhase = dramState.currentMacroPhase;
+      const activePacingCadence = dramState.activePacingCadence;
+      const pacingDirective = compileSeatAwarePacingMandate(
+        playerRole,
+        macroPhase,
+        activePacingCadence,
+        normBp.dramaticSpine?.pacingProfile
+      );
+
+      const activeClockManifestations: string[] = [];
+      const diegeticReadings: Array<{ instrumentName: string; nodeId: string; readingText: string }> = [];
+
+      for (const clock of Object.values(dramState.impendingClocks || {})) {
+        const cue = selectManifestationCue(clock);
+        if (cue) {
+          activeClockManifestations.push(cue);
+        }
+        const reading = resolveDiegeticObservation(clock, currentNodeId);
+        if (reading) {
+          diegeticReadings.push({
+            instrumentName: reading.instrumentName,
+            nodeId: reading.nodeId,
+            readingText: reading.readingText,
+          });
+        }
+      }
+
+      const companionFrictionDirectives: Record<string, string> = {};
+      for (const [cId, stakes] of Object.entries(dramState.characterStakes || {})) {
+        if (stakes.isObstructed && stakes.obstructionReason) {
+          companionFrictionDirectives[cId] = `[OBSTRUCTED: ${stakes.obstructionReason}]`;
+        }
+      }
+
+      const ctx: DramaturgyTurnContext = {
+        macroPhase,
+        activePacingCadence,
+        pacingDirective,
+        activeClockManifestations,
+        diegeticReadings,
+        companionFrictionDirectives,
+      };
+      return ctx;
+    })(),
+    dramaturgyRuntimeState:
+      opts.dramaturgyRuntimeState ||
+      opts.runtimeState?.dramaturgyRuntimeState ||
+      opts.runtimeState?.dramaturgy_state ||
+      (normBp.dramaticSpine ? initializeDramaturgyRuntimeState(normBp) : undefined),
+    dramaticSpine: normBp.dramaticSpine,
   };
 }
 

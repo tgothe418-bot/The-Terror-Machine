@@ -205,6 +205,13 @@ export const getEngineLogicData = (message: any): Record<string, unknown> | null
   if (message.failureReceipt !== undefined) {
     logicData.failureReceipt = message.failureReceipt;
   }
+  if (message.dramaticTurnReceipt !== undefined) {
+    logicData.dramaticTurnReceipt = message.dramaticTurnReceipt;
+  }
+  if (message.turnReceipt?.dramaticTurnReceipt !== undefined) {
+    logicData.dramaticTurnReceipt =
+      logicData.dramaticTurnReceipt || message.turnReceipt.dramaticTurnReceipt;
+  }
 
   return Object.keys(logicData).length > 0 ? logicData : null;
 };
@@ -415,6 +422,26 @@ interface ParsedTelemetrySections {
     characterPursuit?: Record<string, unknown>;
     characterDevelopment?: Record<string, unknown>;
     pressureTransitions?: Record<string, unknown>;
+  };
+  dramaturgyPacing: {
+    hasReceipts: boolean;
+    macroPhase?: string;
+    pacingCadence?: string;
+    phaseTransition?: {
+      fromPhase?: string;
+      toPhase?: string;
+      gateMilestoneId?: string;
+      triggeredBy?: string;
+    };
+    clockAdvances: Array<{ clockId: string; newLevel: number; cause: string }>;
+    composureDeltas: Array<{
+      characterId: string;
+      oldComposure: number;
+      newComposure: number;
+      delta: number;
+      cause: string;
+    }>;
+    breakingPointRefusals: Array<{ characterId: string; reason: string }>;
   };
   rawPayload: Record<string, unknown>;
 }
@@ -1223,6 +1250,29 @@ export function parseTelemetrySections(logicData: Record<string, unknown>): Pars
       characterDevelopment: characterDevelopmentReceipt,
       pressureTransitions: pressureThreadTransitionReceipt,
     },
+    dramaturgyPacing: (() => {
+      const dramReceipt = (
+        (turn &&
+        typeof turn.dramaticTurnReceipt === 'object' &&
+        turn.dramaticTurnReceipt !== null
+          ? turn.dramaticTurnReceipt
+          : undefined) ||
+        (typeof logicData.dramaticTurnReceipt === 'object' &&
+        logicData.dramaticTurnReceipt !== null
+          ? logicData.dramaticTurnReceipt
+          : undefined)
+      ) as Record<string, any> | undefined;
+
+      return {
+        hasReceipts: Boolean(dramReceipt),
+        macroPhase: dramReceipt?.macroPhase,
+        pacingCadence: dramReceipt?.pacingCadence,
+        phaseTransition: dramReceipt?.phaseTransition,
+        clockAdvances: Array.isArray(dramReceipt?.clockAdvances) ? dramReceipt.clockAdvances : [],
+        composureDeltas: Array.isArray(dramReceipt?.composureDeltas) ? dramReceipt.composureDeltas : [],
+        breakingPointRefusals: Array.isArray(dramReceipt?.breakingPointRefusals) ? dramReceipt.breakingPointRefusals : [],
+      };
+    })(),
     rawPayload: logicData,
   };
 }
@@ -1521,6 +1571,45 @@ function renderHtmlTelemetrySections(logicData: Record<string, unknown>): string
     html += `</div>`;
   }
 
+  // Dramaturgical Pacing & Causal Clocks (HG2)
+  if (sections.dramaturgyPacing?.hasReceipts) {
+    html += `<div class="telemetry-section">`;
+    html += `<h4>Dramaturgical Pacing &amp; Causal Clocks (HG2)</h4>`;
+    html += `<ul>`;
+    const dp = sections.dramaturgyPacing;
+    html += `<li><strong>Macro-Phase:</strong> ${escapeHtml(dp.macroPhase || 'EXPOSITION_BASELINE')} | <strong>Cadence:</strong> ${escapeHtml(dp.pacingCadence || 'SIMMERING_DREAD')}</li>`;
+    if (dp.phaseTransition) {
+      html += `<li><strong style="color: #f59e0b;">Phase Transition:</strong> ${escapeHtml(dp.phaseTransition.fromPhase || '')} → ${escapeHtml(dp.phaseTransition.toPhase || '')} (Gate: ${escapeHtml(dp.phaseTransition.gateMilestoneId || 'N/A')}, Trigger: ${escapeHtml(dp.phaseTransition.triggeredBy || 'CAUSAL_GATE')})</li>`;
+    }
+    if (dp.clockAdvances.length > 0) {
+      html += `<li><strong>Impending Clock Advances:</strong>`;
+      html += `<ul>`;
+      for (const adv of dp.clockAdvances) {
+        html += `<li>[${escapeHtml(adv.clockId)}]: Level ${escapeHtml(String(adv.newLevel))} — <em>${escapeHtml(adv.cause)}</em></li>`;
+      }
+      html += `</ul></li>`;
+    }
+    if (dp.composureDeltas.length > 0) {
+      html += `<li><strong>Composure Deltas:</strong>`;
+      html += `<ul>`;
+      for (const cd of dp.composureDeltas) {
+        const sign = cd.delta > 0 ? `+${cd.delta}` : `${cd.delta}`;
+        html += `<li>${escapeHtml(cd.characterId)}: ${cd.oldComposure} → ${cd.newComposure} (${sign}) — <em>${escapeHtml(cd.cause)}</em></li>`;
+      }
+      html += `</ul></li>`;
+    }
+    if (dp.breakingPointRefusals.length > 0) {
+      html += `<li><strong style="color: #ef4444;">Breaking Point Refusals (D3):</strong>`;
+      html += `<ul>`;
+      for (const ref of dp.breakingPointRefusals) {
+        html += `<li><strong>${escapeHtml(ref.characterId)}:</strong> ${escapeHtml(ref.reason)}</li>`;
+      }
+      html += `</ul></li>`;
+    }
+    html += `</ul>`;
+    html += `</div>`;
+  }
+
   // 9. Raw Structured Payload
   html += `<details class="raw-payload-panel">`;
   html += `<summary class="speaker-label speaker-engine">Raw Structured Payload</summary>`;
@@ -1769,6 +1858,36 @@ function renderMarkdownTelemetrySections(logicData: Record<string, unknown>): st
     if (hg.pressureTransitions && Array.isArray((hg.pressureTransitions as any).decisions)) {
       for (const d of (hg.pressureTransitions as any).decisions) {
         md += `- **Pressure Transition [${d.threadId} -> ${d.proposedStatus}]:** Outcome: ${d.outcome} (Reason: ${d.reasonCode}, Cause: ${d.causeReference})\n`;
+      }
+    }
+    md += `\n`;
+  }
+
+  // Dramaturgical Pacing & Causal Clocks (HG2)
+  if (sections.dramaturgyPacing?.hasReceipts) {
+    md += `#### Dramaturgical Pacing & Causal Clocks (HG2)\n`;
+    const dp = sections.dramaturgyPacing;
+    md += `- **Macro-Phase:** ${dp.macroPhase || 'EXPOSITION_BASELINE'} | **Cadence:** ${dp.pacingCadence || 'SIMMERING_DREAD'}\n`;
+    if (dp.phaseTransition) {
+      md += `- **Phase Transition:** ${dp.phaseTransition.fromPhase || ''} → ${dp.phaseTransition.toPhase || ''} (Gate: ${dp.phaseTransition.gateMilestoneId || 'N/A'}, Trigger: ${dp.phaseTransition.triggeredBy || 'CAUSAL_GATE'})\n`;
+    }
+    if (dp.clockAdvances.length > 0) {
+      md += `- **Impending Clock Advances:**\n`;
+      for (const adv of dp.clockAdvances) {
+        md += `  - [${adv.clockId}]: Level ${adv.newLevel} — *${adv.cause}*\n`;
+      }
+    }
+    if (dp.composureDeltas.length > 0) {
+      md += `- **Composure Deltas:**\n`;
+      for (const cd of dp.composureDeltas) {
+        const sign = cd.delta > 0 ? `+${cd.delta}` : `${cd.delta}`;
+        md += `  - ${cd.characterId}: ${cd.oldComposure} → ${cd.newComposure} (${sign}) — *${cd.cause}*\n`;
+      }
+    }
+    if (dp.breakingPointRefusals.length > 0) {
+      md += `- **Breaking Point Refusals (D3):**\n`;
+      for (const ref of dp.breakingPointRefusals) {
+        md += `  - **${ref.characterId}:** ${ref.reason}\n`;
       }
     }
     md += `\n`;

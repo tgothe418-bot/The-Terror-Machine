@@ -606,6 +606,68 @@ export function validateForgeDraft(rawDraft: unknown): ForgeValidationResult {
     }
   }
 
+  // 11. HG2 Dramatic Spine & Psychological Stakes Validation
+  if (draft.cast && Array.isArray(draft.cast)) {
+    draft.cast.forEach((member, idx) => {
+      if (member.psychologicalStakes) {
+        const stakes = member.psychologicalStakes;
+        const prefix = `cast[${idx}].psychologicalStakes`;
+        if (stakes.breakingPointThreshold !== undefined && (stakes.breakingPointThreshold < 0 || stakes.breakingPointThreshold > 100)) {
+          errors[`${prefix}.breakingPointThreshold`] = ['Breaking point threshold must be between 0 and 100'];
+        }
+        if (stakes.composureSensitivity !== undefined && stakes.composureSensitivity <= 0) {
+          errors[`${prefix}.composureSensitivity`] = ['Composure sensitivity must be greater than 0'];
+        }
+      }
+    });
+  }
+
+  if (draft.dramaticSpine) {
+    const ds = draft.dramaticSpine;
+    const clockIds = new Set<string>();
+
+    if (ds.impendingClocks && Array.isArray(ds.impendingClocks)) {
+      ds.impendingClocks.forEach((clock, idx) => {
+        const prefix = `dramaticSpine.impendingClocks[${idx}]`;
+        if (clockIds.has(clock.id)) {
+          errors[`${prefix}.id`] = [`Duplicate clock ID: "${clock.id}"`];
+        }
+        clockIds.add(clock.id);
+
+        if (clock.diegeticInstrument && clock.instrumentNodeId) {
+          if (validNodeIds.size > 0 && !validNodeIds.has(clock.instrumentNodeId)) {
+            errors[`${prefix}.instrumentNodeId`] = [
+              `Clock "${clock.name}" diegetic instrument references unknown topology node ID: "${clock.instrumentNodeId}"`,
+            ];
+          }
+        }
+        if (clock.crisisThreshold !== undefined && (clock.crisisThreshold < 0 || clock.crisisThreshold > 100)) {
+          errors[`${prefix}.crisisThreshold`] = ['Clock crisis threshold must be between 0 and 100'];
+        }
+      });
+    }
+
+    if (ds.milestones && Array.isArray(ds.milestones)) {
+      ds.milestones.forEach((milestone, idx) => {
+        const prefix = `dramaticSpine.milestones[${idx}]`;
+        if (milestone.kind === 'CLOCK_CRISIS' && milestone.referenceId) {
+          if (clockIds.size > 0 && !clockIds.has(milestone.referenceId)) {
+            errors[`${prefix}.referenceId`] = [
+              `Milestone references unknown clock ID: "${milestone.referenceId}"`,
+            ];
+          }
+        }
+        if (milestone.kind === 'COMPOSURE_THRESHOLD' && milestone.referenceId) {
+          if (validCastIds.size > 0 && !validCastIds.has(milestone.referenceId)) {
+            errors[`${prefix}.referenceId`] = [
+              `Milestone references unknown cast member ID: "${milestone.referenceId}"`,
+            ];
+          }
+        }
+      });
+    }
+  }
+
   return {
     valid: Object.keys(errors).length === 0,
     errors,
@@ -769,6 +831,7 @@ export function compileForgeDraft(
     userCharacterId: undefined,
     cast: synchronizedCast,
     depictionContract: resolvedDepiction,
+    dramaticSpine: draft.dramaticSpine,
   });
 
 

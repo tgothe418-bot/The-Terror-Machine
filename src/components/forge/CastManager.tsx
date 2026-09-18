@@ -3,6 +3,10 @@ import { useForgeState, forgeActions } from '../../store/useForgeStore';
 import { AutopilotVector } from '../../types';
 import { CharacterExpressionProfile } from '../../types/forge';
 import {
+  CharacterPsychologicalStakes,
+  DeterministicLiftCondition,
+} from '../../types/dramaturgy';
+import {
   Compass,
   MapPin,
   Plus,
@@ -19,6 +23,8 @@ import {
   FileText,
   AlertCircle,
   Volume2,
+  Brain,
+  Lock,
 } from 'lucide-react';
 
 const COMMON_PSYCH_FLAGS = [
@@ -166,6 +172,87 @@ export const CastManager: React.FC = () => {
         },
       });
     }
+  };
+
+  const handleUpdateStakes = (
+    charId: string,
+    currentStakes?: CharacterPsychologicalStakes,
+    patch: Partial<CharacterPsychologicalStakes> = {}
+  ) => {
+    const base: CharacterPsychologicalStakes = currentStakes || {
+      characterId: charId,
+      coreDesireOrNeed: 'Survive and maintain cognitive equilibrium',
+      copingMechanism: 'Strict adherence to operational protocol',
+      vulnerabilityOrGuilt: '',
+      breakingPointTrigger: 'Severe cognitive disorientation or witnessing somatic trauma',
+      breakingPointThreshold: 20,
+      isObstructed: false,
+      composureSensitivity: 1.0,
+      currentComposure: 100,
+      liftConditions: [
+        {
+          kind: 'PERSUASION',
+          composureRecoveryThreshold: 35,
+          description: 'Direct verbal reassurance and calm reason',
+        },
+        {
+          kind: 'REST_RESPITE',
+          composureRecoveryThreshold: 30,
+          description: 'Spent turns in quiet, illuminated chamber',
+        },
+      ],
+    };
+    updateCastMember(charId, {
+      psychologicalStakes: {
+        ...base,
+        ...patch,
+      },
+    });
+  };
+
+  const handleAddLiftCondition = (charId: string, currentStakes?: CharacterPsychologicalStakes) => {
+    const stakes = currentStakes || {
+      characterId: charId,
+      coreDesireOrNeed: 'Survive and maintain cognitive equilibrium',
+      copingMechanism: 'Strict adherence to operational protocol',
+      vulnerabilityOrGuilt: '',
+      breakingPointTrigger: 'Severe cognitive disorientation or witnessing somatic trauma',
+      breakingPointThreshold: 20,
+      isObstructed: false,
+      composureSensitivity: 1.0,
+      currentComposure: 100,
+      liftConditions: [],
+    };
+    const newCond: DeterministicLiftCondition = {
+      kind: 'PERSUASION',
+      composureRecoveryThreshold: 35,
+      description: 'Verbal de-escalation and structured grounding',
+    };
+    handleUpdateStakes(charId, stakes, {
+      liftConditions: [...(stakes.liftConditions || []), newCond],
+    });
+  };
+
+  const handleUpdateLiftCondition = (
+    charId: string,
+    condIdx: number,
+    currentStakes: CharacterPsychologicalStakes,
+    patch: Partial<DeterministicLiftCondition>
+  ) => {
+    const updated = (currentStakes.liftConditions || []).map((cond, idx) => {
+      if (idx !== condIdx) return cond;
+      return { ...cond, ...patch };
+    });
+    handleUpdateStakes(charId, currentStakes, { liftConditions: updated });
+  };
+
+  const handleRemoveLiftCondition = (
+    charId: string,
+    condIdx: number,
+    currentStakes: CharacterPsychologicalStakes
+  ) => {
+    const updated = (currentStakes.liftConditions || []).filter((_, idx) => idx !== condIdx);
+    handleUpdateStakes(charId, currentStakes, { liftConditions: updated });
   };
 
   const handleSavePursuit = (charId: string) => {
@@ -1035,6 +1122,224 @@ export const CastManager: React.FC = () => {
                         </button>
                       </div>
                     )}
+                  </div>
+
+                  {/* 9. PSYCHOLOGICAL STAKES & BREAKING POINTS (HG2 / D3) */}
+                  <div
+                    id={`psych-stakes-${char.id}`}
+                    className="p-3.5 bg-stone-950/70 border border-stone-800/80 rounded-lg space-y-3"
+                  >
+                    <div className="flex items-center justify-between border-b border-stone-800/60 pb-2">
+                      <div className="flex items-center gap-2">
+                        <Brain className="w-4 h-4 text-rose-400" />
+                        <span className="font-serif font-bold text-[#e6e4dc] text-xs uppercase tracking-wider">
+                          Psychological Stakes & Obstructive Breaking Points (HG2)
+                        </span>
+                      </div>
+                      {char.psychologicalStakes?.isObstructed ? (
+                        <span className="text-[9px] px-2 py-0.5 rounded uppercase font-bold font-mono bg-rose-950/60 border border-rose-800 text-rose-300 flex items-center gap-1">
+                          <Lock className="w-3 h-3" />
+                          <span>Obstructed</span>
+                        </span>
+                      ) : (
+                        <span className="text-[9px] px-2 py-0.5 rounded uppercase font-bold font-mono bg-stone-900 border border-stone-800 text-stone-400">
+                          Composure: {char.psychologicalStakes?.currentComposure ?? 100}%
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[10px] text-stone-400 uppercase font-bold block mb-1">
+                          Core Desire / Need
+                        </label>
+                        <input
+                          type="text"
+                          value={char.psychologicalStakes?.coreDesireOrNeed || ''}
+                          onChange={(e) =>
+                            handleUpdateStakes(char.id, char.psychologicalStakes, {
+                              coreDesireOrNeed: e.target.value,
+                            })
+                          }
+                          placeholder="e.g. Preserve containment protocol at all costs"
+                          className="w-full bg-[#0c0c10] border border-stone-800 text-xs text-stone-200 p-2 rounded focus:outline-none focus:border-amber-500/80"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-stone-400 uppercase font-bold block mb-1">
+                          Coping Mechanism
+                        </label>
+                        <input
+                          type="text"
+                          value={char.psychologicalStakes?.copingMechanism || ''}
+                          onChange={(e) =>
+                            handleUpdateStakes(char.id, char.psychologicalStakes, {
+                              copingMechanism: e.target.value,
+                            })
+                          }
+                          placeholder="e.g. Reciting checklist procedures, hyper-focusing on data"
+                          className="w-full bg-[#0c0c10] border border-stone-800 text-xs text-stone-200 p-2 rounded focus:outline-none focus:border-amber-500/80"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div className="sm:col-span-2">
+                        <label className="text-[10px] text-stone-400 uppercase font-bold block mb-1">
+                          Vulnerability / Guilt
+                        </label>
+                        <input
+                          type="text"
+                          value={char.psychologicalStakes?.vulnerabilityOrGuilt || ''}
+                          onChange={(e) =>
+                            handleUpdateStakes(char.id, char.psychologicalStakes, {
+                              vulnerabilityOrGuilt: e.target.value,
+                            })
+                          }
+                          placeholder="e.g. Complicity in initial specimen harvest"
+                          className="w-full bg-[#0c0c10] border border-stone-800 text-xs text-stone-200 p-2 rounded focus:outline-none focus:border-amber-500/80"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-stone-400 uppercase font-bold block mb-1">
+                          Sensitivity Multiplier
+                        </label>
+                        <input
+                          type="number"
+                          step="0.1"
+                          min="0.1"
+                          max="3.0"
+                          value={char.psychologicalStakes?.composureSensitivity ?? 1.0}
+                          onChange={(e) =>
+                            handleUpdateStakes(char.id, char.psychologicalStakes, {
+                              composureSensitivity: Math.max(0.1, Number(e.target.value)),
+                            })
+                          }
+                          className="w-full bg-[#0c0c10] border border-stone-800 text-xs text-stone-200 p-2 rounded focus:outline-none focus:border-amber-500/80"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Breaking Point (D3 Obstructive Refusal) */}
+                    <div className="p-3 bg-black/50 border border-stone-900 rounded-lg space-y-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div className="sm:col-span-2">
+                          <label className="text-[10px] text-stone-400 uppercase font-bold block mb-1">
+                            Authored Breaking Point Trigger (D3)
+                          </label>
+                          <input
+                            type="text"
+                            value={char.psychologicalStakes?.breakingPointTrigger || ''}
+                            onChange={(e) =>
+                              handleUpdateStakes(char.id, char.psychologicalStakes, {
+                                breakingPointTrigger: e.target.value,
+                              })
+                            }
+                            placeholder="e.g. Direct exposure to entity bio-signature or complete isolation"
+                            className="w-full bg-[#0c0c10] border border-stone-800 text-xs text-stone-200 p-1.5 rounded focus:outline-none focus:border-amber-500/80"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-stone-400 uppercase font-bold block mb-1">
+                            Break Threshold (0-100)
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            value={char.psychologicalStakes?.breakingPointThreshold ?? 20}
+                            onChange={(e) =>
+                              handleUpdateStakes(char.id, char.psychologicalStakes, {
+                                breakingPointThreshold: Math.max(0, Math.min(100, Number(e.target.value))),
+                              })
+                            }
+                            className="w-full bg-[#0c0c10] border border-stone-800 text-xs text-stone-200 p-1.5 rounded focus:outline-none focus:border-amber-500/80"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Deterministic Lift Conditions (D3) */}
+                      <div className="pt-2 border-t border-stone-800/60 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] uppercase font-bold text-stone-400 font-mono">
+                            Deterministic Obstruction Lift Conditions
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleAddLiftCondition(char.id, char.psychologicalStakes)}
+                            className="text-[10px] font-mono text-amber-400 hover:text-amber-200 cursor-pointer"
+                          >
+                            + Add Condition
+                          </button>
+                        </div>
+
+                        {(!char.psychologicalStakes?.liftConditions || char.psychologicalStakes.liftConditions.length === 0) ? (
+                          <span className="text-[10px] text-stone-500 italic block">
+                            No lift conditions set. If broken, character cannot recover without intervention.
+                          </span>
+                        ) : (
+                          <div className="space-y-1.5">
+                            {char.psychologicalStakes.liftConditions.map((cond, condIdx) => (
+                              <div
+                                key={condIdx}
+                                className="flex items-center gap-2 p-2 bg-[#0c0c10] border border-stone-800 rounded text-xs font-mono"
+                              >
+                                <select
+                                  value={cond.kind}
+                                  onChange={(e) =>
+                                    handleUpdateLiftCondition(char.id, condIdx, char.psychologicalStakes!, {
+                                      kind: e.target.value as DeterministicLiftCondition['kind'],
+                                    })
+                                  }
+                                  className="bg-black border border-stone-800 text-stone-300 text-[10px] p-1 rounded"
+                                >
+                                  <option value="PERSUASION">PERSUASION</option>
+                                  <option value="REST_RESPITE">REST_RESPITE</option>
+                                  <option value="MEDICAL_STABILIZATION">MEDICAL_STABILIZATION</option>
+                                  <option value="ABANDONMENT">ABANDONMENT</option>
+                                  <option value="TERMINAL_PERMANENT">TERMINAL_PERMANENT</option>
+                                </select>
+                                <div className="w-14 shrink-0">
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    max="100"
+                                    value={cond.composureRecoveryThreshold}
+                                    onChange={(e) =>
+                                      handleUpdateLiftCondition(char.id, condIdx, char.psychologicalStakes!, {
+                                        composureRecoveryThreshold: Number(e.target.value),
+                                      })
+                                    }
+                                    className="w-full bg-black border border-stone-800 text-[10px] p-1 rounded text-center text-amber-300"
+                                    title="Recovery composure target threshold"
+                                  />
+                                </div>
+                                <input
+                                  type="text"
+                                  value={cond.description}
+                                  onChange={(e) =>
+                                    handleUpdateLiftCondition(char.id, condIdx, char.psychologicalStakes!, {
+                                      description: e.target.value,
+                                    })
+                                  }
+                                  className="flex-grow bg-black border border-stone-800 text-[10px] p-1 rounded text-stone-200"
+                                  placeholder="Specific narrative condition to lift obstruction..."
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleRemoveLiftCondition(char.id, condIdx, char.psychologicalStakes!)
+                                  }
+                                  className="text-stone-600 hover:text-red-400 p-1 cursor-pointer"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}

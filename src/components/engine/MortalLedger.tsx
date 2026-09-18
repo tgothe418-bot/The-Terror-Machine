@@ -1,5 +1,18 @@
 import React from 'react';
-import { Skull, Shield, Coffee, Film, HeartPulse, Backpack, Users, Activity } from 'lucide-react';
+import {
+  Skull,
+  Shield,
+  Coffee,
+  Film,
+  HeartPulse,
+  Backpack,
+  Users,
+  Activity,
+  Clock,
+  Gauge,
+  Lock,
+} from 'lucide-react';
+import { ImpendingClock, MacroPhase, PacingCadence } from '../../types/dramaturgy';
 
 export interface CastMemberTelemetry {
   id: string;
@@ -9,6 +22,9 @@ export interface CastMemberTelemetry {
   psychological_status?: string;
   skepticism?: number;
   isCurrentPlayer?: boolean;
+  isObstructed?: boolean;
+  obstructionReason?: string;
+  currentComposure?: number;
 }
 
 export interface MortalLedgerProps {
@@ -19,6 +35,25 @@ export interface MortalLedgerProps {
   inventory?: string[];
   castMembers?: CastMemberTelemetry[];
   className?: string;
+  impendingClocks?: ImpendingClock[];
+  currentLocationNodeId?: string;
+  macroPhase?: MacroPhase;
+  pacingCadence?: PacingCadence;
+}
+
+function getClockManifestationText(clock: ImpendingClock): string {
+  if (!clock.manifestationCues || clock.manifestationCues.length === 0) {
+    return 'The pressure of impending systemic breakdown remains latent.';
+  }
+  const level = clock.currentLevel ?? 0;
+  const sorted = [...clock.manifestationCues].sort((a, b) => a.atLevel - b.atLevel);
+  let activeCue = sorted[0]?.cue || 'The immediate environment is temporarily quiet.';
+  for (const c of sorted) {
+    if (level >= c.atLevel) {
+      activeCue = c.cue;
+    }
+  }
+  return activeCue;
 }
 
 export default function MortalLedger({
@@ -29,6 +64,10 @@ export default function MortalLedger({
   inventory = [],
   castMembers = [],
   className = '',
+  impendingClocks = [],
+  currentLocationNodeId,
+  macroPhase,
+  pacingCadence,
 }: MortalLedgerProps) {
   const normRole = (playerRoleCategory || 'SURVIVOR').toUpperCase();
 
@@ -75,6 +114,14 @@ export default function MortalLedger({
           Somatic Matrix
         </span>
       </div>
+
+      {/* Phase & Cadence Bar (HG2 Transparency) */}
+      {macroPhase && (
+        <div data-testid="mortal-ledger-pacing-bar" className="px-4 py-1.5 bg-zinc-900/60 border-b border-zinc-800/60 flex items-center justify-between text-[10px] tracking-wider uppercase text-zinc-400">
+          <span>Phase: <strong className="text-zinc-200">{macroPhase.replace(/_/g, ' ')}</strong></span>
+          {pacingCadence && <span>Cadence: <strong className="text-amber-300">{pacingCadence.replace(/_/g, ' ')}</strong></span>}
+        </div>
+      )}
 
       <div className="p-4 space-y-5 overflow-y-auto custom-scrollbar">
         {/* Active Player Vessel Section */}
@@ -174,6 +221,76 @@ export default function MortalLedger({
           </div>
         </div>
 
+        {/* Impending Clocks & Environmental Omens (HG2 D2 Diegetic) */}
+        <div className="space-y-2.5">
+          <div className="flex items-center justify-between text-[11px] uppercase tracking-wider text-zinc-400 border-b border-zinc-800/60 pb-1.5">
+            <span className="flex items-center gap-1.5 font-serif italic text-zinc-300 font-semibold">
+              <Clock className="w-3.5 h-3.5 text-zinc-400" />
+              Impending Clocks &amp; Omens
+            </span>
+            <span className="text-[10px] text-zinc-500">
+              {impendingClocks ? impendingClocks.length : 0} Clocks
+            </span>
+          </div>
+
+          <div data-testid="impending-clocks-list" className="space-y-2">
+            {impendingClocks && impendingClocks.length > 0 ? (
+              impendingClocks.map((clock) => {
+                const isSituatedHere = Boolean(
+                  clock.diegeticInstrument &&
+                  clock.instrumentNodeId &&
+                  currentLocationNodeId &&
+                  clock.instrumentNodeId === currentLocationNodeId
+                );
+                const manifestationProse = getClockManifestationText(clock);
+                return (
+                  <div
+                    key={clock.id}
+                    data-testid={`impending-clock-${clock.id}`}
+                    className="p-2.5 rounded border border-zinc-800/80 bg-black/40 text-xs space-y-1.5"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-serif font-semibold text-zinc-200 tracking-wide truncate">
+                        {clock.name}
+                      </span>
+                      {isSituatedHere && clock.diegeticInstrument ? (
+                        <span
+                          data-testid={`diegetic-gauge-${clock.id}`}
+                          className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-950/40 border border-amber-800/80 text-amber-300 flex items-center gap-1 shrink-0"
+                        >
+                          <Gauge className="w-3 h-3 text-amber-400" />
+                          {clock.diegeticInstrument}: {clock.currentLevel}/{clock.maxLevel}
+                        </span>
+                      ) : clock.diegeticInstrument ? (
+                        <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-500 shrink-0">
+                          Instrument situated elsewhere
+                        </span>
+                      ) : null}
+                    </div>
+
+                    <p className="text-[11px] text-zinc-400 leading-relaxed italic">
+                      &ldquo;{manifestationProse}&rdquo;
+                    </p>
+
+                    {clock.isTripped && (
+                      <div className="text-[10px] text-red-400 font-bold uppercase tracking-wider">
+                        CRISIS THRESHOLD BREACHED
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            ) : (
+              <div
+                data-testid="empty-clocks"
+                className="p-3 rounded border border-dashed border-zinc-800/80 text-center text-xs text-zinc-500 italic bg-black/20"
+              >
+                No active environmental clocks pressing on reality.
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Tracked Cohort Offerings (Pure Text - Zero Portrait Avatars) */}
         <div className="space-y-2.5">
           <div className="flex items-center justify-between text-[11px] uppercase tracking-wider text-zinc-400 border-b border-zinc-800/60 pb-1.5">
@@ -192,7 +309,7 @@ export default function MortalLedger({
                 <div
                   key={member.id}
                   data-testid={`cast-member-${member.id}`}
-                  className={`p-2.5 rounded border text-xs transition-colors space-y-1 ${
+                  className={`p-2.5 rounded border text-xs transition-colors space-y-1.5 ${
                     member.isCurrentPlayer
                       ? 'bg-amber-950/20 border-amber-800/70 text-amber-200'
                       : 'bg-black/40 border-zinc-800/80 text-zinc-300'
@@ -209,6 +326,17 @@ export default function MortalLedger({
                     )}
                   </div>
 
+                  {/* Obstructive Breaking Point Badge (HG2 D3) */}
+                  {member.isObstructed && (
+                    <div
+                      data-testid={`obstruction-badge-${member.id}`}
+                      className="flex items-center gap-1.5 px-2 py-1 rounded bg-red-950/60 border border-red-800 text-red-300 text-[10px] font-bold"
+                    >
+                      <Lock className="w-3 h-3 text-red-400 shrink-0" />
+                      <span>OBSTRUCTED: {member.obstructionReason || 'Refuses to proceed past breaking point'}</span>
+                    </div>
+                  )}
+
                   <div className="flex items-center justify-between text-[10px] text-zinc-400 pt-0.5">
                     <span className="truncate">
                       <span className="text-zinc-500 mr-1">LOC:</span>
@@ -221,8 +349,15 @@ export default function MortalLedger({
                     )}
                   </div>
 
+                  {typeof member.currentComposure === 'number' && (
+                    <div className="flex items-center justify-between text-[9px] text-zinc-500 font-mono">
+                      <span>COMPOSURE:</span>
+                      <span className="text-zinc-400">{member.currentComposure}/100</span>
+                    </div>
+                  )}
+
                   {typeof member.skepticism === 'number' && (
-                    <div className="flex items-center gap-2 pt-1 text-[9px] text-zinc-500 font-mono">
+                    <div className="flex items-center gap-2 pt-0.5 text-[9px] text-zinc-500 font-mono">
                       <span>SKEPTICISM:</span>
                       <div className="flex-1 h-1 bg-zinc-900 rounded overflow-hidden border border-zinc-800">
                         <div

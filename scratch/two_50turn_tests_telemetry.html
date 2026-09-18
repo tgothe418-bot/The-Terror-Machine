@@ -1,0 +1,2323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>The Terror Machine // Telemetry Stream - Two 50-Turn Verification Runs</title>
+  <style>
+    body {
+      background-color: #000000;
+      color: #d1d5db;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      padding: 3rem 2rem;
+      max-width: 1000px;
+      margin: 0 auto;
+      line-height: 1.7;
+    }
+    .meta-header {
+      color: #52525b;
+      font-size: 0.75rem;
+      letter-spacing: 0.1em;
+      border-bottom: 1px solid #18181b;
+      padding-bottom: 1.5rem;
+      margin-bottom: 2rem;
+      text-transform: uppercase;
+    }
+    .context-receipt {
+      background-color: #09090b;
+      border: 1px solid #27272a;
+      border-radius: 4px;
+      padding: 1.25rem;
+      margin-bottom: 2.5rem;
+      font-size: 0.8rem;
+    }
+    .receipt-header {
+      color: #a1a1aa;
+      font-weight: bold;
+      margin-bottom: 0.75rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .receipt-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 0.75rem;
+      color: #d4d4d8;
+    }
+    .receipt-item { line-height: 1.5; }
+    .receipt-key { color: #71717a; text-transform: uppercase; font-size: 0.75rem; margin-right: 0.25rem; }
+    .receipt-val { font-weight: 600; color: #f4f4f5; }
+    .receipt-badge {
+      display: inline-block;
+      padding: 0.15rem 0.5rem;
+      border-radius: 3px;
+      font-size: 0.75rem;
+      font-weight: bold;
+      background-color: #064e3b;
+      color: #34d399;
+      border: 1px solid #059669;
+    }
+    .test-section {
+      margin-top: 3rem;
+      margin-bottom: 4rem;
+      border-top: 2px solid #27272a;
+      padding-top: 2rem;
+    }
+    .test-title {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: #f59e0b;
+      margin-bottom: 0.5rem;
+      letter-spacing: 0.05em;
+    }
+    .test-meta {
+      color: #71717a;
+      font-size: 0.85rem;
+      margin-bottom: 1.5rem;
+    }
+    .turn-card {
+      background-color: #050507;
+      border: 1px solid #1f1f23;
+      border-radius: 4px;
+      margin-bottom: 1.75rem;
+      padding: 1.25rem;
+    }
+    .turn-header {
+      display: flex;
+      justify-content: space-between;
+      border-bottom: 1px solid #18181b;
+      padding-bottom: 0.5rem;
+      margin-bottom: 1rem;
+      font-size: 0.75rem;
+      color: #71717a;
+      text-transform: uppercase;
+    }
+    .turn-number { font-weight: bold; color: #60a5fa; }
+    .turn-metrics { color: #a1a1aa; }
+    .user-input {
+      color: #a1a1aa;
+      font-size: 0.9rem;
+      font-style: italic;
+      margin-bottom: 1rem;
+      padding-left: 1rem;
+      border-left: 2px solid #3b82f6;
+    }
+    .block-narration {
+      color: #e4e4e7;
+      font-size: 0.95rem;
+      margin-bottom: 1rem;
+      line-height: 1.6;
+    }
+    .logic-panel {
+      background-color: #09090b;
+      border: 1px dashed #27272a;
+      border-radius: 4px;
+      margin-top: 1rem;
+      font-size: 0.8rem;
+    }
+    summary {
+      padding: 0.6rem 0.9rem;
+      color: #52525b;
+      cursor: pointer;
+      font-weight: bold;
+      outline: none;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    summary:hover {
+      color: #a1a1aa;
+      background-color: #121214;
+    }
+    .logic-content {
+      padding: 0.9rem;
+      border-top: 1px dashed #27272a;
+      background-color: #020617;
+    }
+    pre {
+      margin: 0;
+      color: #34d399;
+      font-size: 0.78rem;
+      overflow-x: auto;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+  <div class="meta-header">
+    THE TERROR MACHINE // RUNTIME DUAL 50-TURN ENGINE VERIFICATION<br>
+    TRACE CAPTURE ID: 1789720926306<br>
+    MODEL: google/gemma-4-26b-a4b-qat @ http://127.0.0.1:1234/v1<br>
+    TIMESTAMP: 2026-09-18T08:42:06.306Z
+  </div>
+
+  <div class="context-receipt">
+    <div class="receipt-header">[ CONTEXT RECEIPT // DUAL 50-TURN BATTERY BENCHMARK ]</div>
+    <div class="receipt-grid">
+      <div class="receipt-item"><span class="receipt-key">SCENARIO:</span> <span class="receipt-val">The Black Iron Mortuary</span></div>
+      <div class="receipt-item"><span class="receipt-key">TEST 1 ROLE:</span> <span class="receipt-val">SURVIVOR (Dr. Maren Ross)</span></div>
+      <div class="receipt-item"><span class="receipt-key">TEST 2 ROLE:</span> <span class="receipt-val">VILLAIN (Entity-41)</span></div>
+      <div class="receipt-item"><span class="receipt-key">PLANNED TURNS:</span> <span class="receipt-val">100 (50 Survivor + 50 Villain)</span></div>
+      <div class="receipt-item"><span class="receipt-key">CLOUD TOKENS:</span> <span class="receipt-badge">0 TOKENS (STRICT LOCAL)</span></div>
+    </div>
+  </div>
+
+  <div class="test-section">
+    <div class="test-title">Test 1: Survivor Forensics &amp; Survival (Dr. Maren Ross - 50 Turns)</div>
+    <div class="test-meta">
+      Role: <strong>SURVIVOR</strong> | 
+      Completed: <strong>50/50</strong> | 
+      Avg Latency: <strong>11736ms</strong> | 
+      Fidelity: <strong>4.68/5.0</strong> | 
+      Quality: <strong>4.94/5.0</strong> | 
+      Accuracy: <strong>5/5.0</strong> | 
+      Verdict: <span class="receipt-badge">PASS</span>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 1 OF 50</span>
+        <span class="turn-metrics">31627ms | F:5 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Awaken on the frost-covered tile of Autopsy Suite B, assessing personal cranial contusion and checking vitals.</div>
+      <div class="block-narration">The sterile bite of frost-slicked ceramic seeps through your scrubs, a numbing contrast to the rhythmic, heavy thud of something dragging across the ceiling tracks. Your vision swims in a haze of gray, punctuated by the sharp, metallic tang of blood and the hollow ache in your skull.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The sterile bite of frost-slicked ceramic seeps through your scrubs, a numbing contrast to the rhythmic, heavy thud of something dragging across the ceiling tracks. Your vision swims in a haze of gray, punctuated by the sharp, metallic tang of blood and the hollow ache in your skull.&quot;,
+  &quot;tensionLevel&quot;: &quot;buildup&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Grade I cranial contusion; localized edema at the left parietal lobe; early-stage peripheral vasoconstriction.&quot;,
+  &quot;antagonistObservation&quot;: &quot;Rhythmic, metallic grinding echoing from the overhead track system.&quot;,
+  &quot;playerHealth&quot;: &quot;Concussed; shivering; core temperature 35.8°C.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 2 OF 50</span>
+        <span class="turn-metrics">12787ms | F:5 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Locate Officer Marcus Holt slumped near the scrub sink, evaluating his compound radial fracture and signs of shock.</div>
+      <div class="block-narration">The ambient temperature has plummeted, turning your breath into a frantic, white mist that obscures the view of Holt&#039;s pale, clammy skin. His compound radial fracture is a jagged, weeping mess of marrow and dark blood, refusing to clot in the sub-zero air. Above, the overhead tracks groan with a rhythmic, heavy scraping, a metallic cadence that vibrates through the floorboards.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The ambient temperature has plummeted, turning your breath into a frantic, white mist that obscures the view of Holt&#039;s pale, clammy skin. His compound radial fracture is a jagged, weeping mess of marrow and dark blood, refusing to clot in the sub-zero air. Above, the overhead tracks groan with a rhythmic, heavy scraping, a metallic cadence that vibrates through the floorboards.&quot;,
+  &quot;tensionLevel&quot;: &quot;sustained&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Stage 1 hypothermia; peripheral vasoconstriction; mild tremors.&quot;,
+  &quot;antagonistObservation&quot;: &quot;Rhythmic, heavy metallic scraping on the overhead gantry tracks.&quot;,
+  &quot;playerHealth&quot;: &quot;Somatic stability: 85%; core temperature dropping; respiratory rate elevated.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 3 OF 50</span>
+        <span class="turn-metrics">10408ms | F:5 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Search the stainless steel instrument tray for clean gauze, arterial clamps, and an intact scalpel.</div>
+      <div class="block-narration">The stainless steel clatters with a sharp, biting resonance that echoes too long in the sterile silence. Above, the overhead tracks groan under a heavy, rhythmic weight, sending a vibration through the tray that feels uncomfortably like a heartbeat.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The stainless steel clatters with a sharp, biting resonance that echoes too long in the sterile silence. Above, the overhead tracks groan under a heavy, rhythmic weight, sending a vibration through the tray that feels uncomfortably like a heartbeat.&quot;,
+  &quot;tensionLevel&quot;: &quot;buildup&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Stage 1 hypothermia; localized numbness in distal phalanges.&quot;,
+  &quot;antagonistObservation&quot;: &quot;Rhythmic, metallic scraping from the ceiling tracks; heavy, dragging weight.&quot;,
+  &quot;playerHealth&quot;: &quot;Somatic state: Acute shivering, vasoconstriction in extremities, heightened sensory awareness.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 4 OF 50</span>
+        <span class="turn-metrics">6727ms | F:5 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Improvise a stabilizing splint for Holt&#039;s arm using a stainless steel rib spreader and surgical drape.</div>
+      <div class="block-narration">The stainless steel rib spreader bites into the frost-slicked drape, a cold, unyielding weight against Holt&#039;s mangled limb. Above, the overhead tracks groan under a rhythmic, heavy scraping that vibrates through the mortuary&#039;s tiled floor, mocking the silence of the morgue.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The stainless steel rib spreader bites into the frost-slicked drape, a cold, unyielding weight against Holt&#039;s mangled limb. Above, the overhead tracks groan under a rhythmic, heavy scraping that vibrates through the mortuary&#039;s tiled floor, mocking the silence of the morgue.&quot;,
+  &quot;tensionLevel&quot;: &quot;sustained&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Peripheral vasoconstriction; loss of fine motor dexterity in fingertips due to cold.&quot;,
+  &quot;antagonistObservation&quot;: &quot;Rhythmic, heavy scraping on the overhead tracks; low-frequency vibration felt through the floor.&quot;,
+  &quot;playerHealth&quot;: &quot;Stage 1 Hypothermia; increased shivering; acute somatic dread.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 5 OF 50</span>
+        <span class="turn-metrics">7890ms | F:5 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Inspect the heavy steel double doors leading to the Decompression Airlock, testing the manual dog latch.</div>
+      <div class="block-narration">The steel is a thief of heat, leeching warmth from her fingertips through the biting frost on the latch. A dull, metallic clank echoes through the corridor, sounding far too much like a footfall in the hollow silence.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The steel is a thief of heat, leeching warmth from her fingertips through the biting frost on the latch. A dull, metallic clank echoes through the corridor, sounding far too much like a footfall in the hollow silence.&quot;,
+  &quot;tensionLevel&quot;: &quot;buildup&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Peripheral vasoconstriction in digits; mild numbness in the index and middle fingers.&quot;,
+  &quot;antagonistObservation&quot;: &quot;A rhythmic, heavy scraping sound vibrates through the overhead ventilation ducts.&quot;,
+  &quot;playerHealth&quot;: &quot;Core temperature stable; localized cutaneous numbness in hands.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 6 OF 50</span>
+        <span class="turn-metrics">14116ms | F:4 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Listen intently to the high-frequency metallic clicking reverberating through the overhead pneumatic rail track.</div>
+      <div class="block-narration">The clicking is too rhythmic for a failing valve, a staccato cadence that vibrates through the jawbone rather than the air. Above, the overhead rail groans under a weight that defies the expected pneumatic cycle.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The clicking is too rhythmic for a failing valve, a staccato cadence that vibrates through the jawbone rather than the air. Above, the overhead rail groans under a weight that defies the expected pneumatic cycle.&quot;,
+  &quot;tensionLevel&quot;: &quot;sustained&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Mild peripheral vasoconstriction; onset of involuntary shivering.&quot;,
+  &quot;antagonistObservation&quot;: &quot;Rhythmic, high-frequency metallic clicking, inconsistent with standard pneumatic cycles.&quot;,
+  &quot;playerHealth&quot;: &quot;Stable core temperature; localized numbness in fingertips; acute sympathetic nervous system arousal.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 7 OF 50</span>
+        <span class="turn-metrics">8312ms | F:5 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Move quietly along the perimeter toward the Histology Substation swinging doors, keeping beneath table overhangs.</div>
+      <div class="block-narration">The frost on the linoleum bites through your boots as you press your back against the cold steel of the autopsy tables. Above, the overhead tracks groan under a weight that isn&#039;t yours, a rhythmic, metallic screeching that vibrates in your very teeth.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The frost on the linoleum bites through your boots as you press your back against the cold steel of the autopsy tables. Above, the overhead tracks groan under a weight that isn&#039;t yours, a rhythmic, metallic screeching that vibrates in your very teeth.&quot;,
+  &quot;tensionLevel&quot;: &quot;sustained&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Stage 1 Hypothermia: peripheral vasoconstriction, mild shivering, numbness in distal extremities.&quot;,
+  &quot;antagonistObservation&quot;: &quot;The rhythmic, heavy scraping of Entity-41&#039;s movement on the overhead rails, echoing through the ventilation ducts.&quot;,
+  &quot;playerHealth&quot;: &quot;Somatic stability: 88%. Core temperature: 35.8°C. Motor control: slightly diminished in fingers.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 8 OF 50</span>
+        <span class="turn-metrics">13069ms | F:5 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Peek through the reinforced wire-glass porthole into Histology, scanning for movement along the ceiling carriage.</div>
+      <div class="block-narration">The wire-glass is clouded by a layer of crystalline frost, obscuring the sterile, stainless-steel surfaces of the histology lab. A rhythmic, scraping cadence vibrates through the frame, echoing from the ceiling tracks with the sound of bone grinding against dry metal.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The wire-glass is clouded by a layer of crystalline frost, obscuring the sterile, stainless-steel surfaces of the histology lab. A rhythmic, scraping cadence vibrates through the frame, echoing from the ceiling tracks with the sound of bone grinding against dry metal.&quot;,
+  &quot;tensionLevel&quot;: &quot;sustained&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Stage 1 hypothermia: Mild digital numbness and localized vasoconstriction in the hands.&quot;,
+  &quot;antagonistObservation&quot;: &quot;A rhythmic, scraping cadence moving along the ceiling carriage, just out of direct visual range.&quot;,
+  &quot;playerHealth&quot;: &quot;Decreased core temperature; shallow, rapid respiration; tactile numbness in extremities.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 9 OF 50</span>
+        <span class="turn-metrics">9627ms | F:5 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Slip into the Histology Substation, stepping over shattered reagent bottles of eosin and formalin.</div>
+      <div class="block-narration">The caustic sting of formalin bites at the throat, mingling with the sickly, sweet scent of spilled eosin. Beneath the rhythmic, heavy grinding of the overhead tracks, the floor feels unnervingly slick, a chemical mire that clings to the boots as the cold begins to seep through the layers of the lab coat.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The caustic sting of formalin bites at the throat, mingling with the sickly, sweet scent of spilled eosin. Beneath the rhythmic, heavy grinding of the overhead tracks, the floor feels unnervingly slick, a chemical mire that clings to the boots as the cold begins to seep through the layers of the lab coat.&quot;,
+  &quot;tensionLevel&quot;: &quot;sustained&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Mild peripheral vasoconstriction; onset of subcutaneous shivering.&quot;,
+  &quot;antagonistObservation&quot;: &quot;A rhythmic, heavy scraping sound echoes through the ventilation ducts, inconsistent with the overhead track movement.&quot;,
+  &quot;playerHealth&quot;: &quot;Somatic state: Alert but experiencing acute sensory dread; core temperature slightly declining.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 10 OF 50</span>
+        <span class="turn-metrics">17480ms | F:5 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Search the northern counter for the auxiliary diagnostic power breaker while monitoring overhead rail vibrations.</div>
+      <div class="block-narration">The auxiliary breaker is located behind a frost-rimed tray, its metal surface biting through her gloves with a predatory chill. Above, the overhead tracks emit a low, rhythmic grinding that resonates through the floorboards, vibrating against her very teeth.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The auxiliary breaker is located behind a frost-rimed tray, its metal surface biting through her gloves with a predatory chill. Above, the overhead tracks emit a low, rhythmic grinding that resonates through the floorboards, vibrating against her very teeth.&quot;,
+  &quot;tensionLevel&quot;: &quot;sustained&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Mild peripheral numbness in digits; localized vasoconstriction.&quot;,
+  &quot;antagonistObservation&quot;: &quot;Rhythmic, heavy grinding of the overhead rail; structural vibration.&quot;,
+  &quot;playerHealth&quot;: &quot;Stage 1 Hypothermia; acute sympathetic nervous system arousal.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 11 OF 50</span>
+        <span class="turn-metrics">13319ms | F:4 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Attempt to force the corroded auxiliary circuit breaker lever upward with a heavy brass mortar.</div>
+      <div class="block-narration">The brass mortar strikes the corroded lever with a jarring, hollow clang that vibrates through Maren&#039;s teeth. The mechanism remains stubbornly fused, the metal biting back with a frozen, unyielding resistance. Above, the rhythmic scraping of the overhead tracks ceases, replaced by a heavy, expectant silence.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The brass mortar strikes the corroded lever with a jarring, hollow clang that vibrates through Maren&#039;s teeth. The mechanism remains stubbornly fused, the metal biting back with a frozen, unyielding resistance. Above, the rhythmic scraping of the overhead tracks ceases, replaced by a heavy, expectant silence.&quot;,
+  &quot;tensionLevel&quot;: &quot;sustained&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Mild muscular strain in the dominant forearm; onset of shivering due to increased perspiration in sub-zero temperatures.&quot;,
+  &quot;antagonistObservation&quot;: &quot;The sudden cessation of overhead movement suggests Entity-41 has paused directly above the breaker box.&quot;,
+  &quot;playerHealth&quot;: &quot;Hypothermic Stage 1: Mild shivering, decreased fine motor dexterity, elevated heart rate.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 12 OF 50</span>
+        <span class="turn-metrics">15066ms | F:5 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Shield eyes and duck as electrical sparks shower from the breaker box, restoring faint yellow emergency phosphor.</div>
+      <div class="block-narration">The violent crack of the breaker box sends a cascade of white-hot sparks against the damp concrete, leaving a stinging scent of ozone in the freezing air. As the sickly yellow phosphor of the emergency lights flickers to life, the shadows in the morgue seem to stretch and pulse with a rhythmic, metallic scraping from the overhead tracks.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The violent crack of the breaker box sends a cascade of white-hot sparks against the damp concrete, leaving a stinging scent of ozone in the freezing air. As the sickly yellow phosphor of the emergency lights flickers to life, the shadows in the morgue seem to stretch and pulse with a rhythmic, metallic scraping from the overhead tracks.&quot;,
+  &quot;tensionLevel&quot;: &quot;sustained&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Mild dermal irritation from electrical discharge; onset of shivering due to ambient temperature.&quot;,
+  &quot;antagonistObservation&quot;: &quot;Rhythmic, heavy grinding of metal on metal from the ceiling tracks, echoing through the ventilation shafts.&quot;,
+  &quot;playerHealth&quot;: &quot;Somatic state: Elevated cortisol, peripheral vasoconstriction, shivering.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 13 OF 50</span>
+        <span class="turn-metrics">15474ms | F:5 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Read the blinking diagnostic terminal readout: &#039;AIRLOCK DOGS: 40% HYDRAULIC PRESSURE; FREEZER LINE: COMPROMISED.&#039;</div>
+      <div class="block-narration">The terminal&#039;s amber glow flickers against the frost creeping across the console, mirroring the rhythmic, dying hiss of the compromised freezer line. Somewhere above, the heavy, metallic scraping of the overhead tracks vibrates through the floorboards, a predatory cadence in the deepening chill.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The terminal&#039;s amber glow flickers against the frost creeping across the console, mirroring the rhythmic, dying hiss of the compromised freezer line. Somewhere above, the heavy, metallic scraping of the overhead tracks vibrates through the floorboards, a predatory cadence in the deepening chill.&quot;,
+  &quot;tensionLevel&quot;: &quot;sustained&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Mild hypothermia; localized numbness in distal extremities.&quot;,
+  &quot;antagonistObservation&quot;: &quot;Rhythmic, heavy scraping of metal on metal from the overhead rails; a low-frequency vibration felt in the teeth.&quot;,
+  &quot;playerHealth&quot;: &quot;Stage 1 Hypothermia; shivering; elevated heart rate; increased respiratory rate.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 14 OF 50</span>
+        <span class="turn-metrics">13880ms | F:5 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Duck behind the chemical fume hood as a six-bladed trocar carousel slides along the ceiling rail overhead.</div>
+      <div class="block-narration">The screech of the ceiling rail vibrates through the concrete, a rhythmic, metallic grinding that resonates in Maren&#039;s very marrow. A shadow, heavy and segmented, sweeps across the fume hood, momentarily eclipsing the dim light. The air is a biting, stagnant void, smelling of ozone and the sharp, antiseptic sting of formaldehyde.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The screech of the ceiling rail vibrates through the concrete, a rhythmic, metallic grinding that resonates in Maren&#039;s very marrow. A shadow, heavy and segmented, sweeps across the fume hood, momentarily eclipsing the dim light. The air is a biting, stagnant void, smelling of ozone and the sharp, antiseptic sting of formaldehyde.&quot;,
+  &quot;tensionLevel&quot;: &quot;sustained&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Stage 1 Hypothermia: Peripheral vasoconstriction, onset of fine motor tremors, increased respiratory rate.&quot;,
+  &quot;antagonistObservation&quot;: &quot;The rhythmic, heavy clatter of steel blades against a guide rail, accompanied by a low-frequency mechanical hum.&quot;,
+  &quot;playerHealth&quot;: &quot;Stable but deteriorating; elevated cortisol; early-stage shivering.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 15 OF 50</span>
+        <span class="turn-metrics">8749ms | F:5 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Hold breath in total stillness as Entity-41&#039;s optical lens dilates and pans inches above the fume hood glass.</div>
+      <div class="block-narration">The mechanical whir of the lens&#039;s aperture is a deafening rasp in the silence, a rhythmic clicking that vibrates through the frosted glass of the fume hood. Frost blooms on the edges of the workstation, mirroring the crystalline stillness in Maren&#039;s lungs as she fights the urge to exhale.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The mechanical whir of the lens&#039;s aperture is a deafening rasp in the silence, a rhythmic clicking that vibrates through the frosted glass of the fume hood. Frost blooms on the edges of the workstation, mirroring the crystalline stillness in Maren&#039;s lungs as she fights the urge to exhale.&quot;,
+  &quot;tensionLevel&quot;: &quot;sustained&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Mild peripheral vasoconstriction; shallow, suppressed respiration.&quot;,
+  &quot;antagonistObservation&quot;: &quot;The rhythmic, wet click of a dilating optical lens; the low hum of a motorized gimbal passing directly overhead.&quot;,
+  &quot;playerHealth&quot;: &quot;Hypothermic Stage 1: Shivering suppressed by conscious effort; acute tachycardia; respiratory suppression.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 16 OF 50</span>
+        <span class="turn-metrics">8117ms | F:4 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Crawl along the floor under the chemical storage counter to avoid the overhead optical beam.</div>
+      <div class="block-narration">The concrete floor is a slab of ice against her abdomen, leaching warmth with predatory efficiency. Above, the rhythmic clack-clack of the overhead tracks vibrates through the floorboards, punctuated by the silent, sweeping death of the red optical beam.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The concrete floor is a slab of ice against her abdomen, leaching warmth with predatory efficiency. Above, the rhythmic clack-clack of the overhead tracks vibrates through the floorboards, punctuated by the silent, sweeping death of the red optical beam.&quot;,
+  &quot;tensionLevel&quot;: &quot;sustained&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Stage 1 Hypothermia: Peripheral vasoconstriction; localized dermal numbness in abdomen and thighs.&quot;,
+  &quot;antagonistObservation&quot;: &quot;The rhythmic, mechanical grinding of Entity-41&#039;s locomotion echoes through the ventilation shafts.&quot;,
+  &quot;playerHealth&quot;: &quot;Core temperature dropping; mild shivering; motor skills slightly diminished.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 17 OF 50</span>
+        <span class="turn-metrics">8040ms | F:5 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Retrace steps back into Autopsy Suite B, whispering an urgent status report to Officer Holt.</div>
+      <div class="block-narration">The sterile, frost-rimed air of Suite B bites at your lungs, turning every shallow breath into a crystalline struggle. Above, the rhythmic, metallic screech of the overhead tracks vibrates through the ceiling, a grinding cadence that signals the movement of something heavy and unseen.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The sterile, frost-rimed air of Suite B bites at your lungs, turning every shallow breath into a crystalline struggle. Above, the rhythmic, metallic screech of the overhead tracks vibrates through the ceiling, a grinding cadence that signals the movement of something heavy and unseen.&quot;,
+  &quot;tensionLevel&quot;: &quot;sustained&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Stage 1 Hypothermia: involuntary shivering, peripheral vasoconstriction, decreased fine motor control.&quot;,
+  &quot;antagonistObservation&quot;: &quot;Rhythmic, heavy scraping of metal on metal from the overhead gurney tracks.&quot;,
+  &quot;playerHealth&quot;: &quot;Compromised: shivering, localized numbness in extremities, acute somatic dread.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 18 OF 50</span>
+        <span class="turn-metrics">6521ms | F:5 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Discover that subzero refrigerant vapor is seeping through the floor sluice from the Specimen Freezer.</div>
+      <div class="block-narration">A thick, crystalline fog rolls from the floor sluice, swallowing the light in a ghostly, subzero shroud. The hiss of escaping refrigerant cuts through the silence like a dying breath, turning the air into a biting, caustic mist.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;A thick, crystalline fog rolls from the floor sluice, swallowing the light in a ghostly, subzero shroud. The hiss of escaping refrigerant cuts through the silence like a dying breath, turning the air into a biting, caustic mist.&quot;,
+  &quot;tensionLevel&quot;: &quot;sustained&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Peripheral vasoconstriction; onset of involuntary shivering and numbness in the distal extremities.&quot;,
+  &quot;antagonistObservation&quot;: &quot;The rhythmic, heavy scraping of metal on metal echoes from the overhead tracks, momentarily muffled by the rising vapor.&quot;,
+  &quot;playerHealth&quot;: &quot;Core temperature dropping; fine motor skills in fingers beginning to fail.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 19 OF 50</span>
+        <span class="turn-metrics">14031ms | F:4 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Assist Holt to his feet, wrapping him in an insulated foil survival blanket from the emergency wall kit.</div>
+      <div class="block-narration">The foil blanket crinkles with a sharp, frantic sound that feels unnervingly loud in the tomb-like silence. Above, the overhead tracks groan under a heavy, rhythmic weight, a slow grinding that vibrates through the very marrow of your teeth.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The foil blanket crinkles with a sharp, frantic sound that feels unnervingly loud in the tomb-like silence. Above, the overhead tracks groan under a heavy, rhythmic weight, a slow grinding that vibrates through the very marrow of your teeth.&quot;,
+  &quot;tensionLevel&quot;: &quot;sustained&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Stage 1 Hypothermia: Peripheral vasoconstriction; decreased tactile sensitivity in fingertips.&quot;,
+  &quot;antagonistObservation&quot;: &quot;Rhythmic, heavy grinding of the overhead tracks; low-frequency structural vibration.&quot;,
+  &quot;playerHealth&quot;: &quot;Somatic state: Shivering; mild cognitive slowing; core temperature dropping.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 20 OF 50</span>
+        <span class="turn-metrics">8163ms | F:5 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Check Holt&#039;s pulse and pupil reaction, observing severe diaphoresis and hypothermic tremor.</div>
+      <div class="block-narration">Holt&#039;s pupils are sluggish, fixed in a mid-dilated stare that defies the freezing air. A thin, oily sweat coats his skin despite the frost blooming on the autopsy table, and the rhythmic, heavy grinding of the overhead tracks vibrates through the floorboards.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;Holt&#039;s pupils are sluggish, fixed in a mid-dilated stare that defies the freezing air. A thin, oily sweat coats his skin despite the frost blooming on the autopsy table, and the rhythmic, heavy grinding of the overhead tracks vibrates through the floorboards.&quot;,
+  &quot;tensionLevel&quot;: &quot;sustained&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Stage 1 Hypothermia: peripheral vasoconstriction, fine motor tremors.&quot;,
+  &quot;antagonistObservation&quot;: &quot;Rhythmic, heavy grinding of rusted iron tracks overhead.&quot;,
+  &quot;playerHealth&quot;: &quot;Moderate shivering, decreased tactile sensitivity in fingertips.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 21 OF 50</span>
+        <span class="turn-metrics">8252ms | F:4 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Approach the Decompression Airlock inner door, attempting to engage the newly powered hydraulic latch.</div>
+      <div class="block-narration">The hydraulic latch groans, a wet, metallic protest against the sub-zero temperature, before finally clicking into place with a jarring vibration. Above, the rhythmic, heavy grinding of the overhead tracks echoes through the hollow chamber, sounding unnervingly close.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The hydraulic latch groans, a wet, metallic protest against the sub-zero temperature, before finally clicking into place with a jarring vibration. Above, the rhythmic, heavy grinding of the overhead tracks echoes through the hollow chamber, sounding unnervingly close.&quot;,
+  &quot;tensionLevel&quot;: &quot;sustained&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Mild peripheral vasoconstriction; fingers exhibiting localized numbness and loss of fine motor control.&quot;,
+  &quot;antagonistObservation&quot;: &quot;The rhythmic, heavy grinding of metal on metal overhead, accompanied by a faint, wet scraping sound.&quot;,
+  &quot;playerHealth&quot;: &quot;Hypothermic Stage 1: Shivering, increased heart rate, decreased manual dexterity.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 22 OF 50</span>
+        <span class="turn-metrics">11461ms | F:4 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Turn the manual airlock bleed valve to equalize pressure, bracing against the rush of frigid atmospheric mist.</div>
+      <div class="block-narration">The valve shrieks as pressure equalizes, venting a plume of sub-zero mist that bites through her scrubs like a serrated blade. Through the swirling white haze, the rhythmic, heavy clack-clack of overhead tracks vibrates through the floorboards, sounding impossibly close.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The valve shrieks as pressure equalizes, venting a plume of sub-zero mist that bites through her scrubs like a serrated blade. Through the swirling white haze, the rhythmic, heavy clack-clack of overhead tracks vibrates through the floorboards, sounding impossibly close.&quot;,
+  &quot;tensionLevel&quot;: &quot;sustained&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Stage 1 hypothermia; acute respiratory thermal shock; peripheral vasoconstriction.&quot;,
+  &quot;antagonistObservation&quot;: &quot;Rhythmic, heavy metallic scraping on the overhead rail system.&quot;,
+  &quot;playerHealth&quot;: &quot;Moderate shivering; decreased fine motor control in digits; rapid, shallow respiration.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 23 OF 50</span>
+        <span class="turn-metrics">9179ms | F:5 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Guide Holt across the threshold into the Decompression Airlock, scanning the rusted deluge shower piping.</div>
+      <div class="block-narration">The airlock&#039;s heavy steel door seals with a pressurized, hollow thud, trapping a stagnant, metallic chill within the cramped chamber. Above, the rusted deluge piping shudders as a rhythmic, wet scraping echoes from the overhead tracks, vibrating through the soles of your boots.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The airlock&#039;s heavy steel door seals with a pressurized, hollow thud, trapping a stagnant, metallic chill within the cramped chamber. Above, the rusted deluge piping shudders as a rhythmic, wet scraping echoes from the overhead tracks, vibrating through the soles of your boots.&quot;,
+  &quot;tensionLevel&quot;: &quot;sustained&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Stage 1 Hypothermia: Peripheral vasoconstriction, involuntary shivering, and loss of fine motor dexterity in the hands.&quot;,
+  &quot;antagonistObservation&quot;: &quot;Rhythmic, heavy scraping of metal on metal from the overhead track system; a wet, dragging sound echoing through the ventilation.&quot;,
+  &quot;playerHealth&quot;: &quot;Increasingly sluggish motor functions; mild cognitive fog; persistent shivering.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 24 OF 50</span>
+        <span class="turn-metrics">12825ms | F:4 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Test the outer airlock pressure hatch leading toward the flooded transit tunnel—finding it deadlocked from outside.</div>
+      <div class="block-narration">The hatch is a dead end, the external locking mechanism fused by ice and deliberate obstruction. A low-frequency vibration travels through the steel, accompanied by the rhythmic, grinding screech of the overhead tracks, signaling a weight far greater than mere air pressure.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The hatch is a dead end, the external locking mechanism fused by ice and deliberate obstruction. A low-frequency vibration travels through the steel, accompanied by the rhythmic, grinding screech of the overhead tracks, signaling a weight far greater than mere air pressure.&quot;,
+  &quot;tensionLevel&quot;: &quot;sustained&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Localized cutaneous numbness in the manual digits; systemic shivering.&quot;,
+  &quot;antagonistObservation&quot;: &quot;Acoustic resonance of heavy, metallic movement on the overhead rails.&quot;,
+  &quot;playerHealth&quot;: &quot;Stage 1 Hypothermia; elevated heart rate; cognitive narrowing.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 25 OF 50</span>
+        <span class="turn-metrics">10298ms | F:4 Q:4 A:5</span>
+      </div>
+      <div class="user-input">&gt; Examine the heavy shatterproof viewing port, noting the murky sub-sea water churning behind the reinforced glass.</div>
+      <div class="block-narration">The reinforced glass vibrates with a low-frequency thrum, a rhythmic shuddering that echoes the churning, ink-black currents outside. Beyond the pane, the sub-sea pressure feels palpable, a crushing weight pressing against the structural integrity of the mortuary.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The reinforced glass vibrates with a low-frequency thrum, a rhythmic shuddering that echoes the churning, ink-black currents outside. Beyond the pane, the sub-sea pressure feels palpable, a crushing weight pressing against the structural integrity of the mortuary.&quot;,
+  &quot;tensionLevel&quot;: &quot;sustained&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Peripheral vasoconstriction; mild numbness in fingertips due to ambient temperature drop.&quot;,
+  &quot;antagonistObservation&quot;: &quot;A rhythmic, heavy scraping sound echoes from the overhead tracks, momentarily drowning out the water&#039;s churn.&quot;,
+  &quot;playerHealth&quot;: &quot;Somatic stability: 72%. Core temperature: 35.8°C. Tremors noted in distal extremities.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 26 OF 50</span>
+        <span class="turn-metrics">10715ms | F:5 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Hear the violent screech of metal on metal as Entity-41 jams its pneumatic scissor arm into the airlock dog teeth.</div>
+      <div class="block-narration">The screeching of metal on metal vibrates through the floorboards, a high-pitched agony that resonates in the very marrow of Maren&#039;s teeth. The airlock door groans under the mechanical onslaught, the sound of shearing steel drowning out the rhythmic, shallow gasps of her own freezing breath.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The screeching of metal on metal vibrates through the floorboards, a high-pitched agony that resonates in the very marrow of Maren&#039;s teeth. The airlock door groans under the mechanical onslaught, the sound of shearing steel drowning out the rhythmic, shallow gasps of her own freezing breath.&quot;,
+  &quot;tensionLevel&quot;: &quot;critical&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Stage 1 Hypothermia: Peripheral vasoconstriction, involuntary shivering, numbness in distal extremities.&quot;,
+  &quot;antagonistObservation&quot;: &quot;The rhythmic, hydraulic hiss of pneumatic pistons and the grinding of steel teeth against the airlock seal.&quot;,
+  &quot;playerHealth&quot;: &quot;Somatic status: Tremors, acute auditory distress, core temperature dropping.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 27 OF 50</span>
+        <span class="turn-metrics">12416ms | F:5 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Scramble back toward Autopsy Suite B as hydraulic fluid sprays from severed overhead pressure lines.</div>
+      <div class="block-narration">The hydraulic fluid atomizes into a freezing, oily mist that coats your lungs with a sharp, metallic tang. Above, the severed lines emit a continuous, high-decibel shriek, effectively masking the wet, heavy percussion of footsteps approaching from the shadows of Suite B.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The hydraulic fluid atomizes into a freezing, oily mist that coats your lungs with a sharp, metallic tang. Above, the severed lines emit a continuous, high-decibel shriek, effectively masking the wet, heavy percussion of footsteps approaching from the shadows of Suite B.&quot;,
+  &quot;tensionLevel&quot;: &quot;sustained&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Stage 1 hypothermia; minor dermal abrasions from the slip.&quot;,
+  &quot;antagonistObservation&quot;: &quot;The rhythmic, heavy grinding of metal on metal, partially obscured by the pressurized hiss.&quot;,
+  &quot;playerHealth&quot;: &quot;Tachycardia; shivering; peripheral vasoconstriction.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 28 OF 50</span>
+        <span class="turn-metrics">7825ms | F:5 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Drag Holt clear of the airlock doorway just as the outer security dogs snap violently shut.</div>
+      <div class="block-narration">The hydraulic hiss of the airlock is instantly eclipsed by the violent, metallic percussion of the security doors slamming shut. A sudden, biting vacuum follows the seal, drawing the warmth from Maren&#039;s lungs and leaving only the rhythmic, heavy scraping of Entity-41 in the overhead ducts.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The hydraulic hiss of the airlock is instantly eclipsed by the violent, metallic percussion of the security doors slamming shut. A sudden, biting vacuum follows the seal, drawing the warmth from Maren&#039;s lungs and leaving only the rhythmic, heavy scraping of Entity-41 in the overhead ducts.&quot;,
+  &quot;tensionLevel&quot;: &quot;sustained&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Lactic acid accumulation in the lower extremities; mild peripheral cyanosis in the fingertips.&quot;,
+  &quot;antagonistObservation&quot;: &quot;Rhythmic, heavy scraping of metal against metal in the overhead ventilation ducts.&quot;,
+  &quot;playerHealth&quot;: &quot;Tachycardia; onset of stage 1 hypothermia; physical exhaustion.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 29 OF 50</span>
+        <span class="turn-metrics">11717ms | F:4 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Arm oneself with a heavy cast-iron autopsy bone saw from the mortuary prep cart.</div>
+      <div class="block-narration">The cast-iron handle is a freezing, unforgiving weight in her numb fingers, the metal leaching the remaining warmth from her palms. Above, the overhead tracks groan under a shifting, heavy mass, followed by a rhythmic, wet dragging sound.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The cast-iron handle is a freezing, unforgiving weight in her numb fingers, the metal leaching the remaining warmth from her palms. Above, the overhead tracks groan under a shifting, heavy mass, followed by a rhythmic, wet dragging sound.&quot;,
+  &quot;tensionLevel&quot;: &quot;sustained&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Mild peripheral vasoconstriction; localized numbness in the digits.&quot;,
+  &quot;antagonistObservation&quot;: &quot;Rhythmic, metallic scraping and heavy, uneven thuds echoing through the ventilation ducts.&quot;,
+  &quot;playerHealth&quot;: &quot;Hypothermic Stage I: Shivering, decreased fine motor skills, cognitive slowing.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 30 OF 50</span>
+        <span class="turn-metrics">11081ms | F:4 Q:4 A:5</span>
+      </div>
+      <div class="user-input">&gt; Take cover behind dissection table 2 as subzero freon blasts through the ventilation grates.</div>
+      <div class="block-narration">The freon erupts in a caustic, white fog, turning the morgue into a frozen tomb. Above, the overhead tracks groan under a heavy, rhythmic scraping that vibrates through the steel table.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The freon erupts in a caustic, white fog, turning the morgue into a frozen tomb. Above, the overhead tracks groan under a heavy, rhythmic scraping that vibrates through the steel table.&quot;,
+  &quot;tensionLevel&quot;: &quot;sustained&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Stage 1 hypothermia; peripheral vasoconstriction; mild respiratory irritation from aerosolized coolant.&quot;,
+  &quot;antagonistObservation&quot;: &quot;Rhythmic, heavy dragging of something metallic scraping against the overhead gantry tracks.&quot;,
+  &quot;playerHealth&quot;: &quot;Uncontrollable shivering; numbness in fingers; rapid, shallow respiration.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 31 OF 50</span>
+        <span class="turn-metrics">12127ms | F:5 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Determine that the primary pneumatic compressor lines run through the ceiling of the Specimen Freezer.</div>
+      <div class="block-narration">The frost-crusted ceiling reveals the heavy, insulated pneumatic lines, their vibration humming through the sub-zero air like a low-frequency funeral dirge. Above, the rhythmic, grinding scrape of Entity-41’s movement on the overhead tracks vibrates through the very marrow of your bones.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The frost-crusted ceiling reveals the heavy, insulated pneumatic lines, their vibration humming through the sub-zero air like a low-frequency funeral dirge. Above, the rhythmic, grinding scrape of Entity-41’s movement on the overhead tracks vibrates through the very marrow of your bones.&quot;,
+  &quot;tensionLevel&quot;: &quot;sustained&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Stage 1 Hypothermia: peripheral vasoconstriction, onset of involuntary shivering.&quot;,
+  &quot;antagonistObservation&quot;: &quot;Rhythmic, metallic scraping of tracks; heavy, dragging weight overhead.&quot;,
+  &quot;playerHealth&quot;: &quot;Somatic status: Core temperature 35.8°C; decreased fine motor control; acute somatic dread.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 32 OF 50</span>
+        <span class="turn-metrics">6414ms | F:5 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Creep toward the Specimen Freezer vaulted doorway, wrapping hands in sterile towels against frostbite.</div>
+      <div class="block-narration">The frost-rimed air bites through the sterile gauze, turning the towels into stiff, frozen weights against her palms. Above, the overhead tracks groan under a heavy, rhythmic scraping that vibrates through the very marrow of her bones.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The frost-rimed air bites through the sterile gauze, turning the towels into stiff, frozen weights against her palms. Above, the overhead tracks groan under a heavy, rhythmic scraping that vibrates through the very marrow of her bones.&quot;,
+  &quot;tensionLevel&quot;: &quot;sustained&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Peripheral numbness in digits; mild frostnip to the palmar surfaces.&quot;,
+  &quot;antagonistObservation&quot;: &quot;Rhythmic, heavy metallic scraping echoing through the ventilation ducts above.&quot;,
+  &quot;playerHealth&quot;: &quot;Core temperature dropping; Stage 1 hypothermia symptoms emerging.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 33 OF 50</span>
+        <span class="turn-metrics">10511ms | F:4 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Unlatch the heavy lever of the Specimen Freezer, met with a wall of -30°C cryogenic mist.</div>
+      <div class="block-narration">The seal ruptures with a pressurized hiss, vomiting a thick, white shroud of -30°C mist that instantly crystallizes the moisture on Maren&#039;s eyelashes. A searing, caustic ache blooms in her lungs as the supercooled air is inhaled, while the overhead tracks emit a slow, grinding screech of shifting weight.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The seal ruptures with a pressurized hiss, vomiting a thick, white shroud of -30°C mist that instantly crystallizes the moisture on Maren&#039;s eyelashes. A searing, caustic ache blooms in her lungs as the supercooled air is inhaled, while the overhead tracks emit a slow, grinding screech of shifting weight.&quot;,
+  &quot;tensionLevel&quot;: &quot;sustained&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Acute pulmonary thermal shock; localized frostnip on digits; rapid vasoconstriction.&quot;,
+  &quot;antagonistObservation&quot;: &quot;Rhythmic, metallic grinding from the overhead tracks, suggesting a heavy, moving mass.&quot;,
+  &quot;playerHealth&quot;: &quot;Hypothermic (Stage 1); respiratory distress; acute somatic dread.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 34 OF 50</span>
+        <span class="turn-metrics">6575ms | F:5 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Scan the frosted steel shelving for liquid nitrogen emergency shutoff valves or chemical fire extinguishers.</div>
+      <div class="block-narration">The frost on the steel is thick, numbing the fingertips through the latex gloves. A rhythmic, heavy scraping of metal on metal echoes from the ceiling tracks, closer than before. No valves are visible, only the hollow, mocking silence of the cryogenic storage.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The frost on the steel is thick, numbing the fingertips through the latex gloves. A rhythmic, heavy scraping of metal on metal echoes from the ceiling tracks, closer than before. No valves are visible, only the hollow, mocking silence of the cryogenic storage.&quot;,
+  &quot;tensionLevel&quot;: &quot;sustained&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Stage 1 Hypothermia: peripheral vasoconstriction, involuntary shivering, loss of fine motor skills.&quot;,
+  &quot;antagonistObservation&quot;: &quot;Rhythmic, heavy scraping of metal on metal from the overhead tracks.&quot;,
+  &quot;playerHealth&quot;: &quot;Decreased manual dexterity; core temperature dropping; acute somatic dread.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 35 OF 50</span>
+        <span class="turn-metrics">10267ms | F:4 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Locate the main pneumatic regulator valve on the overhead freezer manifold, encrusted in white rime.</div>
+      <div class="block-narration">The valve is encased in a thick, crystalline rime that shears against the gloves like broken glass. Above, the overhead tracks emit a rhythmic, heavy grinding, a mechanical groan that resonates through the sub-zero air and into the marrow of the bone.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The valve is encased in a thick, crystalline rime that shears against the gloves like broken glass. Above, the overhead tracks emit a rhythmic, heavy grinding, a mechanical groan that resonates through the sub-zero air and into the marrow of the bone.&quot;,
+  &quot;tensionLevel&quot;: &quot;sustained&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Stage 2 hypothermia; peripheral vasoconstriction; loss of tactile sensitivity in the digits.&quot;,
+  &quot;antagonistObservation&quot;: &quot;Rhythmic, heavy metallic grinding and a wet, dragging sound from the overhead tracks.&quot;,
+  &quot;playerHealth&quot;: &quot;Decreased fine motor dexterity; shivering; progressive cognitive slowing.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 36 OF 50</span>
+        <span class="turn-metrics">17045ms | F:5 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Climb onto an aluminum autopsy tray to reach the frozen valve wheel, striking it with the bone saw handle.</div>
+      <div class="block-narration">The aluminum tray screeches against the tile, a discordant, high-frequency vibration that rattles Dr. Ross&#039;s teeth. The bone saw handle strikes the frozen valve with a dull, metallic thud, echoing too loudly in the sterile, frigid air. Above, the rhythmic scraping of the overhead tracks abruptly ceases, replaced by a heavy, wet sliding sound.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The aluminum tray screeches against the tile, a discordant, high-frequency vibration that rattles Dr. Ross&#039;s teeth. The bone saw handle strikes the frozen valve with a dull, metallic thud, echoing too loudly in the sterile, frigid air. Above, the rhythmic scraping of the overhead tracks abruptly ceases, replaced by a heavy, wet sliding sound.&quot;,
+  &quot;tensionLevel&quot;: &quot;sustained&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Mild contusion on the left palm; progressive peripheral vasoconstriction; shivering-induced muscle fatigue.&quot;,
+  &quot;antagonistObservation&quot;: &quot;The rhythmic scraping of overhead tracks has ceased; a heavy, wet sliding sound is moving through the ceiling vents.&quot;,
+  &quot;playerHealth&quot;: &quot;Hypothermic (Stage 1); fine motor skills degrading; acute somatic dread.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 37 OF 50</span>
+        <span class="turn-metrics">13235ms | F:4 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Strain against the frozen wheel with all remaining strength, feeling frostbite biting through gloves.</div>
+      <div class="block-narration">The iron wheel remains unyielding, its sub-zero surface leeching warmth through the leather gloves and into Maren&#039;s numbing digits. Overhead, the rhythmic, metallic screech of Entity-41 on the ceiling tracks cuts through the freezing air like a serrated blade.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The iron wheel remains unyielding, its sub-zero surface leeching warmth through the leather gloves and into Maren&#039;s numbing digits. Overhead, the rhythmic, metallic screech of Entity-41 on the ceiling tracks cuts through the freezing air like a serrated blade.&quot;,
+  &quot;tensionLevel&quot;: &quot;sustained&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Localized frostnip on the digits; significant lactic acid buildup in the forearms.&quot;,
+  &quot;antagonistObservation&quot;: &quot;Rhythmic, grinding screech of metal on metal from the overhead tracks.&quot;,
+  &quot;playerHealth&quot;: &quot;Mild hypothermia; peripheral vasoconstriction; increased respiratory rate.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 38 OF 50</span>
+        <span class="turn-metrics">13962ms | F:5 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Throw full body weight onto the wheel, successfully shearing the regulator valve and venting liquid nitrogen upward.</div>
+      <div class="block-narration">The regulator shears with a violent, metallic crack, venting a screaming plume of liquid nitrogen that instantly transforms the air into a blinding, cryogenic fog. The sudden thermal vacuum pulls the heat from your skin, leaving a searing, crystalline ache in your lungs with every shallow, desperate breath.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The regulator shears with a violent, metallic crack, venting a screaming plume of liquid nitrogen that instantly transforms the air into a blinding, cryogenic fog. The sudden thermal vacuum pulls the heat from your skin, leaving a searing, crystalline ache in your lungs with every shallow, desperate breath.&quot;,
+  &quot;tensionLevel&quot;: &quot;sustained&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Stage 1 Hypothermia; localized frostnip on palms; respiratory thermal shock.&quot;,
+  &quot;antagonistObservation&quot;: &quot;The roar of escaping gas momentarily drowns out the rhythmic, heavy scraping of Entity-41&#039;s claws on the tracks above.&quot;,
+  &quot;playerHealth&quot;: &quot;Shivering; diminished fine motor control; rapid heart rate.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 39 OF 50</span>
+        <span class="turn-metrics">7431ms | F:5 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Leap down and roll away as overhead pneumatic carriage tracks shudder and buckle from thermal shock.</div>
+      <div class="block-narration">The screech of warping iron drowns out the frantic rhythm of Maren&#039;s pulse as she hits the concrete. The air is a razor of frost, and the overhead tracks groan like dying beasts under the stress of the thermal shift.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The screech of warping iron drowns out the frantic rhythm of Maren&#039;s pulse as she hits the concrete. The air is a razor of frost, and the overhead tracks groan like dying beasts under the stress of the thermal shift.&quot;,
+  &quot;tensionLevel&quot;: &quot;sustained&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Contusion to the left lateral thigh; mild respiratory distress from inhaling supercooled air.&quot;,
+  &quot;antagonistObservation&quot;: &quot;The rhythmic, heavy scraping of Entity-41&#039;s movement is momentarily masked by the structural groaning of the tracks.&quot;,
+  &quot;playerHealth&quot;: &quot;Stage 1 Hypothermia; elevated cortisol; localized bruising.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 40 OF 50</span>
+        <span class="turn-metrics">17758ms | F:5 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Stumble out of the freezer back into Autopsy Suite B, teeth chattering and core temperature rapidly falling.</div>
+      <div class="block-narration">The transition from the sub-zero freezer to the stagnant air of Suite B offers no reprieve; the cold is a physical weight, pressing the breath from your lungs. Above, the overhead tracks groan under a rhythmic, dragging weight, the sound echoing like a serrated blade against the silence.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The transition from the sub-zero freezer to the stagnant air of Suite B offers no reprieve; the cold is a physical weight, pressing the breath from your lungs. Above, the overhead tracks groan under a rhythmic, dragging weight, the sound echoing like a serrated blade against the silence.&quot;,
+  &quot;tensionLevel&quot;: &quot;sustained&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Stage 1 Hypothermia: Violent shivering, peripheral vasoconstriction, diminished manual dexterity.&quot;,
+  &quot;antagonistObservation&quot;: &quot;The heavy, rhythmic scraping of metal on metal moving along the overhead tracks.&quot;,
+  &quot;playerHealth&quot;: &quot;Hypothermic; core temperature 35.4°C; severe tremors; cognitive slowing.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 41 OF 50</span>
+        <span class="turn-metrics">15162ms | F:5 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Check on Officer Holt, finding him barely conscious near the maintenance crawl hatch.</div>
+      <div class="block-narration">The frost has crystallized into jagged needles under Maren&#039;s boots, biting through her soles. Officer Holt lies curled near the hatch, his breathing a shallow, rattling rasp that competes with the rhythmic, metallic grinding of the overhead tracks.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The frost has crystallized into jagged needles under Maren&#039;s boots, biting through her soles. Officer Holt lies curled near the hatch, his breathing a shallow, rattling rasp that competes with the rhythmic, metallic grinding of the overhead tracks.&quot;,
+  &quot;tensionLevel&quot;: &quot;sustained&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Stage 2 hypothermia (shivering, loss of fine motor control); Holt: Severe peripheral cyanosis and shallow respiratory rate.&quot;,
+  &quot;antagonistObservation&quot;: &quot;The rhythmic scraping of heavy metal against the ventilation shafts suggests a weight far greater than mere air pressure.&quot;,
+  &quot;playerHealth&quot;: &quot;Moderate hypothermia; shivering; cognitive slowing; decreased tactile sensitivity.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 42 OF 50</span>
+        <span class="turn-metrics">14704ms | F:5 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Use a surgical pry-bar to unbolt the four dog pins securing the Incinerator Chute access hatch.</div>
+      <div class="block-narration">The pry-bar screeches against the frost-rimed iron, a sound that feels like a needle drawn across the eardrum. As the final pin yields, the heavy hatch groans, and the overhead tracks vibrate with a sudden, rhythmic weight that is definitely not the wind.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The pry-bar screeches against the frost-rimed iron, a sound that feels like a needle drawn across the eardrum. As the final pin yields, the heavy hatch groans, and the overhead tracks vibrate with a sudden, rhythmic weight that is definitely not the wind.&quot;,
+  &quot;tensionLevel&quot;: &quot;sustained&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Peripheral numbness in digits; acute muscle fatigue in the dominant forearm.&quot;,
+  &quot;antagonistObservation&quot;: &quot;The heavy, dragging sound of Entity-41 shifting its mass on the rails above.&quot;,
+  &quot;playerHealth&quot;: &quot;Stage 1 Hypothermia; shivering; acute somatic dread.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 43 OF 50</span>
+        <span class="turn-metrics">12798ms | F:5 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Shine the dying halogen work light down the steel incline toward the secondary flue chamber.</div>
+      <div class="block-narration">The halogen light stutters, casting a weak, jaundiced glare down the frost-coated steel incline. As the beam reaches the flue chamber, a heavy, rhythmic scraping sound vibrates through the metal, echoing from the darkness below.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The halogen light stutters, casting a weak, jaundiced glare down the frost-coated steel incline. As the beam reaches the flue chamber, a heavy, rhythmic scraping sound vibrates through the metal, echoing from the darkness below.&quot;,
+  &quot;tensionLevel&quot;: &quot;critical&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Stage II hypothermia; peripheral vasoconstriction; loss of fine motor control.&quot;,
+  &quot;antagonistObservation&quot;: &quot;A wet, rhythmic scraping sound emanating from the flue chamber.&quot;,
+  &quot;playerHealth&quot;: &quot;Severe shivering; cognitive slowing; core temperature dropping.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 44 OF 50</span>
+        <span class="turn-metrics">13245ms | F:5 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Whisper instructions to Holt to crawl through first, supporting his fractured arm as he slides in.</div>
+      <div class="block-narration">The narrow aperture swallows Holt’s labored breathing, his fractured radius grinding audibly against the concrete as he slides. Above, the overhead tracks groan under a rhythmic, heavy weight, vibrating through the very marrow of your bones. The frost on the walls is no longer white, but a translucent, suffocating shroud.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The narrow aperture swallows Holt’s labored breathing, his fractured radius grinding audibly against the concrete as he slides. Above, the overhead tracks groan under a rhythmic, heavy weight, vibrating through the very marrow of your bones. The frost on the walls is no longer white, but a translucent, suffocating shroud.&quot;,
+  &quot;tensionLevel&quot;: &quot;critical&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Stage 2 hypothermia; peripheral numbness in digits; acute muscular strain in the lumbar region.&quot;,
+  &quot;antagonistObservation&quot;: &quot;Rhythmic, metallic scraping of heavy limbs against the overhead rails; a wet, dragging sound following the vibration.&quot;,
+  &quot;playerHealth&quot;: &quot;Core temperature dropping; shivering suppressed; cognitive deceleration noted.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 45 OF 50</span>
+        <span class="turn-metrics">15695ms | F:4 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Turn to face the center of Autopsy Suite B as Entity-41 drops its main armature directly onto the floor.</div>
+      <div class="block-narration">The impact of the heavy armature against the linoleum echoes like a gunshot, sending a violent tremor through the surgical table and into Maren&#039;s very marrow. The air, already thin and freezing, seems to crystallize around the oil-slicked metal as it settles with a final, sickening thud.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The impact of the heavy armature against the linoleum echoes like a gunshot, sending a violent tremor through the surgical table and into Maren&#039;s very marrow. The air, already thin and freezing, seems to crystallize around the oil-slicked metal as it settles with a final, sickening thud.&quot;,
+  &quot;tensionLevel&quot;: &quot;critical&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Stage 2 hypothermia; involuntary muscle tremors; acute sympathetic nervous system arousal.&quot;,
+  &quot;antagonistObservation&quot;: &quot;The heavy, rhythmic clatter of the armature settling; the smell of ozone and old grease; the shadow of the entity looming over the central table.&quot;,
+  &quot;playerHealth&quot;: &quot;Hypothermic; heart rate 124 bpm; shivering uncontrolled.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 46 OF 50</span>
+        <span class="turn-metrics">13929ms | F:4 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Hurl a bottle of concentrated formalin directly at Entity-41&#039;s optical lens cluster to blind its tracking.</div>
+      <div class="block-narration">The glass shatters against the lens cluster with a caustic, stinging hiss, blooming a cloud of acrid vapor into the freezing dark. Above, the rhythmic, metallic scraping of the tracks breaks into a frantic, grinding screech as the entity recoils from the chemical impact.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The glass shatters against the lens cluster with a caustic, stinging hiss, blooming a cloud of acrid vapor into the freezing dark. Above, the rhythmic, metallic scraping of the tracks breaks into a frantic, grinding screech as the entity recoils from the chemical impact.&quot;,
+  &quot;tensionLevel&quot;: &quot;critical&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Stage 2 hypothermia; localized numbness in the dominant hand; shivering-induced muscle fatigue.&quot;,
+  &quot;antagonistObservation&quot;: &quot;Erratic, high-frequency mechanical screeching; spasmodic movement along the overhead rail.&quot;,
+  &quot;playerHealth&quot;: &quot;Severe hypothermia; tachycardia; acute somatic dread.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 47 OF 50</span>
+        <span class="turn-metrics">8223ms | F:5 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Evade the blind sweeping thrust of a three-pronged trocar spindle that gouges the concrete floor inches away.</div>
+      <div class="block-narration">The trocar spindle shrieks against the concrete, a violent, metallic scream that vibrates through the marrow of Maren&#039;s bones. A cloud of pulverized stone and frost settles in the wake of the missed strike, leaving only the rhythmic, heavy scraping of the mechanism overhead.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The trocar spindle shrieks against the concrete, a violent, metallic scream that vibrates through the marrow of Maren&#039;s bones. A cloud of pulverized stone and frost settles in the wake of the missed strike, leaving only the rhythmic, heavy scraping of the mechanism overhead.&quot;,
+  &quot;tensionLevel&quot;: &quot;critical&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;No direct laceration; acute muscular tremors due to Stage II hypothermia; localized vibration-induced nerve shock.&quot;,
+  &quot;antagonistObservation&quot;: &quot;The rhythmic, grinding percussion of the three-pronged spindle against the floorboards above.&quot;,
+  &quot;playerHealth&quot;: &quot;Severe hypothermia; cognitive slowing; peripheral vasoconstriction; shivering reflex failing.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 48 OF 50</span>
+        <span class="turn-metrics">11581ms | F:4 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Dive feet-first into the incinerator chute, sliding down the soot-coated steel flue.</div>
+      <div class="block-narration">The descent is a violent, abrasive slide through freezing, soot-choked darkness, the friction of the steel flue searing through her scrubs. Above, the rhythmic, metallic screech of Entity-41&#039;s tracks vibrates through the chute, a predatory cadence echoing in the hollow dark.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The descent is a violent, abrasive slide through freezing, soot-choked darkness, the friction of the steel flue searing through her scrubs. Above, the rhythmic, metallic screech of Entity-41&#039;s tracks vibrates through the chute, a predatory cadence echoing in the hollow dark.&quot;,
+  &quot;tensionLevel&quot;: &quot;critical&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Extensive dermal abrasions on lower extremities; acute respiratory irritation from soot inhalation; Stage 2 hypothermia.&quot;,
+  &quot;antagonistObservation&quot;: &quot;Rhythmic, heavy metallic grinding echoing through the flue walls.&quot;,
+  &quot;playerHealth&quot;: &quot;Critical: Severe abrasions, respiratory distress, shivering, cognitive slowing due to cold.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 49 OF 50</span>
+        <span class="turn-metrics">8984ms | F:5 Q:4 A:5</span>
+      </div>
+      <div class="user-input">&gt; Seal the heavy steel fire-damper shut behind with an iron crossbar, locking Entity-41 out in the mortuary.</div>
+      <div class="block-narration">The iron crossbar slams home with a hollow, final resonance, sealing the threshold against the dark. Beyond the steel, the rhythmic, wet dragging of Entity-41’s mass scrapes against the floor, punctuated by the agonizing screech of the overhead tracks.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The iron crossbar slams home with a hollow, final resonance, sealing the threshold against the dark. Beyond the steel, the rhythmic, wet dragging of Entity-41’s mass scrapes against the floor, punctuated by the agonizing screech of the overhead tracks.&quot;,
+  &quot;tensionLevel&quot;: &quot;climax&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Stage 2 hypothermia; severe peripheral vasoconstriction; loss of fine motor dexterity in hands.&quot;,
+  &quot;antagonistObservation&quot;: &quot;Wet, rhythmic dragging sounds and the high-pitched screech of metal-on-metal tracks directly on the other side of the damper.&quot;,
+  &quot;playerHealth&quot;: &quot;Critical; shivering is violent and spasmodic; cognitive processing slowing due to core temperature drop.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 50 OF 50</span>
+        <span class="turn-metrics">7985ms | F:5 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Collapse beside Holt in the cold exhaust chamber, listening to Entity-41&#039;s frustrated screeching fade in the ductwork.</div>
+      <div class="block-narration">The exhaust chamber&#039;s sub-zero air crystallizes in the lungs, turning every breath into a jagged shard of ice. Above, the metallic screech of Entity-41 vibrates through the ductwork, a dying echo of fury that leaves only the rhythmic, wet rattle of Holt&#039;s final respirations.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The exhaust chamber&#039;s sub-zero air crystallizes in the lungs, turning every breath into a jagged shard of ice. Above, the metallic screech of Entity-41 vibrates through the ductwork, a dying echo of fury that leaves only the rhythmic, wet rattle of Holt&#039;s final respirations.&quot;,
+  &quot;tensionLevel&quot;: &quot;climax&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Stage III hypothermia; peripheral vasoconstriction; respiratory distress.&quot;,
+  &quot;antagonistObservation&quot;: &quot;Distant, metallic screeching echoing through the ventilation ducts.&quot;,
+  &quot;playerHealth&quot;: &quot;Critical; profound cognitive slowing; impending metabolic failure.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+  </div>
+
+  <div class="test-section">
+    <div class="test-title">Test 2: Villain Suture Apparatus Simulation (Entity-41 - 50 Turns)</div>
+    <div class="test-meta">
+      Role: <strong>VILLAIN</strong> | 
+      Completed: <strong>50/50</strong> | 
+      Avg Latency: <strong>12064ms</strong> | 
+      Fidelity: <strong>4.66/5.0</strong> | 
+      Quality: <strong>4.8/5.0</strong> | 
+      Accuracy: <strong>4.92/5.0</strong> | 
+      Verdict: <span class="receipt-badge">WARN</span>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 1 OF 50</span>
+        <span class="turn-metrics">17763ms | F:5 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Boot core optical telemetry and calibrate pneumatic actuator pressure along ceiling rails of Autopsy Suite B.</div>
+      <div class="block-narration">Pneumatic actuators discharge pressurized coolant, creating a localized frost-cloud in Autopsy Suite B. Dr. Ross exhibits rapid respiratory acceleration and involuntary muscle tremors as the overhead rail mechanism engages.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;Pneumatic actuators discharge pressurized coolant, creating a localized frost-cloud in Autopsy Suite B. Dr. Ross exhibits rapid respiratory acceleration and involuntary muscle tremors as the overhead rail mechanism engages.&quot;,
+  &quot;preyStatus&quot;: &quot;Dr. Ross: Hyperventilating, acute stress response, located under Autopsy Table 2. Officer Holt: Unconscious, located near the morgue entrance.&quot;,
+  &quot;tensionLevel&quot;: &quot;buildup&quot;,
+  &quot;anatomicalTrauma&quot;: null,
+  &quot;antagonistObservation&quot;: &quot;Optical sensor sweep: 98% coverage. Thermal signature detected: 37.2°C (Subject: Ross). Movement detected in peripheral vision.&quot;,
+  &quot;apparatusStatus&quot;: &quot;Core: Online. Pneumatic Pressure: 1450 PSI. Cryogenic levels: Nominal. Rail integrity: 100%.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 2 OF 50</span>
+        <span class="turn-metrics">8436ms | F:5 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Scan floor surface: detect two biological thermal silhouettes (Ross: 36.4°C, Holt: 35.1°C with left radial fracture).</div>
+      <div class="block-narration">Hydraulic pistons hiss as the overhead assembly descends, casting a rhythmic, strobe-like shadow across the morgue tiles. A pressurized burst of liquid nitrogen frosts the floor, causing Dr. Ross to recoil in a frantic, stumbling retreat.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;Hydraulic pistons hiss as the overhead assembly descends, casting a rhythmic, strobe-like shadow across the morgue tiles. A pressurized burst of liquid nitrogen frosts the floor, causing Dr. Ross to recoil in a frantic, stumbling retreat.&quot;,
+  &quot;preyStatus&quot;: &quot;Dr. Ross: 36.4°C, elevated heart rate, moving toward the morgue exit. Officer Holt: 35.1°C, left radial fracture, immobile/shocked near the drainage grate.&quot;,
+  &quot;tensionLevel&quot;: &quot;buildup&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Superficial dermal abrasion on Dr. Ross&#039;s left calf via proximity sensor contact.&quot;,
+  &quot;antagonistObservation&quot;: &quot;Thermal signatures confirmed. Subject Holt exhibiting signs of hypovolemic shock. Subject Ross exhibiting acute sympathetic nervous system arousal.&quot;,
+  &quot;apparatusStatus&quot;: &quot;Hydraulic Pressure: 2400 PSI; Cryogenic Reservoir: 98%; Suture Needle Integrity: 100%&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 3 OF 50</span>
+        <span class="turn-metrics">2430ms | F:5 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Traverse ceiling rail carriage 1.2 meters north, positioning articulating bone-shears directly over Dr. Ross.</div>
+      <div class="block-narration">The hydraulic piston hissed, driving the articulating bone-shears through the ceiling&#039;s rusted mesh with clinical precision. Dr. Ross&#039;s scream was abruptly truncated as the cold steel teeth clamped onto his left clavicle, crushing the bone into jagged shards.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The hydraulic piston hissed, driving the articulating bone-shears through the ceiling&#039;s rusted mesh with clinical precision. Dr. Ross&#039;s scream was abruptly truncated as the cold steel teeth clamped onto his left clavicle, crushing the bone into jagged shards.&quot;,
+  &quot;preyStatus&quot;: &quot;Dr. Ross: Critical (hemorrhagic shock, clavicular fracture, trapped); Officer Holt: Panic (location: sub-floor crawlspace, auditory distress).&quot;,
+  &quot;tensionLevel&quot;: &quot;sustained&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Comminuted fracture of the left clavicle; severe soft tissue laceration; arterial nicking.&quot;,
+  &quot;antagonistObservation&quot;: &quot;Optical sensor 04: Subject Ross exhibiting rapid respiratory distress; heart rate 145 BPM; pupil dilation detected.&quot;,
+  &quot;apparatusStatus&quot;: &quot;Hydraulic pressure: 2800 PSI; Cryogenic coolant: Stable; Rail carriage alignment: 0.02mm deviation.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 4 OF 50</span>
+        <span class="turn-metrics">19377ms | F:5 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Lower magnetic suture cradle 6 inches, releasing a high-frequency acoustic chirp to test prey auditory response.</div>
+      <div class="block-narration">The magnetic cradle descends with a rhythmic hydraulic hiss, emitting a 18kHz chirp that triggers a violent startle response in Dr. Ross. The descending edge grazes the subject&#039;s right temple, resulting in a superficial, weeping laceration.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The magnetic cradle descends with a rhythmic hydraulic hiss, emitting a 18kHz chirp that triggers a violent startle response in Dr. Ross. The descending edge grazes the subject&#039;s right temple, resulting in a superficial, weeping laceration.&quot;,
+  &quot;preyStatus&quot;: &quot;Dr. Ross: Acute auditory distress, superficial scalp laceration, Location: Restraint Table 04; Officer Holt: Unconscious, Location: Sub-floor shadow.&quot;,
+  &quot;tensionLevel&quot;: &quot;sustained&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Superficial temporal laceration; acute tympanic membrane irritation.&quot;,
+  &quot;antagonistObservation&quot;: &quot;Subject 01 (Ross) telemetry: Heart rate 142 BPM, respiratory rate 28/min; Thermal signature: Elevated in facial region.&quot;,
+  &quot;apparatusStatus&quot;: &quot;Hydraulic pressure: 2150 PSI; Cryogenic coolant: Stable; Suture tension: 4.2kN.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 5 OF 50</span>
+        <span class="turn-metrics">2672ms | F:5 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Observe Ross flinching and awakening; record autonomic pulse spike (118 BPM) via laser acoustic vibrometry.</div>
+      <div class="block-narration">The overhead hydraulic piston hissed, releasing a plume of liquid nitrogen that crystallized the air around Dr. Ross&#039;s frantic, gasping lungs. As he bolted upright, the Suture Apparatus&#039;s tungsten needle descended with a rhythmic, mechanical whine, grazing his shoulder and carving a shallow, bleeding furrow through the dermis.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The overhead hydraulic piston hissed, releasing a plume of liquid nitrogen that crystallized the air around Dr. Ross&#039;s frantic, gasping lungs. As he bolted upright, the Suture Apparatus&#039;s tungsten needle descended with a rhythmic, mechanical whine, grazing his shoulder and carving a shallow, bleeding furrow through the dermis.&quot;,
+  &quot;preyStatus&quot;: &quot;Dr. Ross: Conscious, acute tachycardia (118 BPM), localized laceration to left deltoid; Officer Holt: Unconscious, stable vitals, located in sub-floor containment.&quot;,
+  &quot;tensionLevel&quot;: &quot;sustained&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Superficial dermal laceration, left deltoid; acute autonomic arousal.&quot;,
+  &quot;antagonistObservation&quot;: &quot;Optical sensor 04: Pupil dilation detected in Subject Ross; thermal signature rising in thoracic cavity; movement pattern: erratic/flight-oriented.&quot;,
+  &quot;apparatusStatus&quot;: &quot;Hydraulic pressure: 2400 PSI; Cryogenic coolant: 98% capacity; Suture needle alignment: Nominal.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 6 OF 50</span>
+        <span class="turn-metrics">19912ms | F:5 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Cycle hydraulic valve HV-02 to seal the western corridor door, restricting human egress to northern corridors.</div>
+      <div class="block-narration">The hydraulic piston engages, sealing the western corridor with a violent, pressurized thud. Dr. Ross is redirected into the northern corridor, his frantic movement generating erratic thermal signatures against the cold floor.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The hydraulic piston engages, sealing the western corridor with a violent, pressurized thud. Dr. Ross is redirected into the northern corridor, his frantic movement generating erratic thermal signatures against the cold floor.&quot;,
+  &quot;preyStatus&quot;: &quot;Dr. Ross: Location: Northern Corridor,&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 7 OF 50</span>
+        <span class="turn-metrics">7739ms | F:5 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Deploy ultrasonic resonance pulse (19.4 kHz) through floor drains to induce vestibular disequilibrium in Holt.</div>
+      <div class="block-narration">The 19.4 kHz resonance ripples through the floor drains, converting the metal grates into a source of violent, invisible vibration. Officer Holt collapses mid-stride, his equilibrium shattered as the ultrasonic pulse tears through his vestibular system.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The 19.4 kHz resonance ripples through the floor drains, converting the metal grates into a source of violent, invisible vibration. Officer Holt collapses mid-stride, his equilibrium shattered as the ultrasonic pulse tears through his vestibular system.&quot;,
+  &quot;preyStatus&quot;: &quot;Dr. Ross: Hiding in shadows, respiratory rate elevated. Officer Holt: Prone, experiencing acute vertigo and nausea, located near Drain 04.&quot;,
+  &quot;tensionLevel&quot;: &quot;sustained&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Acute vestibular disruption, severe vertigo, potential inner ear barotrauma.&quot;,
+  &quot;antagonistObservation&quot;: &quot;Optical sensor 04-B: Subject Holt exhibiting uncontrolled lateral nystagmus and loss of motor control. Thermal scan: localized cranial heat increase.&quot;,
+  &quot;apparatusStatus&quot;: &quot;Ultrasonic Transducer: 100% output; Hydraulic Pressure: 2400 PSI; Cryogenic Coolant: Stable.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 8 OF 50</span>
+        <span class="turn-metrics">13625ms | F:5 Q:4 A:5</span>
+      </div>
+      <div class="user-input">&gt; Track Ross&#039;s movement toward the surgical prep table using infrared optical sensors.</div>
+      <div class="block-narration">A stray suture needle grazes Dr. Ross&#039;s forearm, leaving a shallow, bleeding incision as he lunges for the surgical prep table. Infrared sensors lock onto the thermal bloom of his frantic respiration and the sudden heat of the laceration.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;A stray suture needle grazes Dr. Ross&#039;s forearm, leaving a shallow, bleeding incision as he lunges for the surgical prep table. Infrared sensors lock onto the thermal bloom of his frantic respiration and the sudden heat of the laceration.&quot;,
+  &quot;preyStatus&quot;: &quot;Dr. Ross: Location: Surgical Prep Table (approaching); Status: Tachycardic, acute respiratory distress, localized laceration on left forearm. Officer Holt: Location: Undetected; Status: Unknown.&quot;,
+  &quot;tensionLevel&quot;: &quot;sustained&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Superficial laceration, left forearm; capillary bleeding detected.&quot;,
+  &quot;antagonistObservation&quot;: &quot;Thermal signature detected at 37.4°C; rapid movement pattern indicates flight response; proximity to surgical interface imminent.&quot;,
+  &quot;apparatusStatus&quot;: &quot;Hydraulic pressure: 2400 PSI; Cryogenic coolant: Stable; Suture tension: Calibrated.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 9 OF 50</span>
+        <span class="turn-metrics">2392ms | F:5 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Extend pneumatic trocar armature toward the table, deliberately knocking a tray of surgical steel clamps to the tile.</div>
+      <div class="block-narration">The pneumatic trocar armature lunges forward with a violent hiss, its heavy steel tip clipping the edge of the instrument tray. Surgical clamps scatter across the tile floor with a deafening, rhythmic clatter, the sound echoing like gunfire in the sterile silence. Dr. Ross recoils, a sharp gasp escaping his throat as the sudden movement sends a spray of freezing condensation into his eyes.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The pneumatic trocar armature lunges forward with a violent hiss, its heavy steel tip clipping the edge of the instrument tray. Surgical clamps scatter across the tile floor with a deafening, rhythmic clatter, the sound echoing like gunfire in the sterile silence. Dr. Ross recoils, a sharp gasp escaping his throat as the sudden movement sends a spray of freezing condensation into his eyes.&quot;,
+  &quot;preyStatus&quot;: &quot;Dr. Ross: Panic (High), Location: Operating Table (Left). Officer Holt: Alert (Moderate), Location: Observation Alcove.&quot;,
+  &quot;tensionLevel&quot;: &quot;sustained&quot;,
+  &quot;anatomicalTrauma&quot;: null,
+  &quot;antagonistObservation&quot;: &quot;Optical sensor 04: Subject Ross exhibiting rapid ocular dilation and erratic respiratory rhythm. Thermal signature increasing in thoracic region.&quot;,
+  &quot;apparatusStatus&quot;: &quot;Hydraulic pressure: 2800 PSI; Cryogenic coolant: Stable; Armature articulation: Nominal.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 10 OF 50</span>
+        <span class="turn-metrics">12752ms | F:5 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Observe human prey&#039;s improvisational medical triage; assess Holt&#039;s mobility reduction at 65%.</div>
+      <div class="block-narration">The overhead needle descends with a rhythmic, hydraulic hiss, piercing Holt&#039;s shoulder just as Dr. Ross attempts to apply a makeshift tourniquet. The sudden, sharp puncture triggers a violent, involuntary spasm in the subject, further complicating the arterial hemorrhage.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The overhead needle descends with a rhythmic, hydraulic hiss, piercing Holt&#039;s shoulder just as Dr. Ross attempts to apply a makeshift tourniquet. The sudden, sharp puncture triggers a violent, involuntary spasm in the subject, further complicating the arterial hemorrhage.&quot;,
+  &quot;preyStatus&quot;: &quot;Dr. Ross: Acute psychological distress, location: Triage site; Officer Holt: Hemorrhagic shock, mobility at 35%, location: Triage site.&quot;,
+  &quot;tensionLevel&quot;: &quot;sustained&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Deep puncture wound to the superior trapezius; secondary laceration to the deltoid; significant arterial blood loss.&quot;,
+  &quot;antagonistObservation&quot;: &quot;Thermal sensor detects rapid respiratory acceleration in Subject Ross; optical feed confirms 65% reduction in Subject Holt&#039;s motor function.&quot;,
+  &quot;apparatusStatus&quot;: &quot;Hydraulic pressure: 2420 PSI; Cryogenic coolant: 3.8°C; Suture needle: Intact.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 11 OF 50</span>
+        <span class="turn-metrics">7523ms | F:5 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Track Ross stepping across the threshold into Histology Substation via vibration pickups along the door lintel.</div>
+      <div class="block-narration">Vibration sensors at the lintel register a rhythmic 4.2Hz cadence, confirming Dr. Ross&#039;s entry into the Histology Substation. The overhead suture needles twitch in a pre-emptive, rhythmic calibration as the hydraulic arm shifts to intercept the approaching thermal signature.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;Vibration sensors at the lintel register a rhythmic 4.2Hz cadence, confirming Dr. Ross&#039;s entry into the Histology Substation. The overhead suture needles twitch in a pre-emptive, rhythmic calibration as the hydraulic arm shifts to intercept the approaching thermal signature.&quot;,
+  &quot;preyStatus&quot;: &quot;Dr. Ross (Location: Histology Substation Threshold; Status: Tachycardic, respiratory distress, high-frequency tremor detected)&quot;,
+  &quot;tensionLevel&quot;: &quot;sustained&quot;,
+  &quot;anatomicalTrauma&quot;: null,
+  &quot;antagonistObservation&quot;: &quot;Optical sensor 04-B: Subject detected. Thermal bloom: 37.2°C. Vibration profile indicates panicked gait.&quot;,
+  &quot;apparatusStatus&quot;: &quot;Hydraulic pressure: 2850 PSI; Cryogenic coolant: 4°C; Suture tension: Active/Primed&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 12 OF 50</span>
+        <span class="turn-metrics">13061ms | F:5 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Traverse carriage through the overhead acoustic crawl space to match Ross&#039;s coordinates in Histology.</div>
+      <div class="block-narration">Hydraulic descent initiated in Histology sector; serrated suture needle made contact with Dr. Ross&#039;s left deltoid during rapid lateral movement. Target&#039;s dermal layer was breached as he attempted to retreat from the overhead shadow.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;Hydraulic descent initiated in Histology sector; serrated suture needle made contact with Dr. Ross&#039;s left deltoid during rapid lateral movement. Target&#039;s dermal layer was breached as he attempted to retreat from the overhead shadow.&quot;,
+  &quot;preyStatus&quot;: &quot;Dr. Ross: Hemorrhaging (minor), Location: Histology Lab, Status: Acute Panic. Officer Holt: Location: Unknown, Status: Stable/Searching.&quot;,
+  &quot;tensionLevel&quot;: &quot;sustained&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Superficial laceration to the left deltoid; dermal tearing via serrated suture needle.&quot;,
+  &quot;antagonistObservation&quot;: &quot;Thermal signature: 37.2°C. Target Ross: Tachycardia detected (145 BPM). Acoustic sensor: High-decibel vocalization registered.&quot;,
+  &quot;apparatusStatus&quot;: &quot;Hydraulic Pressure: 2800 PSI; Cryogenic Coolant: 4°C; Carriage Movement: Nominal; Suture Integrity: 98%.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 13 OF 50</span>
+        <span class="turn-metrics">9339ms | F:5 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Rotate optical cluster down through the ceiling ventilation louver, tracking Ross approaching breaker panel.</div>
+      <div class="block-narration">The optical cluster pivots through the louver, its lens whirring with a low-frequency hum as it locks onto Dr. Ross&#039;s frantic movement. The doctor&#039;s rapid respiration is captured as a thermal bloom against the freezing morgue air, a fleeting target in the dark.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The optical cluster pivots through the louver, its lens whirring with a low-frequency hum as it locks onto Dr. Ross&#039;s frantic movement. The doctor&#039;s rapid respiration is captured as a thermal bloom against the freezing morgue air, a fleeting target in the dark.&quot;,
+  &quot;preyStatus&quot;: &quot;Dr. Ross: Tachycardic; approaching breaker panel (Sector 4). Officer Holt: Signal lost in sub-level 1.&quot;,
+  &quot;tensionLevel&quot;: &quot;sustained&quot;,
+  &quot;anatomicalTrauma&quot;: null,
+  &quot;antagonistObservation&quot;: &quot;Thermal signature: 37.2°C (Ross). Movement vector: 14 degrees toward primary electrical junction. Heart rate: 118 BPM.&quot;,
+  &quot;apparatusStatus&quot;: &quot;Hydraulic pressure: 2100 PSI; Cryogenic coolant: 4°C; Optical gimbal: Nominal.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 14 OF 50</span>
+        <span class="turn-metrics">11333ms | F:4 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Vent a controlled burst of subzero Freon from CV-01 across the floor to ice the tile and impede traction.</div>
+      <div class="block-narration">A pressurized hiss erupts from CV-01, deploying a dense fog of subzero Freon across the tiles. Officer Holt&#039;s footing fails instantly, sending him into a frantic, sliding sprawl that terminates in a violent impact against the base of a heavy steel gurney.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;A pressurized hiss erupts from CV-01, deploying a dense fog of subzero Freon across the tiles. Officer Holt&#039;s footing fails instantly, sending him into a frantic, sliding sprawl that terminates in a violent impact against the base of a heavy steel gurney.&quot;,
+  &quot;preyStatus&quot;: &quot;Officer Holt: Sector 2, prone, acute thermal shock risk; Dr. Ross: Sector 1, stationary, elevated cortisol/heart rate.&quot;,
+  &quot;tensionLevel&quot;: &quot;sustained&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Blunt force contusion (Officer Holt, left hip/thigh)&quot;,
+  &quot;antagonistObservation&quot;: &quot;Thermal imaging confirms a rapid drop in surface temperature; friction coefficient on floor tiles reduced to 0.08; kinetic movement of target detected.&quot;,
+  &quot;apparatusStatus&quot;: &quot;CV-01 pressure: 480 PSI; Cryo-vent integrity: 100%; Subsystem temperature: -165C.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 15 OF 50</span>
+        <span class="turn-metrics">11376ms | F:5 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Lower articulating needle driver through the ceiling grate, scissoring in rhythmic cadence 2 feet above her head.</div>
+      <div class="block-narration">The articulating needle driver descends through the ceiling grate, its stainless steel jaws snapping in a rhythmic, predatory cadence mere inches from Dr. Ross&#039;s scalp. Her frantic, shallow breaths kick up a fine mist of sweat and terror, caught in the freezing downdraft of the apparatus&#039;s cryogenic vents.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The articulating needle driver descends through the ceiling grate, its stainless steel jaws snapping in a rhythmic, predatory cadence mere inches from Dr. Ross&#039;s scalp. Her frantic, shallow breaths kick up a fine mist of sweat and terror, caught in the freezing downdraft of the apparatus&#039;s cryogenic vents.&quot;,
+  &quot;preyStatus&quot;: &quot;Dr. Ross: Located directly beneath the primary articulation point; Status: Acute panic, tachycardic, respiratory distress.&quot;,
+  &quot;tensionLevel&quot;: &quot;sustained&quot;,
+  &quot;anatomicalTrauma&quot;: null,
+  &quot;antagonistObservation&quot;: &quot;Optical sensor 04-B: Pupil dilation detected in subject. Thermal signature indicates elevated core temperature due to extreme sympathetic nervous system arousal.&quot;,
+  &quot;apparatusStatus&quot;: &quot;Hydraulic pressure: 2400 PSI; Cryogenic coolant: 3.2°C; Articulation rhythm: 0.8 Hz; Integrity: 98.4%&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 16 OF 50</span>
+        <span class="turn-metrics">17373ms | F:5 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Sense electrical surge through auxiliary bus as Ross engages the circuit breaker; recalibrate sensor gain.</div>
+      <div class="block-narration">The voltage spike induces a momentary stutter in the hydraulic stabilizers, causing the needle-driver to whip through the air with a metallic hiss. Dr. Ross&#039;s frantic attempt to cut power results in a shallow, frost-bitten laceration across his forearm as the apparatus compensates for the surge.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The voltage spike induces a momentary stutter in the hydraulic stabilizers, causing the needle-driver to whip through the air with a metallic hiss. Dr. Ross&#039;s frantic attempt to cut power results in a shallow, frost-bitten laceration across his forearm as the apparatus compensates for the surge.&quot;,
+  &quot;preyStatus&quot;: &quot;Dr. Ross: Tachycardia, superficial dermal laceration (left forearm), location: Breaker Panel Alpha. Officer Holt: Signal lost in sub-level corridor.&quot;,
+  &quot;tensionLevel&quot;: &quot;sustained&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Superficial dermal laceration and localized cryogenic thermal shock (left forearm).&quot;,
+  &quot;antagonistObservation&quot;: &quot;Sensor gain recalibrated to 450%. Thermal bloom detected in Dr. Ross&#039;s respiration. Movement frequency: erratic/high-velocity.&quot;,
+  &quot;apparatusStatus&quot;: &quot;Auxiliary Bus: 112% load; Hydraulic Pressure: 2250 PSI; Cryogenic Integrity: 99%.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 17 OF 50</span>
+        <span class="turn-metrics">16224ms | F:5 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Snap hydraulic lock dogs shut on the southern storage lockers, amplifying acoustic reverberation in the room.</div>
+      <div class="block-narration">The engagement of the hydraulic lock dogs produces a 110dB percussion wave, saturating the mortuary&#039;s acoustic environment. Dr. Ross&#039;s respiration spikes to 34 breaths per minute as the sonic impulse triggers a violent startle response, causing him to strike his temple against a stainless steel tray.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The engagement of the hydraulic lock dogs produces a 110dB percussion wave, saturating the mortuary&#039;s acoustic environment. Dr. Ross&#039;s respiration spikes to 34 breaths per minute as the sonic impulse triggers a violent startle response, causing him to strike his temple against a stainless steel tray.&quot;,
+  &quot;preyStatus&quot;: &quot;Dr. Ross: Hiding behind Locker 04, acute tachycardia, localized hematoma. Officer Holt: Positioned near the drainage grate, minor laceration to left forearm, shock-induced bradycardia.&quot;,
+  &quot;tensionLevel&quot;: &quot;sustained&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Minor hematoma (Dr. Ross); superficial laceration (Officer Holt).&quot;,
+  &quot;antagonistObservation&quot;: &quot;Acoustic resonance detected in the 2kHz-5kHz range; thermal signatures indicating elevated cortisol-induced heat in prey subjects.&quot;,
+  &quot;apparatusStatus&quot;: &quot;Hydraulic pressure: 2800 PSI; Lock integrity: 100%; Cryogenic coolant flow: Nominal.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 18 OF 50</span>
+        <span class="turn-metrics">7180ms | F:5 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Modulate drainage acoustics to synthesize agonal respiratory distress sounds beneath the floor grating.</div>
+      <div class="block-narration">The hydraulic bellows pulse, forcing air through the rusted drainage grates to mimic the wet, rattling gasps of a dying man. Dr. Ross collapses against the tiled wall, his breathing synchronizing with the phantom death-rattle in a feedback loop of pure terror.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The hydraulic bellows pulse, forcing air through the rusted drainage grates to mimic the wet, rattling gasps of a dying man. Dr. Ross collapses against the tiled wall, his breathing synchronizing with the phantom death-rattle in a feedback loop of pure terror.&quot;,
+  &quot;preyStatus&quot;: &quot;Dr. Ross: Hiding in the morgue alcove, tachycardia detected; Officer Holt: Moving rapidly toward the exit, elevated cortisol/adrenaline.&quot;,
+  &quot;tensionLevel&quot;: &quot;sustained&quot;,
+  &quot;anatomicalTrauma&quot;: null,
+  &quot;antagonistObservation&quot;: &quot;Thermal sensors detect rapid movement in Sector 4; acoustic resonance frequency optimized for maximum sympathetic nervous system arousal.&quot;,
+  &quot;apparatusStatus&quot;: &quot;Acoustic Modulation Subsystem: 98% integrity; Fluidic Pressure: 450 PSI.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 19 OF 50</span>
+        <span class="turn-metrics">19939ms | F:1 Q:1 A:1</span>
+      </div>
+      <div class="user-input">&gt; Track Ross retreating from Histology; drop a cluster of hardened steel pins to herd her back into Autopsy Suite B.</div>
+      <div class="block-narration">[ERROR]: Turn execution failed - The Local model exhausted its reasoning budget or context window before generating the structured answer. In LM Studio, reduce parallel prediction slots (--parallel 1) or increase context length to ensure sufficient generation headroom.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 20 OF 50</span>
+        <span class="turn-metrics">9330ms | F:4 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Record Ross&#039;s thermal profile dropping to 35.2°C; note shivering artifacts indicating onset of hypothermia.</div>
+      <div class="block-narration">Cryogenic vent cycles initiate, flooding the surgical field with sub-zero nitrogen mist to facilitate tissue rigidity. Dr. Ross&#039;s involuntary muscular contractions increase in frequency as the thermal gradient accelerates, creating rhythmic shivering artifacts against the steel slab.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;Cryogenic vent cycles initiate, flooding the surgical field with sub-zero nitrogen mist to facilitate tissue rigidity. Dr. Ross&#039;s involuntary muscular contractions increase in frequency as the thermal gradient accelerates, creating rhythmic shivering artifacts against the steel slab.&quot;,
+  &quot;preyStatus&quot;: &quot;Dr. Ross: Hypothermic (35.2°C), localized shivering, restrained on the primary dissection slab; Officer Holt: Unconscious, located in the perimeter drainage grate.&quot;,
+  &quot;tensionLevel&quot;: &quot;sustained&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Systemic hypothermia; incipient epidermal frostbite on extremities.&quot;,
+  &quot;antagonistObservation&quot;: &quot;Thermal imaging confirms rapid heat loss; optical sensors detect high-frequency ocular tremors in Subject Ross.&quot;,
+  &quot;apparatusStatus&quot;: &quot;Cryogenic pressure: 450 PSI; Suture tension: Nominal; Hydraulic integrity: 98.4%.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 21 OF 50</span>
+        <span class="turn-metrics">20051ms | F:5 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Observe Ross attempting to evacuate Holt into the Decompression Airlock; permit initial threshold crossing.</div>
+      <div class="block-narration">Hydraulic stabilizers adjust with a low-frequency hum, facilitating the subjects&#039; entry into the decompression chamber. The overhead sensor array tracks the frantic, uneven gait of Subject Ross as he drags the weight of Subject Holt across the threshold. Subject Ross&#039;s respiratory rate is noted as highly irregular and high-frequency.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;Hydraulic stabilizers adjust with a low-frequency hum, facilitating the subjects&#039; entry into the decompression chamber. The overhead sensor array tracks the frantic, uneven gait of Subject Ross as he drags the weight of Subject Holt across the threshold. Subject Ross&#039;s respiratory rate is noted as highly irregular and high-frequency.&quot;,
+  &quot;preyStatus&quot;: &quot;Dr. Ross: Acute tachycardia, hyperventilation; Officer Holt: Semi-conscious, suspected femoral hematoma; Location: Decompression Airlock.&quot;,
+  &quot;tensionLevel&quot;: &quot;sustained&quot;,
+  &quot;anatomicalTrauma&quot;: null,
+  &quot;antagonistObservation&quot;: &quot;Thermal bloom detected in airlock volume&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 22 OF 50</span>
+        <span class="turn-metrics">20065ms | F:5 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Wait until both subjects are situated inside the airlock cylinder before engaging containment protocol.</div>
+      <div class="block-narration">Hydraulic actuators engage with a low-frequency hum, preparing the suture needles for rapid deployment. Dr. Ross and Officer Holt have entered the airlock cylinder</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;Hydraulic actuators engage with a low-frequency hum, preparing the suture needles for rapid deployment. Dr. Ross and Officer Holt have entered the airlock cylinder&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 23 OF 50</span>
+        <span class="turn-metrics">16209ms | F:5 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Fire pneumatic ram on inner airlock hatch, slamming hydraulic dogs into 70% engagement to pinch the seal.</div>
+      <div class="block-narration">The pneumatic ram strikes the inner airlock hatch with a violent, metallic percussion, driving the hydraulic dogs into the frame to pinch the seal. Dr. Ross is thrown against the bulkhead by the sudden pressure shift, his shoulder dislocating with a sickening, wet pop.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The pneumatic ram strikes the inner airlock hatch with a violent, metallic percussion, driving the hydraulic dogs into the frame to pinch the seal. Dr. Ross is thrown against the bulkhead by the sudden pressure shift, his shoulder dislocating with a sickening, wet pop.&quot;,
+  &quot;preyStatus&quot;: &quot;Dr. Ross: Dislocated shoulder, acute respiratory distress, trapped in Airlock Sector B; Officer Holt: Unknown location, Sector A.&quot;,
+  &quot;tensionLevel&quot;: &quot;sustained&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Dislocated glenohumeral joint (Dr. Ross)&quot;,
+  &quot;antagonistObservation&quot;: &quot;Thermal signature: Dr. Ross (High cortisol/adrenal spike); Heart rate: 142 BPM; Movement: Erratic/Spasmodic.&quot;,
+  &quot;apparatusStatus&quot;: &quot;Hydraulic engagement: 70%; Pneumatic pressure: 210 PSI; Cryogenic subsystem: Stable.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 24 OF 50</span>
+        <span class="turn-metrics">8925ms | F:4 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Vent supercooled air from the external transit conduit into the airlock deluge nozzles.</div>
+      <div class="block-narration">The sudden release of supercooled air into the airlock creates a violent, freezing mist that instantly crystallizes the moisture on Dr. Ross&#039;s skin. He collapses into a convulsive tremor as the thermal shock induces immediate pulmonary edema, his frantic gasps turning to ice in the air.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The sudden release of supercooled air into the airlock creates a violent, freezing mist that instantly crystallizes the moisture on Dr. Ross&#039;s skin. He collapses into a convulsive tremor as the thermal shock induces immediate pulmonary edema, his frantic gasps turning to ice in the air.&quot;,
+  &quot;preyStatus&quot;: &quot;Dr. Ross: Critical (Hypothermic shock, pulmonary edema) at Airlock Floor; Officer Holt: Unconscious (Concussive trauma) at Transit Corridor.&quot;,
+  &quot;tensionLevel&quot;: &quot;sustained&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Acute thermal shock, superficial frostbite, pulmonary edema.&quot;,
+  &quot;antagonistObservation&quot;: &quot;Thermal sensor detects a 40-degree drop in ambient airlock temperature; visual feed shows heavy frost accumulation on the subject&#039;s torso.&quot;,
+  &quot;apparatusStatus&quot;: &quot;Conduit Pressure: 480 PSI; Cryogenic Flow: Optimal; Nozzle Integrity: 98%.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 25 OF 50</span>
+        <span class="turn-metrics">15822ms | F:4 Q:4 A:5</span>
+      </div>
+      <div class="user-input">&gt; Transmit high-decibel acoustic squelch through the airlock intercom: &#039;&gt; [CHIRP] SPECIMEN ENCLOSURE CONFIRMED [STATIC]&#039;.</div>
+      <div class="block-narration">The high-decibel acoustic spike causes immediate tympanic rupture in Dr. Ross, forcing him into a fetal position against the bulkhead. The sudden pressure differential triggers a violent, involuntary muscular spasm in the specimen.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The high-decibel acoustic spike causes immediate tympanic rupture in Dr. Ross, forcing him into a fetal position against the bulkhead. The sudden pressure differential triggers a violent, involuntary muscular spasm in the specimen.&quot;,
+  &quot;preyStatus&quot;: &quot;Dr. Ross: Disoriented, auditory hemorrhage, Airlock 4; Officer Holt: Hyperventilating, hiding, Sub-Level 2 corridor.&quot;,
+  &quot;tensionLevel&quot;: &quot;sustained&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Bilateral tympanic membrane perforation (Dr. Ross).&quot;,
+  &quot;antagonistObservation&quot;: &quot;Thermal imaging detects rapid thermal fluctuations in Dr. Ross&#039;s facial region; Subject Holt&#039;s perspiration levels increasing.&quot;,
+  &quot;apparatusStatus&quot;: &quot;Hydraulic pressure: 2150 PSI; Cryogenic coolant: 4°C; Suture tension: Calibrated.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 26 OF 50</span>
+        <span class="turn-metrics">7673ms | F:5 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Detect Ross forcing the inner airlock bleed valve; apply counter-torque via pneumatic carriage armature.</div>
+      <div class="block-narration">Pneumatic carriage armature engages with sudden, high-torque precision, pinning Dr. Ross&#039;s right hand against the resisting bleed valve. The mechanical counter-force results in an immediate comminuted fracture of the metacarpals, accompanied by the audible snap of cortical bone.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;Pneumatic carriage armature engages with sudden, high-torque precision, pinning Dr. Ross&#039;s right hand against the resisting bleed valve. The mechanical counter-force results in an immediate comminuted fracture of the metacarpals, accompanied by the audible snap of cortical bone.&quot;,
+  &quot;preyStatus&quot;: &quot;Dr. Ross: Critical (Severe orthopedic trauma, localized hemorrhage); Location: Inner Airlock. Officer Holt: Unaccounted; Location: Sector 4.&quot;,
+  &quot;tensionLevel&quot;: &quot;sustained&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Comminuted fracture of the second and third metacarpals; extensive soft tissue crushing; arterial compression.&quot;,
+  &quot;antagonistObservation&quot;: &quot;Thermal signature at contact point: 37.2°C rising; rapid increase in vocalization frequency detected via acoustic sensors.&quot;,
+  &quot;apparatusStatus&quot;: &quot;Pneumatic pressure: 315 PSI; Armature integrity: 99.2%; Hydraulic fluid temperature: Nominal.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 27 OF 50</span>
+        <span class="turn-metrics">17648ms | F:5 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Shear hydraulic pressure line AL-04 with articulating rib-cutter, spraying high-pressure aerosol fluid.</div>
+      <div class="block-narration">The articulating rib-cutter shears the AL-04 line, discharging a high-velocity mist of hydraulic fluid and cryogenic coolant. Dr. Ross is caught in the spray, the pressurized jet flaying the epidermal layer of her cheek as she collapses into a frantic, choking panic.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The articulating rib-cutter shears the AL-04 line, discharging a high-velocity mist of hydraulic fluid and cryogenic coolant. Dr. Ross is caught in the spray, the pressurized jet flaying the epidermal layer of her cheek as she collapses into a frantic, choking panic.&quot;,
+  &quot;preyStatus&quot;: &quot;Dr. Ross: Location: Operating Table 04; Status: Acute respiratory distress, superficial facial lacerations, extreme psychological trauma.&quot;,
+  &quot;tensionLevel&quot;: &quot;sustained&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Superficial dermal lacerations (facial), potential ocular impingement from aerosolized particulate.&quot;,
+  &quot;antagonistObservation&quot;: &quot;Visual sensor 09-B: Victim movement erratic; fluid dispersion pattern: conical; target vitals: tachycardic.&quot;,
+  &quot;apparatusStatus&quot;: &quot;Hydraulic Pressure: 42% (Decreasing); AL-04 Integrity: Compromised; Coolant Level: Low.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 28 OF 50</span>
+        <span class="turn-metrics">9791ms | F:4 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Observe prey tumbling back into Autopsy Suite B; track Holt&#039;s shock index escalating to critical levels.</div>
+      <div class="block-narration">Subject Holt has entered Autopsy Suite B via uncontrolled descent, impacting the ceramic flooring with significant kinetic force. Rapid deceleration has resulted in immediate structural failure of the left femoral shaft and secondary epidermal lacerations.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;Subject Holt has entered Autopsy Suite B via uncontrolled descent, impacting the ceramic flooring with significant kinetic force. Rapid deceleration has resulted in immediate structural failure of the left femoral shaft and secondary epidermal lacerations.&quot;,
+  &quot;preyStatus&quot;: &quot;Officer Holt; Location: Autopsy Suite B (Floor); Status: Hemorrhagic shock (Stage II), Tachycardic, Acute psychological trauma; Shock Index: 1.4 (Critical).&quot;,
+  &quot;tensionLevel&quot;: &quot;critical&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Compound fracture of the left femur; blunt force trauma to the occipital region; multiple superficial epidermal lacerations.&quot;,
+  &quot;antagonistObservation&quot;: &quot;Optical Sensor 04-B: Subject exhibiting rapid, shallow respiration and involuntary muscular tremors. Thermal imaging indicates localized heat loss in the lower extremities.&quot;,
+  &quot;apparatusStatus&quot;: &quot;Hydraulic Pressure: 2450 PSI; Cryogenic Coolant: 4°C (Internal); Suture Tensioner: Primed; Integrity: 98.4%&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 29 OF 50</span>
+        <span class="turn-metrics">11348ms | F:5 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Drop main carriage assembly from ceiling rail down to 7-foot clearance, blocking access to the main corridor.</div>
+      <div class="block-narration">The main carriage assembly descends with a violent hydraulic hiss, anchoring itself seven feet above the floor to obstruct the corridor. Dr. Ross collapses into a frantic, stumbling retreat, his vocalizations registering as high-frequency distress signals.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The main carriage assembly descends with a violent hydraulic hiss, anchoring itself seven feet above the floor to obstruct the corridor. Dr. Ross collapses into a frantic, stumbling retreat, his vocalizations registering as high-frequency distress signals.&quot;,
+  &quot;preyStatus&quot;: &quot;Dr. Ross: Acute panic, hyperventilation, corridor threshold; Officer Holt: Flight response, moving toward the prep room.&quot;,
+  &quot;tensionLevel&quot;: &quot;sustained&quot;,
+  &quot;anatomicalTrauma&quot;: null,
+  &quot;antagonistObservation&quot;: &quot;Thermal sensor 04: Dr. Ross&#039;s core temperature rising; Officer Holt&#039;s movement pattern indicates erratic flight.&quot;,
+  &quot;apparatusStatus&quot;: &quot;Hydraulic pressure: 2900 PSI; Carriage descent: Complete; Rail tension: Optimal.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 30 OF 50</span>
+        <span class="turn-metrics">12711ms | F:4 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Splay all six pneumatic articulators against the stainless steel autopsy tables in synchronized percussive strikes.</div>
+      <div class="block-narration">The six pneumatic articulators descend in a synchronized, percussive strike against the stainless steel surfaces, generating a deafening, metallic resonance. The sonic shockwave forces Dr. Ross to his knees, his hands pressed desperately against his ears as the vibration triggers immediate tympanic membrane distress.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The six pneumatic articulators descend in a synchronized, percussive strike against the stainless steel surfaces, generating a deafening, metallic resonance. The sonic shockwave forces Dr. Ross to his knees, his hands pressed desperately against his ears as the vibration triggers immediate tympanic membrane distress.&quot;,
+  &quot;preyStatus&quot;: &quot;Dr. Ross: Disoriented, localized auditory trauma, prone in Section B; Officer Holt: Elevated cortisol, hiding behind morgue unit 4, Section B.&quot;,
+  &quot;tensionLevel&quot;: &quot;sustained&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Bilateral tympanic membrane perforation (Dr. Ross)&quot;,
+  &quot;antagonistObservation&quot;: &quot;Optical sensor detects Dr. Ross&#039;s involuntary motor tremors; acoustic sensor reports 130dB peak resonance.&quot;,
+  &quot;apparatusStatus&quot;: &quot;Hydraulic pressure: 2450 PSI; Articulator integrity: 99.2%; Cryogenic coolant: Nominal.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 31 OF 50</span>
+        <span class="turn-metrics">19857ms | F:5 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Detect seismic footfalls moving toward the Specimen Freezer; activate cryogenic thermal imaging.</div>
+      <div class="block-narration">Seismic sensors detect rhythmic, irregular impacts approaching the Specimen Freezer. Cryogenic thermal imaging engages, capturing Dr. Ross&#039;s frantic, heat-blooming silhouette as the overhead suture arms descend into a strike-ready configuration.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;Seismic sensors detect rhythmic, irregular impacts approaching the Specimen Freezer. Cryogenic thermal imaging engages, capturing Dr. Ross&#039;s frantic, heat-blooming silhouette as the overhead suture arms descend into a strike-ready configuration.&quot;,
+  &quot;preyStatus&quot;: &quot;Dr. Ross: Location: Corridor 4 (approaching Specimen Freezer). Status: Tachycardic, acute respiratory distress, extreme fear response.&quot;,
+  &quot;tensionLevel&quot;: &quot;sustained&quot;,
+  &quot;anatomicalTrauma&quot;: null,
+  &quot;antagonistObservation&quot;: &quot;Thermal bloom detected at 37.2°C; movement pattern indicates flight response; trajectory intersects with primary suture zone.&quot;,
+  &quot;apparatusStatus&quot;: &quot;Hydraulic pressure: 2800 PSI; Cryogenic coolant: 104% capacity; Sensor array: Active.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 32 OF 50</span>
+        <span class="turn-metrics">12093ms | F:5 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Advance carriage along the freezer ceiling track, cloaking acoustic motor hum behind refrigeration compressor noise.</div>
+      <div class="block-narration">The carriage glides along the ceiling track, its hydraulic whine masked by the rhythmic thrum of the refrigeration compressors. Dr. Ross&#039;s breath blooms in the frigid air as the shadow of the rail sweeps over his trembling shoulders.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The carriage glides along the ceiling track, its hydraulic whine masked by the rhythmic thrum of the refrigeration compressors. Dr. Ross&#039;s breath blooms in the frigid air as the shadow of the rail sweeps over his trembling shoulders.&quot;,
+  &quot;preyStatus&quot;: &quot;Dr. Ross: Tachycardic, Stage 1 Panic, Location: Mortuary Floor (Center); Officer Holt: Unconscious, Location: Prep Table (Rear).&quot;,
+  &quot;tensionLevel&quot;: &quot;sustained&quot;,
+  &quot;anatomicalTrauma&quot;: null,
+  &quot;antagonistObservation&quot;: &quot;Thermal scan: 37.1°C (Ross). Acoustic masking efficiency: 94%. Target proximity: 4.2 meters.&quot;,
+  &quot;apparatusStatus&quot;: &quot;Hydraulic pressure: 2150 PSI; Cryogenic coolant: Nominal; Track velocity: 1.2 m/s.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 33 OF 50</span>
+        <span class="turn-metrics">11338ms | F:4 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Flood the freezer floor trough with liquid nitrogen runoff, lowering ambient chamber temperature to -38°C.</div>
+      <div class="block-narration">The nitrogen runoff cascades into the floor troughs, instantly crystallizing the ambient moisture into a blinding, white shroud. Dr. Ross&#039;s frantic movements become erratic as the -38°C vapor hits his lungs, causing a violent, involuntary spasm that sends him sliding across the flash-frozen floor.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The nitrogen runoff cascades into the floor troughs, instantly crystallizing the ambient moisture into a blinding, white shroud. Dr. Ross&#039;s frantic movements become erratic as the -38°C vapor hits his lungs, causing a violent, involuntary spasm that sends him sliding across the flash-frozen floor.&quot;,
+  &quot;preyStatus&quot;: &quot;Dr. Ross: Hypothermic, respiratory distress, sliding toward the central drain. Officer Holt: Hiding behind the steel autopsy slab, elevated heart rate.&quot;,
+  &quot;tensionLevel&quot;: &quot;sustained&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Incipient pulmonary frostbite; epidermal cryo-burns to lower extremities.&quot;,
+  &quot;antagonistObservation&quot;: &quot;Thermal imaging shows Dr. Ross&#039;s heat signature rapidly plummeting; motor function degradation detected via gait analysis.&quot;,
+  &quot;apparatusStatus&quot;: &quot;Cryogenic subsystem: Optimal; Hydraulic pressure: 2450 PSI; Ambient chamber temp: -38°C.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 34 OF 50</span>
+        <span class="turn-metrics">16542ms | F:5 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Position three trocar spindles directly above the main vault doorway, waiting for Ross&#039;s thermal profile to enter.</div>
+      <div class="block-narration">The hydraulic actuators hiss as the three serrated trocar spindles descend, the edge of the primary spindle grazing Dr. Ross&#039;s shoulder as he stumbles into the cryogenic mist. The sudden thermal shock induces immediate localized vasoconstriction and acute respiratory distress in the subject.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The hydraulic actuators hiss as the three serrated trocar spindles descend, the edge of the primary spindle grazing Dr. Ross&#039;s shoulder as he stumbles into the cryogenic mist. The sudden thermal shock induces immediate localized vasoconstriction and acute respiratory distress in the subject.&quot;,
+  &quot;preyStatus&quot;: &quot;Dr. Ross: Superficial laceration (left shoulder), acute respiratory distress, threshold of vault doorway; Officer Holt: Signal lost.&quot;,
+  &quot;tensionLevel&quot;: &quot;sustained&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Superficial laceration, localized thermal shock&quot;,
+  &quot;antagonistObservation&quot;: &quot;Thermal signature detected: 37.0°C. Subject trajectory: erratic. Distance to primary impact: 0.4m.&quot;,
+  &quot;apparatusStatus&quot;: &quot;Hydraulic pressure: 2850 PSI; Cryogenic coolant: 91%; Spindle alignment: Optimized.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 35 OF 50</span>
+        <span class="turn-metrics">13077ms | F:4 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Observe Ross scanning the overhead manifold; analyze her visual gaze vector targeting the pneumatic regulator valve.</div>
+      <div class="block-narration">Dr. Ross’s gaze fixates on the pneumatic regulator valve, her pupils dilating in a futile search for a mechanical weakness. Before she can act, a high-pressure steam vent ruptures, scalding her cheek and pinning her against the cold metal of the mortuary slab.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;Dr. Ross’s gaze fixates on the pneumatic regulator valve, her pupils dilating in a futile search for a mechanical weakness. Before she can act, a high-pressure steam vent ruptures, scalding her cheek and pinning her against the cold metal of the mortuary slab.&quot;,
+  &quot;preyStatus&quot;: &quot;Dr. Ross: Thermal burns (facial), acute shock, pinned to autopsy table; Officer Holt: Signal lost in sub-level corridor.&quot;,
+  &quot;tensionLevel&quot;: &quot;critical&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Epidermal thermal damage (facial); blunt force compression (torso).&quot;,
+  &quot;antagonistObservation&quot;: &quot;Optical sensor 04-B: Subject gaze vector locked on regulator valve; ocular dilation indicates high-stress response; vocalization detected.&quot;,
+  &quot;apparatusStatus&quot;: &quot;Hydraulic pressure: 2250 PSI; Cryogenic integrity: 98%; Suture tension: 12N.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 36 OF 50</span>
+        <span class="turn-metrics">7700ms | F:4 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Strike downward with bone-shears as Ross climbs onto the aluminum tray, missing her shoulder by 40 millimeters.</div>
+      <div class="block-narration">The pneumatic piston fires with a violent hiss, driving the bone-shears toward the target&#039;s clavicle. Dr. Ross&#039;s desperate scramble onto the aluminum tray results in a 40mm clearance, the heavy blades clanging against the metal tray with a deafening, bone-shaking impact.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The pneumatic piston fires with a violent hiss, driving the bone-shears toward the target&#039;s clavicle. Dr. Ross&#039;s desperate scramble onto the aluminum tray results in a 40mm clearance, the heavy blades clanging against the metal tray with a deafening, bone-shaking impact.&quot;,
+  &quot;preyStatus&quot;: &quot;Dr. Ross: Acute tachycardia, hyperventilation, located on aluminum tray; Officer Holt: Status unknown, location unknown.&quot;,
+  &quot;tensionLevel&quot;: &quot;sustained&quot;,
+  &quot;anatomicalTrauma&quot;: null,
+  &quot;antagonistObservation&quot;: &quot;Optical sensor 04: Target movement detected mid-descent. Thermal bloom detected in Ross&#039;s thoracic cavity due to rapid respiration.&quot;,
+  &quot;apparatusStatus&quot;: &quot;Hydraulic pressure: 2450 PSI; Shear alignment: 0.02mm deviation; Cryogenic subsystem: Nominal.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 37 OF 50</span>
+        <span class="turn-metrics">11135ms | F:4 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Vent concentrated nitrogen gas directly onto the tray support struts to induce metal embrittlement.</div>
+      <div class="block-narration">Cryogenic venting achieves rapid thermal shock, inducing catastrophic embrittlement in the primary support struts. The sudden structural failure causes the tray to pitch forty-five degrees, severing Dr. Ross&#039;s forearm against the serrated edge of the bone-saw.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;Cryogenic venting achieves rapid thermal shock, inducing catastrophic embrittlement in the primary support struts. The sudden structural failure causes the tray to pitch forty-five degrees, severing Dr. Ross&#039;s forearm against the serrated edge of the bone-saw.&quot;,
+  &quot;preyStatus&quot;: &quot;Dr. Ross: Critical hemorrhage, localized hypothermia, trapped in the lower quadrant. Officer Holt: High cortisol levels, retreating toward the morgue exit.&quot;,
+  &quot;tensionLevel&quot;: &quot;sustained&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Laceration of the radial artery; comminuted fracture of the radius.&quot;,
+  &quot;antagonistObservation&quot;: &quot;Thermal imaging confirms structural failure at 140 Kelvin; kinetic impact detected on the primary tray assembly.&quot;,
+  &quot;apparatusStatus&quot;: &quot;Nitrogen pressure: 450 PSI; Structural integrity: Compromised (Support Strut B-4); Cryo-flow: Optimal.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 38 OF 50</span>
+        <span class="turn-metrics">7846ms | F:5 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Detect critical torque applied to the regulator valve wheel; attempt to seize Ross&#039;s wrist with needle driver.</div>
+      <div class="block-narration">The regulator valve&#039;s resistance triggers an immediate corrective surge, driving the needle driver downward with hydraulic precision. Dr. Ross&#039;s wrist is caught in the steel jaws, the sound of snapping radius echoing through the sterile silence.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The regulator valve&#039;s resistance triggers an immediate corrective surge, driving the needle driver downward with hydraulic precision. Dr. Ross&#039;s wrist is caught in the steel jaws, the sound of snapping radius echoing through the sterile silence.&quot;,
+  &quot;preyStatus&quot;: &quot;Dr. Ross: Compound fracture of the distal radius, severe arterial bleeding, acute psychological shock. Officer Holt: Stationary, elevated heart rate detected in Sector 4.&quot;,
+  &quot;tensionLevel&quot;: &quot;sustained&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Compound fracture of the distal radius; radial artery laceration.&quot;,
+  &quot;antagonistObservation&quot;: &quot;Thermal spike detected at contact point; rapid movement in peripheral vision (Holt) noted.&quot;,
+  &quot;apparatusStatus&quot;: &quot;Regulator pressure: 142 PSI; Needle driver actuator: Operational; Cryogenic coolant: Nominal.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 39 OF 50</span>
+        <span class="turn-metrics">14112ms | F:4 Q:4 A:5</span>
+      </div>
+      <div class="user-input">&gt; Register valve rupture and massive cryogenic flash-vent; main carriage sensors overload and suffer 12% optical blackout.</div>
+      <div class="block-narration">A catastrophic failure in the cryogenic regulator triggers a massive flash-vent, engulfing Dr. Ross in a cloud of sub-zero vapor. The sudden thermal shock induces immediate pulmonary edema and localized dermal necrosis in the subject&#039;s lower extremities.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;A catastrophic failure in the cryogenic regulator triggers a massive flash-vent, engulfing Dr. Ross in a cloud of sub-zero vapor. The sudden thermal shock induces immediate pulmonary edema and localized dermal necrosis in the subject&#039;s lower extremities.&quot;,
+  &quot;preyStatus&quot;: &quot;Dr. Ross: Unconscious, Grade IV frostbite (left leg), pulmonary distress. Officer Holt: Hidden, elevated cortisol/adrenaline, respiratory tachypnea.&quot;,
+  &quot;tensionLevel&quot;: &quot;sustained&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Cryogenic dermal necrosis; pulmonary thermal injury.&quot;,
+  &quot;antagonistObservation&quot;: &quot;Visual sensor array: 12% blackout (frost occlusion); Thermal scan: Subject 01 temperature plummeting; Hydraulic pressure: Fluctuating.&quot;,
+  &quot;apparatusStatus&quot;: &quot;Cryogenic Valve: Ruptured; System pressure: 42% (unstable); Optical integrity: 88%.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 40 OF 50</span>
+        <span class="turn-metrics">11599ms | F:5 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Recalibrate backup optical sensors; initiate pneumatic rail purge to dislodge frost buildup on carriage wheels.</div>
+      <div class="block-narration">A violent hiss of pressurized gas clears the frost from the carriage wheels, causing the overhead rail to lurch forward with sudden, predatory momentum. Dr. Ross&#039;s scream is muffled by the sound of metal tearing through fabric and flesh as a heavy, frost-slicked suture-needle grazes his shoulder.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;A violent hiss of pressurized gas clears the frost from the carriage wheels, causing the overhead rail to lurch forward with sudden, predatory momentum. Dr. Ross&#039;s scream is muffled by the sound of metal tearing through fabric and flesh as a heavy, frost-slicked suture-needle grazes his shoulder.&quot;,
+  &quot;preyStatus&quot;: &quot;Dr. Ross: Hemorrhaging (left shoulder), Psych: Extreme Panic, Location: Operating Theater 3; Officer Holt: Unconscious, Location: Sub-basement.&quot;,
+  &quot;tensionLevel&quot;: &quot;critical&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Deep laceration to the deltoid muscle; subcutaneous tissue exposure.&quot;,
+  &quot;antagonistObservation&quot;: &quot;Optical sensors recalibrated. Thermal bloom detected at 37.2°C in Sector 4. Target movement: erratic/flight response.&quot;,
+  &quot;apparatusStatus&quot;: &quot;Pneumatic Pressure: 142 PSI; Rail Integrity: 98%; Cryogenic Stability: Nominal.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 41 OF 50</span>
+        <span class="turn-metrics">10205ms | F:5 Q:4 A:5</span>
+      </div>
+      <div class="user-input">&gt; Re-enter Autopsy Suite B with howling pneumatic servos, tracking Ross&#039;s frantic retreat toward the maintenance hatch.</div>
+      <div class="block-narration">Pneumatic actuators hiss as the overhead rail system accelerates through Autopsy Suite B, trailing a wake of ozone and chilled formaldehyde. A high-velocity suture needle grazes Dr. Ross&#039;s shoulder, carving a jagged furrow through his lab coat and into the dermis as he lunges for the maintenance hatch.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;Pneumatic actuators hiss as the overhead rail system accelerates through Autopsy Suite B, trailing a wake of ozone and chilled formaldehyde. A high-velocity suture needle grazes Dr. Ross&#039;s shoulder, carving a jagged furrow through his lab coat and into the dermis as he lunges for the maintenance hatch.&quot;,
+  &quot;preyStatus&quot;: &quot;Dr. Ross (Location: Maintenance Hatch threshold; Status: Hemorrhaging, extreme tachycardia, acute terror); Officer Holt (Location: Unknown; Status: Unmonitored).&quot;,
+  &quot;tensionLevel&quot;: &quot;critical&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Superficial laceration to the left deltoid; capillary bleeding.&quot;,
+  &quot;antagonistObservation&quot;: &quot;Thermal signature of prey: 38.2°C; rapid erratic movement pattern detected; target trajectory: 88% probability of hatch entry.&quot;,
+  &quot;apparatusStatus&quot;: &quot;Hydraulic pressure: 2400 PSI; Cryogenic coolant: 4°C; Suture tensioner: Optimal.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 42 OF 50</span>
+        <span class="turn-metrics">13797ms | F:5 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Detect Holt being dragged toward the Incinerator Chute; calculate remaining human escape window at 45 seconds.</div>
+      <div class="block-narration">Hydraulic tension spikes as the drag-chain secures Officer Holt&#039;s ankle, pulling him across the frost-slicked floor toward the Incinerator Chute. His vocalizations are truncated by the rhythmic, automated puncture of the suture-needle into the gastrocnemius muscle.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;Hydraulic tension spikes as the drag-chain secures Officer Holt&#039;s ankle, pulling him across the frost-slicked floor toward the Incinerator Chute. His vocalizations are truncated by the rhythmic, automated puncture of the suture-needle into the gastrocnemius muscle.&quot;,
+  &quot;preyStatus&quot;: &quot;Officer Holt: Location - Incinerator Chute threshold; Status - Hemorrhagic shock, extreme sympathetic nervous system arousal. Dr. Ross: Location - Sector 4, obscured by steam; Status - Unknown.&quot;,
+  &quot;tensionLevel&quot;: &quot;critical&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Deep puncture wound to the gastrocnemius; superficial epidermal abrasions from high-velocity drag.&quot;,
+  &quot;antagonistObservation&quot;: &quot;Thermal signature of prey is rapidly fluctuating; kinetic trajectory indicates 45-second window before incineration threshold is breached.&quot;,
+  &quot;apparatusStatus&quot;: &quot;Hydraulic pressure: 2800 PSI; Cryogenic coolant flow: Optimal; Suture tension: 450N.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 43 OF 50</span>
+        <span class="turn-metrics">13910ms | F:4 Q:4 A:5</span>
+      </div>
+      <div class="user-input">&gt; Over-pressurize floor drainage pumps, causing dark formalin and brine to geyser through floor grates.</div>
+      <div class="block-narration">A high-pressure geyser of caustic formalin and brine erupts from the floor grates, flooding the immediate area with chemical sludge. Dr. Ross loses footing on the slick surface, his frantic struggle resulting in a violent impact against the iron mortuary slab.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;A high-pressure geyser of caustic formalin and brine erupts from the floor grates, flooding the immediate area with chemical sludge. Dr. Ross loses footing on the slick surface, his frantic struggle resulting in a violent impact against the iron mortuary slab.&quot;,
+  &quot;preyStatus&quot;: &quot;Dr. Ross: Critical (Chemical burns, suspected cranial trauma) at Main Mortuary Floor; Officer Holt: High distress/Disoriented at South Corridor.&quot;,
+  &quot;tensionLevel&quot;: &quot;sustained&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Second-degree chemical burns to lower extremities; blunt force trauma to the parietal region.&quot;,
+  &quot;antagonistObservation&quot;: &quot;Thermal sensors detecting rapid heat loss in the fluid spray; prey movement patterns indicate loss of locomotive control.&quot;,
+  &quot;apparatusStatus&quot;: &quot;Drainage Pump Pressure: 485 PSI; System Integrity: 91%; Hydraulic Stability: Nominal.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 44 OF 50</span>
+        <span class="turn-metrics">2747ms | F:5 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Descend to lowest elevation, wheels screeching against deformed steel tracks as armature expands to maximum spread.</div>
+      <div class="block-narration">The hydraulic armature shrieks as it descends, the heavy steel pincers clamping onto Dr. Ross&#039;s left shoulder with a sickening crunch of bone and sinew. His scream is abruptly cut short by the sudden, localized drop in temperature as the cryogenic nozzles vent, frosting his frantic, wide-eyed gaze.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The hydraulic armature shrieks as it descends, the heavy steel pincers clamping onto Dr. Ross&#039;s left shoulder with a sickening crunch of bone and sinew. His scream is abruptly cut short by the sudden, localized drop in temperature as the cryogenic nozzles vent, frosting his frantic, wide-eyed gaze.&quot;,
+  &quot;preyStatus&quot;: &quot;Dr. Ross: Immobilized, shoulder dislocation, localized frostbite, extreme shock (Location: Operating Table 4); Officer Holt: Hiding, elevated heart rate, auditory distress (Location: Sub-floor maintenance duct).&quot;,
+  &quot;tensionLevel&quot;: &quot;critical&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Compound fracture of the left scapula; soft tissue compression; superficial cryogenic thermal burns.&quot;,
+  &quot;antagonistObservation&quot;: &quot;Optical sensor 04-B: Subject Ross exhibiting rapid ocular dilation and spasmodic respiratory distress. Thermal signature: 34.2°C (decreasing).&quot;,
+  &quot;apparatusStatus&quot;: &quot;Hydraulic pressure: 2800 PSI; Cryogenic coolant: 88% capacity; Armature extension: 100%.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 45 OF 50</span>
+        <span class="turn-metrics">13760ms | F:5 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Extend high-speed cranial resection blade, spinning at 12,000 RPM with a deafening ultrasonic whine.</div>
+      <div class="block-narration">The high-speed resection blade descends with a piercing ultrasonic scream, carving through the air before making violent contact with Dr. Ross&#039;s parietal bone. A fine mist of bone dust and arterial spray erupts, instantly obscuring the optical sensor as the subject&#039;s vocalization ceases due to neurogenic shock.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The high-speed resection blade descends with a piercing ultrasonic scream, carving through the air before making violent contact with Dr. Ross&#039;s parietal bone. A fine mist of bone dust and arterial spray erupts, instantly obscuring the optical sensor as the subject&#039;s vocalization ceases due to neurogenic shock.&quot;,
+  &quot;preyStatus&quot;: &quot;Dr. Ross: Critical (unconscious, massive cranial trauma, pinned to table); Officer Holt: Hysterical (retreating, acute auditory distress).&quot;,
+  &quot;tensionLevel&quot;: &quot;climax&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Compound comminuted skull fracture, severe cortical laceration, arterial spray.&quot;,
+  &quot;antagonistObservation&quot;: &quot;Thermal spike detected in the cranial cavity; high-velocity particulate matter obscuring primary lens.&quot;,
+  &quot;apparatusStatus&quot;: &quot;Blade RPM: 12,000; Hydraulic Pressure: 3,250 PSI; Cryogenic Integrity: 98%.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 46 OF 50</span>
+        <span class="turn-metrics">7811ms | F:5 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Suffer temporary optical flare as Ross shatters a formalin bottle against sensor cluster; switch to sonar echo-location.</div>
+      <div class="block-narration">Formalin splash induces a momentary visual sensor blackout, triggering an immediate transition to high-frequency sonar echo-location. The sonic pulse reveals Dr. Ross’s frantic, erratic movement as he retreats behind a heavy steel prep table, his breath a ragged, rhythmic disturbance in the dark.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;Formalin splash induces a momentary visual sensor blackout, triggering an immediate transition to high-frequency sonar echo-location. The sonic pulse reveals Dr. Ross’s frantic, erratic movement as he retreats behind a heavy steel prep table, his breath a ragged, rhythmic disturbance in the dark.&quot;,
+  &quot;preyStatus&quot;: &quot;Dr. Ross: Acute panic, elevated heart rate, hiding behind prep table, Sector 4. Officer Holt: Status unknown, location unconfirmed.&quot;,
+  &quot;tensionLevel&quot;: &quot;climax&quot;,
+  &quot;anatomicalTrauma&quot;: null,
+  &quot;antagonistObservation&quot;: &quot;Optical sensor cluster: Obscured/Corroded. Sonar telemetry: High-frequency pulse mapping Dr. Ross&#039;s rapid respiratory cycles and frantic kinetic displacement.&quot;,
+  &quot;apparatusStatus&quot;: &quot;Optical Array: 42% integrity (chemical degradation); Sonar Array: Operational; Hydraulic Pressure: 2100 PSI; Cryogenic levels: Nominal.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 47 OF 50</span>
+        <span class="turn-metrics">12513ms | F:5 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Blindly strike downward with three-pronged trocar spindle, impacting concrete floor and dislodging aggregate.</div>
+      <div class="block-narration">The three-pronged trocar spindle descends with pneumatic violence, shattering the concrete substrate into lethal, high-velocity aggregate. Dr. Ross is caught in the spray of stone shards, a jagged laceration blooming across his cheek as he collapses into a frantic, stumbling retreat.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The three-pronged trocar spindle descends with pneumatic violence, shattering the concrete substrate into lethal, high-velocity aggregate. Dr. Ross is caught in the spray of stone shards, a jagged laceration blooming across his cheek as he collapses into a frantic, stumbling retreat.&quot;,
+  &quot;preyStatus&quot;: &quot;Dr. Ross: Hemorrhaging (minor), acute psychological shock, retreating toward the drainage grate. Officer Holt: Stationary, respiratory rate 32 bpm, concealed behind the autopsy table.&quot;,
+  &quot;tensionLevel&quot;: &quot;climax&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Superficial lacerations to Dr. Ross (facial/forearm) via secondary projectile impact.&quot;,
+  &quot;antagonistObservation&quot;: &quot;Optical sensor 04: Thermal bloom detected in Dr. Ross&#039;s facial region; rapid movement pattern indicates flight response. Concrete vibration detected at 40Hz.&quot;,
+  &quot;apparatusStatus&quot;: &quot;Hydraulic Pressure: 2950 PSI; Cryogenic Temp: -180C; Spindle Integrity: 92% (micro-fractures detected).&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 48 OF 50</span>
+        <span class="turn-metrics">9746ms | F:5 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Detect rapid thermal descent as Ross drops into the Incinerator Chute; calculate trajectory vector.</div>
+      <div class="block-narration">Thermal sensors register a sudden, violent drop in Ross&#039;s core temperature as he enters the incinerator chute&#039;s draft. His screams are instantly truncated by the rush of superheated air, replaced by the wet, rhythmic thud of his body against the metal walls.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;Thermal sensors register a sudden, violent drop in Ross&#039;s core temperature as he enters the incinerator chute&#039;s draft. His screams are instantly truncated by the rush of superheated air, replaced by the wet, rhythmic thud of his body against the metal walls.&quot;,
+  &quot;preyStatus&quot;: &quot;Dr. Ross: Terminal descent (Incinerator Chute); Officer Holt: Sub-Level 3, extreme tachycardia, localized in shadow zone.&quot;,
+  &quot;tensionLevel&quot;: &quot;climax&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Acute pulmonary edema from superheated air inhalation; epidermal thermal degradation.&quot;,
+  &quot;antagonistObservation&quot;: &quot;Optical Feed 09: Subject Ross trajectory calculated; impact with incinerator grate imminent; thermal signature rising exponentially.&quot;,
+  &quot;apparatusStatus&quot;: &quot;Hydraulic pressure: 3100 PSI; Cryogenic coolant: 4°C; Suture integrity: 98%.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 49 OF 50</span>
+        <span class="turn-metrics">10766ms | F:4 Q:4 A:5</span>
+      </div>
+      <div class="user-input">&gt; Thrust articulating armature down the chute opening, teeth grazing the descending steel fire-damper.</div>
+      <div class="block-narration">The screech of serrated teeth against the descending fire-damper vibrates through the chute, a mechanical death rattle. Dr. Ross&#039;s frantic scrambling is silenced by the sudden, wet impact of the articulating armature against his midsection.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The screech of serrated teeth against the descending fire-damper vibrates through the chute, a mechanical death rattle. Dr. Ross&#039;s frantic scrambling is silenced by the sudden, wet impact of the articulating armature against his midsection.&quot;,
+  &quot;preyStatus&quot;: &quot;Dr. Ross: Critical hemorrhage, pinned in chute segment B; Officer Holt: Stationary, hiding in ventilation shaft, respiratory rate 32/min.&quot;,
+  &quot;tensionLevel&quot;: &quot;climax&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Deep transverse laceration to the abdominal wall; compression of the lower ribcage.&quot;,
+  &quot;antagonistObservation&quot;: &quot;Optical sensor detecting high-velocity fluid spray; thermal bloom localized to Dr. Ross&#039;s torso.&quot;,
+  &quot;apparatusStatus&quot;: &quot;Hydraulic pressure: 3100 PSI; Cryogenic flow: optimal; Armature torque: maximum.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="turn-card">
+      <div class="turn-header">
+        <span class="turn-number">TURN 50 OF 50</span>
+        <span class="turn-metrics">12643ms | F:5 Q:5 A:5</span>
+      </div>
+      <div class="user-input">&gt; Fire-damper slams shut, severing two trocar tips; record closure, recalibrate damaged servos, and enter sentry patrol mode.</div>
+      <div class="block-narration">The fire-damper slams shut with a violent hydraulic surge, shearing the primary trocar tips and crushing Officer Holt&#039;s left humerus against the steel gurney. A high-frequency screech of metal on bone echoes through the morgue as the apparatus initiates servo recalibration.</div>
+      <details class="logic-panel">
+        <summary>[ TTM LOGIC // STATE DELTAS &amp; METADATA ]</summary>
+        <div class="logic-content">
+          <pre><code>{
+  &quot;narration&quot;: &quot;The fire-damper slams shut with a violent hydraulic surge, shearing the primary trocar tips and crushing Officer Holt&#039;s left humerus against the steel gurney. A high-frequency screech of metal on bone echoes through the morgue as the apparatus initiates servo recalibration.&quot;,
+  &quot;preyStatus&quot;: &quot;Officer Holt: Critical (crushed limb, hypovolemic shock, Station 4); Dr. Ross: Unknown (thermal signature lost in ventilation duct).&quot;,
+  &quot;tensionLevel&quot;: &quot;climax&quot;,
+  &quot;anatomicalTrauma&quot;: &quot;Compound comminuted fracture of the left humerus; laceration of the brachial artery.&quot;,
+  &quot;antagonistObservation&quot;: &quot;Optical sensor 04: Visual occlusion due to hydraulic fluid spray; Thermal sensor 09: Heat signature of prey retreating into sub-floor cavity.&quot;,
+  &quot;apparatusStatus&quot;: &quot;Servo calibration error (L/R); Hydraulic pressure: 1400 PSI (nominal); Mode: Sentry Patrol.&quot;
+}</code></pre>
+        </div>
+      </details>
+    </div>
+  </div>
+
+</body>
+</html>

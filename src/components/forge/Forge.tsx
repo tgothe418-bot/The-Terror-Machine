@@ -11,6 +11,7 @@ import { CampaignTopologyPanel } from './CampaignTopologyPanel';
 import { ScenarioBaselinePanel } from './ScenarioBaselinePanel';
 import { DepictionContractPanel } from './DepictionContractPanel';
 import { ExportReviewModal } from './ExportReviewModal';
+import { DramaticSpinePanel } from './DramaticSpinePanel';
 
 export default function Forge() {
   const setPhase = useAppStore((state) => state.setPhase);
@@ -19,7 +20,7 @@ export default function Forge() {
   const [hydrated, setHydrated] = useState(() => useForgeStoreInternal.persist.hasHydrated());
   const [timedOut, setTimedOut] = useState(false);
   const [isConfirmingClear, setIsConfirmingClear] = useState(false);
-  const [activeTab, setActiveTab] = useState<'blueprint' | 'campaign'>('blueprint');
+  const [activeTab, setActiveTab] = useState<'blueprint' | 'dramatic_spine' | 'campaign'>('blueprint');
   const [isExportReviewOpen, setIsExportReviewOpen] = useState(false);
 
   // Handle hydration with fallback recovery timeout
@@ -174,6 +175,7 @@ export default function Forge() {
           {/* Active Mode Tabs */}
           <div className="flex items-center gap-1.5 border border-stone-800 rounded-lg p-1 bg-black/60 shadow-inner">
             <button
+              id="forge-tab-blueprint"
               onClick={() => setActiveTab('blueprint')}
               className={`px-4 2xl:px-5 py-1.5 2xl:py-2 text-xs 2xl:text-sm font-mono tracking-widest uppercase transition-all rounded-md ${
                 activeTab === 'blueprint'
@@ -184,6 +186,18 @@ export default function Forge() {
               Blueprint Studio
             </button>
             <button
+              id="forge-tab-dramatic-spine"
+              onClick={() => setActiveTab('dramatic_spine')}
+              className={`px-4 2xl:px-5 py-1.5 2xl:py-2 text-xs 2xl:text-sm font-mono tracking-widest uppercase transition-all rounded-md ${
+                activeTab === 'dramatic_spine'
+                  ? 'bg-stone-900 border border-amber-600/60 text-amber-300 font-bold shadow-[0_0_12px_rgba(217,119,6,0.25)]'
+                  : 'text-stone-400 hover:text-stone-200 border border-transparent'
+              }`}
+            >
+              Dramatic Spine
+            </button>
+            <button
+              id="forge-tab-campaign"
               onClick={() => setActiveTab('campaign')}
               className={`px-4 2xl:px-5 py-1.5 2xl:py-2 text-xs 2xl:text-sm font-mono tracking-widest uppercase transition-all rounded-md ${
                 activeTab === 'campaign'
@@ -256,6 +270,10 @@ export default function Forge() {
       <div className="flex-grow overflow-hidden relative z-10 pb-4">
         {activeTab === 'campaign' ? (
           <CampaignTopologyPanel />
+        ) : activeTab === 'dramatic_spine' ? (
+          <div className="h-full max-w-5xl mx-auto overflow-hidden p-2">
+            <DramaticSpinePanel />
+          </div>
         ) : (
           <div className="grid grid-cols-1 xl:grid-cols-[27fr_44fr_29fr] gap-6 2xl:gap-8 h-full overflow-hidden">
             {/* =================================================================== */}
@@ -430,6 +448,31 @@ export default function Forge() {
 
               {/* Spatial Topology Matrix & Chorography Canvas */}
               <SpatialManager />
+
+              {/* DRAMATIC SPINE & PACING OVERVIEW (HG2) */}
+              <div className="obsidian-panel border border-stone-800/80 p-4 2xl:p-5 rounded-lg flex items-center justify-between shadow-2xl transition-all">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="jewel-amber w-1.5 h-1.5 rounded-full bg-amber-500 inline-block" />
+                    <span className="font-serif text-xs 2xl:text-sm font-bold uppercase tracking-widest text-[#e6e4dc]">
+                      DRAMATIC SPINE & PACING
+                    </span>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-stone-900 border border-stone-800 text-amber-300">
+                      {draftBlueprint?.dramaticSpine?.pacingProfile || 'BALANCED_HORROR'}
+                    </span>
+                  </div>
+                  <p className="text-[11px] font-mono text-stone-400">
+                    {(draftBlueprint?.dramaticSpine?.impendingClocks || []).length} Impending Clock(s) &bull; {(draftBlueprint?.dramaticSpine?.milestoneConditions || []).length} Causal Gate(s)
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('dramatic_spine')}
+                  className="px-3.5 py-1.5 bg-stone-950 hover:bg-stone-900 border border-amber-600/70 text-amber-300 text-xs font-mono rounded cursor-pointer transition-all font-bold"
+                >
+                  [ CONFIGURE SPINE ]
+                </button>
+              </div>
 
               {/* WORLD RULES & ESOTERIC CONSTRAINTS */}
               <div className="obsidian-panel border border-stone-800/80 focus-within:border-amber-500/60 p-5 2xl:p-6 rounded-lg flex flex-col shadow-2xl transition-all">

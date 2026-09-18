@@ -1626,6 +1626,83 @@ describe('Engine telemetry export', () => {
       expect(htmlExport).toContain(REJECTED_PRESS_SENTINEL);
       expect(htmlExport).not.toContain(SECRET_PROMPT_SENTINEL);
     });
+
+    it('exports Dramaturgical Pacing & Causal Clocks (HG2) telemetry in markdown and HTML formats', () => {
+      const dramaticTurnReceipt = {
+        macroPhase: 'ESCALATING_VISE',
+        pacingCadence: 'RATCHET_TENSION',
+        phaseTransition: {
+          fromPhase: 'MIDPOINT_CRISIS',
+          toPhase: 'ESCALATING_VISE',
+          gateMilestoneId: 'milestone-containment-breach',
+          triggeredBy: 'CAUSAL_GATE',
+        },
+        clockAdvances: [
+          {
+            clockId: 'clock-containment',
+            newLevel: 75,
+            cause: 'Advanced +25 points via matching consequence events',
+          },
+        ],
+        composureDeltas: [
+          {
+            characterId: 'char-park',
+            oldComposure: 60,
+            newComposure: 45,
+            delta: -15,
+            cause: 'Somatic/psychological trauma impact (-15)',
+          },
+        ],
+        breakingPointRefusals: [
+          {
+            characterId: 'char-park',
+            reason: 'Refuses to enter the chamber after witnessing the core bleed',
+          },
+        ],
+        fictionalTimeMarker: 'MOMENT:2_BEAT:1',
+      };
+
+      const messages = [
+        {
+          role: 'user',
+          content: 'I push open the pressurized hatch.',
+          timestamp: 100,
+        },
+        {
+          role: 'assistant',
+          content: 'The airlock wheezes shut behind you.',
+          timestamp: 200,
+          dramaticTurnReceipt,
+          turnReceipt: {
+            turnNumber: 1,
+            dramaticTurnReceipt,
+          },
+        },
+      ];
+
+      const mdExport = buildEngineLogContent(messages, 'md')!.content;
+      const htmlExport = buildEngineLogContent(messages, 'html')!.content;
+
+      // Markdown verification
+      expect(mdExport).toContain('#### Dramaturgical Pacing & Causal Clocks (HG2)');
+      expect(mdExport).toContain('**Macro-Phase:** ESCALATING_VISE');
+      expect(mdExport).toContain('**Cadence:** RATCHET_TENSION');
+      expect(mdExport).toContain('MIDPOINT_CRISIS → ESCALATING_VISE');
+      expect(mdExport).toContain('milestone-containment-breach');
+      expect(mdExport).toContain('[clock-containment]: Level 75');
+      expect(mdExport).toContain('char-park: 60 → 45 (-15)');
+      expect(mdExport).toContain('Refuses to enter the chamber after witnessing the core bleed');
+
+      // HTML verification
+      expect(htmlExport).toContain('<h4>Dramaturgical Pacing &amp; Causal Clocks (HG2)</h4>');
+      expect(htmlExport).toContain('Macro-Phase:</strong> ESCALATING_VISE');
+      expect(htmlExport).toContain('Cadence:</strong> RATCHET_TENSION');
+      expect(htmlExport).toContain('MIDPOINT_CRISIS → ESCALATING_VISE');
+      expect(htmlExport).toContain('milestone-containment-breach');
+      expect(htmlExport).toContain('[clock-containment]: Level 75');
+      expect(htmlExport).toContain('char-park: 60 → 45 (-15)');
+      expect(htmlExport).toContain('Refuses to enter the chamber after witnessing the core bleed');
+    });
   });
 });
 

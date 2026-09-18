@@ -762,12 +762,14 @@ export default function Runtime() {
   // Compute cohort members for MortalLedger
   const cohortCastMembers = React.useMemo(() => {
     if (!activeBlueprint?.cast) return [];
+    const dramaturgyStakes = (gameState as any)?.dramaturgy_state?.characterStakes;
     return activeBlueprint.cast.map((c) => {
       const presence = gameState?.character_presence?.[c.id];
       const continuity = gameState?.character_continuity?.[c.id];
       const ledgerEntry = telemetry?.castLedger?.find(
         (l: any) => l.character_id === c.id || l.character_name === c.name
       );
+      const stakes = dramaturgyStakes?.[c.id] || (c as any).psychologicalStakes;
       return {
         id: c.id,
         name: c.name,
@@ -777,6 +779,9 @@ export default function Runtime() {
           ledgerEntry?.psychological_status || (c as any).psychological_status || 'Composed',
         skepticism: typeof continuity?.skepticism === 'number' ? continuity.skepticism : undefined,
         isCurrentPlayer: c.id === gameState?.player_character_id,
+        isObstructed: stakes?.isObstructed ?? false,
+        obstructionReason: stakes?.obstructionReason,
+        currentComposure: stakes?.currentComposure,
       };
     });
   }, [
@@ -784,6 +789,7 @@ export default function Runtime() {
     gameState?.character_presence,
     gameState?.character_continuity,
     gameState?.player_character_id,
+    (gameState as any)?.dramaturgy_state,
     telemetry?.castLedger,
   ]);
 
@@ -1210,6 +1216,7 @@ export default function Runtime() {
         characterDevelopmentReceipt: response.characterDevelopmentReceipt,
         pressureThreadTransitionReceipt: response.pressureThreadTransitionReceipt,
         horrorGrammarForensics: response.horrorGrammarForensics,
+        dramaticTurnReceipt: response.dramaticTurnReceipt,
       };
 
       const committedTurnPayload: CommittedTurnPayload = {
@@ -1270,6 +1277,12 @@ export default function Runtime() {
           : {}),
         world_memory: createWorldMemoryState(response.worldMemoryReceipt.post_state),
         ...hgValidation.postState,
+        ...(response.logic_state?.dramaturgyState
+          ? { dramaturgy_state: response.logic_state.dramaturgyState }
+          : {}),
+        ...(response.dramaticTurnReceipt
+          ? { dramatic_turn_receipt: response.dramaticTurnReceipt }
+          : {}),
         ...(nextCharacterContinuity ? { character_continuity: nextCharacterContinuity } : {}),
         ...(nextCharacterPresence ? { character_presence: nextCharacterPresence } : {}),
       };
@@ -1490,22 +1503,47 @@ export default function Runtime() {
           </div>
         </div>
 
-        {/* Center: Analog Rolling Tape Counter */}
-        <div className="hidden lg:flex items-center gap-3 px-3.5 py-1.5 rounded border border-zinc-800/90 bg-zinc-950/80 shadow-inner">
-          <span className="text-[10px] uppercase tracking-[0.25em] text-zinc-500 font-mono font-semibold">
-            Recorded Cycles
-          </span>
-          <div className="tape-counter" title={`Simulation Cycles: ${turnCount || 0}`}>
-            {(turnCount || 0)
-              .toString()
-              .padStart(5, '0')
-              .split('')
-              .map((digit, idx) => (
-                <span key={idx} className="tape-counter-digit">
-                  {digit}
-                </span>
-              ))}
+        {/* Center: Analog Rolling Tape Counter & HG2 Pacing Indicator */}
+        <div className="hidden lg:flex items-center gap-3">
+          <div className="flex items-center gap-3 px-3.5 py-1.5 rounded border border-zinc-800/90 bg-zinc-950/80 shadow-inner">
+            <span className="text-[10px] uppercase tracking-[0.25em] text-zinc-500 font-mono font-semibold">
+              Recorded Cycles
+            </span>
+            <div className="tape-counter" title={`Simulation Cycles: ${turnCount || 0}`}>
+              {(turnCount || 0)
+                .toString()
+                .padStart(5, '0')
+                .split('')
+                .map((digit, idx) => (
+                  <span key={idx} className="tape-counter-digit">
+                    {digit}
+                  </span>
+                ))}
+            </div>
           </div>
+
+          {((gameState as any)?.dramaturgy_state || activeBlueprint?.dramaticSpine) && (
+            <div
+              data-testid="runtime-pacing-indicator"
+              className="flex items-center gap-2 px-3 py-1.5 rounded border border-amber-950/70 bg-amber-950/20 text-[10px] font-mono tracking-wider text-amber-200/90 shadow-sm"
+              title="Dramaturgical Pacing State (HG2)"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+              <span className="uppercase text-zinc-400">Phase:</span>
+              <span className="font-semibold text-amber-300">
+                {(((gameState as any)?.dramaturgy_state?.currentMacroPhase ||
+                  activeBlueprint?.dramaticSpine?.startingMacroPhase ||
+                  'EXPOSITION_BASELINE') as string).replace(/_/g, ' ')}
+              </span>
+              <span className="text-zinc-600">|</span>
+              <span className="uppercase text-zinc-400">Cadence:</span>
+              <span className="font-semibold text-amber-400">
+                {(((gameState as any)?.dramaturgy_state?.activePacingCadence ||
+                  activeBlueprint?.dramaticSpine?.startingPacingCadence ||
+                  'SIMMERING_DREAD') as string).replace(/_/g, ' ')}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Right Header Controls */}
@@ -1710,6 +1748,22 @@ export default function Runtime() {
               injuries={gameState?.player_injuries || []}
               inventory={gameState?.inventory || []}
               castMembers={cohortCastMembers}
+              impendingClocks={
+                (gameState as any)?.dramaturgy_state?.impendingClocks
+                  ? Object.values((gameState as any).dramaturgy_state.impendingClocks)
+                  : activeBlueprint?.dramaticSpine?.clocks || []
+              }
+              currentLocationNodeId={
+                gameState?.current_node_id || activeBlueprint?.topology?.startingNodeId || undefined
+              }
+              macroPhase={
+                (gameState as any)?.dramaturgy_state?.currentMacroPhase ||
+                activeBlueprint?.dramaticSpine?.startingMacroPhase
+              }
+              pacingCadence={
+                (gameState as any)?.dramaturgy_state?.activePacingCadence ||
+                activeBlueprint?.dramaticSpine?.startingPacingCadence
+              }
               className="flex-1 min-h-[320px]"
             />
           </aside>

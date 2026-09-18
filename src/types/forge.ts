@@ -13,8 +13,14 @@ import {
   PursuitReviewStateSchema,
   UserOpeningAimSchema,
 } from './horrorGrammar';
+import {
+  DramaticSpineSchema,
+  CharacterPsychologicalStakesSchema,
+} from './dramaturgy';
 export * from './blueprintAuthoring';
 export * from './horrorGrammar';
+export * from './dramaturgy';
+
 
 // ============================================================================
 // Phase 3E Character Expression Profile (Passive Data Seam)
@@ -273,6 +279,7 @@ export const ForgeDraftCastMemberSchema = z.object({
   presenceDisposition: CharacterPresenceDispositionSchema.optional(),
   vulnerabilityBase: ForgeVulnerabilityIndexSchema.optional(),
   expressionProfile: CharacterExpressionProfileSchema.optional(),
+  psychologicalStakes: CharacterPsychologicalStakesSchema.optional(),
 });
 
 export const ForgeDraftPerspectiveRoleSchema = z.enum([
@@ -401,6 +408,7 @@ export const ForgeDraftSchema = z.object({
     valueAnchors: [],
     characterPursuits: [],
   })),
+  dramaticSpine: DramaticSpineSchema.optional(),
 });
 
 export type ForgeDraft = z.input<typeof ForgeDraftSchema>;
