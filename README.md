@@ -225,7 +225,7 @@ You inhabit a mortal character anchored to a single node on the spatial map. You
 ### 2. VILLAIN (`villain` / `antagonist`)
 *You are the horror that stalks the perimeter.*
 
-You embody the scenario's opposition force—whether an intimate human murderer, a predatory stalker, or an anomalous architectural parasite (such as Entity-41 in *The Black Iron Mortuary*).
+You embody the scenario's opposition force—whether an intimate human murderer, a predatory stalker, or an anomalous architectural parasite (such as Entity-41 in *The Black Iron Mortuary* or Elias Vann in *The Silver Rest Lodge*).
 - **The Authority Contract**: Playing the villain is not a license to puppeteer the victims. You operate under explicit, authored capabilities and hard limitations. An antagonist with surveillance access can track telemetry feeds; an antagonist with acoustic authority can pipe whispers through drainage pipes.
 - **Autonomous Prey Cohort**: The survivors are not passive props waiting to be slaughtered. They possess independent behavioral vectors (`ADAPTIVE`, `INSURGENT`, `PANIC`), authored vulnerabilities, and survival instincts. They hide, barricade doors, construct improvised weapons, and strike back based on their own cast ledgers.
 - **Apparatus Controls**: The Engine exposes scenario-specific apparatus controls (hydraulics, atmosphere, electrical grids, acoustic feedback, surgical machinery) that you can trigger to herd and corner your prey.

@@ -43,6 +43,10 @@ A Blueprint or a Haunted House Induction enters the same Engine path. The core t
 - Structured-output compatibility on the live turn path, with the supported JSON-schema subset owned at the provider boundary and provider failures returned as structured API errors.
 - Hardened Forge extraction and candidate normalization pipeline with rule alias expansion (`unknowns`, `misc`, `notes`, `lore`, `world_rule`, `environmental`) preventing spurious candidate quarantine.
 - Four 20-Turn Multi-Role Local Playtest Battery: Headless simulation harness (`scripts/run_four_20turn_battery.ts`) verifying 80/80 total turns on local Gemma 4 26B QAT across Protagonist, Antagonist, Villain, and Survivor seats with automated fidelity, quality, and accuracy scoring, and critical error skip/abort handling.
+- Horror Grammar 2 (HG2) Series 1 — Pacing Governor, Clocks & Character Stakes: Full architectural implementation and verification of autonomous seat-aware pacing mandates (`pacingGovernor.ts`), undulating cadence breath (`RESPITE_AFTERMATH`, `SIMMERING_DREAD`, `MOUNTING_COMPLICATION`, `KINETIC_RUPTURE`), impending environmental clocks with threshold manifestation omens, D2 situated diegetic instrument readouts, D3 obstructive breaking points with deterministic lift conditions, and D1 causal macro-phase milestone gates.
+- Client-Loop Ratification & Presence Whitelist: Full preservation of `dramaturgyState`, `cast_arrivals`, `cast_departures`, and `current_node_id` through the client ratification pipeline, ensuring macro-phase and cadence progression survive across live browser turns.
+- The Silver Rest Lodge Canonical Interaction Scenario: Dedicated alpine social-horror blueprint (`src/data/blueprints/silver_rest_lodge.json`, Feb 1991) with 7 topological chambers, 8 cast members across survivor, villain, and bystander roles, 3 impending clocks with situated diegetic instruments, 4 causal milestone gates, and full subsystem test coverage (`silver_rest_lodge.test.ts`).
+- 40-Turn HG2 Dual-Role Headless Benchmark Batteries: Verification scripts for both *The Black Iron Mortuary* (`scripts/run_hg2_40turn_benchmark.ts`) and *The Silver Rest Lodge* (`scripts/run_silver_rest_40turn_benchmark.ts`) completing 80/80 turns each on local Gemma 4 26B QAT across Survivor and Villain seats, with full Retake idempotence and data-derived telemetry reports.
 - Express API mounting and `/api` fallback protection in local and Vite preview runtimes, so a backend failure cannot masquerade as an HTML success response.
 - Development recovery through Clear System Memory and Autopilot as a soak-testing instrument.
 
@@ -136,19 +140,25 @@ Refine Runtime diagnostic drawer presentation, add dedicated prose-only export f
 
 Campaign continuity can move scoped state between authored Blueprints without merging them into an implicit global ledger.
 
-### 8. Horror Grammar 2: Packet Series 1 — Pacing, Clocks & Character Stakes (Active Implementation)
+### 8. Experiential Play Review (Top Priority Sequenced Work)
 
-Horror Grammar 2 has been consciously re-sequenced ahead of packages 2–7 by owner decision. The vocalization subsystem's live play review is folded into HG2's experiential verification.
+Live human interactive play review in the browser to exercise vocalization, presence tracking, fog-of-war, and HG2 macro-phase and cadence progression across real human sessions in both *The Black Iron Mortuary* and *The Silver Rest Lodge*.
 
-This work is **HG2 Packet Series 1 — Pacing, Clocks & Stakes**:
-- **Undulating Tension Cadence (The Breath)**: Dynamic pacing oscillation (Respite / Simmering Dread / Mounting Complication / Kinetic Rupture) preventing flatline panic without overriding player actions or causal consequences.
-- **Impending Environmental Clocks**: Non-scripted situational decay vectors advancing via fictional time or ratified consequence events, featuring threshold-keyed manifestation cues and situated diegetic instrument observations.
-- **Character Psychological Stakes**: Human drama, coping mechanisms, and breaking points that enforce physical obstruction when triggered, with deterministic lift conditions.
-- **Causal Macro-Phase Milestones**: Narrative movements (Exposition, Inciting Rupture, Complication, Midpoint Crisis, Escalating Vise, Climax, Aftermath) gating phase transitions strictly on authored milestone achievements or clock crisis crossings.
+### 9. Inherited Gate Debt Cleanup Packet
 
-*Note*: Revelation staging, thematic lore unpeeling, and tension-decay dynamics remain open research areas for **HG2 Packet Series 2**.
+Remediate the inherited 63 `tsc` and 177 `eslint` items (extraction disposition fixtures, MapSketch predicates, sourceBaseline, useForgeStore, forgeReadiness, adLibCompiler, and test fixtures) in a strictly dedicated packet without blending into feature work.
 
-Active construction has moved to Antigravity. The machine supports Gemini, OpenAI, and local inference servers as providers. Gemini remains the default; provider neutrality is an active engineering direction with the Voice already operating across all three types and the Engine and Forge infrastructure in place.
+### 10. Horror Grammar 2: Packet Series 2 — Revelation Staging & Tension-Decay Dynamics
+
+With HG2 Series 1 (pacing governor, dramatic spine, impending clocks, composure, breaking points, and causal phase gates) landed and verified, Series 2 owns:
+- **Revelation Staging**: Thematic lore unpeeling, structured discovery cadence, and revelation receipts.
+- **Tension-Decay Research**: Modeling long-term psychological attrition and atmospheric dissipation.
+
+### 11. Z.ai Live Provider Verification
+
+Complete live end-to-end turn verification of the Z.ai (GLM) provider once an API key with active balance is provisioned.
+
+Active construction has moved to Antigravity. The machine supports Gemini, OpenAI, Z.ai, and local inference servers as providers. Gemini remains the default; provider neutrality is an active engineering direction with the Voice already operating across all provider types and the Engine and Forge infrastructure in place.
 
 ## What will not change
 

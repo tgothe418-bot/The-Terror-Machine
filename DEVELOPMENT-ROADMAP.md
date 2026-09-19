@@ -67,14 +67,21 @@ A focused test proves its named behavior. It does not, by itself, close an integ
 - Causal Traversal & Spatial Boundary Hardening: Unaccepted transitions resolve as `CONSTRAINED / TOPOLOGY_LIMIT` without falsely triggering perceptual fracture hallucination loops. Dynamic cast arrivals and departures (`cast_arrivals`, `cast_departures` in `logic_state`).
 - Forge Extraction Target Alias Expansion: `CANDIDATE_TARGET_ALIAS_MAP` in `src/lib/extractionContract.ts` maps `unknowns`, `misc`, `notes`, `lore`, `world_rule`, and `environmental` directly to canonical rules, preventing spurious candidate quarantine.
 - Four 20-Turn Multi-Role Local Playtest Battery: Headless simulation harness (`scripts/run_four_20turn_battery.ts`) verifying 80/80 total turns on local Gemma 4 26B QAT across Protagonist, Antagonist, Villain, and Survivor seats with automated fidelity, quality, and accuracy scoring, and critical error skip/abort handling.
-- The current live line passes the declared broad Vitest, TypeScript, lint, production-build, and diff gates. These are baseline facts, not substitutes for feature-specific acceptance.
+- Horror Grammar 2 (HG2) Series 1 — Pacing Governor, Clocks & Character Stakes: Landed and verified across all engines, routes, stores, UI surfaces, and test suites. Autonomous seat-aware pacing mandates (`src/lib/pacingGovernor.ts`), undulating cadence breath (`RESPITE_AFTERMATH`, `SIMMERING_DREAD`, `MOUNTING_COMPLICATION`, `KINETIC_RUPTURE`), impending environmental clocks with threshold manifestation cues, D2 situated diegetic instrument readouts, D3 obstructive breaking points with deterministic lift conditions, and D1 causal macro-phase milestone gates.
+- Client-Loop Ratification & State Whitelist: Passed `dramaturgyState`, `cast_arrivals`, `cast_departures`, and `current_node_id` through the client ratification pipeline, ensuring macro-phase, cadence, and presence state persist through live browser turn loops.
+- The Silver Rest Lodge Canonical Interaction Scenario: Dedicated alpine social-horror blueprint (`src/data/blueprints/silver_rest_lodge.json`, Feb 1991) with 7 rooms, 8 cast members across survivor, villain, and bystander roles, 3 impending clocks with situated diegetic instruments, 4 causal milestone gates, and full subsystem test coverage (`src/data/blueprints/silver_rest_lodge.test.ts`).
+- 40-Turn HG2 Headless Benchmark Batteries: Validated 80/80 turns on local Gemma 4 26B QAT across dual-role configurations (Survivor & Villain) for both *The Black Iron Mortuary* (`scripts/run_hg2_40turn_benchmark.ts`) and *The Silver Rest Lodge* (`scripts/run_silver_rest_40turn_benchmark.ts`), verifying Retake idempotence, causal gating, and zero floating gauges.
+- The current live line passes 121 / 121 Vitest test suites (1,506 passing tests), production build, and clean git diff.
 
-### Live, under review / Deferred boundaries
+### Live, under review / Sequenced next boundaries
 
+- Experiential Play Review (top sequenced package): live human interactive play in the browser to exercise vocalization, presence tracking, fog-of-war, and HG2 macro-phase and cadence progression across real human sessions.
+- Inherited Gate Debt Cleanup Packet: remediate the inherited 63 `tsc` / 177 `eslint` debt items in an isolated cleanup packet without blending into feature work.
 - Universal warning and intervention window prior to permanent or fatal loss (explicitly deferred from the Astra Critical Corrections series).
 - Voice read-only context expansion across separate drafts, sessions, and research (deferred).
 - Telemetry drawer visual polish and dedicated prose-only export option (deferred).
-- Horror Grammar 2 (independent future milestone; unstarted).
+- Horror Grammar 2: Packet Series 2 — Revelation Staging, Thematic Lore Unpeeling, and Tension-Decay Research.
+- Z.ai Live Provider Verification (pending funded API key).
 
 ## Horror Grammar 1 construction ledger
 

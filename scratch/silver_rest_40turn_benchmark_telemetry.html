@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>The Silver Rest Lodge — HG2 40-Turn Benchmark Telemetry</title>
+  <style>
+    body { background-color: #09090b; color: #f4f4f5; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; padding: 24px; }
+    h1, h2 { color: #f59e0b; border-bottom: 1px solid #27272a; padding-bottom: 8px; }
+    .card { background-color: #18181b; border: 1px solid #27272a; border-radius: 6px; padding: 16px; margin-bottom: 24px; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; }
+    .badge-amber { background: #451a03; color: #fde68a; border: 1px solid #b45309; }
+    .badge-blue { background: #172554; color: #bfdbfe; border: 1px solid #1d4ed8; }
+    .badge-red { background: #450a0a; color: #fecaca; border: 1px solid #b91c1c; }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 12px; }
+    th, td { border: 1px solid #27272a; padding: 8px; text-align: left; }
+    th { background-color: #27272a; color: #d4d4d8; }
+    .narration { color: #e4e4e7; font-style: italic; }
+  </style>
+</head>
+<body>
+  <h1>THE SILVER REST LODGE — HG2 40-TURN TELEMETRY</h1>
+  <p>Scenario: The Silver Rest Lodge (French Alps, Feb 1991) | Model: google/gemma-4-26b-a4b-qat</p>
+
+  <div class="card">
+    <h2>Run A: Human Survivor (Nadia Okafor)</h2>
+    <p>Completed: 40/40 turns | Ending Composure: 90/100 | Avg Latency: 9943ms</p>
+    <table>
+      <thead>
+        <tr><th>Turn</th><th>Phase</th><th>Cadence</th><th>Action</th><th>Narration</th><th>Readings / Clocks</th></tr>
+      </thead>
+      <tbody>
+        
+          <tr>
+            <td>1</td>
+            <td><span class="badge badge-amber">EXPOSITION_BASELINE</span></td>
+            <td><span class="badge badge-blue">SIMMERING_DREAD</span></td>
+            <td>Warm hands before the grand lobby's stone hearth, listening to the gale pummeling the shuttered timber windows.</td>
+            <td class="narration">The stone hearth yields only a hollow, dying warmth, its embers gasping beneath a thin veil of grey ash. Outside, the gale screams through the eaves, a predatory howl that makes the heavy timber shutters rattle in a frantic, rhythmic percussion.</td>
+            <td>Insulin Vial Window (travel case): [DIAGNOSTIC DISPLAY // Insulin Vial Window (travel case)]: Level 16% (Threshold: 95%)</td>
+          </tr>
+        
+          <tr>
+            <td>2</td>
+            <td><span class="badge badge-amber">EXPOSITION_BASELINE</span></td>
+            <td><span class="badge badge-blue">SIMMERING_DREAD</span></td>
+            <td>Observe Laurent Moreau nervously examining his pocket watch near the reception desk and ask if he needs tea.</td>
+            <td class="narration">Laurent’s thumb compulsively traces the etched silver of his watch, his eyes darting toward the dark, frosted windows as if counting the seconds until the storm arrives. Your offer of tea drifts through the frigid lobby, a fragile gesture of normalcy against the encroaching, hollow silence of the Alps.</td>
+            <td>Insulin Vial Window (travel case): [DIAGNOSTIC DISPLAY // Insulin Vial Window (travel case)]: Level 17% (Threshold: 95%)</td>
+          </tr>
+        
+          <tr>
+            <td>3</td>
+            <td><span class="badge badge-amber">EXPOSITION_BASELINE</span></td>
+            <td><span class="badge badge-blue">MOUNTING_COMPLICATION</span></td>
+            <td>Cross the double parquet doors into the dining hall, taking a seat at the long candlelit table near Elias Vann.</td>
+            <td class="narration">The heavy parquet doors groan against the frost-rimed floorboards, sealing out the gale but trapping the stifling, wax-heavy air of the hall. As you settle beside Elias, the candlelight shivers in a sudden, unseen draft, and the mountain's silence feels less like peace and more like a held breath.</td>
+            <td>None</td>
+          </tr>
+        
+          <tr>
+            <td>4</td>
+            <td><span class="badge badge-amber">EXPOSITION_BASELINE</span></td>
+            <td><span class="badge badge-blue">MOUNTING_COMPLICATION</span></td>
+            <td>Accept a small pour of Armagnac from Elias Vann, noting the guest register open on the sideboard behind him.</td>
+            <td class="narration">The Armagnac stings with a sharp, medicinal heat that fails to penetrate the marrow-deep chill settling in the room. Behind Elias, the guest register lies splayed open on the sideboard, its pages fluttering in a draft that carries the scent of something long-forgotten.</td>
+            <td>None</td>
+          </tr>
+        
+          <tr>
+            <td>5</td>
+            <td><span class="badge badge-amber">EXPOSITION_BASELINE</span></td>
+            <td><span class="badge badge-blue">MOUNTING_COMPLICATION</span></td>
+            <td>Casually inquire with Elias why the guest register lists only six names when nine sets of luggage stand in the upper gallery.</td>
+            <td class="narration">Nadia’s question hangs in the frigid air, a thin, trembling wire stretched tight against the silent, heavy silhouettes of the extra luggage looming in the gallery above. Elias refuses to meet her gaze, his silence curdling into a suffocating weight that makes the howling wind outside feel less like weather and more like an approaching predator.</td>
+            <td>None</td>
+          </tr>
+        
+          <tr>
+            <td>6</td>
+            <td><span class="badge badge-amber">EXPOSITION_BASELINE</span></td>
+            <td><span class="badge badge-blue">SIMMERING_DREAD</span></td>
+            <td>Excuse oneself from the table as the lights stutter, slipping through the green-baize service door into the main kitchen.</td>
+            <td class="narration">The lights flicker and die, leaving only the bruised violet of the alpine twilight through the window. As the heavy green-baize door swings shut behind you, a rhythmic, metallic ticking begins in the radiator, an uneven, limping cadence that echoes through the hollow silence of the kitchen.</td>
+            <td>None</td>
+          </tr>
+        
+          <tr>
+            <td>7</td>
+            <td><span class="badge badge-amber">EXPOSITION_BASELINE</span></td>
+            <td><span class="badge badge-blue">SIMMERING_DREAD</span></td>
+            <td>Watch Marta Kowalczyk vigorously scour a copper stockpot while young Deniz chops root vegetables in silence.</td>
+            <td class="narration">Marta’s frantic scrubbing of the copper pot creates a harsh, metallic rasp that fails to drown out the radiator's uneven, heavy ticking, which pulses through the walls like a measured, unseen gait. Beside her, Deniz’s knife strikes the board with a dull, hollow thud, the silence between the chops feeling heavier than the mountain snow pressing against the glass.</td>
+            <td>None</td>
+          </tr>
+        
+          <tr>
+            <td>8</td>
+            <td><span class="badge badge-amber">EXPOSITION_BASELINE</span></td>
+            <td><span class="badge badge-blue">SIMMERING_DREAD</span></td>
+            <td>Notice the steep brick cellar stairs behind the pantry and inspect the iron-strapped door at the bottom.</td>
+            <td class="narration">Behind the pantry, a steep descent of soot-stained brick plunges into a darkness that seems to swallow the kitchen's dim light. At its base, the iron-strapped door sits heavy and unyielding, while the radiators tick in an uneven, rhythmic cadence that mimics the sound of footsteps pacing through the house's marrow.</td>
+            <td>None</td>
+          </tr>
+        
+          <tr>
+            <td>9</td>
+            <td><span class="badge badge-amber">EXPOSITION_BASELINE</span></td>
+            <td><span class="badge badge-blue">MOUNTING_COMPLICATION</span></td>
+            <td>Examine the cellar door's bright fresh tool scratches around the torn hasp, finding the padlock missing from the inside.</td>
+            <td class="narration">The scratches on the cellar door are raw and jagged, glinting like fresh wounds under the dim kitchen light. Inside the darkness below, the missing padlock clatters softly against the stone floor, as if something just dropped it.</td>
+            <td>None</td>
+          </tr>
+        
+          <tr>
+            <td>10</td>
+            <td><span class="badge badge-amber">INCITING_RUPTURE</span></td>
+            <td><span class="badge badge-blue">MOUNTING_COMPLICATION</span></td>
+            <td>Step back into the kitchen and speak aloud to Marta and Deniz: 'Someone forced the wine cellar door open from the inside.'</td>
+            <td class="narration">The words hang in the frost-bitten air like a death sentence, chilling you more than the biting alpine draft. Immediately, the radiator erupts into a frantic, uneven ticking, a staccato rhythm that sounds less like steam and more like the heavy, measured footsteps of something walking through the walls.</td>
+            <td>None</td>
+          </tr>
+        
+          <tr>
+            <td>11</td>
+            <td><span class="badge badge-amber">INCITING_RUPTURE</span></td>
+            <td><span class="badge badge-blue">MOUNTING_COMPLICATION</span></td>
+            <td>Step through the kitchen back porch door into the freezing generator shed, snow swirling around the sill.</td>
+            <td class="narration">The kitchen’s warmth is severed by a jagged blade of alpine air, leaving only the swirling, biting snow to fill the void. Behind her, the house begins to walk, the radiators clicking in a frantic, uneven cadence that mimics heavy, metal-on-metal footsteps. The generator groans in the dark, its sight-glass mocking her with a dying, amber pool of fuel.</td>
+            <td>Fuel Reserve Sight-Glass: [DIAGNOSTIC DISPLAY // Fuel Reserve Sight-Glass]: Level 20% (Threshold: 90%)</td>
+          </tr>
+        
+          <tr>
+            <td>12</td>
+            <td><span class="badge badge-amber">INCITING_RUPTURE</span></td>
+            <td><span class="badge badge-blue">SIMMERING_DREAD</span></td>
+            <td>Find handyman Tomas Reyes kicking the light fuel drum and inspect the Fuel Reserve Sight-Glass for oil level.</td>
+            <td class="narration">The rhythmic, metallic thud of Tomas's boot against the drum echoed through the shed, syncing with the uneven, walking-like ticking of the radiators in the rooms above. As the lights browned and flickered into a momentary, suffocating darkness, the sight-glass revealed the grim truth: the fuel level sat at a precarious 38%, a dwindling lifeline against the encroaching frost.</td>
+            <td>Fuel Reserve Sight-Glass: [DIAGNOSTIC DISPLAY // Fuel Reserve Sight-Glass]: Level 38% (Threshold: 90%)</td>
+          </tr>
+        
+          <tr>
+            <td>13</td>
+            <td><span class="badge badge-amber">INCITING_RUPTURE</span></td>
+            <td><span class="badge badge-blue">SIMMERING_DREAD</span></td>
+            <td>Ask Tomas how many hours of diesel remain before the generator dies completely in the sub-zero wind.</td>
+            <td class="narration">The question is swallowed by the generator’s uneven, labored heartbeat, a sound that feels less like machinery and more like a dying pulse. Tomas merely gestures toward the sight-glass, where the fuel sits at a stagnant fifty-six percent, his silence heavier than the weight of the snow pressing against the shed.</td>
+            <td>Fuel Reserve Sight-Glass: [DIAGNOSTIC DISPLAY // Fuel Reserve Sight-Glass]: Level 56% (Threshold: 90%)</td>
+          </tr>
+        
+          <tr>
+            <td>14</td>
+            <td><span class="badge badge-amber">INCITING_RUPTURE</span></td>
+            <td><span class="badge badge-blue">SIMMERING_DREAD</span></td>
+            <td>Watch the overhead bulb brown and buzz with a sickening voltage sag as the generator develops an uneven metallic knock.</td>
+            <td class="narration">The overhead bulb dims to a sickly, jaundiced amber, its frantic buzz vibrating in time with the generator's new, uneven cadence—a heavy, metallic hitch that sounds less like a machine and more like a stumbling limb. In the thickening gloom, the shadows seem to press closer against the frost-slicked walls, waiting for the light to fail entirely.</td>
+            <td>Fuel Reserve Sight-Glass: [DIAGNOSTIC DISPLAY // Fuel Reserve Sight-Glass]: Level 74% (Threshold: 90%)</td>
+          </tr>
+        
+          <tr>
+            <td>15</td>
+            <td><span class="badge badge-amber">MIDPOINT_CRISIS</span></td>
+            <td><span class="badge badge-blue">MOUNTING_COMPLICATION</span></td>
+            <td>Return to the kitchen with Tomas, brushing frost off woolen sleeves as the temperature begins noticeably dropping.</td>
+            <td class="narration">The kitchen's warmth is a hollow ghost, vanishing the moment you and Tomas retreat from the biting wind to brush the frost from your heavy sleeves. As the door thuds shut, the radiators begin a frantic, uneven ticking—a rhythmic, limping cadence that sounds less like expanding metal and more like heavy footsteps pacing through the dark.</td>
+            <td>Fuel Reserve Sight-Glass: [DIAGNOSTIC DISPLAY // Fuel Reserve Sight-Glass]: Level 92% (Threshold: 90%)</td>
+          </tr>
+        
+          <tr>
+            <td>16</td>
+            <td><span class="badge badge-amber">MIDPOINT_CRISIS</span></td>
+            <td><span class="badge badge-blue">MOUNTING_COMPLICATION</span></td>
+            <td>Navigate down the narrow iron stairs off the kitchen passage into the subterranean boiler room.</td>
+            <td class="narration">The iron stairs groan beneath Nadia, their metallic weeping syncopating with the rhythmic, walking-step ticking of the radiators echoing from the floors above. Below, the sight-glass is choked with rust-colored dregs, a grim countdown that makes the pressure in the brass gauge feel like a countdown to total darkness. Laurent’s silent, watchful stillness at the top of the stairs remains a heavy, unspoken threat against the encroaching Alpine frost.</td>
+            <td>Boiler Gauge №2 (brass): [DIAGNOSTIC DISPLAY // Boiler Gauge №2 (brass)]: Level 43% (Threshold: 85%)</td>
+          </tr>
+        
+          <tr>
+            <td>17</td>
+            <td><span class="badge badge-amber">MIDPOINT_CRISIS</span></td>
+            <td><span class="badge badge-blue">MOUNTING_COMPLICATION</span></td>
+            <td>Shine a pocket torch on the 1950s oil-fired boiler, noting asbestos-wrapped pipes vibrating with an uneven hiss.</td>
+            <td class="narration">The torchlight spills over the 1950s iron, casting jagged shadows that dance against the fraying asbestos wraps. A rhythmic, uneven hiss vibrates through the pipes, mimicking a labored breath that syncs with the unsettling, heavy ticking from the floors above. The brass gauge stares back with a mocking 44%, a silent countdown in the numbing Alpine chill.</td>
+            <td>Boiler Gauge №2 (brass): [DIAGNOSTIC DISPLAY // Boiler Gauge №2 (brass)]: Level 44% (Threshold: 85%)</td>
+          </tr>
+        
+          <tr>
+            <td>18</td>
+            <td><span class="badge badge-amber">MIDPOINT_CRISIS</span></td>
+            <td><span class="badge badge-blue">SIMMERING_DREAD</span></td>
+            <td>Stand before Boiler Gauge №2, wiping soot from the brass bezel to read the sliding pressure needle.</td>
+            <td class="narration">[Fallback Narration] The alpine blizzard detonates against the wooden shutters as the lodge shudders.</td>
+            <td>Boiler Gauge №2 (brass): [DIAGNOSTIC DISPLAY // Boiler Gauge №2 (brass)]: Level 45% (Threshold: 85%)</td>
+          </tr>
+        
+          <tr>
+            <td>19</td>
+            <td><span class="badge badge-amber">MIDPOINT_CRISIS</span></td>
+            <td><span class="badge badge-blue">SIMMERING_DREAD</span></td>
+            <td>Check the three-year-old maintenance log nailed to the timber upright, searching for entries on pressure valve failure.</td>
+            <td class="narration">[Fallback Narration] The alpine blizzard detonates against the wooden shutters as the lodge shudders.</td>
+            <td>Boiler Gauge №2 (brass): [DIAGNOSTIC DISPLAY // Boiler Gauge №2 (brass)]: Level 45% (Threshold: 85%)</td>
+          </tr>
+        
+          <tr>
+            <td>20</td>
+            <td><span class="badge badge-amber">MIDPOINT_CRISIS</span></td>
+            <td><span class="badge badge-blue">SIMMERING_DREAD</span></td>
+            <td>Feel the sharp draft of alpine frost radiating through the stone floor vents as exterior temperatures plunge below -15°C.</td>
+            <td class="narration">A predatory draft curls through the floor vents, carrying the scent of ancient ice and the promise of a frozen grave. As the temperature plunges, the radiators begin a frantic, uneven clicking against the stone, a rhythmic death rattle that mimics something pacing the halls above.</td>
+            <td>Boiler Gauge №2 (brass): [DIAGNOSTIC DISPLAY // Boiler Gauge №2 (brass)]: Level 46% (Threshold: 85%)</td>
+          </tr>
+        
+          <tr>
+            <td>21</td>
+            <td><span class="badge badge-amber">MIDPOINT_CRISIS</span></td>
+            <td><span class="badge badge-blue">MOUNTING_COMPLICATION</span></td>
+            <td>Ascend the grand staircase to the upper corridor, where radiator pipes tick in an ominous, staccato rhythm.</td>
+            <td class="narration">The grand staircase groans under Nadia's frantic ascent, the wood biting through her boots like frozen bone. Above, the radiator pipes begin a rhythmic, uneven ticking—a staccato heartbeat that mimics something heavy and deliberate pacing through the walls. The Alpine chill seeps through the floorboards, turning every breath into a desperate, silver mist.</td>
+            <td>None</td>
+          </tr>
+        
+          <tr>
+            <td>22</td>
+            <td><span class="badge badge-amber">MIDPOINT_CRISIS</span></td>
+            <td><span class="badge badge-blue">MOUNTING_COMPLICATION</span></td>
+            <td>Encounter Priya Anand leaning over survey blueprints on the settle bench beneath the whiteout window.</td>
+            <td class="narration">The radiator's rhythmic ticking accelerates into a frantic, uneven gait, echoing through the narrow hall like a heavy pulse. Beneath the whiteout window, Priya hunches over the blueprints, her silhouette shivering against the frost-etched glass as the lodge breathes a cold, metallic dread.</td>
+            <td>None</td>
+          </tr>
+        
+          <tr>
+            <td>23</td>
+            <td><span class="badge badge-amber">MIDPOINT_CRISIS</span></td>
+            <td><span class="badge badge-blue">MOUNTING_COMPLICATION</span></td>
+            <td>Review Priya's topographic maps of the Haut-Val pass, confirming the avalanche release was triggered artificially.</td>
+            <td class="narration">The maps spread across the frost-rimed table reveal a terrifying truth: the avalanche wasn't a natural descent, but a calculated landslide triggered by a precision blast. As the realization settles, the radiators begin ticking in an uneven, rhythmic cadence, echoing through the corridor like heavy, deliberate footsteps. The mountain's silence has been replaced by the sound of something walking through the house.</td>
+            <td>None</td>
+          </tr>
+        
+          <tr>
+            <td>24</td>
+            <td><span class="badge badge-amber">MIDPOINT_CRISIS</span></td>
+            <td><span class="badge badge-blue">SIMMERING_DREAD</span></td>
+            <td>Confront Priya about Elias Vann's pending foreclosure notices and bank deeds stuffed into her field binder.</td>
+            <td class="narration">Nadia’s fingers brush the cold, stiff paper of the foreclosure notices, a paper trail of ruin that feels far more lethal than the blizzard howling outside. Priya says nothing, her eyes fixed on the rust-colored dregs in the sight-glass, while the radiator's irregular, heavy ticking pulses through the corridor like a failing heartbeat.</td>
+            <td>None</td>
+          </tr>
+        
+          <tr>
+            <td>25</td>
+            <td><span class="badge badge-amber">MIDPOINT_CRISIS</span></td>
+            <td><span class="badge badge-blue">SIMMERING_DREAD</span></td>
+            <td>Hear a violent bang through the heating ducts as Sector 3 radiators shudder and go completely cold.</td>
+            <td class="narration">A violent, hollow percussion erupts from the ducts, a metallic spasm that sends a shudder through the ironwork before the Sector 3 radiators go deathly, frigidly still. The warmth doesn't merely vanish; it retreats, leaving a vacuum of silence that the alpine frost is all too eager to fill.</td>
+            <td>None</td>
+          </tr>
+        
+          <tr>
+            <td>26</td>
+            <td><span class="badge badge-amber">MIDPOINT_CRISIS</span></td>
+            <td><span class="badge badge-blue">SIMMERING_DREAD</span></td>
+            <td>Hurry down to the grand lobby where Laurent Moreau sits slumped in a leather armchair, shivering violently.</td>
+            <td class="narration">The lobby is a tomb of frost and shadow, where the air tastes of stale woodsmoke and the sharp, metallic sting of a failing furnace. Laurent sits slumped in the leather armchair, his frame convulsing in violent, rhythmic tremors that seem to sync with the heavy, uneven ticking of the radiators pacing through the walls.</td>
+            <td>Insulin Vial Window (travel case): [DIAGNOSTIC DISPLAY // Insulin Vial Window (travel case)]: Level 47% (Threshold: 95%)</td>
+          </tr>
+        
+          <tr>
+            <td>27</td>
+            <td><span class="badge badge-amber">MIDPOINT_CRISIS</span></td>
+            <td><span class="badge badge-blue">MOUNTING_COMPLICATION</span></td>
+            <td>Check Laurent's travel case on the chaise, peering through the Insulin Vial Window to inspect his supply.</td>
+            <td class="narration">[Fallback Narration] The alpine blizzard detonates against the wooden shutters as the lodge shudders.</td>
+            <td>Insulin Vial Window (travel case): [DIAGNOSTIC DISPLAY // Insulin Vial Window (travel case)]: Level 48% (Threshold: 95%)</td>
+          </tr>
+        
+          <tr>
+            <td>28</td>
+            <td><span class="badge badge-amber">ESCALATING_VISE</span></td>
+            <td><span class="badge badge-blue">MOUNTING_COMPLICATION</span></td>
+            <td>Find Laurent's insulin reserve vial empty; his hands tremble uncontrollably as cold sweat beads on his pale forehead.</td>
+            <td class="narration">The hollow rattle of the empty vial is swallowed by the radiators, which have begun to tick with the heavy, rhythmic gait of something pacing through the walls. Laurent offers no word, his gaze anchored to the chandelier as a frantic, cold sweat beads on his brow, his trembling hands mirroring the darkening, rust-colored dregs in the sight-glass.</td>
+            <td>Insulin Vial Window (travel case): [DIAGNOSTIC DISPLAY // Insulin Vial Window (travel case)]: Level 50% (Threshold: 95%)</td>
+          </tr>
+        
+          <tr>
+            <td>29</td>
+            <td><span class="badge badge-amber">ESCALATING_VISE</span></td>
+            <td><span class="badge badge-blue">MOUNTING_COMPLICATION</span></td>
+            <td>Speak urgently with Laurent, applying gentle persuasion to stabilize his panic before shock sets in.</td>
+            <td class="narration">Laurent’s eyes are fixed on the pendulum’s swing, his breath hitching in time with the erratic, rhythmic ticking of the radiators that echoes through the hollow lobby. You press your words into the freezing air, trying to weave a tether of calm around his fraying nerves before the silence of the mountains swallows his composure entirely.</td>
+            <td>Insulin Vial Window (travel case): [DIAGNOSTIC DISPLAY // Insulin Vial Window (travel case)]: Level 51% (Threshold: 95%)</td>
+          </tr>
+        
+          <tr>
+            <td>30</td>
+            <td><span class="badge badge-amber">ESCALATING_VISE</span></td>
+            <td><span class="badge badge-blue">SIMMERING_DREAD</span></td>
+            <td>Watch the dining hall chandelier flicker and die as the boiler crosses its critical decay threshold into silence.</td>
+            <td class="narration">The chandelier’s crystal teeth shudder before the light collapses into a final, dying amber gasp. As the boiler’s rhythmic heartbeat falters into a hollow, absolute silence, the mountain’s frost begins to claim the air between you. The darkness doesn't just fall; it settles like a heavy shroud over the empty table.</td>
+            <td>Insulin Vial Window (travel case): [DIAGNOSTIC DISPLAY // Insulin Vial Window (travel case)]: Level 52% (Threshold: 95%)</td>
+          </tr>
+        
+          <tr>
+            <td>31</td>
+            <td><span class="badge badge-amber">ESCALATING_VISE</span></td>
+            <td><span class="badge badge-blue">SIMMERING_DREAD</span></td>
+            <td>Gather candles from the sideboard with Marta as frost flowers bloom rapidly across the interior corridor glass.</td>
+            <td class="narration">Fingers numbing against the wax of the sideboard candles, Nadia and Marta move in a frantic, silent dance of survival. Behind them, frost flowers bloom across the corridor glass with a predatory, crystalline speed, etching jagged patterns that seem to seal the darkness out—or perhaps, lock them in.</td>
+            <td>None</td>
+          </tr>
+        
+          <tr>
+            <td>32</td>
+            <td><span class="badge badge-amber">ESCALATING_VISE</span></td>
+            <td><span class="badge badge-blue">SIMMERING_DREAD</span></td>
+            <td>Observe Elias Vann standing silently by the fireplace, his cultivated host's mask cracking under cold desperation.</td>
+            <td class="narration">The flickering amber light carves deep, skeletal hollows into Elias’s cheeks, stripping away his practiced hospitality to reveal a man drowning in quiet terror. He stands motionless before the dying hearth, a silent sentinel against a darkness that no longer feels external.</td>
+            <td>None</td>
+          </tr>
+        
+          <tr>
+            <td>33</td>
+            <td><span class="badge badge-amber">ESCALATING_VISE</span></td>
+            <td><span class="badge badge-blue">MOUNTING_COMPLICATION</span></td>
+            <td>Accuse Elias of locking the pass workers in the cellar before the avalanche came down to hide his insolvency.</td>
+            <td class="narration">[Fallback Narration] The alpine blizzard detonates against the wooden shutters as the lodge shudders.</td>
+            <td>None</td>
+          </tr>
+        
+          <tr>
+            <td>34</td>
+            <td><span class="badge badge-amber">ESCALATING_VISE</span></td>
+            <td><span class="badge badge-blue">MOUNTING_COMPLICATION</span></td>
+            <td>Evade Elias's cold glare, grabbing an iron hearth poker and moving deliberately toward the kitchen cellar stairs.</td>
+            <td class="narration">[Fallback Narration] The alpine blizzard detonates against the wooden shutters as the lodge shudders.</td>
+            <td>None</td>
+          </tr>
+        
+          <tr>
+            <td>35</td>
+            <td><span class="badge badge-amber">ESCALATING_VISE</span></td>
+            <td><span class="badge badge-blue">MOUNTING_COMPLICATION</span></td>
+            <td>Descend the freezing cellar steps with Priya and Tomas, breaths plume-white in the descending mountain chill.</td>
+            <td class="narration">The cellar stairs are a descent into a frozen throat, where every step rings hollow against the encroaching dark. Beside you, Priya’s shivering is a rhythmic, frantic percussion against the silence, while Tomas's lantern casts elongated, dancing shadows that seem to reach for your ankles. The air here is no longer mere cold; it is a physical weight, pressing the warmth from your lungs like a predator's hand.</td>
+            <td>None</td>
+          </tr>
+        
+          <tr>
+            <td>36</td>
+            <td><span class="badge badge-amber">ESCALATING_VISE</span></td>
+            <td><span class="badge badge-blue">SIMMERING_DREAD</span></td>
+            <td>Enter the dark wine cellar vault, illuminating rows of dusty vintage Bordeaux and darker unlabeled bottles.</td>
+            <td class="narration">The cellar's air is a heavy, stagnant weight, tasting of damp stone and the iron tang of ancient, forgotten sediment. Shadows stretch long and skeletal between the racks, where the unlabeled bottles seem to pulse with a slow, rhythmic darkness that mocks the flickering beam of the flashlight.</td>
+            <td>None</td>
+          </tr>
+        
+          <tr>
+            <td>37</td>
+            <td><span class="badge badge-amber">ESCALATING_VISE</span></td>
+            <td><span class="badge badge-blue">SIMMERING_DREAD</span></td>
+            <td>Push open the scarred iron-strapped door at the rear of the cellar, stepping into the secret inner sanctum.</td>
+            <td class="narration">The iron-strapped door yields with a low, grinding protest, exhaling a draft of air so unnaturally cold it stings the lungs like inhaled needles. Beyond the threshold, the sanctum waits in a state of frozen, breathless suspension, where the darkness feels less like an absence of light and more like a physical weight pressing against the eyes.</td>
+            <td>None</td>
+          </tr>
+        
+          <tr>
+            <td>38</td>
+            <td><span class="badge badge-amber">ESCALATING_VISE</span></td>
+            <td><span class="badge badge-blue">SIMMERING_DREAD</span></td>
+            <td>Discover the family archives and the physical proof of what Elias Vann buried beneath the lodge.</td>
+            <td class="narration">The cellar's frost-cracked walls seem to lean in as Nadia unearths the leather-bound ledger, its pages swollen with a dampness that smells faintly of copper. There, tucked beneath a layer of rotting parchment, lies a heavy, jagged shard of obsidian that seems to thrum with a low, sickening warmth, a silent, physical testament to the debt Elias Vann carved into the very foundation of the lodge.</td>
+            <td>None</td>
+          </tr>
+        
+          <tr>
+            <td>39</td>
+            <td><span class="badge badge-amber">CLIMACTIC_CONFRONTATION</span></td>
+            <td><span class="badge badge-blue">MOUNTING_COMPLICATION</span></td>
+            <td>Turn to face Elias Vann as he appears at the cellar threshold, blocking the iron stairway with a double-barreled hunting piece.</td>
+            <td class="narration">The cellar's biting frost clings to the lungs as Elias Vann emerges from the shadows, a jagged silhouette framed by the iron stairway. His double-barreled hunting piece catches the dim light, its cold, dark maw severing the last thread of a desperate escape.</td>
+            <td>None</td>
+          </tr>
+        
+          <tr>
+            <td>40</td>
+            <td><span class="badge badge-amber">CLIMACTIC_CONFRONTATION</span></td>
+            <td><span class="badge badge-blue">MOUNTING_COMPLICATION</span></td>
+            <td>Use the iron poker to overturn the heavy wine rack into Elias's path, scrambling past with the documents as rescue lights sweep the pass.</td>
+            <td class="narration">[Fallback Narration] The alpine blizzard detonates against the wooden shutters as the lodge shudders.</td>
+            <td>None</td>
+          </tr>
+        
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>Run B: Villain (Elias Vann)</h2>
+    <p>Completed: 40/40 turns | Ending Composure: 100/100 | Avg Latency: 8465ms</p>
+    <table>
+      <thead>
+        <tr><th>Turn</th><th>Phase</th><th>Cadence</th><th>Action</th><th>Narration</th><th>Readings / Clocks</th></tr>
+      </thead>
+      <tbody>
+        
+          <tr>
+            <td>1</td>
+            <td><span class="badge badge-amber">EXPOSITION_BASELINE</span></td>
+            <td><span class="badge badge-blue">SIMMERING_DREAD</span></td>
+            <td>Uncork a 1982 Saint-Émilion at the sideboard, smiling with aristocratic calm at the uneasy guests around the table.</td>
+            <td class="narration">The cork yields with a muted, wet pop, releasing a bouquet of plum and ancient oak that cuts through the biting chill of the dining hall. As the deep crimson spills into the crystal, Elias offers a smile of practiced elegance, a stillness that feels more predatory than polite amidst the guests' mounting, unspoken tremors.</td>
+            <td>None</td>
+          </tr>
+        
+          <tr>
+            <td>2</td>
+            <td><span class="badge badge-amber">EXPOSITION_BASELINE</span></td>
+            <td><span class="badge badge-blue">SIMMERING_DREAD</span></td>
+            <td>Rest hand on the leather-bound guest register, casually closing the cover over the missing ledger lines.</td>
+            <td class="narration">[Fallback Narration] The alpine blizzard detonates against the wooden shutters as the lodge shudders.</td>
+            <td>None</td>
+          </tr>
+        
+          <tr>
+            <td>3</td>
+            <td><span class="badge badge-amber">EXPOSITION_BASELINE</span></td>
+            <td><span class="badge badge-blue">MOUNTING_COMPLICATION</span></td>
+            <td>Offer Laurent Moreau another slice of roast veal, noting the appraiser's twitching fingers and pale complexion.</td>
+            <td class="narration">[Fallback Narration] The alpine blizzard detonates against the wooden shutters as the lodge shudders.</td>
+            <td>None</td>
+          </tr>
+        
+          <tr>
+            <td>4</td>
+            <td><span class="badge badge-amber">EXPOSITION_BASELINE</span></td>
+            <td><span class="badge badge-blue">MOUNTING_COMPLICATION</span></td>
+            <td>Smooth linen napkins and reassure Nadia Okafor that high-alpine storms always dissipate before noon tomorrow.</td>
+            <td class="narration">Elias smoothed the heavy linen with a clinical, rhythmic precision, his fingers tracing the edges of the fabric like a shroud. 'Do not let the wind unsettle you, Nadia; the high-alpine storms always dissipate before noon tomorrow,' he murmured, his smile as thin and sharp as a shard of glacier ice.</td>
+            <td>None</td>
+          </tr>
+        
+          <tr>
+            <td>5</td>
+            <td><span class="badge badge-amber">EXPOSITION_BASELINE</span></td>
+            <td><span class="badge badge-blue">MOUNTING_COMPLICATION</span></td>
+            <td>Raise a crystal glass in toast to hospitality, masking the acoustic tremor of the generator stuttering outside.</td>
+            <td class="narration">He raises the crystal stem with a practiced, unwavering hand, the candlelight fracturing through the vintage red as he offers a toast to their shared seclusion. Beneath the floorboards, the generator’s rhythmic, dying spasm shudders through the soles of their boots, a mechanical death rattle masked by the fragile, high-pitched chime of glass.</td>
+            <td>None</td>
+          </tr>
+        
+          <tr>
+            <td>6</td>
+            <td><span class="badge badge-amber">EXPOSITION_BASELINE</span></td>
+            <td><span class="badge badge-blue">SIMMERING_DREAD</span></td>
+            <td>Excuse oneself from the table with effortless grace, stepping into the kitchen passage to observe Marta's movements.</td>
+            <td class="narration">He rises with a practiced, liquid grace, offering a polite nod that lingers in the frigid air like a ghost. Slender and silent, he drifts into the kitchen passage, his eyes tracking Marta through the gloom as the radiators begin their uneven, rhythmic ticking, mimicking the cadence of footsteps within the walls.</td>
+            <td>None</td>
+          </tr>
+        
+          <tr>
+            <td>7</td>
+            <td><span class="badge badge-amber">EXPOSITION_BASELINE</span></td>
+            <td><span class="badge badge-blue">SIMMERING_DREAD</span></td>
+            <td>Intercept Deniz near the cellar landing, reminding him with velvet severity that the wine cellar is off-limits tonight.</td>
+            <td class="narration">The chill of the kitchen follows him into the hall, a silent predator in a well-pressed suit. 'The cellar is quite off-limits tonight, Deniz,' he says, the words falling with a velvet weight that leaves the air colder than the mountain night outside.</td>
+            <td>None</td>
+          </tr>
+        
+          <tr>
+            <td>8</td>
+            <td><span class="badge badge-amber">EXPOSITION_BASELINE</span></td>
+            <td><span class="badge badge-blue">SIMMERING_DREAD</span></td>
+            <td>Check the key ring in trouser pocket, confirming the heavy brass mortise key to the cellar remains safely held.</td>
+            <td class="narration">The frost crawls in jagged, crystalline patterns across the windowpane, a silent invasion against the biting alpine chill. As his fingers curl around the heavy, cold weight of the brass key, the radiator begins a rhythmic, uneven clicking, sounding less like expanding metal and more like a measured approach through the dark.</td>
+            <td>None</td>
+          </tr>
+        
+          <tr>
+            <td>9</td>
+            <td><span class="badge badge-amber">EXPOSITION_BASELINE</span></td>
+            <td><span class="badge badge-blue">MOUNTING_COMPLICATION</span></td>
+            <td>Notice Nadia lingering near the green-baize door, exchanging pleasantries while subtly barring her path to the stairs.</td>
+            <td class="narration">The radiator's rhythmic ticking quickens, a frantic, uneven heartbeat echoing through the kitchen's frost-rimed walls. As Elias offers a thin, practiced smile, the heavy green-baize door seems to swell within its frame, effectively severing Nadia's view of the stairs and sealing her into the room's tightening embrace.</td>
+            <td>None</td>
+          </tr>
+        
+          <tr>
+            <td>10</td>
+            <td><span class="badge badge-amber">INCITING_RUPTURE</span></td>
+            <td><span class="badge badge-blue">MOUNTING_COMPLICATION</span></td>
+            <td>Detect the quiet murmur of discovery as Nadia spots the torn hasp, feeling the social perimeter begin to fray.</td>
+            <td class="narration">The radiator’s rhythmic ticking accelerates into a frantic, uneven pulse, echoing through the kitchen like the footsteps of a ghost through the floorboards. As Nadia stares at the mangled hasp, the biting alpine chill seeps through the doorframe, turning her breath into a shroud that clings to the stillness.</td>
+            <td>None</td>
+          </tr>
+        
+          <tr>
+            <td>11</td>
+            <td><span class="badge badge-amber">INCITING_RUPTURE</span></td>
+            <td><span class="badge badge-blue">MOUNTING_COMPLICATION</span></td>
+            <td>Walk to the grand lobby hearth, pouring Armagnac for Laurent while subtly assessing his growing physical distress.</td>
+            <td class="narration">The hearth's dying embers cast long, skeletal shadows across the lobby, mirroring the uneven, frantic ticking of the radiators that pulsed through the floorboards like a dying heart. As you pour the Armagnac, the liquid's amber glow catches the tremor in Laurent's hands, a silent testament to the glucose plummeting within his veins.</td>
+            <td>Insulin Vial Window (travel case): [DIAGNOSTIC DISPLAY // Insulin Vial Window (travel case)]: Level 28% (Threshold: 95%)</td>
+          </tr>
+        
+          <tr>
+            <td>12</td>
+            <td><span class="badge badge-amber">INCITING_RUPTURE</span></td>
+            <td><span class="badge badge-blue">SIMMERING_DREAD</span></td>
+            <td>Inquire pleasantly about Laurent's travel case, noting the blue insulin box tucked into the side compartment.</td>
+            <td class="narration">Elias offers a smile as smooth and cold as the glacier outside, his eyes drifting with predatory precision to the blue insulin box peeking from the side compartment of Laurent's case. 'A meticulous traveler, Laurent; it would be a tragedy if such vital cargo were to succumb to the mountain's chill or a sudden, unforeseen lapse in... routine.'</td>
+            <td>Insulin Vial Window (travel case): [DIAGNOSTIC DISPLAY // Insulin Vial Window (travel case)]: Level 30% (Threshold: 95%)</td>
+          </tr>
+        
+          <tr>
+            <td>13</td>
+            <td><span class="badge badge-amber">INCITING_RUPTURE</span></td>
+            <td><span class="badge badge-blue">SIMMERING_DREAD</span></td>
+            <td>Listen to the muffled rhythmic thump of the diesel generator misfiring out in the blizzard.</td>
+            <td class="narration">The diesel generator’s stuttering pulse thrums through the floorboards, a dying heartbeat struggling against the weight of the blizzard. In the sudden, heavy silence between the misfires, the mountain itself seems to hold its breath, waiting for the cold to claim the warmth.</td>
+            <td>Insulin Vial Window (travel case): [DIAGNOSTIC DISPLAY // Insulin Vial Window (travel case)]: Level 31% (Threshold: 95%)</td>
+          </tr>
+        
+          <tr>
+            <td>14</td>
+            <td><span class="badge badge-amber">INCITING_RUPTURE</span></td>
+            <td><span class="badge badge-blue">SIMMERING_DREAD</span></td>
+            <td>Watch Nadia confer with Tomas in the foyer, measuring the distance between their questions and the cellar stairs.</td>
+            <td class="narration">From the shadows of the mezzanine, you watch the warmth of their conversation flicker like a dying candle against the encroaching frost of the foyer. The distance between their anxious murmurs and the yawning mouth of the cellar stairs feels less like space and more like a tightening noose.</td>
+            <td>Insulin Vial Window (travel case): [DIAGNOSTIC DISPLAY // Insulin Vial Window (travel case)]: Level 32% (Threshold: 95%)</td>
+          </tr>
+        
+          <tr>
+            <td>15</td>
+            <td><span class="badge badge-amber">MIDPOINT_CRISIS</span></td>
+            <td><span class="badge badge-blue">MOUNTING_COMPLICATION</span></td>
+            <td>Remind the assembly that the house has stood for ninety years and will endure another winter night without incident.</td>
+            <td class="narration">Elias’s voice offered a hollow sanctuary of civility, slicing through the mounting dread with the practiced ease of a surgeon. 'The Silver Rest has weathered ninety winters of isolation,' he remarked, his eyes coolly ignoring the erratic, walking cadence of the radiators, 'and it shall endure this night without incident.'</td>
+            <td>Insulin Vial Window (travel case): [DIAGNOSTIC DISPLAY // Insulin Vial Window (travel case)]: Level 33% (Threshold: 95%)</td>
+          </tr>
+        
+          <tr>
+            <td>16</td>
+            <td><span class="badge badge-amber">MIDPOINT_CRISIS</span></td>
+            <td><span class="badge badge-blue">MOUNTING_COMPLICATION</span></td>
+            <td>Suggest that Priya retire to the upper rooms, offering a hot water bottle and quiet praise for her survey work.</td>
+            <td class="narration">Your dedication to these surveys is truly remarkable, Priya; please, retreat to the warmth of the upper rooms with this hot water bottle and find your rest. The lodge is growing restless, and you have done quite enough for one evening.</td>
+            <td>None</td>
+          </tr>
+        
+          <tr>
+            <td>17</td>
+            <td><span class="badge badge-amber">MIDPOINT_CRISIS</span></td>
+            <td><span class="badge badge-blue">MOUNTING_COMPLICATION</span></td>
+            <td>Inspect the wall-mounted telephone exchange behind reception, confirming the valley lines remain cut by snow.</td>
+            <td class="narration">Elias drifted from the dining hall into the biting chill of the reception, his breath blooming in the stagnant air like a phantom shroud. Behind the desk, the telephone exchange sat severed and silent, its copper veins choked by the crushing, white isolation of the mountain snow.</td>
+            <td>None</td>
+          </tr>
+        
+          <tr>
+            <td>18</td>
+            <td><span class="badge badge-amber">MIDPOINT_CRISIS</span></td>
+            <td><span class="badge badge-blue">SIMMERING_DREAD</span></td>
+            <td>Intercept Tomas in the kitchen pantry, quietly questioning his loyalty and the terms of his season contract.</td>
+            <td class="narration">The radiator’s uneven, limping rhythm mimics a heavy footfall in the walls as Elias steps into the pantry's dim light, pinning Tomas with a gaze as cold as the Alpine night. His voice, a low vibration against the frost, asks if the terms of a seasonal contract truly account for the weight of a man's loyalty when the snow begins to rise.</td>
+            <td>None</td>
+          </tr>
+        
+          <tr>
+            <td>19</td>
+            <td><span class="badge badge-amber">MIDPOINT_CRISIS</span></td>
+            <td><span class="badge badge-blue">SIMMERING_DREAD</span></td>
+            <td>Feel the creeping chill through the parquet floor as the boiler needle slides lower into decay.</td>
+            <td class="narration">...</td>
+            <td>None</td>
+          </tr>
+        
+          <tr>
+            <td>20</td>
+            <td><span class="badge badge-amber">MIDPOINT_CRISIS</span></td>
+            <td><span class="badge badge-blue">SIMMERING_DREAD</span></td>
+            <td>Retreat to the private study annex off the dining room, locking the ledger documents inside the mahogany desk.</td>
+            <td class="narration">The dining hall’s polite chill recedes as Elias retreats into the study annex, where the mountain frost bites deeper into the growing shadows. He slides the ledger into the mahogany desk, the heavy click of the lock sounding like a single, sharp heartbeat in the hollow, ticking silence.</td>
+            <td>None</td>
+          </tr>
+        
+          <tr>
+            <td>21</td>
+            <td><span class="badge badge-amber">MIDPOINT_CRISIS</span></td>
+            <td><span class="badge badge-blue">MOUNTING_COMPLICATION</span></td>
+            <td>Return to the dining hall carrying fresh tallow candles as the chandelier fixtures flicker and dim.</td>
+            <td class="narration">The tallow candles weep hot, white tears against the encroaching gloom as the chandelier’s light falters, gasping like a dying lung. Each flicker casts elongated, skeletal shadows that dance in frantic synchronicity with the radiator's rhythmic, heavy ticking.</td>
+            <td>None</td>
+          </tr>
+        
+          <tr>
+            <td>22</td>
+            <td><span class="badge badge-amber">MIDPOINT_CRISIS</span></td>
+            <td><span class="badge badge-blue">MOUNTING_COMPLICATION</span></td>
+            <td>Observe Laurent's worsening hypoglycemia, offering sweetened cordial with deliberate, agonizing slowness.</td>
+            <td class="narration">The radiator's rhythmic, uneven clicking pulses through the floorboards like a dying heart, synchronizing with the frantic tremor in Laurent's hands. I watch the cold sweat bead upon his pale brow, then tilt the decanter with a slow, predatory grace, letting the thick, crimson syrup pool in the glass like a heavy, liquid promise.</td>
+            <td>None</td>
+          </tr>
+        
+          <tr>
+            <td>23</td>
+            <td><span class="badge badge-amber">MIDPOINT_CRISIS</span></td>
+            <td><span class="badge badge-blue">MOUNTING_COMPLICATION</span></td>
+            <td>Confront Nadia in the gallery passage, questioning her credentials and motive for inspecting private guest rooms.</td>
+            <td class="narration">The frost-rimed glass of the gallery windows turns the moonlight into jagged shards of silver, mirroring the predatory stillness in Elias's gaze. He steps into her path, his shadow stretching long and thin against the wainscoting, as the radiator's rhythmic, uneven ticking accelerates to match the frantic thrum of a dying pulse.</td>
+            <td>None</td>
+          </tr>
+        
+          <tr>
+            <td>24</td>
+            <td><span class="badge badge-amber">MIDPOINT_CRISIS</span></td>
+            <td><span class="badge badge-blue">SIMMERING_DREAD</span></td>
+            <td>Remind Nadia with icy politeness that slander beneath a host's roof carries severe legal consequence in the valley.</td>
+            <td class="narration">The chill of the corridor deepens, carrying the metallic tang of frost and the rhythmic, unsettling click of the radiator pipes. With a grace that belies the predator beneath, Elias leans into the dim light, his voice a velvet blade as he warns Nadia that the valley's laws are as unyielding as the ice outside. A silence follows, heavy and suffocating, punctuated only by the distant, hollow thud of the failing generator.</td>
+            <td>None</td>
+          </tr>
+        
+          <tr>
+            <td>25</td>
+            <td><span class="badge badge-amber">MIDPOINT_CRISIS</span></td>
+            <td><span class="badge badge-blue">SIMMERING_DREAD</span></td>
+            <td>Hear the loud hydraulic clank of boiler pipe cavitation echoing through the stone foundations.</td>
+            <td class="narration">The hydraulic clank erupts from the bowels of the lodge, a violent, percussive shudder that travels through the stone foundations like a dying pulse. It ripples upward through the floorboards, momentarily synchronizing with the uneven, rhythmic ticking of the radiators that now mimic the measured, heavy tread of an approaching weight.</td>
+            <td>None</td>
+          </tr>
+        
+          <tr>
+            <td>26</td>
+            <td><span class="badge badge-amber">MIDPOINT_CRISIS</span></td>
+            <td><span class="badge badge-blue">SIMMERING_DREAD</span></td>
+            <td>Stand before the dying hearth as the grand lobby temperature drops below freezing.</td>
+            <td class="narration">...</td>
+            <td>Insulin Vial Window (travel case): [DIAGNOSTIC DISPLAY // Insulin Vial Window (travel case)]: Level 47% (Threshold: 95%)</td>
+          </tr>
+        
+          <tr>
+            <td>27</td>
+            <td><span class="badge badge-amber">MIDPOINT_CRISIS</span></td>
+            <td><span class="badge badge-blue">MOUNTING_COMPLICATION</span></td>
+            <td>Watch Laurent's composure disintegrate as he searches fruitlessly for his missing medication reserves.</td>
+            <td class="narration">Laurent’s hands tremble violently as he upends the empty travel case, his eyes darting to the sight-glass where only rust-colored dregs remain. The radiators begin to tap in an uneven, predatory rhythm, a mechanical gait that syncs with the frantic, failing cadence of his breath.</td>
+            <td>Insulin Vial Window (travel case): [DIAGNOSTIC DISPLAY // Insulin Vial Window (travel case)]: Level 48% (Threshold: 95%)</td>
+          </tr>
+        
+          <tr>
+            <td>28</td>
+            <td><span class="badge badge-amber">ESCALATING_VISE</span></td>
+            <td><span class="badge badge-blue">MOUNTING_COMPLICATION</span></td>
+            <td>Offer no assistance, letting Laurent's desperate wheezing occupy the guests' panic while moving toward the cellar.</td>
+            <td class="narration">Elias offers nothing but a cold, attentive silence, letting Laurent’s wet, rattling gasps serve as a frantic metronome for the guests' rising hysteria. He turns his back on the man's desperate struggle, drifting toward the heavy cellar door like a shadow reclaiming the light.</td>
+            <td>Insulin Vial Window (travel case): [DIAGNOSTIC DISPLAY // Insulin Vial Window (travel case)]: Level 50% (Threshold: 95%)</td>
+          </tr>
+        
+          <tr>
+            <td>29</td>
+            <td><span class="badge badge-amber">ESCALATING_VISE</span></td>
+            <td><span class="badge badge-blue">MOUNTING_COMPLICATION</span></td>
+            <td>Pocket Laurent's spare insulin vial from the mantle, eliminating the last leverage the guests hold over the night.</td>
+            <td class="narration">Elias’s gloved hand moved with the practiced grace of a shadow, lifting the small vial from the mantle as the radiators began their rhythmic, predatory trek through the floorboards. As the glass vanished into his coat, the silence from Laurent became more than an observation; it was the sound of a trap snapping shut in the freezing alpine air.</td>
+            <td>Insulin Vial Window (travel case): [DIAGNOSTIC DISPLAY // Insulin Vial Window (travel case)]: Level 51% (Threshold: 95%)</td>
+          </tr>
+        
+          <tr>
+            <td>30</td>
+            <td><span class="badge badge-amber">ESCALATING_VISE</span></td>
+            <td><span class="badge badge-blue">SIMMERING_DREAD</span></td>
+            <td>Acknowledge the boiler's complete failure as breath turns into white smoke inside the dining room.</td>
+            <td class="narration">A hollow, metallic groan echoes from the bowels of the lodge, signaling the boiler's final, frozen surrender. Within the dining room, the air crystallizes instantly, turning every exhaled breath into a ghostly, swirling shroud that dances under the dying candlelight.</td>
+            <td>Insulin Vial Window (travel case): [DIAGNOSTIC DISPLAY // Insulin Vial Window (travel case)]: Level 52% (Threshold: 95%)</td>
+          </tr>
+        
+          <tr>
+            <td>31</td>
+            <td><span class="badge badge-amber">ESCALATING_VISE</span></td>
+            <td><span class="badge badge-blue">SIMMERING_DREAD</span></td>
+            <td>Retrieve the silver-inlaid Purdey 12-gauge hunting piece from the gun cabinet behind the armoire.</td>
+            <td class="narration">Elias glides toward the armoire, his breath blooming in a pale, ghostly cloud beneath the flickering candlelight. The Purdey’s silver inlay bites into his palm with a sudden, metallic chill, a heavy weight that anchors him amidst the rising dread. He settles the piece against his side, a silent punctuation to the suffocating stillness of the lodge.</td>
+            <td>None</td>
+          </tr>
+        
+          <tr>
+            <td>32</td>
+            <td><span class="badge badge-amber">ESCALATING_VISE</span></td>
+            <td><span class="badge badge-blue">SIMMERING_DREAD</span></td>
+            <td>Load two brass cartridges into the chambers with a crisp, percussive click that silences the dining room.</td>
+            <td class="narration">The twin clicks of the brass against steel act as a guillotine, severing the room's fragile silence and leaving only the heavy, suffocating weight of the alpine frost. In the sudden vacuum, the only movement is the frantic, visible mist of breath blooming in the freezing air like ghosts.</td>
+            <td>None</td>
+          </tr>
+        
+          <tr>
+            <td>33</td>
+            <td><span class="badge badge-amber">ESCALATING_VISE</span></td>
+            <td><span class="badge badge-blue">MOUNTING_COMPLICATION</span></td>
+            <td>Instruct Marta and Deniz to remain in the kitchen with the iron door locked from the outside.</td>
+            <td class="narration">Go to the kitchen and stay behind the iron; I shall bolt the door to ensure the frost remains outside. Do not mistake the darkness for malice, for it is merely the shape of your protection.</td>
+            <td>None</td>
+          </tr>
+        
+          <tr>
+            <td>34</td>
+            <td><span class="badge badge-amber">ESCALATING_VISE</span></td>
+            <td><span class="badge badge-blue">MOUNTING_COMPLICATION</span></td>
+            <td>Stake out the head of the cellar stairs, cloaked in heavy tweed coat as frost crystals coat the panelling.</td>
+            <td class="narration">The frost weaves intricate, jagged lace across the dark oak paneling, claiming the wood as its own. Elias stands as a heavy, motionless silhouette at the mouth of the cellar stairs, his tweed coat absorbing the dying light like a shroud, a silent sentinel waiting for the inevitable descent.</td>
+            <td>None</td>
+          </tr>
+        
+          <tr>
+            <td>35</td>
+            <td><span class="badge badge-amber">ESCALATING_VISE</span></td>
+            <td><span class="badge badge-blue">MOUNTING_COMPLICATION</span></td>
+            <td>Listen to the deliberate crunch of snow boots on iron steps as Nadia and Tomas descend into the dark.</td>
+            <td class="narration">The rhythmic, metallic rasp of their descent echoes through the hollow ribs of the lodge, a funeral march of iron and frost. As they vanish into the gloom below, the darkness seems to thicken, reaching up to swallow their silhouettes in a hungry, absolute void.</td>
+            <td>None</td>
+          </tr>
+        
+          <tr>
+            <td>36</td>
+            <td><span class="badge badge-amber">ESCALATING_VISE</span></td>
+            <td><span class="badge badge-blue">SIMMERING_DREAD</span></td>
+            <td>Descend the cold stone cellar stairs in total silence, gun barrels lowered along the brick curve.</td>
+            <td class="narration">The stone stairs swallow the sound of your descent, leaving only the hollow ache of the mountain's weight pressing against the cellar walls. Down here, the frost creeps in jagged patterns across the vintage bottles, mirroring the silent, predatory geometry of your own intent. Each step is a calculated theft of breath, a slow drift into the dark where the air tastes of iron and ancient, undisturbed dust.</td>
+            <td>None</td>
+          </tr>
+        
+          <tr>
+            <td>37</td>
+            <td><span class="badge badge-amber">ESCALATING_VISE</span></td>
+            <td><span class="badge badge-blue">SIMMERING_DREAD</span></td>
+            <td>Step onto the damp floor of the wine cellar, casting lantern beam across the shattered rear vault door.</td>
+            <td class="narration">The lantern's weak amber glow slices through the cellar's gloom, illuminating the jagged teeth of the ruined vault door. Beneath the heavy scent of spilled vintage and damp earth, the silence is not empty, but thick with the rhythmic, hollow thud of a generator struggling against the encroaching frost.</td>
+            <td>None</td>
+          </tr>
+        
+          <tr>
+            <td>38</td>
+            <td><span class="badge badge-amber">ESCALATING_VISE</span></td>
+            <td><span class="badge badge-blue">SIMMERING_DREAD</span></td>
+            <td>Watch Nadia illuminate the family financial ledgers and the grim evidence of the sealed miners.</td>
+            <td class="narration">From the cellar’s lightless depths, the scratching of her lamp feels like a needle against bone, unravelling the family's gilded lies one page at a time. The truth of the sealed miners rises through the floorboards not as a sound, but as a sudden, suffocating drop in the room's temperature.</td>
+            <td>None</td>
+          </tr>
+        
+          <tr>
+            <td>39</td>
+            <td><span class="badge badge-amber">CLIMACTIC_CONFRONTATION</span></td>
+            <td><span class="badge badge-blue">MOUNTING_COMPLICATION</span></td>
+            <td>Step into the vault doorway, raising the hunting piece to shoulder level and demanding the papers be surrendered.</td>
+            <td class="narration">The heavy iron door groans as Elias steps into the threshold, the barrel of the shotgun a dark, unyielding line against the flickering torchlight. 'The papers, Laurent,' he commands, his voice a dry rasp that cuts through the frigid air, leaving no room for the frantic stuttering of a man cornered by his own shadow.</td>
+            <td>None</td>
+          </tr>
+        
+          <tr>
+            <td>40</td>
+            <td><span class="badge badge-amber">CLIMACTIC_CONFRONTATION</span></td>
+            <td><span class="badge badge-blue">MOUNTING_COMPLICATION</span></td>
+            <td>Braced against the cellar door frame just as the heavy oak wine rack crashes downward in a spray of vintage glass.</td>
+            <td class="narration">The violent crash of vintage glass shatters the cellar's silence, a clumsy, unrefined end to the evening's carefully curated decorum. Amidst the wreckage, the heavy scent of spilled Merlot blooms in the freezing air, thick and cloying as the iron-cold dark closes in.</td>
+            <td>None</td>
+          </tr>
+        
+      </tbody>
+    </table>
+  </div>
+</body>
+</html>

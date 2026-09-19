@@ -681,7 +681,12 @@ export function buildEngineTurnContext(
       );
 
       const activeClockManifestations: string[] = [];
-      const diegeticReadings: Array<{ instrumentName: string; nodeId: string; readingText: string }> = [];
+      const diegeticReadings: Array<{
+        instrumentName: string;
+        nodeId: string;
+        level: number;
+        readingText: string;
+      }> = [];
 
       for (const clock of Object.values(dramState.impendingClocks || {})) {
         const cue = selectManifestationCue(clock);
@@ -693,6 +698,7 @@ export function buildEngineTurnContext(
           diegeticReadings.push({
             instrumentName: reading.instrumentName,
             nodeId: reading.nodeId,
+            level: reading.level,
             readingText: reading.readingText,
           });
         }
