@@ -136,7 +136,7 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
 
   const handleLoadBespokeBlueprint = () => {
     try {
-      const validated = normalizeBlueprint(blackIronMortuary as any);
+      const validated = normalizeBlueprint(blackIronMortuary);
       setPreviewBlueprint(validated);
       if (validated.userCharacterId) {
         forgeActions.setActiveCharacterId(validated.userCharacterId);
@@ -162,7 +162,7 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
 
   const handleLoadSilverRestBlueprint = () => {
     try {
-      const validated = normalizeBlueprint(silverRestLodge as any);
+      const validated = normalizeBlueprint(silverRestLodge);
       setPreviewBlueprint(validated);
       if (validated.userCharacterId) {
         forgeActions.setActiveCharacterId(validated.userCharacterId);

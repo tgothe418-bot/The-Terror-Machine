@@ -136,8 +136,8 @@ export default function WelcomeScreen() {
       environmentalRules: Array.isArray(silverRestLodge.environmentalRules)
         ? silverRestLodge.environmentalRules.join('\n')
         : (silverRestLodge.environmentalRules || ''),
-      cast: silverRestLodge.cast as any,
-      topology: silverRestLodge.topology as any,
+      cast: silverRestLodge.cast,
+      topology: silverRestLodge.topology,
     });
     setPhase('forge');
   };
