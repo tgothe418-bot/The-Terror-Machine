@@ -16,6 +16,7 @@ import {
   Coffee,
 } from 'lucide-react';
 import blackIronMortuary from '../../data/blueprints/black_iron_mortuary.json';
+import silverRestLodge from '../../data/blueprints/silver_rest_lodge.json';
 import { useAppStore } from '../../store/useAppStore';
 import { useEngineStore } from '../../core/store';
 import { forgeActions, useForgeState } from '../../store/useForgeStore';
@@ -159,6 +160,32 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
     }
   };
 
+  const handleLoadSilverRestBlueprint = () => {
+    try {
+      const validated = normalizeBlueprint(silverRestLodge as any);
+      setPreviewBlueprint(validated);
+      if (validated.userCharacterId) {
+        forgeActions.setActiveCharacterId(validated.userCharacterId);
+      } else {
+        forgeActions.setActiveCharacterId(null);
+      }
+
+      const availabilities = resolveSeatAvailabilities(validated);
+      if (availabilities.protagonist?.available) {
+        setSelectedRole('protagonist');
+      } else if (availabilities.antagonist?.available) {
+        setSelectedRole('antagonist');
+      } else {
+        setSelectedRole('director');
+      }
+      setError(null);
+    } catch (err: unknown) {
+      console.error('Failed to load Silver Rest Lodge blueprint:', err);
+      const msg = err instanceof Error ? err.message : String(err);
+      setError(`FAILED TO LOAD BESPOKE SCENARIO: ${msg}`);
+    }
+  };
+
   const handleStart = () => {
     if (!previewBlueprint || !selectedRole) return;
     if (!isRoleAvailable(selectedRole)) return;
@@ -292,6 +319,22 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
                     </span>
                     <span className="text-xs text-amber-400/80 uppercase tracking-wider block text-[10px]">
                       Bespoke Clinical Test Blueprint
+                    </span>
+                  </div>
+                </div>
+
+                {/* Option 3b: Social Horror Interaction Scenario */}
+                <div
+                  onClick={handleLoadSilverRestBlueprint}
+                  className="p-8 border border-amber-900/50 hover:border-amber-500/80 transition-all duration-500 bg-zinc-950/60 hover:bg-amber-950/15 rounded flex flex-col items-center justify-center cursor-pointer group"
+                >
+                  <Users className="w-10 h-10 text-amber-500/70 group-hover:text-amber-400 transition-colors mb-3" />
+                  <div className="text-center space-y-1">
+                    <span className="text-xs uppercase tracking-[0.25em] block font-bold text-white">
+                      The Silver Rest Lodge
+                    </span>
+                    <span className="text-xs text-amber-400/80 uppercase tracking-wider block text-[10px]">
+                      Social Horror Interaction Blueprint
                     </span>
                   </div>
                 </div>

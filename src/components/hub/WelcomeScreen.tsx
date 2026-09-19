@@ -23,6 +23,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import AiCalibrationModal from './AiCalibrationModal';
 import { normalizeBlueprint } from '../../lib/normalizeBlueprint';
 import blackIronMortuary from '../../data/blueprints/black_iron_mortuary.json';
+import silverRestLodge from '../../data/blueprints/silver_rest_lodge.json';
 
 export default function WelcomeScreen() {
   const setPhase = useAppStore((state) => state.setPhase);
@@ -110,6 +111,33 @@ export default function WelcomeScreen() {
         : (blackIronMortuary.environmentalRules || ''),
       cast: blackIronMortuary.cast as any,
       topology: blackIronMortuary.topology as any,
+    });
+    setPhase('forge');
+  };
+
+  const handleLaunchSilverRest = () => {
+    try {
+      const validated = normalizeBlueprint(silverRestLodge);
+      setEngineBlueprint(validated, 'protagonist');
+      setPhase('engine');
+    } catch (err) {
+      console.error('[WELCOME] Failed to load The Silver Rest Lodge:', err);
+      setPhase('engine');
+    }
+  };
+
+  const handleInspectSilverRestInForge = () => {
+    updateDraft({
+      title: silverRestLodge.title,
+      identity: silverRestLodge.identity,
+      setting: silverRestLodge.setting,
+      premise: silverRestLodge.premise,
+      globalPremise: silverRestLodge.globalPremise,
+      environmentalRules: Array.isArray(silverRestLodge.environmentalRules)
+        ? silverRestLodge.environmentalRules.join('\n')
+        : (silverRestLodge.environmentalRules || ''),
+      cast: silverRestLodge.cast as any,
+      topology: silverRestLodge.topology as any,
     });
     setPhase('forge');
   };
@@ -591,6 +619,60 @@ export default function WelcomeScreen() {
                   id="shelf-forge-black-iron-btn"
                   type="button"
                   onClick={handleInspectBlackIronInForge}
+                  className="px-3 py-2 bg-stone-900 hover:bg-stone-800 border border-stone-700 hover:border-amber-500/60 text-stone-300 hover:text-amber-200 rounded text-xs font-mono font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  <Hammer className="w-3.5 h-3.5" />
+                  FORGE
+                </button>
+              </div>
+            </div>
+
+            {/* GRIMOIRE 1B: The Silver Rest Lodge (Interaction Artifact) */}
+            <div className="obsidian-panel border border-stone-800/90 hover:border-amber-600/70 p-5 2xl:p-6 rounded-xl flex flex-col justify-between space-y-4 transition-all duration-300 group shadow-lg">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="px-2.5 py-0.5 rounded text-[10px] font-mono tracking-widest uppercase bg-amber-950/40 text-amber-400 border border-amber-800/40 font-bold">
+                    INTERACTION BLUEPRINT
+                  </span>
+                  <span className="text-[11px] font-mono text-stone-500">
+                    7 Chambers // 8 Cast
+                  </span>
+                </div>
+
+                <div className="space-y-1">
+                  <h4 className="font-serif font-bold text-lg 2xl:text-xl text-stone-100 group-hover:text-amber-200 transition-colors">
+                    The Silver Rest Lodge
+                  </h4>
+                  <p className="text-xs font-mono text-amber-500/80 tracking-wide">
+                    Avalanche-Sealed Alpine Hotel, 1991
+                  </p>
+                </div>
+
+                <p className="text-xs text-stone-400 font-mono leading-relaxed line-clamp-3">
+                  Seven souls snowbound in a fading grand hotel — a host with something sealed in the cellar, a dying boiler, a diabetic&apos;s clock, and the politest predator in the valley. Full voice dossiers, stakes, and arrivals.
+                </p>
+
+                <div className="pt-2 border-t border-stone-900 flex items-center gap-2 text-[10px] font-mono text-stone-500 uppercase">
+                  <span>Vector: Somatic</span>
+                  <span>•</span>
+                  <span>Exposure: Latent</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 pt-2">
+                <button
+                  id="shelf-launch-silver-rest-btn"
+                  type="button"
+                  onClick={handleLaunchSilverRest}
+                  className="px-3 py-2 bg-red-950/60 hover:bg-red-900 border border-red-800/60 hover:border-red-600 text-red-200 rounded text-xs font-mono font-bold uppercase tracking-wider transition-all cursor-pointer shadow-md flex items-center justify-center gap-1.5"
+                >
+                  <Eye className="w-3.5 h-3.5" />
+                  SCRY
+                </button>
+                <button
+                  id="shelf-forge-silver-rest-btn"
+                  type="button"
+                  onClick={handleInspectSilverRestInForge}
                   className="px-3 py-2 bg-stone-900 hover:bg-stone-800 border border-stone-700 hover:border-amber-500/60 text-stone-300 hover:text-amber-200 rounded text-xs font-mono font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-1.5"
                 >
                   <Hammer className="w-3.5 h-3.5" />

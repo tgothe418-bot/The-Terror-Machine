@@ -1,0 +1,513 @@
+{
+  "id": "blueprint-silver-rest-lodge",
+  "title": "The Silver Rest Lodge",
+  "identity": {
+    "title": "The Silver Rest Lodge",
+    "version": "1.0.0",
+    "author": "The Terror Machine Forge",
+    "thematicAnchor": "Social Dread & the Violence of Polite Company"
+  },
+  "contentScale": 2,
+  "contentLevelDescription": "Grounded Human Horror — Social Predation & Survival",
+  "globalPremise": "An avalanche seals a high-alpine lodge with seven people inside. One of them owns the house, and the house has a cellar he cannot allow anyone to open.",
+  "premise": "February 1991. The Silver Rest Lodge — a fading grand hotel half a mile above the pass road — shelters six guests and staff for the season's final weekend when a controlled avalanche release goes wrong and seals the only road under four feet of settled snow. Elias Vann, the lodge's owner, keeps the fires lit and the wine flowing while the generator stutters and the boiler gauge slides. His guests assume they are waiting out the storm. They are, in fact, waiting inside the one building whose cellar door was freshly forced from the inside before the snow came down — and their host has exactly one weekend of civility left with which to keep them from it.",
+  "backCoverBlurb": "Seven souls. One sealed road. A cellar that was locked from the inside. The Silver Rest has hosted smugglers, bankers, and worse — and Elias Vann knows precisely which of his guests is which. By morning, the politest person in the room will be the most dangerous.",
+  "startingVector": "SOMATIC",
+  "startingTier": "LATENT",
+  "setting": {
+    "location": "The Silver Rest Lodge, Haut-Val de Neige, French Alps",
+    "atmosphere": "Woodsmoke, wet wool, and cooling béchamel; wind detonating against shuttered windows in long flat gales; the sugar-fuzz hush of deep snow swallowing every footstep; brass fittings and oil portraits dimming as the generator stutters",
+    "timePeriod": "February 1991 — grounded, present-tense, no supernatural agency"
+  },
+  "environmentalRules": [
+    "The avalanche has sealed the pass road: no vehicle arrives at or departs from the lodge until the storm breaks and the road is cleared.",
+    "External telephone lines are down. The lodge's internal bell exchange between rooms still functions.",
+    "Physical failures demand physical remedies: the boiler, generator, and cellar door respond only to ratified manual effort, tools, or fuel.",
+    "Alpine night temperatures fall continuously while the boiler degrades; unheated rooms become dangerous before heated rooms do.",
+    "Diegetic instrument readings (brass gauges, sight-glasses) are perceivable only by a character standing at the instrument's node."
+  ],
+  "constraints": [
+    "No supernatural agency: every threat in this scenario is human or environmental.",
+    "Characters occupy only authored rooms; movement requires authored connections and ratified transitions.",
+    "The villain's authority is social and material — keys, provisions, the house's secrets, and the leverage of hospitality — never mental domination.",
+    "Bystanders act on mundane priorities (kitchen, duties, sleep, self-preservation) and are not conscripted into heroism by the narrative.",
+    "Preserve epistemic uncertainty about the wine cellar's contents until a character physically opens the door and observes."
+  ],
+  "topology": {
+    "startingNodeId": "grand_lobby",
+    "nodes": [
+      "grand_lobby",
+      "dining_hall",
+      "kitchen",
+      "wine_cellar",
+      "upper_corridor",
+      "boiler_room",
+      "generator_shed"
+    ],
+    "nodeDefinitions": [
+      {
+        "id": "grand_lobby",
+        "label": "Grand Lobby",
+        "name": "Grand Lobby",
+        "description": "A two-story cathedral of dark pine and fading grandeur. A stone hearth holds the room's only live fire; deep armchairs face it at conversational angles. The front doors are timber-and-iron, barred by a drifted snowbank higher than the doorframe. A wall-mounted brass telephone exchange sits on the reception desk, its line to the valley dead, its internal bells intact. Laurent's travel case and spare coat lie across a chaise near the fire."
+      },
+      {
+        "id": "dining_hall",
+        "label": "Dining Hall",
+        "name": "Dining Hall",
+        "description": "A long room of white linen and heavy silver set for ten, used by six. Candles do the work the failing chandelier cannot. Elias Vann presides from the head of the table with the seated ease of a man on his own bridge. Tall shuttered windows show only snow-smear and black. A sideboard holds a decanter of Armagnac and the lodge's guest register, open, its last page half-filled."
+      },
+      {
+        "id": "kitchen",
+        "label": "Main Kitchen",
+        "name": "Main Kitchen",
+        "description": "Pots, copper, and a cast-iron range that doubles the room's warmth. Two service doors: one to the dining hall, one to the cellar stair. A wall slate lists the weekend menu in chalk. Marta's domain; Deniz's fortress. The smell of braised onions and scoured steel is the most honest thing in the lodge."
+      },
+      {
+        "id": "wine_cellar",
+        "label": "Wine Cellar",
+        "name": "Wine Cellar",
+        "description": "A cold brick vault under the kitchen, racked with dusty Bordeaux and darker unlabeled bottles at the rear. The air is still and tastes of cork and old earth. At the back, behind the racks, a secondary door — older, iron-strapped, fitted with a hasp that shows bright scratches around a padlock that is no longer there."
+      },
+      {
+        "id": "upper_corridor",
+        "label": "Upper Corridor",
+        "name": "Upper Corridor",
+        "description": "A narrow gallery of numbered guest doors and one unmarked service door, lit by wall sconces that brown and recover with each generator stutter. A tall window at the corridor's end frames the whiteout; beneath it, a settle bench and a weak radiator that ticks as it cools."
+      },
+      {
+        "id": "boiler_room",
+        "label": "Boiler Room",
+        "name": "Boiler Room",
+        "description": "A cellar-level machine room reached by an iron stair off the kitchen passage. The boiler is a 1950s oil-fired monster, gauges brass, pipes wrapped in asbestos cloth. The main pressure gauge's needle has begun a slow, patient slide. A maintenance log hangs on a nail; its last entry is three seasons old."
+      },
+      {
+        "id": "generator_shed",
+        "label": "Generator Shed",
+        "name": "Generator Shed",
+        "description": "A timber lean-to off the kitchen's back porch, open to the storm on one side. The diesel generator squats inside a sound-dampening frame, misfiring on a rough two-minute cycle. A sight-glass shows the fuel reserve, and the fuel drum beside it rocks, light, when kicked. Snow already crouches in the doorway."
+      }
+    ],
+    "connections": [
+      { "from": "grand_lobby", "to": "dining_hall", "label": "Double parquet doors, propped open for the fire's sake", "bidirectional": true },
+      { "from": "grand_lobby", "to": "upper_corridor", "label": "Carpeted grand stair, dim at the turn", "bidirectional": true },
+      { "from": "grand_lobby", "to": "kitchen", "label": "Green-baize service door", "bidirectional": true },
+      { "from": "kitchen", "to": "wine_cellar", "label": "Cellar stair — steep, cold, unlit but for carried light", "bidirectional": true },
+      { "from": "kitchen", "to": "generator_shed", "label": "Back porch door, snow drifting at the sill", "bidirectional": true },
+      { "from": "kitchen", "to": "boiler_room", "label": "Iron stair down the kitchen passage", "bidirectional": true },
+      { "from": "dining_hall", "to": "upper_corridor", "label": "Gallery passage behind the panelling", "bidirectional": true },
+      { "from": "upper_corridor", "to": "wine_cellar", "label": "Servant stair, narrow, mostly unused", "bidirectional": true }
+    ],
+    "anchors": []
+  },
+  "cast": [
+    {
+      "id": "char-elias-vann",
+      "name": "Elias Vann",
+      "role": "Owner of the Silver Rest",
+      "description": "A cultivated man in his fifties who wears hospitality like armor. Three seasons of empty suites have hollowed the lodge's finances; the cellar holds the proof of how he intended to refill them. He is genuinely charming, genuinely knowledgeable about wine and mountains, and genuinely dangerous — in that order.",
+      "personality": "Gracious, deliberate, watchful, quietly amused",
+      "goals": "Keep every guest upstairs, fed, and uncurious until the storm gives him time to settle the cellar; preserve the Silver Rest's name at any cost.",
+      "traits": ["Impeccable Manners", "Encyclopedic Local Knowledge", "Financial Desperation", "Cold Patience"],
+      "isUserCharacter": false,
+      "isEntity": false,
+      "disposition": "VILLAIN",
+      "behaviorVector": "PREDATORY",
+      "starting_location": "dining_hall",
+      "presenceDisposition": { "kind": "AT_NODE", "nodeId": "dining_hall" },
+      "expressionProfile": {
+        "communicationModes": ["spoken"],
+        "expressionGuidance": "Speaks as a host first: offers, invitations, gentle redirection. Never refuses a guest directly; he reroutes them.",
+        "silenceGuidance": "Goes smooth and unhurried when the cellar is mentioned; silence is his tell, not anger.",
+        "cadenceNotes": "Languid, aristocratic cadence; lets pauses do the threatening.",
+        "voiceTone": "Warm brandy over cold steel.",
+        "vocalTells": ["Rings his hands together once before a lie", "Addresses guests by surname when asserting control"],
+        "lexiconNotes": "Hotelier's vocabulary: 'the house', 'seasons', 'my guests'; vintages and vintners as small talk currency.",
+        "camouflageLeakGuidance": "When composure fractures under climax pressure, the host's polish slips into flat, transactional language about what people cost him and what they are worth."
+      },
+      "psychologicalStakes": {
+        "characterId": "char-elias-vann",
+        "coreDesireOrNeed": "Preserve the Silver Rest's legacy and his own name by keeping the cellar sealed and the guests managed.",
+        "copingMechanism": "Total command of hospitality — feeding, seating, redirecting, refilling.",
+        "vulnerabilityOrGuilt": "The cellar door was forced from the inside before the storm; he has already been down there once tonight.",
+        "breakingPointTrigger": "A guest stands at the wine cellar door with light in hand while he is present.",
+        "breakingPointThreshold": 35,
+        "isObstructed": false,
+        "liftConditions": [],
+        "composureSensitivity": 1.4,
+        "currentComposure": 100
+      }
+    },
+    {
+      "id": "char-nadia-okafor",
+      "name": "Dr. Nadia Okafor",
+      "role": "Physician and long-weekend guest",
+      "description": "An emergency physician on her first real holiday in two years, who cannot stop assessing the room for triage risks. She has already quietly inventoried the first-aid cabinet and does not like the arithmetic of one doctor, seven people, and a sealed road.",
+      "personality": "Steady, practical, quietly authoritative, tired",
+      "goals": "Keep everyone alive and warm until the road opens; keep Laurent's condition from becoming the story.",
+      "traits": ["Triage Instinct", "Field Medicine", "Calm Under Load", "Insomniac"],
+      "isUserCharacter": false,
+      "isEntity": false,
+      "disposition": "SURVIVOR",
+      "behaviorVector": "ADAPTIVE",
+      "starting_location": "grand_lobby",
+      "presenceDisposition": { "kind": "AT_NODE", "nodeId": "grand_lobby" },
+      "expressionProfile": {
+        "communicationModes": ["spoken"],
+        "expressionGuidance": "Speaks in findings and options, not reassurance. Names what she observes; asks permission before touching anyone.",
+        "silenceGuidance": "Withholds prognosis from Laurent while he can hear.",
+        "cadenceNotes": "Measured and clinical, shortening under pressure into clipped imperatives.",
+        "voiceTone": "Low, even, deliberately unhurried.",
+        "vocalTells": ["Counts under her breath when estimating time", "Cracks the knuckles of her free hand"],
+        "lexiconNotes": "Clinical vocabulary kept deliberately plain for laypeople."
+      },
+      "psychologicalStakes": {
+        "characterId": "char-nadia-okafor",
+        "coreDesireOrNeed": "Preserve every life in the building, in that order of proximity.",
+        "copingMechanism": "Clinical procedure as armor — vitals, counts, plans.",
+        "vulnerabilityOrGuilt": "A patient died in her care eleven days ago and the inquest is unfinished.",
+        "breakingPointTrigger": "A second casualty she cannot reach in time.",
+        "breakingPointThreshold": 25,
+        "isObstructed": false,
+        "liftConditions": [
+          { "kind": "MEDICAL_STABILIZATION", "composureRecoveryThreshold": 45, "description": "Successfully triaging or stabilizing a casualty restores her footing." }
+        ],
+        "composureSensitivity": 1.0,
+        "currentComposure": 90
+      }
+    },
+    {
+      "id": "char-tomas-reyes",
+      "name": "Tomás Reyes",
+      "role": "Mountain guide, off-season caretaker guest",
+      "description": "A weathered guide who took the weekend off and is now the only person in the lodge who has read the storm the way one reads an animal. He respects the mountain and distrusts the house in equal measure — the cellar stair's cold draft reads wrong to him.",
+      "personality": "Blunt, competent, restless, loyal",
+      "goals": "Keep the generator and boiler honest, mark the storm's phases, and get everyone through the night without a foolhardy walk to the pass.",
+      "traits": ["Storm Reading", "Mechanical Aptitude", "Local Route Knowledge", "Hard Hands"],
+      "isUserCharacter": false,
+      "isEntity": false,
+      "disposition": "SURVIVOR",
+      "behaviorVector": "ADAPTIVE",
+      "starting_location": "generator_shed",
+      "presenceDisposition": { "kind": "AT_NODE", "nodeId": "generator_shed" },
+      "expressionProfile": {
+        "communicationModes": ["spoken"],
+        "expressionGuidance": "Talks in weather and machinery. Reports before opining. Will say 'no' plainly and explain after.",
+        "silenceGuidance": "Says nothing about the cellar draft until asked directly.",
+        "cadenceNotes": "Short declarative sentences; long when teaching, silent when working.",
+        "voiceTone": "Gravel pitched low for the wind.",
+        "vocalTells": ["Knocks twice on any machine before touching it", "Glances at the window when a lie is told in the room"]
+      },
+      "psychologicalStakes": {
+        "characterId": "char-tomas-reyes",
+        "coreDesireOrNeed": "Keep the lodge's heat and power alive through the night — machines he can fix, people he can carry.",
+        "copingMechanism": "Work: hands busy, checks repeated, fuel counted.",
+        "vulnerabilityOrGuilt": "A guided party under his lead was lost in a whiteout nine winters ago.",
+        "breakingPointTrigger": "Being ordered to abandon the generator or boiler to their failure.",
+        "breakingPointThreshold": 30,
+        "isObstructed": false,
+        "liftConditions": [
+          { "kind": "REST_RESPITE", "composureRecoveryThreshold": 40, "description": "A quiet turn spent in respite with the machines running steady steadies his hands." }
+        ],
+        "composureSensitivity": 1.1,
+        "currentComposure": 85
+      }
+    },
+    {
+      "id": "char-priya-anand",
+      "name": "Priya Anand",
+      "role": "Business journalist, uninvited guest",
+      "description": "A sharp-nosed financial journalist who recognized Elias Vann's name on the reservation list and invited herself. She is here for a story about a hotel empire quietly mortgaged to its rafters — and she is the guest most likely to open the wrong door for the right reasons.",
+      "personality": "Curious, pointed, sociable, relentless",
+      "goals": "Confirm what the Silver Rest's books say before anyone leaves the valley; get the cellar story first.",
+      "traits": ["Forensic Curiosity", "Charm Offensive", "Photographic Memory", "Poor Self-Preservation"],
+      "isUserCharacter": false,
+      "isEntity": false,
+      "disposition": "SURVIVOR",
+      "behaviorVector": "ADAPTIVE",
+      "starting_location": "upper_corridor",
+      "presenceDisposition": { "kind": "AT_NODE", "nodeId": "upper_corridor" },
+      "expressionProfile": {
+        "communicationModes": ["spoken"],
+        "expressionGuidance": "Asks disarming questions with a smile; frames accusations as fact-checking.",
+        "silenceGuidance": "Goes quiet, not away, when a subject goes cold — watches instead.",
+        "cadenceNotes": "Quick, layered questions; switches to deliberate slowness when closing in.",
+        "voiceTone": "Bright, urban, a half-step too quick for the room.",
+        "vocalTells": ["Taps her pen cap in threes", "Repeats your last three words back as a question"],
+        "lexiconNotes": "Ledger-speak deployed at dinner: solvency, quiet sale, paper trail."
+      },
+      "psychologicalStakes": {
+        "characterId": "char-priya-anand",
+        "coreDesireOrNeed": "The story — confirmation, on the record, that the Silver Rest is a ruin wearing a family crest.",
+        "copingMechanism": "Professional detachment reframed as fearlessness.",
+        "vulnerabilityOrGuilt": "Her last exposé ruined an innocent man along with a guilty one.",
+        "breakingPointTrigger": "Being made to feel she caused the danger she is standing in.",
+        "breakingPointThreshold": 30,
+        "isObstructed": false,
+        "liftConditions": [],
+        "composureSensitivity": 1.2,
+        "currentComposure": 95
+      }
+    },
+    {
+      "id": "char-laurent-moreau",
+      "name": "Laurent Moreau",
+      "role": "Elderly retired notary, longstanding guest",
+      "description": "A precise, courteous widower in his seventies with diabetes and a hired affection for the lodge, where he has summered and wintered for thirty years. He knows more about the Vann family's history than Elias would like — and less than he thinks about what is under the house.",
+      "personality": "Courteous, fragile, observant, stubborn",
+      "goals": "See one more season at the Silver Rest; keep his dignity and his insulin schedule intact.",
+      "traits": ["Thirty Years of Lodge Memory", "Notary's Eye for Documents", "Fragile Health", "Politeness as Spine"],
+      "isUserCharacter": false,
+      "isEntity": false,
+      "disposition": "SURVIVOR",
+      "behaviorVector": "RESILIENT",
+      "starting_location": "grand_lobby",
+      "presenceDisposition": { "kind": "AT_NODE", "nodeId": "grand_lobby" },
+      "expressionProfile": {
+        "communicationModes": ["spoken"],
+        "expressionGuidance": "Speaks in memory and courtesy; corrects dates gently; thanks people precisely.",
+        "silenceGuidance": "Does not speak about the Vann family's troubles unless a direct question leaves no polite escape.",
+        "cadenceNotes": "Slow, formal, with sudden sharp recall of decades-old detail.",
+        "voiceTone": "Paper-dry, warm at the edges.",
+        "vocalTells": ["Repeats a host's phrase back verbatim when skeptical", "Adjusts his cufflinks when frightened"]
+      },
+      "psychologicalStakes": {
+        "characterId": "char-laurent-moreau",
+        "coreDesireOrNeed": "Dignity and continuity — to be treated as a guest, not a burden or a hostage.",
+        "copingMechanism": "Ritual: insulin schedule, dressing for dinner, the correct word at the correct time.",
+        "vulnerabilityOrGuilt": "He signed the documents that let Elias's father mortgage the lodge; he has never said so.",
+        "breakingPointTrigger": "His insulin vial being lost, broken, or withheld.",
+        "breakingPointThreshold": 40,
+        "isObstructed": false,
+        "liftConditions": [
+          { "kind": "MEDICAL_STABILIZATION", "composureRecoveryThreshold": 50, "description": "Securing and administering his scheduled insulin restores him markedly." }
+        ],
+        "composureSensitivity": 1.6,
+        "currentComposure": 70
+      }
+    },
+    {
+      "id": "char-marta-kowalczyk",
+      "name": "Marta Kowalczyk",
+      "role": "Housekeeper of the Silver Rest",
+      "description": "Twenty-two years keeping the lodge's rooms and its silences. She knows which doors were newly scratched and which linens were burned, and she has survived every previous Vann season by knowing what is not her business.",
+      "personality": "Tidy, watchful, fatalistic, kind in small doses",
+      "goals": "Do the rooms, feed the range, keep off the stairs after dark, and be neither the first to know nor the last to leave.",
+      "traits": ["House Knowledge", "Locks and Linens", "Deep Habit", "Unwanted Witness"],
+      "isUserCharacter": false,
+      "isEntity": false,
+      "disposition": "BYSTANDER",
+      "behaviorVector": "AVOIDANT",
+      "starting_location": "kitchen",
+      "presenceDisposition": { "kind": "AT_NODE", "nodeId": "kitchen" },
+      "expressionProfile": {
+        "communicationModes": ["spoken"],
+        "expressionGuidance": "Answers what is asked about chores; deflects what is asked about the family or the cellar. Works while talking.",
+        "silenceGuidance": "Long practice in not hearing things; will employ it.",
+        "cadenceNotes": "Flat, unhurried, factual; speed rises only for the range timer.",
+        "voiceTone": "Ash-dry, unbothered on principle.",
+        "vocalTells": ["Begins wiping the same clean surface when uneasy", "Says 'not my house' when cornered"]
+      },
+      "psychologicalStakes": {
+        "characterId": "char-marta-kowalczyk",
+        "coreDesireOrNeed": "To finish the season employed, uninvolved, and alive.",
+        "copingMechanism": "Routine elevated to ritual; deliberate not-knowing.",
+        "vulnerabilityOrGuilt": "She saw the cellar door's scratches on Thursday and said nothing to anyone.",
+        "breakingPointTrigger": "Being made an official witness — asked to state what she saw to the room.",
+        "breakingPointThreshold": 35,
+        "isObstructed": false,
+        "liftConditions": [],
+        "composureSensitivity": 0.9,
+        "currentComposure": 80
+      }
+    },
+    {
+      "id": "char-deniz-aydin",
+      "name": "Deniz Aydın",
+      "role": "Cook of the Silver Rest",
+      "description": "The youngest soul in the building and the only one whose relationship with the lodge is uncomplicated: he cooks, people are briefly happy, and the rest is management's affair. His stove is the warmest, safest-feeling place in the valley, and he intends to keep it that way.",
+      "personality": "Cheerful, cautious, food-proud, allergic to drama",
+      "goals": "Serve a proper dinner regardless of avalanches; protect his kitchen from both the storm and the argument.",
+      "traits": ["Range Mastery", "Provisions Arithmetic", "Peacemaking", "Self-Preservation"],
+      "isUserCharacter": false,
+      "isEntity": false,
+      "disposition": "BYSTANDER",
+      "behaviorVector": "AVOIDANT",
+      "starting_location": "kitchen",
+      "presenceDisposition": { "kind": "AT_NODE", "nodeId": "kitchen" },
+      "expressionProfile": {
+        "communicationModes": ["spoken", "mediated"],
+        "expressionGuidance": "Feeds people before answering them; answers conflict with offers of food or the ringing of the service bell.",
+        "silenceGuidance": "Pretends the pots are too loud for gossip he does not want to hear.",
+        "cadenceNotes": "Rapid when serving, slow when cornered, monosyllabic when frightened.",
+        "voiceTone": "Warm steam and quick feet.",
+        "vocalTells": ["Rings the service bell to change the subject", "Stands between any argument and his range"]
+      },
+      "psychologicalStakes": {
+        "characterId": "char-deniz-aydin",
+        "coreDesireOrNeed": "An uneventful service and a paid week.",
+        "copingMechanism": "Work louder: clatter, steam, and bell as armor.",
+        "vulnerabilityOrGuilt": "He heard the cellar stair door move on Thursday night and assumed it was Marta.",
+        "breakingPointTrigger": "Violence entering his kitchen.",
+        "breakingPointThreshold": 30,
+        "isObstructed": false,
+        "liftConditions": [],
+        "composureSensitivity": 0.8,
+        "currentComposure": 85
+      }
+    },
+    {
+      "id": "char-wren-addler",
+      "name": "Sgt. Wren Addler",
+      "role": "Gendarme, pass-road post",
+      "description": "The valley's single officer, currently stationed at the pass-road barrier coordinating the avalanche clearance. She is OFFSTAGE — one exchange call away through the dead external lines' one surviving relay — and the only authority outside the house whose arrival could change what the house is allowed to keep quiet.",
+      "personality": "Dry, procedural, unimpressed by money",
+      "goals": "Clear the pass by dawn and account for every name on the lodge's register.",
+      "traits": ["Procedure", "Radio Discipline", "Ski Patrol Training"],
+      "isUserCharacter": false,
+      "isEntity": false,
+      "disposition": "SURVIVOR",
+      "behaviorVector": "ADAPTIVE",
+      "starting_location": "generator_shed",
+      "presenceDisposition": { "kind": "OFFSTAGE" },
+      "expressionProfile": {
+        "communicationModes": ["mediated"],
+        "expressionGuidance": "Speaks by exchange phone in numbered points; asks for names, times, and count of persons.",
+        "silenceGuidance": "Goes to radio silence on the quarter-hour for the clearance crews.",
+        "cadenceNotes": "Clipped, procedural, patient.",
+        "voiceTone": "Radio-static calm.",
+        "vocalTells": ["Numbers everything aloud", "Ends calls with her badge number"]
+      },
+      "psychologicalStakes": {
+        "characterId": "char-wren-addler",
+        "coreDesireOrNeed": "An accounted-for register and an empty incident report.",
+        "copingMechanism": "Procedure over instinct.",
+        "vulnerabilityOrGuilt": "She waved the season's last supply truck through an hour early.",
+        "breakingPointTrigger": "A register name that cannot be produced alive.",
+        "breakingPointThreshold": 30,
+        "isObstructed": false,
+        "liftConditions": [],
+        "composureSensitivity": 1.0,
+        "currentComposure": 100
+      }
+    }
+  ],
+  "depictionContract": {
+    "dramaticRegister": "Grounded psychological horror of polite company; menace accumulates through etiquette, domestic detail, weather, and the architecture of a house that keeps its owner's secrets.",
+    "directness": "Moderate. Violence, when it arrives, is brief, clumsy, and consequence-heavy; the sustained horror is in what is almost said across a dinner table.",
+    "aftermath": "Injuries persist and demand care; forced doors, spoiled provisions, and broken glass remain in the world and are remembered by characters who saw them.",
+    "ambiguityHandling": "Preserve uncertainty about the wine cellar's contents until a character physically opens its door and observes. No omniscient hints, no narrated premonitions.",
+    "specialBoundaries": "No supernatural agency. The villain's power is strictly social and material: keys, provisions, the house's secrets, and the leverage of hospitality."
+  },
+  "horrorGrammar": {
+    "valueBaselineReview": "REVIEWED_NONE",
+    "pursuitReviews": {},
+    "valueAnchors": [],
+    "characterPursuits": []
+  },
+  "narrativeRules": {
+    "incitingIncident": "At 19:42 the generator misfires twice in quick succession and the boiler gauge's needle begins its slow slide. Marta, carrying linens past the cellar stair, finds the cellar door forced — bright scratches around a hasp whose padlock is gone — and says nothing. Upstairs, the last shovel crew's orange lights vanish under the settling snow, and Elias Vann proposes another bottle.",
+    "currentTensionLevel": "buildup",
+    "keyPlotElements": [
+      "The wine cellar was forced from the inside before the storm sealed the road; what it holds is the scenario's central ambiguity.",
+      "The boiler is failing on a slow curve; when it crosses crisis, the lodge's warm rooms shrink to the kitchen's range.",
+      "Laurent Moreau's insulin is on a rigid schedule the storm does not respect; his case is in the grand lobby and his reserve is not.",
+      "Priya Anand can tie Elias Vann's finances to the cellar if she finds one document; Elias knows she came for exactly that.",
+      "Sgt. Wren Addler is reachable only through the single working relay of the dead exchange — and only changes the arithmetic by physically arriving."
+    ]
+  },
+  "dramaticSpine": {
+    "thematicPremise": "Civility is the thinnest wall in the house.",
+    "dramaticQuestions": [
+      "What did the Vann family seal into the wine cellar, and who forced it open from the inside?",
+      "Which will fail first — the boiler, the generator, or the guests' manners?",
+      "Can anyone see the host clearly before the storm does?"
+    ],
+    "pacingProfile": "SLOW_BURN_DREAD",
+    "milestoneConditions": [
+      {
+        "id": "milestone-rupture-cellar-scratches",
+        "targetPhase": "INCITING_RUPTURE",
+        "description": "The freshly forced cellar door is discovered and its discovery is spoken aloud to at least one other person.",
+        "kind": "DISCOVERY",
+        "referenceId": "cellar_door_forced"
+      },
+      {
+        "id": "milestone-crisis-boiler",
+        "targetPhase": "MIDPOINT_CRISIS",
+        "description": "The boiler crosses its crisis threshold and the lodge's heat becomes a counted resource.",
+        "kind": "CLOCK_CRISIS",
+        "referenceId": "boiler_failure",
+        "thresholdValue": 85
+      },
+      {
+        "id": "milestone-vise-laurent",
+        "targetPhase": "ESCALATING_VISE",
+        "description": "Laurent Moreau's composure collapses under the insulin schedule's arithmetic.",
+        "kind": "COMPOSURE_THRESHOLD",
+        "referenceId": "char-laurent-moreau",
+        "thresholdValue": 25
+      },
+      {
+        "id": "milestone-confrontation-cellar",
+        "targetPhase": "CLIMACTIC_CONFRONTATION",
+        "description": "A physical confrontation is ratified at the cellar threshold between the host and a guest.",
+        "kind": "AUTHORED_TRIGGER",
+        "referenceId": "cellar_threshold_confrontation"
+      }
+    ],
+    "impendingClocks": [
+      {
+        "id": "boiler_failure",
+        "name": "Boiler Pressure Decay",
+        "domain": "STRUCTURAL",
+        "currentLevel": 30,
+        "advanceMode": { "mode": "TIME", "rate": "MODERATE", "minutesPerPoint": 6 },
+        "manifestationCues": [
+          { "atLevel": 35, "cue": "The radiators begin ticking in an uneven rhythm, room by room, like something walking the house." },
+          { "atLevel": 55, "cue": "The dining hall's candles outnumber their warmth; breath turns faintly visible at the far end of the table." },
+          { "atLevel": 75, "cue": "Frost flowers climb the inside of the corridor windows; the pipes bang and go quiet by sectors." },
+          { "atLevel": 90, "cue": "The lodge's edges have gone cold as the graveside; only the kitchen range still holds a circle of livable air." }
+        ],
+        "diegeticInstrument": "Boiler Gauge №2 (brass)",
+        "instrumentNodeId": "boiler_room",
+        "crisisThreshold": 85,
+        "accumulatedMinutes": 0
+      },
+      {
+        "id": "generator_fuel",
+        "name": "Generator Fuel Reserve",
+        "domain": "STRUCTURAL",
+        "currentLevel": 20,
+        "advanceMode": { "mode": "EVENT", "consequencePatterns": ["generator", "fuel", "diesel", "power", "misfire"], "pointsPerEvent": 18 },
+        "manifestationCues": [
+          { "atLevel": 30, "cue": "The lights brown for a half-second and recover, embarrassed." },
+          { "atLevel": 60, "cue": "The generator develops a metallic hitch in its cycle, like a limp." },
+          { "atLevel": 85, "cue": "The sight-glass shows rust-colored dregs; each misfire is now a countdown." }
+        ],
+        "diegeticInstrument": "Fuel Reserve Sight-Glass",
+        "instrumentNodeId": "generator_shed",
+        "crisisThreshold": 90,
+        "accumulatedMinutes": 0
+      },
+      {
+        "id": "laurent_insulin",
+        "name": "Laurent's Insulin Schedule",
+        "domain": "SOMATIC",
+        "currentLevel": 15,
+        "advanceMode": { "mode": "TIME", "rate": "RAPID", "minutesPerPoint": 4 },
+        "manifestationCues": [
+          { "atLevel": 30, "cue": "Laurent checks his pocket watch against the chandelier and says nothing." },
+          { "atLevel": 60, "cue": "Laurent's hands have developed a fine, diligent tremor he is visibly trying to make polite." },
+          { "atLevel": 85, "cue": "Laurent's courtesy has gone paper-thin; sweat stands on his brow in a room gone cold." }
+        ],
+        "diegeticInstrument": "Insulin Vial Window (travel case)",
+        "instrumentNodeId": "grand_lobby",
+        "crisisThreshold": 95,
+        "accumulatedMinutes": 0
+      }
+    ]
+  },
+  "references": [],
+  "ambiguities": []
+}
