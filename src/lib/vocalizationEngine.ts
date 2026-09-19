@@ -1,4 +1,5 @@
 import { EngineTurnContext } from '../types/engineContract';
+import type { VocalizationBlock } from '../types/vocalization';
 import {
   REMOTE_COMMUNICATION_CHANNELS,
   extractConversationalUtterance,
@@ -219,14 +220,14 @@ function formatContentWithInterruption(content: string, interrupted: boolean): s
 export function validateAndNormalizeVocalization(
   blocks: Array<Record<string, any>>,
   auditoryContext: AuditoryContext
-): { error: string | null; normalizedBlocks: Array<Record<string, any>> } {
+): { error: string | null; normalizedBlocks: VocalizationBlock[] } {
   if (!Array.isArray(blocks)) {
     return { error: null, normalizedBlocks: [] };
   }
 
   const { context, arrivedCastIds, explicitlyAddressedSpeakerId, adjacentNodeIds } =
     auditoryContext;
-  const normalizedBlocks: Array<Record<string, any>> = [];
+  const normalizedBlocks: VocalizationBlock[] = [];
   let dialogueCount = 0;
 
   for (const rawBlock of blocks) {
@@ -405,8 +406,9 @@ export function validateAndNormalizeVocalization(
         if (isSystemInit) {
           dialogueCount -= 1;
           if (!canSpeak) {
+            // Downgraded to prose: drop dialogue-only fields rather than
+            // carrying stale speaker/medium metadata into a prose block.
             normalizedBlocks.push({
-              ...block,
               type: 'prose',
               content,
             });
@@ -568,7 +570,9 @@ export function validateAndNormalizeVocalization(
       continue;
     }
 
-    normalizedBlocks.push(block);
+    // Passthrough: the block already carried a valid vocalization shape and
+    // required no normalization in this loop.
+    normalizedBlocks.push(block as VocalizationBlock);
   }
 
   return { error: null, normalizedBlocks };
