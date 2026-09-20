@@ -56,6 +56,21 @@ import {
   type ZaiModelId,
 } from '../ai/zaiPolicy';
 import { hasZaiApiKey, pingZai, resetZaiApiKey } from '../utils/zaiClient';
+import {
+  APPROVED_HEMMINGWAY_MODELS,
+  DEFAULT_HEMMINGWAY_MODEL,
+  getHemmingwayModel,
+  setHemmingwayModel,
+  type HemmingwayModelId,
+} from '../ai/hemmingwayPolicy';
+import { hasHemmingwayApiKey, pingHemmingway, resetHemmingwayApiKey } from '../utils/hemmingwayClient';
+import {
+  DEFAULT_REASONING_EFFORT,
+  REASONING_EFFORTS,
+  type ReasoningEffort,
+  getReasoningEffort,
+  setReasoningEffort,
+} from '../ai/reasoningPolicy';
 
 
 export const aiConfigRouter = Router();
@@ -109,6 +124,7 @@ function getConfigResponse() {
   const currentKey = process.env.GEMINI_API_KEY;
   const currentOpenAiKey = process.env.OPENAI_API_KEY;
   const currentZaiKey = process.env.ZAI_API_KEY;
+  const currentHemmingwayKey = process.env.HEMMINGWAY_API_KEY;
   return {
     tier: getActiveTier(),
     model: getActiveModelId(),
@@ -132,6 +148,14 @@ function getConfigResponse() {
     zaiEndpoint: getZaiEndpointVariant(),
     hasZaiApiKey: hasZaiApiKey(),
     maskedZaiApiKey: maskApiKey(currentZaiKey),
+    hemmingwayModel: getHemmingwayModel(),
+    approvedHemmingwayModels: APPROVED_HEMMINGWAY_MODELS,
+    defaultHemmingwayModel: DEFAULT_HEMMINGWAY_MODEL,
+    hasHemmingwayApiKey: hasHemmingwayApiKey(),
+    maskedHemmingwayApiKey: maskApiKey(currentHemmingwayKey),
+    reasoningEffort: getReasoningEffort(),
+    reasoningEfforts: REASONING_EFFORTS,
+    defaultReasoningEffort: DEFAULT_REASONING_EFFORT,
     localBaseUrl: getLocalVoiceBaseUrl(),
     localModel: getLocalVoiceModel(),
     localEngineModel: getLocalEngineModel(),
@@ -158,6 +182,9 @@ aiConfigRouter.post('/config', (req, res) => {
     zaiModel,
     zaiApiKey,
     zaiEndpoint,
+    hemmingwayModel,
+    hemmingwayApiKey,
+    reasoningEffort,
     localBaseUrl,
     localModel,
     localEngineModel,
@@ -189,13 +216,13 @@ aiConfigRouter.post('/config', (req, res) => {
   ) {
     return res
       .status(400)
-      .json({ error: 'Engine provider must be "gemini", "zai", or "local"' });
+      .json({ error: 'Engine provider must be "gemini", "zai", "hemmingway", or "local"' });
   }
 
   if (voiceProvider !== undefined && !VOICE_PROVIDERS.includes(voiceProvider as VoiceProvider)) {
     return res
       .status(400)
-      .json({ error: 'Voice provider must be "gemini", "openai", "zai", or "local"' });
+      .json({ error: 'Voice provider must be "gemini", "openai", "zai", "hemmingway", or "local"' });
   }
 
   if (
@@ -216,6 +243,28 @@ aiConfigRouter.post('/config', (req, res) => {
     zaiEndpoint !== 'coding'
   ) {
     return res.status(400).json({ error: 'Z.ai endpoint must be "general" or "coding"' });
+  }
+
+  if (
+    hemmingwayModel !== undefined &&
+    hemmingwayModel !== null &&
+    hemmingwayModel !== '' &&
+    !APPROVED_HEMMINGWAY_MODELS.includes(hemmingwayModel as HemmingwayModelId)
+  ) {
+    return res.status(400).json({
+      error: `Hemmingway model must be one of: ${APPROVED_HEMMINGWAY_MODELS.join(', ')}`,
+    });
+  }
+
+  if (
+    reasoningEffort !== undefined &&
+    reasoningEffort !== null &&
+    reasoningEffort !== '' &&
+    !REASONING_EFFORTS.includes(reasoningEffort as ReasoningEffort)
+  ) {
+    return res.status(400).json({
+      error: `Reasoning effort must be one of: ${REASONING_EFFORTS.join(', ')}`,
+    });
   }
 
   if (
@@ -279,6 +328,21 @@ aiConfigRouter.post('/config', (req, res) => {
     resetZaiApiKey(zaiApiKey);
   }
 
+  if (hemmingwayModel !== undefined) {
+    setHemmingwayModel(
+      hemmingwayModel === null || hemmingwayModel === ''
+        ? null
+        : (hemmingwayModel as HemmingwayModelId)
+    );
+  }
+  if (typeof hemmingwayApiKey === 'string' && hemmingwayApiKey.trim().length > 0) {
+    resetHemmingwayApiKey(hemmingwayApiKey);
+  }
+
+  if (reasoningEffort !== undefined && reasoningEffort !== null && reasoningEffort !== '') {
+    setReasoningEffort(reasoningEffort as ReasoningEffort);
+  }
+
   const envUpdates: Record<string, string | undefined> = {};
   if (engineProvider !== undefined) envUpdates.ENGINE_AI_PROVIDER = engineProvider;
   if (voiceProvider !== undefined) envUpdates.VOICE_AI_PROVIDER = voiceProvider;
@@ -287,6 +351,11 @@ aiConfigRouter.post('/config', (req, res) => {
   if (typeof zaiApiKey === 'string' && zaiApiKey.trim().length > 0) {
     envUpdates.ZAI_API_KEY = zaiApiKey.trim();
   }
+  if (hemmingwayModel !== undefined) envUpdates.HEMMINGWAY_MODEL = hemmingwayModel;
+  if (typeof hemmingwayApiKey === 'string' && hemmingwayApiKey.trim().length > 0) {
+    envUpdates.HEMMINGWAY_API_KEY = hemmingwayApiKey.trim();
+  }
+  if (reasoningEffort !== undefined) envUpdates.REASONING_EFFORT = reasoningEffort;
   if (localModel !== undefined) envUpdates.LOCAL_AI_MODEL = localModel;
   if (localVoiceModel !== undefined) envUpdates.LOCAL_VOICE_MODEL = localVoiceModel;
   if (localEngineModel !== undefined) envUpdates.LOCAL_ENGINE_MODEL = localEngineModel;
@@ -332,7 +401,7 @@ aiConfigRouter.post('/ping', async (req, res) => {
   if (!VOICE_PROVIDERS.includes(requestedProvider as VoiceProvider)) {
     return res
       .status(400)
-      .json({ error: 'Provider must be "gemini", "openai", "zai", or "local"' });
+      .json({ error: 'Provider must be "gemini", "openai", "zai", "hemmingway", or "local"' });
   }
 
   let pingResult;
@@ -356,6 +425,17 @@ aiConfigRouter.post('/ping', async (req, res) => {
     }
     pingResult = await pingZai({
       model: requestedModel as ZaiModelId,
+      apiKey: typeof req.body?.apiKey === 'string' ? req.body.apiKey : undefined,
+    });
+  } else if (requestedProvider === 'hemmingway') {
+    const requestedModel = req.body?.model ?? getHemmingwayModel();
+    if (!APPROVED_HEMMINGWAY_MODELS.includes(requestedModel as HemmingwayModelId)) {
+      return res.status(400).json({
+        error: `Hemmingway model must be one of: ${APPROVED_HEMMINGWAY_MODELS.join(', ')}`,
+      });
+    }
+    pingResult = await pingHemmingway({
+      model: requestedModel as HemmingwayModelId,
       apiKey: typeof req.body?.apiKey === 'string' ? req.body.apiKey : undefined,
     });
   } else if (requestedProvider === 'local') {

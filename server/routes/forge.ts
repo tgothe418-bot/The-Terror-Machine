@@ -5,6 +5,7 @@ import { getGeminiPolicy, getEngineProvider } from "../ai/modelPolicy";
 import { getLocalForgeModel } from "../ai/voiceProviderPolicy";
 import { generateLocalText } from "../utils/localVoiceClient";
 import { generateZaiText } from "../utils/zaiClient";
+import { generateHemmingwayText } from "../utils/hemmingwayClient";
 import { parseOrRepairJson } from "../utils/jsonRepair";
 import { 
   LORE_EXTRACTION_PROMPT, 
@@ -106,7 +107,7 @@ export async function executeForgePrompt(
   }
 ): Promise<string> {
   const engineProvider = getEngineProvider();
-  if (engineProvider === 'local' || engineProvider === 'zai') {
+  if (engineProvider === 'local' || engineProvider === 'zai' || engineProvider === 'hemmingway') {
     let textPrompt = '';
     if (options?.systemInstruction) {
       textPrompt += `[SYSTEM INSTRUCTION]\n${options.systemInstruction}\n\n`;
@@ -171,6 +172,14 @@ export async function executeForgePrompt(
         }
         textPrompt += `\n\n--- SOURCE DOCUMENT CONTENT ---\n${docText}\n--- END SOURCE DOCUMENT CONTENT ---`;
       }
+    }
+
+    if (engineProvider === 'hemmingway') {
+      return await generateHemmingwayText(textPrompt, {
+        jsonMode: options?.responseMimeType === 'application/json',
+        maxTokens: 4096,
+        timeoutMs: 300_000,
+      });
     }
 
     if (engineProvider === 'zai') {
@@ -800,12 +809,19 @@ router.post("/analyze-reference", async (req, res) => {
         .join('\n\n');
       const prompt = `Extract the lore from the following materials.\n\n${textParts}`;
       responseText = await generateZaiText(prompt, { jsonMode: true });
+    } else if (getEngineProvider() === 'hemmingway') {
+      const textParts = materials
+        .filter((mat: any) => mat.type !== 'image')
+        .map((mat: any) => `--- SOURCE FILE: ${mat.fileName} ---\n${mat.content}\n--- END SOURCE FILE ---`)
+        .join('\n\n');
+      const prompt = `Extract the lore from the following materials.\n\n${textParts}`;
+      responseText = await generateHemmingwayText(prompt, { jsonMode: true });
     } else {
       const policy = getGeminiPolicy("LORE_ANALYSIS");
       const response = await getAiClient().models.generateContent({
         model: policy.model,
         contents: [
-          "Extract the lore from the following materials.", 
+          "Extract the lore from the following materials.",
           ...multimodalParts
         ],
         config: {

@@ -6,6 +6,10 @@ import { getVoiceProvider } from '../ai/voiceProviderPolicy';
 import { generateOpenAiVoice, OpenAiVoiceError } from '../utils/openaiVoiceClient';
 import { generateLocalVoice, LocalVoiceError } from '../utils/localVoiceClient';
 import { generateZaiVoice, ZaiProviderError } from '../utils/zaiClient';
+import {
+  generateHemmingwayVoice,
+  HemmingwayProviderError,
+} from '../utils/hemmingwayClient';
 import { VoiceRequestSchema } from '../schemas/index';
 import { VOICE_SYSTEM_PROMPT } from '../../src/core/prompts/voice';
 
@@ -68,6 +72,13 @@ router.post(['/voice', '/gemini/voice'], async (req, res) => {
       model = result.model;
     } else if (provider === 'zai') {
       const result = await generateZaiVoice({
+        instructions: finalSystemPrompt,
+        history: history || [],
+      });
+      responseText = result.text;
+      model = result.model;
+    } else if (provider === 'hemmingway') {
+      const result = await generateHemmingwayVoice({
         instructions: finalSystemPrompt,
         history: history || [],
       });
@@ -188,10 +199,19 @@ router.post(['/voice', '/gemini/voice'], async (req, res) => {
       });
     }
 
+    if (error instanceof HemmingwayProviderError) {
+      return res.status(error.status).json({
+        error: error.message,
+        code: error.code,
+        provider: 'hemmingway',
+      });
+    }
+
     if (
       getVoiceProvider() === 'openai' ||
       getVoiceProvider() === 'local' ||
-      getVoiceProvider() === 'zai'
+      getVoiceProvider() === 'zai' ||
+      getVoiceProvider() === 'hemmingway'
     ) {
       const provider = getVoiceProvider();
       return res.status(502).json({
@@ -200,7 +220,9 @@ router.post(['/voice', '/gemini/voice'], async (req, res) => {
             ? 'The Local Voice request failed before a response was completed.'
             : provider === 'zai'
               ? 'The Z.ai Voice request failed before a response was completed.'
-              : 'The OpenAI Voice request failed before a response was completed.',
+              : provider === 'hemmingway'
+                ? 'The Hemmingway Voice request failed before a response was completed.'
+                : 'The OpenAI Voice request failed before a response was completed.',
         code: 'PROVIDER_FAILURE',
         provider,
       });

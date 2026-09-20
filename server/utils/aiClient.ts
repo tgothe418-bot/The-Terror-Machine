@@ -9,6 +9,7 @@ import {
 import { normalizeGeminiTurnProviderPayload } from '../ai/geminiTurnTransport';
 import { generateLocalStructuredResponse } from './localVoiceClient';
 import { generateZaiStructuredResponse } from './zaiClient';
+import { generateHemmingwayStructuredResponse } from './hemmingwayClient';
 import { parseOrRepairJson } from './jsonRepair';
 
 let aiClient: GoogleGenAI | null = null;
@@ -507,6 +508,9 @@ export const generateStructuredResponse = async <T>(
   }
   if (getEngineProvider() === 'zai') {
     return await generateZaiStructuredResponse(prompt, contract);
+  }
+  if (getEngineProvider() === 'hemmingway') {
+    return await generateHemmingwayStructuredResponse(prompt, contract);
   }
 
   const contents = [{ role: 'user', parts: [{ text: prompt }] }];

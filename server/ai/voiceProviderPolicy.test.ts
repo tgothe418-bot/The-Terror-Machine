@@ -40,10 +40,14 @@ describe('Voice provider policy', () => {
     setLocalForgeModel(null);
   });
 
-  it('defaults to OpenAI while allowing switching to Gemini', () => {
+  it('defaults to OpenAI while allowing switching to Gemini, Z.ai, and Hemmingway', () => {
     expect(getVoiceProvider()).toBe('openai');
     setVoiceProvider('gemini');
     expect(getVoiceProvider()).toBe('gemini');
+    setVoiceProvider('zai');
+    expect(getVoiceProvider()).toBe('zai');
+    setVoiceProvider('hemmingway');
+    expect(getVoiceProvider()).toBe('hemmingway');
     setVoiceProvider('openai');
     expect(getVoiceProvider()).toBe('openai');
   });

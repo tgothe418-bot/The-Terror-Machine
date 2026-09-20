@@ -34,7 +34,7 @@ The Terror Machine replaces prompt drift with deterministic state persistence. T
 - **Causal Topology Graph**: Space is a directed adjacency graph. Movement requires authorized connections. If two rooms are not connected, no character can cross between them, no matter how vividly the model hallucinates the passage.
 - **Pure-Text Acoustic Engine**: Zero Web Audio or speech synthesizer dependencies. Soundscapes and vocalizations (spoken dialogue, *sotto voce* soliloquies, introspective monologue, intercom transmissions, and structural acoustic bleed through ductwork) are modeled via physical adjacency and rendered in evocative CRT typography.
 - **Diegetic Pacing Governor & Clocks (Horror Grammar 2)**: Autonomous tension regulation using undulating cadence cycles (`RESPITE_AFTERMATH` &rarr; `SIMMERING_DREAD` &rarr; `MOUNTING_COMPLICATION` &rarr; `KINETIC_RUPTURE`), situated diegetic instruments, and impending countdown clocks that trigger threshold manifestations.
-- **Strict Model Agnosticism**: Runs identically on local models via private inference servers (LM Studio, Ollama, llama.cpp, etc.) or frontier cloud APIs (Google Gemini, OpenAI, Z.ai GLM). Each subsystem can calibrate to an independent model.
+- **Strict Model Agnosticism**: Runs identically on local models via private inference servers (LM Studio, Ollama, llama.cpp, etc.) or frontier cloud APIs (Google Gemini, OpenAI, Z.ai GLM, Hemmingway.io). Each subsystem can calibrate to an independent model.
 
 ---
 
@@ -89,7 +89,7 @@ cp .env.example .env
   Start any OpenAI-compatible server (e.g., LM Studio, Ollama, llama.cpp at `http://localhost:1234/v1`). Open **AI Calibration** in the app header, select **Local**, enter your endpoint, and click **Discover Models**.
 - **Cloud Providers**:
   Add keys to `.env` or set them dynamically in the AI Calibration modal:
-  `GEMINI_API_KEY`, `OPENAI_API_KEY`, or `ZAI_API_KEY`.
+  `GEMINI_API_KEY`, `OPENAI_API_KEY`, `ZAI_API_KEY`, or `HEMMINGWAY_API_KEY`.
 
 ### 3. Launch
 

@@ -1,4 +1,5 @@
 import type { GeminiPurpose } from './modelPolicy';
+import { getReasoningEffort } from './reasoningPolicy';
 
 export const APPROVED_ZAI_MODELS = [
   'glm-5',
@@ -68,10 +69,14 @@ export function getZaiFallbackModelId(currentModel?: ZaiModelId): ZaiModelId {
 }
 
 /**
- * GLM exposes a binary thinking toggle rather than Gemini's graded thinking
- * levels. Fast mechanical actions run without thinking; every other purpose
- * keeps reasoning enabled for contract adherence.
+ * GLM exposes a binary thinking toggle rather than graded effort levels: the
+ * dial's 'minimal' disables thinking and every other explicit effort enables
+ * it. 'default' defers to the purpose-derived profile.
  */
 export function getZaiThinking(purpose: GeminiPurpose): 'enabled' | 'disabled' {
+  const effort = getReasoningEffort();
+  if (effort !== 'default') {
+    return effort === 'minimal' ? 'disabled' : 'enabled';
+  }
   return purpose === 'AUTOPILOT_ACTION' ? 'disabled' : 'enabled';
 }

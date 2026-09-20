@@ -22,10 +22,10 @@ interface AiConfigResponse {
   defaultPaidModel: string;
   hasApiKey: boolean;
   maskedApiKey: string;
-  engineProvider: 'gemini' | 'zai' | 'local';
-  engineProviders?: Array<'gemini' | 'zai' | 'local'>;
-  voiceProvider: 'gemini' | 'openai' | 'zai' | 'local';
-  voiceProviders: Array<'gemini' | 'openai' | 'zai' | 'local'>;
+  engineProvider: 'gemini' | 'zai' | 'hemmingway' | 'local';
+  engineProviders?: Array<'gemini' | 'zai' | 'hemmingway' | 'local'>;
+  voiceProvider: 'gemini' | 'openai' | 'zai' | 'hemmingway' | 'local';
+  voiceProviders: Array<'gemini' | 'openai' | 'zai' | 'hemmingway' | 'local'>;
   openAiModel: string;
   approvedOpenAiModels: string[];
   defaultOpenAiModel: string;
@@ -37,6 +37,14 @@ interface AiConfigResponse {
   zaiEndpoint?: 'general' | 'coding';
   hasZaiApiKey: boolean;
   maskedZaiApiKey: string;
+  hemmingwayModel?: string;
+  approvedHemmingwayModels?: string[];
+  defaultHemmingwayModel?: string;
+  hasHemmingwayApiKey?: boolean;
+  maskedHemmingwayApiKey?: string;
+  reasoningEffort?: 'default' | 'minimal' | 'low' | 'medium' | 'high';
+  reasoningEfforts?: Array<'default' | 'minimal' | 'low' | 'medium' | 'high'>;
+  defaultReasoningEffort?: string;
   localBaseUrl: string;
   localModel: string;
   localEngineModel?: string;
@@ -48,7 +56,7 @@ interface AiConfigResponse {
 
 interface AiPingResponse {
   ok: boolean;
-  provider?: 'gemini' | 'openai' | 'zai' | 'local';
+  provider?: 'gemini' | 'openai' | 'zai' | 'hemmingway' | 'local';
   model: string;
   models?: string[];
   latencyMs: number;
@@ -72,13 +80,16 @@ export default function AiCalibrationModal({
   const [tier, setTier] = useState<'free' | 'paid'>('free');
   const [model, setModel] = useState<string>('gemini-3.6-flash');
   const [apiKeyInput, setApiKeyInput] = useState<string>('');
-  const [engineProvider, setEngineProvider] = useState<'gemini' | 'zai' | 'local'>('gemini');
-  const [voiceProvider, setVoiceProvider] = useState<'gemini' | 'openai' | 'zai' | 'local'>('openai');
+  const [engineProvider, setEngineProvider] = useState<'gemini' | 'zai' | 'hemmingway' | 'local'>('gemini');
+  const [voiceProvider, setVoiceProvider] = useState<'gemini' | 'openai' | 'zai' | 'hemmingway' | 'local'>('openai');
   const [openAiModel, setOpenAiModel] = useState<string>('gpt-5.6-luna');
   const [openAiApiKeyInput, setOpenAiApiKeyInput] = useState<string>('');
   const [zaiModel, setZaiModel] = useState<string>('glm-4.6');
   const [zaiEndpoint, setZaiEndpoint] = useState<'general' | 'coding'>('general');
   const [zaiApiKeyInput, setZaiApiKeyInput] = useState<string>('');
+  const [hemmingwayModel, setHemmingwayModel] = useState<string>('hemmingway-27b');
+  const [hemmingwayApiKeyInput, setHemmingwayApiKeyInput] = useState<string>('');
+  const [reasoningEffort, setReasoningEffort] = useState<'default' | 'minimal' | 'low' | 'medium' | 'high'>('default');
   const [localBaseUrl, setLocalBaseUrl] = useState<string>('http://127.0.0.1:1234/v1');
   const [localModel, setLocalModel] = useState<string>('');
   const [localEngineModel, setLocalEngineModel] = useState<string>('');
@@ -109,6 +120,8 @@ export default function AiCalibrationModal({
           setOpenAiModel(data.openAiModel || data.defaultOpenAiModel || 'gpt-6-astra');
           setZaiModel(data.zaiModel || data.defaultZaiModel || 'glm-4.6');
           setZaiEndpoint(data.zaiEndpoint || 'general');
+          setHemmingwayModel(data.hemmingwayModel || data.defaultHemmingwayModel || 'hemmingway-27b');
+          setReasoningEffort(data.reasoningEffort || 'default');
           setLocalBaseUrl(
             data.localBaseUrl || data.defaultLocalBaseUrl || 'http://127.0.0.1:1234/v1'
           );
@@ -141,6 +154,7 @@ export default function AiCalibrationModal({
     setApiKeyInput('');
     setOpenAiApiKeyInput('');
     setZaiApiKeyInput('');
+    setHemmingwayApiKeyInput('');
     onClose();
   };
 
@@ -154,13 +168,16 @@ export default function AiCalibrationModal({
         tier: 'free' | 'paid';
         model: string;
         apiKey?: string;
-        engineProvider: 'gemini' | 'zai' | 'local';
-        voiceProvider: 'gemini' | 'openai' | 'zai' | 'local';
+        engineProvider: 'gemini' | 'zai' | 'hemmingway' | 'local';
+        voiceProvider: 'gemini' | 'openai' | 'zai' | 'hemmingway' | 'local';
         openAiModel: string;
         openAiApiKey?: string;
         zaiModel: string;
         zaiEndpoint?: 'general' | 'coding';
         zaiApiKey?: string;
+        hemmingwayModel?: string;
+        hemmingwayApiKey?: string;
+        reasoningEffort?: 'default' | 'minimal' | 'low' | 'medium' | 'high';
         localBaseUrl: string;
         localModel: string;
         localEngineModel?: string;
@@ -175,6 +192,8 @@ export default function AiCalibrationModal({
         openAiModel,
         zaiModel,
         zaiEndpoint,
+        hemmingwayModel,
+        reasoningEffort,
         localBaseUrl,
         localModel,
         localEngineModel: useDedicatedSubsystemModels ? localEngineModel : localModel,
@@ -191,6 +210,9 @@ export default function AiCalibrationModal({
       if (zaiApiKeyInput.trim().length > 0) {
         payload.zaiApiKey = zaiApiKeyInput.trim();
       }
+      if (hemmingwayApiKeyInput.trim().length > 0) {
+        payload.hemmingwayApiKey = hemmingwayApiKeyInput.trim();
+      }
 
       const res = await fetch('/api/ai/config', {
         method: 'POST',
@@ -204,6 +226,7 @@ export default function AiCalibrationModal({
         setApiKeyInput('');
         setOpenAiApiKeyInput('');
         setZaiApiKeyInput('');
+        setHemmingwayApiKeyInput('');
         onConfigChanged?.();
 
         const modelsToWarmup = Array.from(
@@ -312,6 +335,11 @@ export default function AiCalibrationModal({
                   model: zaiModel,
                   ...(zaiApiKeyInput.trim() ? { apiKey: zaiApiKeyInput.trim() } : {}),
                 }
+            : voiceProvider === 'hemmingway'
+              ? {
+                  model: hemmingwayModel,
+                  ...(hemmingwayApiKeyInput.trim() ? { apiKey: hemmingwayApiKeyInput.trim() } : {}),
+                }
               : voiceProvider === 'local'
                 ? { model: localModel, baseUrl: localBaseUrl }
                 : {}),
@@ -327,9 +355,11 @@ export default function AiCalibrationModal({
             ? openAiModel
             : voiceProvider === 'zai'
               ? zaiModel
-              : voiceProvider === 'local'
-                ? localModel
-                : model,
+              : voiceProvider === 'hemmingway'
+                ? hemmingwayModel
+                : voiceProvider === 'local'
+                  ? localModel
+                  : model,
         latencyMs: 0,
         code: 'NETWORK_ERROR',
         message: 'Could not connect to /api/ai/ping',
@@ -374,8 +404,8 @@ export default function AiCalibrationModal({
           <label className="text-xs font-mono uppercase tracking-wider text-zinc-400">
             Simulation Engine Provider
           </label>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {(['gemini', 'zai', 'local'] as const).map((provider) => (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {(['gemini', 'zai', 'hemmingway', 'local'] as const).map((provider) => (
               <button
                 key={provider}
                 type="button"
@@ -392,7 +422,9 @@ export default function AiCalibrationModal({
                       ? 'Google Gemini'
                       : provider === 'zai'
                         ? 'Z.ai GLM'
-                        : 'Local Model'}
+                        : provider === 'hemmingway'
+                          ? 'Hemmingway.io'
+                          : 'Local Model'}
                   </span>
                   {engineProvider === provider && <CheckCircle2 className="w-4 h-4 text-emerald-400" />}
                 </div>
@@ -401,7 +433,9 @@ export default function AiCalibrationModal({
                     ? 'Uses the cloud Gemini baseline for turns and initialization.'
                     : provider === 'zai'
                       ? 'Uses Z.ai GLM models with your API key for turns and initialization.'
-                      : 'Uses the active local API server (LM Studio / Ollama) below.'}
+                      : provider === 'hemmingway'
+                        ? 'Uses Hemmingway.io models with your API key for simulation turns.'
+                        : 'Uses the active local API server (LM Studio / Ollama) below.'}
                 </p>
               </button>
             ))}
@@ -413,8 +447,8 @@ export default function AiCalibrationModal({
           <label className="text-xs font-mono uppercase tracking-wider text-zinc-400">
             The Historian Provider
           </label>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            {(['gemini', 'openai', 'zai', 'local'] as const).map((provider) => (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+            {(['gemini', 'openai', 'zai', 'hemmingway', 'local'] as const).map((provider) => (
               <button
                 key={provider}
                 type="button"
@@ -433,7 +467,9 @@ export default function AiCalibrationModal({
                         ? 'OpenAI'
                         : provider === 'zai'
                           ? 'Z.ai GLM'
-                          : 'Local'}
+                          : provider === 'hemmingway'
+                            ? 'Hemmingway'
+                            : 'Local'}
                   </span>
                   {voiceProvider === provider && <CheckCircle2 className="w-4 h-4 text-blue-400" />}
                 </div>
@@ -444,11 +480,45 @@ export default function AiCalibrationModal({
                       ? 'Uses the Responses API for The Historian only.'
                       : provider === 'zai'
                         ? 'Uses Z.ai GLM models with your API key.'
-                        : 'Uses an API server running on this computer.'}
+                        : provider === 'hemmingway'
+                          ? 'Uses Hemmingway.io with your API key.'
+                          : 'Uses an API server running on this computer.'}
                 </p>
               </button>
             ))}
           </div>
+        </div>
+
+        {/* Reasoning / Thinking Effort Dial */}
+        <div className="space-y-2 p-4 border border-zinc-800 bg-zinc-900/30 rounded">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-mono uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
+              <Zap className="w-3.5 h-3.5 text-amber-400" />
+              Reasoning & Thinking Effort
+            </label>
+            <span className="text-[11px] font-mono text-zinc-400">
+              Dial: <code className="text-amber-300 uppercase">{reasoningEffort}</code>
+            </span>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+            {(['default', 'minimal', 'low', 'medium', 'high'] as const).map((effort) => (
+              <button
+                key={effort}
+                type="button"
+                onClick={() => setReasoningEffort(effort)}
+                className={`px-3 py-2 rounded text-xs font-mono text-center border transition-all cursor-pointer ${
+                  reasoningEffort === effort
+                    ? 'border-amber-500 bg-amber-950/40 text-amber-200 font-bold'
+                    : 'border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-700'
+                }`}
+              >
+                <div className="capitalize">{effort}</div>
+              </button>
+            ))}
+          </div>
+          <p className="text-[11px] text-zinc-500 font-mono">
+            Applies to models supporting reasoning/thinking (Gemini, Z.ai GLM, Hemmingway). &apos;default&apos; defers to purpose-derived policy; explicit levels override across simulation turns, architecture, and voice.
+          </p>
         </div>
 
         {/* Operating Tier Selection */}
@@ -660,6 +730,59 @@ export default function AiCalibrationModal({
               />
               <p className="text-[11px] text-zinc-500 font-mono">
                 Create a key at z.ai → API Keys. The key stays on the server process and is never returned to the browser.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {(voiceProvider === 'hemmingway' || engineProvider === 'hemmingway') && (
+          <div className="space-y-4 p-4 border border-teal-900/50 bg-teal-950/10 rounded">
+            <div className="space-y-2">
+              <label className="text-xs font-mono uppercase tracking-wider text-zinc-400">
+                Hemmingway Model
+              </label>
+              <select
+                value={hemmingwayModel}
+                onChange={(e) => setHemmingwayModel(e.target.value)}
+                className="w-full bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-xs font-mono text-zinc-200 focus:outline-none focus:border-teal-500 transition-colors"
+              >
+                {(
+                  config?.approvedHemmingwayModels || ['hemmingway-27b']
+                ).map((approvedModel) => (
+                  <option key={approvedModel} value={approvedModel}>
+                    {approvedModel}
+                    {approvedModel === (config?.defaultHemmingwayModel || 'hemmingway-27b')
+                      ? ' (Recommended)'
+                      : ''}
+                  </option>
+                ))}
+              </select>
+              <p className="text-[11px] text-zinc-500 font-mono">
+                Hemmingway.io runs Engine contracts through JSON mode with the same fail-closed ratification as every other provider.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-mono uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
+                  <Key className="w-3.5 h-3.5" />
+                  Hemmingway API Key
+                </label>
+                {config?.hasHemmingwayApiKey && (
+                  <span className="text-[11px] font-mono text-zinc-400">
+                    Active: <code className="text-zinc-300">{config.maskedHemmingwayApiKey}</code>
+                  </span>
+                )}
+              </div>
+              <input
+                type="password"
+                placeholder="Paste a new Hemmingway API key to update (optional)..."
+                value={hemmingwayApiKeyInput}
+                onChange={(e) => setHemmingwayApiKeyInput(e.target.value)}
+                className="w-full bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-xs font-mono text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-teal-500 transition-colors"
+              />
+              <p className="text-[11px] text-zinc-500 font-mono">
+                The key stays on the server process and is never returned to the browser.
               </p>
             </div>
           </div>

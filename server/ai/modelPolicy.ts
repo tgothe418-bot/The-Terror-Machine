@@ -1,4 +1,5 @@
 import { ThinkingLevel } from '@google/genai';
+import { getReasoningEffort, geminiThinkingLevelForEffort } from './reasoningPolicy';
 
 export const APPROVED_GEMINI_MODELS = [
   'gemini-3.6-flash',
@@ -17,7 +18,7 @@ export const DEFAULT_PAID_MODEL: GeminiModelId = 'gemini-3.7-flash';
 // Backwards compatibility alias
 export const GEMINI_MODEL_ID: GeminiModelId = DEFAULT_FREE_MODEL;
 
-export const ENGINE_PROVIDERS = ['gemini', 'zai', 'local'] as const;
+export const ENGINE_PROVIDERS = ['gemini', 'zai', 'hemmingway', 'local'] as const;
 export type EngineProvider = (typeof ENGINE_PROVIDERS)[number];
 export const DEFAULT_ENGINE_PROVIDER: EngineProvider = 'gemini';
 
@@ -25,6 +26,7 @@ function readConfiguredEngineProvider(): EngineProvider {
   const configured = process.env.ENGINE_AI_PROVIDER?.trim().toLowerCase();
   if (configured === 'gemini') return 'gemini';
   if (configured === 'zai') return 'zai';
+  if (configured === 'hemmingway') return 'hemmingway';
   if (configured === 'local') return 'local';
   return DEFAULT_ENGINE_PROVIDER;
 }
@@ -121,9 +123,10 @@ export function getGeminiPolicy(
   const model = modelOverride || getActiveModelId();
   const baseLevel = DEFAULT_PURPOSE_THINKING[purpose];
 
-  // In Free Tier, if user explicitly set low thinking or override, apply it;
-  // otherwise use the base level.
-  const thinkingLevel = runtimeThinkingOverride ?? baseLevel;
+  // Global reasoning dial first; explicit thinking override second; purpose
+  // map as the default.
+  const dialLevel = geminiThinkingLevelForEffort(getReasoningEffort());
+  const thinkingLevel = dialLevel ?? runtimeThinkingOverride ?? baseLevel;
 
   return Object.freeze({
     model,

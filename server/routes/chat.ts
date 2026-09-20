@@ -13,6 +13,7 @@ import { EngineTurnRequestSchema, SimulatePlayerRequestSchema, TestSceneRequestS
 import { getVoiceProvider } from "../ai/voiceProviderPolicy";
 import { cleanSimulatedAction, generateLocalPlayerAction, generateLocalProse } from "../utils/localVoiceClient";
 import { generateZaiPlayerAction, generateZaiProse } from "../utils/zaiClient";
+import { generateHemmingwayPlayerAction, generateHemmingwayProse } from "../utils/hemmingwayClient";
 
 const router = express.Router();
 
@@ -32,6 +33,10 @@ router.post("/init", async (req, res) => {
     }
     if (getEngineProvider() === 'zai') {
       const prose = await generateZaiProse(initPrompt);
+      return res.json({ prose });
+    }
+    if (getEngineProvider() === 'hemmingway') {
+      const prose = await generateHemmingwayProse(initPrompt);
       return res.json({ prose });
     }
     const policy = getGeminiPolicy('ENGINE_INIT');
@@ -524,6 +529,11 @@ router.post("/simulate-player", async (req, res) => {
 
     if (getEngineProvider() === 'zai' || getVoiceProvider() === 'zai') {
       const action = await generateZaiPlayerAction(systemPrompt);
+      return res.json({ action });
+    }
+
+    if (getEngineProvider() === 'hemmingway' || getVoiceProvider() === 'hemmingway') {
+      const action = await generateHemmingwayPlayerAction(systemPrompt);
       return res.json({ action });
     }
 

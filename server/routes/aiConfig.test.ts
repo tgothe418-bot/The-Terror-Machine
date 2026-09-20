@@ -54,9 +54,28 @@ describe('AI Config and Warmup routes', () => {
       expect(data).toHaveProperty('hasZaiApiKey');
       expect(data).toHaveProperty('maskedZaiApiKey');
     });
+
+    it('exposes the Hemmingway provider and global reasoning effort dial', async () => {
+      const res = await fetch(`${baseUrl}/api/ai/config`);
+      expect(res.status).toBe(200);
+      const data = await res.json();
+      expect(data.engineProviders).toContain('hemmingway');
+      expect(data.voiceProviders).toContain('hemmingway');
+      expect(data.approvedHemmingwayModels).toContain('hemmingway-27b');
+      expect(data).toHaveProperty('hemmingwayModel');
+      expect(data).toHaveProperty('defaultHemmingwayModel');
+      expect(data).toHaveProperty('hasHemmingwayApiKey');
+      expect(data).toHaveProperty('maskedHemmingwayApiKey');
+      expect(data).toHaveProperty('reasoningEffort');
+      expect(data.reasoningEfforts).toContain('default');
+      expect(data.reasoningEfforts).toContain('minimal');
+      expect(data.reasoningEfforts).toContain('low');
+      expect(data.reasoningEfforts).toContain('medium');
+      expect(data.reasoningEfforts).toContain('high');
+    });
   });
 
-  describe('POST /api/ai/ping for Z.ai', () => {
+  describe('POST /api/ai/ping for Z.ai and Hemmingway', () => {
     it('rejects unapproved Z.ai model IDs before any provider request', async () => {
       const fetchSpy = vi.spyOn(global, 'fetch');
       const res = await fetch(`${baseUrl}/api/ai/ping`, {
@@ -71,6 +90,23 @@ describe('AI Config and Warmup routes', () => {
         ([url]) => typeof url === 'string' && url.includes('api.z.ai')
       );
       expect(outboundProviderCalls).toHaveLength(0);
+      vi.restoreAllMocks();
+    });
+
+    it('rejects unapproved Hemmingway model IDs before any provider request', async () => {
+      const fetchSpy = vi.spyOn(global, 'fetch');
+      const res = await fetch(`${baseUrl}/api/ai/ping`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider: 'hemmingway', model: 'not-a-hemmingway-model' }),
+      });
+      expect(res.status).toBe(400);
+      const data = await res.json();
+      expect(data.error).toContain('Hemmingway model must be one of');
+      const outboundCalls = fetchSpy.mock.calls.filter(
+        ([url]) => typeof url === 'string' && url.includes('hemmingway.io')
+      );
+      expect(outboundCalls).toHaveLength(0);
       vi.restoreAllMocks();
     });
   });

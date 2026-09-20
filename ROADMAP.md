@@ -48,7 +48,7 @@ Standard LLM generative sessions degrade due to spatial amnesia, unearned adject
 
 ### 5. Multi-Provider Runtime Calibration
 - **Model-Agnostic Execution**: Independent calibration of Engine, Forge, Voice, and Autopilot across providers.
-- **Supported Providers**: Local OpenAI-compatible endpoints (LM Studio, Ollama, llama.cpp), Google Gemini, OpenAI, and Z.ai (GLM).
+- **Supported Providers**: Local OpenAI-compatible endpoints (LM Studio, Ollama, llama.cpp), Google Gemini, OpenAI, Z.ai (GLM), and Hemmingway.io.
 - **Verified Local Inference**: 80-turn multi-role headless test batteries completed on local Gemma 4 26B QAT with 100% schema accuracy and zero cloud token cost.
 
 ---
