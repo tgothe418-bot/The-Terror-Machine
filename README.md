@@ -34,7 +34,7 @@ The Terror Machine replaces prompt drift with deterministic state persistence. T
 - **Causal Topology Graph**: Space is a directed adjacency graph. Movement requires authorized connections. If two rooms are not connected, no character can cross between them, no matter how vividly the model hallucinates the passage.
 - **Pure-Text Acoustic Engine**: Zero Web Audio or speech synthesizer dependencies. Soundscapes and vocalizations (spoken dialogue, *sotto voce* soliloquies, introspective monologue, intercom transmissions, and structural acoustic bleed through ductwork) are modeled via physical adjacency and rendered in evocative CRT typography.
 - **Diegetic Pacing Governor & Clocks (Horror Grammar 2)**: Autonomous tension regulation using undulating cadence cycles (`RESPITE_AFTERMATH` &rarr; `SIMMERING_DREAD` &rarr; `MOUNTING_COMPLICATION` &rarr; `KINETIC_RUPTURE`), situated diegetic instruments, and impending countdown clocks that trigger threshold manifestations.
-- **Strict Model Agnosticism**: Runs identically on local models via private inference servers (LM Studio, Ollama, llama.cpp with Gemma 4 26B, Llama 3, etc.) or frontier cloud APIs (Google Gemini, OpenAI, Z.ai GLM). Each subsystem can calibrate to an independent model.
+- **Strict Model Agnosticism**: Runs identically on local models via private inference servers (LM Studio, Ollama, llama.cpp, etc.) or frontier cloud APIs (Google Gemini, OpenAI, Z.ai GLM). Each subsystem can calibrate to an independent model.
 
 ---
 
