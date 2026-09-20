@@ -42,11 +42,21 @@ export async function createApp(options: CreateAppOptions = { enableSpaFallback:
   app.use(express.json({ limit: "5mb" }));
   app.use(express.urlencoded({ extended: true, limit: "5mb" }));
 
+  const isDev = process.env.NODE_ENV !== 'production';
   const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 200,
+    max: isDev ? 10000 : 500,
     message: { error: 'Cognitive bandwidth exceeded. The anomaly is resting. Try again shortly.' },
-    validate: { xForwardedForHeader: false }
+    validate: { xForwardedForHeader: false },
+    skip: (req) => {
+      // Never rate-limit in development, or for loopback localhost callers
+      if (isDev) return true;
+      const ip = req.ip || req.socket.remoteAddress || '';
+      if (ip === '127.0.0.1' || ip === '::1' || ip.includes('127.0.0.1')) {
+        return true;
+      }
+      return false;
+    }
   });
 
   // Fast diagnostic health endpoint
@@ -59,12 +69,14 @@ export async function createApp(options: CreateAppOptions = { enableSpaFallback:
     });
   });
 
-  // API routes FIRST
+  // API configuration and local model discovery routes FIRST (unthrottled)
+  app.use("/api/ai", aiConfigRouter);
+
+  // Throttled API endpoints
+  app.use("/api/turn", apiLimiter, turnRouter);
   app.use("/api", apiLimiter, voiceRoutes);
   app.use("/api", apiLimiter, forgeRoutes);
-  app.use("/api/turn", apiLimiter, turnRouter);
   app.use("/api", apiLimiter, chatRoutes);
-  app.use("/api/ai", apiLimiter, aiConfigRouter);
 
   // Structured error handling for parser-level payload overages
   app.use(payloadErrorHandler);

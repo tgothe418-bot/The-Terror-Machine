@@ -1,4 +1,5 @@
 import { Blueprint, ParticipationContext, ParticipationMode, normalizeParticipationContext } from '../types';
+import { MAX_PARTICIPATION_SEAT_DESCRIPTION_LENGTH } from '../types/participation';
 
 export interface SeatAvailability {
   role: ParticipationMode;
@@ -160,8 +161,8 @@ export function buildActiveParticipationContext(
         blueprint.setting?.location ||
         'Direct scene pacing, tension, and dramatic withholding.',
       boundedFacts: [
-        `Location: ${blueprint.setting?.location || 'Unknown'}`,
-        `Atmosphere: ${blueprint.setting?.atmosphere || 'Staged narrative enclosure'}`,
+        `Location: ${blueprint.setting?.location || 'Unknown'}`.trim().slice(0, 250),
+        `Atmosphere: ${blueprint.setting?.atmosphere || 'Staged narrative enclosure'}`.trim().slice(0, 250),
       ].slice(0, 8),
     };
   }
@@ -203,7 +204,7 @@ export function buildActiveParticipationContext(
             : 'protagonist') as any,
           name: boundMember ? boundMember.name : existing.seat?.name || name,
           description: boundMember
-            ? boundMember.description
+            ? boundMember.description?.trim().slice(0, MAX_PARTICIPATION_SEAT_DESCRIPTION_LENGTH)
             : existing.seat?.description,
         },
       };
@@ -216,7 +217,7 @@ export function buildActiveParticipationContext(
           ? 'survivor'
           : 'protagonist') as any,
         name,
-        description: boundMember?.description,
+        description: boundMember?.description?.trim().slice(0, MAX_PARTICIPATION_SEAT_DESCRIPTION_LENGTH),
       },
       initialGoal:
         blueprint.narrativeRules?.incitingIncident ||
@@ -280,9 +281,9 @@ export function buildActiveParticipationContext(
           members: otherCast.map((c) => ({
             id: c.id,
             name: c.name,
-            description: c.description || c.role || 'Unaware subject',
-            goal: c.goals || 'Maintain normal life and social standing',
-            knownFact: `Traits: ${(c.traits || []).join(', ')}`,
+            description: (c.description || c.role || 'Unaware subject').trim().slice(0, 300),
+            goal: (c.goals || 'Maintain normal life and social standing').trim().slice(0, 200),
+            knownFact: `Traits: ${(c.traits || []).join(', ')}`.trim().slice(0, 200),
           })),
         };
       }

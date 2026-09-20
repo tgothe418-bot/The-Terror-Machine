@@ -78,7 +78,10 @@ export type AuthorityContract = z.infer<typeof AuthorityContractSchema>;
 export const VictimProfileSchema = z.object({
   id: z.string().optional(),
   name: z.string().trim().min(1, 'Victim name or designation is required').max(100),
-  description: z.string().trim().max(300).optional(),
+  description: z.preprocess(
+    (val) => (typeof val === 'string' ? val.trim().slice(0, 300) : val),
+    z.string().trim().max(300).optional()
+  ),
   goal: z.string().trim().max(200).optional(),
   knownFact: z.string().trim().max(200).optional(),
 });
@@ -90,7 +93,10 @@ export type VictimProfile = z.infer<typeof VictimProfileSchema>;
 export const IndividualVictimSchema = z.object({
   kind: z.literal('individual'),
   name: z.string().trim().min(1, 'Victim name or designation is required').max(100),
-  description: z.string().trim().max(300).optional(),
+  description: z.preprocess(
+    (val) => (typeof val === 'string' ? val.trim().slice(0, 300) : val),
+    z.string().trim().max(300).optional()
+  ),
   goal: z.string().trim().max(200).optional(),
   knownFact: z.string().trim().max(200).optional(),
 });
@@ -102,7 +108,10 @@ export type IndividualVictim = z.infer<typeof IndividualVictimSchema>;
 export const GroupVictimSchema = z.object({
   kind: z.literal('group'),
   collectiveDesignation: z.string().trim().min(1, 'Collective designation is required').max(100),
-  description: z.string().trim().max(300).optional(),
+  description: z.preprocess(
+    (val) => (typeof val === 'string' ? val.trim().slice(0, 300) : val),
+    z.string().trim().max(300).optional()
+  ),
   members: z.array(VictimProfileSchema).max(8, 'Maximum 8 named victim members allowed').default([]),
 });
 export type GroupVictim = z.infer<typeof GroupVictimSchema>;
@@ -150,7 +159,15 @@ export const ParticipationContextSchema = z.object({
   mode: ParticipationModeSchema,
   seat: ParticipationSeatSchema.optional(),
   initialGoal: z.string().trim().min(1).max(1000),
-  boundedFacts: z.array(z.string().trim().max(250)).max(8).default([]),
+  boundedFacts: z
+    .array(
+      z.preprocess(
+        (val) => (typeof val === 'string' ? val.trim().slice(0, 250) : val),
+        z.string().trim().max(250)
+      )
+    )
+    .max(8)
+    .default([]),
   authorityContract: AuthorityContractSchema.optional(),
   victimField: VictimFieldSchema.optional(),
 });

@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import blackIronMortuary from '../../data/blueprints/black_iron_mortuary.json';
 import silverRestLodge from '../../data/blueprints/silver_rest_lodge.json';
+import theRefinement from '../../data/blueprints/the_refinement.json';
 import { useAppStore } from '../../store/useAppStore';
 import { useEngineStore } from '../../core/store';
 import { forgeActions, useForgeState } from '../../store/useForgeStore';
@@ -186,6 +187,32 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
     }
   };
 
+  const handleLoadTheRefinementBlueprint = () => {
+    try {
+      const validated = normalizeBlueprint(theRefinement);
+      setPreviewBlueprint(validated);
+      if (validated.userCharacterId) {
+        forgeActions.setActiveCharacterId(validated.userCharacterId);
+      } else {
+        forgeActions.setActiveCharacterId(null);
+      }
+
+      const availabilities = resolveSeatAvailabilities(validated);
+      if (availabilities.protagonist?.available) {
+        setSelectedRole('protagonist');
+      } else if (availabilities.antagonist?.available) {
+        setSelectedRole('antagonist');
+      } else {
+        setSelectedRole('director');
+      }
+      setError(null);
+    } catch (err: unknown) {
+      console.error('Failed to load The Refinement blueprint:', err);
+      const msg = err instanceof Error ? err.message : String(err);
+      setError(`FAILED TO LOAD BESPOKE SCENARIO: ${msg}`);
+    }
+  };
+
   const handleStart = () => {
     if (!previewBlueprint || !selectedRole) return;
     if (!isRoleAvailable(selectedRole)) return;
@@ -335,6 +362,22 @@ export default function EngineSetup({ onContinue }: EngineSetupProps) {
                     </span>
                     <span className="text-xs text-amber-400/80 uppercase tracking-wider block text-[10px]">
                       Social Horror Interaction Blueprint
+                    </span>
+                  </div>
+                </div>
+
+                {/* Option 3c: Extreme Testing Scenario */}
+                <div
+                  onClick={handleLoadTheRefinementBlueprint}
+                  className="p-8 border border-red-950/60 hover:border-red-600/80 transition-all duration-500 bg-zinc-950/60 hover:bg-red-950/20 rounded flex flex-col items-center justify-center cursor-pointer group"
+                >
+                  <AlertTriangle className="w-10 h-10 text-red-500/70 group-hover:text-red-400 transition-colors mb-3" />
+                  <div className="text-center space-y-1">
+                    <span className="text-xs uppercase tracking-[0.25em] block font-bold text-white">
+                      The Refinement
+                    </span>
+                    <span className="text-xs text-red-400/80 uppercase tracking-wider block text-[10px]">
+                      Extreme Testing Blueprint
                     </span>
                   </div>
                 </div>

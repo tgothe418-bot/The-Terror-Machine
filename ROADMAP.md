@@ -1,179 +1,109 @@
-# The Terror Machine — Technical (Public) Roadmap
+# The Terror Machine — Technical Roadmap
 
-This is the public technical record for **The Terror Machine**: what the machine can do, what has been accepted, and what it is being built to do next.
+This is the public technical record for **The Terror Machine**: an open-source, neuro-symbolic runtime for multi-turn interactive horror.
 
-It is directional rather than a release calendar. There are no promised dates, feature quotas, or claims that one green test is the same thing as an accepted milestone.
+For the user guide and quickstart, see the [README](./README.md). For deep engineering details, see the [Development Roadmap](./DEVELOPMENT-ROADMAP.md).
 
-For the experiential front door, read the [README](./README.md). For the detailed engineering ledger, read the [Development Roadmap](./DEVELOPMENT-ROADMAP.md).
+---
 
-## The machine at present
+## Architecture & Philosophy
 
-TTM has a working foundation for bounded horror simulation with runtime provider switching.
+The central thesis of The Terror Machine is that **the model proposes, and the machine decides**.
 
-A Blueprint or a Haunted House Induction enters the same Engine path. The core turn is snapshotted, interpreted, generated, ratified, committed once or refused without corrupting canonical state. The application—not the language model—owns the places, cast, roles, consequences, receipts, and the state that survives a paragraph. Horror Grammar 1 is fully landed, integrated, and verified across that line; its provider boundary is closed, and full multi-turn continuity, authority validation, durable recovery, and forensic segregation are verified by the master integration suite. Every subsystem—Engine, Forge, Voice, and Autopilot—can be switched between Gemini, OpenAI, and local OpenAI-compatible inference servers through AI Calibration. The contracts define what the machine accepts; the provider supplies the generation.
+Standard LLM generative sessions degrade due to spatial amnesia, unearned adjective escalation, and causal hallucinations. The Terror Machine decouples ground-truth state from token generation:
 
-### Live foundation
+1. **Deterministic State Citadel**: Topologies, inventories, psychological states, and somatic trauma are preserved across turns in structured ledgers and dual-store IndexedDB.
+2. **Causal Ratification**: Generative model outputs are strictly constrained to JSON schemas and validated against world rules before any state mutation occurs.
+3. **Fail-Closed Guarantees**: Invalid proposals, model refusals, or empty generations fail safely without corrupting world state or manufacturing synthetic player intent.
 
-- A schema-bound atomic turn path: snapshot → generation → ratification → commit or fail.
-- Canonical spatial topology, including deliberate expansion at an unmapped boundary.
-- Protagonist, Antagonist, and Director participation, with explicit antagonist authority and limits.
-- Blueprint authoring and Haunted House / Ad-Lib Induction entry paths.
-- Perspective-neutral Blueprint export with per-character opening placement; the Engine chooses the session perspective and entry location.
-- Cast presence, character stance, relationships, bounded character memory, and bounded World Memory.
-- Deterministic consequences, receipts, telemetry, Markdown/HTML diagnostics, and retake of the most recent completed turn.
-- A shared human/Autopilot response contract: concise creator input is preserved verbatim, one bounded generation is ratified or refused, and safe field-path diagnostics appear in failure receipts and exports.
-- Provider-refusal containment at the live generation boundaries: explicit declines and empty responses fail closed, never become player input, and leave canonical state available for retry or Retake.
-- Runtime provider switching across Engine, Forge, Voice, and Autopilot through AI Calibration. Gemini, OpenAI, Z.ai (GLM), and local OpenAI-compatible inference servers are supported providers. Each subsystem can target its own provider and model independently.
-- Z.ai (GLM) provider integration: the Engine, Forge, Voice, and Autopilot can run on Z.ai GLM models with a user-supplied API key. GLM turns travel the same structured JSON-mode path with the authoritative Zod contract validating every response at ingress, thinking-mode mapped per purpose, and approved-model fallback on provider failure.
-- Local model support through any OpenAI-compatible endpoint (LM Studio, llama.cpp, Ollama, or equivalent). No API key required; the machine discovers loaded models at the configured server URL.
-- Per-subsystem local model assignment: the Engine, Autopilot, Voice, and Forge can each run a different local model when dedicated assignment is enabled.
-- Gemini Free Tier support with resilient backoff, automatic model fallback on rate limits, and AI Calibration for tier and model selection.
-- Comprehensive Vocalization & Dialogue Subsystem: Dedicated domain model (`src/types/vocalization.ts`) and pipeline (`src/lib/vocalizationEngine.ts`) supporting spoken dialogue, internal monologue (introspective thought), muttered soliloquies (`sotto voce`), radio/intercom transmissions, and acoustic bleed through observation ports and ductwork.
-- Pure-Text Acoustic Soundscape Refinement (Zero Audio Hardware/Synthesizer Dependency): Strictly non-audio literary soundscapes utilizing CRT typography, typographic squelch markers (`> [CHIRP] ... [STATIC]`), shrouded obsidian acoustic bleed styling with chamber provenance (`[ ACOUSTIC BLEED // Name (via node) ]`), and em-dash broken delivery for interrupted speech (`interrupted: true`).
-- Fail-Closed Topological Adjacency & Epistemic Boundaries: Adjudicates offstage acoustic sources against adjacent nodes in the spatial graph, auto-remediating single adjacent links and enforcing one-directional epistemic constraints for overheard speech (distant speakers cannot address the player directly or react to unseen actions).
-- Interactive Forge Voice & Acoustic Dossiers: Authoring character expression profiles directly in `CastManager.tsx` with free-text cadence & rhythm notes, vocal tells, voice tone, lexicon notes, silence directives, and scenario-agnostic camouflage leak guidance triggering on climax tension. Preserved and verified by net-new compiler tests (`src/lib/forgeCompiler.test.ts`).
-- Engine Contract Lockstep & Provider Schema Projection: Parity between Forge authoring and `EngineTurnContext` Zod schemas, with runtime provider JSON schema projection of `interrupted` and `acousticSourceNodeId`.
-- Robust Typographic Quote Parsing: Causal feasibility parser supporting straight (`" '`) and curly (`“ ” ‘ ’`) quotes, contraction guards (`don't`, `it's`, `we'll`), speech verb detection, and $\ge 2$-word constraints in `extractConversationalUtterance`.
-- Auditory Topology Resolution: Automatically detects co-presence, active telephone/radio lines across multi-turn history, and acoustic architectural links (observation windows, airlocks, vents), auto-remediating off-stage speech through physical mediums instead of throwing 502 contract errors.
-- Dynamic Center Stage Typography: Overhauled narrative presentation in `Runtime.tsx` with distinct visual framing: Introspection (indigo italic with `[ INTROSPECTION // Name ]`), Soliloquy (dashed amber with `[ MUTTERED SOTTO VOCE // Name ]`), Intercom/Bleed (CRT cyan with `[ INTERCOM / ACOUSTIC BLEED // Name ]`), and Spoken Dialogue (candle-amber with `[ DIALOGUE // Name ]`).
-- Atmospheric Opening Scene Establishment (`SYSTEM_INIT`) & Fail-Safe Invariants: Grounds starting node architecture, sensory textures (lighting, acoustics, scent), and player character posture at the quiet threshold, preventing *in media res* narrative whiplash. Solitary chambers dynamically permit internal monologue and soliloquy while forbidding room dialogue; player speech on Turn 0 is auto-remediated to soliloquy or prose, eradicating the solitary-character Critical Engine Failure.
-- Dual-tier dialogue validation and speaker normalization: Automatic speaker ID-to-name mapping (`char-ricky` -> `Ricky Oates`), duplicate speaker prefix stripping in content, and recognized ambient extra whitelisting.
-- 1440p Ultrawide (`3440×1440`) Occult Scrying Workstation: Persistent 4-pane layout with 2.5× scaled Fog-of-War `MapSketch` (Austin Osman Spare aesthetic, zero portrait placeholders), pure-text `MortalLedger` tracking active vessels and companion cohorts, and live-docked communion with The Historian.
-- Causal Traversal Hardening: Unaccepted movement resolves as `CONSTRAINED / TOPOLOGY_LIMIT` without falsely triggering perceptual fracture hallucination loops.
-- Structured-output compatibility on the live turn path, with the supported JSON-schema subset owned at the provider boundary and provider failures returned as structured API errors.
-- Hardened Forge extraction and candidate normalization pipeline with rule alias expansion (`unknowns`, `misc`, `notes`, `lore`, `world_rule`, `environmental`) preventing spurious candidate quarantine.
-- Four 20-Turn Multi-Role Local Playtest Battery: Headless simulation harness (`scripts/run_four_20turn_battery.ts`) verifying 80/80 total turns on local Gemma 4 26B QAT across Protagonist, Antagonist, Villain, and Survivor seats with automated fidelity, quality, and accuracy scoring, and critical error skip/abort handling.
-- Horror Grammar 2 (HG2) Series 1 — Pacing Governor, Clocks & Character Stakes: Full architectural implementation and verification of autonomous seat-aware pacing mandates (`pacingGovernor.ts`), undulating cadence breath (`RESPITE_AFTERMATH`, `SIMMERING_DREAD`, `MOUNTING_COMPLICATION`, `KINETIC_RUPTURE`), impending environmental clocks with threshold manifestation omens, D2 situated diegetic instrument readouts, D3 obstructive breaking points with deterministic lift conditions, and D1 causal macro-phase milestone gates.
-- Client-Loop Ratification & Presence Whitelist: Full preservation of `dramaturgyState`, `cast_arrivals`, `cast_departures`, and `current_node_id` through the client ratification pipeline, ensuring macro-phase and cadence progression survive across live browser turns.
-- The Silver Rest Lodge Canonical Interaction Scenario: Dedicated alpine social-horror blueprint (`src/data/blueprints/silver_rest_lodge.json`, Feb 1991) with 7 topological chambers, 8 cast members across survivor, villain, and bystander roles, 3 impending clocks with situated diegetic instruments, 4 causal milestone gates, and full subsystem test coverage (`silver_rest_lodge.test.ts`).
-- 40-Turn HG2 Dual-Role Headless Benchmark Batteries: Verification scripts for both *The Black Iron Mortuary* (`scripts/run_hg2_40turn_benchmark.ts`) and *The Silver Rest Lodge* (`scripts/run_silver_rest_40turn_benchmark.ts`) completing 80/80 turns each on local Gemma 4 26B QAT across Survivor and Villain seats, with full Retake idempotence and data-derived telemetry reports.
-- Express API mounting and `/api` fallback protection in local and Vite preview runtimes, so a backend failure cannot masquerade as an HTML success response.
-- Development recovery through Clear System Memory and Autopilot as a soak-testing instrument.
+---
 
-### The Forge source-review path
+## Landed Capabilities
 
-The corrective Forge sequence through Packet 1E-1 is landed.
+### 1. Horror Grammar 1 (HG1): Foundational Causal Continuity
+- **Atomic 5-Stage Turn Lifecycle**: Snapshot &rarr; Constrained Generation &rarr; Causal Ratification &rarr; Atomic Commit / Fail-Close &rarr; CRT Presentation.
+- **Dual-Store IndexedDB Persistence**: Monotonic sequence tracking with cross-store coherence verification and crash recovery.
+- **Zero-Leak Monotonic Retake**: Roll back simulation state to preceding turn checkpoints with zero orphaned state.
+- **Perspective-Neutral Authoring**: Compile and export Blueprints without permanent user character or starting node lock-in; resolved dynamically at Engine setup.
+- **Autopilot Parity**: Headless soak-testing runs through the identical validation and ratification pipeline as live human play.
 
-The Forge can now:
+### 2. Horror Grammar 2 (HG2) Series 1: Pacing Governor & Stakes
+- **Autonomous Pacing Governor**: Manages undulating cadence cycles (`RESPITE_AFTERMATH` &rarr; `SIMMERING_DREAD` &rarr; `MOUNTING_COMPLICATION` &rarr; `KINETIC_RUPTURE`).
+- **Impending Environmental Clocks**: Drives countdown timers with threshold manifestation omens across `TIME` and `EVENT` advance modes.
+- **Situated Diegetic Instruments**: In-world apparatus readouts (barometers, radiation counters, pressure dials) that reflect clock progression without arbitrary meta-meters.
+- **Psychological Stakes & Breaking Points**: Authored character breaking points with deterministic lift conditions under acute stress.
+- **Causal Milestone Gates**: Macro-phase progression governed by explicit causal triggers (`DISCOVERY`, `AUTHORED_TRIGGER`).
 
-- keep candidate decisions binary and separate from draft mutation;
-- validate and identity-match Architect responses before recording them;
-- bind ambiguity conversations to exact source and question identities;
-- commit accepted resolutions and Blueprint patches as one validated transaction;
-- maintain a persisted Source Baseline revision distinct from the draft revision;
-- preserve complete, revision-bound Depiction Contract proposals and reject stale application;
-- generate scenario-specific Depiction Contracts from bounded source evidence and creator decisions;
-- support proposal review, application, dismissal, refresh, and manual authoring;
-- keep detailed source evidence available in a focused review drawer;
-- produce a deeply immutable export artifact carrying both source revisions;
-- capture one reviewed artifact whose Copy and Download bytes remain identical until the creator refreshes a stale review;
-- apply accepted source-backed defaults atomically, including a complete Depiction Contract, rich topology definitions, and per-character opening placement;
-- export a perspective-neutral Blueprint without requiring a global starting node or a permanently designated User character.
+### 3. Pure-Text Acoustic Subsystem & Literary Vocalization
+- **First-Class Vocalization Categories**: Spoken dialogue, internal monologue (introspective thought), muttered soliloquy (*sotto voce*), radio/intercom transmissions, and acoustic bleed.
+- **Zero-Audio Hardware Dependencies**: Pure literary text and CRT typography; zero Web Audio or synthesizer dependencies.
+- **Topological Adjacency & Epistemic Boundaries**: Fail-closed verification of offstage audio sources against spatial adjacency and structural links (ducts, vents, observation ports).
+- **Center Stage Visual Framing**: Typographic distinctions for introspection (indigo italic), soliloquies (dashed amber), intercom/bleed (phosphor-cyan), and spoken speech (candle-amber).
+- **Atmospheric Opening Scene (`SYSTEM_INIT`)**: Establishes initial sensory grounding; auto-remediates Turn 0 solitary speech to monologue or soliloquy, eliminating solitary-room contract errors.
 
-The standard source-to-Blueprint path can now produce an export-ready artifact when the extraction contains the required evidence. Incomplete or genuinely unsupported source material remains visible as an authoring gap rather than being disguised with a canned default.
+### 4. Canonical Scenario Triptych
+- **The Black Iron Mortuary**: Subterranean bio-containment facility featuring Entity-41.
+- **The Silver Rest Lodge**: 1991 alpine retreat social horror with 8 cast members across 3 role categories, 3 clocks, and 4 milestone gates.
+- **The Refinement**: High-stakes psychological ordeal inspired by the New French Extreme; 8 chambers, 8 cast members with granular psychological stakes, and extreme content scale handling.
 
-### Provider admission and runtime boundary
+### 5. Multi-Provider Runtime Calibration
+- **Model-Agnostic Execution**: Independent calibration of Engine, Forge, Voice, and Autopilot across providers.
+- **Supported Providers**: Local OpenAI-compatible endpoints (LM Studio, Ollama, llama.cpp), Google Gemini, OpenAI, and Z.ai (GLM).
+- **Verified Local Inference**: 80-turn multi-role headless test batteries completed on local Gemma 4 26B QAT with 100% schema accuracy and zero cloud token cost.
 
-The Engine's structured-output boundary is closed through Packet 1-10B. The provider receives the exact supported JSON-schema projection, all required HG1 envelopes remain present at ingress, and the authoritative Zod contract still validates the returned object after the provider responds. Refusals, empty responses, invalid provider requests, and non-JSON runtime responses fail closed without mutating canonical state or inventing player input.
+---
 
-The same admission path applies regardless of which provider generates the response. A local model, Gemini, or OpenAI must satisfy the same ingress contracts. Provider-specific behavior—structured-output format negotiation, rate-limit backoff, model fallback—is handled at the provider boundary before the Engine sees the response.
+## Active Horizons & Next Priorities
 
-The current runtime also mounts the Express API in Vite previews and excludes `/api` from the single-page fallback. A failed turn therefore remains an API failure instead of becoming an HTTP 200 HTML document that the client cannot parse.
+### Phase 1: Interactive Browser Play Review
+- **Focus**: Real-time evaluation of pacing cycles, acoustic bleed, and role-specific authority in live browser sessions.
+- **Scope**: Multi-turn manual play across *The Black Iron Mortuary*, *The Silver Rest Lodge*, and *The Refinement*.
+- **Validation**: Verify UX latency, CRT narrative framing readability, and Retake responsiveness under live operator inputs.
 
-### Horror Grammar 1 & Astra Critical Corrections — Landed, Integrated, and Verified
+### Phase 2: Horror Grammar 2 (Series 2) — Revelation Staging & Tension Decay
+- **Focus**: Thematic lore unpeeling and non-linear psychological dissipation.
+- **Scope**:
+  - Epistemic discovery receipts and structured revelation cadence.
+  - Tension-decay modeling: simulating long-term character attrition, exhaustion, and atmospheric dissipation during sustained respite periods.
+  - Bounded clue networks connecting physical evidence to milestone unlocks.
 
-The 12-packet Astra Critical Corrections series (Packets 01–12 across Milestones 1–5) is completed, landed, and verified on the live line. It resolves the integration gate across the complete client → server → client turn lifecycle:
+### Phase 3: Inherited Gate Debt Remediation
+- **Focus**: Codebase hygiene and strict type-safety across legacy modules.
+- **Scope**:
+  - Resolve inherited 63 `tsc` compile errors and 177 `eslint` warnings in a dedicated cleanup packet.
+  - Clean up legacy test fixtures, store predicates, and draft baseline reconciliation.
+  - Zero modifications to runtime simulation contracts or landed HG1/HG2 features.
 
-- **State threading & multi-turn continuity:** Values, pursuits, fictional time, cast activity, situated pressure, and development state survive consecutive turns without data loss or empty fallback overwrites.
-- **Authority and causal grounding:** Cast activity and situated pressure require exact Blueprint authority, perception channel, speaker, and location grounding before admission; illicit claims fail closed.
-- **Forensic separation:** Diagnostic exports (Markdown and HTML) provide a typed, labeled forensics section preserving rejected proposals and forensic details, strictly segregated from playable fiction and prompt context.
-- **Durable dual-store persistence and crash recovery:** Monotonic sequence tracking, cross-store coherence evaluation, and checkpoint recovery protect session integrity across browser reloads, retakes, and process restarts.
-- **Perspective neutrality and opening invariants:** Blueprints compile and export perspective-neutrally; the Engine binds any eligible cast member (protagonist, antagonist, or support) with zero time cost on `SYSTEM_INIT` and full narration exposure to subsequent turns.
-- **Autopilot parity:** Automated exploration shares the exact production ratification pipeline and fail-closed admission rules as human player turns.
+### Phase 4: Multi-Node AI Traversal & Cohort Intelligence
+- **Focus**: Autonomous prey and antagonist mobility across topological graphs.
+- **Scope**:
+  - Multi-chamber pathfinding for autonomous cast cohorts based on behavioral vectors (`ADAPTIVE`, `INSURGENT`, `PANIC`).
+  - Spatial herding and dynamic environmental barricades.
+  - Offstage encounter staging triggered by impending clocks.
 
-This closure is protected by the master 9-step integration proof suite (`src/lib/integratedAcceptance.test.ts`) and broad regression suites.
+### Phase 5: Multi-Blueprint Campaign Continuity
+- **Focus**: Inter-scenario progression without monolithic state explosion.
+- **Scope**:
+  - Scoped state carryover between connected blueprints (survivor trauma, carried artifacts, relational memory).
+  - Clean export/import schema for multi-scenario anthologies.
 
-### Current verification line
+---
 
-The 12-packet Astra Critical Corrections series (Packets 01 through 12 across Milestones 1 through 5) is fully landed and verified:
+## Architectural Invariants
 
-- **Milestone 1 (Authoring & Perspective Invariants):** Packets 01 & 02 verified Forge export readiness, strict Depiction Contract enforcement, perspective-neutral Blueprint export, and zero fictional time advancement on `SYSTEM_INIT`.
-- **Milestone 2 (Turn Lifecycle & Boundary Enforcement):** Packets 03, 04 & 05 verified consecutive turn continuity, world memory persistence across empty turns, event-driven pursuit activation, offscreen opportunity projection, and response-window gated pressure.
-- **Milestone 3 (Autopilot & Failure Containment):** Packets 06 & 07 verified canonical ratification parity between human and Autopilot turns, fail-closed handling of malformed responses and provider refusals, and zero state corruption on out-of-character (OOC) check-ins.
-- **Milestone 4 (Persistence, Recovery & Telemetry):** Packets 08, 09 & 10 verified monotonic dual-store IndexedDB persistence, coherent cross-store recovery, Retake rollback of all HG1 ledgers, and forensic export segregation.
-- **Milestone 5 (Behavioral Connections & Integrated Acceptance):** Packets 11 & 12 verified offscreen runtime intent projection, event-driven trigger consumption/reactivation, and closed the master 9-step deterministic integration proof suite.
+Regardless of model capabilities or scenario themes, these laws remain non-negotiable:
 
-The live line passes all broad quality gates: complete Vitest suite, TypeScript check (`tsc --noEmit`), full lint, production build, and clean git diff.
+- **The Application Owns Canon**: The generative model produces prose proposals; the runtime ratifies reality.
+- **No Unvalidated Ingress**: Every token must satisfy schema and causal constraints before mutating state.
+- **Topology is Spatial, Not Metaphorical**: Traversals require authenticated edges on the spatial graph.
+- **No Hidden Mechanics or Gamified Meters**: No arbitrary health points or fear bars; tension emerges from physical constraints, situated clocks, and irreversible consequences.
+- **The User Owns Intent**: Timeouts, refusals, and errors fail closed with forensic receipts—the system never synthesizes player speech or decisions.
+- **Consequences are Permanent**: State changes persist across turns, sessions, and reloads until causally reversed within the world.
 
-## What comes next
+---
 
-With the Horror Grammar 1 integration gate, full multi-turn continuity, Engine identity debt, and runtime provider switching closed, future work proceeds along explicit architectural boundaries:
+## Document Index
 
-### 1. Multi-scenario experiential play review & edge hardening
-
-Play the assembled machine across varied scenarios (grounded human horror, authored supernatural, deliberate uncertainty, high-stakes dialogue, and antagonist play) to surface and harden experiential and edge failures under real session conditions.
-
-### 2. Enforce authored boundaries and participant treatment
-
-The Engine maintains strict causal ownership:
-- Authority is causal; the Depiction Contract shapes narrative register, directness, aftermath, and ambiguity without granting unearned capabilities.
-- Antagonists without physical reach remain bounded to psychological, observational, or systemic influence.
-- Provider refusals remain external events, never converted to player actions.
-
-### 3. Complete provider-neutral Engine and Forge paths
-
-The Voice already operates across all three provider types. The Engine and Forge have provider-switching infrastructure in place; completing provider-neutral operation means verifying that structured-output negotiation, ingress validation, and extraction contracts function correctly across Gemini, OpenAI, and local models without provider-specific exceptions in application code.
-
-### 4. Universal warning and intervention window (Deferred Boundary)
-
-Design and introduce a universal warning and intervention window prior to permanent or fatal loss. (Preserved as explicitly deferred from the Astra Critical Corrections series).
-
-### 5. Voice context enhancements (Deferred Boundary)
-
-The Voice remains strictly read-only and non-authoritative. Future work will provide evidence-labelled context distinguishing Forge drafts, Engine sessions, and background research without granting simulation authority.
-
-### 6. Telemetry polish and prose-only export (Deferred Boundary)
-
-Refine Runtime diagnostic drawer presentation, add dedicated prose-only export formats alongside technical forensic telemetry, and expand multi-scenario integration fixtures.
-
-### 7. Multi-Blueprint campaign continuity
-
-Campaign continuity can move scoped state between authored Blueprints without merging them into an implicit global ledger.
-
-### 8. Experiential Play Review (Top Priority Sequenced Work)
-
-Live human interactive play review in the browser to exercise vocalization, presence tracking, fog-of-war, and HG2 macro-phase and cadence progression across real human sessions in both *The Black Iron Mortuary* and *The Silver Rest Lodge*.
-
-### 9. Inherited Gate Debt Cleanup Packet
-
-Remediate the inherited 63 `tsc` and 177 `eslint` items (extraction disposition fixtures, MapSketch predicates, sourceBaseline, useForgeStore, forgeReadiness, adLibCompiler, and test fixtures) in a strictly dedicated packet without blending into feature work.
-
-### 10. Horror Grammar 2: Packet Series 2 — Revelation Staging & Tension-Decay Dynamics
-
-With HG2 Series 1 (pacing governor, dramatic spine, impending clocks, composure, breaking points, and causal phase gates) landed and verified, Series 2 owns:
-- **Revelation Staging**: Thematic lore unpeeling, structured discovery cadence, and revelation receipts.
-- **Tension-Decay Research**: Modeling long-term psychological attrition and atmospheric dissipation.
-
-### 11. Z.ai Live Provider Verification
-
-Complete live end-to-end turn verification of the Z.ai (GLM) provider once an API key with active balance is provisioned.
-
-Active construction has moved to Antigravity. The machine supports Gemini, OpenAI, Z.ai, and local inference servers as providers. Gemini remains the default; provider neutrality is an active engineering direction with the Voice already operating across all provider types and the Engine and Forge infrastructure in place.
-
-## What will not change
-
-- The application owns canon. The model may propose; it does not commit.
-- A proposal is not a commit, whether it came from source extraction, an Architect response, a turn generator, or a memory suggestion.
-- Blueprint data supplies authored context; it does not become a hidden runtime instruction or a scenario-specific exception in Engine code.
-- Values, pursuits, and fictional time are Blueprint-derived literary scaffolding, not stats the User must track or a hidden game mechanic.
-- No numeric pressure gauges in ordinary play (diegetic instruments excepted per D2).
-- No phase transition without a causal, authored milestone.
-- Failed validation preserves canonical state and leaves useful evidence.
-- Characters have situated knowledge. The player, author, model, and character do not automatically know the same things.
-- Retake, exit, recovery, and diagnostics remain available to the person using the machine.
-- Literary strangeness is welcome. Silent contradiction is not.
-
-## Reading the maps
-
-- [README](./README.md) — what the machine is for, and why someone might enter it.
-- [Development Roadmap](./DEVELOPMENT-ROADMAP.md) — implementation order, acceptance rules, active debt, and verification discipline.
+- [README](./README.md) &mdash; Project overview, architectural pillars, scenario briefs, and quickstart.
+- [Development Roadmap](./DEVELOPMENT-ROADMAP.md) &mdash; Granular engineering milestones, packet histories, and proof suites.
+- [MIT License](./LICENSE) &mdash; Terms of open-source distribution.

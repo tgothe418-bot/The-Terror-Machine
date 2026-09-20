@@ -536,6 +536,37 @@ export function normalizeTurnRequestPayload(body: unknown): unknown {
         pc.authorityContract.limits = pc.authorityContract.limits.trim().slice(0, 2500);
       }
     }
+    if (pc.victimField && typeof pc.victimField === 'object') {
+      if (typeof pc.victimField.description === 'string' && pc.victimField.description.length > 300) {
+        pc.victimField.description = pc.victimField.description.trim().slice(0, 300);
+      }
+      if (typeof pc.victimField.goal === 'string' && pc.victimField.goal.length > 200) {
+        pc.victimField.goal = pc.victimField.goal.trim().slice(0, 200);
+      }
+      if (typeof pc.victimField.knownFact === 'string' && pc.victimField.knownFact.length > 200) {
+        pc.victimField.knownFact = pc.victimField.knownFact.trim().slice(0, 200);
+      }
+      if (Array.isArray(pc.victimField.members)) {
+        for (const m of pc.victimField.members) {
+          if (m && typeof m === 'object') {
+            if (typeof m.description === 'string' && m.description.length > 300) {
+              m.description = m.description.trim().slice(0, 300);
+            }
+            if (typeof m.goal === 'string' && m.goal.length > 200) {
+              m.goal = m.goal.trim().slice(0, 200);
+            }
+            if (typeof m.knownFact === 'string' && m.knownFact.length > 200) {
+              m.knownFact = m.knownFact.trim().slice(0, 200);
+            }
+          }
+        }
+      }
+    }
+    if (Array.isArray(pc.boundedFacts)) {
+      pc.boundedFacts = pc.boundedFacts.map((f: any) =>
+        typeof f === 'string' ? f.trim().slice(0, 250) : f
+      );
+    }
   };
 
   if (payload.context && typeof payload.context === 'object' && payload.context.participationContext) {

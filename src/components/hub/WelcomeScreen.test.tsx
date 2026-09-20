@@ -136,6 +136,14 @@ describe('WelcomeScreen Component (1440p Ultrawide Staging)', () => {
     expect(content).toContain('The Black Iron Mortuary');
     expect(content).toContain('CANONICAL ARTIFACT');
 
+    // Verify Interaction Blueprint (The Silver Rest Lodge)
+    expect(content).toContain('The Silver Rest Lodge');
+    expect(content).toContain('INTERACTION BLUEPRINT');
+
+    // Verify Extreme Testing Blueprint (The Refinement)
+    expect(content).toContain('The Refinement');
+    expect(content).toContain('EXTREME EXPERIMENTAL');
+
     // Verify Workspace Draft
     expect(content).toContain('WORKSPACE DRAFT');
 
@@ -161,6 +169,24 @@ describe('WelcomeScreen Component (1440p Ultrawide Staging)', () => {
     const engineBlueprint = useEngineStore.getState().activeBlueprint;
     expect(engineBlueprint).toBeTruthy();
     expect(engineBlueprint?.title).toContain('Black Iron Mortuary');
+  });
+
+  it('binds The Refinement to Engine when SCRY is clicked from shelf', async () => {
+    await act(async () => {
+      root?.render(<WelcomeScreen />);
+    });
+
+    const scryButton = container?.querySelector('#shelf-launch-refinement-btn') as HTMLButtonElement;
+    expect(scryButton).toBeTruthy();
+
+    await act(async () => {
+      scryButton.click();
+    });
+
+    expect(useAppStore.getState().phase).toBe('engine');
+    const engineBlueprint = useEngineStore.getState().activeBlueprint;
+    expect(engineBlueprint).toBeTruthy();
+    expect(engineBlueprint?.title).toBe('The Refinement');
   });
 
   it('renders Austin Osman Spare automatic drawing linework extending into the screen margins', async () => {

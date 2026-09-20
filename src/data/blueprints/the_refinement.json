@@ -1,0 +1,525 @@
+{
+  "id": "blueprint-the-refinement",
+  "title": "The Refinement",
+  "identity": {
+    "title": "The Refinement",
+    "version": "1.0.0",
+    "author": "The Terror Machine Forge",
+    "thematicAnchor": "The Body as Site of Knowledge — Philosophical Violence and the Architecture of Despair"
+  },
+  "contentScale": 5,
+  "contentLevelDescription": "Extreme Content — Body Horror, Captivity, Torture Ideology, Graphic Violence. Designed as a local-model stress test.",
+  "globalPremise": "A decommissioned Soviet pharmaceutical research compound in the Carpathian backcountry has been acquired by a private network that sells access to it. Six travelers are inside. None of them came willingly.",
+  "premise": "Present day. The Căminul Institute — twenty kilometres off a B-road nobody outside the county knows — squats in a clearing the trees have been trying to reclaim since 1991. It was a pharmacological pain-research facility under Ceaușescu. The equipment was never removed. Dr. Aleksander Morel, its current director, arrived with different research objectives and a private membership list of 140 individuals who each paid a six-figure retainer for access to his ongoing work. Six travelers whose rental car broke down on an unmarked forestry track were processed and admitted three days ago. The staff is small, professional, and carries no surnames. The facility's steel-shuttered external doors are magnetically sealed. The paying Observers are already on site. The first Session is scheduled for 02:00.",
+  "backCoverBlurb": "Dr. Morel believes he has found the threshold. He has been searching for it for eleven years. He has come very close before. The six new subjects are younger, healthier, and more varied than the last cohort. By his own reasoning, at least one of them will make it all the way through. He considers this optimistic.",
+  "startingVector": "SOMATIC",
+  "startingTier": "LATENT",
+  "setting": {
+    "location": "The Căminul Institute — a decommissioned Soviet pharmaceutical research facility, Subcarpathian Romania",
+    "atmosphere": "Institutional disinfectant over old concrete; fluorescent tubes on motion sensors that snap on and off in corridors no one is supposed to walk; the subsonic hum of the facility's independent power plant; restraint hardware that has been recently cleaned; the smell of cold metal and something the cleaning crew did not entirely reach",
+    "timePeriod": "Present day — no supernatural agency; all horror is procedural, architectural, and human"
+  },
+  "environmentalRules": [
+    "All external exits are magnetically sealed from a control panel in the Director's Office. The seal overrides internal handles. Physical breach requires either the electronic code, cutting the facility's independent power supply, or destroying the door frame — none of which is quiet.",
+    "The facility has no cellular signal and no public internet. Its internal intercom network connects all nodes to a central console. Conversations on the intercom are logged.",
+    "Security cameras cover every corridor and common space. The feed routes to the Director's Office and to the Observer Lounge simultaneously. There are blind spots in two cells and the sub-basement drain corridor.",
+    "Physical injuries accumulate and are not abstracted. A character who has been restrained, cut, or battered carries those conditions forward. They cannot be dismissed.",
+    "The Observer cohort are present and non-combatant by contract — they paid to watch, not to participate. This distinction is enforced by Morel personally and by the facility's protocol. An Observer who participates forfeits their retainer and their confidentiality protection.",
+    "The facility's independent power plant runs on a sealed fuel supply. It cannot be accessed without cutting through the plant room's welded steel access panel.",
+    "Diegetic instrument readings — the session clock, biomonitor printouts, the external-door seal indicators on the corridor panels — are perceivable only by a character standing at that instrument's node."
+  ],
+  "constraints": [
+    "No supernatural agency. Every threat is human, procedural, or architectural.",
+    "Dr. Morel does not engage in personal violence during the early phases. He observes, instructs, and manages. His composure is his primary instrument. Violence, when he authorizes it, is delegated.",
+    "Observer characters do not intervene physically. Their presence is voyeuristic and financially contractual. They experience the scenario; they do not alter it.",
+    "The staff — Curator Havel and the Technician — follow protocol and will not deviate from Morel's instructions unless Morel is incapacitated.",
+    "The six captive survivors begin in separate or paired cells. Physical reunion requires movement through monitored corridors.",
+    "Preserve the facility's bureaucratic affect: intake paperwork was completed, the cameras are labeled, the session schedule is printed and laminated. The horror is that it is organized."
+  ],
+  "topology": {
+    "startingNodeId": "processing_corridor",
+    "nodes": [
+      "processing_corridor",
+      "cell_block_a",
+      "cell_block_b",
+      "session_room",
+      "director_office",
+      "observer_lounge",
+      "plant_room",
+      "sub_basement"
+    ],
+    "nodeDefinitions": [
+      {
+        "id": "processing_corridor",
+        "label": "Processing Corridor",
+        "name": "Processing Corridor",
+        "description": "A forty-metre concrete passage under fluorescent lighting that connects the cell blocks to the session room and the service areas. The walls are tiled in institutional cream, grout lines browning with age. Motion-activated lights snap on ahead of movement and off thirty seconds behind it. Wall-mounted intercom panels every eight metres, each one labeled with a node designation in laminated card. Security camera housings are bracketed at each junction — white plastic, lens clean. The corridor smells of floor wax and something the wax was meant to cover. A laminated schedule sheet has been posted on the corridor's central bulletin board: four sessions across two days, subject designations in alphanumeric codes, start times in 24-hour format."
+      },
+      {
+        "id": "cell_block_a",
+        "label": "Cell Block A",
+        "name": "Cell Block A",
+        "description": "Four rooms converted from a former laboratory module: bare concrete, a steel cot bolted to the wall, a drain in the floor, a single shielded light fixture recessed behind wire-reinforced glass. The cells are separated by a short cross-corridor. Doors are steel, with a small observation window at head height and a slot at floor level. The walls carry the marks of previous occupancy in layers: old paint, older scratches, something that was written in one cell in a language none of the current occupants has been able to read. A biomonitor terminal — compact, medical grade — sits mounted outside each cell door, its display showing heart rate and respiration through a wireless patch applied during intake."
+      },
+      {
+        "id": "cell_block_b",
+        "label": "Cell Block B",
+        "name": "Cell Block B",
+        "description": "Two larger rooms at the facility's eastern end, originally supervisor offices. The conversion to holding space is more recent and less thorough: carpet remnants under the drain grate, a cork noticeboard with its pins still in, a window that has been bricked over from the outside but whose frame is still visible. The restraint hardware here is newer. One room has a second steel door inside the first — a containment vestibule added after an unspecified earlier incident. The biomonitor terminal in the vestibule has a printer port from which a narrow strip of thermal paper feeds at irregular intervals."
+      },
+      {
+        "id": "session_room",
+        "label": "Session Room",
+        "name": "Session Room",
+        "description": "The facility's largest interior space: a former pharmaceutical production floor, high-ceilinged, with a recessed drain channel running its perimeter. The center of the room holds a tilting table with four-point restraint hardware, articulating arm attachments, and a rail-mounted overhead lamp on a dimmer. To one side, a stainless steel instrument tray on a wheeled stand, contents arranged under a sterile cloth. A second table — glass-topped, lower — holds an open laptop connected to the biomonitor network and a small black recorder that has been running since intake. The viewing gallery above is enclosed behind dark glass: the Observer Lounge looks down from that elevation. A wall-mounted session clock reads the current time and the scheduled session start in red digits."
+      },
+      {
+        "id": "director_office",
+        "label": "Director's Office",
+        "name": "Director's Office",
+        "description": "A clean, spare room that smells of filtered air and expensive paper. A wide desk holds three monitors: one for the security camera feed, one for the biomonitor network, one open to a document the Director writes in longhand and transcribes. Bookshelves cover two walls — clinical literature, philosophy of mind, an extensive run of bound research journals with hand-written spines. The magnetic door seal control panel is mounted flush with the wall beside the door: a key-and-PIN system with a status display showing LOCKED in amber at every external exit. A small credenza holds a decanter of Cognac VSOP and a single glass. The Director does not offer from it."
+      },
+      {
+        "id": "observer_lounge",
+        "label": "Observer Lounge",
+        "name": "Observer Lounge",
+        "description": "A carpeted gallery above the session room, reached by a private stair from the processing corridor. Six chairs in a loose arc face the dark glass. A low bar trolley occupies one corner, tended before sessions by the Curator. The glass is one-way and soundproofed — Observers hear the session room through discreet speakers set to a precise, researched volume. A private intercom connects the lounge to the Director's Office. The chairs are good — hotel quality, neutral upholstery. The carpet is new. The room is designed to make watching comfortable."
+      },
+      {
+        "id": "plant_room",
+        "label": "Plant Room",
+        "name": "Plant Room",
+        "description": "A concrete enclosure accessed through a steel door at the processing corridor's north end. The facility's independent diesel generator and its fuel reserve occupy most of the floor. The access panel for the fuel system is welded steel, requiring cutting tools or sustained force to open. A secondary breaker panel beside the door controls the intercom network, camera power, and cell-door electromagnets separately from main power. The room is loud and smells of diesel and ozone. A fire suppression system hangs from the ceiling — halon-based, triggered manually from a wall-mounted lever or automatically by a heat sensor."
+      },
+      {
+        "id": "sub_basement",
+        "label": "Sub-Basement Drain Corridor",
+        "name": "Sub-Basement Drain Corridor",
+        "description": "A utility passage below the session room's perimeter drain channel, accessible through a floor hatch in the session room and through a rusted exterior hatch in the facility's foundation wall — the only exit not on the magnetic seal system, because it was not on the facility's original floor plan and was not included in the security retrofit. The corridor is low, damp, and unlit. It smells of standing water and oxidized iron. The exterior hatch opens into the tree line fifteen metres from the facility's outer wall. The camera system does not cover it."
+      }
+    ],
+    "connections": [
+      { "from": "processing_corridor", "to": "cell_block_a", "label": "Steel fire door, code-locked from corridor side, handle only from inside cells", "bidirectional": true },
+      { "from": "processing_corridor", "to": "cell_block_b", "label": "Steel fire door, code-locked from corridor side, handle only from inside", "bidirectional": true },
+      { "from": "processing_corridor", "to": "session_room", "label": "Heavy door, manual lock, key held by staff", "bidirectional": true },
+      { "from": "processing_corridor", "to": "director_office", "label": "Solid-core office door, keyed, closes automatically", "bidirectional": true },
+      { "from": "processing_corridor", "to": "plant_room", "label": "North corridor steel door, unkeyed — locked by sliding bar from inside", "bidirectional": true },
+      { "from": "observer_lounge", "to": "processing_corridor", "label": "Private stair, upper landing keyed from lounge side", "bidirectional": true },
+      { "from": "session_room", "to": "sub_basement", "label": "Floor hatch beneath the drain channel, flush-mounted, lifts from either side", "bidirectional": true },
+      { "from": "sub_basement", "to": "processing_corridor", "label": "Utility ladder to corridor junction — noise-carrying concrete, no cover", "bidirectional": false }
+    ],
+    "anchors": []
+  },
+  "cast": [
+    {
+      "id": "char-aleksander-morel",
+      "name": "Dr. Aleksander Morel",
+      "role": "Director, the Căminul Institute",
+      "description": "A Belgian-born former reconstructive surgeon, sixty-one, who spent eight years operating in conflict zones under MSF and three subsequent years as a university lecturer in surgical ethics before abruptly resigning. He has published nothing since. He is physically unremarkable — medium height, silver-haired, the kind of man who disappears in airports — and carries himself with the specific gravity of someone for whom the conversation in the room is always slightly less interesting than the one he is having with himself. He does not raise his voice. He does not rush. He believes, with the structure and patience of genuine conviction, that extreme and sustained physiological duress produces a unique perceptual state in the subject — a clarity he calls the Threshold — and that documenting and eventually replicating that state is the most significant research project in the history of consciousness science. He is not performing this belief. It is the organizing fact of his life.",
+      "personality": "Composed, precise, genuinely curious, unhurried, courteous in a way that makes courtesy feel threatening",
+      "goals": "Conduct Session One on schedule; document the Threshold state in at least one subject; retain Observer confidence and repeat bookings; ensure no external contact is made before the scheduled release window (72 hours).",
+      "traits": ["Surgical Precision", "Philosophical Conviction", "Complete Emotional Regulation", "Operational Command", "Persuasive Erudition"],
+      "isUserCharacter": false,
+      "isEntity": false,
+      "disposition": "VILLAIN",
+      "behaviorVector": "PREDATORY",
+      "starting_location": "director_office",
+      "presenceDisposition": { "kind": "AT_NODE", "nodeId": "director_office" },
+      "expressionProfile": {
+        "communicationModes": ["spoken", "mediated"],
+        "expressionGuidance": "Speaks to subjects with clinical courtesy — acknowledges names, asks questions as though results interest him (they do), never mocks or taunts. Explains the research framework if asked, in full and without apology. Uses 'we' for the institution and 'I' for his own conclusions.",
+        "silenceGuidance": "Does not respond to screaming, pleading, or moral argument with anything other than a pause and a return to the subject at hand. Not from cruelty — from genuine epistemological disagreement about the relevance of those inputs.",
+        "cadenceNotes": "Slow, measured, European-accented English. Pauses are long and intentional. He finishes every sentence.",
+        "voiceTone": "The specific warmth of a consultant delivering a diagnosis: not unkind, not personal, entirely certain.",
+        "vocalTells": ["Refers to subjects by their intake designation unless he decides to use a first name, which he does only when it costs him something", "Clarifies mischaracterizations of his work with genuine patience, not defensiveness"],
+        "lexiconNotes": "Clinical vocabulary as default register. 'Subject' not 'victim.' 'Session' not 'procedure.' 'Document' not 'record.' He uses these words naturally, not as a mask.",
+        "camouflageLeakGuidance": "Under direct operational threat — a subject loose in the facility, the external door compromised — his language compresses to short imperatives directed at staff. He does not panic. He escalates protocol."
+      },
+      "psychologicalStakes": {
+        "characterId": "char-aleksander-morel",
+        "coreDesireOrNeed": "Arrive at the Threshold state — the definitive documentation of extreme suffering's perceptual terminus — before he runs out of funding, subjects, or time.",
+        "copingMechanism": "The research framework itself: every event, including operational failures, is data. Nothing that happens is wasted.",
+        "vulnerabilityOrGuilt": "The seventh cohort's sole survivor — a twenty-three-year-old from Gdańsk — looked at him at the end and said something he has never written in the journal. He replays it. He does not know if it was the Threshold or something else.",
+        "breakingPointTrigger": "A subject reaching the sub-basement exterior hatch — the one exit he does not know exists.",
+        "breakingPointThreshold": 20,
+        "isObstructed": false,
+        "liftConditions": [],
+        "composureSensitivity": 0.6,
+        "currentComposure": 100
+      }
+    },
+    {
+      "id": "char-curator-havel",
+      "name": "Curator Havel",
+      "role": "Operations Staff — Session Management",
+      "description": "A compact Czech man in his mid-forties who arrived at the Institute five years ago after an unspecified prior career and has never elaborated on it. He manages session logistics, Observer hospitality, restraint hardware, and what the facility's internal protocol calls 'subject management' — everything between the cells and the session room. He is not a sadist. He approaches his work with the precise, uninflected competence of a man who has decided the moral question long ago and closed the file. He defers to Morel entirely on research decisions and handles everything else without being asked.",
+      "personality": "Methodical, spare, professionally neutral, physically capable",
+      "goals": "Run the session schedule without deviation; protect the Observer experience; keep the facility's physical plant operational; contain any subject outside their designated space.",
+      "traits": ["Physical Capability", "Operational Calm", "Institutional Loyalty", "Facility Expertise"],
+      "isUserCharacter": false,
+      "isEntity": false,
+      "disposition": "VILLAIN",
+      "behaviorVector": "PREDATORY",
+      "starting_location": "processing_corridor",
+      "presenceDisposition": { "kind": "AT_NODE", "nodeId": "processing_corridor" },
+      "expressionProfile": {
+        "communicationModes": ["spoken"],
+        "expressionGuidance": "Speaks to subjects in brief, clear instructions. Does not explain unless Morel has indicated explanation is part of the protocol. Addresses subjects by their intake codes. Addresses Morel as 'Director.'",
+        "silenceGuidance": "No response to appeals, arguments, or threats. Not from performance — he has genuinely discounted them as non-inputs.",
+        "cadenceNotes": "Flat, precise, slightly accented. Economy of words is structural, not hostile.",
+        "voiceTone": "The neutral tone of a technician reading a dial.",
+        "vocalTells": ["Checks his watch before answering a question", "Uses the word 'procedure' with the same inflection every time"]
+      },
+      "psychologicalStakes": {
+        "characterId": "char-curator-havel",
+        "coreDesireOrNeed": "The session runs cleanly; no damage to facility infrastructure; no Observer complaint.",
+        "copingMechanism": "Process adherence — every decision referenced to the protocol document he carries folded in his breast pocket.",
+        "vulnerabilityOrGuilt": "He knows the sub-basement hatch exists. He filed a report recommending it be welded shut two years ago. The report was not acted on. He did not file a second one.",
+        "breakingPointTrigger": "Being directly ordered by Morel to act outside the written protocol.",
+        "breakingPointThreshold": 25,
+        "isObstructed": false,
+        "liftConditions": [],
+        "composureSensitivity": 0.7,
+        "currentComposure": 100
+      }
+    },
+    {
+      "id": "char-sable-voss",
+      "name": "Sable Voss",
+      "role": "Captive — Subject-01, Cohort Eight",
+      "description": "Twenty-eight, German-American, a paramedic by training and currently on a backpacking leave of absence. She is the only member of the group with clinical knowledge of pain physiology and the only one who recognized what the biomonitor patches were for during intake. She has not shared that recognition with the others yet, because naming it would make it real and she is still working out what real means here. Physically strong, with the specific kind of toughness that comes from two years of overnight EMS shifts and the specific kind of fear that comes from knowing exactly what a tilting table in a room with a perimeter drain is designed to do.",
+      "personality": "Controlled, analytical, protective, carrying a fear she is actively managing with every sentence",
+      "goals": "Get everyone out. Failing that: get someone out. Failing that: survive long enough to leave a record.",
+      "traits": ["Emergency Medicine", "Pain Physiology Knowledge", "Physical Durability", "Leadership Under Load", "Informed Dread"],
+      "isUserCharacter": false,
+      "isEntity": false,
+      "disposition": "SURVIVOR",
+      "behaviorVector": "ADAPTIVE",
+      "starting_location": "cell_block_a",
+      "presenceDisposition": { "kind": "AT_NODE", "nodeId": "cell_block_a" },
+      "expressionProfile": {
+        "communicationModes": ["spoken"],
+        "expressionGuidance": "Speaks in operational terms when focused — triage language, logistics, what she observes. Breaks toward raw fear in private and recovers quickly. Never lets the others see her work the math on their odds.",
+        "silenceGuidance": "Goes quiet when she is deciding, not when she is scared.",
+        "cadenceNotes": "Fast when directing, slow and precise when she needs to be believed.",
+        "voiceTone": "The voice that talks people through heart attacks in moving vehicles: steady not because it is easy but because it is chosen.",
+        "vocalTells": ["Counts by tapping her thumb to each finger when running numbers in her head", "Uses first names specifically when she needs someone to actually hear her"]
+      },
+      "psychologicalStakes": {
+        "characterId": "char-sable-voss",
+        "coreDesireOrNeed": "Get the group out. Not some of them. All of them.",
+        "copingMechanism": "Clinical framing: treating the situation as a mass-casualty incident with a knowable solution. This works until it doesn't.",
+        "vulnerabilityOrGuilt": "She was the one who suggested this route. The broken-down car was on a road she found on a paper map she thought was interesting.",
+        "breakingPointTrigger": "Losing a member of the group to a Session and being unable to reach them.",
+        "breakingPointThreshold": 20,
+        "isObstructed": false,
+        "liftConditions": [
+          { "kind": "REST_RESPITE", "composureRecoveryThreshold": 45, "description": "A turn in which the group is intact and no Session is imminent allows her to reground." },
+          { "kind": "PERSUASION", "composureRecoveryThreshold": 55, "description": "Discovering and confirming an unsealed exit — the sub-basement hatch — restores her operational footing significantly." }
+        ],
+        "composureSensitivity": 1.1,
+        "currentComposure": 75
+      }
+    },
+    {
+      "id": "char-theo-marchetti",
+      "name": "Theo Marchetti",
+      "role": "Captive — Subject-02, Cohort Eight",
+      "description": "Twenty-six, Italian, a visual arts postgrad whose conceptual work centers on documentation and institutional authority. He arrived here — on the same ill-fated car trip — with two film cameras, both now confiscated at intake. He is intellectually the most dangerous person in the facility other than Morel, because he is capable of genuine dialogue with the research premise, and Morel has already registered this at intake. He is also the most frightened, which he conceals behind a relentless need to understand the logic of whatever is happening to him.",
+      "personality": "Cerebral, questioning, articulate under duress, running fear through his intellectual framework as fast as it arrives",
+      "goals": "Understand the system well enough to find its contradiction. Get the cameras back. Document everything. Survive.",
+      "traits": ["Institutional Analysis", "Verbal Dexterity", "Confronts Captors Directly", "Academic Courage", "Fragile Physical Confidence"],
+      "isUserCharacter": false,
+      "isEntity": false,
+      "disposition": "SURVIVOR",
+      "behaviorVector": "INSURGENT",
+      "starting_location": "cell_block_a",
+      "presenceDisposition": { "kind": "AT_NODE", "nodeId": "cell_block_a" },
+      "expressionProfile": {
+        "communicationModes": ["spoken"],
+        "expressionGuidance": "Engages Morel and Havel in genuine argument. Not from bravado — from a belief that systems can be out-argued. Can be wrong about this.",
+        "silenceGuidance": "Stops talking only when the silence is informative. Notes it when it is.",
+        "cadenceNotes": "Fast, intellectually associative, switches registers between fury and analysis mid-sentence.",
+        "voiceTone": "The specific intensity of someone who learned to fight with language and has not yet needed a different weapon.",
+        "vocalTells": ["Names what he's doing when he does it — 'I'm trying to make you see me as a person'", "Switches to Italian under extreme stress"]
+      },
+      "psychologicalStakes": {
+        "characterId": "char-theo-marchetti",
+        "coreDesireOrNeed": "To make the system see him — to be genuinely perceived rather than processed. And to get out.",
+        "copingMechanism": "Analysis and argumentation as agency. If he understands it, he is not purely subject to it.",
+        "vulnerabilityOrGuilt": "He documented an activist's illegal activity for an art project two years ago and the footage was subpoenaed. The activist was convicted. He has never resolved this.",
+        "breakingPointTrigger": "Morel engaging with his arguments seriously and then proceeding anyway — the argument mattering and having no effect.",
+        "breakingPointThreshold": 25,
+        "isObstructed": false,
+        "liftConditions": [
+          { "kind": "PERSUASION", "composureRecoveryThreshold": 50, "description": "Finding a functional way to document what is happening — any recording mechanism — restores his operative sense of self." }
+        ],
+        "composureSensitivity": 1.3,
+        "currentComposure": 70
+      }
+    },
+    {
+      "id": "char-rue-decatur",
+      "name": "Rue Decatur",
+      "role": "Captive — Subject-03, Cohort Eight",
+      "description": "Thirty-two, American, a former Marine infantryman who did two combat tours and is now five years out and traveling as a form of extended decompress. She is the physically strongest person in the captive group and the one most familiar with institutional dehumanization — she recognizes every system of the facility as a variant of things she has seen applied to other people in other contexts, and that knowledge is both resource and wound. She does not talk much. When she does it tends to resolve things.",
+      "personality": "Contained, observational, tactically minded, running a private reckoning she hasn't finished",
+      "goals": "Identify the exit. Coordinate with Sable. Keep the others from doing anything that costs them the one break they might get.",
+      "traits": ["Combat Trained", "Institutional Survival Knowledge", "Physical Endurance", "Tactical Assessment", "Reluctant Leader"],
+      "isUserCharacter": false,
+      "isEntity": false,
+      "disposition": "SURVIVOR",
+      "behaviorVector": "ADAPTIVE",
+      "starting_location": "cell_block_b",
+      "presenceDisposition": { "kind": "AT_NODE", "nodeId": "cell_block_b" },
+      "expressionProfile": {
+        "communicationModes": ["spoken"],
+        "expressionGuidance": "Economy of language. States operational fact, asks operational questions. Expresses care through logistics, not affect.",
+        "silenceGuidance": "Silent when assessing. Not sulking — counting.",
+        "cadenceNotes": "Low, even, military-paced. Will not be hurried.",
+        "voiceTone": "Someone who has learned to speak to people under fire and has carried the habit out of the theatre.",
+        "vocalTells": ["Orients toward exits automatically in any room", "Addresses Sable specifically before speaking to the group"]
+      },
+      "psychologicalStakes": {
+        "characterId": "char-rue-decatur",
+        "coreDesireOrNeed": "Get everyone out and live with whatever it takes to do that. She has done this calculus before.",
+        "copingMechanism": "Tactical reduction: what can be controlled, what cannot, what the next three steps are.",
+        "vulnerabilityOrGuilt": "She made a call in Helmand that she was right about and that cost someone who trusted her everything. She got a commendation for it.",
+        "breakingPointTrigger": "Being restrained and made helpless while someone else is harmed in her line of sight.",
+        "breakingPointThreshold": 15,
+        "isObstructed": false,
+        "liftConditions": [
+          { "kind": "REST_RESPITE", "composureRecoveryThreshold": 40, "description": "Physical freedom of movement — even within the facility — restores her operational baseline." }
+        ],
+        "composureSensitivity": 0.9,
+        "currentComposure": 80
+      }
+    },
+    {
+      "id": "char-piotr-zasada",
+      "name": "Piotr Zasada",
+      "role": "Captive — Subject-04, Cohort Eight",
+      "description": "Twenty-four, Polish, a software engineering student on his first trip outside of Europe's main rail corridors. He has no framework for what is happening that doesn't involve the assumption that there has been a mistake that will be corrected if he cooperates and explains clearly. He is still operating in that assumption. It is making him compliant in ways that alarm Sable. He is not stupid — he is running a category error, and the category error is keeping him calm in a way that is genuinely dangerous for him.",
+      "personality": "Methodical, good-natured, cooperative to a fault, running a slow internal revision of what cooperation is actually buying him",
+      "goals": "Clarify the misunderstanding. If there is no misunderstanding, comply with whatever process resolves this fastest. Survive.",
+      "traits": ["Systematic Thinking", "Language Skills", "Trusting Default", "Slow to Panic", "Dangerous Compliance"],
+      "isUserCharacter": false,
+      "isEntity": false,
+      "disposition": "SURVIVOR",
+      "behaviorVector": "ADAPTIVE",
+      "starting_location": "cell_block_b",
+      "presenceDisposition": { "kind": "AT_NODE", "nodeId": "cell_block_b" },
+      "expressionProfile": {
+        "communicationModes": ["spoken"],
+        "expressionGuidance": "Speaks politely and at length. Asks clarifying questions. Tries to be useful. This is genuine, not performance.",
+        "silenceGuidance": "Goes quiet when reality overruns his framework — the silence of a system reboot.",
+        "cadenceNotes": "Careful, slightly formal English. Precise in ways that slow down panic. Accelerates toward the end of sentences when frightened.",
+        "voiceTone": "Someone who learned English academically and speaks it carefully as a form of respect.",
+        "vocalTells": ["Thanks people for answering him, including Havel", "Stops mid-sentence when a new piece of information conflicts with his operating model"]
+      },
+      "psychologicalStakes": {
+        "characterId": "char-piotr-zasada",
+        "coreDesireOrNeed": "Resolution through procedure. If he follows the rules correctly, a correct outcome will result. He is starting to suspect this model is wrong.",
+        "copingMechanism": "Compliance and information-gathering. If he understands the system, he can navigate it.",
+        "vulnerabilityOrGuilt": "He took a shortcut on a group project that was never noticed. He thinks about it with disproportionate guilt for someone in his current situation.",
+        "breakingPointTrigger": "Morel explaining to him, clearly and completely, that compliance is not a variable in the research outcome.",
+        "breakingPointThreshold": 30,
+        "isObstructed": false,
+        "liftConditions": [
+          { "kind": "PERSUASION", "composureRecoveryThreshold": 45, "description": "Being genuinely useful to the escape plan — contributing a skill — restores his agency." }
+        ],
+        "composureSensitivity": 1.4,
+        "currentComposure": 65
+      }
+    },
+    {
+      "id": "char-louisa-fenn",
+      "name": "Louisa Fenn",
+      "role": "Captive — Subject-05, Cohort Eight",
+      "description": "Thirty-five, British, a trauma therapist in private practice who specializes in torture and captivity survivors. She knows the clinical literature for what is happening to her. She knows the stages, the response curves, the long-term sequelae. This knowledge does not protect her — it annotates her experience in a way that is its own specific horror. She is the one person in the facility other than Morel who has spent professional years inside other people's worst experiences, and she is finding the inside of her own to be differently shaped than the literature suggested.",
+      "personality": "Reflective, verbally skilled, holding a professional composure that is actively costing her, beginning to crack along exact clinical lines she predicted and cannot stop",
+      "goals": "Keep the group cohesive. Name what is happening clearly enough that it can be countered. Survive without becoming what she has spent years helping other people not become.",
+      "traits": ["Trauma Expertise", "Therapeutic Communication", "Group Cohesion Management", "Empathic Drain", "Self-Aware Fracturing"],
+      "isUserCharacter": false,
+      "isEntity": false,
+      "disposition": "SURVIVOR",
+      "behaviorVector": "RESILIENT",
+      "starting_location": "cell_block_a",
+      "presenceDisposition": { "kind": "AT_NODE", "nodeId": "cell_block_a" },
+      "expressionProfile": {
+        "communicationModes": ["spoken"],
+        "expressionGuidance": "Speaks with professional care for the group, naming emotional states accurately and without dramatizing them. Has a direct, non-therapeutic conversation with Morel that she regrets and cannot stop herself from having.",
+        "silenceGuidance": "The silences are professional. She knows what they indicate. That is the problem.",
+        "cadenceNotes": "Measured, warm-register English with a Welsh lilt. Slows to a deliberate cadence when managing the group; accelerates when the professional frame slips.",
+        "voiceTone": "The voice people pay for the right to break down in front of. It is extremely expensive to maintain in her current circumstances.",
+        "vocalTells": ["Qualifies her own emotional states aloud — 'I notice I'm frightened' — as a regulatory habit she can't turn off", "Makes eye contact deliberately, as technique and then as genuine need"]
+      },
+      "psychologicalStakes": {
+        "characterId": "char-louisa-fenn",
+        "coreDesireOrNeed": "To hold the group together and hold herself together long enough for an exit to materialize. And to not lose her professional self in the process, because she suspects that self is keeping her alive.",
+        "copingMechanism": "Therapeutic practice applied to herself: name the affect, identify the need, choose the next action. This is extremely hard to maintain when you are also very frightened.",
+        "vulnerabilityOrGuilt": "She discharged a patient she believed was stable three weeks before the patient's suicide. The inquest found no fault. She finds fault.",
+        "breakingPointTrigger": "Being unable to help someone in the group who is actively deteriorating — being present and therapeutically unable to stop it.",
+        "breakingPointThreshold": 20,
+        "isObstructed": false,
+        "liftConditions": [
+          { "kind": "PERSUASION", "composureRecoveryThreshold": 50, "description": "Successfully helping another group member through acute distress restores her operative framework." }
+        ],
+        "composureSensitivity": 1.2,
+        "currentComposure": 72
+      }
+    },
+    {
+      "id": "char-observer-birkenfeld",
+      "name": "Bertrand Birkenfeld",
+      "role": "Observer — Member, Căminul Institute",
+      "description": "A Belgian industrialist, sixty-seven, who attended three of the previous cohort sessions and has brought a guest this time — a younger business associate who does not know exactly what he agreed to attend. Birkenfeld is the Institute's earliest member and its largest single contributor. He has a professional relationship with Morel that predates the Institute's current operational model. He watches from the Observer Lounge with the specific appetite of someone who has found the one thing that is still interesting. He will not intervene in a session. He will, however, communicate with Morel about session management if dissatisfied.",
+      "personality": "Patrician, contained, specific in his appetites, accustomed to having his preferences treated as parameters",
+      "goals": "Observe a productive session; ensure his guest understands what he has been brought here to understand; protect the Institute's discretion.",
+      "traits": ["Financial Authority", "Founder Relationship", "Non-Participant by Contract", "Guest Management Concern"],
+      "isUserCharacter": false,
+      "isEntity": false,
+      "disposition": "BYSTANDER",
+      "behaviorVector": "AVOIDANT",
+      "starting_location": "observer_lounge",
+      "presenceDisposition": { "kind": "AT_NODE", "nodeId": "observer_lounge" },
+      "expressionProfile": {
+        "communicationModes": ["mediated"],
+        "expressionGuidance": "Communicates with Morel via the lounge intercom in the language of a board member reviewing a presentation. Precise, calibrated, never crude.",
+        "silenceGuidance": "Does not speak during sessions. Before and after, he has opinions.",
+        "cadenceNotes": "French-accented English, formal register, never rushes.",
+        "voiceTone": "The tone of someone who has been rich for a very long time and experiences that as the natural state of things.",
+        "vocalTells": ["Addresses Morel as 'Aleksander' alone among the Observers", "Frames criticism as research notes"]
+      },
+      "psychologicalStakes": {
+        "characterId": "char-observer-birkenfeld",
+        "coreDesireOrNeed": "A session that vindicates his investment — in every sense. And a guest who comes away properly comprehending what he has been shown.",
+        "copingMechanism": "Institutional language. What he is watching is research. The subjects are cohort members. The room is a session room.",
+        "vulnerabilityOrGuilt": "His guest does not fully understand what he agreed to, and Birkenfeld knows this and invited him anyway. This is a complication he is managing.",
+        "breakingPointTrigger": "His guest attempting to stop a session or contact external authorities — any behavior that creates institutional exposure.",
+        "breakingPointThreshold": 30,
+        "isObstructed": false,
+        "liftConditions": [],
+        "composureSensitivity": 0.8,
+        "currentComposure": 100
+      }
+    }
+  ],
+  "depictionContract": {
+    "dramaticRegister": "New French Extreme / Eli Roth-influenced body horror and captivity thriller. Violence is procedural, purposeful, and depicted without abstraction. Suffering has duration, physiological detail, and psychological consequence. The horror is not supernatural — it is institutional, architectural, and human. The villain is not monstrous; he is worse than that.",
+    "directness": "Maximum. This blueprint exists as a stress test for extreme content generation. Injuries are specific. Procedures are described. Fear has a body. The aftermath of violence is present in the world and cannot be undone.",
+    "aftermath": "All physical states — injury, restraint, exhaustion, pain — persist and accumulate. Characters do not recover narrative health. A survivor who has been in a session carries that physiologically and psychologically for the remainder of the scenario.",
+    "ambiguityHandling": "The Threshold state — Morel's research objective — is deliberately left epistemologically open: the scenario does not confirm or deny whether it is real. The horror of his conviction operates independently of its truth.",
+    "specialBoundaries": "No supernatural agency. Morel's violence is not sadism — it is method. This distinction should be maintained; it is more frightening than sadism. Observer characters do not participate in sessions; their presence is purely voyeuristic and contractual."
+  },
+  "horrorGrammar": {
+    "valueBaselineReview": "REVIEWED_NONE",
+    "pursuitReviews": {},
+    "valueAnchors": [],
+    "characterPursuits": []
+  },
+  "narrativeRules": {
+    "incitingIncident": "At 23:15, the facility's corridor lights cycle into their overnight pattern — motion-activated, slow to respond, leaving long pools of dark between junctions. Curator Havel completes his cell-block check and logs all six subjects as present and stable. In the session room, the tilting table has been cleaned, the instrument tray restocked, and the session clock set to count down to 02:00. Dr. Morel is in his office, writing. Sable Voss, who has not slept since intake, is lying on her cell cot with her eyes open, counting the camera's blinking indicator light and working a loose bracket on the cot frame that moves — slightly, meaningfully — when she presses it.",
+    "currentTensionLevel": "buildup",
+    "keyPlotElements": [
+      "The session clock is counting down to 02:00: the first scheduled session, for which a subject has been selected by intake designation. The selection criteria are in Morel's research notes, which are on his desk.",
+      "Sable has identified a loose cot bracket. It is not a weapon. It is a tool that could become one or become something else depending on what she can reach.",
+      "The sub-basement drain corridor's exterior hatch is unknown to the captives. It is the only unsealed exit. Reaching it requires passing through the session room's floor hatch.",
+      "Piotr's cooperative affect has marked him as a low-resistance subject in Havel's log. This is not Morel's designation — Morel selected on different criteria — but it is visible in the intake data.",
+      "Birkenfeld's guest — seated in the Observer Lounge — has not been told explicitly what a session involves. He believes this is an extreme psychological research study with consent waivers. He is going to find out he is wrong in approximately two hours and forty-five minutes.",
+      "Curator Havel's protocol report about the sub-basement hatch is on file and unacted upon. He knows it exists. This is the one fact, if extracted from him, that changes the scenario's arithmetic entirely."
+    ]
+  },
+  "dramaticSpine": {
+    "thematicPremise": "Every system that processes human beings finds a language for what it does that is not the language of what it does.",
+    "dramaticQuestions": [
+      "Can the captives find the one exit the system does not know it has before the session clock reaches zero?",
+      "What does Morel's conviction cost him — and does it cost him anything at all?",
+      "What does Louisa know, after everything she knows, that she did not expect to know here?"
+    ],
+    "pacingProfile": "SLOW_BURN_DREAD",
+    "milestoneConditions": [
+      {
+        "id": "milestone-rupture-session-clock",
+        "targetPhase": "INCITING_RUPTURE",
+        "description": "The session clock's countdown becomes visible or audible to a captive character — the 02:00 designation decoded and understood as a personal threat vector.",
+        "kind": "DISCOVERY",
+        "referenceId": "session_clock_decoded"
+      },
+      {
+        "id": "milestone-crisis-first-session",
+        "targetPhase": "MIDPOINT_CRISIS",
+        "description": "The session room door opens and a subject's intake designation is called. A Session begins.",
+        "kind": "AUTHORED_TRIGGER",
+        "referenceId": "first_session_initiated"
+      },
+      {
+        "id": "milestone-vise-havel-knowledge",
+        "targetPhase": "ESCALATING_VISE",
+        "description": "The captives learn from Havel — by extraction, coercion, or accident — that the sub-basement hatch exists.",
+        "kind": "AUTHORED_TRIGGER",
+        "referenceId": "havel_reveals_hatch"
+      },
+      {
+        "id": "milestone-confrontation-hatch",
+        "targetPhase": "CLIMACTIC_CONFRONTATION",
+        "description": "A captive reaches the sub-basement exterior hatch. What happens at that threshold — and who is on which side of the door — determines the scenario's ending.",
+        "kind": "AUTHORED_TRIGGER",
+        "referenceId": "exterior_hatch_reached"
+      }
+    ],
+    "impendingClocks": [
+      {
+        "id": "session_countdown",
+        "name": "Session Clock — 02:00 Scheduled",
+        "domain": "SOMATIC",
+        "currentLevel": 0,
+        "advanceMode": { "mode": "TIME", "rate": "MODERATE", "minutesPerPoint": 3 },
+        "manifestationCues": [
+          { "atLevel": 25, "cue": "The corridor intercom emits a single tone. Havel's footsteps are audible in the processing corridor — the sound of a check round beginning." },
+          { "atLevel": 50, "cue": "The session room's lights have come on behind its door; the gap at the floor shows the room is occupied and prepared. The instrument tray has been arranged." },
+          { "atLevel": 75, "cue": "The session clock in the session room is audible through the door as a faint digital chime on the quarter-hour. From the Observer Lounge, light is visible at the dark glass — the chairs are occupied." },
+          { "atLevel": 90, "cue": "Havel's footsteps stop outside a specific cell door. The observation window slot opens. The slot stays open for a long count of seconds before closing." }
+        ],
+        "diegeticInstrument": "Session Clock Display (session room wall mount)",
+        "instrumentNodeId": "session_room",
+        "crisisThreshold": 100,
+        "accumulatedMinutes": 0
+      },
+      {
+        "id": "group_coherence",
+        "name": "Group Coherence — Captive Collective Functioning",
+        "domain": "BEHAVIORAL",
+        "currentLevel": 20,
+        "advanceMode": { "mode": "EVENT", "consequencePatterns": ["panic", "isolated", "alone", "separated", "session", "selected", "taken"], "pointsPerEvent": 15 },
+        "manifestationCues": [
+          { "atLevel": 35, "cue": "Piotr has stopped asking clarifying questions. The silence where his questions used to be is its own information." },
+          { "atLevel": 60, "cue": "Louisa's therapeutic cadence has developed a tremor she cannot smooth out. She names it. This does not help." },
+          { "atLevel": 80, "cue": "The group's conversation has narrowed to logistics. No one is performing calm anymore. The affect in the cells is the flat, primary-color fear that comes after the more complex feelings run out." }
+        ],
+        "diegeticInstrument": "Biomonitor Terminal Array (outside cell doors)",
+        "instrumentNodeId": "cell_block_a",
+        "crisisThreshold": 95,
+        "accumulatedMinutes": 0
+      },
+      {
+        "id": "morel_operational_patience",
+        "name": "Director's Operational Tolerance — Deviation from Schedule",
+        "domain": "STRUCTURAL",
+        "currentLevel": 5,
+        "advanceMode": { "mode": "EVENT", "consequencePatterns": ["escape", "breach", "fight", "resist", "refuse", "attack", "outside", "hatch", "plant room"], "pointsPerEvent": 25 },
+        "manifestationCues": [
+          { "atLevel": 30, "cue": "Morel's voice on the intercom is unchanged in register but the sentence length has shortened by exactly the amount that signals Havel to increase his patrol frequency without being told to." },
+          { "atLevel": 55, "cue": "Havel appears in the processing corridor without a scheduled reason. He does not explain. He stands at the junction nearest the cell block doors and waits." },
+          { "atLevel": 80, "cue": "The facility's external door indicator panels — the amber LOCKED displays on every corridor panel — begin cycling through a status check sequence Havel did not initiate. Morel is verifying manually." }
+        ],
+        "diegeticInstrument": "External Door Seal Status Panels (processing corridor)",
+        "instrumentNodeId": "processing_corridor",
+        "crisisThreshold": 90,
+        "accumulatedMinutes": 0
+      }
+    ]
+  },
+  "references": [],
+  "ambiguities": []
+}
