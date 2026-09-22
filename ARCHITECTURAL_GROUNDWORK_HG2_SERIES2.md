@@ -51,21 +51,44 @@ Two custom subagent specifications are registered and ready for invocation via `
 
 ---
 
-## 3. Post-Reset Execution Sequence
+## 3. Post-Reset Execution Sequence (First Patch Post-Reset)
 
-When API usage resets, proceed with the remaining steps in the approved sequence:
+The pre-reset groundwork commits (`45f57aa` and `f3b6b18`) are already landed locally on `main`:
+- `45f57aa`: Packets D, A, C, and B (Mortuary HG2 fueling, anti-catatonia filtering, NPC initiative, and bounded envelope retry).
+- `f3b6b18`: Forge prompt pruning and local reasoning budget exhaustion suppression.
+
+When API usage limits reset, the **First Patch Post-Reset** will execute the following two architectural additions alongside the verification proof run:
 
 ```
-[Packets D, A, C Landed] ---> [Packet B: Envelope Retry] ---> [20-Turn Proof Run]
-(Blueprints, prompts,         (Single bounded retry          (Headless villain run
- filters, and tests drafted)   in aiClient.ts)                on fueled Mortuary)
+[Defensive castMemberId Recovery] ---> [Forge Unified Detail Pass] ---> [20-Turn Proof Run]
+(Auto-infer castMemberId from           (Macro -> Detail pass           (Headless villain run
+ authorityReferences / aims)             candidate staging pipeline)     on fueled Mortuary)
 ```
 
-### Immediate Next Steps on Reset:
-1. **Run Vitest**: Verify `black_iron_mortuary.test.ts` and `cleanSimulatedAction.test.ts` pass cleanly (`npm test`).
-2. **Commit Groundwork**: `git commit -m "feat(hg2): fuel Black Iron Mortuary, harden autopilot anti-catatonia, and strengthen NPC initiative"`.
-3. **Execute Packet B**:
-   - Implement the 2-attempt envelope retry in `server/utils/aiClient.ts:generateStructuredResponse`.
-   - Add retry unit tests in `server/utils/aiClient.test.ts`.
-4. **Launch Proof Run**:
-   - Run the 20-turn headless autopilot villain proof run on the fueled Black Iron Mortuary and generate the telemetry report.
+### Feature 1: Defensive Auto-Recovery for `cast_activity_proposal.castMemberId`
+- **Problem Surfaced in Magnum v4 Testing**:
+  - Magnum v4-12B generates valid JSON at ~58 tok/s and actively proposes NPC actions with full lore grounding.
+  - However, it outputs `authorityReferences: ["[aim-char-entity-41] ... Owner: char-entity-41"]` while omitting the top-level property `"castMemberId"`.
+  - The turn normalizer (`server/ai/geminiTurnTransport.ts`) synthesizes `proposalId` and `perceptionPath`, but lacks auto-recovery for `castMemberId`, causing Zod rejection and failed retries.
+- **Implementation**:
+  - In `normalizeCastActivityProposal` (`server/ai/geminiTurnTransport.ts`), when `kind === 'ACTIVITY'` and `castMemberId` is omitted:
+    1. Parse `authorityReferences` via regex for `Owner:\s*([a-zA-Z0-9_-]+)` or `\[aim-([a-zA-Z0-9_-]+)\]`.
+    2. Check `activitySummary` for known cast IDs.
+    3. Fall back to active non-player / entity cast member in the scenario roster.
+  - Add unit tests in `server/ai/geminiTurnTransport.test.ts` ensuring models that omit explicit top-level `castMemberId` pass envelope validation seamlessly.
+
+### Feature 2: Forge Unified "Forensic Detail Pass" Mechanic
+- **Problem**:
+  - Single-pass extraction over-stretches local and cloud models, causing them to capture only the skeletal outline (premise, 2 cast, 3 rooms) while missing peripheral victims, sub-chambers, ventilation flues, and psychological stakes.
+- **Implementation**:
+  - **Backend**: Add `/api/extract-detail-pass` in `server/routes/forge.ts`.
+    - Accepts existing draft blueprint + reference source text.
+    - Uses negative prompting (`"You have already captured [Chambers X, Y] and [Cast A, B]. Scan the reference text exclusively for uncaptured secondary cast, locked chambers, crawlspaces, environmental hazards, and psychological secrets"`).
+  - **Store & UI**:
+    - Update `useForgeStore.ts` with `runDetailPass()` action.
+    - In the Ingress / Candidate Staging view, render a prominent action: **`[EXECUTE FORENSIC DETAIL PASS]`**.
+    - Stage newly unearthed items into the existing candidate table with a distinctive **`Pass 2`** badge, enabling non-destructive review, editing, and acceptance.
+
+### Verification & Proof Run:
+1. **Full Test Suite**: Verify all existing tests (1,553 tests across 126 files) plus new tests pass cleanly.
+2. **20-Turn Proof Run**: Execute the headless autopilot villain run on *The Black Iron Mortuary* and publish telemetry report.
