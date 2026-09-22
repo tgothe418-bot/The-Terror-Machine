@@ -2284,3 +2284,131 @@ export const exportEngineLog = (
   document.body.removeChild(downloadLink);
   URL.revokeObjectURL(url);
 };
+
+/**
+ * Builds pure literary Markdown of the scenario session, completely stripped
+ * of raw JSON receipts, engine thoughts, and telemetry hashes.
+ */
+export const buildChronicleProseContent = (
+  messages: any[],
+  blueprint?: any,
+  capturedAt: Date = new Date()
+): { content: string; mimeType: string; filename: string } | null => {
+  if (!messages || messages.length === 0) {
+    return null;
+  }
+
+  const recordedReceipt = messages.find((m) => m?.contextReceipt)?.contextReceipt;
+  const scenarioTitle =
+    blueprint?.identity?.title ||
+    blueprint?.title ||
+    blueprint?.setting?.location ||
+    recordedReceipt?.scenarioTitle ||
+    'The Terror Machine';
+
+  const setting =
+    blueprint?.setting?.location ||
+    blueprint?.thematicPremise ||
+    blueprint?.identity?.subtitle ||
+    '';
+
+  const dateFormatted = capturedAt.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+
+  let content = `# ${scenarioTitle}\n`;
+  if (setting) {
+    content += `*${setting}*\n`;
+  }
+  content += `\n*Chronicle inscribed: ${dateFormatted}*\n\n---\n\n`;
+
+  const resolveUserLabel = (msg: any): string => {
+    if (msg.userCharacterName) return msg.userCharacterName;
+    if (recordedReceipt?.resolvedPlayerName) return recordedReceipt.resolvedPlayerName;
+    if (recordedReceipt?.selectedRole) return String(recordedReceipt.selectedRole).toUpperCase();
+    if (blueprint?.cast && Array.isArray(blueprint.cast)) {
+      const userChar = blueprint.cast.find((c: any) => c.isUserCharacter);
+      if (userChar?.name) return userChar.name;
+    }
+    return 'Protagonist';
+  };
+
+  messages.forEach((msg) => {
+    if (msg.role === 'user') {
+      const userCharName = resolveUserLabel(msg);
+      const cleanInput = typeof msg.content === 'string'
+        ? msg.content.replace(/^\[USER_ACTION:\s*([^\]]+)\]/i, '$1').trim()
+        : String(msg.content || '').trim();
+      if (cleanInput) {
+        content += `> **${userCharName}** — *${cleanInput}*\n\n`;
+      }
+    } else {
+      const blocks = Array.isArray(msg.content) ? msg.content : msg.blocks || [];
+      if (blocks.length > 0) {
+        blocks.forEach((block: any) => {
+          if (block.type === 'engine_thoughts') return;
+          if (block.type === 'dialogue' && block.speaker) {
+            const cleanSpoken = String(block.content || '').replace(/^["“”']|["“”']$/g, '');
+            content += `**${block.speaker}**:\n"${cleanSpoken}"\n\n`;
+          } else if (block.type === 'internal_monologue' && block.speaker) {
+            content += `*${block.speaker} considers:*\n*${block.content}*\n\n`;
+          } else if (block.type === 'soliloquy' && block.speaker) {
+            const cleanSpoken = String(block.content || '').replace(/^["“”']|["“”']$/g, '');
+            content += `*${block.speaker} mutters softly:*\n"${cleanSpoken}"\n\n`;
+          } else if (block.type === 'system_voice') {
+            content += `> *${block.content}*\n\n`;
+          } else if (block.type === 'transmission' && block.speaker) {
+            content += `**[ TRANSMISSION // ${block.speaker} ]**\n> "${block.content}"\n\n`;
+          } else {
+            content += `${block.content}\n\n`;
+          }
+        });
+      } else if (typeof msg.content === 'string' && msg.content.trim()) {
+        content += `${msg.content}\n\n`;
+      }
+    }
+  });
+
+  const cleanSlug = (str?: string): string => {
+    if (!str || typeof str !== 'string') return '';
+    return str
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+  };
+
+  const titleSlug = cleanSlug(scenarioTitle) || 'scenario';
+  const timestampStr = capturedAt.toISOString().slice(0, 10);
+  const filename = `${titleSlug}_chronicle_${timestampStr}.md`;
+
+  return {
+    content,
+    mimeType: 'text/markdown;charset=utf-8;',
+    filename,
+  };
+};
+
+export const exportChronicleProse = (
+  messages: any[],
+  blueprint?: any
+) => {
+  const capturedAt = new Date();
+  const output = buildChronicleProseContent(messages, blueprint, capturedAt);
+  if (!output) {
+    console.warn('// CHRONICLE EXPORT FAILED // Empty array state passed.');
+    return;
+  }
+
+  const { content, mimeType, filename } = output;
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const downloadLink = document.createElement('a');
+  downloadLink.href = url;
+  downloadLink.setAttribute('download', filename);
+  document.body.appendChild(downloadLink);
+  downloadLink.click();
+  document.body.removeChild(downloadLink);
+  URL.revokeObjectURL(url);
+};

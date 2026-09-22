@@ -50,7 +50,7 @@ export const formatBlocks = (blocks?: NarrativeBlock[]): string => {
     })
     .join('\n\n');
 };
-import { exportEngineLog } from '../../lib/download';
+import { exportEngineLog, exportChronicleProse } from '../../lib/download';
 import { executeRatificationPipeline } from '../../lib/ratificationPipeline';
 import { createEngineHistoryMessage, createTurnHistoryEvents } from '../../core/engine/turnHistory';
 import type { CommittedTurnPayload } from '../../core/engine/events';
@@ -713,6 +713,11 @@ export default function Runtime() {
   }, [currentSimulationPhase, engineMessages]);
 
   const [input, setInput] = useState('');
+  const [inFlightInput, setInFlightInput] = useState<{
+    text: string;
+    category: string;
+    timestamp: number;
+  } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [lastActivity, setLastActivity] = useState<number>(() => Date.now());
   const { isHydrated, isCoherent } = useHydratedStores();
@@ -1071,6 +1076,13 @@ export default function Runtime() {
     const commandText = overrideInput || input;
     if (!commandText.trim() || isLoading) return 'IGNORED';
 
+    const currentCategory = effectiveCategory || 'ACTION';
+    setInFlightInput({
+      text: commandText,
+      category: currentCategory,
+      timestamp: Date.now(),
+    });
+
     if (!overrideInput) setInput('');
     setIsLoading(true);
 
@@ -1333,7 +1345,7 @@ export default function Runtime() {
       console.error(err);
       const failureReceipt = toTurnFailureReceipt(err);
 
-      if (failureReceipt.code === 'PROVIDER_REFUSAL' && !overrideInput) {
+      if (!overrideInput) {
         setInput(commandText);
       }
 
@@ -1353,6 +1365,7 @@ export default function Runtime() {
 
       return failureReceipt.code === 'PROVIDER_REFUSAL' ? 'REFUSED' : 'FAILED';
     } finally {
+      setInFlightInput(null);
       if (!isObsolete) {
         setIsLoading(false);
       }
@@ -1613,6 +1626,19 @@ export default function Runtime() {
 
           <button
             onClick={() =>
+              exportChronicleProse(
+                engineMessages,
+                activeBlueprint || undefined
+              )
+            }
+            className="px-2.5 py-1 text-xs font-mono text-amber-400 hover:text-amber-200 bg-amber-950/40 hover:bg-amber-900/50 border border-amber-800/80 transition-colors rounded cursor-pointer flex items-center gap-1.5"
+            title="Export Pure Literary Prose Chronicle (.md)"
+          >
+            [ EXPORT CHRONICLE ]
+          </button>
+
+          <button
+            onClick={() =>
               exportEngineLog(
                 engineMessages,
                 'md',
@@ -1763,6 +1789,11 @@ export default function Runtime() {
               nodeDefinitions={nodeDefinitions}
               connections={topologyConnections}
               visitedNodeIds={visitedNodeIds}
+              onSelectNode={(nodeId) => {
+                const targetNode = nodeDefinitions.find((n) => n.id === nodeId);
+                const targetName = targetNode?.label || nodeId;
+                setInput(`Advance cautiously toward ${targetName} and investigate...`);
+              }}
               className="shrink-0"
             />
             <MortalLedger
@@ -1794,29 +1825,49 @@ export default function Runtime() {
           <div
             ref={scrollRef}
             data-testid="narrative-stream-container"
-            className="flex-1 overflow-y-auto no-scrollbar px-6 sm:px-12 py-8 space-y-10 scroll-smooth"
+            className="flex-1 overflow-y-auto no-scrollbar px-6 sm:px-12 py-8 scroll-smooth"
           >
-            <AnimatePresence initial={false}>
-              {engineMessages.map((msg, idx) => (
-                <TranscriptMessageItem
-                  key={msg.id || idx}
-                  msg={msg as any}
-                  onEdit={editTranscriptMessage}
-                  onForceCosmetic={forceAcceptCosmetic}
-                  userCharName={userCharName}
-                />
-              ))}
-              {isLoading && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="flex items-center gap-2 text-amber-500/80 text-xs uppercase tracking-widest font-mono"
-                >
-                  <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-400" />
-                  Channeling Inscription into the Obsidian Slate...
-                </motion.div>
-              )}
-            </AnimatePresence>
+            <div className="w-full max-w-[68%] mx-auto space-y-8">
+              <AnimatePresence initial={false}>
+                {engineMessages.map((msg, idx) => (
+                  <TranscriptMessageItem
+                    key={msg.id || idx}
+                    msg={msg as any}
+                    onEdit={editTranscriptMessage}
+                    onForceCosmetic={forceAcceptCosmetic}
+                    userCharName={userCharName}
+                  />
+                ))}
+                {inFlightInput && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                    className="border border-amber-900/50 bg-zinc-950/90 p-5 rounded-lg text-zinc-300 relative overflow-hidden backdrop-blur-sm shadow-xl shadow-black/40"
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_8px_#d97706] animate-pulse" />
+                      <span className="text-[10px] font-mono uppercase tracking-[0.25em] text-amber-400 font-semibold">
+                        [ IMPULSE OFFERING // {inFlightInput.category} ]
+                      </span>
+                    </div>
+                    <p className="font-serif italic text-zinc-200 text-base leading-relaxed pl-3 border-l-2 border-amber-700/60">
+                      {inFlightInput.text}
+                    </p>
+                  </motion.div>
+                )}
+                {isLoading && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="flex items-center gap-2 text-amber-500/80 text-xs uppercase tracking-widest font-mono pt-2"
+                  >
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-400" />
+                    Channeling Inscription into the Obsidian Slate...
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
 
           {/* Scalable Multi-line Impulse Slate */}

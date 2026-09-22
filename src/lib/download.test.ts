@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { buildEngineLogContent, generateTelemetryFilename, buildCanonicalStateDiff } from './download';
+import {
+  buildEngineLogContent,
+  generateTelemetryFilename,
+  buildCanonicalStateDiff,
+  buildChronicleProseContent,
+} from './download';
 import { normalizeTurnFailureReceipt } from './turnResponseReader';
 import type {
   RuntimeStateSnapshot,
@@ -1702,6 +1707,68 @@ describe('Engine telemetry export', () => {
       expect(htmlExport).toContain('[clock-containment]: Level 75');
       expect(htmlExport).toContain('char-park: 60 → 45 (-15)');
       expect(htmlExport).toContain('Refuses to enter the chamber after witnessing the core bleed');
+    });
+  });
+
+  describe('buildChronicleProseContent', () => {
+    it('returns null for empty messages array', () => {
+      expect(buildChronicleProseContent([])).toBeNull();
+    });
+
+    it('builds pure literary novella markdown stripped of debug receipts and hashes', () => {
+      const chronicleMessages = [
+        {
+          role: 'user',
+          content: '[USER_ACTION: I pry open the rusted hatch.]',
+          userCharacterName: 'Dr. Maren Ross',
+        },
+        {
+          role: 'assistant',
+          blocks: [
+            { type: 'engine_thoughts', content: 'Evaluating tension...' },
+            { type: 'prose', content: 'The iron groan reverberates down the shaft.' },
+            { type: 'dialogue', speaker: 'Marcus Holt', content: '"Careful with that latch."' },
+            { type: 'internal_monologue', speaker: 'Dr. Maren Ross', content: 'My fingers are trembling.' },
+            { type: 'soliloquy', speaker: 'Marcus Holt', content: 'Not like this...' },
+            { type: 'system_voice', content: 'The cold deepens.' },
+          ],
+          logic_state: {
+            current_phase: 'KINETIC_RUPTURE',
+          },
+          contextReceipt: mockReceipt,
+        },
+      ];
+
+      const blueprint = {
+        identity: { title: 'The Black Iron Mortuary' },
+        setting: { location: 'Sub-Basement 7' },
+      };
+
+      const result = buildChronicleProseContent(chronicleMessages, blueprint);
+      expect(result).not.toBeNull();
+      const content = result!.content;
+
+      // Clean title & setting
+      expect(content).toContain('# The Black Iron Mortuary');
+      expect(content).toContain('*Sub-Basement 7*');
+      expect(content).toContain('Chronicle inscribed:');
+
+      // Clean literary prose & dialogue formatting
+      expect(content).toContain('> **Dr. Maren Ross** — *I pry open the rusted hatch.*');
+      expect(content).toContain('The iron groan reverberates down the shaft.');
+      expect(content).toContain('**Marcus Holt**:\n"Careful with that latch."');
+      expect(content).toContain('*Dr. Maren Ross considers:*\n*My fingers are trembling.*');
+      expect(content).toContain('*Marcus Holt mutters softly:*\n"Not like this..."');
+      expect(content).toContain('> *The cold deepens.*');
+
+      // Zero engine thoughts or technical receipts
+      expect(content).not.toContain('Evaluating tension...');
+      expect(content).not.toContain('KINETIC_RUPTURE');
+      expect(content).not.toContain('CONTEXT RECEIPT');
+      expect(content).not.toContain('METRIC LOG');
+
+      // Clean filename
+      expect(result!.filename).toMatch(/^the-black-iron-mortuary_chronicle_\d{4}-\d{2}-\d{2}\.md$/);
     });
   });
 });
