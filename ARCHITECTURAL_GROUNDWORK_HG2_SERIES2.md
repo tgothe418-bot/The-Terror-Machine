@@ -57,13 +57,15 @@ The pre-reset groundwork commits (`45f57aa` and `f3b6b18`) are already landed lo
 - `45f57aa`: Packets D, A, C, and B (Mortuary HG2 fueling, anti-catatonia filtering, NPC initiative, and bounded envelope retry).
 - `f3b6b18`: Forge prompt pruning and local reasoning budget exhaustion suppression.
 
-When API usage limits reset, the **First Patch Post-Reset** will execute the following two architectural additions alongside the verification proof run:
+When API usage limits reset, the **First Patch Post-Reset** will execute the following five scoped enhancements alongside the verification proof run:
 
 ```
-[Defensive castMemberId Recovery] ---> [Forge Unified Detail Pass] ---> [20-Turn Proof Run]
-(Auto-infer castMemberId from           (Macro -> Detail pass           (Headless villain run
- authorityReferences / aims)             candidate staging pipeline)     on fueled Mortuary)
+[Defensive castMemberId] ---> [Immediate Input & 2/3 Width] ---> [Forge Detail Pass] ---> [Engine Stream] ---> [20-Turn Proof Run]
+(Auto-infer castMemberId       (Optimistic impulse display        (Macro -> Detail pass     (Live narrative token   (Headless villain run
+ from references / aims)        & optical text centering)          candidate staging)        streaming via SSE)      on fueled Mortuary)
 ```
+
+---
 
 ### Feature 1: Defensive Auto-Recovery for `cast_activity_proposal.castMemberId`
 - **Problem Surfaced in Magnum v4 Testing**:
@@ -77,7 +79,32 @@ When API usage limits reset, the **First Patch Post-Reset** will execute the fol
     3. Fall back to active non-player / entity cast member in the scenario roster.
   - Add unit tests in `server/ai/geminiTurnTransport.test.ts` ensuring models that omit explicit top-level `castMemberId` pass envelope validation seamlessly.
 
-### Feature 2: Forge Unified "Forensic Detail Pass" Mechanic
+---
+
+### Feature 2: Immediate User Input Display (Optimistic Impulse)
+- **Problem**:
+  - In `Runtime.tsx`, submitting an impulse clears the textarea (`setInput('')`) while the message is only committed to `history` after the full server round-trip and validation complete.
+  - During the 10–20 second inference window, the user's input disappears completely with only a loading spinner visible. If an engine error occurs (e.g. `MODEL_CONTRACT_MISMATCH`), the input is lost from the screen.
+- **Implementation**:
+  - In `Runtime.tsx`, introduce an optimistic `inFlightInput` state on `handleCommand`.
+  - Immediately render the in-flight directive at the head of the scrying transcript under an `[ IMPULSE OFFERING // ${effectiveCategory} ]` badge with a subtle pulsing amber beacon.
+  - On turn resolution, transition smoothly to the committed canonical message; on turn error, retain the impulse alongside the error banner for instant retake / re-editing.
+
+---
+
+### Feature 3: Centered & Widened Text (~2/3 Width in Center Stage)
+- **Problem**:
+  - In `ErgodicTextRenderer.tsx`, prose paragraphs have a hard-coded Tailwind clamp (`max-w-prose`, ~65ch ≈ 550px) without column centering.
+  - On ultrawide (1440p) displays, this pins narrative text to the far-left, leaving over 65% of the central scrying cistern as dead black space.
+- **Implementation**:
+  - In `ErgodicTextRenderer.tsx`, remove `max-w-prose` so paragraphs respect their column container.
+  - In `Runtime.tsx`, wrap the narrative stream inside `data-testid="narrative-stream-container"` with a centered column constraint:
+    `w-full max-w-[68%] mx-auto space-y-8`.
+  - Centers the scrying text optically within the center stage at roughly two-thirds width with balanced gutters.
+
+---
+
+### Feature 4: Forge Unified "Forensic Detail Pass" Mechanic
 - **Problem**:
   - Single-pass extraction over-stretches local and cloud models, causing them to capture only the skeletal outline (premise, 2 cast, 3 rooms) while missing peripheral victims, sub-chambers, ventilation flues, and psychological stakes.
 - **Implementation**:
@@ -89,6 +116,19 @@ When API usage limits reset, the **First Patch Post-Reset** will execute the fol
     - In the Ingress / Candidate Staging view, render a prominent action: **`[EXECUTE FORENSIC DETAIL PASS]`**.
     - Stage newly unearthed items into the existing candidate table with a distinctive **`Pass 2`** badge, enabling non-destructive review, editing, and acceptance.
 
+---
+
+### Feature 5: Real-Time Engine Narrative Streaming
+- **Problem**:
+  - Waiting 15–25 seconds for a complete turn to arrive in a single block feels unresponsive and hides the model's literary generation process.
+- **Implementation**:
+  - Add `/api/turn-stream` SSE endpoint mirroring `/api/chat-stream` and `/api/extract-blueprint-stream`.
+  - Stream tokens from LM Studio / Gemini, using a stream extractor to extract `narrative_blocks[0].content` in real time.
+  - Render text progressively with an ergodic blinking obsidian cursor on the active turn block.
+  - Run full Zod schema validation on the assembled JSON payload at stream close before updating canonical state.
+
+---
+
 ### Verification & Proof Run:
-1. **Full Test Suite**: Verify all existing tests (1,553 tests across 126 files) plus new tests pass cleanly.
-2. **20-Turn Proof Run**: Execute the headless autopilot villain run on *The Black Iron Mortuary* and publish telemetry report.
+1. **Automated Test Suite**: Verify all unit and integration tests (1,553 tests across 126 files) plus new tests pass cleanly with zero lint or typecheck regressions.
+2. **20-Turn Proof Run**: Execute the headless autopilot villain run on *The Black Iron Mortuary* and generate the comprehensive telemetry report.
