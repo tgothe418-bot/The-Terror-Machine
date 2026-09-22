@@ -744,7 +744,8 @@ export async function generateLocalText(
       temperature: options.temperature ?? 0.3,
       max_tokens: options.max_tokens ?? 4096,
       max_completion_tokens: options.max_tokens ?? 4096,
-      chat_template_kwargs: { enable_thinking: false },
+      reasoning_effort: 'low',
+      chat_template_kwargs: { enable_thinking: false, thinking: false },
       stream: false,
     };
     if (options.jsonMode) {

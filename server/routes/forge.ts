@@ -1084,6 +1084,51 @@ router.post("/resolve-discrepancies", async (req, res) => {
     const existingLocation = draft.setting?.location || '';
     const existingCast = (draft.cast || []).map((c: any) => c.name).filter(Boolean).join(', ');
 
+    const isLocal = getEngineProvider() === 'local';
+    const maxRefLength = isLocal ? 3500 : 15000;
+
+    const errorKeys = Object.keys(errors).map((k) => k.toLowerCase());
+    const needsTopology = errorKeys.some((k) => k.includes('topology') || k.includes('node'));
+    const needsTitle = errorKeys.some((k) => k.includes('title') || k.includes('identity'));
+    const needsPremise = errorKeys.some((k) => k.includes('premise'));
+    const needsSetting = errorKeys.some((k) => k.includes('setting'));
+    const needsDepiction = errorKeys.some((k) => k.includes('depiction'));
+    const needsCast = errorKeys.some((k) => k.includes('cast') || k.includes('character'));
+    const needsAntagonist = errorKeys.some((k) => k.includes('antagonist'));
+
+    const rules: string[] = [];
+    if (needsTopology) {
+      rules.push(`1. TOPOLOGY:
+   Generate 4 to 6 connected atmospheric chambers in "topology":
+   - "startingNodeId": ID of the primary entry or central chamber
+   - "nodes": array of 4 to 6 IDs in snake_case (e.g. ["containment_airlock", "autopsy_theater", "histology_lab", "specimen_vault"])
+   - "nodeDefinitions": array of objects with "id", "label", "name", "description" (sensory details, sounds, exits)
+   - "connections": array of bidirectional connections linking ALL chambers together into a navigable floorplan:
+     [{"from": "node_a", "to": "node_b", "label": "Heavy bulkhead door", "bidirectional": true}]`);
+    }
+    if (needsTitle) {
+      rules.push(`2. TITLE: Generate an authentic, evocative title string in "title".`);
+    }
+    if (needsPremise) {
+      rules.push(`3. PREMISE: Generate a 2-3 sentence horror premise in "premise".`);
+    }
+    if (needsSetting) {
+      rules.push(`4. SETTING: Generate a "setting" object with "location" and "summary".`);
+    }
+    if (needsDepiction) {
+      rules.push(`5. DEPICTION CONTRACT: Generate a "depictionContract" object with "dramaticRegister", "directness", "aftermath", "ambiguityHandling", "specialBoundaries".`);
+    }
+    if (needsCast) {
+      rules.push(`6. CAST: Generate 2 to 3 distinct mortal characters in a "cast" array with "id", "name", "role", "description", "personality", "goals", "traits", "isEntity": false, "presenceDisposition".`);
+    }
+    if (needsAntagonist) {
+      rules.push(`7. ANTAGONIST: Generate an "antagonistProfile" with "kind", "name", "apparatusControls", "sadisticDirectives", "telemetryFeeds".`);
+    }
+
+    const specificRules = rules.length > 0
+      ? rules.join('\n\n')
+      : 'Generate ONLY the missing fields corresponding to the discrepancies above.';
+
     const prompt = `You are the Forge Scenario Repair Architect for The Terror Machine.
 The user is compiling a scenario Blueprint, but pre-flight validation detected the following specific validation discrepancies blocking export:
 
@@ -1094,64 +1139,18 @@ EXISTING DRAFT CONTEXT:
 - Title: ${existingTitle || '(missing)'}
 - Premise: ${existingPremise || '(missing)'}
 - Setting Location: ${existingLocation || '(missing)'}
-- Setting Summary: ${draft.setting?.summary || '(none)'}
 - Existing Cast: ${existingCast || '(none)'}
 - Existing Topology Nodes: ${(draft.topology?.nodeDefinitions || []).map((n: any) => n.id).join(', ') || (draft.topology?.nodes || []).join(', ') || '(none)'}
 
 REFERENCE SOURCE MATERIAL:
-${(referenceText || '').slice(0, 15000) || 'No reference text provided. Infer from premise, setting, and cast.'}
+${(referenceText || '').slice(0, maxRefLength) || 'No reference text provided. Infer from premise, setting, and cast.'}
 
 TASK:
 Review the reference material and generate ONLY the missing or invalid fields needed to resolve the discrepancies listed above.
 Do NOT regenerate or modify fields that are already valid.
 
 SPECIFIC FIELD GENERATION RULES:
-1. If 'topology.nodes' or 'topology' is in the discrepancies:
-   Extract or synthesize 6 to 8 distinct, interconnected atmospheric chambers (containment cells, hazardous vaults, corridors, examination suites, security airlocks, service ducts) from the reference material.
-   Return a "topology" object containing:
-   - "startingNodeId": ID of the primary entry or central node
-   - "nodes": array of 6 to 8 node IDs (strings in snake_case, e.g. ["decompression_airlock", "autopsy_suite", "histology_substation", "specimen_freezer", "incinerator_chute", "prep_sump"])
-   - "nodeDefinitions": array of 6 to 8 objects with:
-     - "id": string (unique ID matching one in "nodes")
-     - "label": string (display name, e.g. "Decompression Airlock")
-     - "description": 1-2 atmospheric sentences describing sensory details (smell, cold, sound), exits, and mood
-     - "adjacentNodeIds": array of neighbor node IDs
-   - "connections": array of bidirectional connections linking ALL chambers together into a fully connected navigable floorplan (NO orphan or disconnected rooms!):
-     - "from": string (node ID)
-     - "to": string (node ID)
-     - "label": string (e.g. "Heavy hydraulic doors", "Cold frosted passage")
-     - "bidirectional": true
-2. If 'identity.title' or 'title' is in the discrepancies:
-   Generate an evocative, authentic title string in "title".
-3. If 'premise' is in the discrepancies:
-   Generate a 2-3 sentence horror premise in "premise".
-4. If 'setting.location' or 'setting.summary' is in the discrepancies:
-   Generate a "setting" object with "location" and "summary".
-5. If 'depictionContract' fields are in the discrepancies:
-   Generate a "depictionContract" object with:
-   - "dramaticRegister": e.g. "Atmospheric psychological dread and tension"
-   - "directness": e.g. "Grounded sensory observation"
-   - "aftermath": e.g. "Lingering somatic and psychological trauma"
-   - "ambiguityHandling": e.g. "Preserve epistemic uncertainty without silent contradiction"
-   - "specialBoundaries": "None"
-6. If 'cast' or 'characters' is in the discrepancies:
-   Generate 2 to 3 distinct mortal characters in a "cast" array:
-   - "id": string (e.g. "char_1", "char_2")
-   - "name": string (NEVER use generic placeholder names or stock character tropes; generate authentic names matching the narrative context)
-   - "role": string (e.g. "Chief Medical Examiner", "Deputy Sheriff", "Facility Technician")
-   - "description": string (concrete physical appearance, age, clothing, physical status)
-   - "personality": string (psychological demeanor under duress)
-   - "goals": string (primary survival objective or investigation intent)
-   - "traits": array of 3 to 5 psychological traits
-   - "isEntity": false
-   - "presenceDisposition": { "kind": "AT_NODE", "nodeId": "<valid_node_id>" } or { "kind": "OFFSTAGE" }
-7. If 'antagonistProfile' or 'antagonist' is in the discrepancies:
-   Generate an "antagonistProfile" object:
-   - "kind": "APPARATUS" | "ENTITY" | "FORCE"
-   - "name": string (e.g. "Automated Suture Apparatus")
-   - "apparatusControls": array of strings (e.g. ["pneumatic ceiling rail tracks", "trocar tensioner", "hydraulic airlock dogs"])
-   - "sadisticDirectives": array of strings (e.g. ["isolate separated survivors", "resect and suture living biological tissue"])
-   - "telemetryFeeds": array of strings (e.g. ["biometric vital grid", "overhead optical scanners"])
+${specificRules}
 
 OUTPUT FORMAT:
 Return a single valid JSON object containing ONLY the patch fields to merge.
