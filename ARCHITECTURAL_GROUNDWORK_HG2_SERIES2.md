@@ -57,12 +57,21 @@ The pre-reset groundwork commits (`45f57aa` and `f3b6b18`) are already landed lo
 - `45f57aa`: Packets D, A, C, and B (Mortuary HG2 fueling, anti-catatonia filtering, NPC initiative, and bounded envelope retry).
 - `f3b6b18`: Forge prompt pruning and local reasoning budget exhaustion suppression.
 
-When API usage limits reset, the **First Patch Post-Reset** will execute the following five scoped enhancements alongside the verification proof run:
+When API usage limits reset, the **First Patch Post-Reset** will execute the following integrated sequence of 10 enhancements grouped into 5 cohesive stages, followed by the headless proof run:
 
 ```
-[Defensive castMemberId] ---> [Immediate Input & 2/3 Width] ---> [Forge Detail Pass] ---> [Engine Stream] ---> [20-Turn Proof Run]
-(Auto-infer castMemberId       (Optimistic impulse display        (Macro -> Detail pass     (Live narrative token   (Headless villain run
- from references / aims)        & optical text centering)          candidate staging)        streaming via SSE)      on fueled Mortuary)
+[Stage 1: Contract Resilience]   -->   [Stage 2: Scrying Cistern UX]   -->   [Stage 3: Forge Detail Ingress]
+- castMemberId auto-recovery           - Immediate impulse display          - Unified Forensic Detail Pass
+- Schema boundary hardening            - Centered 2/3 text width            - 1-Click Ambiguity auto-dismiss
+                                       - Interactive MapSketch traversal
+                                       - Prose Chronicle (.md) export
+
+                              |
+                              v
+
+[Stage 4: Coherence & Stream]    -->   [Stage 5: Nav & Proof Run]
+- Historian live telemetry feed        - Top-left Settings cogwheel
+- Real-time Engine SSE streaming       - 20-Turn Headless Villain Proof Run
 ```
 
 ---
@@ -126,6 +135,54 @@ When API usage limits reset, the **First Patch Post-Reset** will execute the fol
   - Stream tokens from LM Studio / Gemini, using a stream extractor to extract `narrative_blocks[0].content` in real time.
   - Render text progressively with an ergodic blinking obsidian cursor on the active turn block.
   - Run full Zod schema validation on the assembled JSON payload at stream close before updating canonical state.
+
+---
+
+### Feature 6: Dedicated Prose-Only Chronicle Export (`.md`)
+- **Problem**:
+  - In `Runtime.tsx`, there is no way to export the simulation narrative. When a player finishes a 20- or 40-turn run, their literary horror story cannot be saved or downloaded, only raw JSON debug state exists in IndexedDB.
+- **Implementation**:
+  - Add an **`[ EXPORT CHRONICLE ]`** button to the Engine runtime header.
+  - Generates a cleanly formatted Markdown file (`<scenario_title>_chronicle_<timestamp>.md`) containing the title, setting, and chronological narrative stream with formatted speaker headings and atmospheric prose, completely stripped of raw JSON receipts, engine thoughts, and telemetry hashes.
+
+---
+
+### Feature 7: Interactive `MapSketch` Traversal Staging
+- **Problem**:
+  - In `Runtime.tsx`, `<MapSketch />` does not pass `onSelectNode`, leaving the interactive SVG map purely passive.
+- **Implementation**:
+  - Wire `onSelectNode={(nodeId) => ...}` in `Runtime.tsx`.
+  - When the player clicks an adjacent discovered chamber on the map sketch, auto-populate the Impulse Slate textarea with a traversal/investigation intent (e.g. `"Advance cautiously toward [Chamber Name]..."`), focusing the input and staging the action for one-click channeling.
+
+---
+
+### Feature 8: Live Simulation Telemetry Feed to The Historian (Oracle of Records)
+- **Problem**:
+  - The Historian is docked in the right wing, but runs with a static system prompt. It has no visibility into the live simulation state (current chamber, active clocks, companions present, pacing cadence).
+- **Implementation**:
+  - When The Historian is invoked from the Engine runtime, append a concise read-only telemetry summary block to the prompt context:
+    - Active Scenario Title & Macro-Phase
+    - Player Vessel Name & Current Chamber
+    - Co-present Companions & Physical Status
+    - Active Impending Clocks & Manifested Cues
+  - Enables The Historian to authentically answer diegetic lore, status, and environmental questions as the *Oracle of Records*.
+
+---
+
+### Feature 9: Visual Progress & Auto-Dismiss on Forge 1-Click Ambiguity Resolution
+- **Problem**:
+  - In the Forge Source Inspector, clicking the "1-Click Resolve Ambiguities" button provides no visual feedback—it does not show a loading state, disable itself, or dismiss automatically when resolved, leading to repeat clicks.
+- **Implementation**:
+  - In `SourceInspectorModal.tsx`, bind a loading state (`[RESOLVING AMBIGUITIES...]` with spinner), disable the button while in-flight, and automatically hide or transition the card to a resolved checkmark state upon completion.
+
+---
+
+### Feature 10: Top-Left Settings Cogwheel (Hub Navigation)
+- **Problem**:
+  - AI Calibration / Provider Settings is accessed via secondary apparatus buttons or nested modals, rather than a ubiquitous top-level shortcut.
+- **Implementation**:
+  - Add an obsidian cogwheel icon (`Settings` / `Sliders`) pinned to the top-left navigation bar across the application.
+  - Provides instant one-click access to AI Calibration (provider switching, local model selection, API keys) from any view without losing current workflow context.
 
 ---
 
