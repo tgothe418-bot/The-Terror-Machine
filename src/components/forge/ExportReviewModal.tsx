@@ -157,6 +157,7 @@ export const ExportReviewModal: React.FC<ExportReviewModalProps> = ({
   };
 
   const [isRepairing, setIsRepairing] = useState(false);
+  const [isResolvedSuccessfully, setIsResolvedSuccessfully] = useState(false);
   const [repairError, setRepairError] = useState<string | null>(null);
 
   const handleResolveDiscrepancies = async () => {
@@ -166,6 +167,7 @@ export const ExportReviewModal: React.FC<ExportReviewModalProps> = ({
 
     setIsRepairing(true);
     setRepairError(null);
+    setIsResolvedSuccessfully(false);
 
     try {
       const refMaterials = freshState.referenceMaterials || [];
@@ -202,9 +204,10 @@ export const ExportReviewModal: React.FC<ExportReviewModalProps> = ({
       const data = await response.json();
       if (data.patch && typeof data.patch === 'object') {
         forgeActions.updateDraft(data.patch);
+        setIsResolvedSuccessfully(true);
         setTimeout(() => {
           handleRefresh();
-        }, 80);
+        }, 120);
       }
     } catch (err: unknown) {
       console.error('[RESOLVE DISCREPANCIES ERROR]', err);
@@ -417,7 +420,7 @@ export const ExportReviewModal: React.FC<ExportReviewModalProps> = ({
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    disabled={isRepairing}
+                    disabled={isRepairing || isResolvedSuccessfully}
                     onClick={handleResolveDiscrepancies}
                     className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-950/90 hover:bg-amber-900 border border-amber-700/80 text-amber-200 text-[10px] font-bold uppercase rounded tracking-wider transition-colors cursor-pointer disabled:opacity-50"
                     title="Review reference material to fill in missing structural fields and topology"
@@ -425,7 +428,12 @@ export const ExportReviewModal: React.FC<ExportReviewModalProps> = ({
                     {isRepairing ? (
                       <>
                         <Loader2 className="w-3 h-3 animate-spin text-amber-400" />
-                        <span>Filling Gaps...</span>
+                        <span>Resolving Gaps...</span>
+                      </>
+                    ) : isResolvedSuccessfully ? (
+                      <>
+                        <Check className="w-3 h-3 text-emerald-400" />
+                        <span>Discrepancies Resolved</span>
                       </>
                     ) : (
                       <>

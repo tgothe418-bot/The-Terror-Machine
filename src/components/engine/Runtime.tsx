@@ -14,11 +14,13 @@ import {
   PanelRightClose,
   BookOpen,
   Sparkles,
+  Settings,
 } from 'lucide-react';
 import TheVoice from '../hub/TheVoice';
 import MapSketch from './MapSketch';
 import MortalLedger from './MortalLedger';
 import ScenarioDossier from './ScenarioDossier';
+import AiCalibrationModal from '../hub/AiCalibrationModal';
 import { normalizeRoleCategory } from '../../types/participation';
 import { useEngineStore } from '../../core/store';
 import { useAppStore } from '../../store/useAppStore';
@@ -730,6 +732,7 @@ export default function Runtime() {
   const [isRightWingOpen, setIsRightWingOpen] = useState(true);
   const [rightWingTab, setRightWingTab] = useState<'historian' | 'dossier'>('historian');
   const [isAuthorityModalOpen, setIsAuthorityModalOpen] = useState(false);
+  const [isAiCalibrationOpen, setIsAiCalibrationOpen] = useState(false);
 
   // Hoisted accessors so the memo dependency lists stay statically analyzable.
   const topology = activeBlueprint?.topology;
@@ -1468,7 +1471,15 @@ export default function Runtime() {
     >
       {/* Occult Scrying Apparatus Header */}
       <header className="h-16 border-b border-zinc-900 flex items-center justify-between px-6 sm:px-8 bg-[#040406] z-10 shrink-0">
-        <div className="flex items-center gap-5">
+        <div className="flex items-center gap-4">
+          <button
+            type="button"
+            onClick={() => setIsAiCalibrationOpen(true)}
+            className="p-1.5 border border-zinc-800/80 bg-zinc-950/80 hover:border-amber-500/60 hover:bg-zinc-900 text-zinc-400 hover:text-amber-400 rounded transition-colors shadow-sm cursor-pointer group flex items-center justify-center"
+            title="Apparatus Calibration & Intelligence Tiers"
+          >
+            <Settings className="w-4 h-4 transition-transform duration-500 group-hover:rotate-90" />
+          </button>
           <button
             onClick={handleExit}
             className="flex items-center gap-2 text-zinc-400 hover:text-amber-300 transition-colors uppercase text-xs tracking-[0.2em] font-serif cursor-pointer"
@@ -2035,6 +2046,11 @@ export default function Runtime() {
           </aside>
         )}
       </div>
+      {/* AI Calibration Modal */}
+      <AiCalibrationModal
+        isOpen={isAiCalibrationOpen}
+        onClose={() => setIsAiCalibrationOpen(false)}
+      />
     </div>
   );
 }

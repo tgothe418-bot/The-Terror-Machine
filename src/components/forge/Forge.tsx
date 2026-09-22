@@ -5,13 +5,14 @@ import { ArchitectChat } from './ArchitectChat';
 import { FileDropzone } from './FileDropzone';
 import { CastManager } from './CastManager';
 import { SpatialManager } from './SpatialManager';
-import { ArrowLeft, Trash2, MapPin, Compass, Shield } from 'lucide-react';
+import { ArrowLeft, Trash2, MapPin, Compass, Shield, Settings } from 'lucide-react';
 
 import { CampaignTopologyPanel } from './CampaignTopologyPanel';
 import { ScenarioBaselinePanel } from './ScenarioBaselinePanel';
 import { DepictionContractPanel } from './DepictionContractPanel';
 import { ExportReviewModal } from './ExportReviewModal';
 import { DramaticSpinePanel } from './DramaticSpinePanel';
+import AiCalibrationModal from '../hub/AiCalibrationModal';
 
 export default function Forge() {
   const setPhase = useAppStore((state) => state.setPhase);
@@ -22,6 +23,7 @@ export default function Forge() {
   const [isConfirmingClear, setIsConfirmingClear] = useState(false);
   const [activeTab, setActiveTab] = useState<'blueprint' | 'dramatic_spine' | 'campaign'>('blueprint');
   const [isExportReviewOpen, setIsExportReviewOpen] = useState(false);
+  const [isAiCalibrationOpen, setIsAiCalibrationOpen] = useState(false);
 
   // Handle hydration with fallback recovery timeout
   useEffect(() => {
@@ -156,6 +158,14 @@ export default function Forge() {
       {/* HEADER AREA */}
       <header className="mb-4 2xl:mb-5 pt-4 flex justify-between items-center border-b border-stone-800/80 pb-3 2xl:pb-4 shrink-0 relative z-10">
         <div className="flex items-center gap-4">
+          <button
+            type="button"
+            onClick={() => setIsAiCalibrationOpen(true)}
+            className="p-2 border border-stone-800 hover:border-amber-500/60 bg-stone-950/80 hover:bg-stone-900 text-stone-400 hover:text-amber-400 rounded-lg transition-colors cursor-pointer shadow-sm group flex items-center justify-center"
+            title="Apparatus Calibration & Intelligence Tiers"
+          >
+            <Settings className="w-4 h-4 transition-transform duration-500 group-hover:rotate-90" />
+          </button>
           <button
             onClick={() => setPhase('hub')}
             className="flex items-center gap-2 text-stone-400 hover:text-amber-300 transition-colors text-xs 2xl:text-sm font-mono uppercase tracking-widest border border-stone-800 hover:border-amber-500/60 bg-stone-950/80 px-4 py-2 rounded-lg cursor-pointer shadow-sm"
@@ -555,6 +565,12 @@ export default function Forge() {
           onClose={() => setIsExportReviewOpen(false)}
         />
       )}
+
+      {/* AI Calibration Modal */}
+      <AiCalibrationModal
+        isOpen={isAiCalibrationOpen}
+        onClose={() => setIsAiCalibrationOpen(false)}
+      />
     </div>
   );
 }
