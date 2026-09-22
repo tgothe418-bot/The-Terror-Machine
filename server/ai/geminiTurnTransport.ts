@@ -197,7 +197,7 @@ function normalizeActiveManifestationBlock(record: JsonRecord): JsonRecord {
  * values, and unknown discriminants remain untouched and still fail closed at
  * the authoritative Zod boundary.
  */
-function normalizeCastActivityProposal(record: JsonRecord): JsonRecord {
+export function normalizeCastActivityProposal(record: JsonRecord): JsonRecord {
   if (record.kind !== 'ACTIVITY') {
     return projectProviderUnionBranch(
       record,
@@ -210,8 +210,15 @@ function normalizeCastActivityProposal(record: JsonRecord): JsonRecord {
   if (normalized.proposal_id && !normalized.proposalId) {
     normalized.proposalId = normalized.proposal_id;
   }
-  if (normalized.cast_member_id && !normalized.castMemberId) {
-    normalized.castMemberId = normalized.cast_member_id;
+  if (!normalized.castMemberId) {
+    normalized.castMemberId =
+      normalized.cast_member_id ||
+      normalized.characterId ||
+      normalized.character_id ||
+      normalized.castId ||
+      normalized.cast_id ||
+      (typeof normalized.cast_member === 'string' ? normalized.cast_member : undefined) ||
+      (typeof normalized.character === 'string' ? normalized.character : undefined);
   }
   if (normalized.pursuit_id && !normalized.pursuitId) {
     normalized.pursuitId = normalized.pursuit_id;
@@ -230,6 +237,58 @@ function normalizeCastActivityProposal(record: JsonRecord): JsonRecord {
   }
   if (normalized.manifestation_block && !normalized.manifestationBlock) {
     normalized.manifestationBlock = normalized.manifestation_block;
+  }
+
+  // Defensive auto-recovery for missing castMemberId (e.g. Magnum v4 omitting top-level castMemberId)
+  if (
+    !normalized.castMemberId ||
+    typeof normalized.castMemberId !== 'string' ||
+    normalized.castMemberId.trim().length === 0
+  ) {
+    let recoveredId: string | null = null;
+
+    // 1. Inspect authorityReferences if present (e.g. Magnum pattern: ["[aim-char-entity-41] ... Owner: char-entity-41"])
+    if (Array.isArray(normalized.authorityReferences)) {
+      for (const ref of normalized.authorityReferences) {
+        if (typeof ref === 'string') {
+          const ownerMatch = ref.match(/Owner:\s*([a-zA-Z0-9_-]+)/i);
+          if (ownerMatch && ownerMatch[1]) {
+            recoveredId = ownerMatch[1];
+            break;
+          }
+          const aimMatch = ref.match(/\[aim-([a-zA-Z0-9_-]+)/i);
+          if (aimMatch && aimMatch[1]) {
+            recoveredId = aimMatch[1];
+            break;
+          }
+          const charMatch = ref.match(/\b(char-[a-zA-Z0-9_-]+)\b/i);
+          if (charMatch && charMatch[1]) {
+            recoveredId = charMatch[1];
+            break;
+          }
+        }
+      }
+    }
+
+    // 2. Inspect manifestationBlock speaker if present
+    if (!recoveredId && isJsonRecord(normalized.manifestationBlock)) {
+      const speaker = normalized.manifestationBlock.speaker;
+      if (typeof speaker === 'string' && speaker.trim().length > 0) {
+        recoveredId = speaker.trim();
+      }
+    }
+
+    // 3. Inspect activitySummary if present
+    if (!recoveredId && typeof normalized.activitySummary === 'string') {
+      const charMatch = normalized.activitySummary.match(/\b(char-[a-zA-Z0-9_-]+)\b/i);
+      if (charMatch && charMatch[1]) {
+        recoveredId = charMatch[1];
+      }
+    }
+
+    if (recoveredId) {
+      normalized.castMemberId = recoveredId;
+    }
   }
 
   if (
