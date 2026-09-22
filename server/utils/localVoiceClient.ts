@@ -396,7 +396,33 @@ export function cleanSimulatedAction(raw: string): string {
     text = text.replace(/\\"/g, '"').replace(/\\'/g, "'");
   }
 
-  return text.trim();
+  const trimmed = text.trim();
+
+  // Detect and reject catatonic / placeholder / prompt echo outputs
+  const CATATONIC_PATTERN = /^(?:none|n\/a|tbd|todo|placeholder|no\s*action|i\s+(?:wait|hesitate|freeze|pause|do\s+nothing))\.?\s*$/i;
+  const ECHO_PATTERN = /^\[(?:USER_ACTION|REASONING CONSTRAINT|DIRECTIVE|ROLE DIRECTIVE)[\s\S]*\]$/i;
+
+  if (CATATONIC_PATTERN.test(trimmed) || ECHO_PATTERN.test(trimmed)) {
+    return '';
+  }
+
+  // Reject paired spectator loops like "I observe and wait"
+  const SPECTATOR_LOOP = /^(?:I\s+)?(?:observe|watch|monitor|scan|wait|glide|descend|float|hover)\s+(?:and|then)\s+(?:wait|observe|watch|monitor|scan|glide|descend|float|hover)\.?$/i;
+  if (SPECTATOR_LOOP.test(trimmed)) {
+    return '';
+  }
+
+  // Rejects ONLY observation/inaction as the entire action without coordination.
+  // Compound actions ("I scan the corridor, then advance to the airlock", "I observe X and wedge Y") are preserved.
+  const isCompound = /[,;]|\b(?:then|and|before|after|while)\b/i.test(trimmed);
+  if (!isCompound) {
+    const SPECTATOR_START = /^(?:I\s+)?(?:continue\s+to\s+)?(?:observe|watch|monitor|scan|wait|glide|descend|float|hover)\b/i;
+    if (SPECTATOR_START.test(trimmed)) {
+      return '';
+    }
+  }
+
+  return trimmed;
 }
 
 export async function generateLocalPlayerAction(

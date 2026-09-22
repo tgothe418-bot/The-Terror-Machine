@@ -495,14 +495,18 @@ router.post("/simulate-player", async (req, res) => {
       `${msg.role === 'user' ? 'ME:' : 'THE ENGINE:'}\n${msg.content}`
     ).join('\n\n');
 
-    const isVillain = role === 'villain' || role === 'antagonist';
-    const isBystander = role === 'bystander';
+    const normalizedRole = role ? String(role).toLowerCase().trim() : '';
+    const isVillain = normalizedRole === 'villain' || normalizedRole === 'antagonist';
+    const isBystander = normalizedRole === 'bystander' || normalizedRole === 'witness';
+    const isDirector = normalizedRole === 'director';
 
-    let roleDirective = 'Your goal is to survive, investigate, and interact with the environment naturally. Be natural, occasionally hesitant, and react directly to the Engine\'s last output.';
+    let roleDirective = `You are playing ${characterName ? `"${characterName}"` : 'a SURVIVOR'}. You are a mortal in danger. React to what just happened with a concrete physical action: move somewhere, examine an object, speak to someone, use a tool, barricade an entrance, run, hide, or defend yourself. You may feel dread, but fear produces action, not paralysis. Do NOT freeze or simply observe.`;
     if (isVillain) {
-      roleDirective = `You are playing ${characterName ? `"${characterName}"` : 'the PREDATORY VILLAIN'}. You are NOT a helpless victim. You are a cold, calculating predator/killer operating under a polished social facade. Your goal is to manage your schedule, make phone calls, manipulate acquaintances, assert dominance, check on targets, and seek opportunities to isolate victims. Act with chilling composure, vanity, and ruthless intent. Never cower or act hesitant.`;
+      roleDirective = `You are playing ${characterName ? `"${characterName}"` : 'the PREDATORY ANTAGONIST'}. You are the dominant force in this scenario. You ACT with purpose and initiative. Every turn you must perform at least one concrete committed action: move toward a destination, manipulate or sabotage a mechanism, stalk or corner a target, prepare a trap, or issue a command. You may observe or assess, but pair any observation with a committed physical act that follows from it. Do NOT emit turns that consist solely of watching, waiting, scanning, or monitoring.`;
     } else if (isBystander) {
-      roleDirective = `You are playing ${characterName ? `"${characterName}"` : 'a civilian BYSTANDER'}. You are just an ordinary person caught in strange circumstances. Your goal is to mind your own business, avoid conflict, make phone calls, do your job, or look for normal exits. React with grounded civilian self-preservation.`;
+      roleDirective = `You are playing ${characterName ? `"${characterName}"` : 'a civilian BYSTANDER'}. You are an ordinary person caught in extraordinary circumstances. React with grounded civilian agency: try an exit, call out for help, check on a coworker, back away from danger, or look for shelter. Stay grounded, realistic, and ACTIVE.`;
+    } else if (isDirector) {
+      roleDirective = `You are the unseen DIRECTOR adjusting scenario pressure. Introduce a physical atmospheric or environmental shift: dim lights, fluctuate temperature, produce a structural sound, lock an access point, or stage an offstage disturbance. Be precise, physical, and evocative.`;
     }
 
     const systemPrompt = `
@@ -519,7 +523,8 @@ router.post("/simulate-player", async (req, res) => {
       DIRECTIVE:
       Write your next immediate action or dialogue. 
       Keep it between 1 and 3 sentences. React directly to the Engine's last output.
-      Do NOT include your name, labels, or markdown. Output ONLY the raw text of your action.
+      Output a COMMITTED PHYSICAL ACTION or SPOKEN WORDS.
+      Do NOT include your name, labels, markdown, or bracketed tokens. Output ONLY the raw text of your action.
     `;
 
     if (getEngineProvider() === 'local' || getVoiceProvider() === 'local') {

@@ -1383,4 +1383,108 @@ describe('classifyProviderResponse', () => {
       }
     });
   });
+
+  describe('generateStructuredResponse bounded envelope retry (Packet B)', () => {
+    const originalFetch = globalThis.fetch;
+
+    afterEach(() => {
+      globalThis.fetch = originalFetch;
+      vi.restoreAllMocks();
+    });
+
+    it('retries once on SyntaxError and succeeds on second attempt', async () => {
+      const { setEngineProvider } = await import('../ai/modelPolicy');
+      const { generateStructuredResponse, EngineTurnStructuredResponseContract } = await import('./aiClient');
+
+      setEngineProvider('local');
+
+      const basePayload = createBaseValidPayload();
+      const fetchMock = vi
+        .fn()
+        // Discovery ping
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ data: [{ id: 'google/gemma-4-e4b' }] }), { status: 200 })
+        )
+        // Attempt 1: SyntaxError (malformed unparseable JSON)
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({
+              choices: [{ message: { content: '{"incomplete_raw: ' } }],
+            }),
+            { status: 200 }
+          )
+        )
+        // Discovery ping for retry
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ data: [{ id: 'google/gemma-4-e4b' }] }), { status: 200 })
+        )
+        // Attempt 2: Valid payload
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({
+              choices: [{ message: { content: JSON.stringify(basePayload) } }],
+            }),
+            { status: 200 }
+          )
+        );
+      globalThis.fetch = fetchMock;
+
+      try {
+        const result = await generateStructuredResponse('Retry test prompt', EngineTurnStructuredResponseContract);
+        expect(result.intent_proposal.action_kind).toBe('COMMUNICATE');
+        // Discovery (1) + Attempt 1 (2) + Discovery (3) + Attempt 2 (4)
+        expect(fetchMock).toHaveBeenCalledTimes(4);
+      } finally {
+        setEngineProvider('gemini');
+      }
+    });
+
+    it('retries once on ZodError and rethrows after 2 attempts fail', async () => {
+      const { setEngineProvider } = await import('../ai/modelPolicy');
+      const { generateStructuredResponse, EngineTurnStructuredResponseContract } = await import('./aiClient');
+
+      setEngineProvider('local');
+
+      const invalidPayload = { invalid_turn: true };
+      const fetchMock = vi
+        .fn()
+        // Discovery ping 1
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ data: [{ id: 'google/gemma-4-e4b' }] }), { status: 200 })
+        )
+        // Attempt 1: Schema violation
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({
+              choices: [{ message: { content: JSON.stringify(invalidPayload) } }],
+            }),
+            { status: 200 }
+          )
+        )
+        // Discovery ping 2
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ data: [{ id: 'google/gemma-4-e4b' }] }), { status: 200 })
+        )
+        // Attempt 2: Schema violation again
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({
+              choices: [{ message: { content: JSON.stringify(invalidPayload) } }],
+            }),
+            { status: 200 }
+          )
+        );
+      globalThis.fetch = fetchMock;
+
+      try {
+        await expect(
+          generateStructuredResponse('Fail test prompt', EngineTurnStructuredResponseContract)
+        ).rejects.toThrow();
+        // Exactly 2 generation attempts (plus 2 model discovery calls)
+        expect(fetchMock).toHaveBeenCalledTimes(4);
+      } finally {
+        setEngineProvider('gemini');
+      }
+    });
+  });
 });

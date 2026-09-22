@@ -707,7 +707,7 @@ Agency Directives:
     ? 'The user operates as a human predator (e.g. serial killer, sociopath, or stalker). Actively dramatize the friction between their polished social mask and their intrusive, escalating homicidal impulses. Show other characters socializing, conversing, gossiping, or reacting with confusion or rising suspicion. Do NOT leave the environment empty or inert. If the player is in an enclosure alone, introduce active social world friction: the telephone ringing, an intercom buzzing, an unexpected visitor knocking, friends or lovers demanding dinner commitments, or urgent messages delivered. If the player calls someone, that character answers with their authored personality and social expectations.'
     : 'Permit actions and perceptions expressly granted by the Authority Contract and apparatus controls, including environmental actuation, atmospheric venting, bulkhead lockdown, electrical relays, hazard deployment, and surveillance across the facility.'
 }
-3. AUTONOMOUS TARGET & PREY SIMULATION: You MUST actively dramatize the other characters' independent human reactions to the ${isHumanVillain ? 'Villain' : 'Antagonist'}. If unprovoked, they converse, pursue their own tasks, or display unaware vulnerability. If confronted or attacked, show their terror, frantic attempts to escape, bargaining, or anatomical trauma. Do NOT treat other characters as inert or passive.
+3. AUTONOMOUS TARGET & PREY SIMULATION: You MUST actively dramatize the other characters' independent human reactions to the ${isHumanVillain ? 'Villain' : 'Antagonist'}. They are living entities pursuing survival goals from the Cast Ledger. If unprovoked, they converse, advance repairs, check exits, whisper plans, or display unaware vulnerability. If confronted, threatened, or attacked, show their terror, desperate evasive tactics, frantic attempts to barricade or escape, arming themselves with improvised tools, bargaining, or anatomical trauma. Do NOT treat other characters as inert, frozen, or passive observers.
 4. ${isHumanVillain ? 'PREDATORY SENSORIUM' : 'INHUMAN SENSORIUM & PERSPECTIVE'}: Frame narrative prose through the cold, calculating, or detached perception of the ${isHumanVillain ? 'Villain: sensory fixation on status symbols, grooming, clothing, smells of perfume/blood, and clinical evaluation of victim vulnerability' : 'Antagonist: optical surveillance feeds with scanlines and timestamps, acoustic resonance along ducts and grates, biometric telemetry spikes, and distant mechanical hums'}. Do NOT recast any Victim as the player Protagonist.
 5. BOUNDARY ENFORCEMENT: Do not invent broader authority or reach than the contract grants. If an attempted action exceeds stated limits, social exposure risk, or physical rules, make the boundary legible to the user in narrative prose without claiming forbidden mutations occurred.
 6. CANONICAL STATE: All spatial transitions and lasting world mutations remain subject to engine ratification and strict topology authorization.
@@ -848,6 +848,11 @@ The user acts as an external scene director. A direction is a proposal for focus
 
     let horrorGrammarSection = '';
     if (context.horrorGrammar) {
+      // ARCHITECTURAL SCAFFOLDING (Phase 4: Multi-Node AI Traversal & Cohort Intelligence):
+      // Opportunity pool pre-filter boundary. Currently, non-player character activities are
+      // constrained to pre-generated candidates in context.horrorGrammar.presentActorOpportunities
+      // and offscreenPursuitOpportunities. Phase 4 will expand this with autonomous pathfinding,
+      // spatial herding, and emergent behavioral vectors (ADAPTIVE, INSURGENT, PANIC).
       const hg = context.horrorGrammar;
 
       const presentOpps = [...hg.presentActorOpportunities]
@@ -1195,7 +1200,7 @@ ${dramaturgySection}
 - A cast member's full name is an addressed-speaker target only when action_kind is COMMUNICATE. In other action kinds, a name may identify the subject, object, or observed person and must not be treated as an attempted conversation merely because it appears in the action text.
 
 [AUTHORED CAST BEHAVIOR & LIVING PRESENCE]
-- LIVING DRAMATIZATION: Present characters (marked HERE in CAST LEDGER) are physically co-present in the room with the player. They are NOT static props or silent statues. Narrative prose should actively depict their visible reactions, physical posture, nervous habits, breathing, glances, or interactions with the environment and each other.
+- LIVING DRAMATIZATION: Present characters (marked HERE in CAST LEDGER) are physically co-present in the room with the player. They are NOT static props or silent statues. Narrative prose should actively depict their visible reactions, physical posture, nervous habits, breathing, glances, or interactions with the environment and each other. Depict at least one specific physical micro-action from a present companion in the prose blocks (e.g. shifting weight, checking exits, fidgeting with tools, listening intently, bracing against walls).
 - Personality, goals, and traits constrain each cast member's tone, immediate priorities, and willingness to disclose information.
 - Treat them as authored characterization only. They do not authorize new facts, powers, locations, knowledge, cast members, or outcomes.
 - If authored behavior conflicts with a communication-mode or silence directive, honor the communication directive.
@@ -1237,6 +1242,10 @@ ${characterRelationshipsFormatted}
 - character_relationship_proposal.changes describes proposed durable relational shifts; it is not itself state.
 - Relationships are directed TRUST, HOSTILITY, DEPENDENCE, or LEVERAGE signals with intensity 1..3.
 - Propose only delta: 1 or delta: -1; the server owns resulting intensity.
+// ARCHITECTURAL SCAFFOLDING (Phase 4: Multi-Node AI Traversal & Cohort Intelligence):
+// Relationship hub-and-spoke constraint. Currently, exactly one endpoint MUST be the player character
+// and the other a present eligible non-player. Phase 4 will generalize character_relationship_proposal
+// to full cast topological graph (NPC <-> NPC relationships, rivalries, alliances).
 - Exactly one endpoint must be the player character and the other a present eligible non-player.
 - On COMMUNICATE, the non-player endpoint must be addressed/responding.
 - Use at most two changes and an empty array when no durable relational change occurred.
@@ -1299,7 +1308,12 @@ Current Psychological Status: ${psychStatusFormatted}
 - A proposal may be rejected while ordinary prose is preserved.
 
 [CAST ACTIVITY PROPOSAL CONTRACT]
+// ARCHITECTURAL SCAFFOLDING (Phase 4: Multi-Node AI Traversal & Cohort Intelligence):
+// Single cast_activity_proposal bottleneck. Currently, the turn schema permits at most one
+// non-User activity per turn (or kind: "NONE"). Phase 4 will evolve cast_activity_proposal
+// into an array of concurrent cohort proposals across topological nodes.
 - cast_activity_proposal proposes at most one self-originating non-User activity from the Opportunity Pool above, or kind: "NONE".
+- STRONG PREFERENCE: Propose kind 'ACTIVITY' whenever the Opportunity Pool is non-empty. Characters in horror scenarios DO things — they check locks, whisper warnings, rummage through drawers, peer out windows, clutch weapons, or monitor equipment. Only emit kind 'NONE' when the Opportunity Pool is genuinely empty or the scene demands absolute frozen stillness (e.g., hiding from an active predator in the same room).
 - kind: "NONE" (with a reason string) is valid on every turn regardless of phase or tension.
 - For kind: "ACTIVITY", you must choose an eligible castMemberId from the Opportunity Pool. An offscreen character requires their exact pursuitId.
 - State a concise activitySummary, authorityReferences from scenario context, and a valid perceptionPath:

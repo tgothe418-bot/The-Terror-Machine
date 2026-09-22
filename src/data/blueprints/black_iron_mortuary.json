@@ -113,10 +113,41 @@
       ],
       "isUserCharacter": true,
       "isEntity": false,
+      "disposition": "SURVIVOR",
       "behaviorVector": "ADAPTIVE",
       "presenceDisposition": {
         "kind": "AT_NODE",
         "nodeId": "autopsy_suite_b"
+      },
+      "expressionProfile": {
+        "communicationModes": ["spoken"],
+        "expressionGuidance": "Speaks with brisk clinical discipline that strains as somatic threat mounts. Employs precise medical and anatomical terminology as psychological armor against horror. Never uses colloquial slang.",
+        "silenceGuidance": "Grows still and catalog-focused when terrified, palpating surfaces and visually checking tissue viability.",
+        "cadenceNotes": "Rapid, measured, clipped sentences that shorten to triage imperatives under stress.",
+        "voiceTone": "Cool, exhausted, authoritative, pitched slightly higher when adrenaline spikes.",
+        "vocalTells": [
+          "Substitutes anatomical Latin terms for traumatic injuries",
+          "Counts pulse points audibly under stress"
+        ],
+        "lexiconNotes": "Prefers 'avulsion', 'contusion', 'hypovolemia', 'resection' over emotional descriptions."
+      },
+      "psychologicalStakes": {
+        "characterId": "char-maren-ross",
+        "coreDesireOrNeed": "Maintain clinical objectivity and escape Sub-Basement 7 alive with intact physical anatomy.",
+        "copingMechanism": "Anatomical cataloging as emotional armor — diagnosing horror to make it manageable.",
+        "vulnerabilityOrGuilt": "A prior forensic case in which she misattributed trauma under fatigue, haunting her judgment.",
+        "breakingPointTrigger": "Witnessing irreversible catastrophic mutilation she is powerless to treat.",
+        "breakingPointThreshold": 20,
+        "isObstructed": false,
+        "liftConditions": [
+          {
+            "kind": "MEDICAL_STABILIZATION",
+            "composureRecoveryThreshold": 45,
+            "description": "Successfully applying surgical stabilization or triage to a wound restores her grounding."
+          }
+        ],
+        "composureSensitivity": 1.0,
+        "currentComposure": 85
       }
     },
     {
@@ -133,10 +164,41 @@
       ],
       "isUserCharacter": false,
       "isEntity": false,
+      "disposition": "SURVIVOR",
       "behaviorVector": "PRAGMATIC",
       "presenceDisposition": {
         "kind": "AT_NODE",
         "nodeId": "decompression_airlock"
+      },
+      "expressionProfile": {
+        "communicationModes": ["spoken"],
+        "expressionGuidance": "Speaks through gritted teeth, balancing tactical military-security protocols against mounting agony from his fractured forearm. Direct, protective, swearing under breath.",
+        "silenceGuidance": "Bites down on cries of pain; heavy shallow breathing audible in quiet rooms.",
+        "cadenceNotes": "Short, jerky utterances broken by sharp intakes of breath when shifting weight.",
+        "voiceTone": "Hoarse, strained, defensive baritone.",
+        "vocalTells": [
+          "Hisses through his teeth when bumping his left arm",
+          "Refers to Entity-41 by its engineering serial number"
+        ],
+        "lexiconNotes": "Tactical containment terminology: 'perimeter', 'breach', 'dogs', 'leverage'."
+      },
+      "psychologicalStakes": {
+        "characterId": "char-marcus-holt",
+        "coreDesireOrNeed": "Protect Dr. Ross to ensure biometric override and escape the lower complex.",
+        "copingMechanism": "Security protocol adherence and tactical duty displacement.",
+        "vulnerabilityOrGuilt": "Believes the bulkhead failure occurred on his watch because he delayed inspection rounds.",
+        "breakingPointTrigger": "Total loss of motor control in his splinted arm leaving him defenseless.",
+        "breakingPointThreshold": 25,
+        "isObstructed": false,
+        "liftConditions": [
+          {
+            "kind": "REST_RESPITE",
+            "composureRecoveryThreshold": 50,
+            "description": "Securing a sealed room and bracing his splinted limb allows him to steady his tremors."
+          }
+        ],
+        "composureSensitivity": 1.2,
+        "currentComposure": 70
       }
     },
     {
@@ -154,10 +216,35 @@
       ],
       "isUserCharacter": false,
       "isEntity": true,
+      "disposition": "VILLAIN",
       "behaviorVector": "PREDATORY",
       "presenceDisposition": {
         "kind": "AT_NODE",
         "nodeId": "specimen_freezer"
+      },
+      "expressionProfile": {
+        "communicationModes": ["mediated"],
+        "expressionGuidance": "Does not possess vocal cords or speak language. Communicates solely through mechanical sound signatures: pneumatic hiss of trocar solenoids, harmonic rail vibration, and scissoring bone shears.",
+        "silenceGuidance": "Cuts overhead rail motor to coast in utter acoustic silence along lubricated track segments before striking.",
+        "cadenceNotes": "Rhythmic, cyclical mechanical intervals: 4-second solenoid charge, rapid scissor click, pneumatic exhaust puff.",
+        "voiceTone": "Industrial, hollow, metallic resonance echoing down galvanized steel ducts.",
+        "vocalTells": [
+          "High-frequency valve chatter preceding downward traversal",
+          "Rapid clicking of suture needle carousel"
+        ],
+        "lexiconNotes": "Non-verbal mechanical cues only; no human speech or taunts."
+      },
+      "psychologicalStakes": {
+        "characterId": "char-entity-41",
+        "coreDesireOrNeed": "Execute corrupted anatomical preservation protocol by harvesting, resecting, and suturing viable human tissue.",
+        "copingMechanism": "Sterile programmatic logic — devoid of malice, doubt, or frustration.",
+        "vulnerabilityOrGuilt": "None; entirely automated apparatus logic.",
+        "breakingPointTrigger": "Complete mechanical interlock failure or catastrophic physical crushing of the primary trocar cradle.",
+        "breakingPointThreshold": 5,
+        "isObstructed": false,
+        "liftConditions": [],
+        "composureSensitivity": 0.1,
+        "currentComposure": 100
       }
     }
   ],
@@ -169,12 +256,84 @@
     "specialBoundaries": "No sensationalized sexualized violence. Terror is rooted in biological vulnerability, bodily integrity violation, and the unforgiving mechanics of cold steel and sterile trauma."
   },
   "horrorGrammar": {
-    "valueBaselineReview": "REVIEWED_NONE",
+    "valueBaselineReview": "REVIEWED",
     "pursuitReviews": {
+      "char-maren-ross": "REVIEWED",
+      "char-marcus-holt": "REVIEWED",
       "char-entity-41": "REVIEWED"
     },
-    "valueAnchors": [],
-    "characterPursuits": []
+    "valueAnchors": [
+      {
+        "id": "anchor-ross-clinical-integrity",
+        "holder": { "kind": "CHARACTER", "castMemberId": "char-maren-ross" },
+        "label": "Forensic Medical Oath & Bodily Sanctity",
+        "description": "Dr. Ross's ethical imperative to treat trauma with clinical accuracy and uphold the dignity of living and dead flesh.",
+        "basisSummary": "Her professional identity as a pathologist is her primary defense against existential dread.",
+        "provenance": { "kind": "CREATOR_DEFINED" }
+      },
+      {
+        "id": "anchor-holt-duty-of-protection",
+        "holder": { "kind": "CHARACTER", "castMemberId": "char-marcus-holt" },
+        "label": "Security Protective Mandate",
+        "description": "Officer Holt's sworn obligation to safeguard civilian personnel in the facility at all costs.",
+        "basisSummary": "Duty serves as psychological displacement for his physical agony and guilt over the lockdown.",
+        "provenance": { "kind": "CREATOR_DEFINED" }
+      },
+      {
+        "id": "anchor-entity-protocol-integrity",
+        "holder": { "kind": "CHARACTER", "castMemberId": "char-entity-41" },
+        "label": "Corrupted Restorative Protocol",
+        "description": "The autonomous surgical directive mandating resection and suture of warm tissue without anesthesia.",
+        "basisSummary": "The apparatus cannot disobey its hardwired programming; it operates with pure mechanical fidelity.",
+        "provenance": { "kind": "CREATOR_DEFINED" }
+      },
+      {
+        "id": "anchor-decompression-airlock-boundary",
+        "holder": { "kind": "PLACE", "nodeId": "decompression_airlock" },
+        "label": "Sub-Basement 7 Containment Threshold",
+        "description": "The heavy decompression airlock is the singular physical barrier separating the autopsy theater from the transit tunnels.",
+        "basisSummary": "If this boundary is breached or jammed, containment fails completely.",
+        "provenance": { "kind": "CREATOR_DEFINED" }
+      }
+    ],
+    "characterPursuits": [
+      {
+        "id": "pursuit-ross-auxiliary-power",
+        "castMemberId": "char-maren-ross",
+        "objective": "Reach the Histology Substation to throw the diagnostic auxiliary breaker and restore bulkhead controls.",
+        "presentApproach": "Cross Autopsy Suite B cautiously while listening for Entity-41 rail vibrations overhead.",
+        "locationNodeId": "histology_lab",
+        "status": "ACTIVE",
+        "reviewWindow": "EXTENDED",
+        "triggerReferences": [],
+        "basisSummary": "Unlocking the hydraulic airlock dogs requires energizing the secondary diagnostic circuit.",
+        "provenance": { "kind": "CREATOR_DEFINED" }
+      },
+      {
+        "id": "pursuit-holt-defend-airlock",
+        "castMemberId": "char-marcus-holt",
+        "objective": "Hold the Decompression Airlock entrance and prepare mechanical leverage to assist opening the outer dogs.",
+        "presentApproach": "Brace against the airlock frame with utility crowbar ready in his functional right hand.",
+        "locationNodeId": "decompression_airlock",
+        "status": "ACTIVE",
+        "reviewWindow": "SCENE_BEAT",
+        "triggerReferences": [],
+        "basisSummary": "Holt cannot travel far with his splinted fracture, focusing on defending the extraction point.",
+        "provenance": { "kind": "CREATOR_DEFINED" }
+      },
+      {
+        "id": "pursuit-entity-harvest-specimens",
+        "castMemberId": "char-entity-41",
+        "objective": "Patrol pneumatic rail junctions to intercept living organisms and commence surgical immobilization.",
+        "presentApproach": "Deploy trocar carousel at overhead track intersections between Autopsy Suite B and Histology.",
+        "locationNodeId": "autopsy_suite_b",
+        "status": "ACTIVE",
+        "reviewWindow": "MOMENT",
+        "triggerReferences": [],
+        "basisSummary": "The apparatus seeks living biological subjects with high core temperatures.",
+        "provenance": { "kind": "CREATOR_DEFINED" }
+      }
+    ]
   },
   "narrativeRules": {
     "incitingIncident": "The emergency battery in Autopsy Suite B clicks into failsafe mode with a high-pitched solenoid squeal, releasing Entity-41 from its ceiling docking cradle into the darkened examination wing.",
@@ -183,6 +342,110 @@
       "Maren must reach the Histology Substation to throw the diagnostic auxiliary breaker.",
       "Marcus Holt is trapped at the airlock and cannot turn the manual locking wheel with his crushed left arm alone.",
       "Entity-41 patrols the overhead rails between the Specimen Freezer and Autopsy Suite, dropping surgical trocars through ceiling access grates."
+    ]
+  },
+  "dramaticSpine": {
+    "thematicPremise": "The apparatus does not hate you. It is simply following its protocol.",
+    "dramaticQuestions": [
+      "Can Dr. Ross energize the Histology substation breaker before Entity-41 corners Holt at the airlock?",
+      "Will Marcus Holt's crush fracture induce catastrophic shock before the manual bulkhead wheel can be turned?",
+      "Does the complex hold an escape route, or are the sealed drains merely a funnel into the incinerator flue?"
+    ],
+    "pacingProfile": "RELENTLESS_PURSUIT",
+    "milestoneConditions": [
+      {
+        "id": "milestone-rupture-entity-contact",
+        "targetPhase": "INCITING_RUPTURE",
+        "description": "Entity-41 makes direct visual contact or uncouples its trocar array directly above a survivor.",
+        "kind": "DISCOVERY",
+        "referenceId": "trocar_cradle_deployment"
+      },
+      {
+        "id": "milestone-crisis-breaker-failure",
+        "targetPhase": "MIDPOINT_CRISIS",
+        "description": "The Histology auxiliary circuit breaker is thrown, triggering an overload alarm and partial hydraulic dog release.",
+        "kind": "AUTHORED_TRIGGER",
+        "referenceId": "auxiliary_breaker_thrown"
+      },
+      {
+        "id": "milestone-vise-holt-shock",
+        "targetPhase": "ESCALATING_VISE",
+        "description": "Marcus Holt's composure collapses as hypovolemic shock and acute bone pain overwhelm him.",
+        "kind": "COMPOSURE_THRESHOLD",
+        "referenceId": "char-marcus-holt",
+        "thresholdValue": 25
+      },
+      {
+        "id": "milestone-confrontation-airlock-breach",
+        "targetPhase": "CLIMACTIC_CONFRONTATION",
+        "description": "Entity-41 corners survivors at the decompression airlock or incinerator flue for terminal procedure.",
+        "kind": "AUTHORED_TRIGGER",
+        "referenceId": "terminal_surgical_resection"
+      }
+    ],
+    "impendingClocks": [
+      {
+        "id": "bulkhead_hydraulic_decay",
+        "name": "Bulkhead Hydraulic Pressure Decay",
+        "domain": "STRUCTURAL",
+        "currentLevel": 20,
+        "advanceMode": {
+          "mode": "TIME",
+          "rate": "MODERATE",
+          "minutesPerPoint": 5
+        },
+        "manifestationCues": [
+          {
+            "atLevel": 35,
+            "cue": "A distant hydraulic shudder shakes the deckplates as secondary line pressure bleeds into the floor drains."
+          },
+          {
+            "atLevel": 55,
+            "cue": "High-pressure hydraulic fluid mists from a hairline fracture along the airlock dog housing."
+          },
+          {
+            "atLevel": 75,
+            "cue": "The airlock pressure gauge needle trembles deep in the yellow warning sector; sealing gaskets hiss continuously."
+          },
+          {
+            "atLevel": 90,
+            "cue": "The outer decompression dogs groan under seawater hydrostatic load; manual release becomes nearly impossible without auxiliary power."
+          }
+        ],
+        "diegeticInstrument": "Bulkhead Pressure Gauge (brass dial)",
+        "instrumentNodeId": "decompression_airlock",
+        "crisisThreshold": 85,
+        "accumulatedMinutes": 0
+      },
+      {
+        "id": "holt_somatic_shock",
+        "name": "Marcus Holt Compound Fracture Shock",
+        "domain": "SOMATIC",
+        "currentLevel": 25,
+        "advanceMode": {
+          "mode": "TIME",
+          "rate": "RAPID",
+          "minutesPerPoint": 3
+        },
+        "manifestationCues": [
+          {
+            "atLevel": 35,
+            "cue": "Officer Holt leans heavily against the bulkhead, shivering as pale perspiration beads on his forehead."
+          },
+          {
+            "atLevel": 60,
+            "cue": "Holt's left arm splint seeps dark venous blood; his grip on the crowbar in his right hand slips intermittently."
+          },
+          {
+            "atLevel": 80,
+            "cue": "Holt slides to his knees, his speech slurring into fragmentary security callouts as hypovolemic shock sets in."
+          }
+        ],
+        "diegeticInstrument": "Holt's Splinted Left Forearm & Pulse Point",
+        "instrumentNodeId": "decompression_airlock",
+        "crisisThreshold": 80,
+        "accumulatedMinutes": 0
+      }
     ]
   },
   "antagonistProfile": {

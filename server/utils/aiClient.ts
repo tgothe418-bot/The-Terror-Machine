@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type, type Schema } from "@google/genai";
-import type { z } from "zod";
+import { z } from "zod";
 import { getGeminiPolicy, getFallbackModelId, getEngineProvider, type GeminiModelId } from "../ai/modelPolicy";
 import { TurnResultSchema, type TurnResult } from "../schemas/engine";
 import {
@@ -499,10 +499,10 @@ export function parseStructuredTurnResponse<T>(
   return zodSchema.parse(normalizeProviderPayload(parsed));
 }
 
-export const generateStructuredResponse = async <T>(
+async function generateSingleStructuredAttempt<T>(
   prompt: string,
   contract: StructuredResponseContract<T>
-): Promise<T> => {
+): Promise<T> {
   if (getEngineProvider() === 'local') {
     return await generateLocalStructuredResponse(prompt, contract);
   }
@@ -546,6 +546,37 @@ export const generateStructuredResponse = async <T>(
     contract.zodSchema,
     contract.normalizeProviderPayload
   );
+}
+
+export const generateStructuredResponse = async <T>(
+  prompt: string,
+  contract: StructuredResponseContract<T>
+): Promise<T> => {
+  const maxAttempts = 2;
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await generateSingleStructuredAttempt(prompt, contract);
+    } catch (err: unknown) {
+      lastError = err;
+      const isEnvelopeFailure =
+        err instanceof z.ZodError ||
+        (err as { name?: string })?.name === 'ZodError' ||
+        err instanceof SyntaxError;
+
+      // Only retry envelope or syntax failures on attempt 1.
+      // Provider refusals, rate limits, prepayment depletion, and network errors fail immediately.
+      if (isEnvelopeFailure && attempt < maxAttempts) {
+        console.warn(
+          `[AI Client] Envelope validation failed (${(err as Error).name || 'SyntaxError'}). Retrying fresh generation (attempt ${attempt + 1}/${maxAttempts})...`
+        );
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw lastError;
 };
 
 export interface AiPingResult {
