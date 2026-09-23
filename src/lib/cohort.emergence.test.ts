@@ -334,12 +334,17 @@ describe('HG2 Series 2 — Opposition Cohort Emergence Fixtures', () => {
       const mockBlueprint: ScenarioBlueprint = {
         title: 'Test Scenario',
         premise: 'A haunting',
+        contentScale: 3,
+        contentLevelDescription: 'Spooky Fun',
         setting: { location: 'Manor', atmosphere: 'Gloomy', timePeriod: '1920' },
         startingVector: 'COGNITIVE',
         startingTier: 'LATENT',
-        incitingIncident: 'A scream',
-        pacingDirective: 'Slow',
-        keyPlotElements: [],
+        narrativeRules: {
+          incitingIncident: 'A scream',
+          currentTensionLevel: 'buildup',
+          keyPlotElements: [],
+          pacingDirectives: 'Slow',
+        },
         cast: [
           {
             id: 'detective-1',
