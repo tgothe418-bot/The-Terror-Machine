@@ -16,6 +16,7 @@ import { buildEngineTurnContext, buildContextReceipt } from './buildEngineTurnCo
 import { readTurnResponse, createNetworkTurnError, TurnResponseError } from './turnResponseReader';
 export { TurnResponseError };
 import { captureRuntimeSnapshot } from '../core/engine/snapshot';
+import { streamEngineTurn } from '../services/geminiService';
 
 export const DECAY_SCALE: DecayThreshold[] = [
   {
@@ -386,9 +387,15 @@ export function formatRecentHistory(blocks: NarrativeBlock[]): string {
     .join('\n');
 }
 
+export interface ExecuteRatificationPipelineOptions {
+  onToken?: (token: string) => void;
+  signal?: AbortSignal;
+}
+
 export const executeRatificationPipeline = async (
   userAction: string,
-  suppliedSnapshot?: RuntimeStateSnapshot
+  suppliedSnapshot?: RuntimeStateSnapshot,
+  options?: ExecuteRatificationPipelineOptions
 ): Promise<RatifiedEngineFrame> => {
   const state = useAppStore.getState();
   const engineState = useEngineStore.getState();
@@ -511,26 +518,60 @@ export const executeRatificationPipeline = async (
     context: turnContext,
   };
 
-  let response: Response;
-  try {
-    response = await fetch('/api/turn', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-  } catch {
-    throw createNetworkTurnError();
-  }
+  let rawJson: unknown;
+  let responseStatus: number | null = null;
+  let responseContentType: string | null = null;
 
-  const rawJson = await readTurnResponse<unknown>(response);
+  if (options?.onToken) {
+    try {
+      rawJson = await streamEngineTurn(
+        payload,
+        { onToken: options.onToken },
+        options.signal
+      );
+      responseStatus = 200;
+    } catch (streamErr: any) {
+      if (streamErr instanceof TurnResponseError) throw streamErr;
+      if (streamErr?.code === 'MODEL_CONTRACT_MISMATCH') {
+        throw new TurnResponseError({
+          code: 'MODEL_CONTRACT_MISMATCH',
+          message: streamErr.message,
+          diagnostics: streamErr.diagnostics,
+        });
+      }
+      if (streamErr?.code === 'PROVIDER_REFUSAL') {
+        throw new TurnResponseError({
+          code: 'PROVIDER_REFUSAL',
+          message: streamErr.message,
+        });
+      }
+      throw createNetworkTurnError();
+    }
+  } else {
+    let response: Response;
+    try {
+      response = await fetch('/api/turn', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        signal: options?.signal,
+      });
+    } catch {
+      throw createNetworkTurnError();
+    }
+
+    responseStatus = response.status;
+    responseContentType = response.headers?.get?.('content-type') || null;
+    rawJson = await readTurnResponse<unknown>(response);
+  }
 
   // Parse with canonical TurnResponseSchema
   const parsedResult = TurnResponseSchema.safeParse(rawJson);
   if (!parsedResult.success) {
     throw new TurnResponseError({
       code: 'STRUCTURAL_RESPONSE_MISMATCH',
-      status: response.status,
-      contentType: response.headers?.get?.('content-type') || null,
+      status: responseStatus,
+      contentType: responseContentType,
       message: 'The turn service returned a response that did not match the canonical contract.',
     });
   }
@@ -539,8 +580,8 @@ export const executeRatificationPipeline = async (
   if (validatedEvent.validation && !validatedEvent.validation.accepted) {
     throw new TurnResponseError({
       code: 'FRAME_VALIDATION_REJECTED',
-      status: response.status,
-      contentType: response.headers?.get?.('content-type') || null,
+      status: responseStatus,
+      contentType: responseContentType,
       message: 'The turn response failed ratification validation.',
     });
   }

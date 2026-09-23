@@ -1,5 +1,6 @@
-import { Router } from 'express';
+import { Router, Response } from 'express';
 import { z } from 'zod';
+import { SseStream } from '../utils/sse';
 import {
   TurnRequestSchema,
   type TurnResult,
@@ -580,38 +581,28 @@ export function normalizeTurnRequestPayload(body: unknown): unknown {
   return payload;
 }
 
-export const turnRouter = Router();
+export interface ProcessTurnResult {
+  finalResponse: TurnResponse;
+  composedNarrativeBlocks: Array<{ type: string; content?: string; speaker?: string | null; [key: string]: any }>;
+}
 
-turnRouter.post('/', async (req, res) => {
-  let parsedRequest;
-  try {
-    normalizeTurnRequestPayload(req.body);
-    parsedRequest = TurnRequestSchema.parse(req.body);
-  } catch (err) {
-    console.error('[API /turn] Request validation error:', err);
-    return res.status(400).json({
-      error: 'Invalid turn request',
-      code: 'INVALID_REQUEST',
-      details: err instanceof z.ZodError ? err.flatten() : String(err),
-    });
+export async function processTurnExecution(
+  parsedRequest: z.infer<typeof TurnRequestSchema>
+): Promise<ProcessTurnResult> {
+  const {
+    userAction,
+    recentHistory,
+    systemDirective,
+    isExpansionExpected,
+    stateContext,
+    context,
+  } = parsedRequest;
+
+  if (!context.horrorGrammar) {
+    const err: any = new Error('Invalid turn request: context.horrorGrammar is required for Engine turn processing');
+    err.code = 'MISSING_HORROR_GRAMMAR_CONTEXT';
+    throw err;
   }
-
-  try {
-    const {
-      userAction,
-      recentHistory,
-      systemDirective,
-      isExpansionExpected,
-      stateContext,
-      context,
-    } = parsedRequest;
-
-    if (!context.horrorGrammar) {
-      return res.status(400).json({
-        error: 'Invalid turn request: context.horrorGrammar is required for Engine turn processing',
-        code: 'MISSING_HORROR_GRAMMAR_CONTEXT',
-      });
-    }
 
     const worldRulesFormatted = context.scenario.worldRules.length > 0
       ? context.scenario.worldRules.map((r) => `• ${r}`).join('\n')
@@ -1152,7 +1143,7 @@ ${
 
     const castResolution = resolveExplicitCastTarget(userAction, context);
     const explicitlyAddressedMember =
-      castResolution.status === 'EXPLICIT_NAME'
+      castResolution.characterId
         ? context.cast.find((c) => c.id === castResolution.characterId)
         : null;
 
@@ -1478,98 +1469,7 @@ ${recentHistory}
     };
 
     // Call the LLM with strict Zod schema enforcement
-    let engineResponse;
-    try {
-      engineResponse = await generateStructuredResponse(prompt, turnContract);
-    } catch (modelErr: unknown) {
-      if (
-        modelErr instanceof ProviderPrepaymentDepletedError ||
-        (modelErr as { code?: string })?.code === 'PREPAYMENT_DEPLETED'
-      ) {
-        console.error('[API /turn] Prepayment credits depleted');
-        return res.status(429).json({
-          error: 'Google AI Studio prepayment credits are depleted. Switch to an unpaid Free Tier project key or add credits in AI Studio.',
-          code: 'PREPAYMENT_DEPLETED',
-        });
-      }
-      if (
-        modelErr instanceof ProviderRateLimitError ||
-        (modelErr as { code?: string })?.code === 'RATE_LIMIT_EXCEEDED'
-      ) {
-        console.warn('[API /turn] AI Provider rate limit exceeded');
-        return res.status(429).json({
-          error: 'AI provider rate limit reached (15 RPM on Free Tier). Please wait a few seconds before retrying.',
-          code: 'RATE_LIMIT_EXCEEDED',
-        });
-      }
-      if (
-        modelErr instanceof ProviderCapacityError ||
-        (modelErr as { code?: string })?.code === 'PROVIDER_HIGH_DEMAND'
-      ) {
-        console.warn('[API /turn] AI Provider high demand');
-        return res.status(503).json({
-          error: 'AI provider is currently experiencing high demand. Please retry in a few moments.',
-          code: 'PROVIDER_HIGH_DEMAND',
-        });
-      }
-      if (
-        modelErr instanceof ProviderRefusalError ||
-        (modelErr as { code?: string })?.code === 'PROVIDER_REFUSAL'
-      ) {
-        console.warn('[API /turn] AI Provider refusal');
-        return res.status(502).json({
-          error: 'AI provider declined turn generation',
-          code: 'PROVIDER_REFUSAL',
-        });
-      }
-      if (
-        modelErr instanceof EmptyProviderResponseError ||
-        (modelErr as { code?: string })?.code === 'EMPTY_PROVIDER_RESPONSE'
-      ) {
-        console.error('[API /turn] AI Provider empty response:', (modelErr as Error)?.message);
-        return res.status(502).json({
-          error: (modelErr as Error)?.message || 'AI provider returned an empty response',
-          code: 'PROVIDER_FAILURE',
-        });
-      }
-      if (
-        modelErr instanceof ProviderRequestRejectedError ||
-        (modelErr as { code?: string })?.code === 'PROVIDER_REQUEST_REJECTED'
-      ) {
-        console.error('[API /turn] AI Provider rejected request configuration');
-        return res.status(502).json({
-          error: (modelErr as Error)?.message || 'AI provider rejected the turn generation request',
-          code: 'PROVIDER_REQUEST_REJECTED',
-        });
-      }
-      if (modelErr instanceof z.ZodError || (modelErr as { name?: string })?.name === 'ZodError') {
-        console.error('[API /turn] Model contract mismatch:', modelErr);
-        const zodError =
-          modelErr instanceof z.ZodError
-            ? modelErr
-            : new z.ZodError((modelErr as { issues?: z.ZodIssue[] }).issues || []);
-        const diagnostics = buildZodDiagnostics(zodError);
-        return res.status(502).json({
-          error: 'Model output violated schema contract',
-          code: 'MODEL_CONTRACT_MISMATCH',
-          diagnostics,
-        });
-      }
-      if (modelErr instanceof SyntaxError) {
-        console.error('[API /turn] Model JSON parse failure:', modelErr);
-        const diagnostics = buildJsonParseDiagnostics();
-        return res.status(502).json({
-          error: 'Model output violated schema contract',
-          code: 'MODEL_CONTRACT_MISMATCH',
-          diagnostics,
-        });
-      }
-      console.error('[API /turn] AI Provider failure:', modelErr);
-      return res.status(502).json({
-        error: 'AI provider turn generation failed',
-        code: (modelErr as { code?: string })?.code || 'PROVIDER_FAILURE',
-      });
-    }
+    const engineResponse = await generateStructuredResponse(prompt, turnContract);
 
     const {
       boundedResult,
@@ -1629,12 +1529,9 @@ ${recentHistory}
 
     if (dialogueContractError) {
       console.error('[API /turn] Model dialogue contract mismatch:', dialogueContractError);
-      const diagnostics = buildDialogueDiagnostics();
-      return res.status(502).json({
-        error: 'Model output violated dialogue contract',
-        code: 'MODEL_CONTRACT_MISMATCH',
-        diagnostics,
-      });
+      const err: any = new Error('Model output violated dialogue contract');
+      err.code = 'DIALOGUE_CONTRACT_VIOLATION';
+      throw err;
     }
 
     boundedResult.narrative_blocks = normalizedBlocks;
@@ -1723,12 +1620,11 @@ ${recentHistory}
       validCauses,
     });
 
-    const characterStanceReceipt = resolveCharacterStance({
+    const characterStanceReceipt = finalizeCharacterStance({
       proposal: engineResponse.character_stance_proposal,
-      currentState: context.characterStance || {},
       context,
       intentReceipt,
-      reconciliationReceipt: narrativeReconciliationReceipt,
+      narrativeReconciliationReceipt,
       castInteractionReceipt,
     });
 
@@ -1850,11 +1746,11 @@ ${recentHistory}
         '[HG2 GOVERNOR OUTPUT INVALID] Pacing governor produced schema-invalid dramaturgy state; failing turn closed.',
         JSON.stringify(dramaticOutputCheck.error.issues.slice(0, 4))
       );
-      return res.status(500).json({
-        error:
-          'The pacing governor produced invalid dramaturgy state. The turn was refused and canonical state is unchanged.',
-        code: 'DRAMATURGY_STATE_INVALID',
-      });
+      const err: any = new Error(
+        'The pacing governor produced invalid dramaturgy state. The turn was refused and canonical state is unchanged.'
+      );
+      err.code = 'DRAMATURGY_STATE_INVALID';
+      throw err;
     }
 
     const dramaticTurnReceipt: DramaticTurnReceipt = dramaticGovResult.receipt;
@@ -1866,14 +1762,14 @@ ${recentHistory}
       engineResponse.cast_activity_proposal?.kind === 'ACTIVITY' &&
       engineResponse.cast_activity_proposal.manifestationBlock
     ) {
-      composedNarrativeBlocks.push(engineResponse.cast_activity_proposal.manifestationBlock);
+      composedNarrativeBlocks.push(engineResponse.cast_activity_proposal.manifestationBlock as any);
     }
     if (
       situatedPressureReceipt.admittedManifestation &&
       engineResponse.situated_pressure_proposal?.kind === 'PRESSURE' &&
       engineResponse.situated_pressure_proposal.manifestationBlock
     ) {
-      composedNarrativeBlocks.push(engineResponse.situated_pressure_proposal.manifestationBlock);
+      composedNarrativeBlocks.push(engineResponse.situated_pressure_proposal.manifestationBlock as any);
     }
 
     // 7. Build typed developer forensic record (Packet 1-8)
@@ -1921,7 +1817,7 @@ ${recentHistory}
     };
 
     const presentOpportunityIds = (hgContext.presentActorOpportunities || []).map(
-      (o) => o.opportunityId || `opp-present-${o.castMemberId}`
+      (o: any) => o.opportunityId || `opp-present-${o.castMemberId}`
     );
     const selectedOffscreenPursuitIds = (hgContext.offscreenPursuitOpportunities || [])
       .map((o) => o.pursuitId)
@@ -1976,14 +1872,240 @@ ${recentHistory}
       dramaticTurnReceipt,
     };
 
-    return res.json(finalResponse);
-  } catch (error: unknown) {
-    console.error('[API /turn] Unexpected error:', error);
-    const message = error instanceof Error ? error.message : 'Internal server error';
-    return res.status(500).json({
-      error: 'Unexpected server error during turn processing',
-      code: 'INTERNAL_ERROR',
-      message,
+    return {
+      finalResponse,
+      composedNarrativeBlocks,
+    };
+}
+
+export function handleTurnRouteError(modelErr: unknown, res: Response) {
+  if (
+    modelErr instanceof ProviderPrepaymentDepletedError ||
+    (modelErr as { code?: string })?.code === 'PREPAYMENT_DEPLETED'
+  ) {
+    console.error('[API /turn] Prepayment credits depleted');
+    return res.status(429).json({
+      error: 'Google AI Studio prepayment credits are depleted. Switch to an unpaid Free Tier project key or add credits in AI Studio.',
+      code: 'PREPAYMENT_DEPLETED',
     });
   }
+  if (
+    modelErr instanceof ProviderRateLimitError ||
+    (modelErr as { code?: string })?.code === 'RATE_LIMIT_EXCEEDED'
+  ) {
+    console.warn('[API /turn] AI Provider rate limit exceeded');
+    return res.status(429).json({
+      error: 'AI provider rate limit reached (15 RPM on Free Tier). Please wait a few seconds before retrying.',
+      code: 'RATE_LIMIT_EXCEEDED',
+    });
+  }
+  if (
+    modelErr instanceof ProviderCapacityError ||
+    (modelErr as { code?: string })?.code === 'PROVIDER_HIGH_DEMAND'
+  ) {
+    console.warn('[API /turn] AI Provider high demand');
+    return res.status(503).json({
+      error: 'AI provider is currently experiencing high demand. Please retry in a few moments.',
+      code: 'PROVIDER_HIGH_DEMAND',
+    });
+  }
+  if (
+    modelErr instanceof ProviderRefusalError ||
+    (modelErr as { code?: string })?.code === 'PROVIDER_REFUSAL'
+  ) {
+    console.warn('[API /turn] AI Provider refusal');
+    return res.status(502).json({
+      error: 'AI provider declined turn generation',
+      code: 'PROVIDER_REFUSAL',
+    });
+  }
+  if (
+    modelErr instanceof EmptyProviderResponseError ||
+    (modelErr as { code?: string })?.code === 'EMPTY_PROVIDER_RESPONSE'
+  ) {
+    console.error('[API /turn] AI Provider empty response:', (modelErr as Error)?.message);
+    return res.status(502).json({
+      error: (modelErr as Error)?.message || 'AI provider returned an empty response',
+      code: 'PROVIDER_FAILURE',
+    });
+  }
+  if (
+    modelErr instanceof ProviderRequestRejectedError ||
+    (modelErr as { code?: string })?.code === 'PROVIDER_REQUEST_REJECTED'
+  ) {
+    console.error('[API /turn] AI Provider rejected request configuration');
+    return res.status(502).json({
+      error: (modelErr as Error)?.message || 'AI provider rejected the turn generation request',
+      code: 'PROVIDER_REQUEST_REJECTED',
+    });
+  }
+  if (modelErr instanceof z.ZodError || (modelErr as { name?: string })?.name === 'ZodError') {
+    console.error('[API /turn] Model contract mismatch:', modelErr);
+    const zodError =
+      modelErr instanceof z.ZodError
+        ? modelErr
+        : new z.ZodError((modelErr as { issues?: z.ZodIssue[] }).issues || []);
+    const diagnostics = buildZodDiagnostics(zodError);
+    return res.status(502).json({
+      error: 'Model output violated schema contract',
+      code: 'MODEL_CONTRACT_MISMATCH',
+      diagnostics,
+    });
+  }
+  if (modelErr instanceof SyntaxError) {
+    console.error('[API /turn] Model JSON parse failure:', modelErr);
+    const diagnostics = buildJsonParseDiagnostics();
+    return res.status(502).json({
+      error: 'Model output violated schema contract',
+      code: 'MODEL_CONTRACT_MISMATCH',
+      diagnostics,
+    });
+  }
+  if ((modelErr as { code?: string })?.code === 'DIALOGUE_CONTRACT_VIOLATION') {
+    const diagnostics = buildDialogueDiagnostics();
+    return res.status(502).json({
+      error: 'Model output violated dialogue contract',
+      code: 'MODEL_CONTRACT_MISMATCH',
+      diagnostics,
+    });
+  }
+  if ((modelErr as { code?: string })?.code === 'DRAMATURGY_STATE_INVALID') {
+    return res.status(500).json({
+      error:
+        'The pacing governor produced invalid dramaturgy state. The turn was refused and canonical state is unchanged.',
+      code: 'DRAMATURGY_STATE_INVALID',
+    });
+  }
+  if ((modelErr as { code?: string })?.code === 'MISSING_HORROR_GRAMMAR_CONTEXT') {
+    return res.status(400).json({
+      error: 'Invalid turn request: context.horrorGrammar is required for Engine turn processing',
+      code: 'MISSING_HORROR_GRAMMAR_CONTEXT',
+    });
+  }
+  console.error('[API /turn] Unexpected error:', modelErr);
+  return res.status(502).json({
+    error: 'AI provider turn generation failed',
+    code: (modelErr as { code?: string })?.code || 'PROVIDER_FAILURE',
+  });
+}
+
+export const turnRouter = Router();
+
+turnRouter.post('/', async (req, res) => {
+  let parsedRequest;
+  try {
+    normalizeTurnRequestPayload(req.body);
+    parsedRequest = TurnRequestSchema.parse(req.body);
+  } catch (err) {
+    console.error('[API /turn] Request validation error:', err);
+    return res.status(400).json({
+      error: 'Invalid turn request',
+      code: 'INVALID_REQUEST',
+      details: err instanceof z.ZodError ? err.flatten() : String(err),
+    });
+  }
+
+  if (!parsedRequest.context.horrorGrammar) {
+    return res.status(400).json({
+      error: 'Invalid turn request: context.horrorGrammar is required for Engine turn processing',
+      code: 'MISSING_HORROR_GRAMMAR_CONTEXT',
+    });
+  }
+
+  try {
+    const { finalResponse } = await processTurnExecution(parsedRequest);
+    return res.json(finalResponse);
+  } catch (error: unknown) {
+    return handleTurnRouteError(error, res);
+  }
 });
+
+export async function handleStreamTurnRequest(req: any, res: Response) {
+  let parsedRequest;
+  try {
+    normalizeTurnRequestPayload(req.body);
+    parsedRequest = TurnRequestSchema.parse(req.body);
+  } catch (err) {
+    console.error('[API /turn-stream] Request validation error:', err);
+    return res.status(400).json({
+      error: 'Invalid turn request',
+      code: 'INVALID_REQUEST',
+      details: err instanceof z.ZodError ? err.flatten() : String(err),
+    });
+  }
+
+  if (!parsedRequest.context.horrorGrammar) {
+    return res.status(400).json({
+      error: 'Invalid turn request: context.horrorGrammar is required for Engine turn processing',
+      code: 'MISSING_HORROR_GRAMMAR_CONTEXT',
+    });
+  }
+
+  const sse = new SseStream(res);
+  req.on('close', () => {
+    sse.close();
+  });
+
+  try {
+    const { finalResponse, composedNarrativeBlocks } = await processTurnExecution(parsedRequest);
+
+    for (const block of composedNarrativeBlocks) {
+      if (block.content) {
+        const words = block.content.split(/(\s+)/);
+        for (const word of words) {
+          if (word) {
+            sse.sendToken(word);
+          }
+        }
+      }
+    }
+
+    sse.complete(finalResponse);
+  } catch (error: any) {
+    let errorCode = (error as { code?: string })?.code || 'PROVIDER_FAILURE';
+    let errorMessage = 'AI provider turn generation failed';
+    let diagnostics: any[] = [];
+
+    if (error instanceof ProviderPrepaymentDepletedError || error?.code === 'PREPAYMENT_DEPLETED') {
+      errorCode = 'PREPAYMENT_DEPLETED';
+      errorMessage = 'Google AI Studio prepayment credits are depleted. Switch to an unpaid Free Tier project key or add credits in AI Studio.';
+    } else if (error instanceof ProviderRateLimitError || error?.code === 'RATE_LIMIT_EXCEEDED') {
+      errorCode = 'RATE_LIMIT_EXCEEDED';
+      errorMessage = 'AI provider rate limit reached (15 RPM on Free Tier). Please wait a few seconds before retrying.';
+    } else if (error instanceof ProviderCapacityError || error?.code === 'PROVIDER_HIGH_DEMAND') {
+      errorCode = 'PROVIDER_HIGH_DEMAND';
+      errorMessage = 'AI provider is currently experiencing high demand. Please retry in a few moments.';
+    } else if (error instanceof ProviderRefusalError || error?.code === 'PROVIDER_REFUSAL') {
+      errorCode = 'PROVIDER_REFUSAL';
+      errorMessage = 'AI provider declined turn generation';
+    } else if (error instanceof EmptyProviderResponseError || error?.code === 'EMPTY_PROVIDER_RESPONSE') {
+      errorCode = 'PROVIDER_FAILURE';
+      errorMessage = error?.message || 'AI provider returned an empty response';
+    } else if (error instanceof ProviderRequestRejectedError || error?.code === 'PROVIDER_REQUEST_REJECTED') {
+      errorCode = 'PROVIDER_REQUEST_REJECTED';
+      errorMessage = error?.message || 'AI provider rejected the turn generation request';
+    } else if (error instanceof z.ZodError || error?.name === 'ZodError') {
+      errorCode = 'MODEL_CONTRACT_MISMATCH';
+      errorMessage = 'Model output violated schema contract';
+      diagnostics = buildZodDiagnostics(error instanceof z.ZodError ? error : new z.ZodError(error.issues || [])).issues;
+    } else if (error instanceof SyntaxError) {
+      errorCode = 'MODEL_CONTRACT_MISMATCH';
+      errorMessage = 'Model output violated schema contract';
+      diagnostics = buildJsonParseDiagnostics().issues;
+    } else if (error?.code === 'DIALOGUE_CONTRACT_VIOLATION') {
+      errorCode = 'MODEL_CONTRACT_MISMATCH';
+      errorMessage = 'Model output violated dialogue contract';
+      diagnostics = buildDialogueDiagnostics().issues;
+    } else if (error?.code === 'DRAMATURGY_STATE_INVALID') {
+      errorCode = 'DRAMATURGY_STATE_INVALID';
+      errorMessage = 'The pacing governor produced invalid dramaturgy state. The turn was refused and canonical state is unchanged.';
+    }
+
+    sse.error(errorMessage, diagnostics, errorCode);
+  }
+}
+
+export const turnStreamRouter = Router();
+turnStreamRouter.post('/', handleStreamTurnRequest);
+turnRouter.post(['/turn-stream', '/stream'], handleStreamTurnRequest);
+

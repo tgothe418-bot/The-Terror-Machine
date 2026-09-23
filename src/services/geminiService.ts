@@ -249,3 +249,95 @@ export const reconcileStateFromEdit = async (
     return {};
   }
 };
+
+export interface TurnStreamCallbacks {
+  onToken?: (token: string) => void;
+  onComplete?: (response: any) => void;
+  onError?: (error: Error | { error: string; diagnostics?: any[] }) => void;
+}
+
+export async function streamEngineTurn(
+  payload: any,
+  callbacks?: TurnStreamCallbacks,
+  signal?: AbortSignal
+): Promise<any> {
+  const response = await fetch('/api/turn-stream', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+    signal,
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => ({}));
+    const err = new Error(errorBody.error || `HTTP ${response.status}`);
+    (err as any).status = response.status;
+    (err as any).code = errorBody.code;
+    callbacks?.onError?.(err);
+    throw err;
+  }
+
+  if (!response.body) {
+    const err = new Error('Response body is null');
+    callbacks?.onError?.(err);
+    throw err;
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let finalResult: any = null;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      let currentEvent = 'message';
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed) {
+          currentEvent = 'message';
+          continue;
+        }
+
+        if (trimmed.startsWith('event:')) {
+          currentEvent = trimmed.slice(6).trim();
+        } else if (trimmed.startsWith('data:')) {
+          const dataStr = trimmed.slice(5).trim();
+          try {
+            const parsedData = JSON.parse(dataStr);
+            if (currentEvent === 'token') {
+              callbacks?.onToken?.(parsedData.token);
+            } else if (currentEvent === 'complete') {
+              finalResult = parsedData;
+              callbacks?.onComplete?.(parsedData);
+            } else if (currentEvent === 'error') {
+              const err = new Error(parsedData.error || 'Turn generation error');
+              (err as any).diagnostics = parsedData.diagnostics;
+              callbacks?.onError?.(err);
+              throw err;
+            }
+          } catch (parseErr) {
+            if (currentEvent === 'error') throw parseErr;
+          }
+        }
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  if (!finalResult) {
+    const err = new Error('Stream ended without complete event');
+    callbacks?.onError?.(err);
+    throw err;
+  }
+
+  return finalResult;
+}
+

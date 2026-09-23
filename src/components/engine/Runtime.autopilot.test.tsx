@@ -248,7 +248,8 @@ describe('Runtime Autopilot pacing', () => {
     expect(mockExecuteRatificationPipeline).toHaveBeenCalledTimes(1);
     expect(mockExecuteRatificationPipeline).toHaveBeenCalledWith(
       'Study the unmarked panel.',
-      expect.any(Object)
+      expect.any(Object),
+      expect.anything()
     );
 
     const abortButton = Array.from(container?.querySelectorAll('button') || []).find((button) =>

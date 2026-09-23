@@ -721,6 +721,7 @@ export default function Runtime() {
     category: string;
     timestamp: number;
   } | null>(null);
+  const [streamingText, setStreamingText] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [lastActivity, setLastActivity] = useState<number>(() => Date.now());
   const { isHydrated, isCoherent } = useHydratedStores();
@@ -1112,7 +1113,11 @@ export default function Runtime() {
     let isObsolete = false;
 
     try {
-      const response = await executeRatificationPipeline(commandText, preSnapshot);
+      const response = await executeRatificationPipeline(commandText, preSnapshot, {
+        onToken: (token) => {
+          setStreamingText((prev) => (prev ? prev + token : token));
+        },
+      });
 
       // Check attempt currentness before validating, preparing payload, or mutating stores
       const currentAppState = useAppStore.getState();
@@ -1352,6 +1357,7 @@ export default function Runtime() {
 
       return 'COMMITTED';
     } catch (err: unknown) {
+      setStreamingText(null);
       const currentAppState = useAppStore.getState();
       if (!isTurnAttemptCurrent(currentAppState, preSnapshot)) {
         isObsolete = true;
@@ -1382,6 +1388,7 @@ export default function Runtime() {
 
       return failureReceipt.code === 'PROVIDER_REFUSAL' ? 'REFUSED' : 'FAILED';
     } finally {
+      setStreamingText(null);
       setInFlightInput(null);
       if (!isObsolete) {
         setIsLoading(false);
@@ -1877,7 +1884,26 @@ export default function Runtime() {
                     </p>
                   </motion.div>
                 )}
-                {isLoading && (
+                {streamingText && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                    className="border border-cyan-900/40 bg-zinc-950/90 p-5 rounded-lg text-zinc-300 relative overflow-hidden backdrop-blur-sm shadow-xl shadow-black/40"
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="w-2 h-2 rounded-full bg-cyan-500 shadow-[0_0_8px_#06b6d4] animate-pulse" />
+                      <span className="text-[10px] font-mono uppercase tracking-[0.25em] text-cyan-400 font-semibold">
+                        [ STREAMING TRANSMISSION ]
+                      </span>
+                    </div>
+                    <p className="font-serif text-zinc-200 text-base leading-relaxed whitespace-pre-wrap pl-3 border-l-2 border-cyan-700/60">
+                      {streamingText}
+                      <span className="inline-block w-1.5 h-4 bg-cyan-400 ml-1 animate-pulse" />
+                    </p>
+                  </motion.div>
+                )}
+                {isLoading && !streamingText && (
                   <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}

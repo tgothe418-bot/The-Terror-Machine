@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach, vi } from 'vitest';
-import { fetchSimulatedPlayerAction } from './geminiService';
+import { fetchSimulatedPlayerAction, streamEngineTurn } from './geminiService';
 import type { Message, LogicState } from '../types';
 
 describe('fetchSimulatedPlayerAction client service', () => {
@@ -65,3 +65,115 @@ describe('fetchSimulatedPlayerAction client service', () => {
     expect(JSON.stringify(result)).not.toContain('SYSTEM OVERRIDE');
   });
 });
+
+describe('streamEngineTurn client service', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('streams tokens and resolves on complete event', async () => {
+    const sseChunks = [
+      'id: 1\nevent: token\ndata: {"token":"You "}\n\n',
+      'id: 2\nevent: token\ndata: {"token":"reach "}\n\n',
+      'id: 3\nevent: token\ndata: {"token":"out."}\n\n',
+      'id: 4\nevent: complete\ndata: {"narrative_blocks":[{"type":"prose","content":"You reach out."}]}\n\n',
+    ];
+
+    const stream = new ReadableStream({
+      start(controller) {
+        for (const chunk of sseChunks) {
+          controller.enqueue(new TextEncoder().encode(chunk));
+        }
+        controller.close();
+      },
+    });
+
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(stream, {
+        status: 200,
+        headers: { 'Content-Type': 'text/event-stream' },
+      })
+    );
+
+    const tokens: string[] = [];
+    let completedData: any = null;
+
+    const result = await streamEngineTurn(
+      { userAction: 'Reach out' },
+      {
+        onToken: (t) => tokens.push(t),
+        onComplete: (d) => {
+          completedData = d;
+        },
+      }
+    );
+
+    expect(tokens).toEqual(['You ', 'reach ', 'out.']);
+    expect(completedData).toEqual({
+      narrative_blocks: [{ type: 'prose', content: 'You reach out.' }],
+    });
+    expect(result).toEqual(completedData);
+  });
+
+  it('throws and dispatches onError when error event is received', async () => {
+    const sseChunks = [
+      'id: 1\nevent: error\ndata: {"error":"Model refusal","diagnostics":[]}\n\n',
+    ];
+
+    const stream = new ReadableStream({
+      start(controller) {
+        for (const chunk of sseChunks) {
+          controller.enqueue(new TextEncoder().encode(chunk));
+        }
+        controller.close();
+      },
+    });
+
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(stream, {
+        status: 200,
+        headers: { 'Content-Type': 'text/event-stream' },
+      })
+    );
+
+    let caughtError: any = null;
+    await expect(
+      streamEngineTurn(
+        { userAction: 'Bad action' },
+        {
+          onError: (e) => {
+            caughtError = e;
+          },
+        }
+      )
+    ).rejects.toThrow('Model refusal');
+
+    expect(caughtError).toBeDefined();
+    expect(caughtError.message).toBe('Model refusal');
+  });
+
+  it('throws and dispatches onError on non-ok HTTP response', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify({ error: 'Invalid payload', code: 'INVALID_REQUEST' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    );
+
+    let caughtError: any = null;
+    await expect(
+      streamEngineTurn(
+        { userAction: '' },
+        {
+          onError: (e) => {
+            caughtError = e;
+          },
+        }
+      )
+    ).rejects.toThrow('Invalid payload');
+
+    expect(caughtError).toBeDefined();
+    expect(caughtError.code).toBe('INVALID_REQUEST');
+  });
+});
+
