@@ -15,7 +15,7 @@ import {
   getCandidateApplicationPriority,
   isCompleteAuthoredDepictionContract,
 } from './sourceBaseline';
-import { isVillainCastMember } from './castVillain';
+import { isVillainCastMember, ensureVillainCastMember } from './castVillain';
 
 /**
  * Pure helper that deterministically derives default Depiction Contract fields
@@ -111,6 +111,8 @@ export function projectAcceptedStagedCandidates(
       workingDraft = result.draft;
     }
   }
+
+  workingDraft = ensureVillainCastMember(workingDraft);
 
   return workingDraft;
 }
@@ -244,11 +246,16 @@ export function validateForgeDraft(rawDraft: unknown): ForgeValidationResult {
     draft.cast.some(isVillainCastMember);
   if (!hasVillain) {
     if (!errors['cast']) errors['cast'] = [];
+    const antagonistName = (draft as ForgeDraft)?.antagonistProfile?.name?.trim();
+    const guidanceSuffix = antagonistName
+      ? ` Antagonist "${antagonistName}" is named in the antagonist profile but has no VILLAIN cast member; add them in the Cast Manager or re-run baseline application.`
+      : '';
     errors['cast'].push(
       'Invariant violation: every scenario must extract at least one VILLAIN cast member. ' +
         'If the source antagonist is a named entity, machine intelligence, or hostile overseer ' +
         '(e.g. AM), extract it as a cast_seed with disposition "VILLAIN" and isEntity true, ' +
-        'in addition to any antagonist_profile entry.'
+        'in addition to any antagonist_profile entry.' +
+        guidanceSuffix
     );
   }
 

@@ -46,6 +46,7 @@ import {
   isCompleteAuthoredDepictionContract,
   reconcileDraftTopologyAndCast,
 } from '../lib/sourceBaseline';
+import { ensureVillainCastMember } from '../lib/castVillain';
 
 export const defaultStyleVector: ProseStyleVector = {
   sentenceStructure: 'clinical-flat',
@@ -1108,6 +1109,8 @@ export const useForgeStoreInternal = create<ForgeStore>()(
               return state;
             }
 
+            workingDraft = ensureVillainCastMember(workingDraft);
+
             // If draft title is empty, auto-populate from source record filename or setting location
             if (!workingDraft.title?.trim()) {
               const cleanFileName = (analysis.sourceRecord?.fileName || '')
@@ -1229,6 +1232,8 @@ export const useForgeStoreInternal = create<ForgeStore>()(
               outcome = { success: false, error: firstErr };
               return state;
             }
+
+            workingDraft = ensureVillainCastMember(workingDraft);
 
             // If draft title is empty, auto-populate from source record filename or setting location
             if (!workingDraft.title?.trim()) {

@@ -57,6 +57,33 @@ export type ApplyCandidateResult =
   | { success: true; draft: ForgeDraft }
   | { success: false; draft: ForgeDraft; error: string };
 
+const VILLAIN_DISPOSITION_ALIASES = new Set([
+  'VILLAIN', 'ANTAGONIST', 'HOSTILE', 'EVIL', 'MALEVOLENT',
+  'MONSTER', 'KILLER', 'PSYCHOPATH', 'MURDERER',
+]);
+const BYSTANDER_DISPOSITION_ALIASES = new Set([
+  'BYSTANDER', 'NEUTRAL', 'INNOCENT', 'CIVILIAN', 'OBSERVER',
+]);
+const SURVIVOR_DISPOSITION_ALIASES = new Set([
+  'SURVIVOR', 'PROTAGONIST', 'HERO', 'VICTIM',
+]);
+
+/**
+ * Coerce a model-emitted disposition string into the contract enum.
+ * Unrecognized values fall back to the CastManager UI's own default rule
+ * (entity -> VILLAIN, mortal -> SURVIVOR) so normalization, UI, and validator agree.
+ */
+export function normalizeCastDisposition(
+  raw: unknown,
+  isEntity: boolean
+): 'SURVIVOR' | 'VILLAIN' | 'BYSTANDER' {
+  const upper = String(raw ?? '').toUpperCase().trim();
+  if (VILLAIN_DISPOSITION_ALIASES.has(upper)) return 'VILLAIN';
+  if (BYSTANDER_DISPOSITION_ALIASES.has(upper)) return 'BYSTANDER';
+  if (SURVIVOR_DISPOSITION_ALIASES.has(upper)) return 'SURVIVOR';
+  return isEntity ? 'VILLAIN' : 'SURVIVOR';
+}
+
 /**
  * Builds a ForgeSourceAnalysis from an imported native Blueprint JSON.
  * Inspection only: extracts identifiable fields into evidence-backed, pending candidates.
@@ -1047,6 +1074,12 @@ export function validateAndNormalizeDocumentAnalysis(
           };
         }
 
+        // Coerce model-invented dispositions (e.g. "HOSTILE") into the contract enum
+        castObj.disposition = normalizeCastDisposition(
+          castObj.disposition,
+          castObj.isEntity === true
+        );
+
         proposedValue = castObj;
       } else if (
         normalizedCandidate.target === 'depiction_contract' &&
@@ -1980,14 +2013,12 @@ export function reconcileDraftTopologyAndCast(draft: ForgeDraft): ForgeDraft {
   if (cloned.cast && cloned.cast.length > 0) {
     const validNodeSet = new Set(availableNodeIds);
     cloned.cast = cloned.cast.map((member) => {
-      let disposition = (member as any).disposition;
-      if (!disposition || !['SURVIVOR', 'VILLAIN', 'BYSTANDER'].includes(disposition)) {
-        if (member.isEntity || String(member.role).toUpperCase() === 'ANTAGONIST') {
-          disposition = 'VILLAIN';
-        } else {
-          disposition = 'SURVIVOR';
-        }
-      }
+      const isEntityOrAntagonist =
+        member.isEntity === true || String(member.role).toUpperCase() === 'ANTAGONIST';
+      const disposition = normalizeCastDisposition(
+        (member as any).disposition,
+        isEntityOrAntagonist
+      );
 
       const invalidPlacement =
         member.presenceDisposition?.kind === 'AT_NODE' &&

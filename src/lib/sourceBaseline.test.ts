@@ -9,6 +9,7 @@ import {
   validateAndNormalizeDocumentAnalysis,
   isCompleteAuthoredDepictionContract,
   reconcileDraftTopologyAndCast,
+  normalizeCastDisposition,
 } from './sourceBaseline';
 import {
   ForgeDraft,
@@ -2558,6 +2559,71 @@ describe('sourceBaseline pure functions', () => {
 
       const ctrl = reconciled.antagonistProfile!.apparatusControls![0];
       expect(ctrl.affectedNodeIds).toEqual(['all', 'room_alpha']);
+    });
+  });
+
+  describe('normalizeCastDisposition and cast_seed disposition coercion', () => {
+    it('coerces model-invented disposition aliases to contract enums', () => {
+      expect(normalizeCastDisposition('HOSTILE', false)).toBe('VILLAIN');
+      expect(normalizeCastDisposition('ANTAGONIST', false)).toBe('VILLAIN');
+      expect(normalizeCastDisposition('villain', false)).toBe('VILLAIN');
+      expect(normalizeCastDisposition('NEUTRAL', false)).toBe('BYSTANDER');
+      expect(normalizeCastDisposition('PROTAGONIST', false)).toBe('SURVIVOR');
+      expect(normalizeCastDisposition('UNKNOWN_AI', true)).toBe('VILLAIN');
+      expect(normalizeCastDisposition('UNKNOWN_AI', false)).toBe('SURVIVOR');
+    });
+
+    it('coerces cast_seed candidate disposition during document analysis normalization', () => {
+      const rawAnalysis = {
+        summary: 'Containment scenario summary.',
+        evidence: [{ id: 'ev-1', quote: 'AM was hostile.' }],
+        candidates: [
+          {
+            target: 'cast_seed',
+            evidenceIds: ['ev-1'],
+            proposedValue: {
+              id: 'cast-am',
+              name: 'AM',
+              role: 'Computer Overlord',
+              disposition: 'HOSTILE',
+              isEntity: true,
+            },
+          },
+          {
+            target: 'cast_seed',
+            evidenceIds: ['ev-1'],
+            proposedValue: {
+              id: 'cast-survivor',
+              name: 'Elena Mercer',
+              role: 'Survivor',
+              disposition: 'HERO',
+              isEntity: false,
+            },
+          },
+        ],
+        unknowns: [],
+      };
+
+      const record: ForgeSourceRecord = {
+        id: 'rec-am-doc',
+        kind: 'text',
+        fileName: 'am_doc.txt',
+        addedAt: new Date().toISOString(),
+      };
+
+      const normalized = validateAndNormalizeDocumentAnalysis(rawAnalysis, record);
+      const castCandidates = normalized.candidates.filter((c) => c.target === 'cast_seed');
+      expect(castCandidates).toHaveLength(2);
+
+      const amCand = castCandidates.find(
+        (c) => (c.proposedValue as { id?: string }).id === 'cast-am'
+      );
+      expect((amCand?.proposedValue as { disposition?: string })?.disposition).toBe('VILLAIN');
+
+      const survivorCand = castCandidates.find(
+        (c) => (c.proposedValue as { id?: string }).id === 'cast-survivor'
+      );
+      expect((survivorCand?.proposedValue as { disposition?: string })?.disposition).toBe('SURVIVOR');
     });
   });
 });

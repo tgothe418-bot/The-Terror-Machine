@@ -3,9 +3,10 @@ import {
   compileForgeDraft,
   compileForgeDraftOrThrow,
   validateForgeDraft,
+  projectAcceptedStagedCandidates,
   ForgeCompilationError,
 } from './forgeCompiler';
-import { ForgeDraft } from '../types/forge';
+import { ForgeDraft, ForgeSourceAnalysis } from '../types/forge';
 
 describe('forgeCompiler Voice & Acoustic Dossier Compilation', () => {
   const baseValidDraft: ForgeDraft = {
@@ -348,6 +349,87 @@ describe('forgeCompiler Voice & Acoustic Dossier Compilation', () => {
     };
     const antagonistValidation = validateForgeDraft(antagonistRoleDraft);
     expect(antagonistValidation.errors['cast']).toBeUndefined();
+
+    // When no villain is in cast but antagonistProfile exists, error guides the author with the name
+    const draftWithAntagonistProfile: ForgeDraft = {
+      ...noVillainDraft,
+      antagonistProfile: {
+        name: 'AM',
+        kind: 'ENTITY',
+        apparatusControls: [],
+        sadisticDirectives: [],
+        telemetryFeeds: [],
+      },
+    };
+    const profileValidation = validateForgeDraft(draftWithAntagonistProfile);
+    expect(profileValidation.valid).toBe(false);
+    expect(profileValidation.errors['cast'].join(' ')).toContain('Antagonist "AM" is named in the antagonist profile');
+  });
+
+  it('applyBaselineToDraft backfills villain cast member from antagonist_profile candidate', () => {
+    const rawMortalsDraft: ForgeDraft = {
+      title: 'Hate Chamber',
+      premise: 'Testing AM scenario.',
+      startingVector: 'SOMATIC',
+      startingTier: 'MANIFEST',
+      cast: [
+        {
+          id: 'char-elena',
+          name: 'Elena Mercer',
+          role: 'Researcher',
+          disposition: 'SURVIVOR',
+          isEntity: false,
+        },
+      ],
+      horrorGrammar: {
+        valueBaselineReview: 'REVIEWED_NONE',
+        pursuitReviews: { 'char-elena': 'REVIEWED_NONE' },
+        valueAnchors: [],
+        characterPursuits: [],
+      },
+    };
+
+    const analysis = {
+      id: 'analysis-am',
+      sourceRecord: {
+        id: 'rec-am',
+        kind: 'text' as const,
+        fileName: 'am_story.txt',
+        addedAt: new Date().toISOString(),
+      },
+      summary: 'AM summary',
+      candidates: [
+        {
+          id: 'cand-antag-am',
+          sourceId: 'rec-am',
+          target: 'antagonist_profile' as const,
+          proposedValue: {
+            name: 'AM',
+            kind: 'ENTITY',
+            apparatusControls: [],
+            sadisticDirectives: [],
+            telemetryFeeds: [],
+          },
+          evidenceIds: ['ev-1'],
+          reviewDecision: 'accepted' as const,
+          applicationState: 'staged' as const,
+        },
+      ],
+      unknowns: [],
+      evidence: [
+        {
+          id: 'ev-1',
+          sourceId: 'rec-am',
+          quote: 'AM controls the complex.',
+        },
+      ],
+    };
+
+    const compiledDraft = projectAcceptedStagedCandidates(rawMortalsDraft, {
+      [analysis.id]: analysis as unknown as ForgeSourceAnalysis,
+    });
+    expect(compiledDraft.cast).toHaveLength(2);
+    expect(compiledDraft.cast?.some((c) => c.id === 'villain-am' && c.disposition === 'VILLAIN')).toBe(true);
   });
 
   it('throws ForgeCompilationError when compileForgeDraftOrThrow is called with invalid draft', () => {
