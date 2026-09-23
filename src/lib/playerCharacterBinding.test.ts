@@ -268,5 +268,66 @@ describe('playerCharacterBinding', () => {
         resolvePerspectiveBinding(invalidBlueprint, 'protagonist');
       }).toThrow(PlayerCharacterBindingError);
     });
+
+    it('binds villain member to protagonist when villainProtagonist is true even when survivor exists and no isUserCharacter is set', () => {
+      const bp = normalizeBlueprint({
+        ...genericBlueprint,
+        villainProtagonist: true,
+        cast: [
+          {
+            id: 'char-survivor-1',
+            name: 'Elena Mercer',
+            role: 'Specialist',
+            disposition: 'SURVIVOR',
+            isEntity: false,
+          },
+          {
+            id: 'char-villain-1',
+            name: 'Patrick Bateman',
+            role: 'Executive',
+            disposition: 'VILLAIN',
+            isEntity: false,
+          },
+        ],
+      });
+
+      const binding = resolvePerspectiveBinding(bp, 'protagonist');
+      expect(binding).toEqual({
+        playerRole: 'protagonist',
+        characterId: 'char-villain-1',
+        perspectiveMode: 'embodied',
+      });
+    });
+
+    it('explicit userCharacterId still wins over villainProtagonist flag', () => {
+      const bp = normalizeBlueprint({
+        ...genericBlueprint,
+        villainProtagonist: true,
+        userCharacterId: 'char-survivor-1',
+        cast: [
+          {
+            id: 'char-survivor-1',
+            name: 'Elena Mercer',
+            role: 'Specialist',
+            disposition: 'SURVIVOR',
+            isEntity: false,
+          },
+          {
+            id: 'char-villain-1',
+            name: 'Patrick Bateman',
+            role: 'Executive',
+            disposition: 'VILLAIN',
+            isEntity: false,
+          },
+        ],
+      });
+
+      const binding = resolvePerspectiveBinding(bp, 'protagonist');
+      expect(binding).toEqual({
+        playerRole: 'protagonist',
+        characterId: 'char-survivor-1',
+        perspectiveMode: 'embodied',
+      });
+    });
   });
 });

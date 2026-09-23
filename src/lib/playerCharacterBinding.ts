@@ -1,4 +1,5 @@
 import type { Blueprint, PlayerRole, PerspectiveMode } from '../types';
+import { isVillainCastMember } from './castVillain';
 
 export interface PlayerCharacterBinding {
   playerRole: PlayerRole;
@@ -235,6 +236,16 @@ export function resolvePerspectiveBinding(
         characterId: userMarked.id,
         perspectiveMode: 'embodied',
       };
+    }
+
+    if (blueprint.villainProtagonist === true) {
+      const villainChar =
+        cast.find((c) => c.isUserCharacter && isVillainCastMember(c)) ||
+        cast.find((c) => !c.isEntity && c.disposition === 'VILLAIN') ||
+        cast.find(isVillainCastMember);
+      if (villainChar) {
+        return { playerRole: 'protagonist', characterId: villainChar.id, perspectiveMode: 'embodied' };
+      }
     }
 
     const firstMortal = cast.find((c) => !c.isEntity) || cast[0];

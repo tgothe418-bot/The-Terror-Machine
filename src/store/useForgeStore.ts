@@ -1111,6 +1111,10 @@ export const useForgeStoreInternal = create<ForgeStore>()(
 
             workingDraft = ensureVillainCastMember(workingDraft);
 
+            if (analysis.villainProtagonist === true) {
+              workingDraft.villainProtagonist = true;
+            }
+
             // If draft title is empty, auto-populate from source record filename or setting location
             if (!workingDraft.title?.trim()) {
               const cleanFileName = (analysis.sourceRecord?.fileName || '')
@@ -1234,6 +1238,10 @@ export const useForgeStoreInternal = create<ForgeStore>()(
             }
 
             workingDraft = ensureVillainCastMember(workingDraft);
+
+            if (analysis.villainProtagonist === true) {
+              workingDraft.villainProtagonist = true;
+            }
 
             // If draft title is empty, auto-populate from source record filename or setting location
             if (!workingDraft.title?.trim()) {
@@ -2691,7 +2699,7 @@ export const useForgeStoreInternal = create<ForgeStore>()(
 
             if (analysesToUpdate.length === 0) return state;
 
-            let currentDraft = state.forgeDraft || createInitialDraft();
+            const currentDraft = state.forgeDraft || createInitialDraft();
             const existingAmbiguities = currentDraft.ambiguities ? [...currentDraft.ambiguities] : [];
             const updatedAnalyses = { ...state.sourceAnalyses };
 

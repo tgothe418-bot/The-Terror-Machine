@@ -337,6 +337,7 @@ export const PRESSURE_OPERATORS = [
   'DESTABILIZE_KNOWLEDGE',
   'VIOLATE_EXPECTATION',
   'IMPOSE_COST',
+  'INTERNAL',
   'OTHER',
 ] as const;
 
@@ -907,6 +908,7 @@ export const EvidenceCategorySchema = z.enum([
   'ACTIVITY_EVENT',
   'CONSEQUENCE',
   'VALUE_ANCHOR',
+  'INTERNAL_COMPULSION',
 ]);
 export type EvidenceCategory = z.infer<typeof EvidenceCategorySchema>;
 

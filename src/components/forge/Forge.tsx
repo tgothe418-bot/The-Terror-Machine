@@ -454,6 +454,27 @@ export default function Forge() {
                     />
                   </div>
                 </div>
+
+                {/* SCENARIO PERSPECTIVE & VILLAIN PROTAGONIST MODE */}
+                <div className="pt-3 border-t border-stone-800/80 flex flex-col gap-1.5">
+                  <label className="flex items-center gap-3 cursor-pointer group">
+                    <input
+                      type="checkbox"
+                      id="forge-villain-protagonist-toggle"
+                      checked={Boolean(draftBlueprint?.villainProtagonist)}
+                      onChange={(e) => updateDraft({ villainProtagonist: e.target.checked })}
+                      className="w-4 h-4 rounded bg-stone-900 border-stone-700 text-amber-500 focus:ring-amber-500/40 cursor-pointer"
+                    />
+                    <span className="font-serif text-xs 2xl:text-sm uppercase tracking-wider text-[#e6e4dc] font-bold group-hover:text-amber-300 transition-colors">
+                      Villain protagonist — the player character is the villain.
+                    </span>
+                  </label>
+                  {draftBlueprint?.villainProtagonist && (
+                    <p className="text-[11px] font-mono text-amber-400/90 pl-7 leading-relaxed">
+                      The protagonist seat will bind your VILLAIN cast member; the antagonist seat becomes the investigator.
+                    </p>
+                  )}
+                </div>
               </div>
 
               {/* Spatial Topology Matrix & Chorography Canvas */}

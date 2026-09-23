@@ -207,6 +207,8 @@ export const EngineTurnContextSchema = z.object({
   dramaturgyContext: DramaturgyTurnContextSchema.optional(),
   dramaturgyRuntimeState: DramaturgyRuntimeStateSchema.optional(),
   dramaticSpine: DramaticSpineSchema.optional(),
+  villainProtagonist: z.boolean().default(false),
+  narratorFraming: z.string().optional(),
 });
 
 export type EngineTurnContext = z.infer<typeof EngineTurnContextSchema>;

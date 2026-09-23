@@ -259,6 +259,39 @@ export function validateForgeDraft(rawDraft: unknown): ForgeValidationResult {
     );
   }
 
+  // 4c. Villain-Protagonist Invariant
+  if (draft.villainProtagonist === true) {
+    const cast = Array.isArray(draft.cast) ? draft.cast : [];
+    const draftRecord = draft as Record<string, unknown>;
+    const userCharId = typeof draftRecord.userCharacterId === 'string' ? draftRecord.userCharacterId : undefined;
+    const perspectives = Array.isArray(draftRecord.perspectives) ? draftRecord.perspectives : undefined;
+    const perspSubjectId = perspectives?.find((p): p is { role?: string; subjectCharacterId?: string } =>
+      p !== null && typeof p === 'object' && (p as { role?: string }).role === 'PROTAGONIST'
+    )?.subjectCharacterId;
+    const userChar = userCharId ? cast.find((c) => c.id === userCharId) : undefined;
+    const perspChar = perspSubjectId ? cast.find((c) => c.id === perspSubjectId) : undefined;
+    const userMarked = cast.find((c) => c.isUserCharacter);
+    const villainProtagonistMember =
+      cast.find((c) => !c.isEntity && c.disposition === 'VILLAIN') ||
+      cast.find(isVillainCastMember);
+    const fallbackMortal = cast.find((c) => !c.isEntity) || cast[0];
+
+    const wouldBeProtagonist =
+      userChar ||
+      perspChar ||
+      userMarked ||
+      villainProtagonistMember ||
+      fallbackMortal;
+
+    if (!wouldBeProtagonist || !isVillainCastMember(wouldBeProtagonist)) {
+      if (!errors['cast']) errors['cast'] = [];
+      const wouldBeName = wouldBeProtagonist?.name || 'Unknown Character';
+      errors['cast'].push(
+        `§4c villain-protagonist is set, but "${wouldBeName}" would take the protagonist seat and is not a villain. Mark the villain-protagonist in cast (disposition VILLAIN) or unset villainProtagonist.`
+      );
+    }
+  }
+
   // 5. Starting Vector & Tier Validation
   const validVectors = ['SOMATIC', 'COGNITIVE', 'COSMIC', 'SOCIO_MORAL'];
   if (!draft.startingVector || !validVectors.includes(draft.startingVector)) {
@@ -874,6 +907,7 @@ export function compileForgeDraft(
     coverImageUrl: draft.coverImageUrl,
     backCoverBlurb: draft.backCoverBlurb || draft.premise || draft.globalPremise,
     userCharacterId: undefined,
+    villainProtagonist: draft.villainProtagonist === true,
     cast: synchronizedCast,
     depictionContract: resolvedDepiction,
     dramaticSpine: draft.dramaticSpine,

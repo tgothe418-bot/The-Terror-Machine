@@ -114,9 +114,15 @@ export function resolveSituatedPressure({
     };
   }
 
+  const isVillainProtagonist =
+    currentContext.villainProtagonist === true ||
+    blueprint?.villainProtagonist === true;
+
   // Exact canonical evidence registry lookup
   const registryMap = getEligibleEvidenceRegistryMap(
-    currentContext,
+    isVillainProtagonist && !currentContext.villainProtagonist
+      ? { ...currentContext, villainProtagonist: true }
+      : currentContext,
     null,
     null,
     normalizedPreState
@@ -124,32 +130,17 @@ export function resolveSituatedPressure({
 
   let validatedSourceRef = sourceReference;
 
-  // Check if sourceReference claims same-turn activity
-  const actProposal = activityReceipt?.proposalSnapshot as
-    | { kind?: string; proposalId?: string; castMemberId?: string }
-    | undefined;
-  const isActivitySourceClaim =
-    sourceReference === 'ACTIVITY' ||
-    Boolean(activityReceipt?.acceptedEventId && sourceReference === activityReceipt.acceptedEventId) ||
-    Boolean(
-      actProposal &&
-        actProposal.kind === 'ACTIVITY' &&
-        actProposal.proposalId &&
-        sourceReference === actProposal.proposalId
-    ) ||
-    (Boolean(activityReceipt) &&
-      activityReceipt?.outcome === 'REJECTED' &&
-      actProposal &&
-      actProposal.kind === 'ACTIVITY' &&
-      actProposal.castMemberId &&
-      sourceReference.includes(actProposal.castMemberId));
+  const isSelfSourceClaim =
+    sourceReference === 'SELF' ||
+    (Boolean(currentContext.player?.characterId) &&
+      sourceReference === currentContext.player.characterId);
 
-  if (isActivitySourceClaim) {
-    if (!activityReceipt || activityReceipt.outcome !== 'ACCEPTED') {
+  if (isSelfSourceClaim) {
+    if (!isVillainProtagonist) {
       return {
         version: 1,
         outcome: 'REJECTED',
-        reasonCode: 'ACTIVITY_SOURCE_NOT_ACCEPTED',
+        reasonCode: 'UNAUTHORIZED_PRESSURE_CLAIM',
         preState: normalizedPreState,
         postState: normalizedPreState,
         admittedManifestation: false,
@@ -157,45 +148,81 @@ export function resolveSituatedPressure({
         proposalSnapshot,
       };
     }
-    validatedSourceRef = activityReceipt.acceptedEventId || 'ACTIVITY';
-  } else if (sourceReference === 'BASELINE') {
-    validatedSourceRef = 'BASELINE';
+    validatedSourceRef = sourceReference;
   } else {
-    // Check against pre-state threads, recent committed activity events, or canonical registry
-    const isPreThread = normalizedPreState.some((t) => t.id === sourceReference);
-    const isPreEvent = (currentContext.horrorGrammar?.runtimeState?.recentActivityEvents || []).some(
-      (e) => e.id === sourceReference
-    );
-    const matchInRegistry = registryMap.get(sourceReference);
+    // Check if sourceReference claims same-turn activity
+    const actProposal = activityReceipt?.proposalSnapshot as
+      | { kind?: string; proposalId?: string; castMemberId?: string }
+      | undefined;
+    const isActivitySourceClaim =
+      sourceReference === 'ACTIVITY' ||
+      Boolean(activityReceipt?.acceptedEventId && sourceReference === activityReceipt.acceptedEventId) ||
+      Boolean(
+        actProposal &&
+          actProposal.kind === 'ACTIVITY' &&
+          actProposal.proposalId &&
+          sourceReference === actProposal.proposalId
+      ) ||
+      (Boolean(activityReceipt) &&
+        activityReceipt?.outcome === 'REJECTED' &&
+        actProposal &&
+        actProposal.kind === 'ACTIVITY' &&
+        actProposal.castMemberId &&
+        sourceReference.includes(actProposal.castMemberId));
 
-    if (!isPreThread && !isPreEvent && !matchInRegistry) {
-      return {
-        version: 1,
-        outcome: 'REJECTED',
-        reasonCode: 'INVALID_SOURCE_REFERENCE',
-        preState: normalizedPreState,
-        postState: normalizedPreState,
-        admittedManifestation: false,
-        acceptedThreadId: null,
-        proposalSnapshot,
-      };
-    }
-
-    if (matchInRegistry) {
-      if (
-        matchInRegistry.category === 'OPPORTUNITY' ||
-        matchInRegistry.category === 'EXPRESSION_CAPABILITY'
-      ) {
+    if (isActivitySourceClaim) {
+      if (!activityReceipt || activityReceipt.outcome !== 'ACCEPTED') {
         return {
           version: 1,
           outcome: 'REJECTED',
-          reasonCode: 'UNAUTHORIZED_PRESSURE_CLAIM',
+          reasonCode: 'ACTIVITY_SOURCE_NOT_ACCEPTED',
           preState: normalizedPreState,
           postState: normalizedPreState,
           admittedManifestation: false,
           acceptedThreadId: null,
           proposalSnapshot,
         };
+      }
+      validatedSourceRef = activityReceipt.acceptedEventId || 'ACTIVITY';
+    } else if (sourceReference === 'BASELINE') {
+      validatedSourceRef = 'BASELINE';
+    } else {
+      // Check against pre-state threads, recent committed activity events, or canonical registry
+      const isPreThread = normalizedPreState.some((t) => t.id === sourceReference);
+      const isPreEvent = (currentContext.horrorGrammar?.runtimeState?.recentActivityEvents || []).some(
+        (e) => e.id === sourceReference
+      );
+      const matchInRegistry = registryMap.get(sourceReference);
+
+      if (!isPreThread && !isPreEvent && !matchInRegistry) {
+        return {
+          version: 1,
+          outcome: 'REJECTED',
+          reasonCode: 'INVALID_SOURCE_REFERENCE',
+          preState: normalizedPreState,
+          postState: normalizedPreState,
+          admittedManifestation: false,
+          acceptedThreadId: null,
+          proposalSnapshot,
+        };
+      }
+
+      if (matchInRegistry) {
+        if (
+          matchInRegistry.category === 'OPPORTUNITY' ||
+          matchInRegistry.category === 'EXPRESSION_CAPABILITY'
+        ) {
+          return {
+            version: 1,
+            outcome: 'REJECTED',
+            reasonCode: 'UNAUTHORIZED_PRESSURE_CLAIM',
+            preState: normalizedPreState,
+            postState: normalizedPreState,
+            admittedManifestation: false,
+            acceptedThreadId: null,
+            proposalSnapshot,
+          };
+        }
       }
     }
   }
@@ -362,10 +389,12 @@ export function resolveSituatedPressure({
     postState = [...normalizedPreState, newThread];
   }
 
+  const isSelfSourced = isVillainProtagonist && isSelfSourceClaim;
+
   return {
     version: 1,
     outcome: 'ACCEPTED',
-    reasonCode: 'PRESSURE_RATIFIED',
+    reasonCode: isSelfSourced ? 'SELF_SOURCED_PRESSURE' : 'PRESSURE_RATIFIED',
     preState: normalizedPreState,
     postState,
     admittedManifestation: !!manifestationBlock,

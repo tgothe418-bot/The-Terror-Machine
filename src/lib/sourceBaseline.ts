@@ -1399,6 +1399,7 @@ export function validateAndNormalizeDocumentAnalysis(
     validationIssues,
     omittedValidationIssueCount,
     status,
+    villainProtagonist: rawObj.villainProtagonist === true ? true : undefined,
     errorMessage:
       typeof rawObj.errorMessage === 'string' && rawObj.errorMessage.trim()
         ? rawObj.errorMessage.trim()
@@ -1414,6 +1415,7 @@ export function validateAndNormalizeDocumentAnalysis(
     id: `${sourceId}-analysis-fallback`,
     sourceRecord,
     summary: `Source intake completed with parsing fallback for ${sourceRecord.fileName}.`,
+    villainProtagonist: rawObj.villainProtagonist === true ? true : undefined,
     evidence,
     candidates,
     unknowns,

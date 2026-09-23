@@ -25,6 +25,7 @@ export interface BuildEvidenceRegistryInput {
   pressureThreads?: readonly SituatedPressureThread[];
   playerOpeningAim?: string | null;
   characterId?: string | null;
+  villainProtagonist?: boolean;
   activityEvents?: readonly CastActivityEvent[];
   maxRecentActivityEvents?: number;
 }
@@ -128,6 +129,21 @@ export function buildEvidenceRegistry(input: BuildEvidenceRegistryInput): Eviden
     });
   }
 
+  if (input.villainProtagonist && input.characterId) {
+    evidenceRegistry.push({
+      id: input.characterId,
+      category: 'INTERNAL_COMPULSION',
+      ownerRef: input.characterId,
+      description: `Villain-protagonist internal compulsion: predatory urge, loss of control, and escalation risk.`,
+    });
+    evidenceRegistry.push({
+      id: 'SELF',
+      category: 'INTERNAL_COMPULSION',
+      ownerRef: input.characterId,
+      description: `Villain-protagonist self-source: internal nature and psychological pressure.`,
+    });
+  }
+
   for (const evt of (input.activityEvents || []).slice(-maxEvents)) {
     evidenceRegistry.push({
       id: evt.id,
@@ -175,6 +191,9 @@ export function getEligibleEvidenceRegistryMap(
       currentContext.horrorGrammar?.runtimeState?.activePressureThreads,
     playerOpeningAim: currentContext.player?.openingAim,
     characterId: currentContext.player?.characterId,
+    villainProtagonist:
+      currentContext.villainProtagonist === true ||
+      (currentContext as { blueprint?: { villainProtagonist?: boolean } }).blueprint?.villainProtagonist === true,
     activityEvents:
       preEvents ||
       currentContext.horrorGrammar?.runtimeState?.recentActivityEvents,
@@ -183,6 +202,31 @@ export function getEligibleEvidenceRegistryMap(
   for (const entry of synthesized) {
     if (!map.has(entry.id)) {
       map.set(entry.id, entry);
+    }
+  }
+
+  // Ensure villain-protagonist self-sourced entries exist in map
+  if (
+    (currentContext.villainProtagonist === true ||
+      (currentContext as { blueprint?: { villainProtagonist?: boolean } }).blueprint?.villainProtagonist === true) &&
+    currentContext.player?.characterId
+  ) {
+    const charId = currentContext.player.characterId;
+    if (!map.has(charId)) {
+      map.set(charId, {
+        id: charId,
+        category: 'INTERNAL_COMPULSION',
+        ownerRef: charId,
+        description: `Villain-protagonist internal compulsion: predatory urge, loss of control, and escalation risk.`,
+      });
+    }
+    if (!map.has('SELF')) {
+      map.set('SELF', {
+        id: 'SELF',
+        category: 'INTERNAL_COMPULSION',
+        ownerRef: charId,
+        description: `Villain-protagonist self-source: internal nature and psychological pressure.`,
+      });
     }
   }
 

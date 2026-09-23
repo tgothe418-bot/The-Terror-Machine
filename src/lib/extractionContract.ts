@@ -1016,6 +1016,7 @@ CRITICAL EXTRACTION SCHEMAS & ENUMS:
      }
    - If an antagonistic entity, automated containment apparatus, monster, or hostile overseer is present in the source material, extract its operational profile, controls, and sadistic directives.
    - DUAL-EXTRACTION RULE: If the antagonistic entity has a proper name, speaks dialogue, or takes personalized character-like action (threats, torment tailored to individuals, direct address), it MUST ALSO be extracted as a separate 'cast_seed' candidate with disposition "VILLAIN" and isEntity true. The 'antagonist_profile' carries its operational controls; the 'cast_seed' carries its persona. A named, speaking antagonist must NEVER be filed ONLY as an apparatus.
+   - VILLAIN-PROTAGONIST RULE: If the source is narrated from the perpetrator's point of view — first-person predator narration — set "villainProtagonist": true. Emit the perpetrator BOTH as a 'cast_seed' (disposition "VILLAIN", isEntity false) AND as the 'antagonist_profile', per the dual-extraction rule.
 
 6. 'cast_expression_guidance':
    - proposedValue: { "communicationModes": ["${EXTRACTION_COMMUNICATION_MODES.join('" | "')}"], "expressionGuidance": string, "silenceGuidance"?: string }

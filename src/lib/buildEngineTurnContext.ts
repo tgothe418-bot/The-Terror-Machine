@@ -55,11 +55,13 @@ import {
   type DramaturgyTurnContext,
 } from '../types/dramaturgy';
 import { buildEvidenceRegistry } from './evidenceRegistry';
+import { isVillainCastMember } from './castVillain';
 
 export interface BuildEngineTurnContextOptions {
   blueprint: unknown;
   selectedRole?: PlayerRole | string;
   selectedCharacterId?: string | null;
+  villainProtagonist?: boolean;
   spatialGraph?: SpatialNode[];
   participationContext?: ParticipationContext | null;
   characterContinuity?: CharacterContinuityById | null;
@@ -275,6 +277,11 @@ export function buildEngineTurnContext(
       ? runtimeState.playerCharacterId
       : undefined;
 
+  const isVillainProtagonistScenario =
+    opts.villainProtagonist === true ||
+    normBp.villainProtagonist === true ||
+    (blueprint as { villainProtagonist?: boolean } | null | undefined)?.villainProtagonist === true;
+
   const { playerRole, characterId } = resolvePerspectiveBinding(
     normBp,
     effectiveRole,
@@ -284,13 +291,17 @@ export function buildEngineTurnContext(
   let playerDescription = '';
   let playerIsEntity = false;
 
-  if (characterId && normBp.cast) {
-    const char = normBp.cast.find((c) => c.id === characterId);
-    if (char) {
-      playerName = char.name || 'Unknown Character';
-      playerDescription = char.description || '';
-      playerIsEntity = Boolean(char.isEntity);
-    }
+  const boundChar = characterId && normBp.cast ? normBp.cast.find((c) => c.id === characterId) : null;
+  const isBoundVillain = Boolean(boundChar && isVillainCastMember(boundChar));
+
+  if (boundChar) {
+    playerName = boundChar.name || 'Unknown Character';
+    playerDescription = boundChar.description || '';
+    playerIsEntity = Boolean(boundChar.isEntity);
+  }
+
+  if (!playerDescription && playerRole === 'protagonist' && isBoundVillain) {
+    playerDescription = 'Villain-protagonist perspective.';
   }
 
   if (!playerName) {
@@ -312,10 +323,17 @@ export function buildEngineTurnContext(
       playerIsEntity = false;
     } else {
       playerName = 'Survivor';
-      playerDescription = 'Primary mortal survivor perspective.';
+      playerDescription = isBoundVillain
+        ? 'Villain-protagonist perspective.'
+        : 'Primary mortal survivor perspective.';
       playerIsEntity = false;
     }
   }
+
+  const narratorFraming =
+    isVillainProtagonistScenario && playerRole === 'protagonist' && isBoundVillain
+      ? 'The player is the villain. The horror is not what hunts them but what they are, what they are becoming, and how close the world is to seeing it. Never position the protagonist as prey. Other cast members are resources and risks, not fellow survivors. Discovery is the threat; the self is the haunting.'
+      : undefined;
 
   let playerOpeningAim: string | undefined = undefined;
   let sovereigntyInstruction: string | undefined = undefined;
@@ -615,6 +633,8 @@ export function buildEngineTurnContext(
 
   return {
     version: 1,
+    villainProtagonist: isVillainProtagonistScenario,
+    ...(narratorFraming ? { narratorFraming } : {}),
     scenario: {
       id: normBp.id,
       title: normBp.title || normBp.identity?.title || 'Unknown Enclosure',

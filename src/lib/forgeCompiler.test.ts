@@ -479,5 +479,98 @@ describe('forgeCompiler Voice & Acoustic Dossier Compilation', () => {
     expect(validation.valid).toBe(true);
     expect(validation.errors).toEqual({});
   });
+
+  describe('§4c Villain-Protagonist Invariant Validation', () => {
+    const vsiDraft: ForgeDraft = {
+      ...baseValidDraft,
+      villainProtagonist: true,
+      cast: [
+        {
+          id: 'char-v',
+          name: 'Patrick Bateman',
+          role: 'Vice President',
+          disposition: 'VILLAIN',
+          isEntity: false,
+          presenceDisposition: { kind: 'AT_NODE', nodeId: 'AUTOPSY_THEATRE' },
+        },
+        {
+          id: 'char-s',
+          name: 'Elena Mercer',
+          role: 'Researcher',
+          disposition: 'SURVIVOR',
+          isEntity: false,
+          presenceDisposition: { kind: 'AT_NODE', nodeId: 'DRAINAGE_CRYPT' },
+        },
+        {
+          id: 'char-i',
+          name: 'Detective Donald Kimball',
+          role: 'Investigator',
+          disposition: 'SURVIVOR',
+          isEntity: false,
+          presenceDisposition: { kind: 'AT_NODE', nodeId: 'REFRIGERATION_VAULT' },
+        },
+      ],
+      horrorGrammar: {
+        valueBaselineReview: 'REVIEWED_NONE',
+        pursuitReviews: {
+          'char-v': 'REVIEWED_NONE',
+          'char-s': 'REVIEWED_NONE',
+          'char-i': 'REVIEWED_NONE',
+        },
+        valueAnchors: [],
+        characterPursuits: [],
+      },
+    };
+
+    it('passes §4c validation for V+S+I cast when villainProtagonist is true', () => {
+      const result = validateForgeDraft(vsiDraft);
+      expect(result.valid).toBe(true);
+      expect(result.errors['cast']).toBeUndefined();
+    });
+
+    it('fails §4c validation when villainProtagonist is true but would-be protagonist is non-villain', () => {
+      // S marked as user character
+      const invalidDraft: ForgeDraft = {
+        ...vsiDraft,
+        cast: [
+          {
+            ...vsiDraft.cast![0],
+            isUserCharacter: false,
+          },
+          {
+            ...vsiDraft.cast![1],
+            isUserCharacter: true,
+          },
+          vsiDraft.cast![2],
+        ],
+      };
+
+      const result = validateForgeDraft(invalidDraft);
+      expect(result.valid).toBe(false);
+      expect(result.errors['cast']).toBeDefined();
+      expect(result.errors['cast'].join(' ')).toContain(
+        '§4c villain-protagonist is set, but "Elena Mercer" would take the protagonist seat and is not a villain. Mark the villain-protagonist in cast (disposition VILLAIN) or unset villainProtagonist.'
+      );
+    });
+
+    it('passes validation when villainProtagonist is false (regression)', () => {
+      const unsetDraft: ForgeDraft = {
+        ...vsiDraft,
+        villainProtagonist: false,
+        cast: [
+          vsiDraft.cast![0],
+          {
+            ...vsiDraft.cast![1],
+            isUserCharacter: true,
+          },
+          vsiDraft.cast![2],
+        ],
+      };
+
+      const result = validateForgeDraft(unsetDraft);
+      expect(result.valid).toBe(true);
+      expect(result.errors['cast']).toBeUndefined();
+    });
+  });
 });
 

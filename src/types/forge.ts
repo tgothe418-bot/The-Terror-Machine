@@ -399,6 +399,10 @@ export const ForgeDraftSchema = z.object({
   characters: z.array(z.unknown()).optional().default([]),
   hauntedHouse: HauntedHouseProvenanceSchema.optional(),
   antagonistProfile: AntagonistProfileSchema.optional(),
+  /**
+   * When true, the scenario's protagonist is its villain. Inverts protagonist seat binding and the pressure model.
+   */
+  villainProtagonist: z.boolean().default(false),
   ambiguities: BlueprintAmbiguityDecisionsSchema.optional().default([]),
   depictionContract: DepictionContractSchema.optional(),
   userOpeningAim: UserOpeningAimSchema.optional(),
@@ -976,6 +980,7 @@ export const ForgeSourceAnalysisSchema = z
     id: z.string().min(1),
     sourceRecord: ForgeSourceRecordSchema,
     summary: z.string().optional(),
+    villainProtagonist: z.boolean().optional(),
     evidence: z.array(ForgeSourceEvidenceSchema).default([]),
     candidates: z.array(ForgeSourceCandidateSchema).default([]),
     unknowns: z.array(ForgeSourceUnknownSchema).default([]),

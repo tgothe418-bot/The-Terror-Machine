@@ -255,6 +255,7 @@ function normalizeLegacyBlueprintShape(raw: unknown): unknown {
     ...(castNormalized !== undefined ? { cast: castNormalized } : {}),
     ...(userOpeningAimNormalized !== undefined ? { userOpeningAim: userOpeningAimNormalized } : {}),
     ...(antagonistProfileNormalized !== undefined ? { antagonistProfile: antagonistProfileNormalized } : {}),
+    ...(hasOwn(rawRecord, 'villainProtagonist') ? { villainProtagonist: Boolean(rawRecord.villainProtagonist) } : {}),
   };
 }
 

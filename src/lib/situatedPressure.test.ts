@@ -741,5 +741,143 @@ describe('Situated Pressure Ratifier (Packet 1-3)', () => {
         expect(receipt.reasonCode).toBe('INVALID_SOURCE_REFERENCE');
       }
     });
+
+    describe('Villain-Protagonist Pressure Ratification', () => {
+      it('accepts self-sourced pressure with operator INTERNAL and sourceReference SELF when villainProtagonist is true', () => {
+        const bp = createMockBlueprint();
+        bp.villainProtagonist = true;
+        const context = createMockContext(bp);
+        context.villainProtagonist = true;
+
+        const proposal: SituatedPressureProposal = {
+          kind: 'PRESSURE',
+          proposalId: 'prop-self-compulsion',
+          valueAnchorId: 'val-reactor-core',
+          sourceReference: 'SELF',
+          operator: 'INTERNAL',
+          affectedDimension: 'IDENTITY',
+          adverseProspect: 'Predatory urges overcome rational discipline.',
+          authorityReferences: ['SELF'],
+          persistenceTarget: 'PRESSURE_THREAD',
+          responseWindowOpen: true,
+          manifestationBlock: null,
+        };
+
+        const receipt = resolveSituatedPressure({
+          proposal,
+          currentContext: context,
+          preThreads: [],
+          currentTurn: 3,
+          blueprint: bp,
+        });
+
+        expect(receipt.outcome).toBe('ACCEPTED');
+        expect(receipt.reasonCode).toBe('SELF_SOURCED_PRESSURE');
+        expect(receipt.acceptedThreadId).toBe('prop-self-compulsion');
+        expect(receipt.postState).toHaveLength(1);
+        expect(receipt.postState[0].sourceReference).toBe('SELF');
+        expect(receipt.postState[0].operator).toBe('INTERNAL');
+      });
+
+      it('accepts self-sourced pressure with sourceReference matching characterId when villainProtagonist is true', () => {
+        const bp = createMockBlueprint();
+        bp.villainProtagonist = true;
+        const context = createMockContext(bp);
+        context.villainProtagonist = true;
+
+        const proposal: SituatedPressureProposal = {
+          kind: 'PRESSURE',
+          proposalId: 'prop-char-compulsion',
+          valueAnchorId: 'val-reactor-core',
+          sourceReference: context.player.characterId,
+          operator: 'INTERNAL',
+          affectedDimension: 'IDENTITY',
+          adverseProspect: 'Urge to breach containment escalates.',
+          authorityReferences: [context.player.characterId],
+          persistenceTarget: 'PRESSURE_THREAD',
+          responseWindowOpen: true,
+          manifestationBlock: null,
+        };
+
+        const receipt = resolveSituatedPressure({
+          proposal,
+          currentContext: context,
+          preThreads: [],
+          currentTurn: 3,
+          blueprint: bp,
+        });
+
+        expect(receipt.outcome).toBe('ACCEPTED');
+        expect(receipt.reasonCode).toBe('SELF_SOURCED_PRESSURE');
+        expect(receipt.acceptedThreadId).toBe('prop-char-compulsion');
+        expect(receipt.postState[0].sourceReference).toBe(context.player.characterId);
+      });
+
+      it('rejects self-sourced pressure when villainProtagonist is false or unset', () => {
+        const bp = createMockBlueprint();
+        bp.villainProtagonist = false;
+        const context = createMockContext(bp);
+        context.villainProtagonist = false;
+
+        const proposal: SituatedPressureProposal = {
+          kind: 'PRESSURE',
+          proposalId: 'prop-unauth-self',
+          valueAnchorId: 'val-reactor-core',
+          sourceReference: 'SELF',
+          operator: 'INTERNAL',
+          affectedDimension: 'IDENTITY',
+          adverseProspect: 'Urge escalates.',
+          authorityReferences: [],
+          persistenceTarget: 'PRESSURE_THREAD',
+          responseWindowOpen: true,
+          manifestationBlock: null,
+        };
+
+        const receipt = resolveSituatedPressure({
+          proposal,
+          currentContext: context,
+          preThreads: [],
+          currentTurn: 3,
+          blueprint: bp,
+        });
+
+        expect(receipt.outcome).toBe('REJECTED');
+        expect(receipt.reasonCode).toBe('UNAUTHORIZED_PRESSURE_CLAIM');
+        expect(receipt.acceptedThreadId).toBeNull();
+      });
+
+      it('rejects characterId self-sourced pressure when villainProtagonist is false or unset', () => {
+        const bp = createMockBlueprint();
+        delete bp.villainProtagonist;
+        const context = createMockContext(bp);
+        delete context.villainProtagonist;
+
+        const proposal: SituatedPressureProposal = {
+          kind: 'PRESSURE',
+          proposalId: 'prop-unauth-char',
+          valueAnchorId: 'val-reactor-core',
+          sourceReference: context.player.characterId,
+          operator: 'INTERNAL',
+          affectedDimension: 'IDENTITY',
+          adverseProspect: 'Urge escalates.',
+          authorityReferences: [],
+          persistenceTarget: 'PRESSURE_THREAD',
+          responseWindowOpen: true,
+          manifestationBlock: null,
+        };
+
+        const receipt = resolveSituatedPressure({
+          proposal,
+          currentContext: context,
+          preThreads: [],
+          currentTurn: 3,
+          blueprint: bp,
+        });
+
+        expect(receipt.outcome).toBe('REJECTED');
+        expect(receipt.reasonCode).toBe('UNAUTHORIZED_PRESSURE_CLAIM');
+        expect(receipt.acceptedThreadId).toBeNull();
+      });
+    });
   });
 });

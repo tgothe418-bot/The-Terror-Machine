@@ -2,6 +2,7 @@ import type { ForgeDraft, ForgeDraftCastMember } from '../types/forge';
 
 /** Minimal shape needed to decide villain status; accepts draft or blueprint members. */
 export interface VillainCheckable {
+  name?: unknown;
   disposition?: unknown;
   isEntity?: unknown;
   role?: unknown;
@@ -105,4 +106,26 @@ export function ensureVillainCastMember(draft: ForgeDraft): ForgeDraft {
     };
   }
   return next;
+}
+
+export const OPPOSITION_ROLE_TOKENS = [
+  'INVESTIGATOR',
+  'DETECTIVE',
+  'INSPECTOR',
+  'OFFICER',
+  'AGENT',
+  'SHERIFF',
+  'HUNTER',
+];
+
+/**
+ * A cast member positioned to expose or stop the villain: law enforcement,
+ * investigators, or explicitly adversarial roles. Used as the antagonist-seat
+ * binding and the discovery-pressure operator in villain-protagonist mode.
+ */
+export function isOppositionCastMember(c: VillainCheckable | null | undefined): boolean {
+  if (!c || c.isEntity === true) return false;
+  const role = String(c.role ?? '').toUpperCase();
+  const name = String(c.name ?? '').toUpperCase();
+  return OPPOSITION_ROLE_TOKENS.some((t) => role.includes(t) || name.includes(t));
 }

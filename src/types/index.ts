@@ -316,6 +316,7 @@ export const BlueprintSchema = z.object({
   depictionContract: DepictionContractSchema.optional(),
   userOpeningAim: UserOpeningAimSchema.optional(),
   antagonistProfile: AntagonistProfileSchema.optional(),
+  villainProtagonist: z.boolean().optional().default(false),
   horrorGrammar: HorrorGrammarAuthoringSchema.optional().default(() => ({
     valueBaselineReview: 'UNREVIEWED' as const,
     pursuitReviews: {},
@@ -450,6 +451,7 @@ export interface ScenarioBlueprint {
   perspectives?: SubjectivePerspective[];
   hauntedHouse?: HauntedHouseProvenance;
   antagonistProfile?: AntagonistProfile;
+  villainProtagonist?: boolean;
 }
 
 export interface ContextReceipt {

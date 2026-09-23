@@ -1,6 +1,6 @@
 import { Blueprint, ParticipationContext, ParticipationMode, normalizeParticipationContext } from '../types';
 import { MAX_PARTICIPATION_SEAT_DESCRIPTION_LENGTH } from '../types/participation';
-import { isVillainCastMember } from './castVillain';
+import { isVillainCastMember, isOppositionCastMember } from './castVillain';
 
 export interface SeatAvailability {
   role: ParticipationMode;
@@ -11,6 +11,26 @@ export interface SeatAvailability {
 }
 
 /**
+ * Shared helper to build victim fields for predatory characters (human villains and villain-protagonists).
+ */
+export function buildVictimFieldForPredator(cast: any[], predatorId?: string): any {
+  const otherCast = cast.filter((c) => c.id !== predatorId);
+  if (otherCast.length === 0) return undefined;
+  return {
+    kind: 'group',
+    collectiveDesignation: 'Potential Victims & Bystanders',
+    description: 'Other individuals present in the environment.',
+    members: otherCast.map((c) => ({
+      id: c.id,
+      name: c.name,
+      description: (c.description || c.role || 'Unaware subject').trim().slice(0, 300),
+      goal: (c.goals || 'Maintain normal life and social standing').trim().slice(0, 200),
+      knownFact: `Traits: ${(c.traits || []).join(', ')}`.trim().slice(0, 200),
+    })),
+  };
+}
+
+/**
  * Pure resolver to determine seat availability for Protagonist, Antagonist, and Director
  * based on the provided Scenario Blueprint.
  */
@@ -18,6 +38,82 @@ export function resolveSeatAvailabilities(
   blueprint: Blueprint
 ): Record<ParticipationMode, SeatAvailability> {
   const cast = blueprint.cast || [];
+
+  if (blueprint.villainProtagonist === true) {
+    const villainProtagonistMember =
+      cast.find((c) => c.isUserCharacter && isVillainCastMember(c)) ||
+      cast.find((c) => !c.isEntity && c.disposition === 'VILLAIN') ||
+      cast.find(isVillainCastMember);
+
+    const protagonistAvailable = Boolean(villainProtagonistMember);
+
+    const oppositionMember = cast.find(isOppositionCastMember);
+    const antagonistAvailable = Boolean(oppositionMember);
+
+    const survivorMember =
+      cast.find((c) => !c.isEntity && c.disposition !== 'VILLAIN') ||
+      cast.find((c) => !c.isEntity);
+    const survivorAvailable = Boolean(survivorMember);
+
+    const bystanderMember =
+      cast.find((c) => c.disposition === 'BYSTANDER') || survivorMember;
+    const bystanderAvailable = Boolean(bystanderMember);
+
+    return {
+      protagonist: {
+        role: 'protagonist',
+        available: protagonistAvailable,
+        reason: protagonistAvailable
+          ? undefined
+          : 'Villain-protagonist mode is set but no villain cast member exists.',
+        boundCharacterId: villainProtagonistMember ? villainProtagonistMember.id : null,
+        boundCharacterName: villainProtagonistMember ? villainProtagonistMember.name : null,
+      },
+      survivor: {
+        role: 'survivor',
+        available: survivorAvailable,
+        reason: survivorAvailable
+          ? undefined
+          : 'No mortal survivor cast member found in blueprint.',
+        boundCharacterId: survivorMember ? survivorMember.id : null,
+        boundCharacterName: survivorMember ? survivorMember.name : null,
+      },
+      antagonist: {
+        role: 'antagonist',
+        available: antagonistAvailable,
+        reason: antagonistAvailable
+          ? undefined
+          : 'The villain is the protagonist; no separate opposition figure exists in cast.',
+        boundCharacterId: oppositionMember ? oppositionMember.id : null,
+        boundCharacterName: oppositionMember ? oppositionMember.name : null,
+      },
+      villain: {
+        role: 'villain',
+        available: protagonistAvailable,
+        reason: protagonistAvailable
+          ? undefined
+          : 'No villain, entity, or predator profile found in blueprint.',
+        boundCharacterId: villainProtagonistMember ? villainProtagonistMember.id : null,
+        boundCharacterName: villainProtagonistMember ? villainProtagonistMember.name : null,
+      },
+      bystander: {
+        role: 'bystander',
+        available: bystanderAvailable,
+        reason: bystanderAvailable
+          ? undefined
+          : 'No bystander or civilian cast member found in blueprint.',
+        boundCharacterId: bystanderMember ? bystanderMember.id : null,
+        boundCharacterName: bystanderMember ? bystanderMember.name : null,
+      },
+      director: {
+        role: 'director',
+        available: true,
+        reason: undefined,
+        boundCharacterId: null,
+        boundCharacterName: 'Director',
+      },
+    };
+  }
 
   // Protagonist / Survivor: Requires a viable mortal cast member (isEntity !== true and disposition !== 'VILLAIN')
   const mortalMember =
@@ -172,14 +268,56 @@ export function buildActiveParticipationContext(
 
   if (selectedRole === 'protagonist' || selectedRole === 'survivor') {
     if (boundMember === undefined) {
-      boundMember =
-        cast.find((c) => !c.isEntity && (c as any).disposition !== 'VILLAIN') ||
-        cast.find((c) => !c.isEntity);
+      if (selectedRole === 'protagonist' && blueprint.villainProtagonist === true) {
+        boundMember =
+          cast.find((c) => c.isUserCharacter && isVillainCastMember(c)) ||
+          cast.find((c) => !c.isEntity && c.disposition === 'VILLAIN') ||
+          cast.find(isVillainCastMember);
+      } else {
+        boundMember =
+          cast.find((c) => !c.isEntity && (c as { disposition?: string }).disposition !== 'VILLAIN') ||
+          cast.find((c) => !c.isEntity);
+      }
     }
 
     const name =
       boundMember?.name ||
       (selectedRole === 'survivor' ? 'Survivor' : 'Protagonist');
+
+    const isVillainProtagonist =
+      selectedRole === 'protagonist' &&
+      blueprint.villainProtagonist === true &&
+      Boolean(boundMember && isVillainCastMember(boundMember));
+
+    if (isVillainProtagonist) {
+      const initialGoal =
+        boundMember?.goals?.trim()
+          ? boundMember.goals.trim()
+          : 'Sate the compulsion. Maintain the mask. Leave no evidence.';
+      const motiveLine = boundMember?.goals?.trim()
+        ? `Motive: ${boundMember.goals.trim()}`
+        : 'Motive: Predatory / Psychopathic impulse';
+      const boundedFacts = [
+        `Location: ${blueprint.setting?.location || 'Unknown'}`,
+        `Identity: ${name}`,
+        'Social Camouflage: Active',
+        motiveLine,
+      ].slice(0, 8);
+      const victimField = buildVictimFieldForPredator(cast, boundMember?.id);
+
+      return normalizeParticipationContext({
+        mode: 'protagonist',
+        seat: {
+          kind: 'protagonist',
+          name,
+          description: boundMember?.description?.trim().slice(0, MAX_PARTICIPATION_SEAT_DESCRIPTION_LENGTH),
+        },
+        initialGoal,
+        boundedFacts,
+        victimField,
+      });
+    }
+
     const existing =
       blueprint.hauntedHouse?.participationContext?.mode === 'protagonist' ||
       (blueprint.hauntedHouse?.participationContext?.mode as any) === 'survivor'
@@ -227,7 +365,48 @@ export function buildActiveParticipationContext(
 
   if (selectedRole === 'antagonist' || selectedRole === 'villain') {
     if (boundMember === undefined) {
-      boundMember = cast.find(isVillainCastMember);
+      if (selectedRole === 'antagonist' && blueprint.villainProtagonist === true) {
+        boundMember = cast.find(isOppositionCastMember);
+      } else {
+        boundMember = cast.find(isVillainCastMember);
+      }
+    }
+
+    const isOpposition =
+      selectedRole === 'antagonist' &&
+      blueprint.villainProtagonist === true &&
+      Boolean(boundMember && isOppositionCastMember(boundMember));
+
+    if (isOpposition) {
+      const name = boundMember?.name || 'Opposition Force';
+      const authorityText =
+        'Authorized to investigate, gather evidence, interrogate, and pursue lawful apprehension of the suspect.';
+      const limitsText =
+        'Bound by evidence, procedure, and reasonable doubt. Human: no supernatural reach.';
+      const initialGoal =
+        boundMember?.goals?.trim() ||
+        'Expose the perpetrator. Build a case that holds.';
+
+      return normalizeParticipationContext({
+        mode: 'antagonist',
+        seat: {
+          kind: 'character',
+          name,
+          description: boundMember?.description?.trim().slice(0, MAX_PARTICIPATION_SEAT_DESCRIPTION_LENGTH),
+          ability: authorityText,
+          limitation: limitsText,
+        },
+        initialGoal,
+        boundedFacts: [
+          `Location: ${blueprint.setting?.location || 'Unknown'}`,
+          `Role: Opposition Force (${name})`,
+          'Authority: Law Enforcement / Investigative',
+        ].slice(0, 8),
+        authorityContract: {
+          authority: authorityText,
+          limits: limitsText,
+        },
+      });
     }
 
     const ap = blueprint.antagonistProfile;
@@ -261,21 +440,7 @@ export function buildActiveParticipationContext(
 
     let victimField: any = undefined;
     if (isHumanVillain) {
-      const otherCast = cast.filter((c) => c.id !== boundMember?.id);
-      if (otherCast.length > 0) {
-        victimField = {
-          kind: 'group',
-          collectiveDesignation: 'Potential Victims & Bystanders',
-          description: 'Other individuals present in the environment.',
-          members: otherCast.map((c) => ({
-            id: c.id,
-            name: c.name,
-            description: (c.description || c.role || 'Unaware subject').trim().slice(0, 300),
-            goal: (c.goals || 'Maintain normal life and social standing').trim().slice(0, 200),
-            knownFact: `Traits: ${(c.traits || []).join(', ')}`.trim().slice(0, 200),
-          })),
-        };
-      }
+      victimField = buildVictimFieldForPredator(cast, boundMember?.id);
     } else if (ap && ap.preyCohort.length > 0) {
       if (ap.preyCohort.length === 1) {
         const p = ap.preyCohort[0];

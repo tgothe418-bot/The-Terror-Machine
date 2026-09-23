@@ -311,4 +311,143 @@ describe('Seat Availability Resolver & Participation Context Builder', () => {
     expect(survivorContext?.mode).toBe('survivor');
     expect(survivorContext?.seat.name).toBe('Evelyn Williams');
   });
+
+  describe('Villain-Protagonist Engine Model (§4a, §4b, §4c, §4d)', () => {
+    it('correctly identifies opposition cast members with isOppositionCastMember', async () => {
+      const { isOppositionCastMember } = await import('./castVillain');
+      expect(isOppositionCastMember({ role: 'Police Detective', name: 'Miller', isEntity: false })).toBe(true);
+      expect(isOppositionCastMember({ role: 'Lead Investigator', name: 'Elena', isEntity: false })).toBe(true);
+      expect(isOppositionCastMember({ role: 'Sheriff', name: 'Holt', isEntity: false })).toBe(true);
+      expect(isOppositionCastMember({ role: 'Colleague', name: 'Paul Allen', isEntity: false })).toBe(false);
+      expect(isOppositionCastMember({ role: 'Investigator', name: 'Ghost', isEntity: true })).toBe(false);
+      expect(isOppositionCastMember(null)).toBe(false);
+    });
+
+    const vCast = [
+      {
+        id: 'char-villain',
+        name: 'Patrick Bateman',
+        role: 'Vice President',
+        disposition: 'VILLAIN',
+        isEntity: false,
+        goals: 'Maintain flawless facade while sating urge.',
+        traits: ['vain', 'narcissistic'],
+      },
+      {
+        id: 'char-survivor',
+        name: 'Jean Secretary',
+        role: 'Secretary',
+        disposition: 'SURVIVOR',
+        isEntity: false,
+        goals: 'Keep schedule organized and survive the week.',
+        traits: ['diligent', 'innocent'],
+      },
+      {
+        id: 'char-opposition',
+        name: 'Donald Kimball',
+        role: 'Private Detective',
+        disposition: 'SURVIVOR',
+        isEntity: false,
+        goals: 'Investigate Paul Allen disappearance.',
+        traits: ['methodical', 'skeptical'],
+      },
+    ];
+
+    it('binds villain to protagonist/villain and investigator to antagonist when villainProtagonist is true', () => {
+      const bp: Blueprint = normalizeBlueprint({
+        title: 'Manhattan Nights',
+        villainProtagonist: true,
+        cast: vCast,
+      });
+
+      const seats = resolveSeatAvailabilities(bp);
+
+      // Protagonist seat binds villain
+      expect(seats.protagonist.available).toBe(true);
+      expect(seats.protagonist.boundCharacterId).toBe('char-villain');
+      expect(seats.protagonist.boundCharacterName).toBe('Patrick Bateman');
+
+      // Villain seat binds villain
+      expect(seats.villain.available).toBe(true);
+      expect(seats.villain.boundCharacterId).toBe('char-villain');
+      expect(seats.villain.boundCharacterName).toBe('Patrick Bateman');
+
+      // Antagonist seat binds opposition
+      expect(seats.antagonist.available).toBe(true);
+      expect(seats.antagonist.boundCharacterId).toBe('char-opposition');
+      expect(seats.antagonist.boundCharacterName).toBe('Donald Kimball');
+
+      // Survivor seat binds survivor
+      expect(seats.survivor.available).toBe(true);
+      expect(seats.survivor.boundCharacterId).toBe('char-survivor');
+      expect(seats.survivor.boundCharacterName).toBe('Jean Secretary');
+    });
+
+    it('marks antagonist seat unavailable when villainProtagonist is true and no opposition exists', () => {
+      const bp: Blueprint = normalizeBlueprint({
+        title: 'Solitary Predator',
+        villainProtagonist: true,
+        cast: [vCast[0], vCast[1]], // V + S, no investigator
+      });
+
+      const seats = resolveSeatAvailabilities(bp);
+      expect(seats.protagonist.available).toBe(true);
+      expect(seats.protagonist.boundCharacterId).toBe('char-villain');
+
+      expect(seats.antagonist.available).toBe(false);
+      expect(seats.antagonist.reason).toBe(
+        'The villain is the protagonist; no separate opposition figure exists in cast.'
+      );
+      expect(seats.antagonist.boundCharacterId).toBeNull();
+    });
+
+    it('preserves standard seat resolution when villainProtagonist is false', () => {
+      const bp: Blueprint = normalizeBlueprint({
+        title: 'Standard Enclosure',
+        villainProtagonist: false,
+        cast: vCast,
+      });
+
+      const seats = resolveSeatAvailabilities(bp);
+      // Standard protagonist binds top mortal survivor
+      expect(seats.protagonist.available).toBe(true);
+      expect(seats.protagonist.boundCharacterId).toBe('char-survivor');
+    });
+
+    it('builds active participation context for villain-protagonist with victimField and camouflage', () => {
+      const bp: Blueprint = normalizeBlueprint({
+        title: 'Manhattan Nights',
+        villainProtagonist: true,
+        cast: vCast,
+      });
+
+      const context = buildActiveParticipationContext(bp, 'protagonist');
+      expect(context).not.toBeNull();
+      expect(context?.mode).toBe('protagonist');
+      expect(context?.seat.name).toBe('Patrick Bateman');
+      expect(context?.boundedFacts).toContain('Social Camouflage: Active');
+      expect(context?.boundedFacts?.some((f) => f.includes('Maintain flawless facade'))).toBe(true);
+      expect(context?.victimField).toBeDefined();
+      expect(context?.victimField?.kind).toBe('group');
+      expect(context?.victimField?.members?.some((m) => m.name === 'Jean Secretary')).toBe(true);
+      expect(context?.victimField?.members?.some((m) => m.name === 'Donald Kimball')).toBe(true);
+    });
+
+    it('builds active participation context for opposition antagonist with investigative framing', () => {
+      const bp: Blueprint = normalizeBlueprint({
+        title: 'Manhattan Nights',
+        villainProtagonist: true,
+        cast: vCast,
+      });
+
+      const context = buildActiveParticipationContext(bp, 'antagonist');
+      expect(context).not.toBeNull();
+      expect(context?.mode).toBe('antagonist');
+      expect(context?.seat.name).toBe('Donald Kimball');
+      expect(context?.authorityContract?.authority).toContain('Authorized to investigate');
+      expect(context?.authorityContract?.limits).toContain('Bound by evidence');
+      expect(context?.initialGoal).toContain('Investigate Paul Allen disappearance');
+      expect(context?.victimField).toBeUndefined();
+    });
+  });
 });
