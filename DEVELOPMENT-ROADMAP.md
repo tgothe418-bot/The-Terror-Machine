@@ -15,7 +15,7 @@ A focused test proves its named behavior. It does not, by itself, close an integ
 
 ## Live code baseline reviewed for this ledger
 
-- Current live line reviewed: [b1f97fe](https://github.com/tgothe418-bot/The-Terror-Machine/commit/b1f97fe) (HG2 Series 2 opposition cohort autonomy initial core boundary, villain-protagonist model, villain-always invariant, Forge lint sweep, cohort fixture mock correction).
+- Current live line reviewed: [b1f97fe](https://github.com/tgothe418/The-Terror-Machine/commit/b1f97fe) (HG2 Series 2 opposition cohort autonomy initial core boundary, villain-protagonist model, villain-always invariant, Forge lint sweep, cohort fixture mock correction).
 - The branch was clean and synced when reviewed. The status below is based on live code inspection, focused proofs, broad gates, and recent smoke telemetry; a packet's completion report is not accepted evidence by itself.
 
 ## Current baseline

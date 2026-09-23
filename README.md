@@ -78,7 +78,7 @@ In **villain-protagonist scenarios**, the seats invert: the protagonist seat bin
 
 ```bash
 # Clone the repository
-git clone https://github.com/tgothe418-bot/The-Terror-Machine.git
+git clone https://github.com/tgothe418/The-Terror-Machine.git
 cd The-Terror-Machine
 
 # Install dependencies
