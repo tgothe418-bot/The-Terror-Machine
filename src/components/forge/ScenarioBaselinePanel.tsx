@@ -21,6 +21,7 @@ import {
   Sparkles,
   ArrowUpRight,
   Users,
+  Search,
 } from 'lucide-react';
 
 export const ScenarioBaselinePanel: React.FC = () => {
@@ -32,6 +33,7 @@ export const ScenarioBaselinePanel: React.FC = () => {
     applyAcceptedCandidates,
     removeSourceAnalysis,
     leaveAllUnknownsUncertain,
+    runDetailPass,
   } = forgeActions;
 
   const [expandedSources, setExpandedSources] = useState<Record<string, boolean>>({});
@@ -39,6 +41,8 @@ export const ScenarioBaselinePanel: React.FC = () => {
   const [editingCandidateId, setEditingCandidateId] = useState<string | null>(null);
   const [editingValueText, setEditingValueText] = useState<string>('');
   const [applicationError, setApplicationError] = useState<{ sourceId: string; message: string } | null>(null);
+  const [isDetailPassRunning, setIsDetailPassRunning] = useState<Record<string, boolean>>({});
+  const [detailPassMessage, setDetailPassMessage] = useState<Record<string, string | null>>({});
   const [activeEvidenceDrawer, setActiveEvidenceDrawer] = useState<{
     candidateId: string;
     candidateLabel: string;
@@ -271,6 +275,38 @@ export const ScenarioBaselinePanel: React.FC = () => {
                       )}
                     </div>
 
+                    {/* Detail Pass Button */}
+                    <button
+                      id={`detail-pass-btn-${analysis.id}`}
+                      type="button"
+                      disabled={isDetailPassRunning[analysis.id]}
+                      onClick={async () => {
+                        setIsDetailPassRunning((prev) => ({ ...prev, [analysis.id]: true }));
+                        setDetailPassMessage((prev) => ({ ...prev, [analysis.id]: null }));
+                        try {
+                          const res = await runDetailPass(analysis.id);
+                          if (res.success) {
+                            setDetailPassMessage((prev) => ({
+                              ...prev,
+                              [analysis.id]: `Forensic detail pass unearthed ${res.newCandidateCount || 0} secondary elements.`,
+                            }));
+                          } else {
+                            setDetailPassMessage((prev) => ({
+                              ...prev,
+                              [analysis.id]: res.error || 'Forensic pass failed.',
+                            }));
+                          }
+                        } finally {
+                          setIsDetailPassRunning((prev) => ({ ...prev, [analysis.id]: false }));
+                        }
+                      }}
+                      className="px-2.5 py-1 bg-amber-950/40 hover:bg-amber-900/60 border border-amber-800/80 text-amber-200 text-[10px] font-mono font-bold uppercase tracking-wider rounded transition-colors cursor-pointer flex items-center gap-1 shadow-sm disabled:opacity-50 disabled:pointer-events-none"
+                      title="Execute deep secondary scan to uncover uncaptured secondary cast, locked sub-chambers, crawlspaces, and psychological secrets"
+                    >
+                      <Sparkles className="w-3 h-3 text-amber-400" />
+                      <span>{isDetailPassRunning[analysis.id] ? 'SCANNING...' : 'FORENSIC DETAIL PASS'}</span>
+                    </button>
+
                     {/* Batch Apply Button */}
                     {stagedAccepted.length > 0 && (
                       <button
@@ -293,6 +329,22 @@ export const ScenarioBaselinePanel: React.FC = () => {
                     </button>
                   </div>
                 </div>
+
+                {/* NOTIFICATION BANNER FOR DETAIL PASS */}
+                {detailPassMessage[analysis.id] && (
+                  <div className="p-2.5 bg-amber-950/40 border-b border-amber-900/60 text-amber-200 text-xs font-mono flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                      <span>{detailPassMessage[analysis.id]}</span>
+                    </div>
+                    <button
+                      onClick={() => setDetailPassMessage((prev) => ({ ...prev, [analysis.id]: null }))}
+                      className="text-amber-400 hover:text-amber-200 text-[10px] uppercase font-bold cursor-pointer"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                )}
 
                 {/* ERROR BANNER IF APPLICATION FAILED */}
                 {applicationError && applicationError.sourceId === analysis.id && (
@@ -480,6 +532,14 @@ export const ScenarioBaselinePanel: React.FC = () => {
                                   >
                                     {cand.classification}
                                   </span>
+
+                                  {/* Forensic Detail Pass 2 Badge */}
+                                  {cand.extractionPass === 2 && (
+                                    <span className="text-[10px] px-1.5 py-0.5 rounded uppercase font-bold bg-amber-950/70 border border-amber-700/80 text-amber-300 flex items-center gap-1 shadow-xs">
+                                      <Sparkles className="w-2.5 h-2.5 text-amber-400" />
+                                      <span>Pass 2</span>
+                                    </span>
+                                  )}
 
                                   {/* Review Status Badge */}
                                   {cand.reviewDecision === 'accepted' && (

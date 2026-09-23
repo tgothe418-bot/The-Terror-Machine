@@ -1300,4 +1300,197 @@ Do NOT wrap in markdown fences if possible. Do NOT include conversational filler
   }
 });
 
+router.post("/extract-detail-pass", async (req, res) => {
+  try {
+    const { sourceId, sourceText, existingBlueprint, fileName } = req.body;
+    if (!sourceText || typeof sourceText !== 'string' || !sourceText.trim()) {
+      return res.status(400).json({ error: "Missing required sourceText parameter." });
+    }
+
+    const effectiveSourceId = sourceId || 'source-detail-pass';
+    const effectiveFileName = fileName || 'Reference Document';
+
+    // Negative prompting context: what has already been captured
+    const existingChambers = [
+      ...((existingBlueprint?.topology?.nodeDefinitions || []).map((n: any) => n.name || n.label || n.id)),
+      ...((existingBlueprint?.topology?.nodes || []).map((n: any) => (typeof n === 'string' ? n : n.id || n.name)))
+    ].filter(Boolean);
+
+    const existingCast = (existingBlueprint?.cast || [])
+      .map((c: any) => c.name)
+      .filter(Boolean);
+
+    const isLocal = getEngineProvider() === 'local';
+    const maxSourceLength = isLocal ? 4000 : 25000;
+    const truncatedSourceText = sourceText.slice(0, maxSourceLength);
+
+    const negativeChambersText = existingChambers.length > 0
+      ? existingChambers.join(', ')
+      : '(None yet established)';
+    const negativeCastText = existingCast.length > 0
+      ? existingCast.join(', ')
+      : '(None yet established)';
+
+    const prompt = `You are the Forge Deep Forensic Extraction Architect for The Terror Machine.
+A primary extraction pass has already completed. Your task is to perform a HIGH-DENSITY SECONDARY FORENSIC DETAIL PASS across the reference source text to unearth fine-grained scenario details that single-pass extraction overlooked.
+
+ALREADY CAPTURED SCENARIO ELEMENTS (DO NOT DUPLICATE OR RE-EXTRACT THESE):
+- Already Captured Chambers/Rooms: [${negativeChambersText}]
+- Already Captured Cast Members: [${negativeCastText}]
+
+EXTRACTION DIRECTIVES:
+Scan the reference text EXCLUSIVELY for uncaptured or secondary elements:
+1. SECONDARY & INCIDENTAL CAST: Orderlies, security personnel, technicians, secondary victims, missing persons, or witnesses.
+2. SUB-CHAMBERS & ACCESS ROUTES: Maintenance corridors, ventilation ducts, elevator shafts, locked evidence lockers, decontamination showers, hidden crawlspaces.
+3. ENVIRONMENTAL HAZARDS & RULES: Toxic atmospheric venting, failing emergency relays, biohazard leaks, sensory deprivation, cryogenic fluids.
+4. PSYCHOLOGICAL SECRETS & VALUE ANCHORS: Covert motives, guilt, paranoia, personal keepsakes, or traumatic histories mentioned in the source.
+5. UNKNOWNS / AMBIGUITIES: Epistemic uncertainties or unexplained phenomena in the text that require simulation discretion.
+
+REFERENCE SOURCE MATERIAL:
+${truncatedSourceText}
+
+OUTPUT FORMAT:
+Return a single valid JSON object containing:
+{
+  "summary": "Forensic detail pass summary highlighting newly unearthed secondary elements...",
+  "evidence": [
+    {
+      "id": "ev-pass2-1",
+      "category": "cast",
+      "claim": "Specific factual claim from reference text",
+      "excerpt": "Direct textual quote"
+    }
+  ],
+  "candidates": [
+    {
+      "id": "cand-pass2-1",
+      "classification": "evidence",
+      "target": "topology_node",
+      "label": "Evocative human-readable name",
+      "explanation": "Why this element matters to the scenario",
+      "evidenceIds": ["ev-pass2-1"],
+      "proposedValue": { "id": "snake_case_id", "name": "Chamber Name", "label": "Chamber Name", "description": "Sensory description..." }
+    }
+  ],
+  "unknowns": [
+    {
+      "id": "unk-pass2-1",
+      "category": "threat",
+      "question": "Unresolved ambiguity question",
+      "targetEffect": "What this ambiguity affects in the simulation"
+    }
+  ]
+}
+
+TARGET PROPOSED VALUE FORMATS:
+- For "cast_seed": { "name": "...", "role": "...", "description": "...", "personality": "...", "goals": "...", "traits": ["..."], "disposition": "SURVIVOR", "isEntity": false, "behaviorVector": "DEFENSIVE_EVASION" }
+- For "topology_node": { "id": "snake_case_id", "name": "Chamber Name", "label": "Chamber Name", "description": "Atmospheric sensory description..." }
+- For "topology_connection": { "from": "source_node_id", "to": "target_node_id", "label": "Corridor / Doorway description", "bidirectional": true }
+- For "environmental_rule": "String describing atmospheric or environmental rule"
+- For "narrative_rule": "String describing narrative law or thematic restraint"
+- For "value_anchor": { "anchor": "...", "significance": "..." }
+
+Return valid JSON ONLY.`;
+
+    const rawText = await executeForgePrompt(prompt, {
+      responseMimeType: 'application/json',
+    });
+
+    const parsed = parseOrRepairJson<Record<string, any>>(rawText);
+    if (!parsed || typeof parsed !== 'object') {
+      return res.status(500).json({ error: "Model response could not be parsed as JSON." });
+    }
+
+    const now = Date.now();
+    const rawEvidence = Array.isArray(parsed.evidence) ? parsed.evidence : [];
+    const rawCandidates = Array.isArray(parsed.candidates) ? parsed.candidates : [];
+    const rawUnknowns = Array.isArray(parsed.unknowns) ? parsed.unknowns : [];
+
+    const evidence = rawEvidence.map((ev: any, idx: number) => ({
+      id: ev.id || `ev-p2-${now}-${idx + 1}`,
+      category: typeof ev.category === 'string' ? ev.category : 'setting',
+      claim: ev.claim || `Claim from ${effectiveFileName}`,
+      excerpt: ev.excerpt || undefined,
+    }));
+
+    const evidenceIdSet = new Set(evidence.map((e) => e.id));
+    const fallbackEvidenceId = evidence[0]?.id;
+
+    const candidates = rawCandidates.map((cand: any, idx: number) => {
+      const target = cand.target || 'topology_node';
+      const label = cand.label || cand.name || `Discovered Element ${idx + 1}`;
+      const id = cand.id || `cand-p2-${now}-${idx + 1}`;
+      let proposedValue = cand.proposedValue;
+
+      if (target === 'cast_seed' && typeof proposedValue === 'object' && proposedValue !== null) {
+        proposedValue = {
+          id: proposedValue.id || `char_p2_${idx + 1}`,
+          name: proposedValue.name || label,
+          role: proposedValue.role || 'Secondary Survivor',
+          description: proposedValue.description || 'Discovered in secondary scan.',
+          personality: proposedValue.personality || 'Wary and distressed.',
+          goals: proposedValue.goals || 'Survive and escape.',
+          traits: Array.isArray(proposedValue.traits) && proposedValue.traits.length > 0 ? proposedValue.traits : ['observant', 'anxious'],
+          disposition: ['SURVIVOR', 'VILLAIN', 'BYSTANDER'].includes(proposedValue.disposition) ? proposedValue.disposition : 'SURVIVOR',
+          isEntity: Boolean(proposedValue.isEntity),
+          isUserCharacter: false,
+          behaviorVector: proposedValue.behaviorVector || 'DEFENSIVE_EVASION',
+        };
+      } else if (target === 'topology_node' && typeof proposedValue === 'object' && proposedValue !== null) {
+        const nodeId = (proposedValue.id || label.toLowerCase().replace(/[^a-z0-9]+/g, '_')).trim();
+        proposedValue = {
+          id: nodeId,
+          name: proposedValue.name || label,
+          label: proposedValue.label || label,
+          description: proposedValue.description || `Secondary chamber uncovered during forensic scan.`,
+        };
+      } else if (typeof proposedValue === 'string') {
+        proposedValue = proposedValue.trim();
+      }
+
+      const validEvidenceIds = Array.isArray(cand.evidenceIds)
+        ? cand.evidenceIds.filter((eid: string) => evidenceIdSet.has(eid))
+        : [];
+      if (validEvidenceIds.length === 0 && fallbackEvidenceId) {
+        validEvidenceIds.push(fallbackEvidenceId);
+      }
+
+      return {
+        id,
+        sourceId: effectiveSourceId,
+        classification: cand.classification === 'evidence' ? 'evidence' : 'inference',
+        target,
+        label,
+        explanation: cand.explanation || `Unearthed in forensic detail pass over ${effectiveFileName}.`,
+        evidenceIds: validEvidenceIds,
+        proposedValue,
+        extractionPass: 2,
+        reviewDecision: 'accepted',
+        applicationState: 'staged',
+      };
+    });
+
+    const unknowns = rawUnknowns.map((unk: any, idx: number) => ({
+      id: unk.id || `unk-p2-${now}-${idx + 1}`,
+      sourceId: effectiveSourceId,
+      category: typeof unk.category === 'string' ? unk.category : 'epistemic',
+      question: unk.question || 'Unresolved ambiguity',
+      targetEffect: unk.targetEffect || 'Affects simulation atmospheric tension',
+      status: 'queued',
+      followUps: [],
+    }));
+
+    res.json({
+      success: true,
+      summary: parsed.summary || `Forensic detail pass identified ${candidates.length} new candidates and ${unknowns.length} ambiguities.`,
+      evidence,
+      candidates,
+      unknowns,
+    });
+  } catch (error: any) {
+    console.error("Extract detail pass error:", error);
+    res.status(500).json({ error: "Failed to execute forensic detail pass: " + (error?.message || error) });
+  }
+});
+
 export default router;

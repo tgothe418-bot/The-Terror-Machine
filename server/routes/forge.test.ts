@@ -1856,5 +1856,109 @@ describe('Forge Routes: POST /api/resolve-discrepancies', () => {
     expect(body.patch.topology.nodeDefinitions[0].label).toBe('Decompression Airlock');
     expect(body.patch.topology.nodeDefinitions[0].description).toBe('Water drips through the rusted outer valve.');
   });
+
+  it('handles /api/extract-detail-pass by returning Pass 2 candidates with negative prompting context', async () => {
+    const mockDetailPassOutput = {
+      summary: 'Unearthed secondary maintenance corridor and missing orderly.',
+      evidence: [
+        {
+          id: 'ev-pass2-1',
+          category: 'cast',
+          claim: 'Orderly Thomas fled into ventilation shaft B.',
+          excerpt: 'Thomas crawled into the ventilation duct behind mortuary freezer 4.',
+        },
+      ],
+      candidates: [
+        {
+          id: 'cand-pass2-1',
+          classification: 'evidence',
+          target: 'cast_seed',
+          label: 'Orderly Thomas',
+          explanation: 'Secondary survivor hiding in ductwork.',
+          evidenceIds: ['ev-pass2-1'],
+          proposedValue: {
+            name: 'Orderly Thomas',
+            role: 'Orderly',
+            description: 'Terrified hospital orderly hiding in the vents.',
+            personality: 'Panicked and claustrophobic.',
+            goals: 'Avoid the mechanical cradle.',
+            traits: ['cautious', 'hyperventilating'],
+            disposition: 'SURVIVOR',
+            isEntity: false,
+          },
+        },
+        {
+          id: 'cand-pass2-2',
+          classification: 'inference',
+          target: 'topology_node',
+          label: 'Ventilation Flue B',
+          explanation: 'Secondary crawlspace.',
+          evidenceIds: ['ev-pass2-1'],
+          proposedValue: {
+            id: 'ventilation_flue_b',
+            name: 'Ventilation Flue B',
+            label: 'Ventilation Flue B',
+            description: 'Cramped sheet-metal duct carrying cold saline air.',
+          },
+        },
+      ],
+      unknowns: [
+        {
+          id: 'unk-pass2-1',
+          category: 'threat',
+          question: 'Does the surgical cradle have sensory access inside narrow vents?',
+          targetEffect: 'Determines whether crawlspaces provide safe refuge',
+        },
+      ],
+    };
+
+    mockGenerateContent.mockResolvedValueOnce({
+      text: JSON.stringify(mockDetailPassOutput),
+    });
+
+    const response = await fetch(`${baseUrl}/api/extract-detail-pass`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sourceId: 'src-black-iron-doc',
+        sourceText: 'Forensic report: Orderly Thomas crawled into ventilation duct behind mortuary freezer 4.',
+        existingBlueprint: {
+          topology: {
+            nodeDefinitions: [{ id: 'sub_basement_autopsy', name: 'Autopsy Theater' }],
+          },
+          cast: [{ id: 'char_entity_41', name: 'Entity-41 Surgical Cradle' }],
+        },
+        fileName: 'mortuary_incident_log.txt',
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.success).toBe(true);
+    expect(body.candidates).toHaveLength(2);
+    expect(body.candidates[0].extractionPass).toBe(2);
+    expect(body.candidates[0].reviewDecision).toBe('accepted');
+    expect(body.candidates[0].applicationState).toBe('staged');
+    expect(body.candidates[0].proposedValue.name).toBe('Orderly Thomas');
+    expect(body.candidates[1].extractionPass).toBe(2);
+    expect(body.candidates[1].target).toBe('topology_node');
+    expect(body.evidence).toHaveLength(1);
+    expect(body.unknowns).toHaveLength(1);
+  });
+
+  it('rejects /api/extract-detail-pass when sourceText is missing', async () => {
+    const response = await fetch(`${baseUrl}/api/extract-detail-pass`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sourceId: 'src-1',
+        sourceText: '',
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    const body = await response.json();
+    expect(body.error).toContain('Missing required sourceText');
+  });
 });
 

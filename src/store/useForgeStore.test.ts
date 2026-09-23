@@ -1,4 +1,4 @@
-import { expect, test, describe, beforeEach, it } from 'vitest';
+import { expect, test, describe, beforeEach, it, vi } from 'vitest';
 import 'fake-indexeddb/auto';
 import {
   forgeActions,
@@ -2239,6 +2239,108 @@ describe('useForgeStore - draft state and actions', () => {
       const state = getForgeState();
       expect(state.forgeDraft?.depictionContract?.dramaticRegister).toBe('Intentional Replacement Register');
       expect((state.draftRevision || 0)).toBeGreaterThan(initRev);
+    });
+  });
+
+  describe('runDetailPass', () => {
+    it('calls /api/extract-detail-pass and merges newly unearthed Pass 2 candidates into source analysis', async () => {
+      forgeActions.initializeDraft({ title: 'Black Iron Mortuary' });
+      const sourceId = 'src-test-detail-pass';
+      const analysisId = 'analysis-test-detail-pass';
+
+      const initialAnalysis: ForgeSourceAnalysis = {
+        id: analysisId,
+        sourceRecord: {
+          id: sourceId,
+          fileName: 'incident_log.txt',
+          mimeType: 'text/plain',
+          kind: 'document',
+          receivedAt: Date.now(),
+        },
+        summary: 'Primary incident report.',
+        evidence: [
+          {
+            id: 'ev-1',
+            sourceId,
+            category: 'setting',
+            claim: 'Sub-basement morgue',
+          },
+        ],
+        candidates: [
+          {
+            id: 'cand-1',
+            sourceId,
+            classification: 'evidence',
+            target: 'setting_location',
+            label: 'Sub-Basement Morgue',
+            explanation: 'Location from log',
+            evidenceIds: ['ev-1'],
+            proposedValue: 'Sub-Basement Morgue',
+            reviewDecision: 'accepted',
+            applicationState: 'staged',
+          },
+        ],
+        unknowns: [],
+        status: 'completed',
+      };
+
+      forgeActions.registerSourceAnalysis(initialAnalysis, 'mock-binding-dp');
+
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          success: true,
+          summary: 'Forensic pass found Orderly Thomas.',
+          evidence: [
+            {
+              id: 'ev-p2-1',
+              category: 'setting',
+              claim: 'Orderly Thomas hiding in vents.',
+            },
+          ],
+          candidates: [
+            {
+              id: 'cand-p2-1',
+              sourceId,
+              classification: 'evidence',
+              target: 'topology_node',
+              label: 'Ventilation Corridor',
+              explanation: 'Secondary route',
+              evidenceIds: ['ev-p2-1'],
+              proposedValue: {
+                id: 'ventilation_corridor',
+                name: 'Ventilation Corridor',
+                label: 'Ventilation Corridor',
+              },
+              extractionPass: 2,
+              reviewDecision: 'accepted',
+              applicationState: 'staged',
+            },
+          ],
+          unknowns: [
+            {
+              id: 'unk-p2-1',
+              category: 'spatial',
+              question: 'Are vents accessible to the entity?',
+              targetEffect: 'Refuge viability',
+            },
+          ],
+        }),
+      });
+      globalThis.fetch = mockFetch as any;
+
+      const res = await forgeActions.runDetailPass(analysisId);
+      expect(res.success).toBe(true);
+      expect(res.newCandidateCount).toBe(1);
+
+      const state = getForgeState();
+      const updatedAnalysis = state.sourceAnalyses[analysisId];
+      expect(updatedAnalysis.candidates).toHaveLength(2);
+      expect(updatedAnalysis.candidates[0].id).toBe('cand-1');
+      expect(updatedAnalysis.candidates[1].id).toBe('cand-p2-1');
+      expect(updatedAnalysis.candidates[1].extractionPass).toBe(2);
+      expect(updatedAnalysis.evidence).toHaveLength(2);
+      expect(updatedAnalysis.unknowns).toHaveLength(1);
     });
   });
 });

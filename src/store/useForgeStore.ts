@@ -429,6 +429,9 @@ export interface ForgeActions {
   applyImportedSourceBaseline: (
     sourceAnalysisId: string
   ) => { success: true } | { success: false; error: string };
+  runDetailPass: (
+    sourceId: string
+  ) => Promise<{ success: boolean; newCandidateCount?: number; error?: string }>;
   removeSourceAnalysis: (sourceId: string) => void;
 
   // Deprecated compatibility aliases for candidates
@@ -1309,6 +1312,108 @@ export const useForgeStoreInternal = create<ForgeStore>()(
               sourceBaselineRevision: (state.sourceBaselineRevision || 0) + 1,
             };
           }),
+
+        runDetailPass: async (
+          sourceId: string
+        ): Promise<{ success: boolean; newCandidateCount?: number; error?: string }> => {
+          const state = useForgeStoreInternal.getState();
+          const analysis = state.sourceAnalyses[sourceId];
+          if (!analysis) {
+            return { success: false, error: `Source analysis "${sourceId}" not found.` };
+          }
+
+          const sourceTextParts: string[] = [];
+          if (analysis.summary) {
+            sourceTextParts.push(`Summary: ${analysis.summary}`);
+          }
+          for (const ev of analysis.evidence || []) {
+            if (ev.claim) sourceTextParts.push(`Claim (${ev.category}): ${ev.claim}`);
+            if (ev.excerpt) sourceTextParts.push(`Excerpt: "${ev.excerpt}"`);
+          }
+          const sourceText = sourceTextParts.join('\n\n') || analysis.summary || analysis.sourceRecord.fileName;
+
+          try {
+            const res = await fetch('/api/extract-detail-pass', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                sourceId,
+                sourceText,
+                existingBlueprint: state.forgeDraft || state.draftBlueprint,
+                fileName: analysis.sourceRecord.fileName,
+              }),
+            });
+
+            if (!res.ok) {
+              const errJson = await res.json().catch(() => ({}));
+              return {
+                success: false,
+                error: (errJson as any)?.error || `Server returned ${res.status}`,
+              };
+            }
+
+            const data = await res.json();
+            if (!data.success) {
+              return { success: false, error: data.error || 'Forensic detail pass failed.' };
+            }
+
+            const rawNewCandidates = Array.isArray(data.candidates) ? data.candidates : [];
+            const rawNewEvidence = Array.isArray(data.evidence) ? data.evidence : [];
+            const rawNewUnknowns = Array.isArray(data.unknowns) ? data.unknowns : [];
+
+            set((currState: ForgeState) => {
+              const currentAnalysis = currState.sourceAnalyses[sourceId];
+              if (!currentAnalysis) return currState;
+
+              const existingCandidateIds = new Set(currentAnalysis.candidates.map((c) => c.id));
+              const existingEvidenceIds = new Set(currentAnalysis.evidence.map((e) => e.id));
+              const existingUnknownIds = new Set((currentAnalysis.unknowns || []).map((u) => u.id));
+
+              const mergedCandidates = [
+                ...currentAnalysis.candidates,
+                ...rawNewCandidates.filter((c: any) => !existingCandidateIds.has(c.id)),
+              ];
+
+              const mergedEvidence = [
+                ...currentAnalysis.evidence,
+                ...rawNewEvidence
+                  .map((e: any) => ({
+                    ...e,
+                    sourceId: e.sourceId || sourceId,
+                  }))
+                  .filter((e: any) => !existingEvidenceIds.has(e.id)),
+              ];
+
+              const mergedUnknowns = [
+                ...(currentAnalysis.unknowns || []),
+                ...rawNewUnknowns.filter((u: any) => !existingUnknownIds.has(u.id)),
+              ];
+
+              const updatedAnalysis: ForgeSourceAnalysis = {
+                ...currentAnalysis,
+                candidates: mergedCandidates,
+                evidence: mergedEvidence,
+                unknowns: mergedUnknowns,
+              };
+
+              return {
+                sourceAnalyses: {
+                  ...currState.sourceAnalyses,
+                  [sourceId]: updatedAnalysis,
+                },
+                sourceBaselineRevision: (currState.sourceBaselineRevision || 0) + 1,
+              };
+            });
+
+            return { success: true, newCandidateCount: rawNewCandidates.length };
+          } catch (err: any) {
+            console.error('[FORGE DETAIL PASS] Request error:', err);
+            return {
+              success: false,
+              error: err instanceof Error ? err.message : 'Network error during forensic detail pass',
+            };
+          }
+        },
 
         removeSourceAnalysis: (sourceId: string) => {
           const binding = removeRuntimeSourceBinding(sourceId);

@@ -526,4 +526,75 @@ describe('ScenarioBaselinePanel Candidate Atomicity Proof', () => {
     const issueButtons = Array.from(issueElement?.querySelectorAll('button') || []);
     expect(issueButtons).toHaveLength(0);
   });
+
+  it('renders Forensic Detail Pass button and Pass 2 badge on secondary candidates', async () => {
+    forgeActions.initializeDraft({ title: 'Baseline Title' });
+
+    const mockAnalysisWithPass2: ForgeSourceAnalysis = {
+      id: 'analysis-detail-pass-test',
+      sourceRecord: {
+        id: 'src-detail-pass-1',
+        fileName: 'mortuary_records.txt',
+        mimeType: 'text/plain',
+        kind: 'document',
+        receivedAt: Date.now(),
+      },
+      evidence: [],
+      candidates: [
+        {
+          id: 'cand-pass1-1',
+          sourceId: 'src-detail-pass-1',
+          classification: 'evidence',
+          target: 'setting_location',
+          label: 'Primary Mortuary',
+          explanation: 'Pass 1 location',
+          evidenceIds: [],
+          proposedValue: 'Mortuary Ward',
+          extractionPass: 1,
+          reviewDecision: 'accepted',
+          applicationState: 'staged',
+        },
+        {
+          id: 'cand-pass2-1',
+          sourceId: 'src-detail-pass-1',
+          classification: 'inference',
+          target: 'topology_node',
+          label: 'Ventilation Flue B',
+          explanation: 'Unearthed in pass 2',
+          evidenceIds: [],
+          proposedValue: {
+            id: 'ventilation_flue_b',
+            name: 'Ventilation Flue B',
+            label: 'Ventilation Flue B',
+          },
+          extractionPass: 2,
+          reviewDecision: 'accepted',
+          applicationState: 'staged',
+        },
+      ],
+      unknowns: [],
+      status: 'completed',
+    };
+
+    forgeActions.registerSourceAnalysis(mockAnalysisWithPass2, 'mock-binding-dp-1');
+
+    await act(async () => {
+      root?.render(React.createElement(ScenarioBaselinePanel));
+    });
+
+    // 1. Verify Forensic Detail Pass button exists
+    const detailPassBtn = container?.querySelector('#detail-pass-btn-analysis-detail-pass-test');
+    expect(detailPassBtn).not.toBeNull();
+    expect(detailPassBtn?.textContent).toContain('FORENSIC DETAIL PASS');
+
+    // 2. Verify Pass 2 badge is rendered on cand-pass2-1
+    const candidateRow = container?.querySelector('#candidate-row-cand-pass2-1');
+    expect(candidateRow).not.toBeNull();
+    expect(candidateRow?.textContent).toContain('Pass 2');
+
+    // 3. Verify cand-pass1-1 does NOT have Pass 2 badge
+    const pass1Row = container?.querySelector('#candidate-row-cand-pass1-1');
+    expect(pass1Row).not.toBeNull();
+    expect(pass1Row?.textContent).not.toContain('Pass 2');
+  });
 });

@@ -542,6 +542,7 @@ const BaseCandidateProps = {
   confidence: z.number().min(0).max(1).optional(),
   evidenceIds: z.array(z.string()).default([]),
   targetCastMemberId: z.string().optional(),
+  extractionPass: z.number().int().optional(),
   reviewDecision: ForgeCandidateReviewDecisionSchema.default('accepted'),
   applicationState: ForgeCandidateApplicationStateSchema.default('staged'),
 };
