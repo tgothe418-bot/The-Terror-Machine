@@ -33,11 +33,39 @@ export const TestSceneRequestSchema = z.object({
 });
 
 // Voice Request Schema
+export const VoiceTelemetrySchema = z.object({
+  scenarioTitle: z.string(),
+  macroPhase: z.string(),
+  currentChamber: z.object({
+    id: z.string(),
+    name: z.string()
+  }),
+  coPresentCast: z.array(z.object({
+    id: z.string(),
+    name: z.string(),
+    status: z.string()
+  })),
+  activeClocks: z.array(z.object({
+    id: z.string(),
+    name: z.string(),
+    value: z.number(),
+    max: z.number()
+  })),
+  manifestations: z.array(z.string())
+}).strict();
+
+export type VoiceTelemetry = z.infer<typeof VoiceTelemetrySchema>;
+
 export const VoiceRequestSchema = z.object({
+  message: z.string().min(1).optional(),
   history: z.array(z.any()).optional(),
+  conversationHistory: z.array(z.any()).optional(),
   engineState: z.any().optional(),
   forgeTelemetry: z.any().optional(),
+  engineTelemetry: VoiceTelemetrySchema.optional()
 });
+
+export type VoiceRequest = z.infer<typeof VoiceRequestSchema>;
 
 // Forge/Blueprint Request Schema
 export const ForgeRequestSchema = z.object({

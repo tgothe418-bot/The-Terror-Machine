@@ -22,8 +22,45 @@ router.post(['/voice', '/gemini/voice'], async (req, res) => {
   }
 
   try {
-    const { history, forgeTelemetry, engineState } = parsedBody.data;
+    const {
+      history,
+      conversationHistory,
+      message,
+      forgeTelemetry,
+      engineState,
+      engineTelemetry,
+    } = parsedBody.data;
     let finalSystemPrompt = VOICE_SYSTEM_PROMPT;
+
+    // If engineTelemetry is provided, append the bounded read-only oracle block
+    if (engineTelemetry) {
+      const t = engineTelemetry;
+      const telemetryBlock = [
+        '',
+        '[LIVE SIMULATION TELEMETRY - ORACLE OF RECORDS]',
+        `Scenario: ${t.scenarioTitle} (Macro-Phase: ${t.macroPhase})`,
+        `Current Chamber: ${t.currentChamber.name} [${t.currentChamber.id}]`,
+        `Co-Present Cast: ${
+          t.coPresentCast.length > 0
+            ? t.coPresentCast.map((c) => `${c.name} [${c.status}]`).join(', ')
+            : 'None'
+        }`,
+        `Active Clocks: ${
+          t.activeClocks.length > 0
+            ? t.activeClocks.map((k) => `${k.name} (${k.value}/${k.max})`).join(', ')
+            : 'None'
+        }`,
+        `Manifestations: ${
+          t.manifestations.length > 0
+            ? t.manifestations.join('; ')
+            : 'None'
+        }`,
+        '[END TELEMETRY - Ground answers factually in this active state; do not break diegetic voice or reveal internal engine mechanics]',
+        '',
+      ].join('\n');
+
+      finalSystemPrompt += telemetryBlock;
+    }
 
     if (engineState) {
       finalSystemPrompt += `\n\n[LIVE TELEMETRY FEED (READ-ONLY)]\nUser Current Node: ${engineState.currentNode || 'Unknown'}\nOntological Shatter Status: ${engineState.isShattered ? 'ACTIVE' : 'STABLE'}\n`;
@@ -50,6 +87,11 @@ router.post(['/voice', '/gemini/voice'], async (req, res) => {
       `;
     }
 
+    let normalizedHistory = history || conversationHistory || [];
+    if (message && (!normalizedHistory.length || normalizedHistory[normalizedHistory.length - 1]?.content !== message)) {
+      normalizedHistory = [...normalizedHistory, { role: 'user', content: message }];
+    }
+
     const provider = getVoiceProvider();
     let responseText: string;
     let searchQueries: string[] | undefined;
@@ -58,7 +100,7 @@ router.post(['/voice', '/gemini/voice'], async (req, res) => {
     if (provider === 'openai') {
       const result = await generateOpenAiVoice({
         instructions: finalSystemPrompt,
-        history: history || [],
+        history: normalizedHistory,
       });
       responseText = result.text;
       searchQueries = result.searchQueries;
@@ -66,26 +108,26 @@ router.post(['/voice', '/gemini/voice'], async (req, res) => {
     } else if (provider === 'local') {
       const result = await generateLocalVoice({
         instructions: finalSystemPrompt,
-        history: history || [],
+        history: normalizedHistory,
       });
       responseText = result.text;
       model = result.model;
     } else if (provider === 'zai') {
       const result = await generateZaiVoice({
         instructions: finalSystemPrompt,
-        history: history || [],
+        history: normalizedHistory,
       });
       responseText = result.text;
       model = result.model;
     } else if (provider === 'hemmingway') {
       const result = await generateHemmingwayVoice({
         instructions: finalSystemPrompt,
-        history: history || [],
+        history: normalizedHistory,
       });
       responseText = result.text;
       model = result.model;
     } else {
-      const rawContents = (history || []).slice(-20).map((msg: any) => {
+      const rawContents = normalizedHistory.slice(-20).map((msg: any) => {
         const parts: any[] = [];
         const safeContent =
           typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content || '');

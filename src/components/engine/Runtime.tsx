@@ -715,6 +715,7 @@ export default function Runtime() {
   }, [currentSimulationPhase, engineMessages]);
 
   const [input, setInput] = useState('');
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const [inFlightInput, setInFlightInput] = useState<{
     text: string;
     category: string;
@@ -831,6 +832,19 @@ export default function Runtime() {
     }
     return null;
   }, [engineMessages]);
+
+  const handleSelectNode = useCallback(
+    (nodeId: string) => {
+      const targetNode = nodeDefinitions.find((n) => n.id === nodeId);
+      const targetName = targetNode?.label || nodeId;
+      setInput(`Advance toward ${targetName} and investigate...`);
+      inputRef.current?.focus();
+
+      // INVARIANT: Do NOT force activeCategory = 'ACTION'.
+      // effectiveCategory must remain derived from participation mode / player role.
+    },
+    [nodeDefinitions]
+  );
 
   const systemFlags = useAppStore((state) => state.activeMemory.systemFlags);
 
@@ -1800,11 +1814,7 @@ export default function Runtime() {
               nodeDefinitions={nodeDefinitions}
               connections={topologyConnections}
               visitedNodeIds={visitedNodeIds}
-              onSelectNode={(nodeId) => {
-                const targetNode = nodeDefinitions.find((n) => n.id === nodeId);
-                const targetName = targetNode?.label || nodeId;
-                setInput(`Advance cautiously toward ${targetName} and investigate...`);
-              }}
+              onSelectNode={handleSelectNode}
               className="shrink-0"
             />
             <MortalLedger
@@ -1918,6 +1928,7 @@ export default function Runtime() {
 
                 <div className="flex-1 relative flex items-center border border-zinc-800 focus-within:border-amber-600/80 rounded bg-zinc-950/80 transition-colors">
                   <textarea
+                    ref={inputRef}
                     autoFocus
                     value={input}
                     disabled={isLoading || isAutopilotRunning || isTerminated}

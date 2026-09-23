@@ -8,6 +8,7 @@ import { useAppStore } from '../../store/useAppStore';
 import { useVoiceStore } from '../../store/useVoiceStore';
 import { getForgeState } from '../../store/useForgeStore';
 import { exportConversationToMarkdown } from '../../lib/download';
+import type { VoiceTelemetry } from '../../../server/schemas';
 
 export interface TheVoiceProps {
   engineState?: {
@@ -25,6 +26,8 @@ interface VoiceRuntime {
 
 export default function TheVoice({ engineState, isDocked = false, className = '' }: TheVoiceProps = {}) {
   const setPhase = useAppStore((state) => state.setPhase);
+  const activeBlueprint = useAppStore((state) => (state as any).activeBlueprint);
+  const activeSession = useAppStore((state) => (state as any).activeSession);
   const { messages, addMessage, clearHistory } = useVoiceStore();
   const [input, setInput] = useState('');
   const [attachments, setAttachments] = useState<Attachment[]>([]);
@@ -158,11 +161,55 @@ Vessel Cast Count: ${forgeState.draftBlueprint?.cast?.length || 0}
       const telemetryPayload =
         currentForgeDraft && currentForgeDraft.premise ? currentForgeDraft : null;
 
+      const engineTelemetry: VoiceTelemetry | undefined =
+        activeSession && activeBlueprint
+          ? {
+              scenarioTitle:
+                activeBlueprint.title ||
+                activeBlueprint.identity?.title ||
+                'Unknown Scenario',
+              macroPhase:
+                activeSession.dramaturgyState?.macroPhase || 'EXPOSITION_BASELINE',
+              currentChamber: {
+                id: activeSession.currentChamberId || 'unknown',
+                name:
+                  activeBlueprint.topology?.nodes?.find(
+                    (n: any) => n.id === activeSession.currentChamberId
+                  )?.name ||
+                  activeBlueprint.topology?.nodeDefinitions?.find(
+                    (n: any) => n.id === activeSession.currentChamberId
+                  )?.label ||
+                  activeSession.currentChamberId ||
+                  'Unknown Chamber',
+              },
+              coPresentCast: (
+                activeSession.castPresence?.[activeSession.currentChamberId] || []
+              ).map((id: string) => {
+                const member = activeBlueprint.cast?.find((m: any) => m.id === id);
+                return {
+                  id,
+                  name: member?.name || id,
+                  status: activeSession.characterStatuses?.[id] || 'ALIVE',
+                };
+              }),
+              activeClocks: (activeSession.clocks || []).map((clk: any) => ({
+                id: clk.id,
+                name: clk.name,
+                value: clk.value,
+                max: clk.max,
+              })),
+              manifestations: activeSession.manifestations || [],
+            }
+          : undefined;
+
       const response = await fetch('/api/voice', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          message: userMsg.content,
           history: chatHistory,
+          conversationHistory: chatHistory,
+          engineTelemetry,
           forgeTelemetry: telemetryPayload,
           engineState,
         }),
@@ -523,6 +570,7 @@ Vessel Cast Count: ${forgeState.draftBlueprint?.cast?.length || 0}
           <button
             onClick={handleSend}
             disabled={isLoading || (!input.trim() && attachments.length === 0)}
+            aria-label="Send"
             className="mb-1 px-6 py-3 bg-zinc-900 hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed text-amber-500/90 hover:text-amber-400 border border-zinc-700 hover:border-amber-600/60 rounded transition-colors text-xs font-bold tracking-widest shadow-md cursor-pointer"
             title="Commune with The Historian"
           >

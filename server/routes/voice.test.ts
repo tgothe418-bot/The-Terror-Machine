@@ -274,4 +274,62 @@ describe('Voice provider route', () => {
       model: 'Qwen/Qwen3.8-27B',
     });
   });
+
+  describe('/api/voice — Engine Telemetry Injection', () => {
+    it('accepts payload without telemetry for backward compatibility', async () => {
+      mocks.generateGemini.mockResolvedValueOnce({
+        text: 'Voice response without telemetry.',
+        candidates: [],
+      });
+      const payload = { message: 'What is this place?' };
+      const res = await fetch(`${baseUrl}/api/voice`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      expect(res.status).not.toBe(400);
+      expect(res.status).toBe(200);
+    });
+
+    it('accepts and validates complete engineTelemetry payload', async () => {
+      mocks.generateGemini.mockResolvedValueOnce({
+        text: 'You are in the embalming room.',
+        candidates: [],
+      });
+      const payload = {
+        message: 'Who is here with me?',
+        engineTelemetry: {
+          scenarioTitle: 'The Black Iron Mortuary',
+          macroPhase: 'TENSION_COMPLICATIONS',
+          currentChamber: { id: 'room-embalming', name: 'Embalming Room' },
+          coPresentCast: [{ id: 'char-entity-41', name: 'Entity 41', status: 'ALIVE' }],
+          activeClocks: [{ id: 'clk-drain', name: 'Vat Draining', value: 2, max: 4 }],
+          manifestations: ['Ammonia odor fills the room'],
+        },
+      };
+      const res = await fetch(`${baseUrl}/api/voice`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      expect(res.status).not.toBe(400);
+      expect(res.status).toBe(200);
+    });
+
+    it('rejects malformed telemetry missing required fields', async () => {
+      const payload = {
+        message: 'Status check',
+        engineTelemetry: {
+          scenarioTitle: 'Broken Mortuary',
+          // Missing currentChamber, coPresentCast, etc.
+        },
+      };
+      const res = await fetch(`${baseUrl}/api/voice`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      expect(res.status).toBe(400);
+    });
+  });
 });

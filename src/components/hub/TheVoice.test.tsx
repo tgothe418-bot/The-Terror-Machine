@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import TheVoice from './TheVoice';
 import { useVoiceStore } from '../../store/useVoiceStore';
+import { useAppStore } from '../../store/useAppStore';
 
 describe('TheVoice / The Historian Component', () => {
   let container: HTMLDivElement | null = null;
@@ -116,5 +117,144 @@ describe('TheVoice / The Historian Component', () => {
     const content = container?.innerHTML || '';
     expect(content).not.toMatch(/\bV[a]nce\b/i);
     expect(content).not.toMatch(/\bT[h]orne\b/i);
+  });
+});
+
+describe('TheVoice — Live Telemetry Dispatch', () => {
+  let container: HTMLDivElement | null = null;
+  let root: ReturnType<typeof createRoot> | null = null;
+
+  const setTextareaValue = (textarea: HTMLTextAreaElement, val: string) => {
+    const nativeValueSetter = Object.getOwnPropertyDescriptor(
+      window.HTMLTextAreaElement.prototype,
+      'value'
+    )?.set;
+    nativeValueSetter?.call(textarea, val);
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    textarea.dispatchEvent(new Event('change', { bubbles: true }));
+  };
+
+  beforeEach(() => {
+    (globalThis as unknown as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
+    vi.restoreAllMocks();
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+  });
+
+  afterEach(() => {
+    if (root && container) {
+      act(() => {
+        root?.unmount();
+      });
+      container.remove();
+      container = null;
+      root = null;
+    }
+  });
+
+  it('packages active simulation telemetry when engine session exists', async () => {
+    (useAppStore.setState as any)({
+      activeBlueprint: {
+        title: 'The Black Iron Mortuary',
+        topology: { nodes: [{ id: 'room-1', name: 'Cold Storage' }] },
+        cast: [{ id: 'char-1', name: 'Dr. Holt' }],
+      },
+      activeSession: {
+        currentChamberId: 'room-1',
+        dramaturgyState: { macroPhase: 'EXPOSITION_BASELINE' },
+        castPresence: { 'room-1': ['char-1'] },
+        characterStatuses: { 'char-1': 'ALIVE' },
+        clocks: [{ id: 'clk-1', name: 'Timer', value: 1, max: 3 }],
+        manifestations: ['Cold chill'],
+      },
+    });
+
+    const fetchSpy = vi.spyOn(global, 'fetch').mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.includes('/api/ai/config')) {
+        return {
+          ok: true,
+          json: async () => ({
+            voiceProvider: 'gemini',
+            model: 'gemini-2.5-flash',
+          }),
+        } as Response;
+      }
+      return {
+        ok: true,
+        json: async () => ({ text: 'You are in Cold Storage with Dr. Holt.' }),
+      } as Response;
+    });
+
+    await act(async () => {
+      root?.render(<TheVoice />);
+    });
+
+    const textarea = container?.querySelector('textarea');
+    expect(textarea).not.toBeNull();
+    await act(async () => {
+      setTextareaValue(textarea!, 'Where am I?');
+    });
+
+    const sendButton = container?.querySelector('button[title="Commune with The Historian"]') as HTMLButtonElement;
+    expect(sendButton).not.toBeNull();
+    await act(async () => {
+      sendButton.click();
+    });
+
+    const voiceCall = fetchSpy.mock.calls.find((call) => String(call[0]).includes('/api/voice'));
+    expect(voiceCall).toBeDefined();
+    const body = JSON.parse(voiceCall![1]?.body as string);
+    expect(body.engineTelemetry).toEqual({
+      scenarioTitle: 'The Black Iron Mortuary',
+      macroPhase: 'EXPOSITION_BASELINE',
+      currentChamber: { id: 'room-1', name: 'Cold Storage' },
+      coPresentCast: [{ id: 'char-1', name: 'Dr. Holt', status: 'ALIVE' }],
+      activeClocks: [{ id: 'clk-1', name: 'Timer', value: 1, max: 3 }],
+      manifestations: ['Cold chill'],
+    });
+  });
+
+  it('sends undefined telemetry when no session is active', async () => {
+    (useAppStore.setState as any)({ activeBlueprint: null, activeSession: null });
+
+    const fetchSpy = vi.spyOn(global, 'fetch').mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.includes('/api/ai/config')) {
+        return {
+          ok: true,
+          json: async () => ({
+            voiceProvider: 'gemini',
+            model: 'gemini-2.5-flash',
+          }),
+        } as Response;
+      }
+      return {
+        ok: true,
+        json: async () => ({ text: 'No scenario is active.' }),
+      } as Response;
+    });
+
+    await act(async () => {
+      root?.render(<TheVoice />);
+    });
+
+    const textarea = container?.querySelector('textarea');
+    expect(textarea).not.toBeNull();
+    await act(async () => {
+      setTextareaValue(textarea!, 'Hello');
+    });
+
+    const sendButton = container?.querySelector('button[title="Commune with The Historian"]') as HTMLButtonElement;
+    expect(sendButton).not.toBeNull();
+    await act(async () => {
+      sendButton.click();
+    });
+
+    const voiceCall = fetchSpy.mock.calls.find((call) => String(call[0]).includes('/api/voice'));
+    expect(voiceCall).toBeDefined();
+    const body = JSON.parse(voiceCall![1]?.body as string);
+    expect(body.engineTelemetry).toBeUndefined();
   });
 });
