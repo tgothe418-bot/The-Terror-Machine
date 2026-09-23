@@ -6,7 +6,10 @@ import {
   type GeminiJsonSchema,
   geminiTurnResponseJsonSchema,
 } from "../ai/geminiTurnJsonSchema";
-import { normalizeGeminiTurnProviderPayload } from '../ai/geminiTurnTransport';
+import {
+  normalizeGeminiTurnProviderPayload,
+  type CastNormalizationContext,
+} from '../ai/geminiTurnTransport';
 import { generateLocalStructuredResponse } from './localVoiceClient';
 import { generateZaiStructuredResponse } from './zaiClient';
 import { generateHemmingwayStructuredResponse } from './hemmingwayClient';
@@ -466,7 +469,8 @@ export function unwrapStrictJsonResponse(text: string): string {
 export interface StructuredResponseContract<T> {
   name: string;
   responseJsonSchema: GeminiJsonSchema;
-  normalizeProviderPayload: (payload: unknown) => unknown;
+  normalizeProviderPayload: (payload: unknown, context?: CastNormalizationContext) => unknown;
+  normalizationContext?: CastNormalizationContext;
   zodSchema: z.ZodType<T>;
 }
 
@@ -503,14 +507,24 @@ async function generateSingleStructuredAttempt<T>(
   prompt: string,
   contract: StructuredResponseContract<T>
 ): Promise<T> {
+  // Wrap normalizer with normalizationContext if present
+  const normalizeProviderPayload = contract.normalizationContext
+    ? (payload: unknown) =>
+        contract.normalizeProviderPayload(payload, contract.normalizationContext)
+    : contract.normalizeProviderPayload;
+
+  const effectiveContract: StructuredResponseContract<T> = contract.normalizationContext
+    ? { ...contract, normalizeProviderPayload }
+    : contract;
+
   if (getEngineProvider() === 'local') {
-    return await generateLocalStructuredResponse(prompt, contract);
+    return await generateLocalStructuredResponse(prompt, effectiveContract);
   }
   if (getEngineProvider() === 'zai') {
-    return await generateZaiStructuredResponse(prompt, contract);
+    return await generateZaiStructuredResponse(prompt, effectiveContract);
   }
   if (getEngineProvider() === 'hemmingway') {
-    return await generateHemmingwayStructuredResponse(prompt, contract);
+    return await generateHemmingwayStructuredResponse(prompt, effectiveContract);
   }
 
   const contents = [{ role: 'user', parts: [{ text: prompt }] }];
@@ -526,7 +540,7 @@ async function generateSingleStructuredAttempt<T>(
             thinkingLevel: policy.thinkingLevel,
           },
           responseMimeType: 'application/json',
-          responseJsonSchema: contract.responseJsonSchema,
+          responseJsonSchema: effectiveContract.responseJsonSchema,
         },
       });
     },
@@ -543,8 +557,8 @@ async function generateSingleStructuredAttempt<T>(
 
   return parseStructuredTurnResponse(
     classification.text,
-    contract.zodSchema,
-    contract.normalizeProviderPayload
+    effectiveContract.zodSchema,
+    effectiveContract.normalizeProviderPayload
   );
 }
 

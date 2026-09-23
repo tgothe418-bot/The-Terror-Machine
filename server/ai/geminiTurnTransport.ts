@@ -5,6 +5,11 @@ import {
   PERSISTENCE_TARGETS,
 } from '../../src/types/horrorGrammar';
 
+export interface CastNormalizationContext {
+  scenarioCastIds?: string[];
+  activeCastIds?: string[];
+}
+
 export const GEMINI_TURN_NULL_SENTINEL = '__TTM_NULL__' as const;
 
 type JsonRecord = Record<string, unknown>;
@@ -197,7 +202,10 @@ function normalizeActiveManifestationBlock(record: JsonRecord): JsonRecord {
  * values, and unknown discriminants remain untouched and still fail closed at
  * the authoritative Zod boundary.
  */
-export function normalizeCastActivityProposal(record: JsonRecord): JsonRecord {
+export function normalizeCastActivityProposal(
+  record: JsonRecord,
+  context?: CastNormalizationContext
+): JsonRecord {
   if (record.kind !== 'ACTIVITY') {
     return projectProviderUnionBranch(
       record,
@@ -286,8 +294,20 @@ export function normalizeCastActivityProposal(record: JsonRecord): JsonRecord {
       }
     }
 
+    // NET-NEW: Sole-active cast member fallback when no ID could be recovered
+    if (!recoveredId && context?.activeCastIds && context.activeCastIds.length === 1) {
+      recoveredId = context.activeCastIds[0];
+    }
+
     if (recoveredId) {
       normalized.castMemberId = recoveredId;
+    }
+  }
+
+  // NET-NEW: Fail-closed roster check (applies to model-supplied AND recovered IDs)
+  if (normalized.castMemberId && context?.scenarioCastIds) {
+    if (!context.scenarioCastIds.includes(normalized.castMemberId as string)) {
+      normalized.castMemberId = undefined; // Reject ungrounded / hallucinated IDs
     }
   }
 
@@ -392,7 +412,10 @@ function normalizeSituatedPressureProposal(record: JsonRecord): JsonRecord {
  * known nullable paths are completed with null. All HG1 envelopes and every non-nullable
  * canonical field still fail closed at the authoritative Zod boundary.
  */
-export function normalizeGeminiTurnProviderPayload(payload: unknown): unknown {
+export function normalizeGeminiTurnProviderPayload(
+  payload: unknown,
+  context?: CastNormalizationContext
+): unknown {
   if (!isJsonRecord(payload)) {
     return payload;
   }
@@ -600,7 +623,8 @@ export function normalizeGeminiTurnProviderPayload(payload: unknown): unknown {
 
   if (isJsonRecord(payload.cast_activity_proposal)) {
     normalized.cast_activity_proposal = normalizeCastActivityProposal(
-      payload.cast_activity_proposal
+      payload.cast_activity_proposal,
+      context
     );
   }
 

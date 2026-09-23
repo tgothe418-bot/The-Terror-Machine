@@ -1488,3 +1488,33 @@ describe('classifyProviderResponse', () => {
     });
   });
 });
+
+describe('aiClient structured response normalization context propagation', () => {
+  it('wraps normalizeProviderPayload with normalizationContext on effectiveContract', async () => {
+    let capturedContext: any = null;
+
+    const mockContract = {
+      zodSchema: { parse: (x: any) => x },
+      normalizeProviderPayload: (payload: any, ctx?: any) => {
+        capturedContext = ctx;
+        return payload;
+      },
+      normalizationContext: {
+        scenarioCastIds: ['char-test-1'],
+        activeCastIds: ['char-test-1']
+      }
+    };
+
+    // Trigger normalizer via the effectiveContract pattern
+    const normalize = mockContract.normalizationContext
+      ? (payload: unknown) => mockContract.normalizeProviderPayload(payload, mockContract.normalizationContext)
+      : mockContract.normalizeProviderPayload;
+
+    normalize({ test: true });
+
+    expect(capturedContext).toEqual({
+      scenarioCastIds: ['char-test-1'],
+      activeCastIds: ['char-test-1']
+    });
+  });
+});

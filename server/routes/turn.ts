@@ -59,6 +59,7 @@ import {
 import {
   generateStructuredResponse,
   EngineTurnStructuredResponseContract,
+  type StructuredResponseContract,
   ProviderRefusalError,
   EmptyProviderResponseError,
   ProviderRequestRejectedError,
@@ -1461,10 +1462,25 @@ ${recentHistory}
   return `${reconciliationDirective}${navigationNote}`;
 })()}${vocalizationPromptDirective}`;
 
+    // Extract roster context from in-scope context (destructured from parsedRequest)
+    const scenarioCastIds = context.cast.map((c) => c.id);
+    const activeCastIds = context.cast
+      .filter((m) => m.id !== context.player.characterId && !m.isUserCharacter && m.isPresent)
+      .map((m) => m.id);
+
+    // Per-request contract instance to eliminate concurrent race conditions
+    const turnContract: StructuredResponseContract<TurnResult> = {
+      ...EngineTurnStructuredResponseContract,
+      normalizationContext: {
+        scenarioCastIds,
+        activeCastIds,
+      },
+    };
+
     // Call the LLM with strict Zod schema enforcement
     let engineResponse;
     try {
-      engineResponse = await generateStructuredResponse(prompt, EngineTurnStructuredResponseContract);
+      engineResponse = await generateStructuredResponse(prompt, turnContract);
     } catch (modelErr: unknown) {
       if (
         modelErr instanceof ProviderPrepaymentDepletedError ||

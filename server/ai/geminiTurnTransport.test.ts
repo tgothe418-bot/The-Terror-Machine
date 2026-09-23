@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   normalizeCastActivityProposal,
   normalizeGeminiTurnProviderPayload,
+  type CastNormalizationContext,
 } from './geminiTurnTransport';
 import { CastActivityProposalSchema } from '../../src/types/horrorGrammar';
 
@@ -156,5 +157,91 @@ describe('geminiTurnTransport: normalizeCastActivityProposal', () => {
     const normalized = normalizeGeminiTurnProviderPayload(fullPayload) as Record<string, any>;
     expect(normalized.cast_activity_proposal?.castMemberId).toBe('char-entity-41');
     expect(normalized.cast_activity_proposal?.perceptionPath).toBe('DIRECT');
+  });
+});
+
+describe('normalizeCastActivityProposal — Roster Validation & Sole-Active Fallback', () => {
+  const context: CastNormalizationContext = {
+    scenarioCastIds: ['char-entity-41', 'char-marcus-holt'],
+    activeCastIds: ['char-entity-41']
+  };
+
+  it('fails closed when model provides a hallucinated castMemberId not in roster', () => {
+    const raw = {
+      kind: 'ACTIVITY',
+      castMemberId: 'char-phantom-ghost',
+      activitySummary: 'A ghost appears'
+    };
+    const result = normalizeCastActivityProposal(raw, context);
+    expect(result.castMemberId).toBeUndefined();
+  });
+
+  it('fails closed when recovered castMemberId is not in scenario roster', () => {
+    const raw = {
+      kind: 'ACTIVITY',
+      authorityReferences: ['Owner: char-phantom-ghost'],
+      activitySummary: 'A sound echoes'
+    };
+    const result = normalizeCastActivityProposal(raw, context);
+    expect(result.castMemberId).toBeUndefined();
+  });
+
+  it('fails closed when scenarioCastIds is an explicit empty array', () => {
+    const emptyRosterContext: CastNormalizationContext = {
+      scenarioCastIds: [],
+      activeCastIds: []
+    };
+    const raw = {
+      kind: 'ACTIVITY',
+      castMemberId: 'char-entity-41',
+      activitySummary: 'An entity stirs'
+    };
+    const result = normalizeCastActivityProposal(raw, emptyRosterContext);
+    expect(result.castMemberId).toBeUndefined();
+  });
+
+  it('preserves valid castMemberId present in scenario roster', () => {
+    const raw = {
+      kind: 'ACTIVITY',
+      castMemberId: 'char-marcus-holt',
+      activitySummary: 'Locks the cellar door'
+    };
+    const result = normalizeCastActivityProposal(raw, context);
+    expect(result.castMemberId).toBe('char-marcus-holt');
+  });
+
+  it('falls back to lone active chamber cast member if no ID can be inferred', () => {
+    const raw = {
+      kind: 'ACTIVITY',
+      activitySummary: 'A scalpel drops onto the metal tray'
+    };
+    const result = normalizeCastActivityProposal(raw, context);
+    expect(result.castMemberId).toBe('char-entity-41');
+  });
+
+  it('does not fall back when activeCastIds is empty (e.g. only player is present)', () => {
+    const playerOnlyContext: CastNormalizationContext = {
+      scenarioCastIds: ['char-entity-41', 'char-marcus-holt'],
+      activeCastIds: [] // Player filtered out, no other cast present
+    };
+    const raw = {
+      kind: 'ACTIVITY',
+      activitySummary: 'The player catches their breath alone'
+    };
+    const result = normalizeCastActivityProposal(raw, playerOnlyContext);
+    expect(result.castMemberId).toBeUndefined();
+  });
+
+  it('does not fall back if multiple active cast members are in the chamber', () => {
+    const multiContext: CastNormalizationContext = {
+      scenarioCastIds: ['char-entity-41', 'char-marcus-holt'],
+      activeCastIds: ['char-entity-41', 'char-marcus-holt']
+    };
+    const raw = {
+      kind: 'ACTIVITY',
+      activitySummary: 'Footsteps creak on wood'
+    };
+    const result = normalizeCastActivityProposal(raw, multiContext);
+    expect(result.castMemberId).toBeUndefined();
   });
 });
