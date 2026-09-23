@@ -2442,6 +2442,66 @@ describe('sourceBaseline pure functions', () => {
       expect(res.draft.antagonistProfile?.name).toBe('Unit 734');
       expect(res.draft.antagonistProfile?.apparatusControls).toHaveLength(2);
     });
+
+    it('reconcileDraftTopologyAndCast grounds antagonist telemetry feeds and apparatus controls to topology nodes', () => {
+      const draft: ForgeDraft = {
+        id: 'draft-antagonist-recon',
+        title: 'The Subterranean Complex',
+        identity: { title: 'The Subterranean Complex', version: '1.0', author: '', thematicAnchor: '' },
+        premise: 'Dread in the deep.',
+        setting: { location: 'Bunker', atmosphere: 'Cold', timePeriod: '1980' },
+        topology: {
+          startingNodeId: 'room_alpha',
+          nodes: ['room_alpha', 'room_beta'],
+          nodeDefinitions: [
+            { id: 'room_alpha', label: 'Room Alpha' },
+            { id: 'room_beta', label: 'Room Beta' },
+          ],
+          connections: [],
+          anchors: [],
+        },
+        antagonistProfile: {
+          kind: 'APPARATUS',
+          name: 'The Central Overseer',
+          apparatusControls: [
+            {
+              id: 'ctrl-1',
+              name: 'Blast Bulkheads',
+              kind: 'MECHANICAL',
+              affectedNodeIds: ['all', 'nonexistent_chamber'],
+              availableActions: ['SEAL'],
+              status: 'ONLINE',
+            },
+          ],
+          telemetryFeeds: [
+            {
+              nodeId: 'all',
+              feedType: 'OPTICAL_CAM',
+              status: 'ONLINE',
+              label: 'Overhead Surveillance Cam 1',
+            },
+            {
+              nodeId: 'all',
+              feedType: 'OPTICAL_CAM',
+              status: 'ONLINE',
+              label: 'Overhead Surveillance Cam 2',
+            },
+          ],
+          sadisticDirectives: ['Contain all intruders'],
+          preyCohort: [],
+        },
+      };
+
+      const reconciled = reconcileDraftTopologyAndCast(draft);
+      expect(reconciled.antagonistProfile).toBeDefined();
+      const feeds = reconciled.antagonistProfile!.telemetryFeeds!;
+      expect(feeds).toHaveLength(2);
+      expect(feeds[0].nodeId).toBe('room_alpha');
+      expect(feeds[1].nodeId).toBe('room_beta');
+
+      const ctrl = reconciled.antagonistProfile!.apparatusControls![0];
+      expect(ctrl.affectedNodeIds).toEqual(['all', 'room_alpha']);
+    });
   });
 });
 

@@ -267,4 +267,45 @@ describe('forgeCompiler Voice & Acoustic Dossier Compilation', () => {
     };
     expect(() => compileForgeDraftOrThrow(brokenDraft)).toThrow(ForgeCompilationError);
   });
+
+  it('validates drafts with universal telemetry feeds (all, *, global) without unknown node errors', () => {
+    const draftWithFeeds: ForgeDraft = {
+      ...baseValidDraft,
+      antagonistProfile: {
+        kind: 'APPARATUS',
+        name: 'The Central Overseer',
+        apparatusControls: [
+          {
+            id: 'ctrl-1',
+            name: 'Ventilation Damper',
+            kind: 'MECHANICAL',
+            affectedNodeIds: ['all'],
+            availableActions: ['SEAL'],
+            status: 'ONLINE',
+          },
+        ],
+        telemetryFeeds: [
+          {
+            nodeId: 'all',
+            feedType: 'OPTICAL_CAM',
+            status: 'ONLINE',
+            label: 'Overhead Surveillance Cam 1',
+          },
+          {
+            nodeId: 'global',
+            feedType: 'ACOUSTIC_PICKUP',
+            status: 'ONLINE',
+            label: 'Intercom Array',
+          },
+        ],
+        sadisticDirectives: ['Observe subject deterioration'],
+        preyCohort: [],
+      },
+    };
+
+    const validation = validateForgeDraft(draftWithFeeds);
+    expect(validation.valid).toBe(true);
+    expect(validation.errors).toEqual({});
+  });
 });
+

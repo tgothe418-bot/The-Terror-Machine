@@ -231,6 +231,7 @@ export const ExportReviewModal: React.FC<ExportReviewModalProps> = ({
     const bRev = freshState.sourceBaselineRevision || currentBaseRev;
 
     if (!freshReadiness.valid || !safeDraft) {
+      setIsResolvedSuccessfully(false);
       setSnapshot({
         artifact: null,
         validation: freshReadiness,

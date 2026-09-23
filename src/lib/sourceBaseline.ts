@@ -2076,6 +2076,64 @@ export function reconcileDraftTopologyAndCast(draft: ForgeDraft): ForgeDraft {
     };
   }
 
+  // 7. Reconcile antagonist profile telemetry feeds and apparatus controls:
+  // If telemetry feeds reference unknown or placeholder node IDs ('all'), ground them to available topology nodes.
+  if (cloned.antagonistProfile && availableNodeIds.length > 0) {
+    const validNodeSet = new Set(availableNodeIds);
+
+    if (Array.isArray(cloned.antagonistProfile.telemetryFeeds)) {
+      cloned.antagonistProfile.telemetryFeeds = cloned.antagonistProfile.telemetryFeeds.map(
+        (feed: Record<string, unknown>, idx: number) => {
+          if (!feed || typeof feed !== 'object') return feed;
+          const rawNodeId = typeof feed.nodeId === 'string' ? feed.nodeId.trim() : '';
+          const isUnknownOrPlaceholder =
+            !rawNodeId ||
+            rawNodeId === 'all' ||
+            rawNodeId === '*' ||
+            rawNodeId.toLowerCase() === 'global' ||
+            !validNodeSet.has(rawNodeId);
+
+          const assignedNodeId = isUnknownOrPlaceholder
+            ? availableNodeIds[idx % availableNodeIds.length]
+            : rawNodeId;
+
+          return {
+            ...feed,
+            nodeId: assignedNodeId,
+            feedType: feed.feedType || 'OPTICAL_CAM',
+            status: feed.status || 'ONLINE',
+          };
+        }
+      );
+    }
+
+    if (Array.isArray(cloned.antagonistProfile.apparatusControls)) {
+      cloned.antagonistProfile.apparatusControls = cloned.antagonistProfile.apparatusControls.map(
+        (ctrl: Record<string, unknown>) => {
+          if (!ctrl || typeof ctrl !== 'object') return ctrl;
+          let affectedNodeIds = Array.isArray(ctrl.affectedNodeIds) ? ctrl.affectedNodeIds : [];
+          affectedNodeIds = affectedNodeIds.map((nId: unknown) => {
+            if (typeof nId !== 'string') return availableNodeIds[0];
+            const trimmed = nId.trim();
+            if (
+              trimmed === 'all' ||
+              trimmed === '*' ||
+              trimmed.toLowerCase() === 'global' ||
+              validNodeSet.has(trimmed)
+            ) {
+              return trimmed;
+            }
+            return availableNodeIds[0];
+          });
+          return {
+            ...ctrl,
+            affectedNodeIds,
+          };
+        }
+      );
+    }
+  }
+
   return cloned;
 }
 

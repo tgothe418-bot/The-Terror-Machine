@@ -593,7 +593,10 @@ export function validateForgeDraft(rawDraft: unknown): ForgeValidationResult {
         }
         if (ctrl.affectedNodeIds && Array.isArray(ctrl.affectedNodeIds)) {
           ctrl.affectedNodeIds.forEach((nId, nIdx) => {
-            if (validNodeIds.size > 0 && !validNodeIds.has(nId)) {
+            const isUniversal =
+              typeof nId === 'string' &&
+              (nId === 'all' || nId === '*' || nId.toLowerCase() === 'global');
+            if (validNodeIds.size > 0 && !validNodeIds.has(nId) && !isUniversal) {
               errors[`${prefix}.affectedNodeIds[${nIdx}]`] = [
                 `Apparatus control references unknown topology node ID: "${nId}"`,
               ];
@@ -606,7 +609,10 @@ export function validateForgeDraft(rawDraft: unknown): ForgeValidationResult {
     if (ap.telemetryFeeds && Array.isArray(ap.telemetryFeeds)) {
       ap.telemetryFeeds.forEach((feed, idx) => {
         const prefix = `antagonistProfile.telemetryFeeds[${idx}]`;
-        if (validNodeIds.size > 0 && !validNodeIds.has(feed.nodeId)) {
+        const nId = feed.nodeId || '';
+        const isUniversal =
+          nId === 'all' || nId === '*' || nId.toLowerCase() === 'global';
+        if (validNodeIds.size > 0 && !validNodeIds.has(nId) && !isUniversal) {
           errors[`${prefix}.nodeId`] = [
             `Telemetry feed references unknown topology node ID: "${feed.nodeId}"`,
           ];

@@ -1171,7 +1171,9 @@ router.post("/resolve-discrepancies", async (req, res) => {
       rules.push(`6. CAST: Generate 2 to 3 distinct mortal characters in a "cast" array with "id", "name", "role", "description", "personality", "goals", "traits", "isEntity": false, "presenceDisposition".`);
     }
     if (needsAntagonist) {
-      rules.push(`7. ANTAGONIST: Generate an "antagonistProfile" with "kind", "name", "apparatusControls", "sadisticDirectives", "telemetryFeeds".`);
+      const knownNodeList = ((draft.topology?.nodeDefinitions || []).map((n: any) => n.id).concat(draft.topology?.nodes || [])).filter(Boolean);
+      const nodeHint = knownNodeList.length > 0 ? ` (each telemetryFeed "nodeId" must reference valid topology node IDs: ${knownNodeList.slice(0, 5).join(', ')} or "all")` : '';
+      rules.push(`7. ANTAGONIST: Generate an "antagonistProfile" with "kind", "name", "apparatusControls", "sadisticDirectives", and "telemetryFeeds"${nodeHint}.`);
     }
 
     const specificRules = rules.length > 0
@@ -1337,6 +1339,32 @@ Do NOT wrap in markdown fences if possible. Do NOT include conversational filler
         isUserCharacter: false,
         presenceDisposition: c.presenceDisposition || { kind: 'OFFSTAGE' },
       }));
+    }
+
+    // Sanitize antagonistProfile if returned
+    if (patch.antagonistProfile && typeof patch.antagonistProfile === 'object') {
+      const availableNodes: string[] = (patch.topology?.nodes && patch.topology.nodes.length > 0)
+        ? patch.topology.nodes
+        : (draft.topology?.nodeDefinitions || []).map((n: any) => n.id).concat(draft.topology?.nodes || []);
+      const validNodes = Array.from(new Set(availableNodes.filter(Boolean)));
+
+      if (Array.isArray(patch.antagonistProfile.telemetryFeeds)) {
+        patch.antagonistProfile.telemetryFeeds = patch.antagonistProfile.telemetryFeeds.map(
+          (feed: any, idx: number) => {
+            const label = typeof feed === 'string' ? feed : (feed.label || feed.name || `Sensor Feed ${idx + 1}`);
+            const rawNode = typeof feed === 'object' && feed ? feed.nodeId : undefined;
+            const assignedNode = (rawNode && (validNodes.includes(rawNode) || rawNode === 'all' || rawNode === '*'))
+              ? rawNode
+              : (validNodes.length > 0 ? validNodes[idx % validNodes.length] : 'all');
+            return {
+              nodeId: assignedNode,
+              feedType: (typeof feed === 'object' && feed?.feedType) || 'OPTICAL_CAM',
+              status: (typeof feed === 'object' && feed?.status) || 'ONLINE',
+              label,
+            };
+          }
+        );
+      }
     }
 
     res.json({
