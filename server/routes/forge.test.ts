@@ -1857,108 +1857,75 @@ describe('Forge Routes: POST /api/resolve-discrepancies', () => {
     expect(body.patch.topology.nodeDefinitions[0].description).toBe('Water drips through the rusted outer valve.');
   });
 
-  it('handles /api/extract-detail-pass by returning Pass 2 candidates with negative prompting context', async () => {
-    const mockDetailPassOutput = {
-      summary: 'Unearthed secondary maintenance corridor and missing orderly.',
+  it('queues a forensic sweep job via /api/extract-sweep and retrieves status and cancel', async () => {
+    const binding = registerServerSource({
+      id: 'src-sweep-test-1',
+      sourceRecord: {
+        id: 'src-sweep-test-1',
+        fileName: 'salvage_manifest.txt',
+        mimeType: 'text/plain',
+        kind: 'document',
+        receivedAt: Date.now(),
+      },
+      summary: 'Deep salvage operation with multiple unmapped maintenance ducts and survivors.',
       evidence: [
         {
-          id: 'ev-pass2-1',
-          category: 'cast',
-          claim: 'Orderly Thomas fled into ventilation shaft B.',
-          excerpt: 'Thomas crawled into the ventilation duct behind mortuary freezer 4.',
+          id: 'ev-sw-1',
+          sourceId: 'src-sweep-test-1',
+          category: 'setting',
+          claim: 'Maintenance duct 4 remains pressurized.',
+          excerpt: 'Duct 4 has stable atmospheric pressure.',
         },
       ],
-      candidates: [
-        {
-          id: 'cand-pass2-1',
-          classification: 'evidence',
-          target: 'cast_seed',
-          label: 'Orderly Thomas',
-          explanation: 'Secondary survivor hiding in ductwork.',
-          evidenceIds: ['ev-pass2-1'],
-          proposedValue: {
-            name: 'Orderly Thomas',
-            role: 'Orderly',
-            description: 'Terrified hospital orderly hiding in the vents.',
-            personality: 'Panicked and claustrophobic.',
-            goals: 'Avoid the mechanical cradle.',
-            traits: ['cautious', 'hyperventilating'],
-            disposition: 'SURVIVOR',
-            isEntity: false,
-          },
-        },
-        {
-          id: 'cand-pass2-2',
-          classification: 'inference',
-          target: 'topology_node',
-          label: 'Ventilation Flue B',
-          explanation: 'Secondary crawlspace.',
-          evidenceIds: ['ev-pass2-1'],
-          proposedValue: {
-            id: 'ventilation_flue_b',
-            name: 'Ventilation Flue B',
-            label: 'Ventilation Flue B',
-            description: 'Cramped sheet-metal duct carrying cold saline air.',
-          },
-        },
-      ],
-      unknowns: [
-        {
-          id: 'unk-pass2-1',
-          category: 'threat',
-          question: 'Does the surgical cradle have sensory access inside narrow vents?',
-          targetEffect: 'Determines whether crawlspaces provide safe refuge',
-        },
-      ],
-    };
+      candidates: [],
+      unknowns: [],
+      status: 'completed',
+    }, 'Deep salvage operation with multiple unmapped maintenance ducts and survivors. Duct 4 has stable atmospheric pressure.');
 
-    mockGenerateContent.mockResolvedValueOnce({
-      text: JSON.stringify(mockDetailPassOutput),
-    });
-
-    const response = await fetch(`${baseUrl}/api/extract-detail-pass`, {
+    const queueRes = await fetch(`${baseUrl}/api/extract-sweep`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        sourceId: 'src-black-iron-doc',
-        sourceText: 'Forensic report: Orderly Thomas crawled into ventilation duct behind mortuary freezer 4.',
-        existingBlueprint: {
-          topology: {
-            nodeDefinitions: [{ id: 'sub_basement_autopsy', name: 'Autopsy Theater' }],
-          },
-          cast: [{ id: 'char_entity_41', name: 'Entity-41 Surgical Cradle' }],
-        },
-        fileName: 'mortuary_incident_log.txt',
+        sourceBinding: binding,
+        lenses: ['COMBINED'],
       }),
     });
 
-    expect(response.status).toBe(200);
-    const body = await response.json();
-    expect(body.success).toBe(true);
-    expect(body.candidates).toHaveLength(2);
-    expect(body.candidates[0].extractionPass).toBe(2);
-    expect(body.candidates[0].reviewDecision).toBe('accepted');
-    expect(body.candidates[0].applicationState).toBe('staged');
-    expect(body.candidates[0].proposedValue.name).toBe('Orderly Thomas');
-    expect(body.candidates[1].extractionPass).toBe(2);
-    expect(body.candidates[1].target).toBe('topology_node');
-    expect(body.evidence).toHaveLength(1);
-    expect(body.unknowns).toHaveLength(1);
+    expect(queueRes.status).toBe(200);
+    const queueBody = await queueRes.json();
+    expect(queueBody.jobId).toBeDefined();
+    expect(queueBody.statusUrl).toBe(`/api/extract-sweep/${queueBody.jobId}/status`);
+    expect(queueBody.streamUrl).toBe(`/api/extract-sweep/${queueBody.jobId}/events`);
+
+    // Check status
+    const statusRes = await fetch(`${baseUrl}${queueBody.statusUrl}`);
+    expect(statusRes.status).toBe(200);
+    const statusBody = await statusRes.json();
+    expect(statusBody.jobId).toBe(queueBody.jobId);
+    expect(statusBody.sourceBinding).toBe(binding);
+    expect(statusBody.totalWindows).toBeGreaterThanOrEqual(1);
+
+    // Cancel job
+    const cancelRes = await fetch(`${baseUrl}/api/extract-sweep/${queueBody.jobId}/cancel`, {
+      method: 'POST',
+    });
+    expect(cancelRes.status).toBe(200);
+    const cancelBody = await cancelRes.json();
+    expect(cancelBody.status).toBe('cancelled');
   });
 
-  it('rejects /api/extract-detail-pass when sourceText is missing', async () => {
-    const response = await fetch(`${baseUrl}/api/extract-detail-pass`, {
+  it('rejects /api/extract-sweep when sourceBinding is missing or invalid', async () => {
+    const response = await fetch(`${baseUrl}/api/extract-sweep`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        sourceId: 'src-1',
-        sourceText: '',
+        sourceBinding: 'non-existent-binding-999',
       }),
     });
 
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(404);
     const body = await response.json();
-    expect(body.error).toContain('Missing required sourceText');
+    expect(body.error).toContain('Source text not retained or expired');
   });
 });
 

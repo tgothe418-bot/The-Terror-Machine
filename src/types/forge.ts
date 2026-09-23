@@ -533,6 +533,37 @@ export type ForgeCandidateApplicationState = z.infer<typeof ForgeCandidateApplic
 export const ForgeSourceCandidateReviewStateSchema = z.enum(['pending', 'accepted', 'rejected']);
 export type ForgeSourceCandidateReviewState = z.infer<typeof ForgeSourceCandidateReviewStateSchema>;
 
+export const SweepLensSchema = z.enum([
+  'COMBINED',
+  'TOPOLOGY',
+  'CAST',
+  'TRAITS',
+  'CLOCKS_HAZARDS_OBJECTS',
+]);
+export type SweepLens = z.infer<typeof SweepLensSchema>;
+
+export const SweepProvenanceSchema = z
+  .object({
+    extractionPass: z.literal(2),
+    lens: SweepLensSchema,
+    windowIndex: z.number().int().nonnegative(),
+    windowCount: z.number().int().positive(),
+    tokenRange: z.object({
+      start: z.number().int().nonnegative(),
+      end: z.number().int().positive(),
+    }),
+    sourceRange: z
+      .object({
+        start: z.number().int().nonnegative(),
+        end: z.number().int().positive(),
+      })
+      .optional(),
+    provider: z.enum(['gemini', 'zai', 'hemmingway', 'local']),
+    modelId: z.string().min(1),
+  })
+  .strict();
+export type SweepProvenance = z.infer<typeof SweepProvenanceSchema>;
+
 const BaseCandidateProps = {
   id: z.string().min(1),
   sourceId: z.string().min(1),
@@ -543,6 +574,8 @@ const BaseCandidateProps = {
   evidenceIds: z.array(z.string()).default([]),
   targetCastMemberId: z.string().optional(),
   extractionPass: z.number().int().optional(),
+  extractionProvenance: SweepProvenanceSchema.optional(),
+  occurrences: z.number().int().optional(),
   reviewDecision: ForgeCandidateReviewDecisionSchema.default('accepted'),
   applicationState: ForgeCandidateApplicationStateSchema.default('staged'),
 };

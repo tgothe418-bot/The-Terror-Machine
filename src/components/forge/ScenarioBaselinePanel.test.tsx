@@ -582,10 +582,10 @@ describe('ScenarioBaselinePanel Candidate Atomicity Proof', () => {
       root?.render(React.createElement(ScenarioBaselinePanel));
     });
 
-    // 1. Verify Forensic Detail Pass button exists
-    const detailPassBtn = container?.querySelector('#detail-pass-btn-analysis-detail-pass-test');
-    expect(detailPassBtn).not.toBeNull();
-    expect(detailPassBtn?.textContent).toContain('FORENSIC DETAIL PASS');
+    // 1. Verify Forensic Sweep button exists
+    const sweepBtn = container?.querySelector('#sweep-btn-analysis-detail-pass-test');
+    expect(sweepBtn).not.toBeNull();
+    expect(sweepBtn?.textContent).toContain('QUEUE FORENSIC SWEEP');
 
     // 2. Verify Pass 2 badge is rendered on cand-pass2-1
     const candidateRow = container?.querySelector('#candidate-row-cand-pass2-1');

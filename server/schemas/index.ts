@@ -369,3 +369,37 @@ export const ExtractBlueprintRequestSchema = z.object({
   fileName: z.string().min(1, "fileName is required"),
   pageImages: z.array(z.string()).optional(),
 });
+
+export const SweepLensSchema = z.enum([
+  'COMBINED',
+  'TOPOLOGY',
+  'CAST',
+  'TRAITS',
+  'CLOCKS_HAZARDS_OBJECTS'
+]);
+export type SweepLens = z.infer<typeof SweepLensSchema>;
+
+export const SweepProvenanceSchema = z.object({
+  extractionPass: z.literal(2),
+  lens: SweepLensSchema,
+  windowIndex: z.number().int().nonnegative(),
+  windowCount: z.number().int().positive(),
+  tokenRange: z.object({
+    start: z.number().int().nonnegative(),
+    end: z.number().int().positive()
+  }),
+  sourceRange: z.object({
+    start: z.number().int().nonnegative(),
+    end: z.number().int().positive()
+  }).optional(),
+  provider: z.enum(['gemini', 'zai', 'hemmingway', 'local']),
+  modelId: z.string().min(1)
+}).strict();
+export type SweepProvenance = z.infer<typeof SweepProvenanceSchema>;
+
+export const SweepJobRequestSchema = z.object({
+  sourceBinding: z.string().min(1),
+  lenses: z.array(SweepLensSchema).optional()
+});
+export type SweepJobRequest = z.infer<typeof SweepJobRequestSchema>;
+

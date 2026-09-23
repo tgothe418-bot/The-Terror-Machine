@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useForgeState, forgeActions } from '../../store/useForgeStore';
+import { useForgeState, forgeActions, getRuntimeSourceBinding, useForgeStore } from '../../store/useForgeStore';
 import {
   ForgeSourceAnalysis,
   ForgeSourceAnalysisSchema,
@@ -43,6 +43,8 @@ export const ScenarioBaselinePanel: React.FC = () => {
   const [applicationError, setApplicationError] = useState<{ sourceId: string; message: string } | null>(null);
   const [isDetailPassRunning, setIsDetailPassRunning] = useState<Record<string, boolean>>({});
   const [detailPassMessage, setDetailPassMessage] = useState<Record<string, string | null>>({});
+  const [isSweeping, setIsSweeping] = useState<Record<string, boolean>>({});
+  const [sweepProgress, setSweepProgress] = useState<Record<string, { current: number; total: number } | null>>({});
   const [activeEvidenceDrawer, setActiveEvidenceDrawer] = useState<{
     candidateId: string;
     candidateLabel: string;
@@ -127,6 +129,82 @@ export const ScenarioBaselinePanel: React.FC = () => {
     if (architectInput) {
       architectInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
       architectInput.focus();
+    }
+  };
+
+  const handleStartSweep = async (sourceId: string) => {
+    const activeSourceBinding = getRuntimeSourceBinding(sourceId);
+    if (!activeSourceBinding || isSweeping[sourceId]) return;
+    setIsSweeping((prev) => ({ ...prev, [sourceId]: true }));
+    setSweepProgress((prev) => ({ ...prev, [sourceId]: null }));
+    setDetailPassMessage((prev) => ({ ...prev, [sourceId]: null }));
+
+    try {
+      const res = await fetch('/api/extract-sweep', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sourceBinding: activeSourceBinding }),
+      });
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.error || `Failed to queue sweep (status ${res.status})`);
+      }
+      const { streamUrl } = await res.json();
+
+      if (typeof EventSource !== 'undefined') {
+        const eventSource = new EventSource(streamUrl);
+
+        eventSource.addEventListener('window_started', (e: any) => {
+          try {
+            const data = JSON.parse(e.data);
+            setSweepProgress((prev) => ({
+              ...prev,
+              [sourceId]: { current: data.windowIndex + 1, total: data.windowCount || data.totalWindows || 1 },
+            }));
+          } catch {}
+        });
+
+        eventSource.addEventListener('candidates_discovered', (e: any) => {
+          try {
+            const data = JSON.parse(e.data);
+            useForgeStore.getState().mergeSweepCandidates?.(data.candidates, data.evidence, sourceId);
+          } catch {}
+        });
+
+        eventSource.addEventListener('candidate_discovered', (e: any) => {
+          try {
+            const data = JSON.parse(e.data);
+            if (data.candidate) {
+              useForgeStore.getState().mergeSweepCandidates?.([data.candidate], [], sourceId);
+            }
+          } catch {}
+        });
+
+        eventSource.addEventListener('job_complete', (e: any) => {
+          try {
+            const data = JSON.parse(e.data);
+            setDetailPassMessage((prev) => ({
+              ...prev,
+              [sourceId]: `Forensic sweep complete: ${data.discoveredCandidates || 0} candidates discovered across ${data.completedWindows || 1} windows.`,
+            }));
+          } catch {}
+          setIsSweeping((prev) => ({ ...prev, [sourceId]: false }));
+          setSweepProgress((prev) => ({ ...prev, [sourceId]: null }));
+          eventSource.close();
+        });
+
+        eventSource.addEventListener('error', () => {
+          setIsSweeping((prev) => ({ ...prev, [sourceId]: false }));
+          eventSource.close();
+        });
+      }
+    } catch (err: any) {
+      console.error('Sweep error:', err);
+      setDetailPassMessage((prev) => ({
+        ...prev,
+        [sourceId]: err?.message || 'Forensic sweep failed.',
+      }));
+      setIsSweeping((prev) => ({ ...prev, [sourceId]: false }));
     }
   };
 
@@ -275,36 +353,22 @@ export const ScenarioBaselinePanel: React.FC = () => {
                       )}
                     </div>
 
-                    {/* Detail Pass Button */}
+                    {/* Sweep Button */}
                     <button
-                      id={`detail-pass-btn-${analysis.id}`}
+                      id={`sweep-btn-${analysis.id}`}
+                      data-testid={`detail-pass-btn-${analysis.id}`}
                       type="button"
-                      disabled={isDetailPassRunning[analysis.id]}
-                      onClick={async () => {
-                        setIsDetailPassRunning((prev) => ({ ...prev, [analysis.id]: true }));
-                        setDetailPassMessage((prev) => ({ ...prev, [analysis.id]: null }));
-                        try {
-                          const res = await runDetailPass(analysis.id);
-                          if (res.success) {
-                            setDetailPassMessage((prev) => ({
-                              ...prev,
-                              [analysis.id]: `Forensic detail pass unearthed ${res.newCandidateCount || 0} secondary elements.`,
-                            }));
-                          } else {
-                            setDetailPassMessage((prev) => ({
-                              ...prev,
-                              [analysis.id]: res.error || 'Forensic pass failed.',
-                            }));
-                          }
-                        } finally {
-                          setIsDetailPassRunning((prev) => ({ ...prev, [analysis.id]: false }));
-                        }
-                      }}
+                      disabled={isSweeping[analysis.id] || !getRuntimeSourceBinding(analysis.id)}
+                      onClick={() => handleStartSweep(analysis.id)}
                       className="px-2.5 py-1 bg-amber-950/40 hover:bg-amber-900/60 border border-amber-800/80 text-amber-200 text-[10px] font-mono font-bold uppercase tracking-wider rounded transition-colors cursor-pointer flex items-center gap-1 shadow-sm disabled:opacity-50 disabled:pointer-events-none"
-                      title="Execute deep secondary scan to uncover uncaptured secondary cast, locked sub-chambers, crawlspaces, and psychological secrets"
+                      title="Execute deep forensic sweep across all source windows"
                     >
                       <Sparkles className="w-3 h-3 text-amber-400" />
-                      <span>{isDetailPassRunning[analysis.id] ? 'SCANNING...' : 'FORENSIC DETAIL PASS'}</span>
+                      <span>
+                        {isSweeping[analysis.id]
+                          ? `[SWEEPING WINDOW ${sweepProgress[analysis.id]?.current || 1}/${sweepProgress[analysis.id]?.total || 1}]`
+                          : '[QUEUE FORENSIC SWEEP]'}
+                      </span>
                     </button>
 
                     {/* Batch Apply Button */}

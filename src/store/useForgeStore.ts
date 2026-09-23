@@ -31,6 +31,8 @@ import {
   UserOpeningAim,
   CharacterPresenceDisposition,
   ForgeTopologyNode,
+  ForgeSourceCandidate,
+  ForgeSourceEvidence,
 } from '../types/forge';
 import { idbStorage } from '../lib/idbStorage';
 import {
@@ -432,6 +434,11 @@ export interface ForgeActions {
   runDetailPass: (
     sourceId: string
   ) => Promise<{ success: boolean; newCandidateCount?: number; error?: string }>;
+  mergeSweepCandidates: (
+    newCandidates: ForgeSourceCandidate[],
+    newEvidence: ForgeSourceEvidence[],
+    sourceId?: string
+  ) => void;
   removeSourceAnalysis: (sourceId: string) => void;
 
   // Deprecated compatibility aliases for candidates
@@ -548,6 +555,13 @@ export interface ForgeState {
 
   // --- SOURCE INTAKE STATE (Phase 3D-2) ---
   sourceAnalyses: Record<string, ForgeSourceAnalysis>;
+  candidates: ForgeSourceCandidate[];
+  evidence: ForgeSourceEvidence[];
+  mergeSweepCandidates?: (
+    newCandidates: ForgeSourceCandidate[],
+    newEvidence: ForgeSourceEvidence[],
+    sourceId?: string
+  ) => void;
 
   // --- ARCHITECT CHAT STATE ---
   architectMessages: ArchitectMessage[];
@@ -660,6 +674,8 @@ const initialState: ForgeState = {
   sourceBaselineRevision: 1,
   pendingDepictionContractProposal: null,
   sourceAnalyses: {},
+  candidates: [],
+  evidence: [],
   architectMessages: [
     {
       role: 'architect',
@@ -706,6 +722,13 @@ export const useForgeStoreInternal = create<ForgeStore>()(
   persist(
     (set, get) => ({
       ...initialState,
+      mergeSweepCandidates: (
+        newCandidates: ForgeSourceCandidate[],
+        newEvidence: ForgeSourceEvidence[],
+        sourceId?: string
+      ) => {
+        get().actions.mergeSweepCandidates(newCandidates, newEvidence, sourceId);
+      },
       actions: {
         // --- CANONICAL DRAFT ACTIONS ---
         initializeDraft: (initial?: ForgeDraftPatch) => {
@@ -1413,6 +1436,115 @@ export const useForgeStoreInternal = create<ForgeStore>()(
               error: err instanceof Error ? err.message : 'Network error during forensic detail pass',
             };
           }
+        },
+
+        mergeSweepCandidates: (
+          newCandidates: ForgeSourceCandidate[],
+          newEvidence: ForgeSourceEvidence[],
+          sourceId?: string
+        ) => {
+          set((state: ForgeState) => {
+            const existingCandidates = [...(state.candidates || [])];
+            const existingEvidence = [...(state.evidence || [])];
+
+            // 1. Merge Evidence without duplication
+            for (const ev of newEvidence) {
+              if (!existingEvidence.some((e) => e.id === ev.id)) {
+                existingEvidence.push(ev);
+              }
+            }
+
+            // 2. Merge Candidates respecting user review decisions
+            for (const incoming of newCandidates) {
+              const matchIndex = existingCandidates.findIndex((c: any) => {
+                if (c.targetType && (incoming as any).targetType && c.normalizedKey && (incoming as any).normalizedKey) {
+                  return c.targetType === (incoming as any).targetType && c.normalizedKey === (incoming as any).normalizedKey;
+                }
+                if (c.normalizedKey && (incoming as any).normalizedKey && c.normalizedKey === (incoming as any).normalizedKey) {
+                  return true;
+                }
+                if (c.target && incoming.target && c.target === incoming.target) {
+                  if (c.label && incoming.label && c.label.toLowerCase() === incoming.label.toLowerCase()) return true;
+                  if (c.id === incoming.id) return true;
+                }
+                return c.id === incoming.id;
+              });
+
+              if (matchIndex >= 0) {
+                const existing = existingCandidates[matchIndex] as any;
+                // Append new evidence IDs without altering reviewDecision
+                const incomingEvIds = Array.isArray(incoming.evidenceIds) ? incoming.evidenceIds : [];
+                const existingEvIds = Array.isArray(existing.evidenceIds) ? existing.evidenceIds : [];
+                const mergedEvidence = Array.from(
+                  new Set([...existingEvIds, ...incomingEvIds])
+                );
+
+                existingCandidates[matchIndex] = {
+                  ...existing,
+                  evidenceIds: mergedEvidence,
+                  occurrences: (existing.occurrences || 1) + 1,
+                  // Preserve STAGED, APPROVED, or REJECTED status
+                  reviewDecision: existing.reviewDecision,
+                };
+              } else {
+                existingCandidates.push({
+                  ...incoming,
+                  reviewDecision: (incoming as any).reviewDecision || 'STAGED',
+                  extractionPass: 2,
+                });
+              }
+            }
+
+            // 3. Keep active sourceAnalysis synchronized if present
+            let updatedSourceAnalyses = state.sourceAnalyses;
+            const targetSourceId = sourceId || (newCandidates[0]?.sourceId) || Object.keys(state.sourceAnalyses || {})[0];
+            if (targetSourceId && state.sourceAnalyses?.[targetSourceId]) {
+              const targetAnalysis = state.sourceAnalyses[targetSourceId];
+              const mergedAnalysisEvidence = [...(targetAnalysis.evidence || [])];
+              for (const ev of newEvidence) {
+                if (!mergedAnalysisEvidence.some((e) => e.id === ev.id)) {
+                  mergedAnalysisEvidence.push({ ...ev, sourceId: targetSourceId });
+                }
+              }
+              const mergedAnalysisCandidates = [...(targetAnalysis.candidates || [])];
+              for (const incoming of newCandidates) {
+                const idx = mergedAnalysisCandidates.findIndex((c) =>
+                  c.id === incoming.id || (c.target === incoming.target && c.label.toLowerCase() === incoming.label.toLowerCase())
+                );
+                if (idx >= 0) {
+                  const existing = mergedAnalysisCandidates[idx];
+                  const mergedEvIds = Array.from(new Set([...(existing.evidenceIds || []), ...(incoming.evidenceIds || [])]));
+                  mergedAnalysisCandidates[idx] = {
+                    ...existing,
+                    evidenceIds: mergedEvIds,
+                  };
+                } else {
+                  mergedAnalysisCandidates.push({
+                    ...incoming,
+                    sourceId: targetSourceId,
+                    reviewDecision: 'accepted',
+                    applicationState: 'staged',
+                    extractionPass: 2,
+                  });
+                }
+              }
+              updatedSourceAnalyses = {
+                ...state.sourceAnalyses,
+                [targetSourceId]: {
+                  ...targetAnalysis,
+                  evidence: mergedAnalysisEvidence,
+                  candidates: mergedAnalysisCandidates,
+                },
+              };
+            }
+
+            return {
+              candidates: existingCandidates,
+              evidence: existingEvidence,
+              sourceAnalyses: updatedSourceAnalyses,
+              sourceBaselineRevision: (state.sourceBaselineRevision || 0) + 1,
+            };
+          });
         },
 
         removeSourceAnalysis: (sourceId: string) => {

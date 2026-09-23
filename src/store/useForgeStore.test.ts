@@ -4,6 +4,7 @@ import {
   forgeActions,
   getForgeState,
   useForgeState,
+  useForgeStore,
   useForgeStoreInternal,
   DraftCastMember,
   DraftPerspective,
@@ -567,6 +568,7 @@ describe('useForgeStore - draft state and actions', () => {
             isUserCharacter: false,
             behaviorVector: 'ADAPTIVE',
             isEntity: false,
+            disposition: 'SURVIVOR' as const,
           },
           reviewDecision: 'accepted' as const,
           applicationState: 'staged' as const,
@@ -2343,5 +2345,39 @@ describe('useForgeStore - draft state and actions', () => {
       expect(updatedAnalysis.unknowns).toHaveLength(1);
     });
   });
+
+  describe('useForgeStore — mergeSweepCandidates review preservation', () => {
+    it('preserves APPROVED review status upon candidate rediscovery', () => {
+      const store = useForgeStore.getState();
+
+      // Set initial reviewed candidate
+      store.candidates = [{
+        id: 'cand-1',
+        targetType: 'CAST',
+        normalizedKey: 'char-marcus-holt',
+        reviewDecision: 'APPROVED',
+        evidenceIds: ['ev-1'],
+        occurrences: 1
+      } as any];
+
+      // Incoming duplicate candidate with new evidence
+      store.mergeSweepCandidates!(
+        [{
+          id: 'cand-new',
+          targetType: 'CAST',
+          normalizedKey: 'char-marcus-holt',
+          evidenceIds: ['ev-2']
+        } as any],
+        [{ id: 'ev-2', excerpt: 'Holt bars the door' } as any]
+      );
+
+      const merged = useForgeStore.getState().candidates.find((c: any) => c.normalizedKey === 'char-marcus-holt');
+      expect(merged?.reviewDecision).toBe('APPROVED'); // Invariant: Not reset to STAGED
+      expect(merged?.evidenceIds).toContain('ev-1');
+      expect(merged?.evidenceIds).toContain('ev-2');
+      expect(merged?.occurrences).toBe(2);
+    });
+  });
 });
+
 

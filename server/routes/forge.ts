@@ -26,7 +26,10 @@ import {
   ExtractStyleRequestSchema,
   DistillRequestSchema,
   MemoryForgeRequestSchema,
-  ExtractBlueprintRequestSchema
+  ExtractBlueprintRequestSchema,
+  SweepJobRequestSchema,
+  SweepLens,
+  SweepProvenance
 } from "../schemas/index";
 import { z } from "zod";
 import {
@@ -40,17 +43,33 @@ import {
   buildSourceAnalysisFromBlueprint
 } from "../../src/lib/sourceBaseline";
 import { getForgeExtractionPrompt } from "../../src/lib/extractionContract";
-
+import { planSweepWindows } from "../ai/windowPlanner";
+import {
+  createSweepJob,
+  getSweepJob,
+  cancelSweepJob,
+  resolveEvidenceSourceRange,
+  buildSweepPrompt,
+  SweepJobLedger,
+  PinnedModelConfig,
+} from "../ai/sweepOrchestrator";
+import { SseStream } from "../utils/sse";
+import crypto from "crypto";
 
 export interface RegisteredServerSourceEntry {
   sourceBinding: string;
   sourceId: string;
   fileName: string;
   sourceSummary: string;
+  normalizedText: string;
+  contentDigest: string;
+  charLength: number;
+  pinnedJobId?: string;
   evidence: Array<{ id: string; category: string; claim: string; excerpt?: string }>;
   unknowns: Map<string, { id: string; category: string; question: string; targetEffect: string }>;
   closedUnknowns: Set<string>;
   registeredAt: number;
+  createdAt: number;
 }
 
 export const serverSourceRegistry = new Map<string, RegisteredServerSourceEntry>();
@@ -59,20 +78,49 @@ const BINDING_TTL_MS = 2 * 60 * 60 * 1000; // 2 hours
 export function sweepExpiredServerSourceBindings(): void {
   const now = Date.now();
   for (const [bindingId, entry] of serverSourceRegistry.entries()) {
+    if (entry.pinnedJobId) {
+      const job = getSweepJob(entry.pinnedJobId);
+      if (job && (job.status === 'queued' || job.status === 'running')) {
+        continue;
+      }
+    }
     if (now - entry.registeredAt > BINDING_TTL_MS) {
       serverSourceRegistry.delete(bindingId);
     }
   }
 }
 
-export function registerServerSource(analysis: ForgeSourceAnalysis): string {
+export function registerServerSource(analysis: ForgeSourceAnalysis, rawText?: string): string {
   sweepExpiredServerSourceBindings();
   const sourceBinding = crypto.randomUUID();
+
+  let normalizedText = '';
+  if (rawText && typeof rawText === 'string' && rawText.trim().length > 0) {
+    normalizedText = rawText.trim();
+  } else {
+    const textParts: string[] = [];
+    if (analysis.summary) textParts.push(`Summary: ${analysis.summary}`);
+    for (const ev of analysis.evidence || []) {
+      if (ev.claim) textParts.push(`Claim (${ev.category}): ${ev.claim}`);
+      if (ev.excerpt) textParts.push(`Excerpt: "${ev.excerpt}"`);
+    }
+    for (const cand of analysis.candidates || []) {
+      if (cand.label) textParts.push(`Candidate: ${cand.label} - ${cand.explanation}`);
+    }
+    normalizedText = textParts.join('\n\n') || analysis.summary || analysis.sourceRecord?.fileName || 'Source Document';
+  }
+
+  const contentDigest = crypto.createHash('sha256').update(normalizedText).digest('hex');
+  const now = Date.now();
+
   const entry: RegisteredServerSourceEntry = {
     sourceBinding,
     sourceId: analysis.id,
-    fileName: analysis.sourceRecord.fileName,
+    fileName: analysis.sourceRecord?.fileName || 'Source Document',
     sourceSummary: analysis.summary || '',
+    normalizedText,
+    contentDigest,
+    charLength: normalizedText.length,
     evidence: (analysis.evidence || []).map((e) => ({
       id: e.id,
       category: e.category,
@@ -86,7 +134,8 @@ export function registerServerSource(analysis: ForgeSourceAnalysis): string {
       ])
     ),
     closedUnknowns: new Set(),
-    registeredAt: Date.now(),
+    registeredAt: now,
+    createdAt: now,
   };
   serverSourceRegistry.set(sourceBinding, entry);
   return sourceBinding;
@@ -1300,197 +1349,317 @@ Do NOT wrap in markdown fences if possible. Do NOT include conversational filler
   }
 });
 
-router.post("/extract-detail-pass", async (req, res) => {
-  try {
-    const { sourceId, sourceText, existingBlueprint, fileName } = req.body;
-    if (!sourceText || typeof sourceText !== 'string' || !sourceText.trim()) {
-      return res.status(400).json({ error: "Missing required sourceText parameter." });
-    }
+export async function runSweepExecution(
+  job: SweepJobLedger,
+  sse: SseStream,
+  lenses: SweepLens[] = ['COMBINED']
+): Promise<void> {
+  const sourceEntry = serverSourceRegistry.get(job.sourceBinding);
+  if (!sourceEntry || !sourceEntry.normalizedText) {
+    job.status = 'failed';
+    sse.error('Source text not retained or expired', undefined, 'SOURCE_EXPIRED');
+    return;
+  }
 
-    const effectiveSourceId = sourceId || 'source-detail-pass';
-    const effectiveFileName = fileName || 'Reference Document';
+  const windows = planSweepWindows(sourceEntry.normalizedText);
+  job.totalWindows = windows.length * lenses.length;
 
-    // Negative prompting context: what has already been captured
-    const existingChambers = [
-      ...((existingBlueprint?.topology?.nodeDefinitions || []).map((n: any) => n.name || n.label || n.id)),
-      ...((existingBlueprint?.topology?.nodes || []).map((n: any) => (typeof n === 'string' ? n : n.id || n.name)))
-    ].filter(Boolean);
-
-    const existingCast = (existingBlueprint?.cast || [])
-      .map((c: any) => c.name)
-      .filter(Boolean);
-
-    const isLocal = getEngineProvider() === 'local';
-    const maxSourceLength = isLocal ? 4000 : 25000;
-    const truncatedSourceText = sourceText.slice(0, maxSourceLength);
-
-    const negativeChambersText = existingChambers.length > 0
-      ? existingChambers.join(', ')
-      : '(None yet established)';
-    const negativeCastText = existingCast.length > 0
-      ? existingCast.join(', ')
-      : '(None yet established)';
-
-    const prompt = `You are the Forge Deep Forensic Extraction Architect for The Terror Machine.
-A primary extraction pass has already completed. Your task is to perform a HIGH-DENSITY SECONDARY FORENSIC DETAIL PASS across the reference source text to unearth fine-grained scenario details that single-pass extraction overlooked.
-
-ALREADY CAPTURED SCENARIO ELEMENTS (DO NOT DUPLICATE OR RE-EXTRACT THESE):
-- Already Captured Chambers/Rooms: [${negativeChambersText}]
-- Already Captured Cast Members: [${negativeCastText}]
-
-EXTRACTION DIRECTIVES:
-Scan the reference text EXCLUSIVELY for uncaptured or secondary elements:
-1. SECONDARY & INCIDENTAL CAST: Orderlies, security personnel, technicians, secondary victims, missing persons, or witnesses.
-2. SUB-CHAMBERS & ACCESS ROUTES: Maintenance corridors, ventilation ducts, elevator shafts, locked evidence lockers, decontamination showers, hidden crawlspaces.
-3. ENVIRONMENTAL HAZARDS & RULES: Toxic atmospheric venting, failing emergency relays, biohazard leaks, sensory deprivation, cryogenic fluids.
-4. PSYCHOLOGICAL SECRETS & VALUE ANCHORS: Covert motives, guilt, paranoia, personal keepsakes, or traumatic histories mentioned in the source.
-5. UNKNOWNS / AMBIGUITIES: Epistemic uncertainties or unexplained phenomena in the text that require simulation discretion.
-
-REFERENCE SOURCE MATERIAL:
-${truncatedSourceText}
-
-OUTPUT FORMAT:
-Return a single valid JSON object containing:
-{
-  "summary": "Forensic detail pass summary highlighting newly unearthed secondary elements...",
-  "evidence": [
-    {
-      "id": "ev-pass2-1",
-      "category": "cast",
-      "claim": "Specific factual claim from reference text",
-      "excerpt": "Direct textual quote"
-    }
-  ],
-  "candidates": [
-    {
-      "id": "cand-pass2-1",
-      "classification": "evidence",
-      "target": "topology_node",
-      "label": "Evocative human-readable name",
-      "explanation": "Why this element matters to the scenario",
-      "evidenceIds": ["ev-pass2-1"],
-      "proposedValue": { "id": "snake_case_id", "name": "Chamber Name", "label": "Chamber Name", "description": "Sensory description..." }
-    }
-  ],
-  "unknowns": [
-    {
-      "id": "unk-pass2-1",
-      "category": "threat",
-      "question": "Unresolved ambiguity question",
-      "targetEffect": "What this ambiguity affects in the simulation"
-    }
-  ]
-}
-
-TARGET PROPOSED VALUE FORMATS:
-- For "cast_seed": { "name": "...", "role": "...", "description": "...", "personality": "...", "goals": "...", "traits": ["..."], "disposition": "SURVIVOR", "isEntity": false, "behaviorVector": "DEFENSIVE_EVASION" }
-- For "topology_node": { "id": "snake_case_id", "name": "Chamber Name", "label": "Chamber Name", "description": "Atmospheric sensory description..." }
-- For "topology_connection": { "from": "source_node_id", "to": "target_node_id", "label": "Corridor / Doorway description", "bidirectional": true }
-- For "environmental_rule": "String describing atmospheric or environmental rule"
-- For "narrative_rule": "String describing narrative law or thematic restraint"
-- For "value_anchor": { "anchor": "...", "significance": "..." }
-
-Return valid JSON ONLY.`;
-
-    const rawText = await executeForgePrompt(prompt, {
-      responseMimeType: 'application/json',
-    });
-
-    const parsed = parseOrRepairJson<Record<string, any>>(rawText);
-    if (!parsed || typeof parsed !== 'object') {
-      return res.status(500).json({ error: "Model response could not be parsed as JSON." });
-    }
-
-    const now = Date.now();
-    const rawEvidence = Array.isArray(parsed.evidence) ? parsed.evidence : [];
-    const rawCandidates = Array.isArray(parsed.candidates) ? parsed.candidates : [];
-    const rawUnknowns = Array.isArray(parsed.unknowns) ? parsed.unknowns : [];
-
-    const evidence = rawEvidence.map((ev: any, idx: number) => ({
-      id: ev.id || `ev-p2-${now}-${idx + 1}`,
-      category: typeof ev.category === 'string' ? ev.category : 'setting',
-      claim: ev.claim || `Claim from ${effectiveFileName}`,
-      excerpt: ev.excerpt || undefined,
-    }));
-
-    const evidenceIdSet = new Set(evidence.map((e) => e.id));
-    const fallbackEvidenceId = evidence[0]?.id;
-
-    const candidates = rawCandidates.map((cand: any, idx: number) => {
-      const target = cand.target || 'topology_node';
-      const label = cand.label || cand.name || `Discovered Element ${idx + 1}`;
-      const id = cand.id || `cand-p2-${now}-${idx + 1}`;
-      let proposedValue = cand.proposedValue;
-
-      if (target === 'cast_seed' && typeof proposedValue === 'object' && proposedValue !== null) {
-        proposedValue = {
-          id: proposedValue.id || `char_p2_${idx + 1}`,
-          name: proposedValue.name || label,
-          role: proposedValue.role || 'Secondary Survivor',
-          description: proposedValue.description || 'Discovered in secondary scan.',
-          personality: proposedValue.personality || 'Wary and distressed.',
-          goals: proposedValue.goals || 'Survive and escape.',
-          traits: Array.isArray(proposedValue.traits) && proposedValue.traits.length > 0 ? proposedValue.traits : ['observant', 'anxious'],
-          disposition: ['SURVIVOR', 'VILLAIN', 'BYSTANDER'].includes(proposedValue.disposition) ? proposedValue.disposition : 'SURVIVOR',
-          isEntity: Boolean(proposedValue.isEntity),
-          isUserCharacter: false,
-          behaviorVector: proposedValue.behaviorVector || 'DEFENSIVE_EVASION',
-        };
-      } else if (target === 'topology_node' && typeof proposedValue === 'object' && proposedValue !== null) {
-        const nodeId = (proposedValue.id || label.toLowerCase().replace(/[^a-z0-9]+/g, '_')).trim();
-        proposedValue = {
-          id: nodeId,
-          name: proposedValue.name || label,
-          label: proposedValue.label || label,
-          description: proposedValue.description || `Secondary chamber uncovered during forensic scan.`,
-        };
-      } else if (typeof proposedValue === 'string') {
-        proposedValue = proposedValue.trim();
+  for (const lens of lenses) {
+    for (const w of windows) {
+      if (job.isCancelled) {
+        sse.close();
+        return;
       }
 
-      const validEvidenceIds = Array.isArray(cand.evidenceIds)
-        ? cand.evidenceIds.filter((eid: string) => evidenceIdSet.has(eid))
-        : [];
-      if (validEvidenceIds.length === 0 && fallbackEvidenceId) {
+      sse.send('window_started', {
+        jobId: job.jobId,
+        windowIndex: w.windowIndex,
+        windowCount: w.windowCount,
+        totalWindows: job.totalWindows,
+        lens,
+        tokenRange: w.tokenRange,
+        sourceRange: w.sourceRange,
+      });
+
+      const prompt = buildSweepPrompt(w, lens);
+
+      let parsed: any = null;
+      let rawText = '';
+      let attempts = 0;
+
+      while (attempts < 2 && !parsed) {
+        attempts++;
+        try {
+          rawText = await executeForgePrompt(prompt, {
+            responseMimeType: 'application/json',
+          });
+          parsed = parseOrRepairJson<Record<string, any>>(rawText);
+        } catch (err) {
+          console.warn(`[SWEEP ATTEMPT ${attempts} FAILED]`, err);
+        }
+      }
+
+      if (!parsed || typeof parsed !== 'object') {
+        sse.send('window_failed', {
+          jobId: job.jobId,
+          windowIndex: w.windowIndex,
+          lens,
+          error: 'Envelope parsing failed after model retry',
+        });
+        continue;
+      }
+
+      const now = Date.now();
+      const rawEvidence = Array.isArray(parsed.evidence) ? parsed.evidence : [];
+      const rawCandidates = Array.isArray(parsed.candidates) ? parsed.candidates : [];
+      const rawUnknowns = Array.isArray(parsed.unknowns) ? parsed.unknowns : [];
+
+      const evidenceList: any[] = [];
+      for (let i = 0; i < rawEvidence.length; i++) {
+        const ev = rawEvidence[i];
+        if (ev && typeof ev === 'object') {
+          const evId = ev.id || `ev-sweep-${now}-${w.windowIndex}-${i + 1}`;
+          const sourceRange = resolveEvidenceSourceRange(w.text, w.sourceRange.start, ev.excerpt);
+          evidenceList.push({
+            id: evId,
+            sourceId: sourceEntry.sourceId,
+            category: typeof ev.category === 'string' ? ev.category : 'setting',
+            claim: ev.claim || `Claim from window ${w.windowIndex + 1}`,
+            excerpt: ev.excerpt || undefined,
+            sourceRange,
+          });
+        }
+      }
+
+      const validEvidenceIds = evidenceList.map((e) => e.id);
+      const fallbackEvidenceId = validEvidenceIds[0] || `ev-sweep-${now}-${w.windowIndex}-1`;
+      if (evidenceList.length === 0) {
+        evidenceList.push({
+          id: fallbackEvidenceId,
+          sourceId: sourceEntry.sourceId,
+          category: 'setting',
+          claim: `Forensic claim from ${sourceEntry.fileName}`,
+          excerpt: w.text.slice(0, 100),
+        });
         validEvidenceIds.push(fallbackEvidenceId);
       }
 
-      return {
-        id,
-        sourceId: effectiveSourceId,
-        classification: cand.classification === 'evidence' ? 'evidence' : 'inference',
-        target,
-        label,
-        explanation: cand.explanation || `Unearthed in forensic detail pass over ${effectiveFileName}.`,
-        evidenceIds: validEvidenceIds,
-        proposedValue,
-        extractionPass: 2,
-        reviewDecision: 'accepted',
-        applicationState: 'staged',
-      };
-    });
+      const validCandidatesList: any[] = [];
 
-    const unknowns = rawUnknowns.map((unk: any, idx: number) => ({
-      id: unk.id || `unk-p2-${now}-${idx + 1}`,
-      sourceId: effectiveSourceId,
-      category: typeof unk.category === 'string' ? unk.category : 'epistemic',
-      question: unk.question || 'Unresolved ambiguity',
-      targetEffect: unk.targetEffect || 'Affects simulation atmospheric tension',
-      status: 'queued',
-      followUps: [],
-    }));
+      for (let i = 0; i < rawCandidates.length; i++) {
+        const cand = rawCandidates[i];
+        if (!cand || typeof cand !== 'object' || (!cand.target && !cand.label)) {
+          job.quarantineRecords.push({
+            reason: 'Malformed candidate object missing target and label',
+            raw: cand,
+          });
+          job.quarantinedCandidates++;
+          continue;
+        }
+
+        const target = cand.target || 'topology_node';
+        const label = cand.label || cand.name || `Discovered Element ${w.windowIndex + 1}.${i + 1}`;
+        const candId = cand.id || `cand-sweep-${now}-${w.windowIndex}-${i + 1}`;
+        let proposedValue = cand.proposedValue;
+
+        if (target === 'cast_seed' && typeof proposedValue === 'object' && proposedValue !== null) {
+          proposedValue = {
+            id: proposedValue.id || `char_sw_${w.windowIndex}_${i + 1}`,
+            name: proposedValue.name || label,
+            role: proposedValue.role || 'Secondary Cast',
+            description: proposedValue.description || 'Discovered in forensic sweep.',
+            personality: proposedValue.personality || 'Wary and distressed.',
+            goals: proposedValue.goals || 'Survive and escape.',
+            traits: Array.isArray(proposedValue.traits) && proposedValue.traits.length > 0 ? proposedValue.traits : ['observant', 'anxious'],
+            disposition: ['SURVIVOR', 'VILLAIN', 'BYSTANDER'].includes(proposedValue.disposition) ? proposedValue.disposition : 'SURVIVOR',
+            isEntity: Boolean(proposedValue.isEntity),
+            isUserCharacter: false,
+            behaviorVector: proposedValue.behaviorVector || 'DEFENSIVE_EVASION',
+          };
+        } else if (target === 'topology_node' && typeof proposedValue === 'object' && proposedValue !== null) {
+          const nodeId = (proposedValue.id || label.toLowerCase().replace(/[^a-z0-9]+/g, '_')).trim();
+          proposedValue = {
+            id: nodeId,
+            name: proposedValue.name || label,
+            label: proposedValue.label || label,
+            description: proposedValue.description || `Secondary chamber uncovered during forensic scan.`,
+          };
+        } else if (typeof proposedValue === 'string') {
+          proposedValue = proposedValue.trim();
+        }
+
+        const candEvidenceIds = Array.isArray(cand.evidenceIds) && cand.evidenceIds.length > 0
+          ? cand.evidenceIds.filter((eid: string) => validEvidenceIds.includes(eid))
+          : [fallbackEvidenceId];
+
+        const provenance: SweepProvenance = {
+          extractionPass: 2,
+          lens,
+          windowIndex: w.windowIndex,
+          windowCount: w.windowCount,
+          tokenRange: w.tokenRange,
+          sourceRange: w.sourceRange,
+          provider: job.modelConfig.provider,
+          modelId: job.modelConfig.modelId,
+        };
+
+        const validatedCand = {
+          id: candId,
+          sourceId: sourceEntry.sourceId,
+          classification: cand.classification === 'evidence' ? 'evidence' : 'inference',
+          target,
+          label,
+          explanation: cand.explanation || `Unearthed in forensic sweep over ${sourceEntry.fileName}.`,
+          evidenceIds: candEvidenceIds.length > 0 ? candEvidenceIds : [fallbackEvidenceId],
+          proposedValue,
+          extractionPass: 2,
+          extractionProvenance: provenance,
+          occurrences: 1,
+          reviewDecision: 'accepted',
+          applicationState: 'staged',
+        };
+
+        validCandidatesList.push(validatedCand);
+        job.discoveredCandidates++;
+
+        sse.send('candidate_discovered', {
+          jobId: job.jobId,
+          candidate: validatedCand,
+        });
+      }
+
+      if (validCandidatesList.length > 0 || evidenceList.length > 0) {
+        sse.send('candidates_discovered', {
+          jobId: job.jobId,
+          candidates: validCandidatesList,
+          evidence: evidenceList,
+        });
+      }
+
+      job.completedWindows++;
+      sse.send('window_completed', {
+        jobId: job.jobId,
+        windowIndex: w.windowIndex,
+        windowCount: w.windowCount,
+        completedWindows: job.completedWindows,
+        totalWindows: job.totalWindows,
+        discoveredCandidates: job.discoveredCandidates,
+        quarantinedCandidates: job.quarantinedCandidates,
+      });
+    }
+  }
+
+  job.status = 'complete';
+  if (sourceEntry) {
+    sourceEntry.pinnedJobId = undefined;
+  }
+
+  sse.send('job_complete', {
+    jobId: job.jobId,
+    status: 'complete',
+    totalWindows: job.totalWindows,
+    completedWindows: job.completedWindows,
+    discoveredCandidates: job.discoveredCandidates,
+    quarantinedCandidates: job.quarantinedCandidates,
+  });
+  sse.complete({
+    jobId: job.jobId,
+    status: 'complete',
+    totalWindows: job.totalWindows,
+    completedWindows: job.completedWindows,
+    discoveredCandidates: job.discoveredCandidates,
+    quarantinedCandidates: job.quarantinedCandidates,
+  });
+}
+
+// 1. Queue Sweep Job
+router.post('/extract-sweep', async (req, res) => {
+  try {
+    const parseRes = SweepJobRequestSchema.safeParse(req.body);
+    if (!parseRes.success) {
+      return res.status(400).json({ error: 'Invalid sweep job request', details: parseRes.error.format() });
+    }
+    const { sourceBinding, lenses } = parseRes.data;
+
+    sweepExpiredServerSourceBindings();
+    const sourceEntry = serverSourceRegistry.get(sourceBinding);
+
+    if (!sourceEntry || !sourceEntry.normalizedText) {
+      return res.status(404).json({ error: 'Source text not retained or expired' });
+    }
+
+    const modelConfig: PinnedModelConfig = {
+      provider: getEngineProvider(),
+      modelId: getEngineProvider() === 'local' ? getLocalForgeModel() : 'active-model',
+    };
+
+    const requestedLenses = lenses && lenses.length > 0 ? lenses : ['COMBINED' as SweepLens];
+    const windows = planSweepWindows(sourceEntry.normalizedText);
+    const job = createSweepJob(
+      sourceBinding,
+      sourceEntry.contentDigest,
+      windows.length * requestedLenses.length,
+      modelConfig
+    );
+    sourceEntry.pinnedJobId = job.jobId;
 
     res.json({
-      success: true,
-      summary: parsed.summary || `Forensic detail pass identified ${candidates.length} new candidates and ${unknowns.length} ambiguities.`,
-      evidence,
-      candidates,
-      unknowns,
+      jobId: job.jobId,
+      statusUrl: `/api/extract-sweep/${job.jobId}/status`,
+      streamUrl: `/api/extract-sweep/${job.jobId}/events`,
     });
   } catch (error: any) {
-    console.error("Extract detail pass error:", error);
-    res.status(500).json({ error: "Failed to execute forensic detail pass: " + (error?.message || error) });
+    console.error('Sweep queue error:', error);
+    res.status(500).json({ error: 'Failed to queue sweep: ' + (error?.message || error) });
   }
 });
 
+// 2. Stream Job Events via SSE
+router.get('/extract-sweep/:jobId/events', (req, res) => {
+  const job = getSweepJob(req.params.jobId);
+  if (!job) {
+    return res.status(404).end();
+  }
+
+  const sse = new SseStream(res);
+  req.on('close', () => sse.close());
+
+  if (job.status === 'queued') {
+    job.status = 'running';
+    runSweepExecution(job, sse).catch((err) => {
+      console.error('Sweep execution error:', err);
+      job.status = 'failed';
+      sse.error(err?.message || 'Sweep execution error');
+    });
+  }
+});
+
+// 3. Status Snapshot
+router.get('/extract-sweep/:jobId/status', (req, res) => {
+  const job = getSweepJob(req.params.jobId);
+  if (!job) {
+    return res.status(404).json({ error: 'Job not found' });
+  }
+  res.json(job);
+});
+
+// 4. Cooperative Cancellation
+router.post('/extract-sweep/:jobId/cancel', (req, res) => {
+  const cancelled = cancelSweepJob(req.params.jobId);
+  if (!cancelled) {
+    return res.status(400).json({ error: 'Cannot cancel job' });
+  }
+
+  const job = getSweepJob(req.params.jobId);
+  if (job) {
+    const entry = serverSourceRegistry.get(job.sourceBinding);
+    if (entry) {
+      entry.pinnedJobId = undefined;
+    }
+  }
+
+  res.json({ status: 'cancelled' });
+});
+
 export default router;
+
