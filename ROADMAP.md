@@ -46,10 +46,23 @@ Standard LLM generative sessions degrade due to spatial amnesia, unearned adject
 - **The Silver Rest Lodge**: 1991 alpine retreat social horror with 8 cast members across 3 role categories, 3 clocks, and 4 milestone gates.
 - **The Refinement**: High-stakes psychological ordeal inspired by the New French Extreme; 8 chambers, 8 cast members with granular psychological stakes, and extreme content scale handling.
 
-### 5. Multi-Provider Runtime Calibration
-- **Model-Agnostic Execution**: Independent calibration of Engine, Forge, Voice, and Autopilot across providers.
-- **Supported Providers**: Local OpenAI-compatible endpoints (LM Studio, Ollama, llama.cpp), Google Gemini, OpenAI, Z.ai (GLM), and Hemmingway.io.
-- **Verified Local Inference**: 80-turn multi-role headless test batteries completed on local Gemma 4 26B QAT with 100% schema accuracy and zero cloud token cost.
+### 5. Universal Multi-Provider Validation & Concurrency Isolation
+- **Fail-Closed Roster Normalization**: Universal `CastNormalizationContext` enforced across Google Gemini, OpenAI, Z.ai GLM, Hemmingway.io, and Local OpenAI-compatible inference servers.
+- **Request Concurrency Isolation**: Per-request turn contract instantiation in `server/routes/turn.ts` completely eliminating crosstalk under concurrent requests.
+- **Voice Telemetry Grounding**: Live engine simulation state injection (`[LIVE SIMULATION TELEMETRY - ORACLE OF RECORDS]`) into The Voice companion.
+
+### 6. Greenfield SSE Streaming Transport & Live Turn Presentation
+- **High-Performance EventStream API (`server/utils/sse.ts`)**: Monotonic event IDs, automated 15-second keepalive heartbeats, and client disconnect handling.
+- **Live Ephemeral Streaming**: Dedicated `/turn-stream` and `/stream` endpoints with real-time word-by-word CRT narrative rendering without corrupting atomic causal ratification commits.
+
+### 7. Unified Forensic Sweep Engine & Review Preservation
+- **Sentence-Snapped Window Planner (`server/ai/windowPlanner.ts`)**: Token budget calculation, regex sentence snapping (`[.!?]`), and single-window `W1/1` handling for short sources.
+- **Server-Side Source Retention & Job Ledger (`server/ai/sweepOrchestrator.ts`)**: Pinned server source registry preventing TTL eviction during sweeps; multi-lens induction (`COMBINED`, `TOPOLOGY_ONLY`, `CAST_ONLY`, `ATMOSPHERE_RULES`, `EPISTEMIC_UNKNOWNS`).
+- **Review-Safe Live Merge (`src/store/useForgeStore.ts`)**: Merges newly discovered candidate evidence while preserving author review decisions (`accepted`/`rejected`/`staged`) and edit buffers.
+
+### 8. Universal Navigation Shell & Parameterized Proof Run Batteries
+- **Persistent AI Calibration Overlay (`src/App.tsx`)**: Global pinned top-left navigation cogwheel opening calibration modal without unmounting or mutating active Engine sessions or Forge drafts.
+- **Parameterized HG2 Benchmark Suite (`scripts/run_hg2_40turn_benchmark.ts`)**: Configurable via `--turns=N`, `--scenario=ID`, and `--seat=ROLE`. Headless proof runs verified 20/20 and 40/40 turns on local Gemma 4 26B QAT with 100% gate pass rates (committed acts, NPC proposals $\ge 1/3$ turns, causal phase progression, zero 502s).
 
 ---
 
