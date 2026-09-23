@@ -18,6 +18,9 @@ import {
   isExposureTier,
 } from './snapshot';
 import { applyTopologyDeltaToGraph } from './topologyCommit';
+import type { CohortState, CohortTraceEmission } from '../../types/cohort';
+import type { NodeEvidenceItem } from '../../lib/cohortBehaviors';
+import { tickCohortState } from '../../lib/cohortEngine';
 
 export interface RetakeRestorableEngineState {
   sessionId?: string;
@@ -58,6 +61,10 @@ export interface RetakeRestorableEngineState {
   nodeState?: {
     dynamic_conditions?: Record<string, unknown>;
   };
+  cohortState?: CohortState;
+  nodeEvidence?: Record<string, NodeEvidenceItem[]>;
+  nodeTraces?: Record<string, CohortTraceEmission[]>;
+  castPlacement?: Record<string, string>;
 }
 
 export interface RetakeCheckpoint {
@@ -104,6 +111,10 @@ export function captureRetakeRestorableState(
     currentPhase: state.currentPhase,
     tensionLevel: state.tensionLevel,
     nodeState: state.nodeState,
+    cohortState: state.cohortState,
+    nodeEvidence: state.nodeEvidence,
+    nodeTraces: state.nodeTraces,
+    castPlacement: state.castPlacement,
   } satisfies RetakeRestorableEngineState;
 }
 
@@ -135,6 +146,10 @@ export function applyReconciliationPatch(
     'maxRooms',
     'aesthetic',
     'activeEntities',
+    'cohortState',
+    'nodeEvidence',
+    'nodeTraces',
+    'castPlacement',
   ];
 
   const dynamicConditions: Record<string, unknown> = {
@@ -202,6 +217,10 @@ export const initialEngineState: EngineState = {
   reconciliationRevision: 0,
   history: [],
   lastTurnCheckpoint: null,
+  cohortState: undefined,
+  nodeEvidence: {},
+  nodeTraces: {},
+  castPlacement: {},
 };
 
 export function engineReducer(state: EngineState, event: EngineEvent): EngineState {
@@ -334,6 +353,63 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
         turnReceipt: committedTurnReceipt,
       };
 
+      let nextCohortState = state.cohortState;
+      const nextNodeEvidence = state.nodeEvidence ? { ...state.nodeEvidence } : {};
+      const nextNodeTraces = state.nodeTraces ? { ...state.nodeTraces } : {};
+      const nextCastPlacement = state.castPlacement ? { ...state.castPlacement } : {};
+
+      if (nextCohortState && nextCohortState.status !== 'DORMANT') {
+        const cost =
+          event.payload.turnReceipt?.narrativeReconciliationReceipt?.fictional_time_cost ||
+          event.payload.frame?.reconciliation?.fictionalTimeCost ||
+          'SCENE_BEAT';
+        let deltaSeconds = 60;
+        if (cost === 'MOMENT') deltaSeconds = 15;
+        else if (cost === 'SCENE_BEAT') deltaSeconds = 180;
+        else if (cost === 'EXTENDED') deltaSeconds = 900;
+
+        const topologyNodes = (nextGraph || []).map((n) => ({
+          id: n.id,
+          name: n.label || n.id,
+        }));
+        const topologyConnections: Array<{
+          fromNodeId: string;
+          toNodeId: string;
+          status: 'OPEN' | 'LOCKED' | 'BLOCKED';
+          kind: string;
+        }> = [];
+        for (const node of nextGraph || []) {
+          for (const edge of node.connections || []) {
+            topologyConnections.push({
+              fromNodeId: node.id,
+              toNodeId: edge.to,
+              status: edge.status || 'OPEN',
+              kind: edge.kind || 'PHYSICAL',
+            });
+          }
+        }
+
+        const { nextState: tickedCohort, receipts } = tickCohortState(
+          nextCohortState,
+          deltaSeconds,
+          {
+            turnNumber: updatedTurnCount,
+            fictionalTime: (state.turnCount || 0) * 60,
+            topologyNodes,
+            topologyConnections,
+          },
+          nextCastPlacement,
+          nextNodeEvidence
+        );
+        nextCohortState = tickedCohort;
+
+        for (const r of receipts) {
+          for (const t of r.tracesEmitted) {
+            nextNodeTraces[t.nodeId] = [...(nextNodeTraces[t.nodeId] || []), t];
+          }
+        }
+      }
+
       return {
         ...state,
         lastTurnCheckpoint,
@@ -352,6 +428,10 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
           ...state.activeMemory,
           systemFlags: combinedFlags,
         },
+        cohortState: nextCohortState,
+        nodeEvidence: nextNodeEvidence,
+        nodeTraces: nextNodeTraces,
+        castPlacement: nextCastPlacement,
       };
     }
 

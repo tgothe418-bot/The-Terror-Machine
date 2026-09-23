@@ -82,6 +82,7 @@ export * from './vocalization';
 export * from './blueprintAuthoring';
 export * from './horrorGrammar';
 export * from './dramaturgy';
+export * from './cohort';
 import {
   CharacterPsychologicalStakesSchema,
   DramaticSpineSchema,

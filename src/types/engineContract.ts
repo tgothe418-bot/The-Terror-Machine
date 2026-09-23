@@ -55,6 +55,7 @@ import {
   HorrorGrammarForensicRecordSchema,
   UserOpeningAimReviewDispositionSchema,
 } from './horrorGrammar';
+import { CohortStateSchema } from './cohort';
 export * from './adLib';
 export * from './consequence';
 export * from './characterStance';
@@ -62,6 +63,7 @@ export * from './characterRelationships';
 export * from './characterMemory';
 export * from './worldMemory';
 export * from './vocalization';
+export * from './cohort';
 
 export const EdgeKindSchema = z.enum([
   'PHYSICAL',
@@ -207,8 +209,9 @@ export const EngineTurnContextSchema = z.object({
   dramaturgyContext: DramaturgyTurnContextSchema.optional(),
   dramaturgyRuntimeState: DramaturgyRuntimeStateSchema.optional(),
   dramaticSpine: DramaticSpineSchema.optional(),
-  villainProtagonist: z.boolean().default(false),
+  villainProtagonist: z.boolean().optional(),
   narratorFraming: z.string().optional(),
+  cohortState: CohortStateSchema.optional(),
 });
 
 export type EngineTurnContext = z.infer<typeof EngineTurnContextSchema>;
