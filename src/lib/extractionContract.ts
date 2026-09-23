@@ -1015,6 +1015,7 @@ CRITICAL EXTRACTION SCHEMAS & ENUMS:
        "targetVictimIds"?: string[]
      }
    - If an antagonistic entity, automated containment apparatus, monster, or hostile overseer is present in the source material, extract its operational profile, controls, and sadistic directives.
+   - DUAL-EXTRACTION RULE: If the antagonistic entity has a proper name, speaks dialogue, or takes personalized character-like action (threats, torment tailored to individuals, direct address), it MUST ALSO be extracted as a separate 'cast_seed' candidate with disposition "VILLAIN" and isEntity true. The 'antagonist_profile' carries its operational controls; the 'cast_seed' carries its persona. A named, speaking antagonist must NEVER be filed ONLY as an apparatus.
 
 6. 'cast_expression_guidance':
    - proposedValue: { "communicationModes": ["${EXTRACTION_COMMUNICATION_MODES.join('" | "')}"], "expressionGuidance": string, "silenceGuidance"?: string }
@@ -1084,6 +1085,7 @@ CRITICAL EXTRACTION SCHEMAS & ENUMS:
    - CRITICAL: COMPREHENSIVE CAST EXTRACTION (DO NOT TRUNCATE THE ROSTER):
      Extract EVERY distinct named character, protagonist, antagonist, child, victim, guardian, employee, investigator, and entity who appears across the narrative scenes and chapters.
      Do NOT limit the extraction to only 2 or 3 characters! If a story has 5, 8, 10, or 12 characters, extract ALL of them as separate 'cast_seed' candidates. It is vastly preferable to extract a comprehensive roster so the creator can trim unwanted characters in the Cast & Character Roster than to omit characters.
+   - VILLAIN ALWAYS EXTRACTED: Every scenario's cast MUST contain at least one member with disposition "VILLAIN". If the source's primary antagonist is a machine intelligence, cosmic entity, or hostile overseer (e.g. AM), extract it as a 'cast_seed' with "role": "Antagonist", "disposition": "VILLAIN", "isEntity": true — even though it is ALSO extracted as an 'antagonist_profile'. A blueprint with no VILLAIN in cast is invalid and will fail compilation.
 
 12. Other String Targets:
    - 'setting_location': String location name.
@@ -1104,6 +1106,7 @@ EXTRACTION POLICIES & DIRECTIVES:
 - COMPLETE BLUEPRINT DATA: Every character extracted must include rich 'description', 'personality', 'goals', and 3-6 'traits'.
 - Link candidate evidenceIds to corresponding entries in the evidence list.
 - Perspective neutrality: Every imported scenario is perspective-neutral. There is no global starting space, designated player character, or fixed user opening aim.
+- VILLAIN INVARIANT: The compiled cast must always contain at least one VILLAIN disposition member. Purely environmental threats with no personified antagonist are the edge case, not the norm — when in doubt, personify the antagonist as a cast member.
 `;
 
 }

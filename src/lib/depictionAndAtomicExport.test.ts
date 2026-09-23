@@ -42,11 +42,23 @@ describe('Packet 1D-5: Automatic Depiction Contract & One-Action Export', () => 
         isEntity: false,
         presenceDisposition: { kind: 'AT_NODE', nodeId: 'HAB_MODULE' },
       },
+      {
+        id: 'char-abyss-entity',
+        name: 'The Abyssal Entity',
+        role: 'Antagonist',
+        description: 'Pressure-adapted abyssal predator breaching Challenger Node 7.',
+        disposition: 'VILLAIN',
+        behaviorVector: 'RELENTLESS',
+        isEntity: true,
+        isUserCharacter: false,
+        presenceDisposition: { kind: 'NONLOCAL' },
+      },
     ],
     horrorGrammar: {
       valueBaselineReview: 'REVIEWED_NONE',
       pursuitReviews: {
         'char-eva': 'REVIEWED_NONE',
+        'char-abyss-entity': 'REVIEWED_NONE',
       },
       valueAnchors: [],
       characterPursuits: [],
@@ -220,12 +232,24 @@ describe('Packet 1D-5: Automatic Depiction Contract & One-Action Export', () => 
           isUserCharacter: false,
           presenceDisposition: { kind: 'AT_NODE', nodeId: 'HAB_MODULE' },
         },
+        {
+          id: 'char-abyss-entity',
+          name: 'The Abyssal Entity',
+          role: 'Antagonist',
+          description: 'Pressure-adapted abyssal predator breaching Challenger Node 7.',
+          disposition: 'VILLAIN',
+          behaviorVector: 'RELENTLESS',
+          isEntity: true,
+          isUserCharacter: false,
+          presenceDisposition: { kind: 'NONLOCAL' },
+        },
       ];
 
       draft.horrorGrammar = {
         valueBaselineReview: 'REVIEWED_NONE',
         pursuitReviews: {
           'char-eva': 'REVIEWED',
+          'char-abyss-entity': 'REVIEWED_NONE',
         },
         valueAnchors: [],
         characterPursuits: [
@@ -281,6 +305,17 @@ describe('Packet 1D-5: Automatic Depiction Contract & One-Action Export', () => 
           isUserCharacter: false,
           presenceDisposition: { kind: 'OFFSTAGE' },
         },
+        {
+          id: 'char-abyss-entity',
+          name: 'The Abyssal Entity',
+          role: 'Antagonist',
+          description: 'Pressure-adapted abyssal predator breaching Challenger Node 7.',
+          disposition: 'VILLAIN',
+          behaviorVector: 'RELENTLESS',
+          isEntity: true,
+          isUserCharacter: false,
+          presenceDisposition: { kind: 'NONLOCAL' },
+        },
       ];
 
       draft.horrorGrammar = {
@@ -288,6 +323,7 @@ describe('Packet 1D-5: Automatic Depiction Contract & One-Action Export', () => 
         pursuitReviews: {
           'char-1': 'REVIEWED_NONE',
           'char-2': 'REVIEWED_NONE',
+          'char-abyss-entity': 'REVIEWED_NONE',
         },
         valueAnchors: [],
         characterPursuits: [],

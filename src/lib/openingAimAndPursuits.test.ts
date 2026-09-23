@@ -100,6 +100,17 @@ describe('Forge 1C-3: Opening Aims, Goals, and Pursuit Convergence', () => {
         isUserCharacter: false,
         presenceDisposition: { kind: 'OFFSTAGE' },
       },
+      {
+        id: 'char-trench-stalker',
+        name: 'The Trench Stalker',
+        role: 'Antagonist',
+        description: 'Abyssal predator stalking the flooded lower decks of Outpost Deep Delta.',
+        disposition: 'VILLAIN',
+        behaviorVector: 'RELENTLESS',
+        isEntity: true,
+        isUserCharacter: false,
+        presenceDisposition: { kind: 'NONLOCAL' },
+      },
     ],
     horrorGrammar: {
       valueBaselineReview: 'REVIEWED_NONE',
@@ -107,6 +118,7 @@ describe('Forge 1C-3: Opening Aims, Goals, and Pursuit Convergence', () => {
         'char-elena': 'REVIEWED_NONE',
         'char-kane': 'REVIEWED_NONE',
         'char-cook': 'REVIEWED_NONE',
+        'char-trench-stalker': 'REVIEWED_NONE',
       },
       valueAnchors: [],
       characterPursuits: [],
@@ -719,6 +731,7 @@ describe('Forge 1C-3: Opening Aims, Goals, and Pursuit Convergence', () => {
         'char-elena': 'REVIEWED_NONE',
         'char-kane': 'REVIEWED',
         'char-cook': 'REVIEWED_NONE',
+        'char-trench-stalker': 'REVIEWED_NONE',
       },
       valueAnchors: [],
       characterPursuits: [

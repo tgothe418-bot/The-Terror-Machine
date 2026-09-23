@@ -636,6 +636,17 @@ describe('Forge 1C-8: Production-Path Closure, Integration Proof, and Negative M
           isUserCharacter: true,
           presenceDisposition: { kind: 'AT_NODE', nodeId: 'NODE_CONTROL' },
         },
+        {
+          id: 'char-sector-entity',
+          name: 'The Silent Entity',
+          role: 'Antagonist',
+          description: 'Signal-born entity haunting the silent control sector.',
+          disposition: 'VILLAIN',
+          behaviorVector: 'RELENTLESS',
+          isEntity: true,
+          isUserCharacter: false,
+          presenceDisposition: { kind: 'NONLOCAL' },
+        },
       ],
       userCharacterId: 'char-operator',
       userOpeningAim: {
@@ -653,6 +664,7 @@ describe('Forge 1C-8: Production-Path Closure, Integration Proof, and Negative M
         valueBaselineReview: 'REVIEWED_NONE',
         pursuitReviews: {
           'char-operator': 'REVIEWED_NONE',
+          'char-sector-entity': 'REVIEWED_NONE',
         },
         valueAnchors: [],
         characterPursuits: [],

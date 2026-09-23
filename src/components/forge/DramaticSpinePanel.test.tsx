@@ -79,6 +79,17 @@ describe('DramaticSpinePanel Component', () => {
             ],
           },
         },
+        {
+          id: 'char-specimen-zero',
+          name: 'Specimen Zero',
+          role: 'Antagonist',
+          description: 'Thawed cryo-specimen stalking the sub-levels, spreading frostbite infection.',
+          disposition: 'VILLAIN',
+          isUserCharacter: false,
+          isEntity: true,
+          behaviorVector: 'RELENTLESS',
+          presenceDisposition: { kind: 'NONLOCAL' },
+        },
       ],
       dramaticSpine: {
         thematicPremise: 'Institutional paralysis during biological collapse',
@@ -121,6 +132,7 @@ describe('DramaticSpinePanel Component', () => {
         valueBaselineReview: 'REVIEWED_NONE',
         pursuitReviews: {
           'char-1': 'REVIEWED_NONE',
+          'char-specimen-zero': 'REVIEWED_NONE',
         },
         valueAnchors: [],
         characterPursuits: [],

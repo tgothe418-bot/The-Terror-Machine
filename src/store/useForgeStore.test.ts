@@ -2042,11 +2042,23 @@ describe('useForgeStore - draft state and actions', () => {
             isUserCharacter: false,
             presenceDisposition: { kind: 'AT_NODE', nodeId: 'NODE_1' },
           },
+          {
+            id: 'char-castle-wraith',
+            name: 'The Castle Wraith',
+            role: 'Antagonist',
+            description: 'Spectral wraith haunting the halls of the authored castle.',
+            disposition: 'VILLAIN',
+            behaviorVector: 'RELENTLESS',
+            isEntity: true,
+            isUserCharacter: false,
+            presenceDisposition: { kind: 'NONLOCAL' },
+          },
         ],
         horrorGrammar: {
           valueBaselineReview: 'REVIEWED_NONE',
           pursuitReviews: {
             'char-1': 'REVIEWED_NONE',
+            'char-castle-wraith': 'REVIEWED_NONE',
           },
           valueAnchors: [],
           characterPursuits: [],

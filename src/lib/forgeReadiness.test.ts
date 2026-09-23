@@ -37,6 +37,17 @@ describe('Forge Readiness & Compilation (Packet 1-1)', () => {
         role: 'Chief Researcher',
         presenceDisposition: { kind: 'AT_NODE', nodeId: 'NODE_LAB' },
       },
+      {
+        id: 'char-facility-entity',
+        name: 'The Permafrost Entity',
+        role: 'Antagonist',
+        description: 'Ancient organism thawed from the permafrost beneath Sub-Level 4.',
+        disposition: 'VILLAIN',
+        behaviorVector: 'RELENTLESS',
+        isEntity: true,
+        isUserCharacter: false,
+        presenceDisposition: { kind: 'NONLOCAL' },
+      },
     ],
     topology: {
       startingNodeId: 'NODE_AIRLOCK',
@@ -61,6 +72,7 @@ describe('Forge Readiness & Compilation (Packet 1-1)', () => {
       pursuitReviews: {
         'char-user': 'REVIEWED_NONE',
         'char-npc-1': 'REVIEWED',
+        'char-facility-entity': 'REVIEWED_NONE',
       },
       valueAnchors: [
         {

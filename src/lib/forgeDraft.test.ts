@@ -129,6 +129,18 @@ describe('Phase 3D-1: Forge Draft Contract, Review Validation, and Compiler Boun
           traits: ['Cautious', 'Observant'],
           presenceDisposition: { kind: 'AT_NODE', nodeId: 'AIRLOCK_01' },
         },
+        {
+          id: 'c-husk',
+          name: 'The Husk',
+          role: 'Antagonist',
+          description: 'Reanimated containment specimen stalking the sub-level.',
+          disposition: 'VILLAIN',
+          behaviorVector: 'RELENTLESS',
+          isEntity: true,
+          isUserCharacter: false,
+          traits: ['Relentless', 'Silent'],
+          presenceDisposition: { kind: 'AT_NODE', nodeId: 'SUB_LAB_B' },
+        },
       ],
       userCharacterId: 'c-aris',
       userOpeningAim: {
@@ -171,7 +183,7 @@ describe('Phase 3D-1: Forge Draft Contract, Review Validation, and Compiler Boun
       characters: [],
       horrorGrammar: {
         valueBaselineReview: 'REVIEWED_NONE',
-        pursuitReviews: { 'c-aris': 'REVIEWED_NONE' },
+        pursuitReviews: { 'c-aris': 'REVIEWED_NONE', 'c-husk': 'REVIEWED_NONE' },
         valueAnchors: [],
         characterPursuits: [],
       },
@@ -187,7 +199,7 @@ describe('Phase 3D-1: Forge Draft Contract, Review Validation, and Compiler Boun
       const validatedSchema = BlueprintSchema.parse(blueprint);
       expect(validatedSchema.identity.title).toBe('Obsidian Sub-Level 4');
       expect(validatedSchema.setting.location).toBe('Bedrock Research Facility');
-      expect(validatedSchema.cast).toHaveLength(1);
+      expect(validatedSchema.cast).toHaveLength(2);
       expect(validatedSchema.cast[0].name).toBe('Dr. Aris');
 
       // Canonical connection normalization check
@@ -251,6 +263,17 @@ describe('Phase 3D-1: Forge Draft Contract, Review Validation, and Compiler Boun
           isUserCharacter: true,
           presenceDisposition: { kind: 'AT_NODE', nodeId: 'STATION_CORE' },
         },
+        {
+          id: 'c2',
+          name: 'The Venting Intelligence',
+          role: 'Antagonist',
+          description: 'Rogue station system venting atmosphere to isolate the crew.',
+          disposition: 'VILLAIN',
+          behaviorVector: 'RELENTLESS',
+          isEntity: true,
+          isUserCharacter: false,
+          presenceDisposition: { kind: 'NONLOCAL' },
+        },
       ],
       userCharacterId: 'c1',
       userOpeningAim: {
@@ -275,7 +298,7 @@ describe('Phase 3D-1: Forge Draft Contract, Review Validation, and Compiler Boun
       environmentalRules: '',
       horrorGrammar: {
         valueBaselineReview: 'REVIEWED_NONE',
-        pursuitReviews: { c1: 'REVIEWED_NONE' },
+        pursuitReviews: { c1: 'REVIEWED_NONE', c2: 'REVIEWED_NONE' },
         valueAnchors: [],
         characterPursuits: [],
       },

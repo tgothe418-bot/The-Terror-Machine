@@ -235,6 +235,24 @@ export function validateForgeDraft(rawDraft: unknown): ForgeValidationResult {
     });
   }
 
+  // 4b. Villain Invariant: every scenario must extract at least one VILLAIN cast member.
+  // A named, speaking, or acting antagonist (e.g. AM) must be filed as a cast_seed with
+  // disposition VILLAIN (isEntity true for non-humans) IN ADDITION TO any antagonist_profile.
+  const hasVillain =
+    Array.isArray(draft.cast) &&
+    draft.cast.some(
+      (member) => String(member.disposition || '').toUpperCase().trim() === 'VILLAIN'
+    );
+  if (!hasVillain) {
+    if (!errors['cast']) errors['cast'] = [];
+    errors['cast'].push(
+      'Invariant violation: every scenario must extract at least one VILLAIN cast member. ' +
+        'If the source antagonist is a named entity, machine intelligence, or hostile overseer ' +
+        '(e.g. AM), extract it as a cast_seed with disposition "VILLAIN" and isEntity true, ' +
+        'in addition to any antagonist_profile entry.'
+    );
+  }
+
   // 5. Starting Vector & Tier Validation
   const validVectors = ['SOMATIC', 'COGNITIVE', 'COSMIC', 'SOCIO_MORAL'];
   if (!draft.startingVector || !validVectors.includes(draft.startingVector)) {

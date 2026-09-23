@@ -556,6 +556,17 @@ describe('Forge Reference-Import End-to-End Traversal & Stabilization Suite (Pac
             nodeId: 'VAULT_MAIN',
           },
         },
+        {
+          id: 'char-vault-revenant',
+          name: 'The Vault Revenant',
+          role: 'Antagonist',
+          description: 'Irradiated revenant sealed inside Bunker 14, hunting through the dark.',
+          disposition: 'VILLAIN',
+          behaviorVector: 'RELENTLESS',
+          isEntity: true,
+          isUserCharacter: false,
+          presenceDisposition: { kind: 'NONLOCAL' },
+        },
       ],
       userCharacterId: 'char-guard',
       userOpeningAim: {

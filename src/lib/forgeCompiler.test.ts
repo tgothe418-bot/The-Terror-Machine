@@ -117,6 +117,7 @@ describe('forgeCompiler Voice & Acoustic Dossier Compilation', () => {
         name: 'Entity-41',
         role: 'Acoustic Aberration',
         description: 'Translucent vibrational mass vibrating within the drainage grates.',
+        disposition: 'VILLAIN',
         isUserCharacter: false,
         isEntity: true,
         behaviorVector: 'ADAPTIVE',
@@ -191,6 +192,7 @@ describe('forgeCompiler Voice & Acoustic Dossier Compilation', () => {
         characterPursuits: [],
         pursuitReviews: {
           'char-minimal': 'REVIEWED_NONE',
+          'char-minimal-villain': 'REVIEWED_NONE',
         },
       },
       cast: [
@@ -206,6 +208,16 @@ describe('forgeCompiler Voice & Acoustic Dossier Compilation', () => {
             communicationModes: ['spoken'],
             expressionGuidance: 'Subdued whispering.',
           },
+        },
+        {
+          id: 'char-minimal-villain',
+          name: 'The Resident',
+          role: 'Antagonist',
+          description: 'Unseen presence behind the refrigeration vault.',
+          disposition: 'VILLAIN',
+          isUserCharacter: false,
+          isEntity: true,
+          presenceDisposition: { kind: 'NONLOCAL' },
         },
       ],
     };
@@ -258,6 +270,22 @@ describe('forgeCompiler Voice & Acoustic Dossier Compilation', () => {
     expect(validationBanned.valid).toBe(false);
     expect(validationBanned.errors['cast[0].name']).toBeDefined();
     expect(validationBanned.errors['cast[0].name'][0]).toContain('Banned AI cliché name');
+  });
+
+  it('rejects drafts with no VILLAIN in cast (villain invariant)', () => {
+    const noVillainDraft: ForgeDraft = {
+      ...baseValidDraft,
+      cast: baseValidDraft.cast.map((m) =>
+        m.id === 'char-entity-41' ? { ...m, disposition: 'SURVIVOR' as const } : m
+      ),
+    };
+    const validation = validateForgeDraft(noVillainDraft);
+    expect(validation.valid).toBe(false);
+    expect(validation.errors['cast']).toBeDefined();
+    expect(validation.errors['cast'].join(' ')).toContain('VILLAIN');
+
+    const withVillain = validateForgeDraft(baseValidDraft);
+    expect(withVillain.errors['cast']).toBeUndefined();
   });
 
   it('throws ForgeCompilationError when compileForgeDraftOrThrow is called with invalid draft', () => {

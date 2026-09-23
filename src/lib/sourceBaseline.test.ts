@@ -336,6 +336,17 @@ describe('sourceBaseline pure functions', () => {
             silenceGuidance: 'Loss of signal.',
           },
         },
+        {
+          id: 'char-bellkeeper',
+          name: 'The Bellkeeper',
+          role: 'ANTAGONIST',
+          description: 'An ancient encrusted entity guarding the bronze carillon.',
+          disposition: 'VILLAIN',
+          behaviorVector: 'RELENTLESS',
+          isEntity: true,
+          isUserCharacter: false,
+          presenceDisposition: { kind: 'NONLOCAL' },
+        },
       ],
       userCharacterId: 'char-mercer',
       userOpeningAim: {
@@ -353,6 +364,7 @@ describe('sourceBaseline pure functions', () => {
         valueBaselineReview: 'REVIEWED_NONE',
         pursuitReviews: {
           'char-mercer': 'REVIEWED_NONE',
+          'char-bellkeeper': 'REVIEWED_NONE',
         },
         valueAnchors: [],
         characterPursuits: [],
@@ -549,7 +561,40 @@ describe('sourceBaseline pure functions', () => {
       expect(applyRes.draft.cast?.[0].role).toBe('PROTAGONIST');
       expect(applyRes.draft.references).toContain('manifest.json');
 
-      const compileRes = compileForgeDraft(applyRes.draft);
+      // Villain invariant: compilation requires at least one VILLAIN in cast
+      const villainCandidate: ForgeSourceCandidate = {
+        id: 'cand-cast-villain',
+        sourceId: 'src-1',
+        classification: 'evidence',
+        target: 'cast_seed',
+        label: 'Cast Member: The Breach Entity',
+        explanation: 'Extracted from crew manifest.',
+        evidenceIds: ['ev-1'],
+        proposedValue: {
+          id: 'char-breach-entity',
+          name: 'The Breach Entity',
+          role: 'Antagonist',
+          description: 'Containment breach predator hunting Sector 4.',
+          personality: 'Relentless and silent.',
+          goals: 'Breach every bulkhead.',
+          traits: ['Relentless', 'Silent'],
+          disposition: 'VILLAIN',
+          isUserCharacter: false,
+          behaviorVector: 'RELENTLESS',
+          isEntity: true,
+          presenceDisposition: { kind: 'NONLOCAL' },
+        },
+        reviewDecision: 'accepted',
+        applicationState: 'staged',
+      };
+
+      const applyVillain = applyCandidateToDraft(applyRes.draft, villainCandidate, 'manifest.json');
+      expect(applyVillain.success).toBe(true);
+      if (!applyVillain.success) return;
+      expect(applyVillain.draft.cast?.length).toBe(2);
+      expect(applyVillain.draft.cast?.[1].disposition).toBe('VILLAIN');
+
+      const compileRes = compileForgeDraft(applyVillain.draft);
       expect(compileRes.success).toBe(true);
     });
 
@@ -1167,6 +1212,17 @@ describe('sourceBaseline pure functions', () => {
             isUserCharacter: true,
             presenceDisposition: { kind: 'AT_NODE', nodeId: 'NODE_GATE' },
           },
+          {
+            id: 'char-bunker-revenant',
+            name: 'The Bunker Revenant',
+            role: 'Antagonist',
+            description: 'Irradiated revenant sealed in the lower levels of Bunker 11.',
+            disposition: 'VILLAIN',
+            behaviorVector: 'RELENTLESS',
+            isEntity: true,
+            isUserCharacter: false,
+            presenceDisposition: { kind: 'NONLOCAL' },
+          },
         ],
         userCharacterId: 'char-commander',
         userOpeningAim: {
@@ -1181,6 +1237,7 @@ describe('sourceBaseline pure functions', () => {
           pursuitReviews: {
             'char-guard': 'UNREVIEWED',
             'char-commander': 'REVIEWED_NONE',
+            'char-bunker-revenant': 'REVIEWED_NONE',
           },
           valueAnchors: [],
           characterPursuits: [],

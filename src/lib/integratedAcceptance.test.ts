@@ -182,6 +182,17 @@ describe('Packet 12 — Integrated Acceptance and Stabilization (Master Proof)',
         starting_location: 'NODE_SUB_DOCK', // Offscreen
         presenceDisposition: { kind: 'AT_NODE', nodeId: 'NODE_SUB_DOCK' },
       },
+      {
+        id: 'char-trench-entity',
+        name: 'The Trench Entity',
+        role: 'Antagonist',
+        description: 'Abyssal predator breaching the hull of Facility Epsilon.',
+        disposition: 'VILLAIN',
+        behaviorVector: 'RELENTLESS',
+        isEntity: true,
+        isUserCharacter: false,
+        presenceDisposition: { kind: 'NONLOCAL' },
+      },
     ],
     userOpeningAim: {
       castMemberId: 'char-user',
@@ -202,6 +213,7 @@ describe('Packet 12 — Integrated Acceptance and Stabilization (Master Proof)',
         'char-user': 'REVIEWED_NONE',
         'char-tech': 'REVIEWED',
         'char-guard': 'REVIEWED',
+        'char-trench-entity': 'REVIEWED_NONE',
       },
       valueAnchors: [
         {
