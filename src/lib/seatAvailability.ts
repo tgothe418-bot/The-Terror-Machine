@@ -1,5 +1,5 @@
-import { Blueprint, ParticipationContext, ParticipationMode, normalizeParticipationContext } from '../types';
-import { MAX_PARTICIPATION_SEAT_DESCRIPTION_LENGTH } from '../types/participation';
+import { Blueprint, CastMember, ParticipationContext, ParticipationMode, normalizeParticipationContext } from '../types';
+import { MAX_PARTICIPATION_SEAT_DESCRIPTION_LENGTH, VictimField } from '../types/participation';
 import { isVillainCastMember, isOppositionCastMember } from './castVillain';
 
 export interface SeatAvailability {
@@ -13,7 +13,7 @@ export interface SeatAvailability {
 /**
  * Shared helper to build victim fields for predatory characters (human villains and villain-protagonists).
  */
-export function buildVictimFieldForPredator(cast: any[], predatorId?: string): any {
+export function buildVictimFieldForPredator(cast: CastMember[], predatorId?: string): VictimField | undefined {
   const otherCast = cast.filter((c) => c.id !== predatorId);
   if (otherCast.length === 0) return undefined;
   return {
@@ -117,7 +117,7 @@ export function resolveSeatAvailabilities(
 
   // Protagonist / Survivor: Requires a viable mortal cast member (isEntity !== true and disposition !== 'VILLAIN')
   const mortalMember =
-    cast.find((c) => !c.isEntity && (c as any).disposition !== 'VILLAIN') ||
+    cast.find((c) => !c.isEntity && c.disposition !== 'VILLAIN') ||
     cast.find((c) => !c.isEntity);
   const protagonistAvailable = Boolean(mortalMember);
 
@@ -134,8 +134,8 @@ export function resolveSeatAvailabilities(
   const hasAntagonistProvenance =
     blueprint.hauntedHouse?.recommendedParticipationMode === 'antagonist' ||
     blueprint.hauntedHouse?.participationContext?.mode === 'antagonist' ||
-    (blueprint.hauntedHouse?.recommendedParticipationMode as any) === 'villain' ||
-    (blueprint.hauntedHouse?.participationContext?.mode as any) === 'villain';
+    (blueprint.hauntedHouse?.recommendedParticipationMode as unknown as string) === 'villain' ||
+    (blueprint.hauntedHouse?.participationContext?.mode as unknown as string) === 'villain';
   const antagonistAvailable = Boolean(
     entityMember ||
       villainMember ||
@@ -145,7 +145,7 @@ export function resolveSeatAvailabilities(
 
   // Bystander: Requires a cast member with disposition === 'BYSTANDER', or any mortal cast member
   const bystanderMember =
-    cast.find((c) => (c as any).disposition === 'BYSTANDER') || mortalMember;
+    cast.find((c) => c.disposition === 'BYSTANDER') || mortalMember;
   const bystanderAvailable = Boolean(bystanderMember);
 
   const chosenVillain = villainMember || entityMember;
@@ -275,7 +275,7 @@ export function buildActiveParticipationContext(
           cast.find(isVillainCastMember);
       } else {
         boundMember =
-          cast.find((c) => !c.isEntity && (c as { disposition?: string }).disposition !== 'VILLAIN') ||
+          cast.find((c) => !c.isEntity && c.disposition !== 'VILLAIN') ||
           cast.find((c) => !c.isEntity);
       }
     }
@@ -320,7 +320,7 @@ export function buildActiveParticipationContext(
 
     const existing =
       blueprint.hauntedHouse?.participationContext?.mode === 'protagonist' ||
-      (blueprint.hauntedHouse?.participationContext?.mode as any) === 'survivor'
+      (blueprint.hauntedHouse?.participationContext?.mode as unknown as string) === 'survivor'
         ? normalizeParticipationContext(
             blueprint.hauntedHouse.participationContext
           )
@@ -332,9 +332,7 @@ export function buildActiveParticipationContext(
         mode: selectedRole,
         seat: {
           ...existing.seat,
-          kind: (selectedRole === 'survivor'
-            ? 'survivor'
-            : 'protagonist') as any,
+          kind: selectedRole === 'survivor' ? 'survivor' : 'protagonist',
           name: boundMember ? boundMember.name : existing.seat?.name || name,
           description: boundMember
             ? boundMember.description?.trim().slice(0, MAX_PARTICIPATION_SEAT_DESCRIPTION_LENGTH)
@@ -346,9 +344,7 @@ export function buildActiveParticipationContext(
     return {
       mode: selectedRole,
       seat: {
-        kind: (selectedRole === 'survivor'
-          ? 'survivor'
-          : 'protagonist') as any,
+        kind: selectedRole === 'survivor' ? 'survivor' : 'protagonist',
         name,
         description: boundMember?.description?.trim().slice(0, MAX_PARTICIPATION_SEAT_DESCRIPTION_LENGTH),
       },
@@ -413,7 +409,7 @@ export function buildActiveParticipationContext(
     const isHumanVillain = Boolean(
       boundMember &&
         !boundMember.isEntity &&
-        (boundMember as any).disposition === 'VILLAIN'
+        boundMember.disposition === 'VILLAIN'
     );
     const name =
       boundMember?.name ||
@@ -438,7 +434,7 @@ export function buildActiveParticipationContext(
       ? `Operational boundaries & directives: ${ap.sadisticDirectives.join('; ')}`
       : 'Bounded strictly to scenario rules and apparatus reach.';
 
-    let victimField: any = undefined;
+    let victimField: VictimField | undefined = undefined;
     if (isHumanVillain) {
       victimField = buildVictimFieldForPredator(cast, boundMember?.id);
     } else if (ap && ap.preyCohort.length > 0) {
@@ -513,8 +509,8 @@ export function buildActiveParticipationContext(
   if (selectedRole === 'bystander') {
     if (boundMember === undefined) {
       boundMember =
-        cast.find((c) => (c as any).disposition === 'BYSTANDER') ||
-        cast.find((c) => !c.isEntity && (c as any).disposition !== 'VILLAIN') ||
+        cast.find((c) => c.disposition === 'BYSTANDER') ||
+        cast.find((c) => !c.isEntity && c.disposition !== 'VILLAIN') ||
         cast.find((c) => !c.isEntity);
     }
 
@@ -522,7 +518,7 @@ export function buildActiveParticipationContext(
     return {
       mode: 'bystander',
       seat: {
-        kind: 'bystander' as any,
+        kind: 'bystander',
         name,
         description:
           boundMember?.description ||

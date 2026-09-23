@@ -33,6 +33,7 @@ import {
   ForgeTopologyNode,
   ForgeSourceCandidate,
   ForgeSourceEvidence,
+  ForgeCandidateReviewDecision,
 } from '../types/forge';
 import { idbStorage } from '../lib/idbStorage';
 import {
@@ -667,6 +668,33 @@ const createInitialDraft = (initial?: ForgeDraftPatch): ForgeDraft => ({
         characterPursuits: [],
       },
 });
+
+/**
+ * Structural view for legacy/dynamic candidate fields (targetType,
+ * normalizedKey) that predate the ForgeSourceCandidate discriminated union.
+ * Prefer this over `any` when probing for their presence.
+ */
+type CandidateLegacyFields = {
+  targetType?: unknown;
+  normalizedKey?: unknown;
+};
+
+const candidateLegacyFields = (c: ForgeSourceCandidate): CandidateLegacyFields =>
+  c as unknown as CandidateLegacyFields;
+
+/**
+ * Legacy sweeps persisted review statuses outside the current
+ * ('accepted' | 'rejected') enum ('STAGED', 'APPROVED', 'REJECTED', ...).
+ * Normalize them to the modern enum instead of casting: anything
+ * rejection-like becomes 'rejected', everything else (including a missing
+ * value) becomes 'accepted', matching sanitizeSourceAnalyses' default.
+ * Without this, legacy values match neither downstream filter and the
+ * candidate silently disappears from review queues.
+ */
+function normalizeLegacyReviewDecision(value: unknown): ForgeCandidateReviewDecision {
+  const upper = String(value ?? '').toUpperCase().trim();
+  return upper === 'REJECTED' ? 'rejected' : 'accepted';
+}
 
 const initialState: ForgeState = {
   forgeDraft: null,
@@ -1384,7 +1412,7 @@ export const useForgeStoreInternal = create<ForgeStore>()(
               const errJson = await res.json().catch(() => ({}));
               return {
                 success: false,
-                error: (errJson as any)?.error || `Server returned ${res.status}`,
+                error: errJson?.error || `Server returned ${res.status}`,
               };
             }
 
@@ -1393,9 +1421,9 @@ export const useForgeStoreInternal = create<ForgeStore>()(
               return { success: false, error: data.error || 'Forensic detail pass failed.' };
             }
 
-            const rawNewCandidates = Array.isArray(data.candidates) ? data.candidates : [];
-            const rawNewEvidence = Array.isArray(data.evidence) ? data.evidence : [];
-            const rawNewUnknowns = Array.isArray(data.unknowns) ? data.unknowns : [];
+            const rawNewCandidates: ForgeSourceCandidate[] = Array.isArray(data.candidates) ? data.candidates : [];
+            const rawNewEvidence: ForgeSourceEvidence[] = Array.isArray(data.evidence) ? data.evidence : [];
+            const rawNewUnknowns: ForgeSourceUnknown[] = Array.isArray(data.unknowns) ? data.unknowns : [];
 
             set((currState: ForgeState) => {
               const currentAnalysis = currState.sourceAnalyses[sourceId];
@@ -1407,22 +1435,22 @@ export const useForgeStoreInternal = create<ForgeStore>()(
 
               const mergedCandidates = [
                 ...currentAnalysis.candidates,
-                ...rawNewCandidates.filter((c: any) => !existingCandidateIds.has(c.id)),
+                ...rawNewCandidates.filter((c) => !existingCandidateIds.has(c.id)),
               ];
 
               const mergedEvidence = [
                 ...currentAnalysis.evidence,
                 ...rawNewEvidence
-                  .map((e: any) => ({
+                  .map((e) => ({
                     ...e,
                     sourceId: e.sourceId || sourceId,
                   }))
-                  .filter((e: any) => !existingEvidenceIds.has(e.id)),
+                  .filter((e) => !existingEvidenceIds.has(e.id)),
               ];
 
               const mergedUnknowns = [
                 ...(currentAnalysis.unknowns || []),
-                ...rawNewUnknowns.filter((u: any) => !existingUnknownIds.has(u.id)),
+                ...rawNewUnknowns.filter((u) => !existingUnknownIds.has(u.id)),
               ];
 
               const updatedAnalysis: ForgeSourceAnalysis = {
@@ -1442,7 +1470,7 @@ export const useForgeStoreInternal = create<ForgeStore>()(
             });
 
             return { success: true, newCandidateCount: rawNewCandidates.length };
-          } catch (err: any) {
+          } catch (err) {
             console.error('[FORGE DETAIL PASS] Request error:', err);
             return {
               success: false,
@@ -1469,11 +1497,25 @@ export const useForgeStoreInternal = create<ForgeStore>()(
 
             // 2. Merge Candidates respecting user review decisions
             for (const incoming of newCandidates) {
-              const matchIndex = existingCandidates.findIndex((c: any) => {
-                if (c.targetType && (incoming as any).targetType && c.normalizedKey && (incoming as any).normalizedKey) {
-                  return c.targetType === (incoming as any).targetType && c.normalizedKey === (incoming as any).normalizedKey;
+              const incomingLegacy = candidateLegacyFields(incoming);
+              const matchIndex = existingCandidates.findIndex((c) => {
+                const cLegacy = candidateLegacyFields(c);
+                if (
+                  cLegacy.targetType &&
+                  incomingLegacy.targetType &&
+                  cLegacy.normalizedKey &&
+                  incomingLegacy.normalizedKey
+                ) {
+                  return (
+                    cLegacy.targetType === incomingLegacy.targetType &&
+                    cLegacy.normalizedKey === incomingLegacy.normalizedKey
+                  );
                 }
-                if (c.normalizedKey && (incoming as any).normalizedKey && c.normalizedKey === (incoming as any).normalizedKey) {
+                if (
+                  cLegacy.normalizedKey &&
+                  incomingLegacy.normalizedKey &&
+                  cLegacy.normalizedKey === incomingLegacy.normalizedKey
+                ) {
                   return true;
                 }
                 if (c.target && incoming.target && c.target === incoming.target) {
@@ -1484,7 +1526,7 @@ export const useForgeStoreInternal = create<ForgeStore>()(
               });
 
               if (matchIndex >= 0) {
-                const existing = existingCandidates[matchIndex] as any;
+                const existing = existingCandidates[matchIndex];
                 // Append new evidence IDs without altering reviewDecision
                 const incomingEvIds = Array.isArray(incoming.evidenceIds) ? incoming.evidenceIds : [];
                 const existingEvIds = Array.isArray(existing.evidenceIds) ? existing.evidenceIds : [];
@@ -1502,7 +1544,10 @@ export const useForgeStoreInternal = create<ForgeStore>()(
               } else {
                 existingCandidates.push({
                   ...incoming,
-                  reviewDecision: (incoming as any).reviewDecision || 'STAGED',
+                  // Legacy sweeps may carry review statuses outside the current
+                  // enum ('STAGED', 'APPROVED', ...); normalize them so the
+                  // stored value always satisfies ForgeCandidateReviewDecision.
+                  reviewDecision: normalizeLegacyReviewDecision(incoming.reviewDecision),
                   extractionPass: 2,
                 });
               }

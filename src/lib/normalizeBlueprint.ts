@@ -217,17 +217,21 @@ function normalizeLegacyBlueprintShape(raw: unknown): unknown {
   // Normalize antagonistProfile - synthesize default if absent
   let antagonistProfileNormalized: unknown = undefined;
   const topologyNodes: string[] = [];
-  if (isRecord(topologyNormalized) && Array.isArray((topologyNormalized as any).nodes)) {
-    topologyNodes.push(...(topologyNormalized as any).nodes);
-  } else if (isRecord(rawRecord.topology) && Array.isArray((rawRecord.topology as any).nodes)) {
-    topologyNodes.push(...(rawRecord.topology as any).nodes);
+  if (isRecord(topologyNormalized) && Array.isArray(topologyNormalized.nodes)) {
+    for (const n of topologyNormalized.nodes) {
+      if (typeof n === 'string') topologyNodes.push(n);
+    }
+  } else if (isRecord(rawRecord.topology) && Array.isArray(rawRecord.topology.nodes)) {
+    for (const n of rawRecord.topology.nodes) {
+      if (typeof n === 'string') topologyNodes.push(n);
+    }
   }
 
   const castList: Array<Record<string, unknown>> = [];
   if (Array.isArray(castNormalized)) {
-    castList.push(...(castNormalized as any[]).filter(isRecord));
+    castList.push(...castNormalized.filter(isRecord));
   } else if (Array.isArray(rawRecord.cast)) {
-    castList.push(...(rawRecord.cast as any[]).filter(isRecord));
+    castList.push(...rawRecord.cast.filter(isRecord));
   }
 
   if (

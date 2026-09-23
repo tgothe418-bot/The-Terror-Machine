@@ -445,9 +445,6 @@ router.post("/architect", async (req, res) => {
   }
 
   try {
-    const policy = getGeminiPolicy("FORGE_ARCHITECTURE");
-    const aiClient = getAiClient();
-
     if (parsedBody.data.kind === 'AMBIGUITY_RESOLUTION') {
       const { userMessage, activeUnknown, draftContext, sourceContext, history } = parsedBody.data;
 
@@ -1451,7 +1448,6 @@ export async function runSweepExecution(
       const now = Date.now();
       const rawEvidence = Array.isArray(parsed.evidence) ? parsed.evidence : [];
       const rawCandidates = Array.isArray(parsed.candidates) ? parsed.candidates : [];
-      const rawUnknowns = Array.isArray(parsed.unknowns) ? parsed.unknowns : [];
 
       const evidenceList: any[] = [];
       for (let i = 0; i < rawEvidence.length; i++) {

@@ -127,13 +127,14 @@ export const TopologyEdgeSchema = z.object({
 });
 
 export const ForgeTopologyNodeSchema = z.preprocess(
-  (val: any) => {
+  (val: unknown) => {
     if (val && typeof val === 'object') {
-      const effectiveLabel = (val.label || val.name || '').trim();
+      const rec = val as Record<string, unknown>;
+      const effectiveLabel = String(rec.label ?? rec.name ?? '').trim();
       return {
-        ...val,
+        ...rec,
         label: effectiveLabel,
-        name: (val.name || val.label || '').trim(),
+        name: String(rec.name ?? rec.label ?? '').trim(),
       };
     }
     return val;

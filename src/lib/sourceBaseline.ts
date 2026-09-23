@@ -855,22 +855,30 @@ export function validateAndNormalizeDocumentAnalysis(
   }
 
   // 3. Root Locations / Nodes
+  const topologyRecord =
+    rawObj.topology && typeof rawObj.topology === 'object'
+      ? (rawObj.topology as Record<string, unknown>)
+      : undefined;
   const rootLocations =
     Array.isArray(rawObj.locations) ? rawObj.locations :
     Array.isArray(rawObj.nodes) ? rawObj.nodes :
-    rawObj.topology && typeof rawObj.topology === 'object' && Array.isArray((rawObj.topology as any).nodeDefinitions)
-      ? (rawObj.topology as any).nodeDefinitions
-      : rawObj.topology && typeof rawObj.topology === 'object' && Array.isArray((rawObj.topology as any).nodes)
-        ? (rawObj.topology as any).nodes
+    topologyRecord && Array.isArray(topologyRecord.nodeDefinitions)
+      ? topologyRecord.nodeDefinitions
+      : topologyRecord && Array.isArray(topologyRecord.nodes)
+        ? topologyRecord.nodes
         : [];
   for (let li = 0; li < rootLocations.length; li++) {
     const loc = rootLocations[li];
-    if (loc && typeof loc === 'object' && !Array.isArray(loc)) {
+    const locRecord =
+      loc && typeof loc === 'object' && !Array.isArray(loc)
+        ? (loc as Record<string, unknown>)
+        : undefined;
+    if (locRecord) {
       rawCandidatesList.push({
         id: `${sourceId}-cand-node-${li}`,
         classification: 'evidence',
         target: 'topology_node',
-        label: typeof (loc as any).label === 'string' ? (loc as any).label : typeof (loc as any).name === 'string' ? (loc as any).name : `Chamber ${li + 1}`,
+        label: typeof locRecord.label === 'string' ? locRecord.label : typeof locRecord.name === 'string' ? locRecord.name : `Chamber ${li + 1}`,
         explanation: 'Harvested from root-level spatial definitions',
         proposedValue: loc,
       });
@@ -881,8 +889,8 @@ export function validateAndNormalizeDocumentAnalysis(
   const rootEdges =
     Array.isArray(rawObj.connections) ? rawObj.connections :
     Array.isArray(rawObj.edges) ? rawObj.edges :
-    rawObj.topology && typeof rawObj.topology === 'object' && Array.isArray((rawObj.topology as any).connections)
-      ? (rawObj.topology as any).connections
+    topologyRecord && Array.isArray(topologyRecord.connections)
+      ? topologyRecord.connections
       : [];
   for (let ei = 0; ei < rootEdges.length; ei++) {
     const edge = rootEdges[ei];
@@ -906,12 +914,16 @@ export function validateAndNormalizeDocumentAnalysis(
     [];
   for (let ci = 0; ci < rootCast.length; ci++) {
     const charItem = rootCast[ci];
-    if (charItem && typeof charItem === 'object' && !Array.isArray(charItem)) {
+    const charRecord =
+      charItem && typeof charItem === 'object' && !Array.isArray(charItem)
+        ? (charItem as Record<string, unknown>)
+        : undefined;
+    if (charRecord) {
       rawCandidatesList.push({
         id: `${sourceId}-cand-cast-${ci}`,
         classification: 'evidence',
         target: 'cast_seed',
-        label: typeof (charItem as any).name === 'string' ? (charItem as any).name : `Character ${ci + 1}`,
+        label: typeof charRecord.name === 'string' ? charRecord.name : `Character ${ci + 1}`,
         explanation: 'Harvested from root-level cast definitions',
         proposedValue: charItem,
       });
@@ -1627,8 +1639,8 @@ export function applyCandidateToDraft(
       }
       const cleanLabel = typeof nodeDef.label === 'string' && nodeDef.label.trim()
         ? nodeDef.label.trim()
-        : typeof (nodeDef as any).name === 'string' && (nodeDef as any).name.trim()
-        ? (nodeDef as any).name.trim()
+        : typeof nodeDef.name === 'string' && nodeDef.name.trim()
+        ? nodeDef.name.trim()
         : '';
       const cleanId = typeof nodeDef.id === 'string' && nodeDef.id.trim()
         ? nodeDef.id.trim()
@@ -1640,7 +1652,7 @@ export function applyCandidateToDraft(
         ...nodeDef,
         id: cleanId,
         label: cleanLabel,
-        name: (nodeDef as any).name || cleanLabel,
+        name: nodeDef.name || cleanLabel,
         description: (nodeDef.description && nodeDef.description.trim())
           ? nodeDef.description.trim()
           : `Sensory atmosphere of the ${cleanLabel}.`,
@@ -1963,24 +1975,33 @@ export function reconcileDraftTopologyAndCast(draft: ForgeDraft): ForgeDraft {
   // 0. Normalize topology nodeDefinitions and raw nodes
   if (cloned.topology) {
     if (Array.isArray(cloned.topology.nodeDefinitions) && cloned.topology.nodeDefinitions.length > 0) {
-      cloned.topology.nodeDefinitions = cloned.topology.nodeDefinitions.map((d: any, idx: number) => {
-        const label = (d.label || d.name || d.id || `Location ${idx + 1}`).trim();
-        const id = (d.id || label.toLowerCase().replace(/[^a-z0-9]+/g, '_')).trim();
-        const description = (d.description && d.description.trim())
-          ? d.description.trim()
+      cloned.topology.nodeDefinitions = cloned.topology.nodeDefinitions.map((d, idx: number) => {
+        // Node definitions arrive as unknown (legacy/unvalidated payloads);
+        // read string fields defensively.
+        const dRecord = d as Record<string, unknown>;
+        const strField = (v: unknown): string => (typeof v === 'string' ? v : '');
+        const label = (strField(dRecord.label) || strField(dRecord.name) || strField(dRecord.id) || `Location ${idx + 1}`).trim();
+        const id = (strField(dRecord.id) || label.toLowerCase().replace(/[^a-z0-9]+/g, '_')).trim();
+        const description = strField(dRecord.description).trim()
+          ? strField(dRecord.description).trim()
           : `Sensory atmosphere of the ${label}.`;
         return {
-          ...d,
+          ...dRecord,
           id,
           label,
-          name: d.name || label,
+          name: strField(dRecord.name) || label,
           description,
         };
       });
       cloned.topology.nodes = cloned.topology.nodeDefinitions.map((d) => d.id);
     } else if (Array.isArray(cloned.topology.nodes) && cloned.topology.nodes.length > 0) {
       cloned.topology.nodes = cloned.topology.nodes
-        .map((n: any) => (typeof n === 'string' ? n.trim() : (n.id || n.name || '')).trim())
+        .map((n: unknown) => {
+          if (typeof n === 'string') return n.trim();
+          if (!n || typeof n !== 'object') return '';
+          const nRecord = n as Record<string, unknown>;
+          return String(nRecord.id || nRecord.name || '').trim();
+        })
         .filter(Boolean);
       cloned.topology.nodeDefinitions = cloned.topology.nodes.map((id: string) => ({
         id,
@@ -2018,7 +2039,7 @@ export function reconcileDraftTopologyAndCast(draft: ForgeDraft): ForgeDraft {
       const isEntityOrAntagonist =
         member.isEntity === true || String(member.role).toUpperCase() === 'ANTAGONIST';
       const disposition = normalizeCastDisposition(
-        (member as any).disposition,
+        member.disposition,
         isEntityOrAntagonist
       );
 
@@ -2072,7 +2093,7 @@ export function reconcileDraftTopologyAndCast(draft: ForgeDraft): ForgeDraft {
     const nodeDefs = cloned.topology.nodeDefinitions || [];
     const currentConns = cloned.topology.connections || [];
     if (nodeDefs.length > 1 && currentConns.length === 0) {
-      const synthConns: any[] = [];
+      const synthConns: Array<{ from: string; to: string; kind: 'PHYSICAL'; userInitiated: boolean }> = [];
       for (let i = 0; i < nodeDefs.length - 1; i++) {
         const fromId = nodeDefs[i].id;
         const toId = nodeDefs[i + 1].id;
