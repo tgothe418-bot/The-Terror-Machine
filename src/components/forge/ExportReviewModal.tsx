@@ -203,7 +203,19 @@ export const ExportReviewModal: React.FC<ExportReviewModalProps> = ({
 
       const data = await response.json();
       if (data.patch && typeof data.patch === 'object') {
-        forgeActions.updateDraft(data.patch);
+        const mergedPatch = { ...data.patch };
+        if (
+          Array.isArray(data.patch.cast) &&
+          Array.isArray(currentDraft.cast) &&
+          currentDraft.cast.length > 0
+        ) {
+          const existingIds = new Set(currentDraft.cast.map((c: { id?: string }) => c.id));
+          mergedPatch.cast = [
+            ...currentDraft.cast,
+            ...data.patch.cast.filter((c: { id?: string }) => !existingIds.has(c.id)),
+          ];
+        }
+        forgeActions.updateDraft(mergedPatch);
         setIsResolvedSuccessfully(true);
         setTimeout(() => {
           handleRefresh();

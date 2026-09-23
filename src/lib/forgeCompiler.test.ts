@@ -276,7 +276,9 @@ describe('forgeCompiler Voice & Acoustic Dossier Compilation', () => {
     const noVillainDraft: ForgeDraft = {
       ...baseValidDraft,
       cast: baseValidDraft.cast.map((m) =>
-        m.id === 'char-entity-41' ? { ...m, disposition: 'SURVIVOR' as const } : m
+        m.id === 'char-entity-41'
+          ? { ...m, isEntity: false, disposition: 'SURVIVOR' as const, role: 'Survivor' }
+          : m
       ),
     };
     const validation = validateForgeDraft(noVillainDraft);
@@ -284,8 +286,68 @@ describe('forgeCompiler Voice & Acoustic Dossier Compilation', () => {
     expect(validation.errors['cast']).toBeDefined();
     expect(validation.errors['cast'].join(' ')).toContain('VILLAIN');
 
-    const withVillain = validateForgeDraft(baseValidDraft);
-    expect(withVillain.errors['cast']).toBeUndefined();
+    const withExplicitVillain = validateForgeDraft(baseValidDraft);
+    expect(withExplicitVillain.errors['cast']).toBeUndefined();
+
+    // Entity with no explicit disposition passes
+    const entityWithoutDispositionDraft: ForgeDraft = {
+      ...baseValidDraft,
+      cast: [
+        {
+          id: 'char-ross',
+          name: 'Dr. Ross',
+          role: 'Chief Pathologist',
+          description: 'Mortal survivor.',
+          disposition: 'SURVIVOR',
+          isEntity: false,
+        },
+        {
+          id: 'char-am',
+          name: 'Allied Mastercomputer',
+          role: 'Overlord',
+          description: 'Hostile machine intelligence.',
+          isEntity: true,
+        },
+      ],
+      horrorGrammar: {
+        valueBaselineReview: 'REVIEWED_NONE',
+        pursuitReviews: { 'char-ross': 'REVIEWED_NONE', 'char-am': 'REVIEWED_NONE' },
+        valueAnchors: [],
+        characterPursuits: [],
+      },
+    };
+    const entityValidation = validateForgeDraft(entityWithoutDispositionDraft);
+    expect(entityValidation.errors['cast']).toBeUndefined();
+
+    // Role Antagonist with no disposition passes
+    const antagonistRoleDraft: ForgeDraft = {
+      ...baseValidDraft,
+      cast: [
+        {
+          id: 'char-ross',
+          name: 'Dr. Ross',
+          role: 'Chief Pathologist',
+          description: 'Mortal survivor.',
+          disposition: 'SURVIVOR',
+          isEntity: false,
+        },
+        {
+          id: 'char-nemesis',
+          name: 'The Inquisitor',
+          role: 'Antagonist',
+          description: 'Mortal human villain pursuing the survivors.',
+          isEntity: false,
+        },
+      ],
+      horrorGrammar: {
+        valueBaselineReview: 'REVIEWED_NONE',
+        pursuitReviews: { 'char-ross': 'REVIEWED_NONE', 'char-nemesis': 'REVIEWED_NONE' },
+        valueAnchors: [],
+        characterPursuits: [],
+      },
+    };
+    const antagonistValidation = validateForgeDraft(antagonistRoleDraft);
+    expect(antagonistValidation.errors['cast']).toBeUndefined();
   });
 
   it('throws ForgeCompilationError when compileForgeDraftOrThrow is called with invalid draft', () => {

@@ -15,6 +15,7 @@ import {
   getCandidateApplicationPriority,
   isCompleteAuthoredDepictionContract,
 } from './sourceBaseline';
+import { isVillainCastMember } from './castVillain';
 
 /**
  * Pure helper that deterministically derives default Depiction Contract fields
@@ -240,9 +241,7 @@ export function validateForgeDraft(rawDraft: unknown): ForgeValidationResult {
   // disposition VILLAIN (isEntity true for non-humans) IN ADDITION TO any antagonist_profile.
   const hasVillain =
     Array.isArray(draft.cast) &&
-    draft.cast.some(
-      (member) => String(member.disposition || '').toUpperCase().trim() === 'VILLAIN'
-    );
+    draft.cast.some(isVillainCastMember);
   if (!hasVillain) {
     if (!errors['cast']) errors['cast'] = [];
     errors['cast'].push(

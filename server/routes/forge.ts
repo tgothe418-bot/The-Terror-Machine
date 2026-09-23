@@ -1144,6 +1144,9 @@ router.post("/resolve-discrepancies", async (req, res) => {
     const needsDepiction = errorKeys.some((k) => k.includes('depiction'));
     const needsCast = errorKeys.some((k) => k.includes('cast') || k.includes('character'));
     const needsAntagonist = errorKeys.some((k) => k.includes('antagonist'));
+    const needsVillain = Object.values(errors)
+      .flat()
+      .some((msg) => String(msg).toUpperCase().includes('VILLAIN'));
 
     const rules: string[] = [];
     if (needsTopology) {
@@ -1167,13 +1170,16 @@ router.post("/resolve-discrepancies", async (req, res) => {
     if (needsDepiction) {
       rules.push(`5. DEPICTION CONTRACT: Generate a "depictionContract" object with "dramaticRegister", "directness", "aftermath", "ambiguityHandling", "specialBoundaries".`);
     }
-    if (needsCast) {
-      rules.push(`6. CAST: Generate 2 to 3 distinct mortal characters in a "cast" array with "id", "name", "role", "description", "personality", "goals", "traits", "isEntity": false, "presenceDisposition".`);
+    if (needsVillain) {
+      rules.push(`6. VILLAIN: The draft is missing its required villain. Generate EXACTLY ONE villain cast member representing the scenario's antagonist (from the reference material — e.g. a named entity, machine intelligence, or hostile overseer). It MUST have "disposition": "VILLAIN". Set "isEntity": true for non-human antagonists, false for human ones. Give it a proper id, name, role, description, personality, goals, and traits like any other cast member.`);
+    }
+    if (needsCast && (!needsVillain || !draft.cast || draft.cast.length === 0)) {
+      rules.push(`7. CAST: Generate 2 to 3 distinct mortal characters in a "cast" array with "id", "name", "role", "description", "personality", "goals", "traits", "isEntity": false, "presenceDisposition".`);
     }
     if (needsAntagonist) {
       const knownNodeList = ((draft.topology?.nodeDefinitions || []).map((n: any) => n.id).concat(draft.topology?.nodes || [])).filter(Boolean);
       const nodeHint = knownNodeList.length > 0 ? ` (each telemetryFeed "nodeId" must reference valid topology node IDs: ${knownNodeList.slice(0, 5).join(', ')} or "all")` : '';
-      rules.push(`7. ANTAGONIST: Generate an "antagonistProfile" with "kind", "name", "apparatusControls", "sadisticDirectives", and "telemetryFeeds"${nodeHint}.`);
+      rules.push(`8. ANTAGONIST: Generate an "antagonistProfile" with "kind", "name", "apparatusControls", "sadisticDirectives", and "telemetryFeeds"${nodeHint}.`);
     }
 
     const specificRules = rules.length > 0
@@ -1242,8 +1248,12 @@ Do NOT wrap in markdown fences if possible. Do NOT include conversational filler
           const description = (n.description && n.description.trim())
             ? n.description.trim()
             : `Atmospheric environment of ${label}.`;
+          const rest = { ...n };
+          delete rest.sourceId;
+          delete rest.evidenceIds;
+          delete rest.provenance;
           return {
-            ...n,
+            ...rest,
             id,
             label,
             name: n.name || label,
@@ -1331,6 +1341,7 @@ Do NOT wrap in markdown fences if possible. Do NOT include conversational filler
         id: c.id || `char_${idx + 1}`,
         name: c.name || `Character ${idx + 1}`,
         role: c.role || 'Survivor',
+        disposition: c.disposition || (c.isEntity ? 'VILLAIN' : 'SURVIVOR'),
         description: c.description || 'A stressed survivor.',
         personality: c.personality || 'Cautious and determined.',
         goals: c.goals || 'Survive the containment breach.',

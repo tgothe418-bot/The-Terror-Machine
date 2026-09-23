@@ -738,4 +738,84 @@ describe('ExportReviewModal Component Snapshot Lifecycle', () => {
     expect(copyBtn.disabled).toBe(true);
     expect(downloadBtn.disabled).toBe(true);
   });
+
+  it('handleResolveDiscrepancies appends repair cast members to existing draft cast without overwriting', async () => {
+    const mockOnClose = vi.fn();
+
+    forgeActions.initializeDraft({
+      title: 'Benthos Void',
+      premise: 'Deep abyss research.',
+      startingVector: 'SOMATIC',
+      startingTier: 'MANIFEST',
+      topology: {
+        startingNodeId: 'NODE_01',
+        nodes: ['NODE_01'],
+        nodeDefinitions: [{ id: 'NODE_01', label: 'Benthos Node 1' }],
+        connections: [],
+        anchors: [],
+      },
+      cast: [
+        {
+          id: 'char-survivor-1',
+          name: 'Elena Mercer',
+          role: 'Researcher',
+          disposition: 'SURVIVOR',
+          isUserCharacter: true,
+          presenceDisposition: { kind: 'AT_NODE', nodeId: 'NODE_01' },
+        },
+      ],
+      depictionContract: {
+        dramaticRegister: 'Authored Dread Register',
+        directness: 'Authored Visceral Directness',
+        aftermath: 'Authored Permanent Aftermath',
+        ambiguityHandling: 'Authored Epistemic Gaps',
+        specialBoundaries: 'None',
+      },
+      horrorGrammar: {
+        valueBaselineReview: 'REVIEWED_NONE',
+        pursuitReviews: { 'char-survivor-1': 'REVIEWED_NONE' },
+        valueAnchors: [],
+        characterPursuits: [],
+      },
+    });
+
+    // Mock fetch for /api/resolve-discrepancies returning a villain cast member
+    globalThis.fetch = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        success: true,
+        patch: {
+          cast: [
+            {
+              id: 'char-villain-repair',
+              name: 'The Trench Predator',
+              role: 'Antagonist',
+              disposition: 'VILLAIN',
+              isEntity: true,
+              description: 'Hostile entity.',
+            },
+          ],
+        },
+      }),
+    })) as unknown as typeof fetch;
+
+    await act(async () => {
+      root?.render(React.createElement(ExportReviewModal, { isOpen: true, onClose: mockOnClose }));
+    });
+
+    // Find the repair button (Review Reference & Fill Gaps)
+    const buttons = Array.from(container?.querySelectorAll('button') || []);
+    const repairBtn = buttons.find((b) => b.textContent?.includes('Fill Gaps') || b.title?.includes('reference material'));
+    expect(repairBtn).toBeDefined();
+
+    await act(async () => {
+      repairBtn?.click();
+    });
+
+    // Verify the draft cast now contains BOTH the survivor and the villain
+    const draft = getForgeState().draftBlueprint || getForgeState().forgeDraft;
+    expect(draft?.cast).toHaveLength(2);
+    expect(draft?.cast?.some((c) => c.id === 'char-survivor-1')).toBe(true);
+    expect(draft?.cast?.some((c) => c.id === 'char-villain-repair')).toBe(true);
+  });
 });

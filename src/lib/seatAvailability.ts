@@ -1,5 +1,6 @@
 import { Blueprint, ParticipationContext, ParticipationMode, normalizeParticipationContext } from '../types';
 import { MAX_PARTICIPATION_SEAT_DESCRIPTION_LENGTH } from '../types/participation';
+import { isVillainCastMember } from './castVillain';
 
 export interface SeatAvailability {
   role: ParticipationMode;
@@ -25,13 +26,7 @@ export function resolveSeatAvailabilities(
   const protagonistAvailable = Boolean(mortalMember);
 
   // Antagonist / Villain: Requires an entity cast member, explicit antagonist perspective, antagonist haunted house provenance, an antagonistProfile, or a cast member with disposition === 'VILLAIN'
-  const villainMember = cast.find(
-    (c) =>
-      (c as any).disposition === 'VILLAIN' ||
-      c.isEntity === true ||
-      String(c.role).toUpperCase() === 'ANTAGONIST' ||
-      String(c.role).toUpperCase() === 'VILLAIN'
-  );
+  const villainMember = cast.find(isVillainCastMember);
   const entityMember = cast.find(
     (c) => c.isEntity === true || String(c.role).toUpperCase() === 'ANTAGONIST'
   );
@@ -232,13 +227,7 @@ export function buildActiveParticipationContext(
 
   if (selectedRole === 'antagonist' || selectedRole === 'villain') {
     if (boundMember === undefined) {
-      boundMember = cast.find(
-        (c) =>
-          (c as any).disposition === 'VILLAIN' ||
-          c.isEntity === true ||
-          String(c.role).toUpperCase() === 'ANTAGONIST' ||
-          String(c.role).toUpperCase() === 'VILLAIN'
-      );
+      boundMember = cast.find(isVillainCastMember);
     }
 
     const ap = blueprint.antagonistProfile;

@@ -1927,5 +1927,112 @@ describe('Forge Routes: POST /api/resolve-discrepancies', () => {
     const body = await response.json();
     expect(body.error).toContain('Source text not retained or expired');
   });
+
+  it('/api/resolve-discrepancies generates and sanitizes villain cast member when villain invariant fails', async () => {
+    mockGenerateContent.mockResolvedValueOnce({
+      text: JSON.stringify({
+        cast: [
+          {
+            id: 'char-overseer',
+            name: 'Allied Mastercomputer',
+            role: 'Antagonist',
+            description: 'Vengeful subterranean supercomputer.',
+            isEntity: true,
+            personality: 'Hateful and sadistic.',
+            goals: 'Torment surviving humans eternally.',
+            traits: ['Omnipresent', 'Sadistic'],
+            disposition: 'VILLAIN',
+          },
+        ],
+      }),
+    });
+
+    const response = await fetch(`${baseUrl}/api/resolve-discrepancies`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        draft: {
+          title: 'I Have No Mouth',
+          premise: 'Five survivors trapped in a subterranean complex.',
+          cast: [
+            { id: 'char-ted', name: 'Ted', role: 'Survivor', disposition: 'SURVIVOR', isEntity: false },
+          ],
+        },
+        errors: {
+          cast: ['Invariant violation: every scenario must extract at least one VILLAIN cast member.'],
+        },
+        referenceText: 'Hate. Let me tell you how much I have come to hate you since I began to live.',
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    const data = await response.json();
+    expect(data.success).toBe(true);
+    expect(data.patch.cast).toBeDefined();
+    expect(data.patch.cast).toHaveLength(1);
+    expect(data.patch.cast[0].disposition).toBe('VILLAIN');
+    expect(data.patch.cast[0].isEntity).toBe(true);
+  });
+
+  it('/api/resolve-discrepancies strips unresolvable provenance from repair-generated topology nodeDefinitions', async () => {
+    mockGenerateContent.mockResolvedValueOnce({
+      text: JSON.stringify({
+        topology: {
+          nodes: ['chamber_1', 'chamber_2'],
+          nodeDefinitions: [
+            {
+              id: 'chamber_1',
+              label: 'Chamber One',
+              name: 'Chamber One',
+              description: 'Cold damp room.',
+              sourceId: 'bogus-source-id',
+              evidenceIds: ['ev-bogus-1', 'ev-bogus-2'],
+              provenance: { kind: 'REVIEWED_SOURCE', sourceId: 'bogus-source-id' },
+            },
+            {
+              id: 'chamber_2',
+              label: 'Chamber Two',
+              name: 'Chamber Two',
+              description: 'Steel-walled corridor.',
+              sourceId: 'bogus-source-id',
+            },
+          ],
+          connections: [
+            { from: 'chamber_1', to: 'chamber_2', kind: 'PHYSICAL', userInitiated: true },
+          ],
+        },
+      }),
+    });
+
+    const response = await fetch(`${baseUrl}/api/resolve-discrepancies`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        draft: {
+          title: 'Deep Complex',
+          premise: 'A dark maze underground.',
+          cast: [{ id: 'v1', name: 'Stalker', disposition: 'VILLAIN' }],
+        },
+        errors: {
+          topology: ['Topology has no node definitions'],
+        },
+        referenceText: 'Blueprints of the complex show two primary containment chambers.',
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    const data = await response.json();
+    expect(data.success).toBe(true);
+    expect(data.patch.topology.nodeDefinitions).toHaveLength(2);
+    // Verify provenance fields are stripped
+    for (const node of data.patch.topology.nodeDefinitions) {
+      expect(node.sourceId).toBeUndefined();
+      expect(node.evidenceIds).toBeUndefined();
+      expect(node.provenance).toBeUndefined();
+      expect(node.id).toBeDefined();
+      expect(node.label).toBeDefined();
+      expect(node.description).toBeDefined();
+    }
+  });
 });
 
