@@ -156,7 +156,7 @@ export default function Forge() {
       </svg>
 
       {/* HEADER AREA */}
-      <header className="mb-4 2xl:mb-5 pt-4 flex justify-between items-center border-b border-stone-800/80 pb-3 2xl:pb-4 shrink-0 relative z-10">
+      <header className="mb-4 2xl:mb-5 pt-4 pl-12 sm:pl-14 flex justify-between items-center border-b border-stone-800/80 pb-3 2xl:pb-4 shrink-0 relative z-10">
         <div className="flex items-center gap-4">
           <button
             type="button"

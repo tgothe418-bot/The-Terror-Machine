@@ -1491,7 +1491,7 @@ export default function Runtime() {
       onClick={() => setLastActivity(Date.now())}
     >
       {/* Occult Scrying Apparatus Header */}
-      <header className="h-16 border-b border-zinc-900 flex items-center justify-between px-6 sm:px-8 bg-[#040406] z-10 shrink-0">
+      <header className="h-16 border-b border-zinc-900 flex items-center justify-between pl-14 sm:pl-16 pr-6 sm:pr-8 bg-[#040406] z-10 shrink-0">
         <div className="flex items-center gap-4">
           <button
             type="button"

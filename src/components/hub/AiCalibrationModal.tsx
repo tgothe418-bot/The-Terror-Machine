@@ -252,13 +252,14 @@ export default function AiCalibrationModal({
                 baseUrl: payload.localBaseUrl,
               }),
             });
-            const warmupData = await warmupRes.json();
+            const warmupData: { results?: Array<{ ok?: boolean; model?: string }> } = await warmupRes.json();
             const loadedCount = warmupData?.results
-              ? warmupData.results.filter((r: any) => r.ok).length
+              ? warmupData.results.filter((r) => r.ok).length
               : 0;
             const loadedNames = warmupData?.results
-              ?.filter((r: any) => r.ok)
-              ?.map((r: any) => r.model.split('/').pop())
+              ?.filter((r) => r.ok && typeof r.model === 'string')
+              ?.map((r) => r.model?.split('/').pop())
+              ?.filter(Boolean)
               ?.join(', ');
             setStatusMessage(
               `AI Configuration saved. ${loadedCount}/${modelsToWarmup.length} local model(s) preloaded & ready in Bionic${loadedNames ? ` (${loadedNames})` : ''}.`
@@ -1104,3 +1105,5 @@ export default function AiCalibrationModal({
     </div>
   );
 }
+
+export { AiCalibrationModal };
