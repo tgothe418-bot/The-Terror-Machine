@@ -34,6 +34,7 @@ The Terror Machine replaces prompt drift with deterministic state persistence. T
 - **Causal Topology Graph**: Space is a directed adjacency graph. Movement requires authorized connections. If two rooms are not connected, no character can cross between them, no matter how vividly the model hallucinates the passage.
 - **Pure-Text Acoustic Engine**: Zero Web Audio or speech synthesizer dependencies. Soundscapes and vocalizations (spoken dialogue, *sotto voce* soliloquies, introspective monologue, intercom transmissions, and structural acoustic bleed through ductwork) are modeled via physical adjacency and rendered in evocative CRT typography.
 - **Diegetic Pacing Governor & Clocks (Horror Grammar 2)**: Autonomous tension regulation using undulating cadence cycles (`RESPITE_AFTERMATH` &rarr; `SIMMERING_DREAD` &rarr; `MOUNTING_COMPLICATION` &rarr; `KINETIC_RUPTURE`), situated diegetic instruments, and impending countdown clocks that trigger threshold manifestations.
+- **Opposition Cohort Autonomy (HG2 Series 2)**: Seat-based NPC opposition with deterministic behavior selection — no dice, no omniscient AI Director. Cohort members investigate, share findings, and escalate through `ONSET` &rarr; `DISCOVERY` &rarr; `CONFIRMATION` &rarr; `CONFRONTATION` phases based solely on what they have diegetically perceived.
 - **Universal Streaming & Forensic Sweep Engine**: Real-time Server-Sent Events (SSE) presentation transport for turns and multi-window forensic induction sweeps with sentence-snapped boundary planning (`W1/1` support) and review-preserving candidate mergers.
 - **Universal Calibration Overlay**: Pinned non-destructive AI Calibration modal accessible across all views (`Hub`, `Engine`, `Forge`) without disrupting active simulation or drafting state.
 - **Strict Model Agnosticism**: Runs identically on local models via private inference servers (LM Studio, Ollama, llama.cpp, etc.) or frontier cloud APIs (Google Gemini, OpenAI, Z.ai GLM, Hemmingway.io). Each subsystem can calibrate to an independent model.
@@ -58,6 +59,8 @@ Role selection in The Terror Machine is an authoritative causal contract:
 - **Villain (`villain` / `antagonist`)**: The stalking threat. Governed by authored authority contracts and counterplay boundaries; controls scenario apparatus (hydraulics, environmental grids) to corner an autonomous prey cohort.
 - **Bystander (`bystander` / `witness`)**: Trapped in the periphery (custodian, technician). High vulnerability, narrow agency, zero plot armor.
 - **Director (`director`)**: Outside the flesh. Adjusts atmospheric pressure, triggers structural decay, and stages encounters without usurping participant agency.
+
+In **villain-protagonist scenarios**, the seats invert: the protagonist seat binds the villain, and the antagonist seat rebinds to the opposition investigating them — the story told from inside the monster, with pressure splitting into external *Discovery* (the pursuit) and internal *Compulsion* (the hunger).
 
 ---
 
@@ -99,7 +102,7 @@ cp .env.example .env
 # Start development server
 npm run dev
 
-# Run full test suite (130 suites, 1,590+ tests)
+# Run full test suite (132 suites, 1,649 tests)
 npm test
 ```
 
@@ -112,6 +115,7 @@ npm test
 3. **Topology is Causal, Not Prose**: Physical passage requires an authorized connection on the directed spatial graph.
 4. **Situated Epistemic Isolation**: Knowledge is grounded in space and time. No character possesses telepathic omniscience.
 5. **The User Owns Intent**: Refusals, errors, and timeouts fail cleanly with diagnostic receipts—never by fabricating synthetic player actions.
+6. **Opposition is Diegetic**: Adversaries act only on what they have perceived through the world. There is no omniscient director; no information about the opposition reaches the player except through the world itself.
 
 ---
 

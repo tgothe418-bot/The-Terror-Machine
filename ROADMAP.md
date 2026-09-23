@@ -64,6 +64,18 @@ Standard LLM generative sessions degrade due to spatial amnesia, unearned adject
 - **Persistent AI Calibration Overlay (`src/App.tsx`)**: Global pinned top-left navigation cogwheel opening calibration modal without unmounting or mutating active Engine sessions or Forge drafts.
 - **Parameterized HG2 Benchmark Suite (`scripts/run_hg2_40turn_benchmark.ts`)**: Configurable via `--turns=N`, `--scenario=ID`, and `--seat=ROLE`. Headless proof runs verified 20/20 and 40/40 turns on local Gemma 4 26B QAT with 100% gate pass rates (committed acts, NPC proposals $\ge 1/3$ turns, causal phase progression, zero 502s).
 
+### 9. HG2 Series 2 — Opposition Cohort Autonomy (Initial Core Boundary)
+- **Seat-Based Membership & Lifecycle**: Authored, recruited, and witnessed joining paths; lifecycle changes as evaluated transitions (never direct behavior mutations); explicit `DORMANT` status at zero members with institutional-memory preservation.
+- **Deterministic Behavior Selection**: Two-layer selection (environment gating &rarr; executability filtering &rarr; personality affinity scoring &times; 0.4 same-verb recency fatigue). No dice, seeded or otherwise; no Director verbs.
+- **Diegetic Cognition**: Hypothesis weights on authored blueprint IDs with provenance; event-driven, deduplicated evidence ingestion; dissonance accumulator driving skepticism erosion.
+- **Phases as Discovery Pressure**: `ONSET` &rarr; `DISCOVERY` &rarr; `CONFIRMATION` &rarr; `CONFRONTATION` as weight aggregates with a Confrontation ratchet; seat-holder phase anchoring with disruption shock and delayed succession on loss.
+- **Initial Verb Boundary**: `INVESTIGATE` and `SHARE` proven end-to-end — topology-gated sharing (no telepathy), player-perceivable traces separated from ingestible evidence, hidden internal receipts, and full retake restoration of cognition, membership, durations, receipts, traces, and phase state.
+- **Bounded Fictional-Time Ticks**: No neutral turns; at most one completed and one initiated behavior per member per player turn.
+
+### 10. Villain-Protagonist Model & Villain-Always Invariant
+- **Villain-Protagonist Seats**: In scenarios where the protagonist *is* the villain, the protagonist seat binds the villain and the antagonist seat rebinds to the opposition investigating them; pressure inverts into external *Discovery* (investigation-as-pursuit) and internal *Compulsion* (self-sourced) families.
+- **Villain-Always Invariant**: Every Forge scenario cast must contain at least one `VILLAIN` — enforced at compile time (`validateForgeDraft`), with dual extraction of named/speaking antagonists as both cast villain and antagonist profile, plus deterministic villain backfill from the antagonist profile during repair.
+
 ---
 
 ## Active Horizons & Next Priorities
@@ -73,26 +85,28 @@ Standard LLM generative sessions degrade due to spatial amnesia, unearned adject
 - **Scope**: Multi-turn manual play across *The Black Iron Mortuary*, *The Silver Rest Lodge*, and *The Refinement*.
 - **Validation**: Verify UX latency, CRT narrative framing readability, and Retake responsiveness under live operator inputs.
 
-### Phase 2: Horror Grammar 2 (Series 2) — Revelation Staging & Tension Decay
-- **Focus**: Thematic lore unpeeling and non-linear psychological dissipation.
+### Phase 2: Horror Grammar 2 (Series 2) — Opposition Cohort Autonomy & Reaction Cycles
+- **Focus**: The opposition as a living, investigating cohort — every cohort action explainable from what the acting character knew.
+- **Landed**: Initial core boundary — canonical cohort state, cognition/evidence ingestion, membership lifecycle, bounded ticks, deterministic selection, `INVESTIGATE` + `SHARE` verbs, traces/receipts, and retake restoration.
 - **Scope**:
-  - Epistemic discovery receipts and structured revelation cadence.
-  - Tension-decay modeling: simulating long-term character attrition, exhaustion, and atmospheric dissipation during sustained respite periods.
-  - Bounded clue networks connecting physical evidence to milestone unlocks.
+  - Remaining 13 behavior verbs from the 15-verb matrix, each with per-verb executable contracts.
+  - Playtest tuning of selection weights, fatigue factors, phase thresholds, and tick bounds.
+  - Cohort coordination behaviors (herding, staging) and deeper suspicion/dissonance dynamics.
 
 ### Phase 3: Inherited Gate Debt Remediation
 - **Focus**: Codebase hygiene and strict type-safety across legacy modules.
 - **Scope**:
-  - Resolve inherited 63 `tsc` compile errors and 177 `eslint` warnings in a dedicated cleanup packet.
+  - Resolve inherited 78 `tsc` compile errors and 177 `eslint` warnings in a dedicated cleanup packet.
   - Clean up legacy test fixtures, store predicates, and draft baseline reconciliation.
   - Zero modifications to runtime simulation contracts or landed HG1/HG2 features.
 
 ### Phase 4: Multi-Node AI Traversal & Cohort Intelligence
-- **Focus**: Autonomous prey and antagonist mobility across topological graphs.
+- **Focus**: Autonomous cast mobility and offstage staging beyond the cohort core boundary.
 - **Scope**:
   - Multi-chamber pathfinding for autonomous cast cohorts based on behavioral vectors (`ADAPTIVE`, `INSURGENT`, `PANIC`).
   - Spatial herding and dynamic environmental barricades.
   - Offstage encounter staging triggered by impending clocks.
+- **Note**: Core cohort autonomy (membership, cognition, deterministic selection, `INVESTIGATE`/`SHARE`) has landed under HG2 Series 2; this phase covers mobility and staging built on top of it.
 
 ### Phase 5: Multi-Blueprint Campaign Continuity
 - **Focus**: Inter-scenario progression without monolithic state explosion.

@@ -15,7 +15,7 @@ A focused test proves its named behavior. It does not, by itself, close an integ
 
 ## Live code baseline reviewed for this ledger
 
-- Current live line reviewed: [0bc1fcb](https://github.com/tgothe418-bot/The-Terror-Machine/commit/0bc1fcb) (Local AI provider integration, model policies, extraction contract hardening, runtime provider switching, and post-series stabilization).
+- Current live line reviewed: [b1f97fe](https://github.com/tgothe418-bot/The-Terror-Machine/commit/b1f97fe) (HG2 Series 2 opposition cohort autonomy initial core boundary, villain-protagonist model, villain-always invariant, Forge lint sweep, cohort fixture mock correction).
 - The branch was clean and synced when reviewed. The status below is based on live code inspection, focused proofs, broad gates, and recent smoke telemetry; a packet's completion report is not accepted evidence by itself.
 
 ## Current baseline
@@ -71,22 +71,27 @@ A focused test proves its named behavior. It does not, by itself, close an integ
 - Client-Loop Ratification & State Whitelist: Passed `dramaturgyState`, `cast_arrivals`, `cast_departures`, and `current_node_id` through the client ratification pipeline, ensuring macro-phase, cadence, and presence state persist through live browser turn loops.
 - The Silver Rest Lodge Canonical Interaction Scenario: Dedicated alpine social-horror blueprint (`src/data/blueprints/silver_rest_lodge.json`, Feb 1991) with 7 rooms, 8 cast members across survivor, villain, and bystander roles, 3 impending clocks with situated diegetic instruments, 4 causal milestone gates, and full subsystem test coverage (`src/data/blueprints/silver_rest_lodge.test.ts`).
 - 40-Turn HG2 Headless Benchmark Batteries: Validated 80/80 turns on local Gemma 4 26B QAT across dual-role configurations (Survivor & Villain) for both *The Black Iron Mortuary* (`scripts/run_hg2_40turn_benchmark.ts`) and *The Silver Rest Lodge* (`scripts/run_silver_rest_40turn_benchmark.ts`), verifying Retake idempotence, causal gating, and zero floating gauges.
+- Forge Villain-Always Invariant (`0840859`, `a745ea7`): `validateForgeDraft` fails compilation when the cast contains no `VILLAIN`; extraction dual-extracts named/speaking antagonists as both cast villain (`isEntity`) and antagonist profile; repair flow appends cast, preserves any existing villain, and strips bogus provenance.
+- Villain-Protagonist Model (`9031f06`, `0003346`): `villainProtagonist` scenarios bind the villain to the protagonist seat and rebind the antagonist seat to the opposition/investigator figure; pressure inverts into Discovery (external, investigation-as-pursuit) and Compulsion (internal, self-sourced) families; Forge coerces invented dispositions and deterministically backfills a villain from the antagonist profile.
+- Forge Lint Sweep (`131a75a`): resolved 59 `no-explicit-any` + 3 unused-variable errors across Forge files.
+- HG2 Series 2 Initial Core Boundary (`b98df71`): canonical cohort state (`src/types/cohort.ts`), cognition/evidence ingestion (`cohortCognition.ts`), membership lifecycle (`cohortBehaviors.ts`), bounded fictional-time ticks and deterministic two-layer behavior selection (`cohortEngine.ts`), `INVESTIGATE` + `SHARE` verbs with topology-gated sharing, player-perceivable traces separated from ingestible evidence, hidden internal receipts, reducer integration, and full retake restoration. Verified against 8 review amendments; 7 emergence fixtures in `src/lib/cohort.emergence.test.ts`.
+- Cohort Fixture Mock Correction (`b1f97fe`): test-only correction of the `ScenarioBlueprint` mock shape in the emergence fixture (narrative fields moved under `narrativeRules`, required `contentScale`/`contentLevelDescription` added); zero runtime effect.
 - Post-Reset Stabilization & Modernization Architecture (Stages 1–5):
   - *Stage 1 (Universal Provider Roster Validation & Concurrency):* `CastNormalizationContext` exported; fail-closed roster normalization across Gemini, OpenAI, Claude, Local, and Z.ai; per-request `turnContract` instances in `server/routes/turn.ts` eliminating concurrency leaks.
   - *Stage 2 (Voice Telemetry Injection & Runtime UX):* `VoiceTelemetrySchema` in `server/schemas/index.ts`; live simulation telemetry injection (`[LIVE SIMULATION TELEMETRY - ORACLE OF RECORDS]`) in `server/routes/voice.ts`; `TheVoice.tsx` telemetric grounding; role category protection on map selection.
   - *Stage 3 (Greenfield SSE Transport & Turn Streaming):* High-performance `server/utils/sse.ts` (`SseStream` class with monotonic IDs, 15s heartbeats, and client disconnect handling); `POST /turn-stream` and `POST /stream` in `server/routes/turn.ts`; ephemeral presentation-only streaming in `src/services/geminiService.ts` and `src/components/engine/Runtime.tsx`.
   - *Stage 4 (Unified Forensic Sweep Engine & Review Preservation):* Sentence-snapped window planner (`server/ai/windowPlanner.ts`, `W1/1` support); sweep orchestrator with job ledger (`server/ai/sweepOrchestrator.ts`); server-side source retention with pinned job IDs in `server/routes/forge.ts`; non-breaking schemas (`SweepProvenanceSchema`, `SweepJobRequestSchema`); review-preserving store merge (`mergeSweepCandidates`); live SSE progress rendering in Forge `ScenarioBaselinePanel.tsx`.
   - *Stage 5 (Universal Navigation Shell & Parameterized Proof Runs):* Pinned top-left global calibration cogwheel in `src/App.tsx` opening `AiCalibrationModal` as a non-destructive overlay across all views; header clearance in Forge and Runtime; parameterized benchmark script (`scripts/run_hg2_40turn_benchmark.ts` with `--turns=N`, `--scenario=ID`, `--seat=ROLE`); 20-turn and 40-turn proof runs passing 100% of quantitative criteria.
-- The current live line passes 130 / 130 Vitest test suites (1,597 passing tests), 0 ESLint errors in modified code, and clean git status.
+- The current live line passes 132 / 132 Vitest test suites (1,649 passing tests), 0 ESLint errors in modified code, 78 inherited `tsc` errors (none in cohort files), and clean git status.
 
 ### Live, under review / Sequenced next boundaries
 
 - Experiential Play Review (top sequenced package): live human interactive play in the browser to exercise vocalization, presence tracking, fog-of-war, and HG2 macro-phase and cadence progression across real human sessions.
-- Inherited Gate Debt Cleanup Packet: remediate the inherited 63 `tsc` / 177 `eslint` debt items in an isolated cleanup packet without blending into feature work.
+- Inherited Gate Debt Cleanup Packet: remediate the inherited 78 `tsc` / 177 `eslint` debt items in an isolated cleanup packet without blending into feature work.
 - Universal warning and intervention window prior to permanent or fatal loss (explicitly deferred from the Astra Critical Corrections series).
 - Voice read-only context expansion across separate drafts, sessions, and research (deferred).
 - Telemetry drawer visual polish and dedicated prose-only export option (deferred).
-- Horror Grammar 2: Packet Series 2 — Revelation Staging, Thematic Lore Unpeeling, and Tension-Decay Research.
+- Horror Grammar 2: Packet Series 2 — Opposition Cohort Autonomy & Reaction Cycles (initial core boundary landed; remaining verbs and tuning sequenced).
 - Z.ai Live Provider Verification (pending funded API key).
 
 ## Horror Grammar 1 construction ledger
@@ -110,7 +115,7 @@ The Horror Grammar 1 series is fully landed, integrated, and verified on the liv
 3. **Forensic boundary:** Typed, bounded forensic record in Runtime review surface and exports, preserving rejected proposal evidence only in labeled section while keeping secrets and provider internals segregated. *(Verified in Packets 10 & 12)*.
 4. **Integration proof:** Master 9-step integration proof suite (`src/lib/integratedAcceptance.test.ts`) verifies two consecutive turns, empty turns, rejected proposals, provider refusals, OOC check-ins, Retake, durable reload, and session supersession. *(Verified in Packet 12)*.
 
-Horror Grammar 2 is not started. No subsequent grammar packet should be treated as active implementation until explicitly sequenced.
+Horror Grammar 2 Series 1 (Pacing, Clocks & Character Stakes) is landed. Horror Grammar 2 Series 2 (Opposition Cohort Autonomy & Reaction Cycles) has its initial core boundary landed (`b98df71`); the remaining 13 verbs and playtest tuning are sequenced next. No grammar packet beyond the Series 2 boundary should be treated as active implementation until explicitly sequenced.
 
 ## Deferred, non-blocking observations
 
@@ -231,17 +236,18 @@ Refine Runtime diagnostic drawer presentation, add dedicated prose-only export f
 
 Extend character and World Memory through campaign handoff between authored Blueprints with scoped, inspectable transfer. Campaign handoff must remain explicit rather than becoming an implicit global ledger.
 
-### 8. Horror Grammar 2: Packet Series 1 — Pacing, Clocks & Character Stakes (Active Implementation)
+### 8. Horror Grammar 2: Packet Series 1 — Pacing, Clocks & Character Stakes (Landed)
 
-Horror Grammar 2 has been consciously re-sequenced ahead of packages 2–7 by owner decision. The vocalization subsystem's live play review is folded into HG2's experiential verification.
+Series 1 is fully landed and verified on the live line: undulating tension cadence (The Breath), impending environmental clocks with threshold-keyed manifestation cues, character psychological stakes with deterministic lift conditions, and causal macro-phase milestones. The vocalization subsystem's live play review is folded into HG2's experiential verification.
 
-This active implementation encompasses **HG2 Packet Series 1 — Pacing, Clocks & Stakes**:
-- **Undulating Tension Cadence (The Breath)**: Autonomous pacing oscillation (Respite / Simmering Dread / Mounting Complication / Kinetic Rupture) preventing flatline panic without overriding player actions or causal consequences.
-- **Impending Environmental Clocks**: Non-scripted situational decay vectors advancing via fictional time or ratified consequence events, featuring threshold-keyed manifestation cues and situated diegetic instrument observations.
-- **Character Psychological Stakes**: Human drama, coping mechanisms, and breaking points that enforce physical obstruction when triggered, with deterministic lift conditions.
-- **Causal Macro-Phase Milestones**: Narrative movements (Exposition, Inciting Rupture, Complication, Midpoint Crisis, Escalating Vise, Climax, Aftermath) gating phase transitions strictly on authored milestone achievements or clock crisis crossings.
+### 9. Horror Grammar 2: Packet Series 2 — Opposition Cohort Autonomy & Reaction Cycles (Active Implementation)
 
-*Note*: Revelation staging, thematic lore unpeeling, and tension-decay dynamics remain open research areas for **HG2 Packet Series 2**.
+Series 2 has been re-sequenced by owner decision around a new seed: the opposition as a living, investigating cohort — every cohort action explainable from what the acting character knew, no Director verbs, no dice.
+
+- **Landed (initial core boundary, `b98df71`):** canonical cohort state, cognition/evidence ingestion, membership lifecycle, bounded fictional-time ticks, deterministic two-layer behavior selection, `INVESTIGATE` + `SHARE` verbs, traces/receipts, reducer integration, retake restoration.
+- **Sequenced next:** the remaining 13 verbs of the 15-verb behavior matrix (each with per-verb executable contracts), playtest tuning of selection weights / fatigue / phase thresholds / tick bounds, and deeper coordination and suspicion dynamics.
+
+*Note*: The earlier Series 2 framing (revelation staging, thematic lore unpeeling, tension-decay dynamics) is superseded; those remain open research areas, not the active packet.
 
 ## Construction environment
 

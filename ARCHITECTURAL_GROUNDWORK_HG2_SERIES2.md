@@ -1,5 +1,7 @@
 # Architectural Groundwork: HG2 Series 2 & Anti-Catatonia Scaffolding
 
+> **SUPERSEDED (2026-09-23).** The Series 2 plan in this document (revelation staging / thematic lore unpeeling / tension-decay) was scrapped and replanned from a new seed: **Opposition Cohort Autonomy & Reaction Cycles**. The current whiteboard, review history, and implementation boundary live outside this file; the initial core boundary is landed on the live line. Kept for historical reference only — do not orient new work from it.
+
 This document records the architectural groundwork laid during the pre-reset checkpoint (2026-09-22). It serves as the bridge for immediate execution once API usage limits reset.
 
 ---
