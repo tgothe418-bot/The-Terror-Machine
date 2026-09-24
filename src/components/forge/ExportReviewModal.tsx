@@ -17,7 +17,6 @@ import {
   RefreshCw,
   AlertTriangle,
   Wand2,
-  Sparkles,
   Loader2,
 } from 'lucide-react';
 
@@ -49,6 +48,10 @@ export const ExportReviewModal: React.FC<ExportReviewModalProps> = ({
     propSourceAnalyses !== undefined ? propSourceAnalyses : storeSourceAnalyses;
   const [copied, setCopied] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
+  const [isDelegatingAmbiguities, setIsDelegatingAmbiguities] = useState(false);
+  const [isRepairing, setIsRepairing] = useState(false);
+  const [isResolvedSuccessfully, setIsResolvedSuccessfully] = useState(false);
+  const [repairError, setRepairError] = useState<string | null>(null);
 
   const currentDraftRev = draftRevision || 1;
   const currentBaseRev = sourceBaselineRevision || 1;
@@ -142,7 +145,6 @@ export const ExportReviewModal: React.FC<ExportReviewModalProps> = ({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const [isDelegatingAmbiguities, setIsDelegatingAmbiguities] = useState(false);
   const hasOpenAmbiguities = Object.keys(validation?.errors || {}).some((k) =>
     k.includes('openUnknowns')
   );
@@ -156,10 +158,6 @@ export const ExportReviewModal: React.FC<ExportReviewModalProps> = ({
     }, 60);
   };
 
-  const [isRepairing, setIsRepairing] = useState(false);
-  const [isResolvedSuccessfully, setIsResolvedSuccessfully] = useState(false);
-  const [repairError, setRepairError] = useState<string | null>(null);
-
   const handleResolveDiscrepancies = async () => {
     const freshState = useForgeStore.getState();
     const currentDraft = freshState.draftBlueprint || freshState.forgeDraft;
@@ -172,7 +170,7 @@ export const ExportReviewModal: React.FC<ExportReviewModalProps> = ({
     try {
       const refMaterials = freshState.referenceMaterials || [];
       const refTexts = refMaterials
-        .map((r) => `--- Reference: ${r.name} ---\n${r.content}`)
+        .map((r) => `--- Reference: ${r.fileName} ---\n${r.content}`)
         .join('\n\n');
       const sourceTexts = Object.values(freshState.sourceAnalyses || {})
         .map(

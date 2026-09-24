@@ -11,7 +11,6 @@ import { ForgeSourceAnalysisSchema, ForgeSourceAnalysis } from '../../types/forg
 
 export const FileDropzone = () => {
   const [isProcessing, setIsProcessing] = useState(false);
-  const [loadingMsg, setLoadingMsg] = useState('');
   const [error, setError] = useState('');
   const [progressPercent, setProgressPercent] = useState(0);
   const [progressStage, setProgressStage] = useState('');
@@ -75,9 +74,6 @@ export const FileDropzone = () => {
     setError('');
     setProgressPercent(5);
     setProgressStage('Initializing file reader & intake...');
-    setLoadingMsg(
-      `[ SOURCE INTAKE: ${file.name} ]\nExtracting baseline candidates for review...`
-    );
 
     let progressTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -258,7 +254,6 @@ export const FileDropzone = () => {
       setProgressPercent(0);
       setProgressStage('');
       setActiveFileName('');
-      setLoadingMsg('');
       event.target.value = '';
     }
   };

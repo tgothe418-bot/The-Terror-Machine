@@ -11,7 +11,13 @@ import {
   sanitizeSourceAnalyses,
 } from './useForgeStore';
 import { TopologyEdge } from '../types';
-import { DepictionContract, DepictionContractProposal, ForgeSourceAnalysis } from '../types/forge';
+import {
+  DepictionContract,
+  DepictionContractProposal,
+  ForgeSourceAnalysis,
+  type ForgeSourceCandidate,
+  type ForgeSourceEvidence,
+} from '../types/forge';
 import { compileForgeDraft } from '../lib/forgeCompiler';
 import { useAppStore } from './useAppStore';
 
@@ -2341,7 +2347,7 @@ describe('useForgeStore - draft state and actions', () => {
           ],
         }),
       });
-      globalThis.fetch = mockFetch as any;
+      globalThis.fetch = mockFetch as unknown as typeof fetch;
 
       const res = await forgeActions.runDetailPass(analysisId);
       expect(res.success).toBe(true);
@@ -2370,7 +2376,7 @@ describe('useForgeStore - draft state and actions', () => {
         reviewDecision: 'APPROVED',
         evidenceIds: ['ev-1'],
         occurrences: 1
-      } as any];
+      } as unknown as ForgeSourceCandidate];
 
       // Incoming duplicate candidate with new evidence
       store.mergeSweepCandidates!(
@@ -2379,11 +2385,11 @@ describe('useForgeStore - draft state and actions', () => {
           targetType: 'CAST',
           normalizedKey: 'char-marcus-holt',
           evidenceIds: ['ev-2']
-        } as any],
-        [{ id: 'ev-2', excerpt: 'Holt bars the door' } as any]
+        } as unknown as ForgeSourceCandidate],
+        [{ id: 'ev-2', excerpt: 'Holt bars the door' } as unknown as ForgeSourceEvidence]
       );
 
-      const merged = useForgeStore.getState().candidates.find((c: any) => c.normalizedKey === 'char-marcus-holt');
+      const merged = useForgeStore.getState().candidates.find((c) => (c as Record<string, unknown>).normalizedKey === 'char-marcus-holt') as Record<string, unknown> | undefined;
       expect(merged?.reviewDecision).toBe('APPROVED'); // Invariant: Not reset to STAGED
       expect(merged?.evidenceIds).toContain('ev-1');
       expect(merged?.evidenceIds).toContain('ev-2');

@@ -38,24 +38,23 @@ interface NodePosition {
 function normalizeConnections(connections?: MapSketchConnection[]): NormalizedConnection[] {
   if (!connections || !Array.isArray(connections)) return [];
 
-  return connections
-    .map((conn, idx) => {
-      if (Array.isArray(conn)) {
-        const [from, to] = conn;
-        if (!from || !to) return null;
-        return { from, to, id: `${from}->${to}#${idx}` };
+  const result: NormalizedConnection[] = [];
+  connections.forEach((conn, idx) => {
+    if (Array.isArray(conn)) {
+      const [from, to] = conn;
+      if (from && to) {
+        result.push({ from, to, id: `${from}->${to}#${idx}` });
       }
-      if (conn && typeof conn === 'object' && conn.from && conn.to) {
-        return {
-          from: conn.from,
-          to: conn.to,
-          label: conn.label,
-          id: `${conn.from}->${conn.to}#${idx}`,
-        };
-      }
-      return null;
-    })
-    .filter((c): c is NormalizedConnection => c !== null);
+    } else if (conn && typeof conn === 'object' && conn.from && conn.to) {
+      result.push({
+        from: conn.from,
+        to: conn.to,
+        label: conn.label,
+        id: `${conn.from}->${conn.to}#${idx}`,
+      });
+    }
+  });
+  return result;
 }
 
 /**

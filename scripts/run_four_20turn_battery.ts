@@ -18,7 +18,7 @@ export interface TurnEvaluation {
   fidelityNotes: string[];
   qualityNotes: string[];
   accuracyNotes: string[];
-  meta: Record<string, any>;
+  meta: Record<string, unknown>;
   hasCriticalError: boolean;
   errorDetails?: string;
 }
@@ -149,7 +149,7 @@ const EVELYN_ACTIONS = [
 function evaluateNarration(
   narration: string,
   role: string,
-  turn: number
+  _turn: number
 ): {
   fidelityScore: number;
   qualityScore: number;
@@ -158,6 +158,7 @@ function evaluateNarration(
   qualityNotes: string[];
   accuracyNotes: string[];
 } {
+  void _turn;
   const fNotes: string[] = [];
   const qNotes: string[] = [];
   const aNotes: string[] = [];
@@ -352,7 +353,11 @@ Return a valid JSON object with:
 
       const turnStart = Date.now();
       let rawOutput = '';
-      let parsed: any = null;
+      interface BatteryTurnOutput {
+        narration?: string;
+        [key: string]: unknown;
+      }
+      let parsed: BatteryTurnOutput | null = null;
       let turnError: string | undefined;
 
       try {
@@ -365,11 +370,11 @@ Return a valid JSON object with:
           timeoutMs: 45000,
         });
 
-        parsed = parseOrRepairJson<Record<string, any>>(rawOutput);
+        parsed = parseOrRepairJson<BatteryTurnOutput>(rawOutput);
         consecutiveErrors = 0; // reset on success
-      } catch (err: any) {
+      } catch (err: unknown) {
         consecutiveErrors++;
-        turnError = err?.message || String(err);
+        turnError = err instanceof Error ? err.message : String(err);
         console.error(`  ! [ERROR on Turn ${t}]: ${turnError}`);
 
         // If LM Studio connection is dead or repeated failures occur, trigger critical skip/abort
@@ -512,8 +517,8 @@ function generateMarkdownReport(results: TestRunResult[]) {
     fs.mkdirSync(path.dirname(reportPath), { recursive: true });
     fs.writeFileSync(reportPath, md, 'utf-8');
     console.log(`\n[REPORT GENERATED]: ${reportPath}`);
-  } catch (err: any) {
-    console.error(`Could not write report to ${reportPath}:`, err?.message);
+  } catch (err: unknown) {
+    console.error(`Could not write report to ${reportPath}:`, err instanceof Error ? err.message : String(err));
   }
 }
 

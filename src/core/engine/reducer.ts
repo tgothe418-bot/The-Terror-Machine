@@ -361,7 +361,7 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
       if (nextCohortState && nextCohortState.status !== 'DORMANT') {
         const cost =
           event.payload.turnReceipt?.narrativeReconciliationReceipt?.fictional_time_cost ||
-          event.payload.frame?.reconciliation?.fictionalTimeCost ||
+          ((event.payload.frame as unknown as Record<string, Record<string, unknown>>)?.reconciliation?.fictionalTimeCost as string | undefined) ||
           'SCENE_BEAT';
         let deltaSeconds = 60;
         if (cost === 'MOMENT') deltaSeconds = 15;
@@ -370,7 +370,7 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
 
         const topologyNodes = (nextGraph || []).map((n) => ({
           id: n.id,
-          name: n.label || n.id,
+          name: n.name || n.id,
         }));
         const topologyConnections: Array<{
           fromNodeId: string;
@@ -379,13 +379,24 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
           kind: string;
         }> = [];
         for (const node of nextGraph || []) {
-          for (const edge of node.connections || []) {
-            topologyConnections.push({
-              fromNodeId: node.id,
-              toNodeId: edge.to,
-              status: edge.status || 'OPEN',
-              kind: edge.kind || 'PHYSICAL',
-            });
+          if (node.exits && node.exits.length > 0) {
+            for (const edge of node.exits) {
+              topologyConnections.push({
+                fromNodeId: node.id,
+                toNodeId: edge.targetNodeId,
+                status: edge.isOpen ? 'OPEN' : 'LOCKED',
+                kind: edge.kind || 'PHYSICAL',
+              });
+            }
+          } else if (node.connectedNodes) {
+            for (const targetId of node.connectedNodes) {
+              topologyConnections.push({
+                fromNodeId: node.id,
+                toNodeId: targetId,
+                status: 'OPEN',
+                kind: 'PHYSICAL',
+              });
+            }
           }
         }
 

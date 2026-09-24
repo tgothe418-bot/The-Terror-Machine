@@ -21,6 +21,8 @@ import {
   DepictionContractSchema,
   CharacterPresenceDisposition,
   AntagonistProfileSchema,
+  TelemetryFeed,
+  AntagonistApparatusControl,
 } from '../types/forge';
 import { DepictionContract } from '../types';
 import { normalizeBlueprint } from './normalizeBlueprint';
@@ -2137,7 +2139,7 @@ export function reconcileDraftTopologyAndCast(draft: ForgeDraft): ForgeDraft {
 
     if (Array.isArray(cloned.antagonistProfile.telemetryFeeds)) {
       cloned.antagonistProfile.telemetryFeeds = cloned.antagonistProfile.telemetryFeeds.map(
-        (feed: Record<string, unknown>, idx: number) => {
+        (feed: TelemetryFeed, idx: number): TelemetryFeed => {
           if (!feed || typeof feed !== 'object') return feed;
           const rawNodeId = typeof feed.nodeId === 'string' ? feed.nodeId.trim() : '';
           const isUnknownOrPlaceholder =
@@ -2163,7 +2165,7 @@ export function reconcileDraftTopologyAndCast(draft: ForgeDraft): ForgeDraft {
 
     if (Array.isArray(cloned.antagonistProfile.apparatusControls)) {
       cloned.antagonistProfile.apparatusControls = cloned.antagonistProfile.apparatusControls.map(
-        (ctrl: Record<string, unknown>) => {
+        (ctrl: AntagonistApparatusControl): AntagonistApparatusControl => {
           if (!ctrl || typeof ctrl !== 'object') return ctrl;
           let affectedNodeIds = Array.isArray(ctrl.affectedNodeIds) ? ctrl.affectedNodeIds : [];
           affectedNodeIds = affectedNodeIds.map((nId: unknown) => {

@@ -392,8 +392,8 @@ describe('extractionContract — Sanitized Issues, Parity & Prompt', () => {
       };
       const res = normalizeCandidateAliases(cand);
       expect(res.target).toBe('topology_node');
-      expect((res.proposedValue as any).id).toBe('storage_sump');
-      expect((res.proposedValue as any).label).toBe('Storage Sump');
+      expect((res.proposedValue as Record<string, unknown>).id).toBe('storage_sump');
+      expect((res.proposedValue as Record<string, unknown>).label).toBe('Storage Sump');
     }
   });
 

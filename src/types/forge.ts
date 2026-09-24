@@ -83,19 +83,20 @@ export const TelemetryFeedSchema = z.object({
 export type TelemetryFeed = z.infer<typeof TelemetryFeedSchema>;
 
 export const AntagonistProfileSchema = z.preprocess(
-  (val: any) => {
+  (val: unknown) => {
     if (val && typeof val === 'object') {
-      const name = (val.name || val.entityName || val.entity || 'Opposition').trim();
-      let kind = val.kind;
-      if (!kind || !['FORCE', 'APPARATUS', 'ENTITY'].includes(kind)) {
-        const lower = String(val.role || val.kind || '').toLowerCase();
+      const v = val as Record<string, unknown>;
+      const name = String(v.name || v.entityName || v.entity || 'Opposition').trim();
+      let kind = v.kind;
+      if (!kind || !['FORCE', 'APPARATUS', 'ENTITY'].includes(kind as string)) {
+        const lower = String(v.role || v.kind || '').toLowerCase();
         if (lower.includes('entity') || lower.includes('monster') || lower.includes('creature')) kind = 'ENTITY';
         else if (lower.includes('force') || lower.includes('cosmic') || lower.includes('phenomenon')) kind = 'FORCE';
         else kind = 'APPARATUS';
       }
 
-      const apparatusControls = Array.isArray(val.apparatusControls)
-        ? val.apparatusControls.map((ctrl: any, idx: number) => {
+      const apparatusControls = Array.isArray(v.apparatusControls)
+        ? v.apparatusControls.map((ctrl: unknown, idx: number) => {
             if (typeof ctrl === 'string') {
               const cleaned = ctrl.trim();
               return {
@@ -108,21 +109,22 @@ export const AntagonistProfileSchema = z.preprocess(
               };
             }
             if (ctrl && typeof ctrl === 'object') {
+              const c = ctrl as Record<string, unknown>;
               return {
-                id: ctrl.id || `control-${idx + 1}`,
-                name: ctrl.name || `Control ${idx + 1}`,
-                kind: ctrl.kind || 'MECHANICAL',
-                affectedNodeIds: Array.isArray(ctrl.affectedNodeIds) ? ctrl.affectedNodeIds : [],
-                availableActions: Array.isArray(ctrl.availableActions) ? ctrl.availableActions : ['ACTIVATE'],
-                status: ctrl.status || 'ONLINE',
+                id: (typeof c.id === 'string' && c.id) || `control-${idx + 1}`,
+                name: (typeof c.name === 'string' && c.name) || `Control ${idx + 1}`,
+                kind: c.kind || 'MECHANICAL',
+                affectedNodeIds: Array.isArray(c.affectedNodeIds) ? c.affectedNodeIds : [],
+                availableActions: Array.isArray(c.availableActions) ? c.availableActions : ['ACTIVATE'],
+                status: c.status || 'ONLINE',
               };
             }
             return ctrl;
           })
         : [];
 
-      const telemetryFeeds = Array.isArray(val.telemetryFeeds)
-        ? val.telemetryFeeds.map((feed: any, idx: number) => {
+      const telemetryFeeds = Array.isArray(v.telemetryFeeds)
+        ? v.telemetryFeeds.map((feed: unknown) => {
             if (typeof feed === 'string') {
               const cleaned = feed.trim();
               return {
@@ -133,25 +135,30 @@ export const AntagonistProfileSchema = z.preprocess(
               };
             }
             if (feed && typeof feed === 'object') {
+              const f = feed as Record<string, unknown>;
               return {
-                nodeId: feed.nodeId || 'all',
-                feedType: feed.feedType || 'OPTICAL_CAM',
-                status: feed.status || 'ONLINE',
-                label: feed.label || feed.name,
+                nodeId: f.nodeId || 'all',
+                feedType: f.feedType || 'OPTICAL_CAM',
+                status: f.status || 'ONLINE',
+                label: f.label || f.name,
               };
             }
             return feed;
           })
         : [];
 
-      const sadisticDirectives = Array.isArray(val.sadisticDirectives)
-        ? val.sadisticDirectives.map((d: any) => (typeof d === 'string' ? d.trim() : typeof d === 'object' && d ? JSON.stringify(d) : '')).filter(Boolean)
+      const sadisticDirectives = Array.isArray(v.sadisticDirectives)
+        ? v.sadisticDirectives
+            .map((d: unknown) =>
+              typeof d === 'string' ? d.trim() : typeof d === 'object' && d ? JSON.stringify(d) : ''
+            )
+            .filter(Boolean)
         : [];
 
-      const preyCohort = Array.isArray(val.preyCohort) ? val.preyCohort : [];
+      const preyCohort = Array.isArray(v.preyCohort) ? v.preyCohort : [];
 
       return {
-        ...val,
+        ...v,
         kind,
         name,
         apparatusControls,
@@ -223,13 +230,14 @@ export const CharacterPresenceDispositionSchema = z.discriminatedUnion('kind', [
 export type CharacterPresenceDisposition = z.infer<typeof CharacterPresenceDispositionSchema>;
 
 export const ForgeTopologyNodeSchema = z.preprocess(
-  (val: any) => {
+  (val: unknown) => {
     if (val && typeof val === 'object') {
-      const effectiveLabel = (val.label || val.name || '').trim();
+      const v = val as Record<string, unknown>;
+      const effectiveLabel = String(v.label || v.name || '').trim();
       return {
-        ...val,
+        ...v,
         label: effectiveLabel,
-        name: (val.name || val.label || '').trim(),
+        name: String(v.name || v.label || '').trim(),
       };
     }
     return val;
@@ -415,14 +423,19 @@ export const ForgeDraftSchema = z.object({
   dramaticSpine: DramaticSpineSchema.optional(),
 });
 
-export type ForgeDraft = z.input<typeof ForgeDraftSchema>;
+export type ForgeDraftTopology = Omit<z.input<typeof ForgeDraftTopologySchema>, 'nodeDefinitions'> & {
+  nodeDefinitions?: ForgeTopologyNode[];
+};
+export type ForgeDraft = Omit<z.input<typeof ForgeDraftSchema>, 'topology' | 'antagonistProfile'> & {
+  topology?: ForgeDraftTopology;
+  antagonistProfile?: Partial<AntagonistProfile>;
+};
 export type ForgeDraftPatch = Partial<ForgeDraft>;
 export type ForgeDraftIdentity = z.input<typeof ForgeDraftIdentitySchema>;
 export type ForgeDraftSetting = z.input<typeof ForgeDraftSettingSchema>;
 export type ForgeDraftCastMember = z.input<typeof ForgeDraftCastMemberSchema>;
 export type ForgeDraftCastMemberOutput = z.output<typeof ForgeDraftCastMemberSchema>;
 export type ForgeDraftPerspective = z.input<typeof ForgeDraftPerspectiveSchema>;
-export type ForgeDraftTopology = z.input<typeof ForgeDraftTopologySchema>;
 export type ForgeDraftNarrativeRules = z.input<typeof ForgeDraftNarrativeRulesSchema>;
 
 export interface ForgeValidationResult {

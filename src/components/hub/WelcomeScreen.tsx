@@ -7,13 +7,9 @@ import {
   AlertTriangle,
   RefreshCw,
   Flame,
-  Compass,
-  Shield,
   Sparkles,
   ArrowRight,
   Layers,
-  FileText,
-  Skull,
 } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import { useVoiceStore } from '../../store/useVoiceStore';
@@ -22,6 +18,7 @@ import { useEngineStore } from '../../core/store';
 import { motion, AnimatePresence } from 'motion/react';
 import AiCalibrationModal from './AiCalibrationModal';
 import { normalizeBlueprint } from '../../lib/normalizeBlueprint';
+import type { ForgeDraftCastMember, ForgeDraftTopology } from '../../types/forge';
 import blackIronMortuary from '../../data/blueprints/black_iron_mortuary.json';
 import silverRestLodge from '../../data/blueprints/silver_rest_lodge.json';
 import theRefinement from '../../data/blueprints/the_refinement.json';
@@ -38,10 +35,6 @@ export default function WelcomeScreen() {
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
   const [aiTier, setAiTier] = useState<'free' | 'paid'>('free');
   const [aiModel, setAiModel] = useState<string>('gemini-3.6-flash');
-  const [voiceProvider, setVoiceProvider] = useState<'gemini' | 'openai' | 'local'>('openai');
-  const [openAiVoiceModel, setOpenAiVoiceModel] = useState<string>('gpt-5.6-luna');
-  const [localVoiceModel, setLocalVoiceModel] = useState<string>('');
-
   const fetchAiConfig = useCallback(async () => {
     try {
       const res = await fetch('/api/ai/config');
@@ -49,9 +42,6 @@ export default function WelcomeScreen() {
         const data = await res.json();
         setAiTier(data.tier || 'free');
         setAiModel(data.model || 'gemini-3.6-flash');
-        setVoiceProvider(data.voiceProvider || 'openai');
-        setOpenAiVoiceModel(data.openAiModel || 'gpt-5.6-luna');
-        setLocalVoiceModel(data.localModel || '');
       }
     } catch {
       // ignore network blips on initial render
@@ -67,9 +57,6 @@ export default function WelcomeScreen() {
           const data = await res.json();
           setAiTier(data.tier || 'free');
           setAiModel(data.model || 'gemini-3.6-flash');
-          setVoiceProvider(data.voiceProvider || 'openai');
-          setOpenAiVoiceModel(data.openAiModel || 'gpt-5.6-luna');
-          setLocalVoiceModel(data.localModel || '');
         }
       } catch {
         // ignore initial network error
@@ -110,8 +97,8 @@ export default function WelcomeScreen() {
       environmentalRules: Array.isArray(blackIronMortuary.environmentalRules)
         ? blackIronMortuary.environmentalRules.join('\n')
         : (blackIronMortuary.environmentalRules || ''),
-      cast: blackIronMortuary.cast as any,
-      topology: blackIronMortuary.topology as any,
+      cast: blackIronMortuary.cast as unknown as ForgeDraftCastMember[],
+      topology: blackIronMortuary.topology as unknown as ForgeDraftTopology,
     });
     setPhase('forge');
   };
@@ -137,8 +124,8 @@ export default function WelcomeScreen() {
       environmentalRules: Array.isArray(silverRestLodge.environmentalRules)
         ? silverRestLodge.environmentalRules.join('\n')
         : (silverRestLodge.environmentalRules || ''),
-      cast: silverRestLodge.cast,
-      topology: silverRestLodge.topology,
+      cast: silverRestLodge.cast as unknown as ForgeDraftCastMember[],
+      topology: silverRestLodge.topology as unknown as ForgeDraftTopology,
     });
     setPhase('forge');
   };
@@ -164,8 +151,8 @@ export default function WelcomeScreen() {
       environmentalRules: Array.isArray(theRefinement.environmentalRules)
         ? theRefinement.environmentalRules.join('\n')
         : (theRefinement.environmentalRules || ''),
-      cast: theRefinement.cast,
-      topology: theRefinement.topology,
+      cast: theRefinement.cast as unknown as ForgeDraftCastMember[],
+      topology: theRefinement.topology as unknown as ForgeDraftTopology,
     });
     setPhase('forge');
   };

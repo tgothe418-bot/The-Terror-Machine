@@ -623,13 +623,15 @@ ${prompt}`;
   }
 
   const payload = await response.json();
-  const choice = (payload as any)?.choices?.[0];
+  const payloadObj = payload as Record<string, unknown> | null;
+  const choice = (payloadObj?.choices as Array<Record<string, unknown>> | undefined)?.[0];
+  const choiceMsg = choice?.message as Record<string, unknown> | undefined;
   console.log('[LOCAL STRUCT DEBUG]', {
     finish_reason: choice?.finish_reason,
-    content_len: typeof choice?.message?.content === 'string' ? choice.message.content.length : null,
-    content_preview: typeof choice?.message?.content === 'string' ? choice.message.content.slice(0, 100) : null,
-    reasoning_len: typeof choice?.message?.reasoning_content === 'string' ? choice.message.reasoning_content.length : null,
-    usage: (payload as any)?.usage,
+    content_len: typeof choiceMsg?.content === 'string' ? choiceMsg.content.length : null,
+    content_preview: typeof choiceMsg?.content === 'string' ? choiceMsg.content.slice(0, 100) : null,
+    reasoning_len: typeof choiceMsg?.reasoning_content === 'string' ? choiceMsg.reasoning_content.length : null,
+    usage: payloadObj?.usage,
   });
   const rawText = readCompletionText(payload, { expectJson: true });
   if (!rawText || !rawText.trim()) {

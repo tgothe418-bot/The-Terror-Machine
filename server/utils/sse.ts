@@ -18,7 +18,7 @@ export class SseStream {
     this.startHeartbeat();
   }
 
-  public send(event: string, data: any): void {
+  public send(event: string, data: unknown): void {
     if (this.isClosed) return;
     this.eventId++;
     this.res.write(`id: ${this.eventId}\nevent: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
@@ -28,13 +28,13 @@ export class SseStream {
     this.send('token', { token });
   }
 
-  public complete(payload: any): void {
+  public complete(payload: unknown): void {
     if (this.isClosed) return;
     this.send('complete', payload);
     this.close();
   }
 
-  public error(error: string, diagnostics: any[] = [], code?: string): void {
+  public error(error: string, diagnostics: unknown[] = [], code?: string): void {
     if (this.isClosed) return;
     this.send('error', { error, code, diagnostics });
     this.close();

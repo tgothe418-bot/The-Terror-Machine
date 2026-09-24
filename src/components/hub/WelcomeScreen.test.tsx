@@ -5,7 +5,7 @@ import 'fake-indexeddb/auto';
 import WelcomeScreen from './WelcomeScreen';
 import { useAppStore } from '../../store/useAppStore';
 import { useEngineStore } from '../../core/store';
-import { forgeActions, useForgeStoreInternal } from '../../store/useForgeStore';
+import { forgeActions } from '../../store/useForgeStore';
 
 describe('WelcomeScreen Component (1440p Ultrawide Staging)', () => {
   let container: HTMLDivElement | null = null;

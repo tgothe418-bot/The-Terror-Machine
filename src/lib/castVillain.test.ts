@@ -6,7 +6,7 @@ import {
   villainNamesMatch,
 } from './castVillain';
 import { normalizeCastDisposition } from './sourceBaseline';
-import type { ForgeDraft } from '../types/forge';
+import type { ForgeDraft, AntagonistProfile } from '../types/forge';
 
 describe('isVillainCastMember', () => {
   it('returns true when disposition is VILLAIN (case-insensitive)', () => {
@@ -191,7 +191,8 @@ describe('ensureVillainCastMember', () => {
       ],
       antagonistProfile: {
         name: 'The Inquisitor',
-        kind: 'HUMAN',
+        kind: 'APPARATUS',
+        preyCohort: [],
         apparatusControls: [],
         sadisticDirectives: [],
         telemetryFeeds: [],
@@ -217,7 +218,8 @@ describe('ensureVillainCastMember', () => {
       ],
       antagonistProfile: {
         name: 'Patrick Bateman',
-        kind: 'HUMAN',
+        kind: 'APPARATUS',
+        preyCohort: [],
         apparatusControls: [],
         sadisticDirectives: [],
         telemetryFeeds: [],
@@ -244,6 +246,7 @@ describe('ensureVillainCastMember', () => {
       antagonistProfile: {
         name: 'AM',
         kind: 'ENTITY',
+        preyCohort: [],
         apparatusControls: [],
         sadisticDirectives: [],
         telemetryFeeds: [],
@@ -266,6 +269,7 @@ describe('ensureVillainCastMember', () => {
       antagonistProfile: {
         name: '   ',
         kind: 'ENTITY',
+        preyCohort: [],
         apparatusControls: [],
         sadisticDirectives: [],
         telemetryFeeds: [],
@@ -280,6 +284,7 @@ describe('ensureVillainCastMember', () => {
       antagonistProfile: {
         name: 'AM',
         kind: 'ENTITY',
+        preyCohort: [],
         apparatusControls: [],
         sadisticDirectives: [],
         telemetryFeeds: [],
@@ -306,12 +311,13 @@ describe('ensureVillainCastMember', () => {
       ...baseDraft,
       antagonistProfile: {
         name: 'The Warden',
-        kind: 'HUMAN',
+        kind: 'HUMAN' as unknown as 'APPARATUS',
         role: 'Chief Overseer',
+        preyCohort: [],
         apparatusControls: [],
         sadisticDirectives: [],
         telemetryFeeds: [],
-      },
+      } as unknown as AntagonistProfile,
     };
 
     const result = ensureVillainCastMember(draft);
@@ -331,6 +337,7 @@ describe('ensureVillainCastMember', () => {
       antagonistProfile: {
         name: 'AM',
         kind: 'ENTITY',
+        preyCohort: [],
         apparatusControls: [],
         sadisticDirectives: [],
         telemetryFeeds: [],

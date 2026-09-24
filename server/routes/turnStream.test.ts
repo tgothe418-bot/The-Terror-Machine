@@ -309,7 +309,7 @@ describe('SSE Turn Streaming Route (POST /api/turn-stream)', () => {
     // Parse SSE frames
     const lines = text.split('\n');
     const tokens: string[] = [];
-    let completePayload: any = null;
+    let completePayload: Record<string, unknown> | null = null;
 
     let currentEvent = '';
     for (const line of lines) {

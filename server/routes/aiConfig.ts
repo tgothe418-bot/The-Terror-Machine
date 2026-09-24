@@ -506,8 +506,9 @@ aiConfigRouter.post('/warmup', async (req, res) => {
         }
       }
       console.log(`[WARMUP] Currently loaded models in LM Studio:`, Array.from(lmsLoadedModels));
-    } catch (err: any) {
-      console.warn(`[WARMUP] Could not query "lms ps" (using fallback):`, err?.message || err);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn(`[WARMUP] Could not query "lms ps" (using fallback):`, msg);
       lmsLoadedModels = null;
     }
   }
@@ -557,8 +558,9 @@ aiConfigRouter.post('/warmup', async (req, res) => {
           method: 'lms-cli',
         });
         loadedViaCli = true;
-      } catch (cliErr: any) {
-        console.warn(`[WARMUP] LMS CLI load failed for "${model}":`, cliErr?.message || cliErr);
+      } catch (cliErr: unknown) {
+        const msg = cliErr instanceof Error ? cliErr.message : String(cliErr);
+        console.warn(`[WARMUP] LMS CLI load failed for "${model}":`, msg);
       }
     }
 
@@ -587,12 +589,13 @@ aiConfigRouter.post('/warmup', async (req, res) => {
         latencyMs: Date.now() - start,
         method: 'http',
       });
-    } catch (err: any) {
-      console.warn(`[WARMUP] HTTP ping failed for "${model}":`, err?.message || err);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn(`[WARMUP] HTTP ping failed for "${model}":`, msg);
       results.push({
         model,
         ok: false,
-        error: err.message || 'Request failed',
+        error: err instanceof Error ? err.message : 'Request failed',
         latencyMs: Date.now() - start,
         method: 'http',
       });

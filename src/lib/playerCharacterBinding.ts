@@ -258,7 +258,7 @@ export function resolvePerspectiveBinding(
 
   if (role === 'survivor') {
     const survivorChar =
-      cast.find((c) => (c as any).disposition === 'SURVIVOR') ||
+      cast.find((c) => c.disposition === 'SURVIVOR') ||
       cast.find((c) => !c.isEntity) ||
       cast[0];
     return {
@@ -272,7 +272,7 @@ export function resolvePerspectiveBinding(
     const villainChar =
       cast.find(
         (c) =>
-          (c as any).disposition === 'VILLAIN' ||
+          c.disposition === 'VILLAIN' ||
           c.isEntity ||
           String(c.role).toUpperCase() === 'ANTAGONIST'
       ) || cast[0];
@@ -285,7 +285,7 @@ export function resolvePerspectiveBinding(
 
   if (role === 'bystander') {
     const bystanderChar =
-      cast.find((c) => (c as any).disposition === 'BYSTANDER') ||
+      cast.find((c) => c.disposition === 'BYSTANDER') ||
       cast.find((c) => !c.isEntity) ||
       cast[0];
     return {

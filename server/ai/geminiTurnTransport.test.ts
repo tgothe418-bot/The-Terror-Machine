@@ -154,7 +154,9 @@ describe('geminiTurnTransport: normalizeCastActivityProposal', () => {
       },
     };
 
-    const normalized = normalizeGeminiTurnProviderPayload(fullPayload) as Record<string, any>;
+    const normalized = normalizeGeminiTurnProviderPayload(fullPayload) as {
+      cast_activity_proposal?: { castMemberId?: string; perceptionPath?: string };
+    };
     expect(normalized.cast_activity_proposal?.castMemberId).toBe('char-entity-41');
     expect(normalized.cast_activity_proposal?.perceptionPath).toBe('DIRECT');
   });

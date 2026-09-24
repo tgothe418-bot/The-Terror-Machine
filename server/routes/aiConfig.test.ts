@@ -125,15 +125,15 @@ describe('AI Config and Warmup routes', () => {
     });
 
     it('pings each unique model concurrently with 1 token', async () => {
-      const fetchCalls: { url: string; body: any }[] = [];
+      const fetchCalls: { url: string; body: { max_tokens?: number; messages?: unknown[] } }[] = [];
       const originalFetch = global.fetch;
 
-      vi.spyOn(global, 'fetch').mockImplementation(async (input: any, init?: any) => {
-        const urlStr = typeof input === 'string' ? input : input.url;
+      vi.spyOn(global, 'fetch').mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const urlStr = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
         if (urlStr.includes('/chat/completions')) {
           fetchCalls.push({
             url: urlStr,
-            body: init?.body ? JSON.parse(init.body as string) : undefined,
+            body: init?.body ? JSON.parse(init.body as string) : {},
           });
           return new Response(
             JSON.stringify({
@@ -159,12 +159,12 @@ describe('AI Config and Warmup routes', () => {
       const data = await res.json();
       expect(data.ok).toBe(true);
       expect(data.results).toHaveLength(3);
-      expect(data.results.map((r: any) => r.model)).toEqual([
+      expect(data.results.map((r: { model: string }) => r.model)).toEqual([
         'qwen2.5-vl-7b',
         'mistral-nemo-instruct',
         'google/gemma-4-e4b',
       ]);
-      expect(data.results.every((r: any) => r.ok === true)).toBe(true);
+      expect(data.results.every((r: { ok: boolean }) => r.ok === true)).toBe(true);
 
       expect(fetchCalls).toHaveLength(3);
       for (const call of fetchCalls) {
@@ -177,8 +177,8 @@ describe('AI Config and Warmup routes', () => {
     it('gracefully handles individual model failure without breaking others', async () => {
       const originalFetch = global.fetch;
 
-      vi.spyOn(global, 'fetch').mockImplementation(async (input: any, init?: any) => {
-        const urlStr = typeof input === 'string' ? input : input.url;
+      vi.spyOn(global, 'fetch').mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const urlStr = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
         if (urlStr.includes('/chat/completions')) {
           const body = init?.body ? JSON.parse(init.body as string) : {};
           if (body.model === 'failing-model') {
@@ -211,8 +211,8 @@ describe('AI Config and Warmup routes', () => {
       const data = await res.json();
       expect(data.ok).toBe(true);
       expect(data.results).toHaveLength(2);
-      expect(data.results.find((r: any) => r.model === 'working-model')?.ok).toBe(true);
-      expect(data.results.find((r: any) => r.model === 'failing-model')?.ok).toBe(false);
+      expect(data.results.find((r: { model: string; ok: boolean }) => r.model === 'working-model')?.ok).toBe(true);
+      expect(data.results.find((r: { model: string; ok: boolean }) => r.model === 'failing-model')?.ok).toBe(false);
     });
   });
 });

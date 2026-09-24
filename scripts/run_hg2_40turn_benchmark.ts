@@ -14,12 +14,9 @@ import {
 } from '../src/lib/composureDerivation';
 import type {
   DramaticSpine,
-  DramaturgyRuntimeState,
-  DramaticTurnReceipt,
   MacroPhase,
   PacingCadence,
 } from '../src/types/dramaturgy';
-import type { CastActivityProposal, CastActivityReceipt } from '../src/types/horrorGrammar';
 
 // ==========================================
 // SCENARIO DEFINITION: THE BLACK IRON MORTUARY (HG2)
@@ -135,7 +132,7 @@ const SCENARIO_CAST = [
       breakingPointThreshold: 15,
       currentComposure: 85,
       isObstructed: false,
-      deterministicLiftConditions: ['REST_RESPITE', 'MEDICAL_STABILIZATION'] as any,
+      deterministicLiftConditions: ['REST_RESPITE', 'MEDICAL_STABILIZATION'],
     },
   },
   {
@@ -152,7 +149,7 @@ const SCENARIO_CAST = [
       breakingPointThreshold: 20,
       currentComposure: 65,
       isObstructed: false,
-      deterministicLiftConditions: ['PERSUASION', 'MEDICAL_STABILIZATION', 'REST_RESPITE'] as any,
+      deterministicLiftConditions: ['PERSUASION', 'MEDICAL_STABILIZATION', 'REST_RESPITE'],
     },
   },
   {
@@ -169,7 +166,7 @@ const SCENARIO_CAST = [
       breakingPointThreshold: 10,
       currentComposure: 100,
       isObstructed: false,
-      deterministicLiftConditions: ['REST_RESPITE'] as any,
+      deterministicLiftConditions: ['REST_RESPITE'],
     },
   },
 ];
@@ -324,11 +321,11 @@ export interface HG2TurnTelemetry {
   latencyMs: number;
   macroPhase: MacroPhase;
   pacingCadence: PacingCadence;
-  phaseTransition?: any;
-  clockAdvances: any[];
-  composureDeltas: any[];
-  breakingPointRefusals: any[];
-  diegeticReadings: any[];
+  phaseTransition?: unknown;
+  clockAdvances: unknown[];
+  composureDeltas: unknown[];
+  breakingPointRefusals: unknown[];
+  diegeticReadings: unknown[];
   manifestations: string[];
   mandateDirective: string;
   npcProposalsAdmitted: number;
@@ -457,7 +454,7 @@ export async function runHG2Benchmark(options?: BenchmarkOptions): Promise<{ run
       }
 
       const activeRefusals = Object.entries(govResult.nextRuntimeState.characterStakes)
-        .filter(([_, s]) => s.isObstructed)
+        .filter(([, s]) => s.isObstructed)
         .map(([cId, s]) => ({ characterId: cId, reason: s.obstructionReason || 'Refuses to proceed' }));
 
       if (activeRefusals.length > 0) {
@@ -528,11 +525,13 @@ Return a JSON object with:
         const parsed = parseOrRepairJson(rawResponse);
         narration = parsed?.narration || rawResponse.trim();
         console.log(`   -> Response (${duration}ms): "${narration.slice(0, 90)}..."`);
-      } catch (err: any) {
+      } catch (err: unknown) {
+        transportErrors++;
         const duration = Date.now() - tStart;
         totalLatency += duration;
         narration = `[Fallback Narration] The cold iron corridors tremble as the mortuary machinery shifts.`;
-        console.warn(`   -> Model call note: ${err.message}`);
+        const msg = err instanceof Error ? err.message : String(err);
+        console.warn(`   -> Model call note: ${msg}`);
       }
 
       // Record Turn Telemetry
@@ -717,7 +716,7 @@ ${runA.turns.slice(0, 5).map((t) => `**Turn ${t.turnNumber} [${t.macroPhase} | $
   const brainPath = 'C:\\Users\\tgoth\\.gemini\\antigravity\\brain\\79dce160-d2e6-45b1-be57-32cf029b6c66\\hg2_40turn_benchmark_report.md';
   try {
     fs.writeFileSync(brainPath, report, 'utf8');
-  } catch (e) {
+  } catch {
     // Ignore if brain path differs
   }
   console.log(`\n[Report Generated]: ${scratchPath}`);
@@ -864,8 +863,8 @@ function writeCrtHtmlTelemetry(runA?: HG2RunReport, runB?: HG2RunReport, targetT
         <div class="dramaturgy-box">
           <div><strong>Mandate:</strong> ${escapeHtml(t.mandateDirective.slice(0, 140))}...</div>
           ${t.manifestations.length > 0 ? `<div><strong>Omens:</strong> ${escapeHtml(t.manifestations.join(' | '))}</div>` : ''}
-          ${t.diegeticReadings.length > 0 ? `<div><strong>Diegetic Instrument:</strong> ${escapeHtml(t.diegeticReadings.map((r: any) => `${r.instrumentName}: ${r.readingText}`).join(', '))}</div>` : ''}
-          ${t.breakingPointRefusals.length > 0 ? `<div style="color: var(--red)"><strong>Refusal:</strong> ${escapeHtml(t.breakingPointRefusals.map((r: any) => `${r.characterId}: ${r.reason}`).join('; '))}</div>` : ''}
+          ${t.diegeticReadings.length > 0 ? `<div><strong>Diegetic Instrument:</strong> ${escapeHtml(t.diegeticReadings.map((r) => `${(r as { instrumentName: string; readingText: string }).instrumentName}: ${(r as { instrumentName: string; readingText: string }).readingText}`).join(', '))}</div>` : ''}
+          ${t.breakingPointRefusals.length > 0 ? `<div style="color: var(--red)"><strong>Refusal:</strong> ${escapeHtml(t.breakingPointRefusals.map((r) => `${(r as { characterId: string; reason: string }).characterId}: ${(r as { characterId: string; reason: string }).reason}`).join('; '))}</div>` : ''}
         </div>
       </div>
     `
@@ -885,10 +884,10 @@ function writeCrtHtmlTelemetry(runA?: HG2RunReport, runB?: HG2RunReport, targetT
   fs.writeFileSync(scratchPath, html, 'utf8');
 
   // Copy to brain artifacts
-  const brainPath = 'C:\\Users\\tgoth\\.gemini\antigravity\\brain\\79dce160-d2e6-45b1-be57-32cf029b6c66\\hg2_40turn_benchmark_telemetry.html';
+  const brainPath = 'C:\\Users\\tgoth\\.gemini\\antigravity\\brain\\79dce160-d2e6-45b1-be57-32cf029b6c66\\hg2_40turn_benchmark_telemetry.html';
   try {
     fs.writeFileSync(brainPath, html, 'utf8');
-  } catch (e) {
+  } catch {
     // Ignore if brain path differs
   }
   console.log(`[HTML Telemetry Generated]: ${scratchPath}`);

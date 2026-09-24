@@ -11,7 +11,7 @@ export default function PreyCohortTelemetry() {
     (state) => state.participationContext || useEngineStore.getState().participationContext
   );
   const participationContext = normalizeParticipationContext(rawParticipationContext);
-  const activeBlueprint = useAppStore((state) => state.activeBlueprint);
+  const activeBlueprint = useEngineStore((state) => state.activeBlueprint);
 
   if (
     !participationContext ||

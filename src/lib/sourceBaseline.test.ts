@@ -18,6 +18,7 @@ import {
   ForgeSourceEvidence,
   ForgeSourceAnalysisSchema,
   ForgeCandidateApplicationStateSchema,
+  AntagonistProfile,
 } from '../types/forge';
 import { compileForgeDraft } from './forgeCompiler';
 import { normalizeBlueprint } from './normalizeBlueprint';
@@ -473,6 +474,7 @@ describe('sourceBaseline pure functions', () => {
           isUserCharacter: false,
           behaviorVector: 'ADAPTIVE',
           isEntity: false,
+          disposition: 'SURVIVOR' as const,
         },
         reviewDecision: 'accepted',
         applicationState: 'staged',
@@ -547,6 +549,7 @@ describe('sourceBaseline pure functions', () => {
           isUserCharacter: true,
           behaviorVector: 'ADAPTIVE',
           isEntity: false,
+          disposition: 'SURVIVOR' as const,
           presenceDisposition: { kind: 'AT_NODE', nodeId: 'ENGINE_ROOM' },
         },
         reviewDecision: 'accepted',
@@ -634,6 +637,7 @@ describe('sourceBaseline pure functions', () => {
           isUserCharacter: false,
           behaviorVector: 'ADAPTIVE',
           isEntity: false,
+          disposition: 'SURVIVOR' as const,
         },
         reviewDecision: 'accepted',
         applicationState: 'staged',
@@ -683,6 +687,7 @@ describe('sourceBaseline pure functions', () => {
           isUserCharacter: false,
           behaviorVector: 'INSURGENT',
           isEntity: true,
+          disposition: 'VILLAIN' as const,
         },
         reviewDecision: 'accepted',
         applicationState: 'staged',
@@ -2128,7 +2133,7 @@ describe('sourceBaseline pure functions', () => {
       expect(castCand).toBeDefined();
       expect(castCand?.target).toBe('cast_seed');
       expect(castCand?.classification).toBe('evidence');
-      expect((castCand?.proposedValue as any).name).toBe('Rock Stanley');
+      expect((castCand?.proposedValue as Record<string, unknown>).name).toBe('Rock Stanley');
     });
 
     it('maps target character alias to cast_seed and normalizes evidence or inference classification', () => {
@@ -2432,8 +2437,8 @@ describe('sourceBaseline pure functions', () => {
 
       const nodeCands = analysis.candidates.filter((c) => c.target === 'topology_node');
       expect(nodeCands).toHaveLength(2);
-      expect((nodeCands[0].proposedValue as any).label).toBe('Decompression Airlock');
-      expect((nodeCands[1].proposedValue as any).label).toBe('Autopsy Suite');
+      expect((nodeCands[0].proposedValue as Record<string, unknown>).label).toBe('Decompression Airlock');
+      expect((nodeCands[1].proposedValue as Record<string, unknown>).label).toBe('Autopsy Suite');
     });
 
     it('reconcileDraftTopologyAndCast synthesizes bidirectional sequential connections for unconnected nodes', () => {
@@ -2458,7 +2463,7 @@ describe('sourceBaseline pure functions', () => {
       const reconciled = reconcileDraftTopologyAndCast(draft);
       expect(reconciled.topology?.connections).toBeDefined();
       expect(reconciled.topology?.connections).toHaveLength(4); // 1->2, 2->1, 2->3, 3->2
-      const edges = reconciled.topology?.connections as any[];
+      const edges = reconciled.topology?.connections || [];
       expect(edges[0]).toEqual({ from: 'chamber_1', to: 'chamber_2', kind: 'PHYSICAL', userInitiated: true });
       expect(edges[1]).toEqual({ from: 'chamber_2', to: 'chamber_1', kind: 'PHYSICAL', userInitiated: true });
       expect(edges[2]).toEqual({ from: 'chamber_2', to: 'chamber_3', kind: 'PHYSICAL', userInitiated: true });
@@ -2491,7 +2496,7 @@ describe('sourceBaseline pure functions', () => {
           sadisticDirectives: ['excise anomalies'],
           telemetryFeeds: ['vital pulse camera'],
           targetVictimIds: [],
-        },
+        } as unknown as AntagonistProfile,
       };
 
       const res = applyCandidateToDraft(draft, cand);
@@ -2606,9 +2611,10 @@ describe('sourceBaseline pure functions', () => {
 
       const record: ForgeSourceRecord = {
         id: 'rec-am-doc',
-        kind: 'text',
+        kind: 'document',
         fileName: 'am_doc.txt',
-        addedAt: new Date().toISOString(),
+        mimeType: 'text/plain',
+        receivedAt: Date.now(),
       };
 
       const normalized = validateAndNormalizeDocumentAnalysis(rawAnalysis, record);

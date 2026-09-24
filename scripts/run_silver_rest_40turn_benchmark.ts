@@ -15,15 +15,13 @@ import {
 import { normalizeBlueprint } from '../src/lib/normalizeBlueprint';
 import type {
   DramaticSpine,
-  DramaturgyRuntimeState,
-  DramaticTurnReceipt,
   MacroPhase,
   PacingCadence,
 } from '../src/types/dramaturgy';
 import silverRestRaw from '../src/data/blueprints/silver_rest_lodge.json';
 
 // Normalize the authored blueprint
-const BLUEPRINT = normalizeBlueprint(silverRestRaw as any);
+const BLUEPRINT = normalizeBlueprint(silverRestRaw as unknown as Parameters<typeof normalizeBlueprint>[0]);
 const DRAMATIC_SPINE: DramaticSpine = BLUEPRINT.dramaticSpine!;
 const SCENARIO_CAST = BLUEPRINT.cast;
 
@@ -181,11 +179,11 @@ export interface SilverRestTurnTelemetry {
   latencyMs: number;
   macroPhase: MacroPhase;
   pacingCadence: PacingCadence;
-  phaseTransition?: any;
-  clockAdvances: any[];
-  composureDeltas: any[];
-  breakingPointRefusals: any[];
-  diegeticReadings: any[];
+  phaseTransition?: unknown;
+  clockAdvances: unknown[];
+  composureDeltas: unknown[];
+  breakingPointRefusals: unknown[];
+  diegeticReadings: unknown[];
   manifestations: string[];
   mandateDirective: string;
   isRetakeTest?: boolean;
@@ -310,7 +308,7 @@ export async function runSilverRestBenchmark(): Promise<{
       }
 
       const activeRefusals = Object.entries(govResult.nextRuntimeState.characterStakes)
-        .filter(([_, s]) => s.isObstructed)
+        .filter(([, s]) => s.isObstructed)
         .map(([cId, s]) => ({ characterId: cId, reason: s.obstructionReason || 'Refuses to proceed' }));
 
       if (activeRefusals.length > 0) {
@@ -361,11 +359,12 @@ Return a JSON object with:
         const parsed = parseOrRepairJson(rawResponse);
         narration = parsed?.narration || rawResponse.trim();
         console.log(`   -> Response (${duration}ms): "${narration.slice(0, 90)}..."`);
-      } catch (err: any) {
+      } catch (err: unknown) {
         const duration = Date.now() - tStart;
         totalLatency += duration;
         narration = `[Fallback Narration] The alpine blizzard detonates against the wooden shutters as the lodge shudders.`;
-        console.warn(`   -> Model call warning: ${err.message}`);
+        const msg = err instanceof Error ? err.message : String(err);
+        console.warn(`   -> Model call warning: ${msg}`);
       }
 
       // Retake Verification at Turn 10
@@ -504,7 +503,7 @@ function writeMarkdownReport(runA: SilverRestRunReport, runB: SilverRestRunRepor
 ${runA.turns.slice(0, 5).map((t) => `**Turn ${t.turnNumber} [${t.macroPhase} | ${t.pacingCadence}]**
 - *Action*: ${t.action}
 - *Narration*: "${t.narration}"
-- *Clock Advances*: ${t.clockAdvances.length > 0 ? t.clockAdvances.map((a: any) => `${a.clockId} -> ${a.toLevel}%`).join(', ') : 'None'}
+- *Clock Advances*: ${t.clockAdvances.length > 0 ? t.clockAdvances.map((a) => `${(a as { clockId: string; toLevel: number }).clockId} -> ${(a as { clockId: string; toLevel: number }).toLevel}%`).join(', ') : 'None'}
 `).join('\n')}
 
 ---
@@ -520,7 +519,7 @@ ${runA.turns.slice(0, 5).map((t) => `**Turn ${t.turnNumber} [${t.macroPhase} | $
 ${runB.turns.slice(0, 5).map((t) => `**Turn ${t.turnNumber} [${t.macroPhase} | ${t.pacingCadence}]**
 - *Action*: ${t.action}
 - *Narration*: "${t.narration}"
-- *Clock Advances*: ${t.clockAdvances.length > 0 ? t.clockAdvances.map((a: any) => `${a.clockId} -> ${a.toLevel}%`).join(', ') : 'None'}
+- *Clock Advances*: ${t.clockAdvances.length > 0 ? t.clockAdvances.map((a) => `${(a as { clockId: string; toLevel: number }).clockId} -> ${(a as { clockId: string; toLevel: number }).toLevel}%`).join(', ') : 'None'}
 `).join('\n')}
 
 ---
@@ -537,7 +536,9 @@ ${runB.turns.slice(0, 5).map((t) => `**Turn ${t.turnNumber} [${t.macroPhase} | $
   try {
     fs.mkdirSync(path.dirname(artifactMdPath), { recursive: true });
     fs.writeFileSync(artifactMdPath, content, 'utf8');
-  } catch {}
+  } catch {
+    // Ignore artifact directory write failure
+  }
   console.log(`[SAVED] Benchmark Markdown report written to: ${mdPath}`);
 }
 
@@ -546,14 +547,6 @@ function writeHtmlReport(runA: SilverRestRunReport, runB: SilverRestRunReport) {
   const artifactHtmlPath = path.resolve(
     'C:/Users/tgoth/.gemini/antigravity/brain/79dce160-d2e6-45b1-be57-32cf029b6c66/silver_rest_40turn_benchmark_telemetry.html'
   );
-
-  const payload = {
-    generatedAt: new Date().toISOString(),
-    scenario: 'The Silver Rest Lodge',
-    model: 'google/gemma-4-26b-a4b-qat',
-    runA,
-    runB,
-  };
 
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -593,7 +586,7 @@ function writeHtmlReport(runA: SilverRestRunReport, runB: SilverRestRunReport) {
             <td><span class="badge badge-blue">${t.pacingCadence}</span></td>
             <td>${t.action}</td>
             <td class="narration">${t.narration}</td>
-            <td>${t.diegeticReadings.map((r: any) => `${r.instrumentName}: ${r.readingText}`).join('<br>') || 'None'}</td>
+            <td>${t.diegeticReadings.map((r) => `${(r as { instrumentName: string; readingText: string }).instrumentName}: ${(r as { instrumentName: string; readingText: string }).readingText}`).join('<br>') || 'None'}</td>
           </tr>
         `).join('')}
       </tbody>
@@ -615,7 +608,7 @@ function writeHtmlReport(runA: SilverRestRunReport, runB: SilverRestRunReport) {
             <td><span class="badge badge-blue">${t.pacingCadence}</span></td>
             <td>${t.action}</td>
             <td class="narration">${t.narration}</td>
-            <td>${t.diegeticReadings.map((r: any) => `${r.instrumentName}: ${r.readingText}`).join('<br>') || 'None'}</td>
+            <td>${t.diegeticReadings.map((r) => `${(r as { instrumentName: string; readingText: string }).instrumentName}: ${(r as { instrumentName: string; readingText: string }).readingText}`).join('<br>') || 'None'}</td>
           </tr>
         `).join('')}
       </tbody>
@@ -629,7 +622,9 @@ function writeHtmlReport(runA: SilverRestRunReport, runB: SilverRestRunReport) {
   try {
     fs.mkdirSync(path.dirname(artifactHtmlPath), { recursive: true });
     fs.writeFileSync(artifactHtmlPath, html, 'utf8');
-  } catch {}
+  } catch {
+    // Ignore artifact directory write failure
+  }
   console.log(`[SAVED] Benchmark HTML telemetry written to: ${htmlPath}`);
 }
 

@@ -420,7 +420,7 @@ describe('Local Voice client', () => {
         normalizeProviderPayload: (p: unknown) => p,
         zodSchema: {
           parse: (data: unknown) => data,
-        } as any,
+        } as unknown as import('zod').ZodTypeAny,
       };
 
       globalThis.fetch = vi
@@ -462,7 +462,7 @@ describe('Local Voice client', () => {
         normalizeProviderPayload: (p: unknown) => p,
         zodSchema: {
           parse: (data: unknown) => data,
-        } as any,
+        } as unknown as import('zod').ZodTypeAny,
       };
 
       globalThis.fetch = vi
@@ -509,8 +509,13 @@ describe('Local Voice client', () => {
         },
       };
 
-      const result = normalizeLocalTurnPayload(payload) as any;
-      expect(result.cast_activity_proposal.manifestationBlock).toEqual({
+      type NormalizedPayloadResult = {
+        cast_activity_proposal?: { manifestationBlock?: unknown };
+        situated_pressure_proposal?: { manifestationBlock?: unknown };
+      };
+
+      const result = normalizeLocalTurnPayload(payload) as NormalizedPayloadResult;
+      expect(result.cast_activity_proposal?.manifestationBlock).toEqual({
         type: 'dialogue',
         speaker: 'char-ted',
         content: 'I hear footsteps!',
@@ -528,8 +533,13 @@ describe('Local Voice client', () => {
         },
       };
 
-      const result = normalizeLocalTurnPayload(payload) as any;
-      expect(result.cast_activity_proposal.manifestationBlock).toEqual({
+      type NormalizedPayloadResult = {
+        cast_activity_proposal?: { manifestationBlock?: unknown };
+        situated_pressure_proposal?: { manifestationBlock?: unknown };
+      };
+
+      const result = normalizeLocalTurnPayload(payload) as NormalizedPayloadResult;
+      expect(result.cast_activity_proposal?.manifestationBlock).toEqual({
         type: 'prose',
         content: 'A distant scream.',
       });
@@ -546,8 +556,13 @@ describe('Local Voice client', () => {
         },
       };
 
-      const result = normalizeLocalTurnPayload(payload) as any;
-      expect(result.situated_pressure_proposal.manifestationBlock).toEqual({
+      type NormalizedPayloadResult = {
+        cast_activity_proposal?: { manifestationBlock?: unknown };
+        situated_pressure_proposal?: { manifestationBlock?: unknown };
+      };
+
+      const result = normalizeLocalTurnPayload(payload) as NormalizedPayloadResult;
+      expect(result.situated_pressure_proposal?.manifestationBlock).toEqual({
         type: 'prose',
         content: 'Warning klaxons blare.',
       });
@@ -566,8 +581,13 @@ describe('Local Voice client', () => {
         },
       };
 
-      const result = normalizeLocalTurnPayload(payload) as any;
-      expect(result.cast_activity_proposal.manifestationBlock).toEqual({
+      type NormalizedPayloadResult = {
+        cast_activity_proposal?: { manifestationBlock?: unknown };
+        situated_pressure_proposal?: { manifestationBlock?: unknown };
+      };
+
+      const result = normalizeLocalTurnPayload(payload) as NormalizedPayloadResult;
+      expect(result.cast_activity_proposal?.manifestationBlock).toEqual({
         type: 'dialogue',
         speaker: 'char-ellen',
         content: 'Stay back!',

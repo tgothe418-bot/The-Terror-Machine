@@ -59,9 +59,9 @@ export function parseOrRepairJson<T = unknown>(rawInput: string): T {
   // 1. First attempt direct parse
   try {
     return JSON.parse(jsonStr) as T;
-  } catch (err: any) {
+  } catch (err: unknown) {
     // If there is valid JSON followed by trailing content (e.g. at position N)
-    const matchPos = err?.message?.match(/at position (\d+)/i);
+    const matchPos = err instanceof Error ? err.message.match(/at position (\d+)/i) : null;
     if (matchPos) {
       const pos = parseInt(matchPos[1], 10);
       if (pos > 0 && pos < jsonStr.length) {

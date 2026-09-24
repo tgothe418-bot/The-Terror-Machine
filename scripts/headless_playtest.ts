@@ -254,9 +254,18 @@ Return a single JSON object with these EXACT keys:
     console.log(`[Turn ${t}/${turnsCount}] ${isAntagonist ? `[APPARATUS DIRECTIVE]` : `Location: "${currentNodeDef.label}"`}`);
     console.log(`  > Action: "${action}"`);
 
-    const turnStart = Date.now();
-    let rawOutput = '';
-    let parsedTurn: any = null;
+    interface HeadlessTurnOutput {
+      narration?: string;
+      preyStatus?: string;
+      tensionLevel?: string;
+      anatomicalTrauma?: string | null;
+      antagonistObservation?: string;
+      apparatusStatus?: string;
+      currentNodeId?: string;
+      playerHealthUpdate?: string;
+    }
+
+    let parsedTurn: HeadlessTurnOutput | null = null;
 
     try {
       rawOutput = await generateLocalText(turnPrompt, {
@@ -268,9 +277,9 @@ Return a single JSON object with these EXACT keys:
         timeoutMs: 60000,
       });
 
-      parsedTurn = parseOrRepairJson<Record<string, any>>(rawOutput);
-    } catch (err: any) {
-      console.error(`  ! Model error on Turn ${t}:`, err?.message || err);
+      parsedTurn = parseOrRepairJson<HeadlessTurnOutput>(rawOutput);
+    } catch (err: unknown) {
+      console.error(`  ! Model error on Turn ${t}:`, err instanceof Error ? err.message : String(err));
       parsedTurn = isAntagonist
         ? {
             narration: `The pneumatic apparatus fires along the overhead track with a sharp hydraulic hiss. Through the cold glass of Autopsy Suite B, Dr. Ross stumbles backward as frosted vapor billows across the floor sluice.`,
@@ -442,8 +451,8 @@ ${r.antagonistObservation ? `- **Sensorium Tell**: *${r.antagonistObservation}*`
     fs.mkdirSync(path.dirname(reportTarget), { recursive: true });
     fs.writeFileSync(reportTarget, mdReport, 'utf-8');
     console.log(`\n[Report Generated]: ${reportTarget}`);
-  } catch (err: any) {
-    console.warn(`Could not write report to ${reportTarget}:`, err?.message);
+  } catch (err: unknown) {
+    console.warn(`Could not write report to ${reportTarget}:`, err instanceof Error ? err.message : String(err));
   }
 
   // Also write to scratch/playtest_report_20turns.md locally in repo

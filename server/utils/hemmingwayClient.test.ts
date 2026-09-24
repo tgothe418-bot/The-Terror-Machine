@@ -7,7 +7,6 @@ import {
   type StructuredResponseContract,
 } from './aiClient';
 import {
-  HemmingwayProviderError,
   generateHemmingwayPlayerAction,
   generateHemmingwayProse,
   generateHemmingwayStructuredResponse,

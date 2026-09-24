@@ -8,7 +8,7 @@ import silverRestLodge from './silver_rest_lodge.json';
 
 describe('Bespoke Test Blueprint: The Silver Rest Lodge', () => {
   it('validates cleanly against BlueprintSchema and normalizeBlueprint', () => {
-    const normalized = normalizeBlueprint(silverRestLodge as any);
+    const normalized = normalizeBlueprint(silverRestLodge);
     expect(normalized.title).toBe('The Silver Rest Lodge');
     const parsed = BlueprintSchema.parse(normalized);
     expect(parsed.id).toBe('blueprint-silver-rest-lodge');
@@ -18,27 +18,27 @@ describe('Bespoke Test Blueprint: The Silver Rest Lodge', () => {
   });
 
   it('authors the full role semantics: villain, survivors, and bystanders', () => {
-    const normalized = normalizeBlueprint(silverRestLodge as any);
-    const dispositions = normalized.cast.map((c: any) => c.disposition);
+    const normalized = normalizeBlueprint(silverRestLodge);
+    const dispositions = normalized.cast.map((c) => c.disposition);
     expect(dispositions.filter((d: string) => d === 'VILLAIN')).toHaveLength(1);
     expect(dispositions.filter((d: string) => d === 'SURVIVOR')).toHaveLength(5);
     expect(dispositions.filter((d: string) => d === 'BYSTANDER')).toHaveLength(2);
   });
 
   it('carries voice dossiers and psychological stakes on every cast member', () => {
-    const normalized = normalizeBlueprint(silverRestLodge as any);
+    const normalized = normalizeBlueprint(silverRestLodge);
     for (const member of normalized.cast) {
       expect(member.expressionProfile).toBeDefined();
-      expect(member.expressionProfile.expressionGuidance.length).toBeGreaterThan(0);
+      expect(member.expressionProfile?.expressionGuidance.length).toBeGreaterThan(0);
       expect(member.psychologicalStakes).toBeDefined();
-      expect(member.psychologicalStakes.breakingPointTrigger.length).toBeGreaterThan(0);
+      expect(member.psychologicalStakes?.breakingPointTrigger.length).toBeGreaterThan(0);
     }
-    const villain = normalized.cast.find((c: any) => c.disposition === 'VILLAIN');
-    expect(villain.expressionProfile.camouflageLeakGuidance).toContain('climax');
+    const villain = normalized.cast.find((c) => c.disposition === 'VILLAIN');
+    expect(villain?.expressionProfile?.camouflageLeakGuidance).toContain('climax');
   });
 
   it('parses the dramatic spine with both clock advance modes and all milestone kinds', () => {
-    const normalized = normalizeBlueprint(silverRestLodge as any);
+    const normalized = normalizeBlueprint(silverRestLodge);
     const spine = DramaticSpineSchema.parse(normalized.dramaticSpine);
     expect(spine.impendingClocks.map((c) => c.advanceMode.mode)).toEqual([
       'TIME',
@@ -57,7 +57,7 @@ describe('Bespoke Test Blueprint: The Silver Rest Lodge', () => {
   });
 
   it('resolves valid seats for all three participation roles', () => {
-    const normalized = normalizeBlueprint(silverRestLodge as any);
+    const normalized = normalizeBlueprint(silverRestLodge);
     const seats = resolveSeatAvailabilities(normalized);
     expect(seats.protagonist.available).toBe(true);
     expect(seats.antagonist.available).toBe(true);
@@ -67,7 +67,7 @@ describe('Bespoke Test Blueprint: The Silver Rest Lodge', () => {
   it('resolves co-present cast (HERE) at every authored placement node', () => {
     // Regression guard for the invisible-co-present defect: placements must
     // resolve against topology node ids so presence marks cast as HERE.
-    const normalized = normalizeBlueprint(silverRestLodge as any);
+    const normalized = normalizeBlueprint(silverRestLodge);
     const nodeIds: string[] = normalized.topology.nodes;
 
     const presenceAt = (nodeId: string): string[] => {

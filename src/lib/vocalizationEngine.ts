@@ -1,5 +1,10 @@
 import { EngineTurnContext } from '../types/engineContract';
-import type { VocalizationBlock } from '../types/vocalization';
+import type {
+  VocalizationBlock,
+  AcousticMedium,
+  VocalDelivery,
+  VocalizationTarget,
+} from '../types/vocalization';
 import {
   REMOTE_COMMUNICATION_CHANNELS,
   extractConversationalUtterance,
@@ -217,16 +222,27 @@ function formatContentWithInterruption(content: string, interrupted: boolean): s
   return content.replace(/[\s.,;:!?]+$/, '') + '—';
 }
 
+export interface RawVocalizationInputBlock {
+  type: string;
+  speaker?: string | null;
+  content?: string;
+  medium?: string;
+  delivery?: string;
+  target?: string;
+  interrupted?: boolean;
+  acousticSourceNodeId?: string;
+  [key: string]: unknown;
+}
+
 export function validateAndNormalizeVocalization(
-  blocks: Array<Record<string, any>>,
+  blocks: Array<RawVocalizationInputBlock>,
   auditoryContext: AuditoryContext
 ): { error: string | null; normalizedBlocks: VocalizationBlock[] } {
   if (!Array.isArray(blocks)) {
     return { error: null, normalizedBlocks: [] };
   }
 
-  const { context, arrivedCastIds, explicitlyAddressedSpeakerId, adjacentNodeIds } =
-    auditoryContext;
+  const { context, arrivedCastIds, adjacentNodeIds } = auditoryContext;
   const normalizedBlocks: VocalizationBlock[] = [];
   let dialogueCount = 0;
 
@@ -286,12 +302,11 @@ export function validateAndNormalizeVocalization(
       );
 
       normalizedBlocks.push({
-        ...block,
         type: 'internal_monologue',
         speaker,
         medium: 'internal',
         target: 'self',
-        delivery: block.delivery || 'spoken',
+        delivery: (block.delivery as VocalDelivery) || 'spoken',
         interrupted,
         content,
       });
@@ -326,12 +341,11 @@ export function validateAndNormalizeVocalization(
       );
 
       normalizedBlocks.push({
-        ...block,
         type: 'soliloquy',
         speaker,
-        medium: block.medium || 'direct',
+        medium: (block.medium as AcousticMedium) || 'direct',
         target: 'self',
-        delivery: block.delivery || 'mutter',
+        delivery: (block.delivery as VocalDelivery) || 'mutter',
         interrupted,
         content,
       });
@@ -367,12 +381,11 @@ export function validateAndNormalizeVocalization(
           );
 
           normalizedBlocks.push({
-            ...block,
             type: 'dialogue',
             speaker,
-            medium: block.medium || 'direct',
-            delivery: block.delivery || 'spoken',
-            target: block.target || 'addressed',
+            medium: (block.medium as AcousticMedium) || 'direct',
+            delivery: (block.delivery as VocalDelivery) || 'spoken',
+            target: (block.target as VocalizationTarget) || 'addressed',
             interrupted,
             ...(acousticSourceNodeId ? { acousticSourceNodeId } : {}),
             content,
@@ -411,14 +424,17 @@ export function validateAndNormalizeVocalization(
             normalizedBlocks.push({
               type: 'prose',
               content,
+              medium: 'direct',
+              delivery: 'spoken',
+              target: 'addressed',
+              interrupted: false,
             });
           } else {
             normalizedBlocks.push({
-              ...block,
               type: auditoryContext.isSolitary ? 'soliloquy' : 'dialogue',
               speaker: activeName,
               medium: 'direct',
-              delivery: block.delivery || 'spoken',
+              delivery: (block.delivery as VocalDelivery) || 'spoken',
               target: auditoryContext.isSolitary ? 'self' : 'cohort',
               interrupted,
               content,
@@ -435,11 +451,10 @@ export function validateAndNormalizeVocalization(
         if (auditoryContext.isSolitary || isMuttering) {
           dialogueCount -= 1;
           normalizedBlocks.push({
-            ...block,
             type: 'soliloquy',
             speaker: activeName,
             medium: 'direct',
-            delivery: block.delivery || 'mutter',
+            delivery: (block.delivery as VocalDelivery) || 'mutter',
             target: 'self',
             interrupted,
             content,
@@ -468,12 +483,11 @@ export function validateAndNormalizeVocalization(
 
       if (castMember.isPresent) {
         normalizedBlocks.push({
-          ...block,
           type: 'dialogue',
           speaker: activeName,
-          medium: block.medium || 'direct',
-          delivery: block.delivery || 'spoken',
-          target: block.target || 'addressed',
+          medium: (block.medium as AcousticMedium) || 'direct',
+          delivery: (block.delivery as VocalDelivery) || 'spoken',
+          target: (block.target as VocalizationTarget) || 'addressed',
           interrupted,
           content,
         });
@@ -483,12 +497,11 @@ export function validateAndNormalizeVocalization(
       // If !castMember.isPresent:
       if (arrivedCastIds?.has(castMember.id)) {
         normalizedBlocks.push({
-          ...block,
           type: 'dialogue',
           speaker: activeName,
-          medium: block.medium || 'direct',
-          delivery: block.delivery || 'spoken',
-          target: block.target || 'addressed',
+          medium: (block.medium as AcousticMedium) || 'direct',
+          delivery: (block.delivery as VocalDelivery) || 'spoken',
+          target: (block.target as VocalizationTarget) || 'addressed',
           interrupted,
           content,
         });
@@ -499,12 +512,11 @@ export function validateAndNormalizeVocalization(
         const medium =
           auditoryContext.remoteChannelMedium === 'intercom' ? 'intercom' : 'radio';
         normalizedBlocks.push({
-          ...block,
           type: 'dialogue',
           speaker: activeName,
           medium,
-          delivery: block.delivery || 'spoken',
-          target: block.target || 'addressed',
+          delivery: (block.delivery as VocalDelivery) || 'spoken',
+          target: (block.target as VocalizationTarget) || 'addressed',
           interrupted,
           content,
         });
@@ -521,11 +533,10 @@ export function validateAndNormalizeVocalization(
             : 'acoustic_bleed';
 
       normalizedBlocks.push({
-        ...block,
         type: 'transmission',
         speaker: activeName,
         medium,
-        delivery: block.delivery || 'mutter',
+        delivery: (block.delivery as VocalDelivery) || 'mutter',
         target: 'unseen',
         interrupted,
         ...(acousticSourceNodeId ? { acousticSourceNodeId } : {}),
@@ -535,20 +546,19 @@ export function validateAndNormalizeVocalization(
     }
 
     if (type === 'transmission' || type === 'system_voice') {
-      let speaker = typeof block.speaker === 'string' ? block.speaker.trim() : '';
+      const speaker = typeof block.speaker === 'string' ? block.speaker.trim() : '';
       const content = formatContentWithInterruption(
         cleanSpeakerContent(block.content, speaker),
         interrupted
       );
-      const medium = block.medium || (type === 'system_voice' ? 'intercom' : 'radio');
+      const medium = (block.medium as AcousticMedium) || (type === 'system_voice' ? 'intercom' : 'radio');
 
       normalizedBlocks.push({
-        ...block,
         type,
         speaker: speaker || (type === 'system_voice' ? 'Automated Voice' : null),
         medium,
-        delivery: block.delivery || (type === 'system_voice' ? 'synthetic' : 'spoken'),
-        target: block.target || 'broadcast',
+        delivery: (block.delivery as VocalDelivery) || (type === 'system_voice' ? 'synthetic' : 'spoken'),
+        target: (block.target as VocalizationTarget) || 'broadcast',
         interrupted,
         ...(acousticSourceNodeId ? { acousticSourceNodeId } : {}),
         content,
@@ -558,7 +568,6 @@ export function validateAndNormalizeVocalization(
 
     if (type === 'prose' || type === 'environmental_description') {
       normalizedBlocks.push({
-        ...block,
         type,
         speaker: null,
         medium: 'direct',
@@ -572,7 +581,7 @@ export function validateAndNormalizeVocalization(
 
     // Passthrough: the block already carried a valid vocalization shape and
     // required no normalization in this loop.
-    normalizedBlocks.push(block as VocalizationBlock);
+    normalizedBlocks.push(block as unknown as VocalizationBlock);
   }
 
   return { error: null, normalizedBlocks };

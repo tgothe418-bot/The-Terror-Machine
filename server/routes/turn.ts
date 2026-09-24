@@ -1,9 +1,10 @@
-import { Router, Response } from 'express';
+import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { SseStream } from '../utils/sse';
 import {
   TurnRequestSchema,
   type TurnResult,
+  type NarrativeBlock,
   TurnResponse,
   normalizeParticipationContext,
   type EngineTurnContext,
@@ -389,7 +390,7 @@ export {
 };
 
 export function validateDialogueBlocks(
-  blocks: Array<{ type: string; speaker?: string | null; [key: string]: any }>,
+  blocks: Array<{ type: string; speaker?: string | null; [key: string]: unknown }>,
   context: EngineTurnContext,
   explicitlyAddressedSpeakerId: string | null = null,
   userAction?: string,
@@ -518,61 +519,69 @@ export function formatCastLedger(context: EngineTurnContext): string {
 
 export function normalizeTurnRequestPayload(body: unknown): unknown {
   if (!body || typeof body !== 'object') return body;
-  const payload = body as Record<string, any>;
+  const payload = body as Record<string, unknown>;
 
-  const sanitizeParticipation = (pc: any) => {
+  const sanitizeParticipation = (pc: unknown) => {
     if (!pc || typeof pc !== 'object') return;
-    if (pc.seat && typeof pc.seat === 'object') {
-      if (typeof pc.seat.ability === 'string' && pc.seat.ability.length > 2500) {
-        pc.seat.ability = pc.seat.ability.trim().slice(0, 2500);
+    const p = pc as Record<string, unknown>;
+    if (p.seat && typeof p.seat === 'object') {
+      const seat = p.seat as Record<string, unknown>;
+      if (typeof seat.ability === 'string' && seat.ability.length > 2500) {
+        seat.ability = seat.ability.trim().slice(0, 2500);
       }
-      if (typeof pc.seat.limitation === 'string' && pc.seat.limitation.length > 2500) {
-        pc.seat.limitation = pc.seat.limitation.trim().slice(0, 2500);
-      }
-    }
-    if (pc.authorityContract && typeof pc.authorityContract === 'object') {
-      if (typeof pc.authorityContract.authority === 'string' && pc.authorityContract.authority.length > 2500) {
-        pc.authorityContract.authority = pc.authorityContract.authority.trim().slice(0, 2500);
-      }
-      if (typeof pc.authorityContract.limits === 'string' && pc.authorityContract.limits.length > 2500) {
-        pc.authorityContract.limits = pc.authorityContract.limits.trim().slice(0, 2500);
+      if (typeof seat.limitation === 'string' && seat.limitation.length > 2500) {
+        seat.limitation = seat.limitation.trim().slice(0, 2500);
       }
     }
-    if (pc.victimField && typeof pc.victimField === 'object') {
-      if (typeof pc.victimField.description === 'string' && pc.victimField.description.length > 300) {
-        pc.victimField.description = pc.victimField.description.trim().slice(0, 300);
+    if (p.authorityContract && typeof p.authorityContract === 'object') {
+      const auth = p.authorityContract as Record<string, unknown>;
+      if (typeof auth.authority === 'string' && auth.authority.length > 2500) {
+        auth.authority = auth.authority.trim().slice(0, 2500);
       }
-      if (typeof pc.victimField.goal === 'string' && pc.victimField.goal.length > 200) {
-        pc.victimField.goal = pc.victimField.goal.trim().slice(0, 200);
+      if (typeof auth.limits === 'string' && auth.limits.length > 2500) {
+        auth.limits = auth.limits.trim().slice(0, 2500);
       }
-      if (typeof pc.victimField.knownFact === 'string' && pc.victimField.knownFact.length > 200) {
-        pc.victimField.knownFact = pc.victimField.knownFact.trim().slice(0, 200);
+    }
+    if (p.victimField && typeof p.victimField === 'object') {
+      const vf = p.victimField as Record<string, unknown>;
+      if (typeof vf.description === 'string' && vf.description.length > 300) {
+        vf.description = vf.description.trim().slice(0, 300);
       }
-      if (Array.isArray(pc.victimField.members)) {
-        for (const m of pc.victimField.members) {
+      if (typeof vf.goal === 'string' && vf.goal.length > 200) {
+        vf.goal = vf.goal.trim().slice(0, 200);
+      }
+      if (typeof vf.knownFact === 'string' && vf.knownFact.length > 200) {
+        vf.knownFact = vf.knownFact.trim().slice(0, 200);
+      }
+      if (Array.isArray(vf.members)) {
+        for (const m of vf.members) {
           if (m && typeof m === 'object') {
-            if (typeof m.description === 'string' && m.description.length > 300) {
-              m.description = m.description.trim().slice(0, 300);
+            const mem = m as Record<string, unknown>;
+            if (typeof mem.description === 'string' && mem.description.length > 300) {
+              mem.description = mem.description.trim().slice(0, 300);
             }
-            if (typeof m.goal === 'string' && m.goal.length > 200) {
-              m.goal = m.goal.trim().slice(0, 200);
+            if (typeof mem.goal === 'string' && mem.goal.length > 200) {
+              mem.goal = mem.goal.trim().slice(0, 200);
             }
-            if (typeof m.knownFact === 'string' && m.knownFact.length > 200) {
-              m.knownFact = m.knownFact.trim().slice(0, 200);
+            if (typeof mem.knownFact === 'string' && mem.knownFact.length > 200) {
+              mem.knownFact = mem.knownFact.trim().slice(0, 200);
             }
           }
         }
       }
     }
-    if (Array.isArray(pc.boundedFacts)) {
-      pc.boundedFacts = pc.boundedFacts.map((f: any) =>
+    if (Array.isArray(p.boundedFacts)) {
+      p.boundedFacts = p.boundedFacts.map((f: unknown) =>
         typeof f === 'string' ? f.trim().slice(0, 250) : f
       );
     }
   };
 
-  if (payload.context && typeof payload.context === 'object' && payload.context.participationContext) {
-    sanitizeParticipation(payload.context.participationContext);
+  if (payload.context && typeof payload.context === 'object') {
+    const ctx = payload.context as Record<string, unknown>;
+    if (ctx.participationContext) {
+      sanitizeParticipation(ctx.participationContext);
+    }
   }
   if (payload.participationContext) {
     sanitizeParticipation(payload.participationContext);
@@ -583,7 +592,7 @@ export function normalizeTurnRequestPayload(body: unknown): unknown {
 
 export interface ProcessTurnResult {
   finalResponse: TurnResponse;
-  composedNarrativeBlocks: Array<{ type: string; content?: string; speaker?: string | null; [key: string]: any }>;
+  composedNarrativeBlocks: NarrativeBlock[];
 }
 
 export async function processTurnExecution(
@@ -599,7 +608,7 @@ export async function processTurnExecution(
   } = parsedRequest;
 
   if (!context.horrorGrammar) {
-    const err: any = new Error('Invalid turn request: context.horrorGrammar is required for Engine turn processing');
+    const err = new Error('Invalid turn request: context.horrorGrammar is required for Engine turn processing') as Error & { code?: string };
     err.code = 'MISSING_HORROR_GRAMMAR_CONTEXT';
     throw err;
   }
@@ -1437,13 +1446,15 @@ ${recentHistory}
     }
   }
 
+  const stateCtx = stateContext as Record<string, unknown> | undefined;
+  const runtimeCtx = context.runtime as Record<string, unknown> | undefined;
   const isLastTransitionRejected = Boolean(
-    (stateContext as any)?.lastTransitionRejected ||
-    (stateContext as any)?.lastTransitionBlocked ||
-    (stateContext as any)?.lastTransition?.accepted === false ||
-    (context.runtime as any)?.lastTransitionRejected ||
-    (context.runtime as any)?.lastTransitionBlocked ||
-    (context.runtime as any)?.lastTransition?.accepted === false
+    stateCtx?.lastTransitionRejected ||
+    stateCtx?.lastTransitionBlocked ||
+    (stateCtx?.lastTransition as Record<string, unknown> | undefined)?.accepted === false ||
+    runtimeCtx?.lastTransitionRejected ||
+    runtimeCtx?.lastTransitionBlocked ||
+    (runtimeCtx?.lastTransition as Record<string, unknown> | undefined)?.accepted === false
   );
 
   const navigationNote = isLastTransitionRejected
@@ -1529,7 +1540,7 @@ ${recentHistory}
 
     if (dialogueContractError) {
       console.error('[API /turn] Model dialogue contract mismatch:', dialogueContractError);
-      const err: any = new Error('Model output violated dialogue contract');
+      const err = new Error('Model output violated dialogue contract') as Error & { code?: string };
       err.code = 'DIALOGUE_CONTRACT_VIOLATION';
       throw err;
     }
@@ -1746,9 +1757,9 @@ ${recentHistory}
         '[HG2 GOVERNOR OUTPUT INVALID] Pacing governor produced schema-invalid dramaturgy state; failing turn closed.',
         JSON.stringify(dramaticOutputCheck.error.issues.slice(0, 4))
       );
-      const err: any = new Error(
+      const err = new Error(
         'The pacing governor produced invalid dramaturgy state. The turn was refused and canonical state is unchanged.'
-      );
+      ) as Error & { code?: string };
       err.code = 'DRAMATURGY_STATE_INVALID';
       throw err;
     }
@@ -1756,20 +1767,20 @@ ${recentHistory}
     const dramaticTurnReceipt: DramaticTurnReceipt = dramaticGovResult.receipt;
 
     // 6. Isolated narrative composition
-    const composedNarrativeBlocks = [...boundedResult.narrative_blocks];
+    const composedNarrativeBlocks: NarrativeBlock[] = [...boundedResult.narrative_blocks];
     if (
       castActivityProposalReceipt.admittedManifestation &&
       engineResponse.cast_activity_proposal?.kind === 'ACTIVITY' &&
       engineResponse.cast_activity_proposal.manifestationBlock
     ) {
-      composedNarrativeBlocks.push(engineResponse.cast_activity_proposal.manifestationBlock as any);
+      composedNarrativeBlocks.push(engineResponse.cast_activity_proposal.manifestationBlock as unknown as NarrativeBlock);
     }
     if (
       situatedPressureReceipt.admittedManifestation &&
       engineResponse.situated_pressure_proposal?.kind === 'PRESSURE' &&
       engineResponse.situated_pressure_proposal.manifestationBlock
     ) {
-      composedNarrativeBlocks.push(engineResponse.situated_pressure_proposal.manifestationBlock as any);
+      composedNarrativeBlocks.push(engineResponse.situated_pressure_proposal.manifestationBlock as unknown as NarrativeBlock);
     }
 
     // 7. Build typed developer forensic record (Packet 1-8)
@@ -1817,7 +1828,7 @@ ${recentHistory}
     };
 
     const presentOpportunityIds = (hgContext.presentActorOpportunities || []).map(
-      (o: any) => o.opportunityId || `opp-present-${o.castMemberId}`
+      (o: { opportunityId?: string; castMemberId?: string }) => o.opportunityId || `opp-present-${o.castMemberId}`
     );
     const selectedOffscreenPursuitIds = (hgContext.offscreenPursuitOpportunities || [])
       .map((o) => o.pursuitId)
@@ -2020,7 +2031,7 @@ turnRouter.post('/', async (req, res) => {
   }
 });
 
-export async function handleStreamTurnRequest(req: any, res: Response) {
+export async function handleStreamTurnRequest(req: Request, res: Response) {
   let parsedRequest;
   try {
     normalizeTurnRequestPayload(req.body);
@@ -2061,42 +2072,43 @@ export async function handleStreamTurnRequest(req: any, res: Response) {
     }
 
     sse.complete(finalResponse);
-  } catch (error: any) {
-    let errorCode = (error as { code?: string })?.code || 'PROVIDER_FAILURE';
+  } catch (error: unknown) {
+    const errObj = error as { code?: string; name?: string; message?: string; issues?: z.ZodIssue[] } | null | undefined;
+    let errorCode = errObj?.code || 'PROVIDER_FAILURE';
     let errorMessage = 'AI provider turn generation failed';
-    let diagnostics: any[] = [];
+    let diagnostics: unknown[] = [];
 
-    if (error instanceof ProviderPrepaymentDepletedError || error?.code === 'PREPAYMENT_DEPLETED') {
+    if (error instanceof ProviderPrepaymentDepletedError || errObj?.code === 'PREPAYMENT_DEPLETED') {
       errorCode = 'PREPAYMENT_DEPLETED';
       errorMessage = 'Google AI Studio prepayment credits are depleted. Switch to an unpaid Free Tier project key or add credits in AI Studio.';
-    } else if (error instanceof ProviderRateLimitError || error?.code === 'RATE_LIMIT_EXCEEDED') {
+    } else if (error instanceof ProviderRateLimitError || errObj?.code === 'RATE_LIMIT_EXCEEDED') {
       errorCode = 'RATE_LIMIT_EXCEEDED';
       errorMessage = 'AI provider rate limit reached (15 RPM on Free Tier). Please wait a few seconds before retrying.';
-    } else if (error instanceof ProviderCapacityError || error?.code === 'PROVIDER_HIGH_DEMAND') {
+    } else if (error instanceof ProviderCapacityError || errObj?.code === 'PROVIDER_HIGH_DEMAND') {
       errorCode = 'PROVIDER_HIGH_DEMAND';
       errorMessage = 'AI provider is currently experiencing high demand. Please retry in a few moments.';
-    } else if (error instanceof ProviderRefusalError || error?.code === 'PROVIDER_REFUSAL') {
+    } else if (error instanceof ProviderRefusalError || errObj?.code === 'PROVIDER_REFUSAL') {
       errorCode = 'PROVIDER_REFUSAL';
       errorMessage = 'AI provider declined turn generation';
-    } else if (error instanceof EmptyProviderResponseError || error?.code === 'EMPTY_PROVIDER_RESPONSE') {
+    } else if (error instanceof EmptyProviderResponseError || errObj?.code === 'EMPTY_PROVIDER_RESPONSE') {
       errorCode = 'PROVIDER_FAILURE';
-      errorMessage = error?.message || 'AI provider returned an empty response';
-    } else if (error instanceof ProviderRequestRejectedError || error?.code === 'PROVIDER_REQUEST_REJECTED') {
+      errorMessage = errObj?.message || 'AI provider returned an empty response';
+    } else if (error instanceof ProviderRequestRejectedError || errObj?.code === 'PROVIDER_REQUEST_REJECTED') {
       errorCode = 'PROVIDER_REQUEST_REJECTED';
-      errorMessage = error?.message || 'AI provider rejected the turn generation request';
-    } else if (error instanceof z.ZodError || error?.name === 'ZodError') {
+      errorMessage = errObj?.message || 'AI provider rejected the turn generation request';
+    } else if (error instanceof z.ZodError || errObj?.name === 'ZodError') {
       errorCode = 'MODEL_CONTRACT_MISMATCH';
       errorMessage = 'Model output violated schema contract';
-      diagnostics = buildZodDiagnostics(error instanceof z.ZodError ? error : new z.ZodError(error.issues || [])).issues;
+      diagnostics = buildZodDiagnostics(error instanceof z.ZodError ? error : new z.ZodError(errObj?.issues || [])).issues;
     } else if (error instanceof SyntaxError) {
       errorCode = 'MODEL_CONTRACT_MISMATCH';
       errorMessage = 'Model output violated schema contract';
       diagnostics = buildJsonParseDiagnostics().issues;
-    } else if (error?.code === 'DIALOGUE_CONTRACT_VIOLATION') {
+    } else if (errObj?.code === 'DIALOGUE_CONTRACT_VIOLATION') {
       errorCode = 'MODEL_CONTRACT_MISMATCH';
       errorMessage = 'Model output violated dialogue contract';
       diagnostics = buildDialogueDiagnostics().issues;
-    } else if (error?.code === 'DRAMATURGY_STATE_INVALID') {
+    } else if (errObj?.code === 'DRAMATURGY_STATE_INVALID') {
       errorCode = 'DRAMATURGY_STATE_INVALID';
       errorMessage = 'The pacing governor produced invalid dramaturgy state. The turn was refused and canonical state is unchanged.';
     }

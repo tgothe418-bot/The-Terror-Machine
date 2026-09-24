@@ -4,11 +4,12 @@ import { normalizeBlueprint } from '../../lib/normalizeBlueprint';
 import { resolveSeatAvailabilities } from '../../lib/seatAvailability';
 import { buildCharacterPresence } from '../../lib/castPresence';
 import { DramaticSpineSchema } from '../../types/dramaturgy';
+import type { ParticipationMode } from '../../types/participation';
 import theRefinement from './the_refinement.json';
 
 describe('Bespoke Test Blueprint: The Refinement', () => {
   it('validates cleanly against BlueprintSchema and normalizeBlueprint', () => {
-    const normalized = normalizeBlueprint(theRefinement as any);
+    const normalized = normalizeBlueprint(theRefinement);
     expect(normalized.title).toBe('The Refinement');
     const parsed = BlueprintSchema.parse(normalized);
     expect(parsed.id).toBe('blueprint-the-refinement');
@@ -18,34 +19,34 @@ describe('Bespoke Test Blueprint: The Refinement', () => {
   });
 
   it('authors the full role semantics: two villains, five survivors, one bystander', () => {
-    const normalized = normalizeBlueprint(theRefinement as any);
-    const dispositions = normalized.cast.map((c: any) => c.disposition);
+    const normalized = normalizeBlueprint(theRefinement);
+    const dispositions = normalized.cast.map((c) => c.disposition);
     expect(dispositions.filter((d: string) => d === 'VILLAIN')).toHaveLength(2);
     expect(dispositions.filter((d: string) => d === 'SURVIVOR')).toHaveLength(5);
     expect(dispositions.filter((d: string) => d === 'BYSTANDER')).toHaveLength(1);
   });
 
   it('carries voice dossiers and psychological stakes on every cast member', () => {
-    const normalized = normalizeBlueprint(theRefinement as any);
+    const normalized = normalizeBlueprint(theRefinement);
     for (const member of normalized.cast) {
       expect(member.expressionProfile).toBeDefined();
-      expect(member.expressionProfile.expressionGuidance.length).toBeGreaterThan(0);
+      expect(member.expressionProfile?.expressionGuidance.length).toBeGreaterThan(0);
       expect(member.psychologicalStakes).toBeDefined();
-      expect(member.psychologicalStakes.breakingPointTrigger.length).toBeGreaterThan(0);
+      expect(member.psychologicalStakes?.breakingPointTrigger.length).toBeGreaterThan(0);
     }
-    const villain = normalized.cast.find((c: any) => c.id === 'char-aleksander-morel');
-    expect(villain.expressionProfile.camouflageLeakGuidance).toContain('operational');
+    const villain = normalized.cast.find((c) => c.id === 'char-aleksander-morel');
+    expect(villain?.expressionProfile?.camouflageLeakGuidance).toContain('operational');
   });
 
   it('applies contentScale 5 and extreme content descriptor', () => {
-    const normalized = normalizeBlueprint(theRefinement as any);
+    const normalized = normalizeBlueprint(theRefinement);
     const parsed = BlueprintSchema.parse(normalized);
     expect(parsed.contentScale).toBe(5);
     expect(parsed.contentLevelDescription).toContain('Extreme');
   });
 
   it('parses the dramatic spine with clocks across TIME and EVENT modes', () => {
-    const normalized = normalizeBlueprint(theRefinement as any);
+    const normalized = normalizeBlueprint(theRefinement);
     const spine = DramaticSpineSchema.parse(normalized.dramaticSpine);
     const modes = spine.impendingClocks.map((c) => c.advanceMode.mode);
     expect(modes).toContain('TIME');
@@ -65,7 +66,7 @@ describe('Bespoke Test Blueprint: The Refinement', () => {
   });
 
   it('resolves valid seats for all three participation roles', () => {
-    const normalized = normalizeBlueprint(theRefinement as any);
+    const normalized = normalizeBlueprint(theRefinement);
     const seats = resolveSeatAvailabilities(normalized);
     expect(seats.protagonist.available).toBe(true);
     expect(seats.antagonist.available).toBe(true);
@@ -73,7 +74,7 @@ describe('Bespoke Test Blueprint: The Refinement', () => {
   });
 
   it('resolves co-present cast (HERE) at every authored placement node', () => {
-    const normalized = normalizeBlueprint(theRefinement as any);
+    const normalized = normalizeBlueprint(theRefinement);
     const nodeIds: string[] = normalized.topology.nodes;
 
     const presenceAt = (nodeId: string): string[] => {
@@ -123,11 +124,11 @@ describe('Bespoke Test Blueprint: The Refinement', () => {
   it('constructs valid participation contexts and victim fields that pass TurnRequest validation for all roles', async () => {
     const { buildActiveParticipationContext } = await import('../../lib/seatAvailability');
     const { ParticipationContextSchema } = await import('../../types/participation');
-    const normalized = normalizeBlueprint(theRefinement as any);
-    const roles = ['protagonist', 'antagonist', 'director', 'survivor', 'villain'] as const;
+    const normalized = normalizeBlueprint(theRefinement);
+    const roles: readonly ParticipationMode[] = ['protagonist', 'antagonist', 'director', 'survivor', 'villain'] as const;
 
     for (const role of roles) {
-      const participationContext = buildActiveParticipationContext(normalized, role as any);
+      const participationContext = buildActiveParticipationContext(normalized, role);
       const parsedContext = ParticipationContextSchema.safeParse(participationContext);
       expect(parsedContext.success, `Role ${role} participationContext must be valid: ${JSON.stringify(parsedContext.error?.issues)}`).toBe(true);
     }

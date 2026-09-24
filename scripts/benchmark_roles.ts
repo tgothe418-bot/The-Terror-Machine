@@ -213,7 +213,16 @@ Return a JSON object with:
       });
 
       const elapsed = Date.now() - turnStart;
-      const parsed = parseOrRepairJson<any>(responseText);
+      interface RoleTurnParsed {
+        narration?: string;
+        socialFriction?: string;
+        castReaction?: string;
+        civilianSelfPreservation?: string;
+        environmentalContrast?: string;
+        psychologicalDread?: string;
+        batemanResponse?: string;
+      }
+      const parsed = parseOrRepairJson<RoleTurnParsed>(responseText);
 
       console.log(`Latency: ${elapsed}ms`);
       console.log(`[NARRATION]:\n${parsed?.narration || responseText}\n`);
@@ -233,8 +242,8 @@ Return a JSON object with:
         castReaction: parsed?.castReaction || parsed?.batemanResponse,
         latencyMs: elapsed,
       });
-    } catch (err: any) {
-      console.error(`ERROR running turn for ${run.role}:`, err.message);
+    } catch (err: unknown) {
+      console.error(`ERROR running turn for ${run.role}:`, err instanceof Error ? err.message : String(err));
     }
   }
 

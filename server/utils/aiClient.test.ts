@@ -40,6 +40,15 @@ import {
   PRESSURE_THREAD_TERMINAL_STATUSES,
 } from '../../src/types/horrorGrammar';
 
+interface NormalizedTurnPayload {
+  narrative_blocks?: Array<Record<string, unknown>>;
+  character_stance_proposal?: { changes?: unknown[] };
+  character_relationship_proposal?: { changes?: unknown[] };
+  character_memory_proposal?: { candidates?: unknown[] };
+  situated_pressure_proposal?: Record<string, unknown>;
+  cast_activity_proposal?: Record<string, unknown>;
+}
+
 const { originalGeminiKey } = vi.hoisted(() => {
   const originalGeminiKey = process.env.GEMINI_API_KEY;
   process.env.GEMINI_API_KEY = 'ttm-hg1-test-only-key';
@@ -1171,11 +1180,11 @@ describe('classifyProviderResponse', () => {
         },
       };
 
-      const normalized = normalizeGeminiTurnProviderPayload(payload) as any;
+      const normalized = normalizeGeminiTurnProviderPayload(payload) as unknown as NormalizedTurnPayload;
       expect(normalized.narrative_blocks).toHaveLength(3);
-      expect(normalized.character_stance_proposal.changes).toHaveLength(2);
-      expect(normalized.character_relationship_proposal.changes).toHaveLength(2);
-      expect(normalized.character_memory_proposal.candidates).toHaveLength(2);
+      expect(normalized.character_stance_proposal?.changes).toHaveLength(2);
+      expect(normalized.character_relationship_proposal?.changes).toHaveLength(2);
+      expect(normalized.character_memory_proposal?.candidates).toHaveLength(2);
     });
 
     it('normalizes snake_case keys and fills missing proposalId for situated_pressure_proposal', () => {
@@ -1193,14 +1202,14 @@ describe('classifyProviderResponse', () => {
         },
       };
 
-      const normalized = normalizeGeminiTurnProviderPayload(payload) as any;
-      expect(normalized.situated_pressure_proposal.kind).toBe('PRESSURE');
-      expect(normalized.situated_pressure_proposal.proposalId).toBe('pressure-proposal-1');
-      expect(normalized.situated_pressure_proposal.valueAnchorId).toBe('anchor-integrity');
-      expect(normalized.situated_pressure_proposal.sourceReference).toBe('leaking conduit');
-      expect(normalized.situated_pressure_proposal.operator).toBe('ESCALATE');
-      expect(normalized.situated_pressure_proposal.affectedDimension).toBe('SURVIVAL');
-      expect(normalized.situated_pressure_proposal.persistenceTarget).toBe('UNTIL_RESOLVED');
+      const normalized = normalizeGeminiTurnProviderPayload(payload) as unknown as NormalizedTurnPayload;
+      expect(normalized.situated_pressure_proposal?.kind).toBe('PRESSURE');
+      expect(normalized.situated_pressure_proposal?.proposalId).toBe('pressure-proposal-1');
+      expect(normalized.situated_pressure_proposal?.valueAnchorId).toBe('anchor-integrity');
+      expect(normalized.situated_pressure_proposal?.sourceReference).toBe('leaking conduit');
+      expect(normalized.situated_pressure_proposal?.operator).toBe('ESCALATE');
+      expect(normalized.situated_pressure_proposal?.affectedDimension).toBe('SURVIVAL');
+      expect(normalized.situated_pressure_proposal?.persistenceTarget).toBe('UNTIL_RESOLVED');
     });
 
     it('generates fallback proposalId if missing from valid situated_pressure_proposal', () => {
@@ -1217,10 +1226,10 @@ describe('classifyProviderResponse', () => {
         },
       };
 
-      const normalized = normalizeGeminiTurnProviderPayload(payload) as any;
-      expect(normalized.situated_pressure_proposal.kind).toBe('PRESSURE');
-      expect(typeof normalized.situated_pressure_proposal.proposalId).toBe('string');
-      expect(normalized.situated_pressure_proposal.proposalId).toMatch(/^prop-press-/);
+      const normalized = normalizeGeminiTurnProviderPayload(payload) as unknown as NormalizedTurnPayload;
+      expect(normalized.situated_pressure_proposal?.kind).toBe('PRESSURE');
+      expect(typeof normalized.situated_pressure_proposal?.proposalId).toBe('string');
+      expect(normalized.situated_pressure_proposal?.proposalId as string).toMatch(/^prop-press-/);
     });
 
     it('retains PRESSURE kind for incomplete situated_pressure_proposal allowing schema validation to fail closed', () => {
@@ -1232,8 +1241,8 @@ describe('classifyProviderResponse', () => {
         },
       };
 
-      const normalized = normalizeGeminiTurnProviderPayload(payload) as any;
-      expect(normalized.situated_pressure_proposal.kind).toBe('PRESSURE');
+      const normalized = normalizeGeminiTurnProviderPayload(payload) as unknown as NormalizedTurnPayload;
+      expect(normalized.situated_pressure_proposal?.kind).toBe('PRESSURE');
     });
 
     it('normalizes snake_case keys and fills missing proposalId for cast_activity_proposal', () => {
@@ -1249,15 +1258,15 @@ describe('classifyProviderResponse', () => {
         },
       };
 
-      const normalized = normalizeGeminiTurnProviderPayload(payload) as any;
-      expect(normalized.cast_activity_proposal.kind).toBe('ACTIVITY');
-      expect(typeof normalized.cast_activity_proposal.proposalId).toBe('string');
-      expect(normalized.cast_activity_proposal.proposalId).toMatch(/^prop-act-/);
-      expect(normalized.cast_activity_proposal.castMemberId).toBe('char-gorrister');
-      expect(normalized.cast_activity_proposal.pursuitId).toBe('pursuit-escape');
-      expect(normalized.cast_activity_proposal.locationNodeId).toBe('node-generator');
-      expect(normalized.cast_activity_proposal.perceptionPath).toBe('DIRECT');
-      expect(normalized.cast_activity_proposal.activitySummary).toBe('Banging on rusted pipe');
+      const normalized = normalizeGeminiTurnProviderPayload(payload) as unknown as NormalizedTurnPayload;
+      expect(normalized.cast_activity_proposal?.kind).toBe('ACTIVITY');
+      expect(typeof normalized.cast_activity_proposal?.proposalId).toBe('string');
+      expect(normalized.cast_activity_proposal?.proposalId as string).toMatch(/^prop-act-/);
+      expect(normalized.cast_activity_proposal?.castMemberId).toBe('char-gorrister');
+      expect(normalized.cast_activity_proposal?.pursuitId).toBe('pursuit-escape');
+      expect(normalized.cast_activity_proposal?.locationNodeId).toBe('node-generator');
+      expect(normalized.cast_activity_proposal?.perceptionPath).toBe('DIRECT');
+      expect(normalized.cast_activity_proposal?.activitySummary).toBe('Banging on rusted pipe');
     });
 
     it('normalizes perceptionPath variants, sensory synonyms, and empty IDs', () => {
@@ -1281,10 +1290,10 @@ describe('classifyProviderResponse', () => {
         },
       };
 
-      const normalized = normalizeGeminiTurnProviderPayload(payload) as any;
-      expect(normalized.cast_activity_proposal.locationNodeId).toBeNull();
-      expect(normalized.cast_activity_proposal.pursuitId).toBeNull();
-      expect(normalized.cast_activity_proposal.perceptionPath).toBe('DIRECT');
+      const normalized = normalizeGeminiTurnProviderPayload(payload) as unknown as NormalizedTurnPayload;
+      expect(normalized.cast_activity_proposal?.locationNodeId).toBeNull();
+      expect(normalized.cast_activity_proposal?.pursuitId).toBeNull();
+      expect(normalized.cast_activity_proposal?.perceptionPath).toBe('DIRECT');
     });
 
     it('normalizes situated pressure operator and dimensions to OTHER when non-standard', () => {
@@ -1305,8 +1314,8 @@ describe('classifyProviderResponse', () => {
         },
       };
 
-      const normalized = normalizeGeminiTurnProviderPayload(payload) as any;
-      expect(normalized.cast_activity_proposal.kind).toBe('ACTIVITY');
+      const normalized = normalizeGeminiTurnProviderPayload(payload) as unknown as NormalizedTurnPayload;
+      expect(normalized.cast_activity_proposal?.kind).toBe('ACTIVITY');
     });
 
     it('normalizes dialogue blocks without a speaker to type prose', () => {
@@ -1324,9 +1333,9 @@ describe('classifyProviderResponse', () => {
         ],
       };
 
-      const normalized = normalizeGeminiTurnProviderPayload(payload) as any;
+      const normalized = normalizeGeminiTurnProviderPayload(payload) as unknown as NormalizedTurnPayload;
       expect(normalized.narrative_blocks).toHaveLength(2);
-      expect(normalized.narrative_blocks[1]).toEqual({
+      expect(normalized.narrative_blocks?.[1]).toEqual({
         type: 'prose',
         content: 'Is anyone there?',
       });
@@ -1491,11 +1500,11 @@ describe('classifyProviderResponse', () => {
 
 describe('aiClient structured response normalization context propagation', () => {
   it('wraps normalizeProviderPayload with normalizationContext on effectiveContract', async () => {
-    let capturedContext: any = null;
+    let capturedContext: unknown = null;
 
     const mockContract = {
-      zodSchema: { parse: (x: any) => x },
-      normalizeProviderPayload: (payload: any, ctx?: any) => {
+      zodSchema: { parse: (x: unknown) => x },
+      normalizeProviderPayload: (payload: unknown, ctx?: unknown) => {
         capturedContext = ctx;
         return payload;
       },

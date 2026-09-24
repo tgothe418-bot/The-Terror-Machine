@@ -290,7 +290,9 @@ describe('Seat Availability Resolver & Participation Context Builder', () => {
     expect(villainContext?.seat.name).toBe('Patrick Bateman');
     expect(villainContext?.authorityContract?.authority).toContain('stalk');
     expect(villainContext?.victimField?.kind).toBe('group');
-    expect(villainContext?.victimField?.members?.some((m) => m.name === 'Evelyn Williams')).toBe(true);
+    if (villainContext?.victimField?.kind === 'group') {
+      expect(villainContext.victimField.members?.some((m) => m.name === 'Evelyn Williams')).toBe(true);
+    }
 
     // Active context for Bystander
     const bystanderContext = buildActiveParticipationContext(
@@ -429,8 +431,10 @@ describe('Seat Availability Resolver & Participation Context Builder', () => {
       expect(context?.boundedFacts?.some((f) => f.includes('Maintain flawless facade'))).toBe(true);
       expect(context?.victimField).toBeDefined();
       expect(context?.victimField?.kind).toBe('group');
-      expect(context?.victimField?.members?.some((m) => m.name === 'Jean Secretary')).toBe(true);
-      expect(context?.victimField?.members?.some((m) => m.name === 'Donald Kimball')).toBe(true);
+      if (context?.victimField?.kind === 'group') {
+        expect(context.victimField.members?.some((m) => m.name === 'Jean Secretary')).toBe(true);
+        expect(context.victimField.members?.some((m) => m.name === 'Donald Kimball')).toBe(true);
+      }
     });
 
     it('builds active participation context for opposition antagonist with investigative framing', () => {

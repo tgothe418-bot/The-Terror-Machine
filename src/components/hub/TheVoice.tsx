@@ -24,10 +24,30 @@ interface VoiceRuntime {
   model: string;
 }
 
+interface LegacyAppStoreSimulationState {
+  activeBlueprint?: {
+    title?: string;
+    identity?: { title?: string };
+    topology?: {
+      nodes?: Array<{ id: string; name?: string }>;
+      nodeDefinitions?: Array<{ id: string; label?: string }>;
+    };
+    cast?: Array<{ id: string; name?: string }>;
+  };
+  activeSession?: {
+    dramaturgyState?: { macroPhase?: string };
+    currentChamberId?: string;
+    castPresence?: Record<string, string[]>;
+    characterStatuses?: Record<string, string>;
+    clocks?: Array<{ id: string; name: string; value: number; max: number }>;
+    manifestations?: string[];
+  };
+}
+
 export default function TheVoice({ engineState, isDocked = false, className = '' }: TheVoiceProps = {}) {
   const setPhase = useAppStore((state) => state.setPhase);
-  const activeBlueprint = useAppStore((state) => (state as any).activeBlueprint);
-  const activeSession = useAppStore((state) => (state as any).activeSession);
+  const activeBlueprint = useAppStore((state) => (state as unknown as LegacyAppStoreSimulationState).activeBlueprint);
+  const activeSession = useAppStore((state) => (state as unknown as LegacyAppStoreSimulationState).activeSession);
   const { messages, addMessage, clearHistory } = useVoiceStore();
   const [input, setInput] = useState('');
   const [attachments, setAttachments] = useState<Attachment[]>([]);
@@ -174,10 +194,10 @@ Vessel Cast Count: ${forgeState.draftBlueprint?.cast?.length || 0}
                 id: activeSession.currentChamberId || 'unknown',
                 name:
                   activeBlueprint.topology?.nodes?.find(
-                    (n: any) => n.id === activeSession.currentChamberId
+                    (n) => n.id === activeSession.currentChamberId
                   )?.name ||
                   activeBlueprint.topology?.nodeDefinitions?.find(
-                    (n: any) => n.id === activeSession.currentChamberId
+                    (n) => n.id === activeSession.currentChamberId
                   )?.label ||
                   activeSession.currentChamberId ||
                   'Unknown Chamber',
@@ -185,14 +205,14 @@ Vessel Cast Count: ${forgeState.draftBlueprint?.cast?.length || 0}
               coPresentCast: (
                 activeSession.castPresence?.[activeSession.currentChamberId] || []
               ).map((id: string) => {
-                const member = activeBlueprint.cast?.find((m: any) => m.id === id);
+                const member = activeBlueprint.cast?.find((m) => m.id === id);
                 return {
                   id,
                   name: member?.name || id,
                   status: activeSession.characterStatuses?.[id] || 'ALIVE',
                 };
               }),
-              activeClocks: (activeSession.clocks || []).map((clk: any) => ({
+              activeClocks: (activeSession.clocks || []).map((clk) => ({
                 id: clk.id,
                 name: clk.name,
                 value: clk.value,

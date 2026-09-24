@@ -154,7 +154,7 @@ describe('TheVoice — Live Telemetry Dispatch', () => {
   });
 
   it('packages active simulation telemetry when engine session exists', async () => {
-    (useAppStore.setState as any)({
+    (useAppStore.setState as unknown as (state: Record<string, unknown>) => void)({
       activeBlueprint: {
         title: 'The Black Iron Mortuary',
         topology: { nodes: [{ id: 'room-1', name: 'Cold Storage' }] },
@@ -217,7 +217,7 @@ describe('TheVoice — Live Telemetry Dispatch', () => {
   });
 
   it('sends undefined telemetry when no session is active', async () => {
-    (useAppStore.setState as any)({ activeBlueprint: null, activeSession: null });
+    (useAppStore.setState as unknown as (state: Record<string, unknown>) => void)({ activeBlueprint: null, activeSession: null });
 
     const fetchSpy = vi.spyOn(global, 'fetch').mockImplementation(async (input) => {
       const url = String(input);

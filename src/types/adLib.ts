@@ -1,7 +1,6 @@
 import { z } from 'zod';
 import {
   OppositionSeatSchema,
-  AuthorityContractSchema,
   VictimFieldSchema,
 } from './participation';
 

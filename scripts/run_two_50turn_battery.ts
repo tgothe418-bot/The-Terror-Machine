@@ -18,7 +18,7 @@ export interface TurnEvaluation {
   fidelityNotes: string[];
   qualityNotes: string[];
   accuracyNotes: string[];
-  meta: Record<string, any>;
+  meta: Record<string, unknown>;
   hasCriticalError: boolean;
   errorDetails?: string;
 }
@@ -195,7 +195,7 @@ const VILLAIN_ACTIONS_50: string[] = [
 function evaluateNarration(
   narration: string,
   role: string,
-  turn: number
+  _turn: number
 ): {
   fidelityScore: number;
   qualityScore: number;
@@ -204,6 +204,7 @@ function evaluateNarration(
   qualityNotes: string[];
   accuracyNotes: string[];
 } {
+  void _turn;
   const fNotes: string[] = [];
   const qNotes: string[] = [];
   const aNotes: string[] = [];
@@ -344,7 +345,11 @@ Return a valid JSON object with:
 
       const turnStart = Date.now();
       let rawOutput = '';
-      let parsed: any = null;
+      interface Battery50TurnOutput {
+        narration?: string;
+        [key: string]: unknown;
+      }
+      let parsed: Battery50TurnOutput | null = null;
       let turnError: string | undefined;
 
       try {
@@ -357,11 +362,11 @@ Return a valid JSON object with:
           timeoutMs: 45000,
         });
 
-        parsed = parseOrRepairJson<Record<string, any>>(rawOutput);
+        parsed = parseOrRepairJson<Battery50TurnOutput>(rawOutput);
         consecutiveErrors = 0;
-      } catch (err: any) {
+      } catch (err: unknown) {
         consecutiveErrors++;
-        turnError = err?.message || String(err);
+        turnError = err instanceof Error ? err.message : String(err);
         console.error(`  ! [ERROR on Turn ${t}]: ${turnError}`);
 
         if (consecutiveErrors >= 3 || turnError.includes('ECONNREFUSED') || turnError.includes('aborted')) {
@@ -516,8 +521,8 @@ function generateMarkdownReport(results: TestRunResult[]) {
       fs.mkdirSync(path.dirname(p), { recursive: true });
       fs.writeFileSync(p, md, 'utf-8');
       console.log(`[MARKDOWN REPORT WRITTEN]: ${p}`);
-    } catch (err: any) {
-      console.error(`Could not write markdown report to ${p}:`, err?.message);
+    } catch (err: unknown) {
+      console.error(`Could not write markdown report to ${p}:`, err instanceof Error ? err.message : String(err));
     }
   }
 }
@@ -736,8 +741,8 @@ function generateHtmlReport(results: TestRunResult[]) {
       fs.mkdirSync(path.dirname(p), { recursive: true });
       fs.writeFileSync(p, html, 'utf-8');
       console.log(`[HTML REPORT WRITTEN]: ${p}`);
-    } catch (err: any) {
-      console.error(`Could not write HTML report to ${p}:`, err?.message);
+    } catch (err: unknown) {
+      console.error(`Could not write HTML report to ${p}:`, err instanceof Error ? err.message : String(err));
     }
   }
 }

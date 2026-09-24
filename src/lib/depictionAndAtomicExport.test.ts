@@ -150,6 +150,7 @@ describe('Packet 1D-5: Automatic Depiction Contract & One-Action Export', () => 
             traits: ['methodical'],
             behaviorVector: 'cautious',
             isEntity: false,
+            disposition: 'SURVIVOR' as const,
             isUserCharacter: false,
             presenceDisposition: { kind: 'AT_NODE', nodeId: 'DRILL_CHAMBER' },
           },

@@ -425,7 +425,9 @@ export function unwrapStrictJsonResponse(text: string): string {
   try {
     JSON.parse(trimmed);
     return trimmed;
-  } catch {}
+  } catch {
+    // Fall through to code fence extraction
+  }
 
   // 2. Code fence extraction (```json ... ``` or ``` ... ```)
   const fenceRegex = /```(?:json)?\s*([\s\S]*?)\s*```/gi;
@@ -441,7 +443,9 @@ export function unwrapStrictJsonResponse(text: string): string {
         try {
           JSON.parse(extracted);
           return extracted;
-        } catch {}
+        } catch {
+          // Fall through to balanced JSON extraction
+        }
       }
     }
   }

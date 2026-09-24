@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { PsychologicalStatusSchema, type PsychologicalStatus } from './consequence';
 
 // ============================================================================
 // 1. Macro-Phase & Narrative Movement

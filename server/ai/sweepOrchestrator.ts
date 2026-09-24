@@ -1,6 +1,5 @@
 import crypto from 'node:crypto';
 import type { WindowPlan } from './windowPlanner';
-import type { SweepLens, SweepProvenance } from '../schemas';
 
 export interface PinnedModelConfig {
   provider: 'gemini' | 'zai' | 'hemmingway' | 'local';
@@ -17,7 +16,7 @@ export interface SweepJobLedger {
   completedWindows: number;
   discoveredCandidates: number;
   quarantinedCandidates: number;
-  quarantineRecords: Array<{ reason: string; raw: any }>;
+  quarantineRecords: Array<{ reason: string; raw: unknown }>;
   isCancelled: boolean;
 }
 
@@ -83,6 +82,8 @@ export function resolveEvidenceSourceRange(
     end: windowSourceStart + index + trimmed.length,
   };
 }
+
+export type SweepLens = 'COMBINED' | 'TOPOLOGY' | 'CAST' | 'TRAITS' | 'CLOCKS_HAZARDS_OBJECTS';
 
 /**
  * Generates prompt for a forensic sweep window under a specified lens

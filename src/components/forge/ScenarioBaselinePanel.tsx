@@ -21,7 +21,6 @@ import {
   Sparkles,
   ArrowUpRight,
   Users,
-  Search,
 } from 'lucide-react';
 
 export const ScenarioBaselinePanel: React.FC = () => {
@@ -33,7 +32,6 @@ export const ScenarioBaselinePanel: React.FC = () => {
     applyAcceptedCandidates,
     removeSourceAnalysis,
     leaveAllUnknownsUncertain,
-    runDetailPass,
   } = forgeActions;
 
   const [expandedSources, setExpandedSources] = useState<Record<string, boolean>>({});
@@ -41,7 +39,6 @@ export const ScenarioBaselinePanel: React.FC = () => {
   const [editingCandidateId, setEditingCandidateId] = useState<string | null>(null);
   const [editingValueText, setEditingValueText] = useState<string>('');
   const [applicationError, setApplicationError] = useState<{ sourceId: string; message: string } | null>(null);
-  const [isDetailPassRunning, setIsDetailPassRunning] = useState<Record<string, boolean>>({});
   const [detailPassMessage, setDetailPassMessage] = useState<Record<string, string | null>>({});
   const [isSweeping, setIsSweeping] = useState<Record<string, boolean>>({});
   const [sweepProgress, setSweepProgress] = useState<Record<string, { current: number; total: number } | null>>({});
@@ -154,40 +151,48 @@ export const ScenarioBaselinePanel: React.FC = () => {
       if (typeof EventSource !== 'undefined') {
         const eventSource = new EventSource(streamUrl);
 
-        eventSource.addEventListener('window_started', (e: any) => {
+        eventSource.addEventListener('window_started', (e: MessageEvent) => {
           try {
             const data = JSON.parse(e.data);
             setSweepProgress((prev) => ({
               ...prev,
               [sourceId]: { current: data.windowIndex + 1, total: data.windowCount || data.totalWindows || 1 },
             }));
-          } catch {}
+          } catch {
+            // Ignore parse errors on telemetry events
+          }
         });
 
-        eventSource.addEventListener('candidates_discovered', (e: any) => {
+        eventSource.addEventListener('candidates_discovered', (e: MessageEvent) => {
           try {
             const data = JSON.parse(e.data);
             useForgeStore.getState().mergeSweepCandidates?.(data.candidates, data.evidence, sourceId);
-          } catch {}
+          } catch {
+            // Ignore parse errors on telemetry events
+          }
         });
 
-        eventSource.addEventListener('candidate_discovered', (e: any) => {
+        eventSource.addEventListener('candidate_discovered', (e: MessageEvent) => {
           try {
             const data = JSON.parse(e.data);
             if (data.candidate) {
               useForgeStore.getState().mergeSweepCandidates?.([data.candidate], [], sourceId);
             }
-          } catch {}
+          } catch {
+            // Ignore parse errors on telemetry events
+          }
         });
 
-        eventSource.addEventListener('job_complete', (e: any) => {
+        eventSource.addEventListener('job_complete', (e: MessageEvent) => {
           try {
             const data = JSON.parse(e.data);
             setDetailPassMessage((prev) => ({
               ...prev,
               [sourceId]: `Forensic sweep complete: ${data.discoveredCandidates || 0} candidates discovered across ${data.completedWindows || 1} windows.`,
             }));
-          } catch {}
+          } catch {
+            // Ignore parse errors on telemetry events
+          }
           setIsSweeping((prev) => ({ ...prev, [sourceId]: false }));
           setSweepProgress((prev) => ({ ...prev, [sourceId]: null }));
           eventSource.close();
@@ -198,11 +203,12 @@ export const ScenarioBaselinePanel: React.FC = () => {
           eventSource.close();
         });
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : 'Forensic sweep failed.';
       console.error('Sweep error:', err);
       setDetailPassMessage((prev) => ({
         ...prev,
-        [sourceId]: err?.message || 'Forensic sweep failed.',
+        [sourceId]: errMsg,
       }));
       setIsSweeping((prev) => ({ ...prev, [sourceId]: false }));
     }
@@ -528,7 +534,7 @@ export const ScenarioBaselinePanel: React.FC = () => {
                             <span className="text-zinc-400 ml-1.5 text-[11px]">
                               {analysis.candidates
                                 .filter((c) => c.target === 'cast_seed')
-                                .map((c) => (c.proposedValue as any)?.name || c.label)
+                                .map((c) => (c.proposedValue as Record<string, unknown>)?.name || c.label)
                                 .filter(Boolean)
                                 .join(', ')}
                             </span>

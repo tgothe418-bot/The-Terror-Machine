@@ -252,15 +252,15 @@ export const reconcileStateFromEdit = async (
 
 export interface TurnStreamCallbacks {
   onToken?: (token: string) => void;
-  onComplete?: (response: any) => void;
-  onError?: (error: Error | { error: string; diagnostics?: any[] }) => void;
+  onComplete?: (response: unknown) => void;
+  onError?: (error: Error | { error: string; diagnostics?: unknown[] }) => void;
 }
 
 export async function streamEngineTurn(
-  payload: any,
+  payload: unknown,
   callbacks?: TurnStreamCallbacks,
   signal?: AbortSignal
-): Promise<any> {
+): Promise<unknown> {
   const response = await fetch('/api/turn-stream', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -269,10 +269,9 @@ export async function streamEngineTurn(
   });
 
   if (!response.ok) {
-    const errorBody = await response.json().catch(() => ({}));
-    const err = new Error(errorBody.error || `HTTP ${response.status}`);
-    (err as any).status = response.status;
-    (err as any).code = errorBody.code;
+    const errorBody = (await response.json().catch(() => ({}))) as Record<string, unknown>;
+    const err = new Error((errorBody.error as string) || `HTTP ${response.status}`);
+    Object.assign(err, { status: response.status, code: errorBody.code });
     callbacks?.onError?.(err);
     throw err;
   }
@@ -286,12 +285,16 @@ export async function streamEngineTurn(
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
-  let finalResult: any = null;
+  let finalResult: unknown = null;
 
   try {
-    while (true) {
+    let isReading = true;
+    while (isReading) {
       const { done, value } = await reader.read();
-      if (done) break;
+      if (done) {
+        isReading = false;
+        break;
+      }
 
       buffer += decoder.decode(value, { stream: true });
       const lines = buffer.split('\n');
@@ -318,7 +321,7 @@ export async function streamEngineTurn(
               callbacks?.onComplete?.(parsedData);
             } else if (currentEvent === 'error') {
               const err = new Error(parsedData.error || 'Turn generation error');
-              (err as any).diagnostics = parsedData.diagnostics;
+              Object.assign(err, { diagnostics: parsedData.diagnostics });
               callbacks?.onError?.(err);
               throw err;
             }

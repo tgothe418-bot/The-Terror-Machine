@@ -63,7 +63,22 @@ export async function runForgeBenchmark() {
   console.log('Samples: ' + TEST_SCENARIOS.length);
   console.log('===========================================================\n');
 
-  const results: any[] = [];
+  interface BenchmarkResult {
+    scenario: string;
+    fileName?: string;
+    pass: boolean;
+    latencyMs: number;
+    error?: string;
+    extractedTitle?: string;
+    nodeCount?: number;
+    edgeCount?: number;
+    castCount?: number;
+    quarantineCount?: number;
+    quarantinedIssues?: string[];
+    nodes?: unknown[];
+  }
+
+  const results: BenchmarkResult[] = [];
 
   for (let i = 0; i < TEST_SCENARIOS.length; i++) {
     const scenario = TEST_SCENARIOS[i];
@@ -81,7 +96,7 @@ export async function runForgeBenchmark() {
 
     const start = Date.now();
     let rawOutput = '';
-    let parsedJson: any = null;
+    let parsedJson: unknown = null;
 
     try {
       rawOutput = await generateLocalText(prompt, {
@@ -93,8 +108,8 @@ export async function runForgeBenchmark() {
         timeoutMs: 90000,
       });
       parsedJson = parseOrRepairJson(rawOutput);
-    } catch (err: any) {
-      console.error('  ! Generation error:', err?.message || err);
+    } catch (err: unknown) {
+      console.error('  ! Generation error:', err instanceof Error ? err.message : String(err));
     }
 
     const latencyMs = Date.now() - start;
@@ -118,7 +133,8 @@ export async function runForgeBenchmark() {
     const castSeeds = analysis.candidates.filter((c) => c.target === 'cast_seed');
     const quarantinedIssues = analysis.validationIssues || [];
 
-    const extractedTitle = (typeof titleCandidate?.proposedValue === 'string' ? titleCandidate.proposedValue : '') || (parsedJson.title as string) || '';
+    const jsonTitle = typeof (parsedJson as Record<string, unknown>)?.title === 'string' ? (parsedJson as Record<string, unknown>).title as string : '';
+    const extractedTitle = (typeof titleCandidate?.proposedValue === 'string' ? titleCandidate.proposedValue : '') || jsonTitle || '';
     const nodeCount = topologyNodes.length;
     const edgeCount = topologyEdges.length;
     const castCount = castSeeds.length;
@@ -142,7 +158,7 @@ export async function runForgeBenchmark() {
       quarantineCount,
       quarantinedIssues: quarantinedIssues.map((q) => q.message),
       pass: Boolean(extractedTitle) && nodeCount >= 4 && quarantineCount === 0,
-      nodes: topologyNodes.map((n) => typeof n.proposedValue === 'object' && n.proposedValue ? (n.proposedValue as any).label : n.label),
+      nodes: topologyNodes.map((n) => typeof n.proposedValue === 'object' && n.proposedValue ? (n.proposedValue as Record<string, unknown>).label : n.label),
     });
   }
 

@@ -24,7 +24,7 @@ describe('Forge Ultrawide Studio Component (3440x1440 Staging)', () => {
     vi.spyOn(useForgeStoreInternal.persist, 'hasHydrated').mockReturnValue(true);
     vi.spyOn(useForgeStoreInternal.persist, 'onHydrate').mockImplementation(() => () => {});
     vi.spyOn(useForgeStoreInternal.persist, 'onFinishHydration').mockImplementation((cb) => {
-      cb();
+      cb(useForgeStoreInternal.getState());
       return () => {};
     });
     forgeActions.resetStore();

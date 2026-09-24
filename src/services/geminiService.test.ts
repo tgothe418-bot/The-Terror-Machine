@@ -96,7 +96,7 @@ describe('streamEngineTurn client service', () => {
     );
 
     const tokens: string[] = [];
-    let completedData: any = null;
+    let completedData: unknown = null;
 
     const result = await streamEngineTurn(
       { userAction: 'Reach out' },
@@ -136,7 +136,7 @@ describe('streamEngineTurn client service', () => {
       })
     );
 
-    let caughtError: any = null;
+    let caughtError: (Error | { error: string; diagnostics?: unknown[] }) | null = null;
     await expect(
       streamEngineTurn(
         { userAction: 'Bad action' },
@@ -149,7 +149,7 @@ describe('streamEngineTurn client service', () => {
     ).rejects.toThrow('Model refusal');
 
     expect(caughtError).toBeDefined();
-    expect(caughtError.message).toBe('Model refusal');
+    expect((caughtError as Error)?.message).toBe('Model refusal');
   });
 
   it('throws and dispatches onError on non-ok HTTP response', async () => {
@@ -160,7 +160,7 @@ describe('streamEngineTurn client service', () => {
       })
     );
 
-    let caughtError: any = null;
+    let caughtError: (Error | { error: string; diagnostics?: unknown[] }) | null = null;
     await expect(
       streamEngineTurn(
         { userAction: '' },
@@ -173,7 +173,7 @@ describe('streamEngineTurn client service', () => {
     ).rejects.toThrow('Invalid payload');
 
     expect(caughtError).toBeDefined();
-    expect(caughtError.code).toBe('INVALID_REQUEST');
+    expect((caughtError as Error & { code?: string })?.code).toBe('INVALID_REQUEST');
   });
 });
 

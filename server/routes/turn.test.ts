@@ -958,7 +958,13 @@ describe('Turn schemas validation', () => {
   describe('enforceNarrativeReconciliationBoundaries', () => {
     const baseModelResult = {
       narrative_blocks: [
-        { type: 'prose' as const, content: 'A sudden burst of unreal light appears.' },
+        {
+          type: 'prose' as const,
+          content: 'A sudden burst of unreal light appears.',
+          medium: 'direct' as const,
+          delivery: 'spoken' as const,
+          target: 'addressed' as const,
+        },
       ],
       intent_proposal: {
         action_kind: 'MOVE' as const,
@@ -1015,6 +1021,8 @@ describe('Turn schemas validation', () => {
         suggested_tension: 4,
         requested_transition: 'IMPOSSIBLE_ROOM',
         terminal_flags: ['FLAG_A'],
+        cast_arrivals: [],
+        cast_departures: [],
         cast_deltas: [{ character_id: 'char_1', skepticism_delta: 0.1 }],
         cast_ledger: [],
       },
@@ -1332,7 +1340,7 @@ describe('Turn schemas validation', () => {
         ),
       });
 
-      const remoteBlock = { type: 'dialogue', speaker: 'Jules Mercer' };
+      const remoteBlock: { type: string; speaker: string; medium?: string } = { type: 'dialogue', speaker: 'Jules Mercer' };
       expect(validateDialogueBlocks(
         [remoteBlock],
         contextWithRemote
@@ -1388,7 +1396,7 @@ describe('Turn schemas validation', () => {
       ).toBeNull();
 
       // Turn 3: User hangs up -> channel is closed, Jules speech auto-resolves to acoustic bleed transmission rather than 502 error
-      const hungUpBlock = { type: 'dialogue', speaker: 'Jules Mercer' };
+      const hungUpBlock: { type: string; speaker: string; medium?: string } = { type: 'dialogue', speaker: 'Jules Mercer' };
       expect(
         validateDialogueBlocks(
           [hungUpBlock],
@@ -1448,7 +1456,7 @@ describe('Turn schemas validation', () => {
       });
 
       // Without arrival: auto-remediates to acoustic bleed transmission rather than failing
-      const absentBlock = { type: 'dialogue', speaker: 'Jules Mercer' };
+      const absentBlock: { type: string; speaker: string; medium?: string } = { type: 'dialogue', speaker: 'Jules Mercer' };
       expect(
         validateDialogueBlocks(
           [absentBlock],
@@ -4452,6 +4460,9 @@ describe('Turn schemas validation', () => {
           {
             type: 'prose',
             content: 'You observe both researchers named Dr. Evans remaining focused on their console readings.',
+            medium: 'direct',
+            delivery: 'spoken',
+            target: 'addressed',
           },
         ],
         intent_proposal: {
@@ -4509,6 +4520,8 @@ describe('Turn schemas validation', () => {
           suggested_tension: 1,
           requested_transition: null,
           terminal_flags: [],
+          cast_arrivals: [],
+          cast_departures: [],
           cast_deltas: [],
           cast_ledger: [],
         },
@@ -4748,6 +4761,9 @@ describe('Turn schemas validation', () => {
           {
             type: 'prose',
             content: 'You examine the diagnostic array.',
+            medium: 'direct',
+            delivery: 'spoken',
+            target: 'addressed',
           },
         ],
         intent_proposal: {
@@ -4805,6 +4821,8 @@ describe('Turn schemas validation', () => {
           suggested_tension: 1,
           requested_transition: null,
           terminal_flags: [],
+          cast_arrivals: [],
+          cast_departures: [],
           cast_deltas: [],
           cast_ledger: [],
         },
@@ -5011,8 +5029,21 @@ describe('Turn schemas validation', () => {
       // 1. Valid Turn Path: Concise human dialogue is placed in prompt unchanged and follows normal route
       const validResult: TurnResult = {
         narrative_blocks: [
-          { type: 'dialogue', speaker: 'Technician Mercer', content: 'Behind the secondary panel.' },
-          { type: 'prose', content: 'He points toward the rusted wall access.' },
+          {
+            type: 'dialogue',
+            speaker: 'Technician Mercer',
+            content: 'Behind the secondary panel.',
+            medium: 'direct',
+            delivery: 'spoken',
+            target: 'addressed',
+          },
+          {
+            type: 'prose',
+            content: 'He points toward the rusted wall access.',
+            medium: 'direct',
+            delivery: 'spoken',
+            target: 'addressed',
+          },
         ],
         intent_proposal: {
           action_kind: 'COMMUNICATE',
@@ -5045,6 +5076,8 @@ describe('Turn schemas validation', () => {
           suggested_tension: 20,
           requested_transition: null,
           terminal_flags: [],
+          cast_arrivals: [],
+          cast_departures: [],
           cast_deltas: [],
           cast_ledger: [],
         },
@@ -5138,7 +5171,14 @@ describe('Turn schemas validation', () => {
       const dialogueViolationResult: TurnResult = {
         ...validResult,
         narrative_blocks: [
-          { type: 'dialogue', speaker: 'Ghost Persona', content: 'I am not in the cast.' },
+          {
+            type: 'dialogue',
+            speaker: 'Ghost Persona',
+            content: 'I am not in the cast.',
+            medium: 'direct',
+            delivery: 'spoken',
+            target: 'addressed',
+          },
         ],
       };
 
@@ -5226,7 +5266,13 @@ describe('Turn schemas validation', () => {
       let capturedPrompt = '';
       const dummyValidResult: TurnResult = {
         narrative_blocks: [
-          { type: 'prose', content: 'Elena stays motionless, surveying the bulkhead.' },
+          {
+            type: 'prose',
+            content: 'Elena stays motionless, surveying the bulkhead.',
+            medium: 'direct',
+            delivery: 'spoken',
+            target: 'addressed',
+          },
         ],
         intent_proposal: {
           action_kind: 'OBSERVE',
@@ -5259,6 +5305,8 @@ describe('Turn schemas validation', () => {
           suggested_tension: 20,
           requested_transition: null,
           terminal_flags: [],
+          cast_arrivals: [],
+          cast_departures: [],
           cast_deltas: [],
           cast_ledger: [],
         },

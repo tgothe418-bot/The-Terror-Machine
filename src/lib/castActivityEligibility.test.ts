@@ -264,6 +264,7 @@ describe('Cast Activity Eligibility & Scheduling (Packet 1-2)', () => {
       isUserCharacter: false,
       behaviorVector: 'SOMATIC',
       isEntity: false,
+      disposition: 'SURVIVOR' as const,
       starting_location: 'NODE_MEDBAY',
     });
     bp.horrorGrammar!.characterPursuits.push({
@@ -439,6 +440,7 @@ describe('Cast Activity Eligibility & Scheduling (Packet 1-2)', () => {
           isUserCharacter: false,
           behaviorVector: 'COGNITIVE',
           isEntity: false,
+          disposition: 'SURVIVOR' as const,
           starting_location: '',
           presenceDisposition: { kind: 'OFFSTAGE' },
         },
@@ -453,6 +455,7 @@ describe('Cast Activity Eligibility & Scheduling (Packet 1-2)', () => {
           isUserCharacter: false,
           behaviorVector: 'COSMIC',
           isEntity: true,
+          disposition: 'SURVIVOR' as const,
           starting_location: '',
           presenceDisposition: { kind: 'NONLOCAL' },
         },
@@ -467,6 +470,7 @@ describe('Cast Activity Eligibility & Scheduling (Packet 1-2)', () => {
           isUserCharacter: false,
           behaviorVector: 'SOMATIC',
           isEntity: false,
+          disposition: 'SURVIVOR' as const,
           starting_location: '',
           presenceDisposition: { kind: 'AT_NODE', nodeId: 'NON_EXISTENT_CHAMBER' },
         }
@@ -506,6 +510,7 @@ describe('Cast Activity Eligibility & Scheduling (Packet 1-2)', () => {
         isUserCharacter: false,
         behaviorVector: 'COGNITIVE',
         isEntity: false,
+        disposition: 'SURVIVOR' as const,
         starting_location: '',
       });
 
