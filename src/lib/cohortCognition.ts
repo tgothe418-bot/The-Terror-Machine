@@ -57,3 +57,27 @@ export function ingestEvidenceEvent(
     },
   };
 }
+
+/**
+ * Event-driven evidence dismissal (the DENY mechanic, §2, §4).
+ * Marks evidence ingested with zero weight delta and zero dissonance delta.
+ * Deduplicates by stable evidence ID.
+ */
+export function dismissEvidenceEvent(
+  cognition: CastCognition,
+  evidenceId: string
+): CastCognition {
+  if (cognition.ingestedEvidenceIds.includes(evidenceId)) {
+    return cognition;
+  }
+
+  const updatedIngested = [...cognition.ingestedEvidenceIds, evidenceId];
+  if (updatedIngested.length > 100) {
+    updatedIngested.shift();
+  }
+
+  return {
+    ...cognition,
+    ingestedEvidenceIds: updatedIngested,
+  };
+}

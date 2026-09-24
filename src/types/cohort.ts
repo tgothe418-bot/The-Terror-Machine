@@ -61,9 +61,15 @@ export const CohortMemberSchema = z
     lastAction: z.string().optional(),
     behaviorDuration: BehaviorDurationSchema.optional(),
     cognition: CastCognitionSchema,
+    hidingUntilFictionalTime: z.number().int().nonnegative().optional(),
+    agendaProgress: z.number().min(0).max(1).default(0),
+    agendaText: z.string().optional(),
   })
   .strict();
-export type CohortMember = z.infer<typeof CohortMemberSchema>;
+type InferredCohortMember = z.infer<typeof CohortMemberSchema>;
+export type CohortMember = Omit<InferredCohortMember, 'agendaProgress'> & {
+  agendaProgress?: number;
+};
 
 export const TraceChannelSchema = z.enum(['ACOUSTIC', 'VISUAL', 'EVIDENTIAL', 'SOCIAL']);
 export type TraceChannel = z.infer<typeof TraceChannelSchema>;
@@ -91,6 +97,12 @@ export const CohortCycleReceiptSchema = z
     fatigueApplied: z.boolean(),
     fictionalTimeCost: z.number().int().nonnegative(),
     tracesEmitted: z.array(CohortTraceEmissionSchema),
+    actedOnLocationBelief: z.boolean().optional(),
+    parleyAttempted: z.boolean().optional(),
+    warnedCharacterIds: z.array(z.string()).optional(),
+    recruitTargetId: z.string().optional(),
+    recruitSucceeded: z.boolean().optional(),
+    locationDelta: z.string().optional(),
   })
   .strict();
 export type CohortCycleReceipt = z.infer<typeof CohortCycleReceiptSchema>;
@@ -107,6 +119,51 @@ export const CohortStateSchema = z
     dormantCastCognition: z.record(z.string(), CastCognitionSchema).default({}),
     institutionalMemory: z.record(z.string(), HypothesisWeightSchema).default({}),
     recentReceipts: z.array(CohortCycleReceiptSchema).default([]),
+    lastCasualtyFictionalTime: z.number().int().nonnegative().optional(),
+    nodeTraps: z
+      .record(
+        z.string(),
+        z
+          .object({
+            setByCharacterId: z.string().min(1),
+            setAtFictionalTime: z.number().int().nonnegative(),
+          })
+          .strict()
+      )
+      .default({}),
+    fortifiedNodes: z
+      .record(
+        z.string(),
+        z
+          .object({
+            barredByCharacterId: z.string().min(1),
+            fortifiedAtFictionalTime: z.number().int().nonnegative(),
+            strength: z.number().int().min(1).max(3),
+          })
+          .strict()
+      )
+      .default({}),
+    fractures: z
+      .array(
+        z
+          .object({
+            aCharacterId: z.string().min(1),
+            bCharacterId: z.string().min(1),
+            sinceTurn: z.number().int().nonnegative(),
+            sinceFictionalTime: z.number().int().nonnegative(),
+          })
+          .strict()
+      )
+      .default([]),
   })
   .strict();
-export type CohortState = z.infer<typeof CohortStateSchema>;
+type InferredCohortState = z.infer<typeof CohortStateSchema>;
+export type CohortState = Omit<
+  InferredCohortState,
+  'nodeTraps' | 'fortifiedNodes' | 'fractures' | 'members'
+> & {
+  members: Record<string, CohortMember>;
+  nodeTraps?: InferredCohortState['nodeTraps'];
+  fortifiedNodes?: InferredCohortState['fortifiedNodes'];
+  fractures?: InferredCohortState['fractures'];
+};

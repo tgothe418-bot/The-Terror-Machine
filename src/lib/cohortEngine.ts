@@ -10,11 +10,62 @@ import {
   isBehaviorExecutable,
   executeInvestigate,
   executeShare,
+  executeCloseIn,
+  executeTrap,
+  executeDeny,
+  executeHide,
+  executeFlee,
+  executeMisdirect,
+  executePursueAgenda,
+  executeMourn,
+  executeParley,
+  executeFracture,
+  executeWarn,
+  executeRecruit,
+  executeFortify,
+  downgradeClarity,
   type BehaviorExecutionContext,
+  type BehaviorExecutionResult,
   type NodeEvidenceItem,
 } from './cohortBehaviors';
 
-const VERB_UNIVERSE = ['INVESTIGATE', 'SHARE'];
+export const VERB_UNIVERSE = [
+  'INVESTIGATE',
+  'SHARE',
+  'CLOSE_IN',
+  'TRAP',
+  'DENY',
+  'HIDE',
+  'FLEE',
+  'MISDIRECT',
+  'PURSUE_AGENDA',
+  'MOURN',
+  'PARLEY',
+  'FRACTURE',
+  'WARN',
+  'RECRUIT',
+  'FORTIFY',
+] as const;
+
+export const SURVIVAL_VERBS = ['FORTIFY', 'HIDE', 'FLEE', 'CLOSE_IN'] as const;
+
+export const DEFAULT_AFFINITIES: Record<string, number> = {
+  INVESTIGATE: 1.0,
+  SHARE: 0.8,
+  CLOSE_IN: 0.7,
+  FORTIFY: 0.7,
+  MOURN: 0.7,
+  DENY: 0.6,
+  HIDE: 0.6,
+  WARN: 0.6,
+  PURSUE_AGENDA: 0.6,
+  TRAP: 0.5,
+  MISDIRECT: 0.5,
+  RECRUIT: 0.5,
+  PARLEY: 0.4,
+  FLEE: 0.4,
+  FRACTURE: 0.3,
+};
 
 /**
  * Phase progression thresholds (§12 - playtest placeholders).
@@ -45,12 +96,91 @@ export const PHASE_RANKS: Record<CohortPhase, number> = {
 };
 
 /**
- * Recency fatigue multiplier: Score = Base * 0.4 if repeated consecutively
+ * Layer 1: Environmental consideration set gating (§3, §4).
+ * Collapses to survival subset under immediate threat or breaking point.
  */
-export function scoreCandidateBehavior(verb: string, member: CohortMember): number {
-  const baseAffinity = member.affinities[verb] ?? (verb === 'INVESTIGATE' ? 1.0 : 0.8);
+export function computeConsiderationSet(
+  member: CohortMember,
+  context: BehaviorExecutionContext,
+  cohort?: CohortState
+): string[] {
+  void cohort;
+  const threatProximity = context.threatProximity ?? 0;
+  const breakingProx = context.breakingProximity?.[member.characterId] ?? 0;
+
+  if (threatProximity >= 0.8 || breakingProx >= 1.0) {
+    return [...SURVIVAL_VERBS];
+  }
+
+  return [...VERB_UNIVERSE];
+}
+
+/**
+ * Layer 2: Environmental scoring modulation (§7).
+ * Multiplier applied before fatigue.
+ */
+export function computeEnvironmentalWeight(
+  verb: string,
+  member: CohortMember,
+  context: BehaviorExecutionContext,
+  cohort?: CohortState
+): number {
+  let weight = 1.0;
+  const phase = cohort?.collectivePhase ?? 'ONSET';
+
+  // DENY: * (1 + skepticism) when collectivePhase is ONSET (§7)
+  if (verb === 'DENY' && phase === 'ONSET') {
+    const skepticism = member.cognition.skepticism ?? 0.8;
+    weight *= 1 + skepticism;
+  }
+
+  // DENY, HIDE: * 2.0 / * 1.5 when breakingProximity[member] >= 0.7. CLOSE_IN * 0.5 under same condition (§4, §7)
+  const breakingProx = context.breakingProximity?.[member.characterId] ?? 0;
+  if (breakingProx >= 0.7) {
+    if (verb === 'DENY') weight *= 2.0;
+    else if (verb === 'HIDE') weight *= 1.5;
+    else if (verb === 'CLOSE_IN') weight *= 0.5;
+  }
+
+  // MOURN, DENY, FRACTURE: * 1.5 when casualty recency window is active (§4, §7)
+  if (cohort?.lastCasualtyFictionalTime !== undefined) {
+    const timeSinceCasualty = context.fictionalTime - cohort.lastCasualtyFictionalTime;
+    if (timeSinceCasualty >= 0 && timeSinceCasualty <= 1800) {
+      if (verb === 'MOURN' || verb === 'DENY' || verb === 'FRACTURE') {
+        weight *= 1.5;
+      }
+    }
+  }
+
+  // PURSUE_AGENDA, MISDIRECT: * 1.5 when calm (collectivePhase is ONSET and threatProximity < 0.2) (§4, §7)
+  const threatProx = context.threatProximity ?? 0;
+  if (phase === 'ONSET' && threatProx < 0.2) {
+    if (verb === 'PURSUE_AGENDA' || verb === 'MISDIRECT') {
+      weight *= 1.5;
+    }
+  }
+
+  return weight;
+}
+
+/**
+ * Recency fatigue multiplier: Score = Base * EnvironmentalWeight * 0.4 if repeated consecutively.
+ */
+export function scoreCandidateBehavior(
+  verb: string,
+  member: CohortMember,
+  environmentalWeight = 1.0
+): number {
+  let baseAffinity: number;
+  if (verb in member.affinities) {
+    baseAffinity = member.affinities[verb];
+  } else if (Object.keys(member.affinities).length === 0) {
+    baseAffinity = DEFAULT_AFFINITIES[verb] ?? (verb === 'INVESTIGATE' ? 1.0 : 0.8);
+  } else {
+    baseAffinity = 0;
+  }
   const fatigueMultiplier = member.lastAction === verb ? FATIGUE_MULTIPLIER : 1.0;
-  return baseAffinity * fatigueMultiplier;
+  return baseAffinity * environmentalWeight * fatigueMultiplier;
 }
 
 /**
@@ -122,13 +252,18 @@ export function initializeCohortState(blueprint: ScenarioBlueprint): CohortState
     const isLead = i === 0;
     if (isLead) seatHolderId = c.id;
 
+    const castAffinities = (c as unknown as { affinities?: Record<string, number> }).affinities;
+    const castAgendaText = (c as unknown as { agendaText?: string }).agendaText;
+
     members[c.id] = {
       characterId: c.id,
       isSeatHolder: isLead,
       tenureTurns: 0,
+      agendaProgress: 0,
+      agendaText: castAgendaText || 'personal business',
       affinities: {
-        INVESTIGATE: 1.0,
-        SHARE: 0.8,
+        ...DEFAULT_AFFINITIES,
+        ...(castAffinities || {}),
       },
       cognition: {
         characterId: c.id,
@@ -168,6 +303,9 @@ export function initializeCohortState(blueprint: ScenarioBlueprint): CohortState
       },
     },
     recentReceipts: [],
+    nodeTraps: {},
+    fortifiedNodes: {},
+    fractures: [],
   };
 }
 
@@ -212,7 +350,8 @@ export function removeCohortMember(
   state: CohortState,
   characterId: string,
   _reason: 'DEATH' | 'FLEE' | 'FRACTURE' | 'DRIFT',
-  vulnerabilityWindowSeconds = DEFAULT_SUCCESSION_WINDOW_SECONDS
+  vulnerabilityWindowSeconds = DEFAULT_SUCCESSION_WINDOW_SECONDS,
+  fictionalTime?: number
 ): CohortState {
   const memberToRemove = state.members[characterId];
   if (!memberToRemove) return state;
@@ -232,6 +371,10 @@ export function removeCohortMember(
     ...state,
     members: remainingMembers,
     dormantCastCognition: updatedDormantCognition,
+    lastCasualtyFictionalTime:
+      _reason === 'DEATH'
+        ? (fictionalTime ?? state.lastCasualtyFictionalTime ?? 0)
+        : state.lastCasualtyFictionalTime,
   };
 
   if (wasSeatHolder) {
@@ -259,6 +402,27 @@ export function removeCohortMember(
   return nextState;
 }
 
+const EXECUTORS: Record<
+  string,
+  (member: CohortMember, context: BehaviorExecutionContext) => BehaviorExecutionResult
+> = {
+  INVESTIGATE: executeInvestigate,
+  SHARE: executeShare,
+  CLOSE_IN: executeCloseIn,
+  TRAP: executeTrap,
+  DENY: executeDeny,
+  HIDE: executeHide,
+  FLEE: executeFlee,
+  MISDIRECT: executeMisdirect,
+  PURSUE_AGENDA: executePursueAgenda,
+  MOURN: executeMourn,
+  PARLEY: executeParley,
+  FRACTURE: executeFracture,
+  WARN: executeWarn,
+  RECRUIT: executeRecruit,
+  FORTIFY: executeFortify,
+};
+
 /**
  * Advance cohort simulation tick against ratified fictional time delta (§6).
  * Bounded tick rate contract: Exactly one completion + at most one initiation per member per player turn.
@@ -268,7 +432,7 @@ export function tickCohortState(
   deltaFictionalTimeSeconds: number,
   baseContext: Omit<
     BehaviorExecutionContext,
-    'currentNodeId' | 'allMembers' | 'activeEvidenceAtNode' | 'memberLocations'
+    'currentNodeId' | 'allMembers' | 'activeEvidenceAtNode' | 'memberLocations' | 'cohort'
   >,
   memberLocations: Record<string, string>,
   evidenceByNode: Record<string, NodeEvidenceItem[]>
@@ -276,6 +440,32 @@ export function tickCohortState(
   if (state.status === 'DORMANT' || deltaFictionalTimeSeconds <= 0) {
     return { nextState: state, receipts: [] };
   }
+
+  // Fracture decay pass (§9):
+  // 1. Drop fractures where either party has departed the cohort.
+  // 2. Drop fractures older than 3600 fictional seconds with no intervening FRACTURE involving either party.
+  const allFractures = state.fractures || [];
+  const currentFractures = allFractures.filter((f) => {
+    if (!state.members[f.aCharacterId] || !state.members[f.bCharacterId]) {
+      return false;
+    }
+    const age = baseContext.fictionalTime - f.sinceFictionalTime;
+    if (age <= 3600) {
+      return true;
+    }
+    return allFractures.some(
+      (other) =>
+        other.sinceFictionalTime > f.sinceFictionalTime &&
+        (other.aCharacterId === f.aCharacterId ||
+          other.bCharacterId === f.aCharacterId ||
+          other.aCharacterId === f.bCharacterId ||
+          other.bCharacterId === f.bCharacterId)
+    );
+  });
+  const currentNodeTraps = { ...(state.nodeTraps || {}) };
+  const currentFortifiedNodes = { ...(state.fortifiedNodes || {}) };
+  let currentDormantCognition = { ...(state.dormantCastCognition || {}) };
+  let currentInstitutionalMemory = { ...(state.institutionalMemory || {}) };
 
   let updatedMembers = { ...state.members };
   const receipts: CohortCycleReceipt[] = [];
@@ -307,9 +497,23 @@ export function tickCohortState(
   }
 
   // 2. Member behavior tick loop (Bounded: 1 completion + 1 initiation per member)
-  for (const [id, member] of Object.entries(updatedMembers)) {
+  const memberIdsSnapshot = Object.keys(updatedMembers);
+
+  for (const id of memberIdsSnapshot) {
+    const member = updatedMembers[id];
+    if (!member) continue; // Member fled or removed earlier in this tick
+
     const currentNodeId = memberLocations[id] || 'node-default';
     const activeEvidenceAtNode = evidenceByNode[currentNodeId] || [];
+
+    const currentCohortSnapshot: CohortState = {
+      ...state,
+      members: updatedMembers,
+      seatHolderId: currentSeatHolder,
+      fractures: currentFractures,
+      nodeTraps: currentNodeTraps,
+      fortifiedNodes: currentFortifiedNodes,
+    };
 
     const memberContext: BehaviorExecutionContext = {
       ...baseContext,
@@ -317,6 +521,7 @@ export function tickCohortState(
       memberLocations,
       allMembers: updatedMembers,
       activeEvidenceAtNode,
+      cohort: currentCohortSnapshot,
     };
 
     let activeDuration = member.behaviorDuration;
@@ -342,7 +547,7 @@ export function tickCohortState(
     }
 
     // B. Initiate at most one new behavior if free or just completed
-    const considerationSet = VERB_UNIVERSE;
+    const considerationSet = computeConsiderationSet(member, memberContext, currentCohortSnapshot);
     const executableSet = considerationSet.filter((verb) =>
       isBehaviorExecutable(verb, member, memberContext)
     );
@@ -352,29 +557,111 @@ export function tickCohortState(
       continue;
     }
 
-    // Score executables with affinity profile and 0.4 fatigue penalty
+    // Score executables with affinity profile, Layer 2 environmental modulation, and fatigue
     const scores: Record<string, number> = {};
     for (const verb of executableSet) {
-      scores[verb] = scoreCandidateBehavior(verb, member);
+      const envWeight = computeEnvironmentalWeight(verb, member, memberContext, currentCohortSnapshot);
+      scores[verb] = scoreCandidateBehavior(verb, member, envWeight);
     }
 
-    // Deterministic selection: highest score, tie broken by verb order
-    executableSet.sort((a, b) => (scores[b] || 0) - (scores[a] || 0));
+    // Deterministic selection: highest score, tie broken by verb order in considerationSet
+    executableSet.sort((a, b) => {
+      const scoreDiff = (scores[b] ?? 0) - (scores[a] ?? 0);
+      if (scoreDiff !== 0) return scoreDiff;
+      return considerationSet.indexOf(a) - considerationSet.indexOf(b);
+    });
     const winner = executableSet[0];
 
-    // Execute winner
-    let execResult;
-    if (winner === 'INVESTIGATE') {
-      execResult = executeInvestigate(member, memberContext);
-    } else {
-      const peer =
-        Object.keys(updatedMembers).find((pId) => pId !== id) || id;
-      execResult = executeShare(member, peer, 'hyp-threat-exists', memberContext);
+    // Dispatch winner
+    const executor = EXECUTORS[winner];
+    const execResult = executor(member, memberContext);
+
+    // HIDE cover break & clarity downgrade (§4 HIDE)
+    if (winner === 'CLOSE_IN' || winner === 'TRAP') {
+      execResult.member.hidingUntilFictionalTime = undefined;
+    } else if (
+      member.hidingUntilFictionalTime !== undefined &&
+      baseContext.fictionalTime < member.hidingUntilFictionalTime
+    ) {
+      execResult.emittedTraces = execResult.emittedTraces.map((trace) => ({
+        ...trace,
+        clarity: downgradeClarity(trace.clarity),
+      }));
     }
 
-    // Accurate leftover delta math:
-    // If completing an in-progress behavior, time spent was (duration - progressBeforeCompletion).
-    // Leftover is delta minus that spent time. If starting fresh, full delta is available.
+    // Apply deltas
+    if (execResult.locationDelta) {
+      memberLocations[id] = execResult.locationDelta;
+    }
+
+    if (execResult.otherMemberDeltas) {
+      updatedMembers = { ...updatedMembers, ...execResult.otherMemberDeltas };
+    }
+
+    if (execResult.nodeTrapDelta) {
+      currentNodeTraps[execResult.nodeTrapDelta.nodeId] = execResult.nodeTrapDelta.trap;
+    }
+
+    if (execResult.fortifiedNodeDelta) {
+      currentFortifiedNodes[execResult.fortifiedNodeDelta.nodeId] =
+        execResult.fortifiedNodeDelta.fortified;
+    }
+
+    if (execResult.fractureDelta) {
+      const fDelta = execResult.fractureDelta;
+      const existingIdx = currentFractures.findIndex(
+        (f) =>
+          (f.aCharacterId === fDelta.aCharacterId && f.bCharacterId === fDelta.bCharacterId) ||
+          (f.aCharacterId === fDelta.bCharacterId && f.bCharacterId === fDelta.aCharacterId)
+      );
+      if (existingIdx >= 0) {
+        currentFractures[existingIdx] = fDelta;
+      } else {
+        currentFractures.push(fDelta);
+      }
+    }
+
+    if (execResult.newMember) {
+      updatedMembers[execResult.newMember.characterId] = execResult.newMember;
+      memberLocations[execResult.newMember.characterId] = currentNodeId;
+    }
+
+    if (execResult.removedMemberId) {
+      // FLEE departure transition (§4, §6)
+      const fleeState = removeCohortMember(
+        {
+          ...state,
+          members: updatedMembers,
+          seatHolderId: currentSeatHolder,
+          fractures: currentFractures,
+          nodeTraps: currentNodeTraps,
+          fortifiedNodes: currentFortifiedNodes,
+          dormantCastCognition: currentDormantCognition,
+          institutionalMemory: currentInstitutionalMemory,
+        },
+        execResult.removedMemberId,
+        'FLEE',
+        undefined,
+        baseContext.fictionalTime
+      );
+      currentSeatHolder = fleeState.seatHolderId;
+      windowRemaining = fleeState.successionVulnerabilityWindowRemaining;
+      currentDormantCognition = fleeState.dormantCastCognition;
+      currentInstitutionalMemory = fleeState.institutionalMemory;
+      updatedMembers = { ...fleeState.members };
+
+      // Remaining members each get +0.2 cognitive dissonance (§4 FLEE)
+      for (const remId of Object.keys(updatedMembers)) {
+        updatedMembers[remId] = {
+          ...updatedMembers[remId],
+          cognition: {
+            ...updatedMembers[remId].cognition,
+            cognitiveDissonance: updatedMembers[remId].cognition.cognitiveDissonance + 0.2,
+          },
+        };
+      }
+    }
+
     const timeSpentToComplete = completedThisTurn
       ? Math.max(0, (activeDuration?.durationSeconds || 0) - progressBeforeCompletion)
       : 0;
@@ -382,24 +669,23 @@ export function tickCohortState(
       ? Math.max(0, deltaFictionalTimeSeconds - timeSpentToComplete)
       : deltaFictionalTimeSeconds;
 
-    const initialProgress = Math.min(
-      Math.max(0, execResult.fictionalTimeSeconds - 1),
-      leftoverDelta
-    );
+    if (execResult.removedMemberId !== id) {
+      const initialProgress = Math.min(
+        Math.max(0, execResult.fictionalTimeSeconds - 1),
+        leftoverDelta
+      );
 
-    updatedMembers[id] = {
-      ...execResult.member,
-      behaviorDuration: {
-        currentBehaviorId: winner,
-        startedAtFictionalTime: baseContext.fictionalTime,
-        durationSeconds: execResult.fictionalTimeSeconds,
-        progressSeconds: initialProgress,
-        status: 'IN_PROGRESS',
-      },
-    };
-
-    if (execResult.otherMemberDeltas) {
-      updatedMembers = { ...updatedMembers, ...execResult.otherMemberDeltas };
+      updatedMembers[id] = {
+        ...execResult.member,
+        behaviorDuration: {
+          currentBehaviorId: winner,
+          target: execResult.locationDelta,
+          startedAtFictionalTime: baseContext.fictionalTime,
+          durationSeconds: execResult.fictionalTimeSeconds,
+          progressSeconds: initialProgress,
+          status: 'IN_PROGRESS',
+        },
+      };
     }
 
     receipts.push({
@@ -412,6 +698,24 @@ export function tickCohortState(
       fatigueApplied: member.lastAction === winner,
       fictionalTimeCost: execResult.fictionalTimeSeconds,
       tracesEmitted: execResult.emittedTraces,
+      ...(execResult.actedOnLocationBelief !== undefined
+        ? { actedOnLocationBelief: execResult.actedOnLocationBelief }
+        : {}),
+      ...(execResult.parleyAttempted !== undefined
+        ? { parleyAttempted: execResult.parleyAttempted }
+        : {}),
+      ...(execResult.warnedCharacterIds !== undefined
+        ? { warnedCharacterIds: execResult.warnedCharacterIds }
+        : {}),
+      ...(execResult.recruitTargetId !== undefined
+        ? { recruitTargetId: execResult.recruitTargetId }
+        : {}),
+      ...(execResult.recruitSucceeded !== undefined
+        ? { recruitSucceeded: execResult.recruitSucceeded }
+        : {}),
+      ...(execResult.locationDelta !== undefined
+        ? { locationDelta: execResult.locationDelta }
+        : {}),
     });
   }
 
@@ -426,6 +730,11 @@ export function tickCohortState(
     seatHolderId: currentSeatHolder,
     successionVulnerabilityWindowRemaining: windowRemaining,
     recentReceipts: [...state.recentReceipts, ...receipts].slice(-20),
+    fractures: currentFractures,
+    nodeTraps: currentNodeTraps,
+    fortifiedNodes: currentFortifiedNodes,
+    dormantCastCognition: currentDormantCognition,
+    institutionalMemory: currentInstitutionalMemory,
   };
 
   const { collectivePhase, peakPhase } = evaluateCollectivePhase(nextCohort);
