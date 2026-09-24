@@ -522,7 +522,11 @@ Return a JSON object with:
         const duration = Date.now() - tStart;
         totalLatency += duration;
 
-        const parsed = parseOrRepairJson(rawResponse);
+        interface BenchmarkTurnOutput {
+          narration?: string;
+          [key: string]: unknown;
+        }
+        const parsed = parseOrRepairJson<BenchmarkTurnOutput>(rawResponse);
         narration = parsed?.narration || rawResponse.trim();
         console.log(`   -> Response (${duration}ms): "${narration.slice(0, 90)}..."`);
       } catch (err: unknown) {
@@ -681,7 +685,7 @@ ${runB ? `## Detailed Run: Villain Seat (Entity-41)
 ${runB.turns.slice(0, 5).map((t) => `**Turn ${t.turnNumber} [${t.macroPhase} | ${t.pacingCadence}]**
 - *Action*: ${t.action}
 - *Narration*: "${t.narration}"
-- *Clock Advances*: ${t.clockAdvances.length > 0 ? t.clockAdvances.map((c) => `[${c.clockId} -> ${c.newLevel}]`).join(', ') : 'None'}
+- *Clock Advances*: ${t.clockAdvances.length > 0 ? (t.clockAdvances as Array<{ clockId: string; toLevel?: number; newLevel?: number }>).map((c) => `[${c.clockId} -> ${c.toLevel ?? c.newLevel}]`).join(', ') : 'None'}
 `).join('\n')}` : ''}
 
 ${runA ? `## Detailed Run: Survivor Seat (Dr. Maren Ross)
@@ -696,7 +700,7 @@ ${runA ? `## Detailed Run: Survivor Seat (Dr. Maren Ross)
 ${runA.turns.slice(0, 5).map((t) => `**Turn ${t.turnNumber} [${t.macroPhase} | ${t.pacingCadence}]**
 - *Action*: ${t.action}
 - *Narration*: "${t.narration}"
-- *Clock Advances*: ${t.clockAdvances.length > 0 ? t.clockAdvances.map((c) => `[${c.clockId} -> ${c.newLevel}]`).join(', ') : 'None'}
+- *Clock Advances*: ${t.clockAdvances.length > 0 ? (t.clockAdvances as Array<{ clockId: string; toLevel?: number; newLevel?: number }>).map((c) => `[${c.clockId} -> ${c.toLevel ?? c.newLevel}]`).join(', ') : 'None'}
 `).join('\n')}` : ''}
 
 ---

@@ -107,7 +107,11 @@ export async function runForgeBenchmark() {
         max_tokens: 8192,
         timeoutMs: 90000,
       });
-      parsedJson = parseOrRepairJson(rawOutput);
+      interface ForgeExtractionOutput {
+        title?: string;
+        [key: string]: unknown;
+      }
+      parsedJson = parseOrRepairJson<ForgeExtractionOutput>(rawOutput);
     } catch (err: unknown) {
       console.error('  ! Generation error:', err instanceof Error ? err.message : String(err));
     }

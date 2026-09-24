@@ -356,7 +356,11 @@ Return a JSON object with:
         const duration = Date.now() - tStart;
         totalLatency += duration;
 
-        const parsed = parseOrRepairJson(rawResponse);
+        interface BenchmarkTurnOutput {
+          narration?: string;
+          [key: string]: unknown;
+        }
+        const parsed = parseOrRepairJson<BenchmarkTurnOutput>(rawResponse);
         narration = parsed?.narration || rawResponse.trim();
         console.log(`   -> Response (${duration}ms): "${narration.slice(0, 90)}..."`);
       } catch (err: unknown) {
