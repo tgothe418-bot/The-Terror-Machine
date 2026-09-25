@@ -8,6 +8,9 @@ import type {
 } from '../types/horrorGrammar';
 import type { EngineTurnContext } from '../types';
 
+import type { DeathRecord } from '../types/death';
+import type { NodeEvidenceItem } from './cohortBehaviors';
+
 export interface BuildEvidenceRegistryInput {
   presentOpportunities?: readonly ActivityOpportunityCandidate[];
   offscreenOpportunities?: readonly ActivityOpportunityCandidate[];
@@ -28,11 +31,37 @@ export interface BuildEvidenceRegistryInput {
   villainProtagonist?: boolean;
   activityEvents?: readonly CastActivityEvent[];
   maxRecentActivityEvents?: number;
+  deathRecords?: readonly DeathRecord[];
+}
+
+/**
+ * Corpse evidence node bridge (§5.4): creates an evidence node ingestible by cohort INVESTIGATE.
+ */
+export function createCorpseEvidenceNode(
+  record: DeathRecord,
+  locationNodeId?: string
+): NodeEvidenceItem {
+  return {
+    id: `corpse-${record.id}`,
+    targetHypothesisId: 'corpse_evidence',
+    weightDelta: 1.0,
+    text: `Corpse of ${record.characterName} (provenance: ${record.id}, valence: ${record.valence}${locationNodeId ? `, found at ${locationNodeId}` : ''})`,
+    dissonanceDelta: 0.5,
+  };
 }
 
 export function buildEvidenceRegistry(input: BuildEvidenceRegistryInput): EvidenceRegistryEntry[] {
   const evidenceRegistry: EvidenceRegistryEntry[] = [];
   const maxEvents = input.maxRecentActivityEvents ?? 10;
+
+  for (const death of input.deathRecords || []) {
+    evidenceRegistry.push({
+      id: `corpse-${death.id}`,
+      category: 'CONSEQUENCE',
+      ownerRef: death.characterId,
+      description: `Corpse evidence: ${death.characterName} declared dead at turn ${death.declaredAtTurn} (${death.valence}). Primary wound fact: ${death.primaryWoundFactId}`.slice(0, 800),
+    });
+  }
 
   for (const opp of input.presentOpportunities || []) {
     const oppId = (opp as { opportunityId?: string }).opportunityId || `opp-present-${opp.castMemberId}`;

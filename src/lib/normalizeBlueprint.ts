@@ -260,6 +260,15 @@ function normalizeLegacyBlueprintShape(raw: unknown): unknown {
     ...(userOpeningAimNormalized !== undefined ? { userOpeningAim: userOpeningAimNormalized } : {}),
     ...(antagonistProfileNormalized !== undefined ? { antagonistProfile: antagonistProfileNormalized } : {}),
     ...(hasOwn(rawRecord, 'villainProtagonist') ? { villainProtagonist: Boolean(rawRecord.villainProtagonist) } : {}),
+    ...(hasOwn(rawRecord, 'deathContract') && rawRecord.deathContract !== undefined
+      ? { deathContract: rawRecord.deathContract }
+      : {
+          deathContract: {
+            metaphysics: 'mundane',
+            powerBudget: 'Standard environmental and mortal physical limitations.',
+            seatSuccession: {},
+          },
+        }),
   };
 }
 

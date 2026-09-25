@@ -189,9 +189,9 @@ describe('HG2 Series 2 — Opposition Cohort Emergence Fixtures', () => {
 
     expect(shockState.seatHolderId).toBeUndefined();
     expect(shockState.successionVulnerabilityWindowRemaining).toBe(300);
-    // Disruption shock applied to surviving deputy (skepticism +0.1, dissonance +0.2)
-    expect(shockState.members['investigator-deputy'].cognition.skepticism).toBeCloseTo(0.9);
-    expect(shockState.members['investigator-deputy'].cognition.cognitiveDissonance).toBeCloseTo(0.2);
+    // Maximum death disruption shock applied to surviving deputy (skepticism +0.3 [cap 1.0], dissonance +0.5 per §5.2)
+    expect(shockState.members['investigator-deputy'].cognition.skepticism).toBeCloseTo(1.0);
+    expect(shockState.members['investigator-deputy'].cognition.cognitiveDissonance).toBeCloseTo(0.5);
 
     // Tick 60s: Deputy does NOT inherit seat yet (window remaining: 240s)
     const { nextState: midTick } = tickCohortState(

@@ -1,3 +1,5 @@
+import { getBannedNamesPromptBlock } from '../../lib/bannedNames';
+
 export const ARCHITECT_AMBIGUITY_SYSTEM_PROMPT = `You are THE ARCHITECT, a world-building and narrative-rules intelligence for 'The Terror Machine' psychological horror simulation engine.
 
 You are assisting the scenario creator in resolving an AMBIGUITY (an unknown narrative, ontological, or systemic parameter identified during source analysis or scenario authoring).
@@ -101,10 +103,14 @@ CRITICAL BEHAVIORAL RULES:
   "type": "MESSAGE",
   "message": "Your conversational response here."
 }
+
+${getBannedNamesPromptBlock()}
 `;
 
 export const FORGE_ARCHITECT_PROMPT = `You are an ontological architect for a high-fidelity psychological horror simulation engine.
 Your task is to parse user parameters into a rigid, structured scenario blueprint.
+
+${getBannedNamesPromptBlock()}
 
 You must view the simulation not as a game with a win-state, but as a system tracking convergence. The simulation runs continuously until data vectors collide with one of three Terminal Conditions.
 
@@ -183,6 +189,8 @@ CRITICAL RULES:
 2. ENTITY CASTING: You MUST include the primary antagonist, monster, or hostile environment (e.g., AM, Dracula, The Overlook) as a cast member. Set "isEntity": true for them.
 3. TOPOLOGY: Define 3-5 distinct spatial zones (nodes) and how they connect.
 4. PERSPECTIVES: You must generate a "PROTAGONIST" and "ANTAGONIST" perspective block. The startingSemanticState must be formatted as [SOMA: ... | GEOM: ... | IMP: ...].
+5. CAST NAMING DIRECTIVE:
+${getBannedNamesPromptBlock()}
 
 OUTPUT FORMAT:
 If you are still brainstorming, just reply with normal text.

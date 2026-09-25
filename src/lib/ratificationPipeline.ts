@@ -270,6 +270,8 @@ export const validateEngineFrame = (rawPayload: any): RatifiedEngineFrame => {
       dramaturgyState: logic.dramaturgyState || null,
     },
     topologyDelta: rawPayload.topologyDelta || null,
+    wound_facts: Array.isArray(rawPayload.wound_facts) ? rawPayload.wound_facts : [],
+    treatment_proposals: Array.isArray(rawPayload.treatment_proposals) ? rawPayload.treatment_proposals : [],
     validation: {
       accepted,
       rejected_fields: rejected,
@@ -660,6 +662,12 @@ export const executeRatificationPipeline = async (
   }
   if (parsedResult.data.horrorGrammarForensics) {
     validatedEvent.horrorGrammarForensics = parsedResult.data.horrorGrammarForensics;
+  }
+  if (parsedResult.data.wound_facts) {
+    validatedEvent.wound_facts = parsedResult.data.wound_facts;
+  }
+  if (parsedResult.data.treatment_proposals) {
+    validatedEvent.treatment_proposals = parsedResult.data.treatment_proposals;
   }
 
   // Attach context receipt for SYSTEM_INIT

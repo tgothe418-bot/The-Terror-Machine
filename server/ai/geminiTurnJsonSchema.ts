@@ -24,6 +24,10 @@ import {
   DEVELOPMENT_OPERATIONS,
   PRESSURE_THREAD_TERMINAL_STATUSES,
 } from '../../src/types/horrorGrammar';
+import {
+  WOUND_SEVERITIES,
+  DEATH_VALENCES,
+} from '../../src/types/death';
 
 export type GeminiJsonSchema = {
   type?: string | readonly string[];
@@ -632,6 +636,48 @@ export const geminiTurnResponseJsonSchema: GeminiJsonSchema = {
         },
       },
       required: ['isExpansion'],
+    },
+    wound_facts: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          characterId: { type: 'string' },
+          mechanism: { type: 'string' },
+          location: { type: 'string' },
+          severity: {
+            type: 'string',
+            enum: [...WOUND_SEVERITIES],
+          },
+          timelineMinutes: { type: 'number' },
+          treatability: { type: 'string' },
+          valence: {
+            type: 'string',
+            enum: [...DEATH_VALENCES],
+          },
+          inflictedByCharacterId: { type: 'string' },
+        },
+        required: [
+          'characterId',
+          'mechanism',
+          'location',
+          'severity',
+          'timelineMinutes',
+          'treatability',
+        ],
+      },
+    },
+    treatment_proposals: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          characterId: { type: 'string' },
+          woundId: { type: 'string' },
+          mechanism: { type: 'string' },
+        },
+        required: ['characterId', 'woundId', 'mechanism'],
+      },
     },
   },
   required: [...REQUIRED_ROOT_FIELDS],

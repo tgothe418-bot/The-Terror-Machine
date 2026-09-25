@@ -320,3 +320,25 @@ export function resolveCanonicalConsequences(input: {
     decisions,
   };
 }
+
+/**
+ * Feeds structured wound facts alongside player_injuries (§15).
+ */
+export function createWoundFactFromPlayerInjury(
+  injury: string,
+  characterId: string,
+  overrides?: Partial<import('../types/death').WoundFactProposal>
+): import('../types/death').WoundFactProposal {
+  const norm = normalizeConsequenceLabel(injury);
+  return {
+    characterId,
+    mechanism: norm || 'physical trauma',
+    location: 'torso',
+    severity: 'serious',
+    timelineMinutes: 120,
+    treatability: 'field dressing',
+    valence: 'accident',
+    ...overrides,
+  };
+}
+

@@ -64,6 +64,8 @@ export * from './characterMemory';
 export * from './worldMemory';
 export * from './vocalization';
 export * from './cohort';
+import { WoundFactProposalSchema, TreatmentProposalSchema } from './death';
+export * from './death';
 
 export const EdgeKindSchema = z.enum([
   'PHYSICAL',
@@ -512,6 +514,8 @@ export const TurnResultSchema = z.object({
       return val;
     }),
   topologyDelta: TopologyDeltaSchema.nullable().optional(),
+  wound_facts: z.array(WoundFactProposalSchema).optional(),
+  treatment_proposals: z.array(TreatmentProposalSchema).optional(),
 });
 
 export type TurnResult = z.infer<typeof TurnResultSchema>;

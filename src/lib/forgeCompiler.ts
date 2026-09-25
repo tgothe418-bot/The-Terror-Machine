@@ -7,6 +7,7 @@ import {
   ForgeCompileResult,
   ForgeSourceCandidate,
   ForgeSourceAnalysis,
+  DeathContract,
 } from '../types/forge';
 import { normalizeBlueprint } from './normalizeBlueprint';
 import {
@@ -62,6 +63,28 @@ export function deriveDefaultDepictionContract(draft?: Partial<ForgeDraft> | nul
     aftermath,
     ambiguityHandling,
     specialBoundaries: existing?.specialBoundaries || 'None',
+  };
+}
+
+/**
+ * Pure helper that deterministically derives default Death Contract fields
+ * from setting/antagonist/mortal constraints if not authored.
+ */
+export function deriveDefaultDeathContract(draft?: Partial<ForgeDraft> | null): DeathContract {
+  const existing = draft?.deathContract;
+  const powerBudget =
+    existing?.powerBudget?.trim() ||
+    (draft?.antagonistProfile?.name
+      ? `Physical access and environmental lethality governed by ${draft.antagonistProfile.name}.`
+      : 'Standard environmental and mortal physical limitations.');
+  const deathMetaphysics =
+    existing?.deathMetaphysics || existing?.metaphysics || 'mundane';
+  const seatSuccession = existing?.seatSuccession || {};
+
+  return {
+    powerBudget,
+    deathMetaphysics,
+    seatSuccession,
   };
 }
 
@@ -746,6 +769,33 @@ export function validateForgeDraft(rawDraft: unknown): ForgeValidationResult {
     }
   }
 
+  // 12. Death Contract Validation (§11, §15)
+  const hasCohort = Boolean(
+    draft.antagonistProfile?.preyCohort && draft.antagonistProfile.preyCohort.length > 0
+  );
+  const deathContract = draft.deathContract as DeathContract | undefined;
+
+  if (hasCohort && !deathContract) {
+    errors['deathContract'] = ['Death contract is required for scenario compilation'];
+  } else if (deathContract) {
+    if (!deathContract.powerBudget || !deathContract.powerBudget.trim()) {
+      errors['deathContract.powerBudget'] = ['Death contract powerBudget is required'];
+    }
+    const hasMetaphysics =
+      deathContract.deathMetaphysics || deathContract.metaphysics;
+    if (!hasMetaphysics) {
+      errors['deathContract.deathMetaphysics'] = ['Death contract deathMetaphysics is required'];
+    }
+    if (hasCohort) {
+      const succession = deathContract.seatSuccession;
+      if (!succession || Object.keys(succession).length === 0) {
+        errors['deathContract.seatSuccession'] = [
+          'Cohort scenarios require authored seatSuccession policies',
+        ];
+      }
+    }
+  }
+
   return {
     valid: Object.keys(errors).length === 0,
     errors,
@@ -911,6 +961,7 @@ export function compileForgeDraft(
     cast: synchronizedCast,
     depictionContract: resolvedDepiction,
     dramaticSpine: draft.dramaticSpine,
+    deathContract: draft.deathContract || deriveDefaultDeathContract(draft),
   });
 
 

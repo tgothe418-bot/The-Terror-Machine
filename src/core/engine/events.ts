@@ -71,4 +71,5 @@ export type EngineEvent =
       dispatchedAtRevision: number;
       sessionId: string;
     }
-  | { type: 'DECAY_UPDATED'; newDecayState: DecayState };
+  | { type: 'DECAY_UPDATED'; newDecayState: DecayState }
+  | { type: 'POV_DEATH_DECLARED'; deathRecord: import('../../types/death').DeathRecord; timestamp?: number };

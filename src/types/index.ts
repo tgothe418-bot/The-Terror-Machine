@@ -83,6 +83,8 @@ export * from './blueprintAuthoring';
 export * from './horrorGrammar';
 export * from './dramaturgy';
 export * from './cohort';
+import { DeathContractSchema } from './death';
+export * from './death';
 import {
   CharacterPsychologicalStakesSchema,
   DramaticSpineSchema,
@@ -326,6 +328,7 @@ export const BlueprintSchema = z.object({
     characterPursuits: [],
   })),
   dramaticSpine: DramaticSpineSchema.optional(),
+  deathContract: DeathContractSchema.optional(),
 });
 
 // For compatibility with previous types, though we augment them
@@ -454,6 +457,7 @@ export interface ScenarioBlueprint {
   hauntedHouse?: HauntedHouseProvenance;
   antagonistProfile?: AntagonistProfile;
   villainProtagonist?: boolean;
+  deathContract?: import('./death').DeathContract;
 }
 
 export interface ContextReceipt {
@@ -877,6 +881,8 @@ export interface RatifiedEngineFrame {
     revisionIncrement: number;
     correctedProse?: string;
   };
+  wound_facts?: import('./death').WoundFactProposal[];
+  treatment_proposals?: import('./death').TreatmentProposal[];
 }
 
 export interface BicameralOutput {

@@ -522,7 +522,7 @@ async function generateSingleStructuredAttempt<T>(
     : contract;
 
   if (getEngineProvider() === 'local') {
-    return await generateLocalStructuredResponse(prompt, effectiveContract);
+    return await generateLocalStructuredResponse(prompt, effectiveContract, { maxTokens: 16384 });
   }
   if (getEngineProvider() === 'zai') {
     return await generateZaiStructuredResponse(prompt, effectiveContract);

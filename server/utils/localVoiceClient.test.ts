@@ -329,7 +329,7 @@ describe('Local Voice client', () => {
           schema: testContract.responseJsonSchema,
         },
       });
-      expect(body.max_tokens).toBe(8192);
+      expect(body.max_tokens).toBe(16384);
     });
 
     it('strips <think> tags from local model structured response before parsing', async () => {
@@ -669,6 +669,154 @@ describe('Local Voice client', () => {
         { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,/9j/4AAQSkZJRgABA' } },
       ]);
     });
+
+    describe('§12 Local Model Token-Budget Fixes', () => {
+      it('omits reasoning_effort when jsonMode: true is passed', async () => {
+        const fetchMock = vi
+          .fn()
+          .mockResolvedValueOnce(
+            new Response(JSON.stringify({ data: [{ id: 'google/gemma-3-27b-it' }] }), { status: 200 })
+          )
+          .mockResolvedValueOnce(
+            new Response(
+              JSON.stringify({
+                choices: [{ finish_reason: 'stop', message: { content: '{"ok":true}' } }],
+              }),
+              { status: 200 }
+            )
+          );
+        globalThis.fetch = fetchMock;
+
+        await generateLocalText('Provide json', {
+          baseUrl: 'http://127.0.0.1:1234/v1',
+          model: 'google/gemma-3-27b-it',
+          jsonMode: true,
+        });
+
+        const chatCall = fetchMock.mock.calls[1];
+        const body = JSON.parse(chatCall[1].body);
+        expect(body.reasoning_effort).toBeUndefined();
+      });
+
+      it('retries once with 50% cap bump when finish_reason is length', async () => {
+        const fetchMock = vi
+          .fn()
+          .mockResolvedValueOnce(
+            new Response(JSON.stringify({ data: [{ id: 'google/gemma-3-27b-it' }] }), { status: 200 })
+          )
+          // Attempt 1: Truncated on length
+          .mockResolvedValueOnce(
+            new Response(
+              JSON.stringify({
+                choices: [{ finish_reason: 'length', message: { content: '{"incomplete":' } }],
+              }),
+              { status: 200 }
+            )
+          )
+          // Attempt 2: Success with bumped cap
+          .mockResolvedValueOnce(
+            new Response(
+              JSON.stringify({
+                choices: [{ finish_reason: 'stop', message: { content: '{"complete": true}' } }],
+              }),
+              { status: 200 }
+            )
+          );
+        globalThis.fetch = fetchMock;
+
+        const res = await generateLocalText('Extract structured facts', {
+          baseUrl: 'http://127.0.0.1:1234/v1',
+          model: 'google/gemma-3-27b-it',
+          jsonMode: true,
+          max_tokens: 4000,
+        });
+
+        expect(res).toBe('{"complete": true}');
+        expect(fetchMock).toHaveBeenCalledTimes(3);
+
+        const attempt1 = JSON.parse(fetchMock.mock.calls[1][1].body);
+        const attempt2 = JSON.parse(fetchMock.mock.calls[2][1].body);
+
+        expect(attempt1.max_tokens).toBe(4000);
+        expect(attempt2.max_tokens).toBe(6000); // 4000 * 1.5
+      });
+
+      it('throws plain-language error when second attempt also truncates on length', async () => {
+        const fetchMock = vi
+          .fn()
+          .mockResolvedValueOnce(
+            new Response(JSON.stringify({ data: [{ id: 'small-model' }] }), { status: 200 })
+          )
+          .mockResolvedValueOnce(
+            new Response(
+              JSON.stringify({
+                choices: [{ finish_reason: 'length', message: { content: 'part 1' } }],
+              }),
+              { status: 200 }
+            )
+          )
+          .mockResolvedValueOnce(
+            new Response(
+              JSON.stringify({
+                choices: [{ finish_reason: 'length', message: { content: 'part 2' } }],
+              }),
+              { status: 200 }
+            )
+          );
+        globalThis.fetch = fetchMock;
+
+        await expect(
+          generateLocalText('Too big', {
+            baseUrl: 'http://127.0.0.1:1234/v1',
+            model: 'small-model',
+          })
+        ).rejects.toThrow('The local model ran out of output space twice on text generation');
+      });
+
+      it('structured response retries once on length and throws plain error on double exhaustion', async () => {
+        const contract = {
+          name: 'testContract',
+          responseJsonSchema: { type: 'object' },
+          zodSchema: z.object({ value: z.string() }),
+          normalizeProviderPayload: (x: unknown) => x,
+        };
+
+        const fetchMock = vi
+          .fn()
+          .mockResolvedValueOnce(
+            new Response(JSON.stringify({ data: [{ id: 'engine-model' }] }), { status: 200 })
+          )
+          .mockResolvedValueOnce(
+            new Response(
+              JSON.stringify({
+                choices: [{ finish_reason: 'length', message: { content: '{"val' } }],
+              }),
+              { status: 200 }
+            )
+          )
+          .mockResolvedValueOnce(
+            new Response(
+              JSON.stringify({
+                choices: [{ finish_reason: 'length', message: { content: '{"val' } }],
+              }),
+              { status: 200 }
+            )
+          );
+        globalThis.fetch = fetchMock;
+
+        await expect(
+          generateLocalStructuredResponse(
+            'test turn',
+            contract as unknown as Parameters<typeof generateLocalStructuredResponse>[1],
+            {
+              baseUrl: 'http://127.0.0.1:1234/v1',
+              model: 'engine-model',
+            }
+          )
+        ).rejects.toThrow('The local model ran out of output space twice on structured turn generation');
+      });
+    });
   });
 });
+
 

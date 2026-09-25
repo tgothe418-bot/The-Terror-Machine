@@ -246,7 +246,7 @@ export async function executeForgePrompt(
       model: forgeModel,
       jsonMode: options?.responseMimeType === 'application/json',
       images: localImages,
-      max_tokens: 4096,
+      max_tokens: 16384,
       timeoutMs: 300_000,
     });
   }
@@ -847,6 +847,7 @@ router.post("/analyze-reference", async (req, res) => {
       responseText = await generateLocalText(prompt, {
         model: getLocalForgeModel(),
         jsonMode: true,
+        max_tokens: 16384,
       });
     } else if (getEngineProvider() === 'zai') {
       const textParts = materials

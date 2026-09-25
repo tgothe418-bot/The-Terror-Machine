@@ -20,6 +20,8 @@ import {
 export * from './blueprintAuthoring';
 export * from './horrorGrammar';
 export * from './dramaturgy';
+import { DeathContract, DeathContractSchema } from './death';
+export * from './death';
 
 
 // ============================================================================
@@ -421,14 +423,16 @@ export const ForgeDraftSchema = z.object({
     characterPursuits: [],
   })),
   dramaticSpine: DramaticSpineSchema.optional(),
+  deathContract: DeathContractSchema.optional(),
 });
 
 export type ForgeDraftTopology = Omit<z.input<typeof ForgeDraftTopologySchema>, 'nodeDefinitions'> & {
   nodeDefinitions?: ForgeTopologyNode[];
 };
-export type ForgeDraft = Omit<z.input<typeof ForgeDraftSchema>, 'topology' | 'antagonistProfile'> & {
+export type ForgeDraft = Omit<z.input<typeof ForgeDraftSchema>, 'topology' | 'antagonistProfile' | 'deathContract'> & {
   topology?: ForgeDraftTopology;
   antagonistProfile?: Partial<AntagonistProfile>;
+  deathContract?: DeathContract;
 };
 export type ForgeDraftPatch = Partial<ForgeDraft>;
 export type ForgeDraftIdentity = z.input<typeof ForgeDraftIdentitySchema>;

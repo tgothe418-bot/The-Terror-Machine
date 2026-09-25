@@ -17,6 +17,7 @@ import {
   CharacterPursuitStatusSchema,
   CharacterPursuitStatus,
 } from '../types/horrorGrammar';
+import { getBannedNamesPromptBlock } from './bannedNames';
 
 // ============================================================================
 // Canonical Extraction Contract Constants (Directly derived from schema owners)
@@ -1108,6 +1109,11 @@ EXTRACTION POLICIES & DIRECTIVES:
 - Link candidate evidenceIds to corresponding entries in the evidence list.
 - Perspective neutrality: Every imported scenario is perspective-neutral. There is no global starting space, designated player character, or fixed user opening aim.
 - VILLAIN INVARIANT: The compiled cast must always contain at least one VILLAIN disposition member. Purely environmental threats with no personified antagonist are the edge case, not the norm — when in doubt, personify the antagonist as a cast member.
+- DEATH CONTRACT & POWER BUDGET ELICITATION:
+  - Elicit the antagonist's power budget (what the monster or hostile force can do, at what scale, with what ease), death metaphysics ('mundane' | 'zombie' | 'cosmic'), and per-seat cohort succession policies ('recruit' | 'dormant' | 'collapse') from the source material.
+  - Where the source material is silent or ambiguous on the monster's power limits, mortality/afterlife metaphysics, or cohort seat succession, DO NOT invent arbitrary canon. Instead, record each as an entry in the 'unknowns' array (the author's ambiguity queue) for creator resolution.
+
+${getBannedNamesPromptBlock()}
 `;
 
 }

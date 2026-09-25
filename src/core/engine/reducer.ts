@@ -21,6 +21,7 @@ import { applyTopologyDeltaToGraph } from './topologyCommit';
 import type { CohortState, CohortTraceEmission } from '../../types/cohort';
 import type { NodeEvidenceItem } from '../../lib/cohortBehaviors';
 import { tickCohortState } from '../../lib/cohortEngine';
+import type { WoundFact, DeathRecord } from '../../types/death';
 
 export interface RetakeRestorableEngineState {
   sessionId?: string;
@@ -65,6 +66,8 @@ export interface RetakeRestorableEngineState {
   nodeEvidence?: Record<string, NodeEvidenceItem[]>;
   nodeTraces?: Record<string, CohortTraceEmission[]>;
   castPlacement?: Record<string, string>;
+  deathLedger?: Record<string, WoundFact[]>;
+  deathRecords?: DeathRecord[];
 }
 
 export interface RetakeCheckpoint {
@@ -115,6 +118,8 @@ export function captureRetakeRestorableState(
     nodeEvidence: state.nodeEvidence,
     nodeTraces: state.nodeTraces,
     castPlacement: state.castPlacement,
+    deathLedger: state.deathLedger,
+    deathRecords: state.deathRecords,
   } satisfies RetakeRestorableEngineState;
 }
 
@@ -150,6 +155,8 @@ export function applyReconciliationPatch(
     'nodeEvidence',
     'nodeTraces',
     'castPlacement',
+    'deathLedger',
+    'deathRecords',
   ];
 
   const dynamicConditions: Record<string, unknown> = {
@@ -221,6 +228,8 @@ export const initialEngineState: EngineState = {
   nodeEvidence: {},
   nodeTraces: {},
   castPlacement: {},
+  deathLedger: {},
+  deathRecords: [],
 };
 
 export function engineReducer(state: EngineState, event: EngineEvent): EngineState {
@@ -826,6 +835,18 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
         lastDistilledRevision: event.dispatchedAtRevision,
         traumaLedger: [...state.traumaLedger, ...event.trauma],
         history: [...preservedStart, actBreakMessage, ...preservedEnd],
+      };
+    }
+
+    case 'POV_DEATH_DECLARED': {
+      const records = state.deathRecords || [];
+      const updatedRecords = records.some((r) => r.id === event.deathRecord.id)
+        ? records
+        : [...records, event.deathRecord];
+      return {
+        ...state,
+        phase: 'TERMINATED',
+        deathRecords: updatedRecords,
       };
     }
 

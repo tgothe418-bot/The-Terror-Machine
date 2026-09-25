@@ -309,19 +309,54 @@ export function initializeCohortState(blueprint: ScenarioBlueprint): CohortState
   };
 }
 
+export const DEATH_DISRUPTION_SHOCK = {
+  skepticismDelta: 0.3,
+  dissonanceDelta: 0.5,
+};
+
+export const GENERIC_DISRUPTION_SHOCK = {
+  skepticismDelta: 0.1,
+  dissonanceDelta: 0.2,
+};
+
 /**
- * Handle seat-holder loss (death/flee/fracture): open vulnerability window and apply disruption shock (§2.2).
+ * Applies maximum death disruption shock to all surviving cohort members:
+ * skepticism +0.3 (cap 1.0), dissonance +0.5 (§5).
+ */
+export function applyCohortDeathDisruptionShock(state: CohortState): CohortState {
+  const updatedMembers: Record<string, CohortMember> = {};
+  for (const [id, member] of Object.entries(state.members)) {
+    const newSkepticism = Math.min(1.0, member.cognition.skepticism + DEATH_DISRUPTION_SHOCK.skepticismDelta);
+    const newDissonance = member.cognition.cognitiveDissonance + DEATH_DISRUPTION_SHOCK.dissonanceDelta;
+    updatedMembers[id] = {
+      ...member,
+      cognition: {
+        ...member.cognition,
+        skepticism: newSkepticism,
+        cognitiveDissonance: newDissonance,
+      },
+    };
+  }
+  return {
+    ...state,
+    members: updatedMembers,
+  };
+}
+
+/**
+ * Handle seat-holder loss (death/flee/fracture): open vulnerability window and apply disruption shock (§2.2, §5).
  */
 export function handleSeatHolderLoss(
   state: CohortState,
-  vulnerabilityWindowSeconds = DEFAULT_SUCCESSION_WINDOW_SECONDS
+  vulnerabilityWindowSeconds = DEFAULT_SUCCESSION_WINDOW_SECONDS,
+  shock = GENERIC_DISRUPTION_SHOCK
 ): CohortState {
   const updatedMembers: Record<string, CohortMember> = {};
 
   for (const [id, member] of Object.entries(state.members)) {
-    // Disruption shock: increase skepticism (+0.1, max 1.0) and bump cognitive dissonance (+0.2)
-    const newSkepticism = Math.min(1.0, member.cognition.skepticism + 0.1);
-    const newDissonance = member.cognition.cognitiveDissonance + 0.2;
+    // Disruption shock: increase skepticism (+0.1 or +0.3 for death) and bump cognitive dissonance (+0.2 or +0.5)
+    const newSkepticism = Math.min(1.0, member.cognition.skepticism + shock.skepticismDelta);
+    const newDissonance = member.cognition.cognitiveDissonance + shock.dissonanceDelta;
 
     updatedMembers[id] = {
       ...member,
@@ -378,7 +413,10 @@ export function removeCohortMember(
   };
 
   if (wasSeatHolder) {
-    nextState = handleSeatHolderLoss(nextState, vulnerabilityWindowSeconds);
+    const shock = _reason === 'DEATH' ? DEATH_DISRUPTION_SHOCK : GENERIC_DISRUPTION_SHOCK;
+    nextState = handleSeatHolderLoss(nextState, vulnerabilityWindowSeconds, shock);
+  } else if (_reason === 'DEATH') {
+    nextState = applyCohortDeathDisruptionShock(nextState);
   }
 
   if (Object.keys(remainingMembers).length === 0) {

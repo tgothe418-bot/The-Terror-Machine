@@ -11,6 +11,7 @@ import type { VoiceHistoryMessage } from './openaiVoiceClient';
 import type { StructuredResponseContract } from './aiClient';
 import { parseStructuredTurnResponse, EmptyProviderResponseError } from './aiClient';
 import { parseOrRepairJson } from './jsonRepair';
+import { computeEffectiveMaxTokens, getModelCapability } from '../ai/localModelCapabilities';
 
 type LocalContentPart =
   | { type: 'text'; text: string }
@@ -563,19 +564,20 @@ export async function generateLocalStructuredResponse<T>(
 [REASONING CONSTRAINT: Limit internal reasoning to under 150 tokens. Proceed immediately to generating the complete JSON object.]
 
 ${prompt}`;
-  const maxTokens = options.maxTokens ?? 8192;
+  const requestedCap = options.maxTokens ?? 16384;
+  const effectiveCap = computeEffectiveMaxTokens(model, structuredPrompt, requestedCap);
 
-  let response: Response;
-  try {
-    response = await fetch(localUrl(baseUrl, 'chat/completions'), {
+  const makeAttempt = async (cap: number): Promise<Response> => {
+    return await fetch(localUrl(baseUrl, 'chat/completions'), {
       method: 'POST',
       headers: localHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({
         model,
         messages: [{ role: 'user', content: structuredPrompt }],
         temperature: 0.2,
-        max_tokens: maxTokens,
-        max_completion_tokens: maxTokens,
+        max_tokens: cap,
+        max_completion_tokens: cap,
+        // Universal rule (§12): omit reasoning_effort for json calls
         chat_template_kwargs: { enable_thinking: false },
         stream: false,
         response_format: {
@@ -589,6 +591,11 @@ ${prompt}`;
       }),
       signal: AbortSignal.timeout(300_000),
     });
+  };
+
+  let response: Response;
+  try {
+    response = await makeAttempt(effectiveCap);
   } catch (error: unknown) {
     console.error('[LOCAL STRUCT ERROR]', error);
     if (error instanceof LocalVoiceError) throw error;
@@ -622,10 +629,11 @@ ${prompt}`;
     );
   }
 
-  const payload = await response.json();
-  const payloadObj = payload as Record<string, unknown> | null;
-  const choice = (payloadObj?.choices as Array<Record<string, unknown>> | undefined)?.[0];
-  const choiceMsg = choice?.message as Record<string, unknown> | undefined;
+  let payload = await response.json();
+  let payloadObj = payload as Record<string, unknown> | null;
+  let choice = (payloadObj?.choices as Array<Record<string, unknown>> | undefined)?.[0];
+  let choiceMsg = choice?.message as Record<string, unknown> | undefined;
+
   console.log('[LOCAL STRUCT DEBUG]', {
     finish_reason: choice?.finish_reason,
     content_len: typeof choiceMsg?.content === 'string' ? choiceMsg.content.length : null,
@@ -633,6 +641,54 @@ ${prompt}`;
     reasoning_len: typeof choiceMsg?.reasoning_content === 'string' ? choiceMsg.reasoning_content.length : null,
     usage: payloadObj?.usage,
   });
+
+  // Retry once on length truncation (§12)
+  if (choice?.finish_reason === 'length') {
+    const bumpedCap = computeEffectiveMaxTokens(
+      model,
+      structuredPrompt,
+      Math.floor(effectiveCap * 1.5)
+    );
+    console.warn(`[LOCAL STRUCT RETRY] Truncated on length; retrying with cap ${bumpedCap} (previous: ${effectiveCap})`);
+    try {
+      response = await makeAttempt(bumpedCap);
+    } catch (retryErr: unknown) {
+      if (retryErr instanceof LocalVoiceError) throw retryErr;
+      throw new LocalVoiceError(
+        'LOCAL_SERVER_UNAVAILABLE',
+        'The Local provider became unavailable during structured turn length retry.',
+        502
+      );
+    }
+
+    if (!response.ok) {
+      throw new LocalVoiceError(
+        'LOCAL_PROVIDER_FAILURE',
+        'The Local provider rejected the structured turn generation length retry.',
+        response.status
+      );
+    }
+
+    payload = await response.json();
+    payloadObj = payload as Record<string, unknown> | null;
+    choice = (payloadObj?.choices as Array<Record<string, unknown>> | undefined)?.[0];
+    choiceMsg = choice?.message as Record<string, unknown> | undefined;
+
+    console.log('[LOCAL STRUCT RETRY DEBUG]', {
+      finish_reason: choice?.finish_reason,
+      content_len: typeof choiceMsg?.content === 'string' ? choiceMsg.content.length : null,
+      usage: payloadObj?.usage,
+    });
+
+    if (choice?.finish_reason === 'length') {
+      throw new LocalVoiceError(
+        'LOCAL_CONTEXT_EXHAUSTED',
+        'The local model ran out of output space twice on structured turn generation. Try a larger-context model or shorter inputs.',
+        502
+      );
+    }
+  }
+
   const rawText = readCompletionText(payload, { expectJson: true });
   if (!rawText || !rawText.trim()) {
     throw new EmptyProviderResponseError();
@@ -738,18 +794,27 @@ export async function generateLocalText(
     userContent = `[FORMAT DIRECTIVE: Output the raw JSON object immediately starting with '{'. Do not output any markdown fences, explanations, or internal monologue.]\n[REASONING CONSTRAINT: Limit internal reasoning to under 150 tokens. Proceed immediately to generating the complete JSON object.]\n\n${userContent}`;
   }
 
-  let response: Response;
-  try {
+  const capability = getModelCapability(model);
+  const promptTextForEstimate = typeof userContent === 'string' ? userContent : prompt;
+  const requestedCap = options.max_tokens ?? 16384;
+  const effectiveCap = computeEffectiveMaxTokens(model, promptTextForEstimate, requestedCap);
+
+  const makeAttempt = async (cap: number): Promise<Response> => {
     const body: Record<string, unknown> = {
       model,
       messages: [{ role: 'user', content: userContent }],
       temperature: options.temperature ?? 0.3,
-      max_tokens: options.max_tokens ?? 4096,
-      max_completion_tokens: options.max_tokens ?? 4096,
-      reasoning_effort: 'low',
+      max_tokens: cap,
+      max_completion_tokens: cap,
       chat_template_kwargs: { enable_thinking: false, thinking: false },
       stream: false,
     };
+
+    // Universal rule (§12): for any call with jsonMode: true, always omit reasoning_effort before fetch.
+    if (!options.jsonMode && capability.supportsReasoningEffort) {
+      body.reasoning_effort = 'low';
+    }
+
     if (options.jsonMode) {
       body.response_format = {
         type: 'json_schema',
@@ -759,12 +824,18 @@ export async function generateLocalText(
         },
       };
     }
-    response = await fetch(localUrl(baseUrl, 'chat/completions'), {
+
+    return await fetch(localUrl(baseUrl, 'chat/completions'), {
       method: 'POST',
       headers: localHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(body),
       signal: AbortSignal.timeout(options.timeoutMs ?? 300_000),
     });
+  };
+
+  let response: Response;
+  try {
+    response = await makeAttempt(effectiveCap);
   } catch (error: unknown) {
     if (error instanceof LocalVoiceError) throw error;
     throw new LocalVoiceError(
@@ -783,15 +854,62 @@ export async function generateLocalText(
     );
   }
 
-  const payload = await response.json();
+  let payload = await response.json();
+  let choice = payload?.choices?.[0];
   console.log('[FORGE LOCAL TEXT DEBUG]', {
-    finish_reason: payload?.choices?.[0]?.finish_reason,
-    content_len: payload?.choices?.[0]?.message?.content?.length,
-    content_preview: payload?.choices?.[0]?.message?.content?.slice(0, 100),
-    reasoning_len: payload?.choices?.[0]?.message?.reasoning_content?.length,
-    reasoning_preview: payload?.choices?.[0]?.message?.reasoning_content?.slice(0, 100),
+    finish_reason: choice?.finish_reason,
+    content_len: choice?.message?.content?.length,
+    content_preview: choice?.message?.content?.slice(0, 100),
+    reasoning_len: choice?.message?.reasoning_content?.length,
+    reasoning_preview: choice?.message?.reasoning_content?.slice(0, 100),
     usage: payload?.usage,
   });
+
+  // Retry once on length truncation (§12)
+  if (choice?.finish_reason === 'length') {
+    const bumpedCap = computeEffectiveMaxTokens(
+      model,
+      promptTextForEstimate,
+      Math.floor(effectiveCap * 1.5)
+    );
+    console.warn(`[FORGE LOCAL TEXT RETRY] Truncated on length; retrying with cap ${bumpedCap} (previous: ${effectiveCap})`);
+    try {
+      response = await makeAttempt(bumpedCap);
+    } catch (retryErr: unknown) {
+      if (retryErr instanceof LocalVoiceError) throw retryErr;
+      throw new LocalVoiceError(
+        'LOCAL_SERVER_UNAVAILABLE',
+        'The Local provider became unavailable during text generation length retry.',
+        502
+      );
+    }
+
+    if (!response.ok) {
+      const errText = await response.text().catch(() => '');
+      throw new LocalVoiceError(
+        'LOCAL_PROVIDER_FAILURE',
+        `The Local provider rejected the text generation length retry (${response.status}): ${errText.slice(0, 120)}`,
+        response.status
+      );
+    }
+
+    payload = await response.json();
+    choice = payload?.choices?.[0];
+    console.log('[FORGE LOCAL TEXT RETRY DEBUG]', {
+      finish_reason: choice?.finish_reason,
+      content_len: choice?.message?.content?.length,
+      usage: payload?.usage,
+    });
+
+    if (choice?.finish_reason === 'length') {
+      throw new LocalVoiceError(
+        'LOCAL_CONTEXT_EXHAUSTED',
+        'The local model ran out of output space twice on text generation. Try a larger-context model or shorter inputs.',
+        502
+      );
+    }
+  }
+
   let raw = readCompletionText(payload, { expectJson: options.jsonMode ?? false });
   raw = raw.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
   if (!raw) {

@@ -70,6 +70,25 @@ describe('forgeCompiler Voice & Acoustic Dossier Compilation', () => {
         'char-entity-41': 'REVIEWED_NONE',
       },
     },
+    antagonistProfile: {
+      name: 'Entity-41',
+      preyCohort: [
+        {
+          id: 'char-holt',
+          name: 'Officer Holt',
+          vulnerabilities: ['Acoustic resonance'],
+          psychologicalTriggers: ['Subterranean isolation'],
+          breakingPoint: 'Sensory overload',
+        },
+      ],
+    },
+    deathContract: {
+      powerBudget: 'Subterranean acoustic resonance capable of bursting capillaries',
+      deathMetaphysics: 'mundane',
+      seatSuccession: {
+        'char-holt': 'recruit',
+      },
+    },
     cast: [
       {
         id: 'char-ross',
@@ -572,5 +591,59 @@ describe('forgeCompiler Voice & Acoustic Dossier Compilation', () => {
       expect(result.errors['cast']).toBeUndefined();
     });
   });
+
+  describe('§11 Death Contract Validation', () => {
+    it('fails validation when deathContract is missing', () => {
+      const draftWithoutDeathContract = {
+        ...baseValidDraft,
+        deathContract: undefined,
+      };
+
+      const result = validateForgeDraft(draftWithoutDeathContract);
+      expect(result.valid).toBe(false);
+      expect(result.errors['deathContract']).toBeDefined();
+      expect(result.errors['deathContract'][0]).toContain('Death contract is required');
+    });
+
+    it('fails validation when powerBudget is empty', () => {
+      const draftWithEmptyBudget = {
+        ...baseValidDraft,
+        deathContract: {
+          powerBudget: '',
+          deathMetaphysics: 'mundane' as const,
+          seatSuccession: { 'char-holt': 'recruit' as const },
+        },
+      };
+
+      const result = validateForgeDraft(draftWithEmptyBudget);
+      expect(result.valid).toBe(false);
+      expect(result.errors['deathContract.powerBudget']).toBeDefined();
+    });
+
+    it('fails validation when a cohort scenario lacks seatSuccession', () => {
+      const cohortDraftNoSuccession = {
+        ...baseValidDraft,
+        deathContract: {
+          powerBudget: 'Unstoppable acoustic vibrations',
+          deathMetaphysics: 'mundane' as const,
+          seatSuccession: {},
+        },
+      };
+
+      const result = validateForgeDraft(cohortDraftNoSuccession);
+      expect(result.valid).toBe(false);
+      expect(result.errors['deathContract.seatSuccession']).toBeDefined();
+      expect(result.errors['deathContract.seatSuccession'][0]).toContain(
+        'Cohort scenarios require authored seatSuccession policies'
+      );
+    });
+
+    it('passes validation when cohort scenario provides valid seatSuccession', () => {
+      const result = validateForgeDraft(baseValidDraft);
+      expect(result.valid).toBe(true);
+      expect(result.errors).toEqual({});
+    });
+  });
 });
+
 
