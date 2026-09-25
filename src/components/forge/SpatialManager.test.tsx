@@ -24,6 +24,12 @@ describe('SpatialManager Component', () => {
         setting: { location: 'Subglacial Outpost', atmosphere: 'Frozen', timePeriod: '1982' },
         startingVector: 'SOMATIC',
         startingTier: 'GATEWAY',
+        deathContract: {
+          metaphysics: 'mundane',
+          deathMetaphysics: 'mundane',
+          powerBudget: 'Physical constraints.',
+          seatSuccession: {},
+        },
         cast: [
           {
             id: 'char-tech',

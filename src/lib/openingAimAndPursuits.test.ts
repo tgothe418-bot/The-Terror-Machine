@@ -60,6 +60,12 @@ describe('Forge 1C-3: Opening Aims, Goals, and Pursuit Convergence', () => {
       ambiguityHandling: 'Unexplained sonar echoes remain unexplained',
       specialBoundaries: 'None',
     },
+    deathContract: {
+      metaphysics: 'mundane',
+      deathMetaphysics: 'mundane',
+      powerBudget: 'Hydrostatic pressure and cold deep-sea limitations.',
+      seatSuccession: {},
+    },
     topology: {
       startingNodeId: 'AIRLOCK_ALPHA',
       nodes: ['AIRLOCK_ALPHA', 'CARGO_BAY', 'REACTOR_CORE'],

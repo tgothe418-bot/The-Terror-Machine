@@ -203,17 +203,26 @@ export function validateForgeDraft(rawDraft: unknown): ForgeValidationResult {
     for (const issue of parseResult.error.issues) {
       const formattedPath = formatZodPath(issue.path) || 'draft';
       const dotPath = issue.path.join('.') || 'draft';
+      const isMissingDeathContract =
+        (formattedPath === 'deathContract' || dotPath === 'deathContract') &&
+        !(rawDraft as Record<string, unknown>)?.deathContract;
+      const message = isMissingDeathContract
+        ? 'Death contract is required for scenario compilation'
+        : issue.message;
       if (!errors[formattedPath]) errors[formattedPath] = [];
-      errors[formattedPath].push(issue.message);
+      if (!errors[formattedPath].includes(message)) {
+        errors[formattedPath].push(message);
+      }
       if (dotPath !== formattedPath) {
         if (!errors[dotPath]) errors[dotPath] = [];
-        errors[dotPath].push(issue.message);
+        if (!errors[dotPath].includes(message)) {
+          errors[dotPath].push(message);
+        }
       }
     }
-    return { valid: false, errors };
   }
 
-  const draft: ForgeDraft = parseResult.data;
+  const draft: Partial<ForgeDraft> = (parseResult.success ? parseResult.data : rawDraft) as unknown as Partial<ForgeDraft>;
 
   // 1. Scenario Identity / Title Validation
   const effectiveTitle = (draft.identity?.title || draft.title || '').trim();
@@ -234,7 +243,7 @@ export function validateForgeDraft(rawDraft: unknown): ForgeValidationResult {
   }
 
   // 4. Cast Validation: At least one authored cast member with a valid name
-  if (!draft.cast || draft.cast.length === 0) {
+  if (!Array.isArray(draft.cast) || draft.cast.length === 0) {
     errors['cast'] = ['At least one cast member is required to compile a scenario'];
   } else {
     draft.cast.forEach((member, index) => {
@@ -358,8 +367,10 @@ export function validateForgeDraft(rawDraft: unknown): ForgeValidationResult {
   }
 
   // 7. Topology Story Map & Opening Placement Validation
-  const nodeDefs = draft.topology?.nodeDefinitions || [];
-  const rawNodes = draft.topology?.nodes || [];
+  const nodeDefs = Array.isArray(draft.topology?.nodeDefinitions)
+    ? draft.topology.nodeDefinitions
+    : [];
+  const rawNodes = Array.isArray(draft.topology?.nodes) ? draft.topology.nodes : [];
   const isRichTopology = nodeDefs.length > 0;
   const allNodeIds = new Set<string>();
   const seenNodeIds = new Set<string>();
@@ -429,7 +440,7 @@ export function validateForgeDraft(rawDraft: unknown): ForgeValidationResult {
   // Validate starting node ID if present (not required for perspective-neutral blueprint)
   if (draft.topology?.startingNodeId && draft.topology.startingNodeId.trim()) {
     const startId = draft.topology.startingNodeId.trim();
-    if (draft.topology?.anchors?.some((a) => a.id === startId)) {
+    if (Array.isArray(draft.topology?.anchors) && draft.topology.anchors.some((a) => a.id === startId)) {
       errors['topology.startingNodeId'] = [
         `Starting node ID "${startId}" cannot be an expandable space anchor`,
       ];
@@ -441,7 +452,9 @@ export function validateForgeDraft(rawDraft: unknown): ForgeValidationResult {
   }
 
   // Validate directed connections
-  const connections = draft.topology?.connections || [];
+  const connections = Array.isArray(draft.topology?.connections)
+    ? draft.topology.connections
+    : [];
   const seenDirectedEdges = new Set<string>();
   connections.forEach((conn, idx) => {
     if (!conn) return;
@@ -460,7 +473,7 @@ export function validateForgeDraft(rawDraft: unknown): ForgeValidationResult {
       ];
     }
 
-    if (draft.topology?.anchors?.some((a) => a.id === from || a.id === to)) {
+    if (Array.isArray(draft.topology?.anchors) && draft.topology.anchors.some((a) => a.id === from || a.id === to)) {
       errors[fieldPrefix] = [
         'Connections cannot link to or from expandable space anchors',
       ];
@@ -476,7 +489,7 @@ export function validateForgeDraft(rawDraft: unknown): ForgeValidationResult {
   });
 
   // Validate expandable space anchors
-  const expAnchors = draft.topology?.anchors || [];
+  const expAnchors = Array.isArray(draft.topology?.anchors) ? draft.topology.anchors : [];
   const seenExpAnchorIds = new Set<string>();
   expAnchors.forEach((anchor, idx) => {
     const fieldPrefix = `topology.anchors[${idx}]`;
@@ -499,7 +512,7 @@ export function validateForgeDraft(rawDraft: unknown): ForgeValidationResult {
   });
 
   // Validate cast opening placements
-  if (draft.cast && draft.cast.length > 0) {
+  if (Array.isArray(draft.cast) && draft.cast.length > 0) {
     draft.cast.forEach((member, idx) => {
       const fieldKey = `cast[${idx}].presenceDisposition`;
       const memberName = member.name || member.id;
@@ -775,9 +788,12 @@ export function validateForgeDraft(rawDraft: unknown): ForgeValidationResult {
   );
   const deathContract = draft.deathContract as DeathContract | undefined;
 
-  if (hasCohort && !deathContract) {
-    errors['deathContract'] = ['Death contract is required for scenario compilation'];
-  } else if (deathContract) {
+  if (!deathContract) {
+    if (!errors['deathContract']) errors['deathContract'] = [];
+    if (!errors['deathContract'].includes('Death contract is required for scenario compilation')) {
+      errors['deathContract'].push('Death contract is required for scenario compilation');
+    }
+  } else {
     if (!deathContract.powerBudget || !deathContract.powerBudget.trim()) {
       errors['deathContract.powerBudget'] = ['Death contract powerBudget is required'];
     }
@@ -837,7 +853,7 @@ export function compileForgeDraft(
     };
   }
 
-  const draft = parseResult.data;
+  const draft: ForgeDraft = parseResult.data as unknown as ForgeDraft;
 
   // Validate exact provenance for topology elements
   if (draft.topology) {

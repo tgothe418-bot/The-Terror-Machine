@@ -82,6 +82,12 @@ describe('compileBlueprintDraft and prepareBlueprintExport', () => {
         aftermath: 'Irreversible consequences',
         ambiguityHandling: 'Preserve epistemic gaps',
       },
+      deathContract: {
+        metaphysics: 'mundane',
+        deathMetaphysics: 'mundane',
+        powerBudget: 'Physical constraints.',
+        seatSuccession: {},
+      },
       cast: [
         {
           id: 'c1',
@@ -160,6 +166,12 @@ describe('compileBlueprintDraft and prepareBlueprintExport', () => {
         directness: 'Measured dread',
         aftermath: 'Irreversible decay',
         ambiguityHandling: 'Preserve cosmic mystery',
+      },
+      deathContract: {
+        metaphysics: 'mundane',
+        deathMetaphysics: 'mundane',
+        powerBudget: 'Physical constraints.',
+        seatSuccession: {},
       },
       cast: [
         {
@@ -262,6 +274,12 @@ describe('compileBlueprintDraft and prepareBlueprintExport', () => {
         aftermath: 'Irreversible consequences',
         ambiguityHandling: 'Preserve epistemic gaps',
       },
+      deathContract: {
+        metaphysics: 'mundane',
+        deathMetaphysics: 'mundane',
+        powerBudget: 'Physical constraints.',
+        seatSuccession: {},
+      },
       cast: [
         {
           id: 'c1',
@@ -340,6 +358,12 @@ describe('compileBlueprintDraft and prepareBlueprintExport', () => {
         directness: 'Visceral mechanics',
         aftermath: 'Irreversible consequences',
         ambiguityHandling: 'Preserve epistemic gaps',
+      },
+      deathContract: {
+        metaphysics: 'mundane',
+        deathMetaphysics: 'mundane',
+        powerBudget: 'Physical constraints.',
+        seatSuccession: {},
       },
       cast: [
         {
@@ -444,6 +468,12 @@ describe('compileBlueprintDraft and prepareBlueprintExport', () => {
         directness: 'Visceral mechanics',
         aftermath: 'Irreversible consequences',
         ambiguityHandling: 'Preserve epistemic gaps',
+      },
+      deathContract: {
+        metaphysics: 'mundane',
+        deathMetaphysics: 'mundane',
+        powerBudget: 'Physical constraints.',
+        seatSuccession: {},
       },
       cast: [
         {

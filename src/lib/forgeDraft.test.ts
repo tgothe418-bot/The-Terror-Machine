@@ -19,6 +19,11 @@ describe('Phase 3D-1: Forge Draft Contract, Review Validation, and Compiler Boun
       title: 'Work In Progress',
       startingVector: 'SOMATIC' as const,
       startingTier: 'GATEWAY' as const,
+      deathContract: {
+        powerBudget: 'Standard mortal and physical constraints.',
+        deathMetaphysics: 'mundane' as const,
+        seatSuccession: {},
+      },
     };
 
     const parsed = ForgeDraftSchema.safeParse(rawIncompleteDraft);
@@ -29,6 +34,7 @@ describe('Phase 3D-1: Forge Draft Contract, Review Validation, and Compiler Boun
       expect(parsed.data.startingTier).toBe('GATEWAY');
       expect(parsed.data.cast).toEqual([]);
       expect(parsed.data.setting?.location).toBe('');
+      expect(parsed.data.deathContract).toBeDefined();
     }
   });
 
@@ -109,6 +115,12 @@ describe('Phase 3D-1: Forge Draft Contract, Review Validation, and Compiler Boun
         location: 'Bedrock Research Facility',
         atmosphere: 'High-pressure mist, echoing coolant pumps',
         timePeriod: '1984',
+      },
+      deathContract: {
+        metaphysics: 'mundane',
+        deathMetaphysics: 'mundane',
+        powerBudget: 'Biological decay and containment specimens.',
+        seatSuccession: {},
       },
       depictionContract: {
         dramaticRegister: 'Clinical dread',
@@ -247,6 +259,12 @@ describe('Phase 3D-1: Forge Draft Contract, Review Validation, and Compiler Boun
       setting: {
         location: 'Orbital Station',
       },
+      deathContract: {
+        metaphysics: 'mundane',
+        deathMetaphysics: 'mundane',
+        powerBudget: 'Orbital vacuum and venting.',
+        seatSuccession: {},
+      },
       depictionContract: {
         dramaticRegister: 'Hard sci-fi dread',
         directness: 'Unflinching mechanical failures',
@@ -342,6 +360,12 @@ describe('Phase 3D-1: Forge Draft Contract, Review Validation, and Compiler Boun
       setting: { location: 'Underground Facility', atmosphere: 'Dark', timePeriod: '1999' },
       startingVector: 'SOMATIC',
       startingTier: 'GATEWAY',
+      deathContract: {
+        metaphysics: 'mundane',
+        deathMetaphysics: 'mundane',
+        powerBudget: 'Facility physical constraints.',
+        seatSuccession: {},
+      },
       depictionContract: {
         dramaticRegister: 'Visceral',
         directness: 'High directness',

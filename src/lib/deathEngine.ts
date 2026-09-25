@@ -1,13 +1,18 @@
+import type { SpatialNode } from '../types';
 import {
   CircumstanceFacts,
   DeathContract,
   DeathRecord,
   DeathReceipt,
   SuccessionPolicy,
+  TreatmentProposal,
+  WoundFactProposal,
 } from '../types/death';
 import {
   determinePrimaryWound,
   evaluateSurvivability,
+  recordTreatment,
+  recordWoundFacts,
   transferWounds,
   WoundLedger,
 } from './deathLedger';
@@ -276,5 +281,221 @@ export function executeSacrifice(
     transferredCount: transferred.length,
     deaths,
     nextState: currentState,
+  };
+}
+
+export interface ProcessTurnDeathPassParams {
+  commandText: string;
+  turnCount: number;
+  fictionalTime: number; // in seconds
+  povCharacterId?: string | null;
+  woundFactsProposals?: Array<Partial<WoundFactProposal>>;
+  treatmentProposals?: Array<TreatmentProposal>;
+  deathLedger?: WoundLedger;
+  deathRecords?: DeathRecord[];
+  cohortState?: CohortState;
+  nodeEvidence?: Record<string, NodeEvidenceItem[]>;
+  castPlacement?: Record<string, string>;
+  spatialGraph?: SpatialNode[];
+  deathContract?: DeathContract;
+  cast?: Array<{
+    id: string;
+    name?: string;
+    disposition?: string;
+    isUndead?: boolean;
+    [k: string]: unknown;
+  }>;
+}
+
+export interface ProcessTurnDeathPassResult {
+  deathLedger: WoundLedger;
+  deathRecords: DeathRecord[];
+  cohortState?: CohortState;
+  nodeEvidence: Record<string, NodeEvidenceItem[]>;
+  cast: Array<{
+    id: string;
+    name?: string;
+    disposition?: string;
+    isUndead?: boolean;
+    [k: string]: unknown;
+  }>;
+  deathsDeclared: DeathReceipt[];
+  povDeathDeclared: boolean;
+}
+
+/**
+ * Deterministic Death Subsystem turn pass (§5, §15).
+ * Ingests sacrifice commands, treatment proposals, and wound fact proposals,
+ * and performs survivability evaluation for characters across the ledger.
+ */
+export function processTurnDeathPass(
+  params: ProcessTurnDeathPassParams
+): ProcessTurnDeathPassResult {
+  const deathsDeclared: DeathReceipt[] = [];
+  let povDeathDeclared = false;
+
+  let currentEngineState: DeathEngineState = {
+    turnCount: params.turnCount,
+    fictionalTime: params.fictionalTime,
+    povCharacterId: params.povCharacterId,
+    deathRecords: [...(params.deathRecords || [])],
+    deathLedger: { ...(params.deathLedger || {}) },
+    cohortState: params.cohortState ? { ...params.cohortState } : undefined,
+    nodeEvidence: { ...(params.nodeEvidence || {}) },
+    castPlacement: params.castPlacement ? { ...params.castPlacement } : {},
+    deathContract: params.deathContract,
+    cast: params.cast ? [...params.cast] : [],
+  };
+
+  function buildCircumstances(charId: string): CircumstanceFacts {
+    const charNode = currentEngineState.castPlacement?.[charId];
+    const witnesses = Object.entries(currentEngineState.castPlacement || {})
+      .filter(([cId, nId]) => cId !== charId && Boolean(charNode) && nId === charNode)
+      .map(([cId]) => cId);
+
+    return {
+      characterId: charId,
+      witnessesPresent: witnesses,
+      signalAvailable: true,
+      extraordinaryInterventionAvailable: false,
+      evaluatedAtFictionalTime: params.fictionalTime,
+    };
+  }
+
+  // 1. Sacrifice Command Processing
+  const sacrificeParsed = parseSacrificeCommand(params.commandText || '');
+  if (
+    sacrificeParsed.isSacrifice &&
+    sacrificeParsed.victimCharacterId &&
+    params.povCharacterId
+  ) {
+    const intervenerCircumstances = buildCircumstances(params.povCharacterId);
+    const victimCircumstances = buildCircumstances(sacrificeParsed.victimCharacterId);
+
+    const sacrificeRes = executeSacrifice(
+      params.povCharacterId,
+      sacrificeParsed.victimCharacterId,
+      currentEngineState,
+      intervenerCircumstances,
+      victimCircumstances
+    );
+
+    currentEngineState = sacrificeRes.nextState;
+    deathsDeclared.push(...sacrificeRes.deaths);
+    for (const receipt of sacrificeRes.deaths) {
+      if (receipt.record.isPovDeath || receipt.povTerminationTriggered) {
+        povDeathDeclared = true;
+      }
+    }
+  }
+
+  // 2. Treatment Proposals Ingestion
+  if (params.treatmentProposals && params.treatmentProposals.length > 0) {
+    for (const proposal of params.treatmentProposals) {
+      const patientId = proposal.characterId;
+      const woundId = proposal.woundId;
+      const patientWounds = currentEngineState.deathLedger[patientId] || [];
+      const targetWound = patientWounds.find((w) => w.id === woundId);
+
+      // Check that woundId exists on characterId in ledger and is untreated (!w.treated)
+      if (!targetWound || targetWound.treated) {
+        continue;
+      }
+
+      // Validate co-location: treater (povCharacterId or acting character) and patient (characterId) are at the same node in castPlacement
+      const treaterId = params.povCharacterId;
+      let isCoLocated = true;
+      if (treaterId && currentEngineState.castPlacement) {
+        const treaterLoc = currentEngineState.castPlacement[treaterId];
+        const patientLoc = currentEngineState.castPlacement[patientId];
+        if (treaterLoc && patientLoc && treaterLoc !== patientLoc) {
+          isCoLocated = false;
+        }
+      }
+
+      if (isCoLocated) {
+        const treatRes = recordTreatment(
+          patientId,
+          woundId,
+          params.fictionalTime,
+          currentEngineState.deathLedger
+        );
+        if (treatRes.success) {
+          currentEngineState.deathLedger = treatRes.updatedLedger;
+        }
+      }
+    }
+  }
+
+  // 3. Wound Facts Proposals Ingestion
+  if (params.woundFactsProposals && params.woundFactsProposals.length > 0) {
+    const grouped: Record<string, Array<Partial<WoundFactProposal>>> = {};
+    for (const proposal of params.woundFactsProposals) {
+      if (proposal.characterId) {
+        if (!grouped[proposal.characterId]) {
+          grouped[proposal.characterId] = [];
+        }
+        grouped[proposal.characterId].push(proposal);
+      }
+    }
+
+    for (const [charId, proposalsForChar] of Object.entries(grouped)) {
+      const recRes = recordWoundFacts(
+        charId,
+        proposalsForChar,
+        params.turnCount,
+        params.fictionalTime,
+        currentEngineState.deathLedger
+      );
+      currentEngineState.deathLedger = recRes.updatedLedger;
+    }
+  }
+
+  // 4. Survivability Evaluation
+  // For every character with open wounds in the ledger who does NOT already have a death record in deathRecords
+  const deadCharIds = new Set(currentEngineState.deathRecords.map((d) => d.characterId));
+  const charactersWithWounds = Object.keys(currentEngineState.deathLedger);
+
+  for (const characterId of charactersWithWounds) {
+    if (deadCharIds.has(characterId)) {
+      continue;
+    }
+
+    const wounds = currentEngineState.deathLedger[characterId] || [];
+    if (wounds.length === 0) {
+      continue;
+    }
+
+    const circumstances = buildCircumstances(characterId);
+    const survRes = evaluateSurvivability(
+      characterId,
+      currentEngineState.deathLedger,
+      circumstances
+    );
+
+    if (survRes.verdict === 'DEATH') {
+      const declRes = declareDeath(
+        characterId,
+        survRes.restingOnFactIds,
+        currentEngineState
+      );
+      currentEngineState = declRes.nextState;
+      deathsDeclared.push(declRes.receipt);
+      deadCharIds.add(characterId);
+
+      if (declRes.receipt.record.isPovDeath || declRes.receipt.povTerminationTriggered) {
+        povDeathDeclared = true;
+      }
+    }
+  }
+
+  return {
+    deathLedger: currentEngineState.deathLedger,
+    deathRecords: currentEngineState.deathRecords,
+    cohortState: currentEngineState.cohortState,
+    nodeEvidence: currentEngineState.nodeEvidence || {},
+    cast: currentEngineState.cast || [],
+    deathsDeclared,
+    povDeathDeclared,
   };
 }

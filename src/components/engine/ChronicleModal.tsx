@@ -8,6 +8,8 @@ export interface ChronicleModalProps {
   isOpen: boolean;
   onClose: () => void;
   onReset?: () => void;
+  onRetake?: () => void;
+  canRetake?: boolean;
 }
 
 export const ChronicleModal: React.FC<ChronicleModalProps> = ({
@@ -15,6 +17,8 @@ export const ChronicleModal: React.FC<ChronicleModalProps> = ({
   isOpen,
   onClose,
   onReset,
+  onRetake,
+  canRetake,
 }) => {
   const [copied, setCopied] = useState(false);
 
@@ -169,6 +173,16 @@ export const ChronicleModal: React.FC<ChronicleModalProps> = ({
           </div>
 
           <div className="flex gap-2">
+            {onRetake && (
+              <button
+                onClick={onRetake}
+                disabled={canRetake === false}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded bg-amber-950/60 hover:bg-amber-900 border border-amber-800/60 text-amber-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                Retake Turn
+              </button>
+            )}
             {onReset && (
               <button
                 onClick={onReset}

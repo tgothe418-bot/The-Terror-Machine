@@ -391,6 +391,12 @@ describe('forgeCompiler Voice & Acoustic Dossier Compilation', () => {
       premise: 'Testing AM scenario.',
       startingVector: 'SOMATIC',
       startingTier: 'MANIFEST',
+      deathContract: {
+        metaphysics: 'mundane',
+        deathMetaphysics: 'mundane',
+        powerBudget: 'Cybernetic chamber constraints.',
+        seatSuccession: {},
+      },
       cast: [
         {
           id: 'char-elena',

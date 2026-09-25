@@ -2304,7 +2304,7 @@ export function applyResolutionDraftPatch(
         error: `Draft validation failed: ${parseDraft.error.issues.map((i) => i.message).join(', ')}`,
       };
     }
-    return { success: true, draft: parseDraft.data };
+    return { success: true, draft: parseDraft.data as unknown as ForgeDraft };
   }
 
   // 1. Parse the complete patch
@@ -2607,7 +2607,7 @@ export function applyResolutionDraftPatch(
   // 5. Return success only after final validation
   return {
     success: true,
-    draft: finalValidation.data,
+    draft: finalValidation.data as unknown as ForgeDraft,
   };
 }
 

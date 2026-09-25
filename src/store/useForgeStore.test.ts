@@ -238,6 +238,12 @@ describe('useForgeStore - draft state and actions', () => {
       },
       references: [],
       characters: [],
+      deathContract: {
+        metaphysics: 'mundane' as const,
+        deathMetaphysics: 'mundane' as const,
+        powerBudget: 'Standard cosmic constraints.',
+        seatSuccession: {},
+      },
     };
 
     forgeActions.replaceDraft(externalDraft);

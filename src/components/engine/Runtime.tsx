@@ -21,6 +21,8 @@ import MapSketch from './MapSketch';
 import MortalLedger from './MortalLedger';
 import ScenarioDossier from './ScenarioDossier';
 import AiCalibrationModal from '../hub/AiCalibrationModal';
+import ChronicleModal from './ChronicleModal';
+import { buildChronicle } from '../../lib/deathChronicle';
 import { normalizeRoleCategory } from '../../types/participation';
 import { useEngineStore } from '../../core/store';
 import { useAppStore } from '../../store/useAppStore';
@@ -689,9 +691,36 @@ export default function Runtime() {
   const currentSimulationPhase = useTelemetryStore((state) => state.currentPhase);
   const lastTurnCheckpoint = useAppStore((state) => state.lastTurnCheckpoint);
   const retakeLastTurn = useAppStore((state) => state.retakeLastTurn);
+  const resetSession = useAppStore((state) => state.resetSession);
   const sessionId = useAppStore((state) => state.sessionId);
   const blueprintId = useAppStore((state) => state.blueprintId);
-  const canonicalRevision = useAppStore((state) => state.canonicalRevision);
+  const deathRecords = useAppStore((state) => state.deathRecords);
+  const nodeEvidence = useAppStore((state) => state.nodeEvidence);
+  const castPlacement = useAppStore((state) => state.castPlacement);
+  const cohortState = useAppStore((state) => state.cohortState);
+  const [dismissedChronicleTurnCount, setDismissedChronicleTurnCount] = useState<number | null>(null);
+  const isChronicleOpen = appPhase === 'TERMINATED' && dismissedChronicleTurnCount !== turnCount;
+
+  const chronicle = useMemo(() => {
+    if (!deathRecords || deathRecords.length === 0) return null;
+    const allEvidence: string[] = [];
+    Object.values(nodeEvidence || {}).forEach((items) => {
+      items.forEach((item) => {
+        if (item.text) allEvidence.push(item.text);
+      });
+    });
+
+    return buildChronicle({
+      scenarioTitle: activeBlueprint?.title || activeBlueprint?.identity?.title || 'Scenario',
+      turnCount: turnCount || 0,
+      fictionalSeconds: (turnCount || 0) * 60,
+      deathRecords,
+      phaseHistory: cohortState?.peakPhase ? [cohortState.peakPhase] : ['ONSET'],
+      evidence: allEvidence,
+      cast: (activeBlueprint?.cast as Array<{ id: string; name?: string; starting_location?: string; locationNodeId?: string }>) || [],
+      castPlacement: castPlacement || undefined,
+    });
+  }, [activeBlueprint, deathRecords, nodeEvidence, turnCount, cohortState, castPlacement]);
 
   const prevPhaseRef = useRef<string | null>(null);
 
@@ -963,6 +992,7 @@ export default function Runtime() {
     const previousCommand = lastTurnCheckpoint.commandText;
     const success = retakeLastTurn();
     if (success) {
+      setDismissedChronicleTurnCount(null);
       setInput(previousCommand);
       setIsTerminated(false);
       setTerminalResolution(null);
@@ -2088,6 +2118,23 @@ export default function Runtime() {
         isOpen={isAiCalibrationOpen}
         onClose={() => setIsAiCalibrationOpen(false)}
       />
+      {/* Chronicle Modal for Terminated Runs */}
+      {appPhase === 'TERMINATED' && deathRecords && deathRecords.length > 0 && chronicle && (
+        <ChronicleModal
+          chronicle={chronicle}
+          isOpen={isChronicleOpen}
+          onClose={() => setDismissedChronicleTurnCount(turnCount)}
+          canRetake={Boolean(lastTurnCheckpoint)}
+          onRetake={() => {
+            setDismissedChronicleTurnCount(null);
+            retakeLastTurn();
+          }}
+          onReset={() => {
+            setDismissedChronicleTurnCount(null);
+            resetSession();
+          }}
+        />
+      )}
     </div>
   );
 }

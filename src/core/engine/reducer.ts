@@ -21,7 +21,8 @@ import { applyTopologyDeltaToGraph } from './topologyCommit';
 import type { CohortState, CohortTraceEmission } from '../../types/cohort';
 import type { NodeEvidenceItem } from '../../lib/cohortBehaviors';
 import { tickCohortState } from '../../lib/cohortEngine';
-import type { WoundFact, DeathRecord } from '../../types/death';
+import type { WoundFact, DeathRecord, DeathContract } from '../../types/death';
+import { processTurnDeathPass } from '../../lib/deathEngine';
 
 export interface RetakeRestorableEngineState {
   sessionId?: string;
@@ -66,8 +67,17 @@ export interface RetakeRestorableEngineState {
   nodeEvidence?: Record<string, NodeEvidenceItem[]>;
   nodeTraces?: Record<string, CohortTraceEmission[]>;
   castPlacement?: Record<string, string>;
+  deathContract?: DeathContract;
   deathLedger?: Record<string, WoundFact[]>;
   deathRecords?: DeathRecord[];
+  cast?: Array<{
+    id: string;
+    name?: string;
+    disposition?: string;
+    isUndead?: boolean;
+    isUserCharacter?: boolean;
+    [k: string]: unknown;
+  }>;
 }
 
 export interface RetakeCheckpoint {
@@ -118,8 +128,10 @@ export function captureRetakeRestorableState(
     nodeEvidence: state.nodeEvidence,
     nodeTraces: state.nodeTraces,
     castPlacement: state.castPlacement,
+    deathContract: state.deathContract,
     deathLedger: state.deathLedger,
     deathRecords: state.deathRecords,
+    cast: state.cast,
   } satisfies RetakeRestorableEngineState;
 }
 
@@ -155,8 +167,10 @@ export function applyReconciliationPatch(
     'nodeEvidence',
     'nodeTraces',
     'castPlacement',
+    'deathContract',
     'deathLedger',
     'deathRecords',
+    'cast',
   ];
 
   const dynamicConditions: Record<string, unknown> = {
@@ -228,8 +242,10 @@ export const initialEngineState: EngineState = {
   nodeEvidence: {},
   nodeTraces: {},
   castPlacement: {},
+  deathContract: undefined,
   deathLedger: {},
   deathRecords: [],
+  cast: [],
 };
 
 export function engineReducer(state: EngineState, event: EngineEvent): EngineState {
@@ -430,8 +446,44 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
         }
       }
 
+      // 6. Death subsystem pass (§5, §15)
+      const povCharId =
+        (state as unknown as { selectedCharacterId?: string }).selectedCharacterId ||
+        (state as unknown as { gameState?: { player_character_id?: string | null } }).gameState?.player_character_id ||
+        (state.cast || []).find((c: { isUserCharacter?: boolean; id?: string }) => c.isUserCharacter)?.id ||
+        null;
+
+      const deathPassRes = processTurnDeathPass({
+        commandText: event.payload.commandText,
+        turnCount: updatedTurnCount,
+        fictionalTime: (state.turnCount || 0) * 60,
+        povCharacterId: povCharId,
+        woundFactsProposals: event.payload.frame.wound_facts,
+        treatmentProposals: event.payload.frame.treatment_proposals,
+        deathLedger: state.deathLedger,
+        deathRecords: state.deathRecords,
+        cohortState: nextCohortState,
+        nodeEvidence: nextNodeEvidence,
+        castPlacement: nextCastPlacement,
+        spatialGraph: nextGraph,
+        deathContract: state.deathContract,
+        cast: state.cast,
+      });
+
+      if (deathPassRes.cohortState) {
+        nextCohortState = deathPassRes.cohortState;
+      }
+      const updatedNodeEvidence = deathPassRes.nodeEvidence || nextNodeEvidence;
+      const updatedCast = deathPassRes.cast || state.cast;
+
+      const isPovTerminated = deathPassRes.povDeathDeclared;
+      const resolvedPhase: Phase = isPovTerminated ? 'TERMINATED' : (state.phase === 'TERMINATED' ? 'TERMINATED' : nextPhase as Phase);
+      const resolvedCurrentPhase = isPovTerminated ? 'TERMINATED' : nextPhase;
+
       return {
         ...state,
+        phase: resolvedPhase,
+        currentPhase: resolvedCurrentPhase,
         lastTurnCheckpoint,
         history: [...(state.history || []), userMsg, engineMsg],
         turnCount: updatedTurnCount,
@@ -442,16 +494,18 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
         activeTier: nextTier,
         reconciliationRevision: nextReconciliationRevision,
         storyLog: updatedStoryLog,
-        currentPhase: nextPhase,
         tensionLevel: nextTension,
         activeMemory: {
           ...state.activeMemory,
           systemFlags: combinedFlags,
         },
         cohortState: nextCohortState,
-        nodeEvidence: nextNodeEvidence,
+        nodeEvidence: updatedNodeEvidence,
         nodeTraces: nextNodeTraces,
         castPlacement: nextCastPlacement,
+        deathLedger: deathPassRes.deathLedger,
+        deathRecords: deathPassRes.deathRecords,
+        cast: updatedCast,
       };
     }
 

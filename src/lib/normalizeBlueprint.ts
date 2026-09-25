@@ -260,6 +260,7 @@ function normalizeLegacyBlueprintShape(raw: unknown): unknown {
     ...(userOpeningAimNormalized !== undefined ? { userOpeningAim: userOpeningAimNormalized } : {}),
     ...(antagonistProfileNormalized !== undefined ? { antagonistProfile: antagonistProfileNormalized } : {}),
     ...(hasOwn(rawRecord, 'villainProtagonist') ? { villainProtagonist: Boolean(rawRecord.villainProtagonist) } : {}),
+    // Strictly a legacy backfill for pre-compiled blueprints that lack deathContract
     ...(hasOwn(rawRecord, 'deathContract') && rawRecord.deathContract !== undefined
       ? { deathContract: rawRecord.deathContract }
       : {

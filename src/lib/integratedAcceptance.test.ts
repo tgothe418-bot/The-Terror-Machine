@@ -112,6 +112,12 @@ describe('Packet 12 — Integrated Acceptance and Stabilization (Master Proof)',
     },
     startingVector: 'COGNITIVE',
     startingTier: 'LATENT',
+    deathContract: {
+      metaphysics: 'mundane',
+      deathMetaphysics: 'mundane',
+      powerBudget: 'Deep oceanic pressure and structural collapse.',
+      seatSuccession: {},
+    },
     topology: {
       startingNodeId: 'NODE_CENTRAL_HUB',
       nodes: ['NODE_CENTRAL_HUB', 'NODE_REACTOR_CORRIDOR', 'NODE_SUB_DOCK'],

@@ -106,6 +106,12 @@ describe('ensureVillainCastMember', () => {
     premise: 'Testing scenario mechanics.',
     startingVector: 'SOMATIC',
     startingTier: 'MANIFEST',
+    deathContract: {
+      metaphysics: 'mundane',
+      deathMetaphysics: 'mundane',
+      powerBudget: 'Physical constraints.',
+      seatSuccession: {},
+    },
     cast: [
       {
         id: 'char-elena',

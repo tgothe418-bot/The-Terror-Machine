@@ -667,6 +667,19 @@ const createInitialDraft = (initial?: ForgeDraftPatch): ForgeDraft => ({
         valueAnchors: [],
         characterPursuits: [],
       },
+  deathContract: initial?.deathContract
+    ? {
+        metaphysics: initial.deathContract.deathMetaphysics || initial.deathContract.metaphysics || 'mundane',
+        deathMetaphysics: initial.deathContract.deathMetaphysics || initial.deathContract.metaphysics || 'mundane',
+        powerBudget: initial.deathContract.powerBudget || 'Standard mortal and physical constraints.',
+        seatSuccession: initial.deathContract.seatSuccession ? { ...initial.deathContract.seatSuccession } : {},
+      }
+    : {
+        metaphysics: 'mundane',
+        deathMetaphysics: 'mundane',
+        powerBudget: 'Standard mortal and physical constraints.',
+        seatSuccession: {},
+      },
 });
 
 /**

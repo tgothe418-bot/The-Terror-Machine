@@ -22,6 +22,12 @@ describe('Forge Readiness & Compilation (Packet 1-1)', () => {
     },
     startingVector: 'COGNITIVE',
     startingTier: 'LATENT',
+    deathContract: {
+      metaphysics: 'mundane',
+      deathMetaphysics: 'mundane',
+      powerBudget: 'Freezing permafrost physical constraints.',
+      seatSuccession: {},
+    },
     cast: [
       {
         id: 'char-user',

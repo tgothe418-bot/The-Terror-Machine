@@ -119,6 +119,7 @@ describe('sourceBaseline pure functions', () => {
         timePeriod: 'Original Period',
       },
       environmentalRules: ['Rule 1'],
+      deathContract: { metaphysics: 'mundane', powerBudget: 'Standard constraints.', seatSuccession: {} },
       cast: [
         {
           id: 'char-existing',
@@ -169,6 +170,7 @@ describe('sourceBaseline pure functions', () => {
   it('deduplicates rules, topology nodes, and reference attribution', () => {
     const initialDraft: ForgeDraft = {
       id: 'draft-123',
+      deathContract: { metaphysics: 'mundane', powerBudget: 'Standard constraints.', seatSuccession: {} },
       environmentalRules: ['Pressure rule'],
       topology: { nodes: ['BATHYSPHERE_DOCK'], connections: [] },
       references: ['drowned_bell.json'],
@@ -215,6 +217,7 @@ describe('sourceBaseline pure functions', () => {
   it('applies cast expression guidance candidate to target cast member', () => {
     const initialDraft: ForgeDraft = {
       id: 'draft-123',
+      deathContract: { metaphysics: 'mundane', powerBudget: 'Standard constraints.', seatSuccession: {} },
       cast: [
         {
           id: 'char-diver',
@@ -317,6 +320,7 @@ describe('sourceBaseline pure functions', () => {
       },
       startingVector: 'COGNITIVE',
       startingTier: 'LATENT',
+      deathContract: { metaphysics: 'mundane', powerBudget: 'Pressure constraints.', seatSuccession: {} },
       depictionContract: {
         dramaticRegister: 'Psychological Dread',
         directness: 'Implied and atmospheric',
@@ -502,6 +506,7 @@ describe('sourceBaseline pure functions', () => {
         },
         startingVector: 'COGNITIVE',
         startingTier: 'LATENT',
+        deathContract: { metaphysics: 'mundane', powerBudget: 'Ocean breach constraints.', seatSuccession: {} },
         depictionContract: {
           dramaticRegister: 'Claustrophobic Survival',
           directness: 'Visceral environmental cues',
@@ -607,6 +612,7 @@ describe('sourceBaseline pure functions', () => {
         id: 'draft-test-update',
         title: 'Facility Omega',
         premise: 'Deep ocean containment breach.',
+        deathContract: { metaphysics: 'mundane', powerBudget: 'Ocean breach constraints.', seatSuccession: {} },
         cast: [
           {
             id: 'char-corvus',
@@ -658,6 +664,7 @@ describe('sourceBaseline pure functions', () => {
         id: 'draft-test-append',
         title: 'Facility Omega',
         premise: 'Deep ocean containment breach.',
+        deathContract: { metaphysics: 'mundane', powerBudget: 'Ocean breach constraints.', seatSuccession: {} },
         cast: [
           {
             id: 'char-corvus-1',
@@ -707,6 +714,7 @@ describe('sourceBaseline pure functions', () => {
         id: 'draft-test-invalid',
         title: 'Facility Omega',
         premise: 'Deep ocean containment breach.',
+        deathContract: { metaphysics: 'mundane', powerBudget: 'Ocean breach constraints.', seatSuccession: {} },
         cast: [
           {
             id: 'char-corvus-1',
@@ -1196,6 +1204,7 @@ describe('sourceBaseline pure functions', () => {
         setting: { location: 'Bunker', atmosphere: 'Bleak', timePeriod: '1985' },
         startingVector: 'COGNITIVE',
         startingTier: 'LATENT',
+        deathContract: { metaphysics: 'mundane', powerBudget: 'Fallout constraints.', seatSuccession: {} },
         depictionContract: {
           dramaticRegister: 'Cold War Realism',
           directness: 'High directness',
@@ -1469,6 +1478,7 @@ describe('sourceBaseline pure functions', () => {
         setting: { location: 'Trench Outpost', atmosphere: 'Cold', timePeriod: '1979' },
         startingVector: 'COGNITIVE',
         startingTier: 'LATENT',
+        deathContract: { metaphysics: 'mundane', powerBudget: 'Abyssal hydraulic constraints.', seatSuccession: {} },
         depictionContract: {
           dramaticRegister: 'Cosmic existential dread',
           directness: 'High directness',
@@ -1514,6 +1524,7 @@ describe('sourceBaseline pure functions', () => {
         title: 'Outpost',
         cast: [{ id: 'char-mortal', name: 'Mortal Crew', isEntity: false }],
         topology: { nodes: ['ROOM_A'], connections: [] },
+        deathContract: { metaphysics: 'mundane', powerBudget: 'Outpost constraints.', seatSuccession: {} },
       };
 
       // 1. Connection with unknown destination node
@@ -1593,6 +1604,7 @@ describe('sourceBaseline pure functions', () => {
       let draft: ForgeDraft = {
         id: 'draft-topo-test',
         title: 'Station',
+        deathContract: { metaphysics: 'mundane', powerBudget: 'Station constraints.', seatSuccession: {} },
         topology: { nodes: [], nodeDefinitions: [], connections: [] },
       };
 
@@ -1647,6 +1659,7 @@ describe('sourceBaseline pure functions', () => {
       const draft: ForgeDraft = {
         id: 'draft-place-test',
         title: 'Station',
+        deathContract: { metaphysics: 'mundane', powerBudget: 'Station constraints.', seatSuccession: {} },
         cast: [{ id: 'char-1', name: 'Officer', isEntity: false, isUserCharacter: false }],
         topology: { nodes: ['ROOM_A'], nodeDefinitions: [{ id: 'ROOM_A', label: 'Room A' }], connections: [] },
       };
@@ -2241,6 +2254,7 @@ describe('sourceBaseline pure functions', () => {
     it('auto-selects first topology node as startingNodeId when unassigned', () => {
       const draft: ForgeDraft = {
         title: 'Test Scenario',
+        deathContract: { metaphysics: 'mundane', powerBudget: 'Standard constraints.', seatSuccession: {} },
         topology: {
           nodes: ['node-estate', 'node-playground'],
           nodeDefinitions: [
@@ -2259,6 +2273,7 @@ describe('sourceBaseline pure functions', () => {
     it('preserves existing valid startingNodeId', () => {
       const draft: ForgeDraft = {
         title: 'Test Scenario',
+        deathContract: { metaphysics: 'mundane', powerBudget: 'Standard constraints.', seatSuccession: {} },
         topology: {
           startingNodeId: 'node-playground',
           nodes: ['node-estate', 'node-playground'],
@@ -2278,6 +2293,7 @@ describe('sourceBaseline pure functions', () => {
     it('reconciles unknown AT_NODE placement to OFFSTAGE', () => {
       const draft: ForgeDraft = {
         title: 'Test Scenario',
+        deathContract: { metaphysics: 'mundane', powerBudget: 'Standard constraints.', seatSuccession: {} },
         topology: {
           nodes: ['borden-estate', 'playground-main'],
           nodeDefinitions: [
@@ -2448,6 +2464,7 @@ describe('sourceBaseline pure functions', () => {
         identity: { title: 'The Outpost', version: '1.0', author: '', thematicAnchor: '' },
         premise: 'Cold outpost.',
         setting: { location: 'Outpost Delta', atmosphere: 'Frozen', timePeriod: 'Modern' },
+        deathContract: { metaphysics: 'mundane', powerBudget: 'Cold physical environment.', seatSuccession: {} },
         topology: {
           nodes: ['chamber_1', 'chamber_2', 'chamber_3'],
           nodeDefinitions: [
@@ -2477,6 +2494,7 @@ describe('sourceBaseline pure functions', () => {
         identity: { title: 'The Machine Facility', version: '1.0', author: '', thematicAnchor: '' },
         premise: 'Autonomous system gone mad.',
         setting: { location: 'Core 4', atmosphere: 'Clinical', timePeriod: 'Future' },
+        deathContract: { metaphysics: 'mundane', powerBudget: 'Drone physical constraints.', seatSuccession: {} },
       };
 
       const cand: ForgeSourceCandidate = {
@@ -2513,6 +2531,7 @@ describe('sourceBaseline pure functions', () => {
         identity: { title: 'The Subterranean Complex', version: '1.0', author: '', thematicAnchor: '' },
         premise: 'Dread in the deep.',
         setting: { location: 'Bunker', atmosphere: 'Cold', timePeriod: '1980' },
+        deathContract: { metaphysics: 'mundane', powerBudget: 'Subterranean constraints.', seatSuccession: {} },
         topology: {
           startingNodeId: 'room_alpha',
           nodes: ['room_alpha', 'room_beta'],

@@ -423,16 +423,16 @@ export const ForgeDraftSchema = z.object({
     characterPursuits: [],
   })),
   dramaticSpine: DramaticSpineSchema.optional(),
-  deathContract: DeathContractSchema.optional(),
+  deathContract: DeathContractSchema,
 });
 
 export type ForgeDraftTopology = Omit<z.input<typeof ForgeDraftTopologySchema>, 'nodeDefinitions'> & {
   nodeDefinitions?: ForgeTopologyNode[];
 };
-export type ForgeDraft = Omit<z.input<typeof ForgeDraftSchema>, 'topology' | 'antagonistProfile' | 'deathContract'> & {
+export type ForgeDraft = Omit<z.input<typeof ForgeDraftSchema>, 'topology' | 'antagonistProfile'> & {
   topology?: ForgeDraftTopology;
   antagonistProfile?: Partial<AntagonistProfile>;
-  deathContract?: DeathContract;
+  deathContract: DeathContract;
 };
 export type ForgeDraftPatch = Partial<ForgeDraft>;
 export type ForgeDraftIdentity = z.input<typeof ForgeDraftIdentitySchema>;

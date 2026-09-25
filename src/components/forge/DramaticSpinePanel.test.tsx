@@ -137,6 +137,12 @@ describe('DramaticSpinePanel Component', () => {
         valueAnchors: [],
         characterPursuits: [],
       },
+      deathContract: {
+        metaphysics: 'mundane',
+        deathMetaphysics: 'mundane',
+        powerBudget: 'Strict anatomical limits.',
+        seatSuccession: {},
+      },
     };
 
     forgeActions.replaceDraft(initialDraft as ForgeDraft);

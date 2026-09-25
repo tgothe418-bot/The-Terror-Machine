@@ -26,6 +26,12 @@ describe('Packet 1D-5: Automatic Depiction Contract & One-Action Export', () => 
     },
     startingVector: 'SOMATIC',
     startingTier: 'LATENT',
+    deathContract: {
+      metaphysics: 'mundane',
+      deathMetaphysics: 'mundane',
+      powerBudget: 'Crushing ambient depth and hydrostatic pressure.',
+      seatSuccession: {},
+    },
     topology: {
       nodeDefinitions: [
         { id: 'HAB_MODULE', label: 'Habitation Module', description: 'Living quarters' },
