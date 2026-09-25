@@ -76,6 +76,14 @@ Standard LLM generative sessions degrade due to spatial amnesia, unearned adject
 - **Villain-Protagonist Seats**: In scenarios where the protagonist *is* the villain, the protagonist seat binds the villain and the antagonist seat rebinds to the opposition investigating them; pressure inverts into external *Discovery* (investigation-as-pursuit) and internal *Compulsion* (self-sourced) families.
 - **Villain-Always Invariant**: Every Forge scenario cast must contain at least one `VILLAIN` — enforced at compile time (`validateForgeDraft`), with dual extraction of named/speaking antagonists as both cast villain and antagonist profile, plus deterministic villain backfill from the antagonist profile during repair.
 
+### 11. Deterministic Death Mechanics & Live Turn-Pipeline Wiring
+- **Wound Ledger (`src/lib/deathEngine.ts`)**: Mechanism, location, severity ordinal, timeline, treatability, and intent/valence facts recorded per character. Timeline clamp (`0` minutes only for `unsurvivable`); minute-to-second conversion on expiry; late treatment never resurrects an expired wound; repeated mechanism + location merges into an existing open wound.
+- **Live Turn-Commit Pass (`processTurnDeathPass`)**: Wired into the reducer's `TURN_COMMITTED` event. Ingests `wound_facts` with Machine-known circumstance facts (topology, fictional time, witnesses), validates treatment proposals (wound exists, still open, treater co-located), evaluates survivability for every character with open wounds, and applies `declareDeath` verdicts — corpse evidence nodes, cohort disruption shock, cast status updates.
+- **Declare/Narrate Split**: The deterministic machine declares death; the model narrates the already-committed fact under a prompt contract that forbids pre-verdict death declarations. Narration failure never rolls back a declared death.
+- **Required `deathContract`**: Every Forge blueprint must carry a death contract — `powerBudget` and `deathMetaphysics` always, `seatSuccession` additionally for cohort scenarios. Compilation fails with a clear message when absent; a mundane-default backfill exists strictly for pre-contract legacy blueprints.
+- **Sacrifice as Unguaranteed Gamble**: `[SACRIFICE victim:<characterId>]` transfers open wounds from victim to intervener with explicit victim binding; both characters are evaluated, and both may die.
+- **POV Death & Chronicle**: POV death transitions the run to `TERMINATED` and presents a generated Chronicle (copy/download); retake unwinds to the exact pre-turn checkpoint — death never seals the retake window.
+
 ---
 
 ## Active Horizons & Next Priorities

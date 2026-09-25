@@ -35,6 +35,7 @@ The Terror Machine replaces prompt drift with deterministic state persistence. T
 - **Pure-Text Acoustic Engine**: Zero Web Audio or speech synthesizer dependencies. Soundscapes and vocalizations (spoken dialogue, *sotto voce* soliloquies, introspective monologue, intercom transmissions, and structural acoustic bleed through ductwork) are modeled via physical adjacency and rendered in evocative CRT typography.
 - **Diegetic Pacing Governor & Clocks (Horror Grammar 2)**: Autonomous tension regulation using undulating cadence cycles (`RESPITE_AFTERMATH` &rarr; `SIMMERING_DREAD` &rarr; `MOUNTING_COMPLICATION` &rarr; `KINETIC_RUPTURE`), situated diegetic instruments, and impending countdown clocks that trigger threshold manifestations.
 - **Opposition Cohort Autonomy (HG2 Series 2)**: Seat-based NPC opposition with deterministic behavior selection — no dice, no omniscient AI Director. Cohort members investigate, share findings, and escalate through `ONSET` &rarr; `DISCOVERY` &rarr; `CONFIRMATION` &rarr; `CONFRONTATION` phases based solely on what they have diegetically perceived.
+- **Deterministic Death Mechanics**: A wound ledger tracks mechanism, location, severity, timeline, and treatability for every character. After each committed turn the engine ingests wound and treatment proposals, validates treatment (the wound exists, is still open, and the treater is co-located), evaluates survivability against the fictional-time clock, and declares death as a deterministic causal fact. The model narrates the already-declared death; it never decides mortality. POV death ends the run with a generated Chronicle; retake restores the exact pre-death checkpoint.
 - **Universal Streaming & Forensic Sweep Engine**: Real-time Server-Sent Events (SSE) presentation transport for turns and multi-window forensic induction sweeps with sentence-snapped boundary planning (`W1/1` support) and review-preserving candidate mergers.
 - **Universal Calibration Overlay**: Pinned non-destructive AI Calibration modal accessible across all views (`Hub`, `Engine`, `Forge`) without disrupting active simulation or drafting state.
 - **Strict Model Agnosticism**: Runs identically on local models via private inference servers (LM Studio, Ollama, llama.cpp, etc.) or frontier cloud APIs (Google Gemini, OpenAI, Z.ai GLM, Hemmingway.io). Each subsystem can calibrate to an independent model.
@@ -102,7 +103,7 @@ cp .env.example .env
 # Start development server
 npm run dev
 
-# Run full test suite (132 suites, 1,649 tests)
+# Run full test suite (138 suites, 1,756 tests)
 npm test
 ```
 
@@ -116,6 +117,7 @@ npm test
 4. **Situated Epistemic Isolation**: Knowledge is grounded in space and time. No character possesses telepathic omniscience.
 5. **The User Owns Intent**: Refusals, errors, and timeouts fail cleanly with diagnostic receipts—never by fabricating synthetic player actions.
 6. **Opposition is Diegetic**: Adversaries act only on what they have perceived through the world. There is no omniscient director; no information about the opposition reaches the player except through the world itself.
+7. **Death Is Declared, Not Narrated**: The machine declares death from wound and circumstance facts. The model narrates the already-committed fact and never decides mortality.
 
 ---
 
