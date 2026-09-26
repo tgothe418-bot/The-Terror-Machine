@@ -13,4 +13,34 @@ module.exports = {
   rules: {
     '@typescript-eslint/no-explicit-any': 'error', // Flags places where you abandoned TypeScript
   },
+  overrides: [
+    {
+      files: [
+        'src/lib/cohortEngine.ts',
+        'src/lib/cohortBehaviors.ts',
+        'src/lib/submitContract.ts',
+        'src/lib/cohortCognition.ts',
+      ],
+      rules: {
+        'no-restricted-imports': [
+          'error',
+          {
+            paths: [
+              {
+                name: './fearTexture',
+                message:
+                  'fearTexture is for prompt texture only and must not be imported in mechanical/behavior paths.',
+              },
+              {
+                name: '../lib/fearTexture',
+                message:
+                  'fearTexture is for prompt texture only and must not be imported in mechanical/behavior paths.',
+              },
+            ],
+            patterns: ['*fearTexture*'],
+          },
+        ],
+      },
+    },
+  ],
 }

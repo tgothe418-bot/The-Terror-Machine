@@ -335,6 +335,7 @@ export function cloneSalienceLedger(
 }
 
 import type { CohortTraceEmission } from '../types/cohort';
+import { classifyFearTexture, formatFearTextureLine } from './fearTexture';
 
 /**
  * Generates the deterministic somatic state prompt injection string.
@@ -386,6 +387,10 @@ export function formatSomaticStatePrompt(
       lines.push(
         `[SOMATIC STATE: ${member.name || member.id} (Band ${band}: ${tokens.join(', ')})]`
       );
+      const texture = classifyFearTexture(salience.spike, salience.dread);
+      if (texture) {
+        lines.push(formatFearTextureLine(texture, salience.spike, salience.dread));
+      }
     }
   }
 
