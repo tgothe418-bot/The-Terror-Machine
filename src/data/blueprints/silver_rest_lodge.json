@@ -399,6 +399,91 @@
     "ambiguityHandling": "Preserve uncertainty about the wine cellar's contents until a character physically opens its door and observes. No omniscient hints, no narrated premonitions.",
     "specialBoundaries": "No supernatural agency. The villain's power is strictly social and material: keys, provisions, the house's secrets, and the leverage of hospitality."
   },
+    "deathContract": {
+      "deathMetaphysics": "mundane",
+      "metaphysics": "mundane",
+      "powerBudget": "Elias Vann is a fit man in his fifties with total material and social control of the lodge — keys to every room, command of provisions and heat, knowledge of the house's secrets — and no supernatural means whatsoever. His violence, when it comes, is human-scale: brief, clumsy, and consequence-heavy. He keeps no arsenal; his instruments are hospitality, leverage, and the building itself. The environment kills independently of him: alpine cold in unheated rooms as the boiler fails, the cellar stair, and Laurent Moreau's insulin deprivation. Death here is mundane and irreversible — exposure, a fall, a short struggle — never cinematic and never undone.",
+      "seatSuccession": {}
+    },
+    "fearContract": {
+      "fearlessness": {
+        "default": 0.35,
+        "char-elias-vann": 0.75,
+        "char-nadia-okafor": 0.5,
+        "char-tomas-reyes": 0.4,
+        "char-priya-anand": 0.3,
+        "char-laurent-moreau": 0.15,
+        "char-marta-kowalczyk": 0.35,
+        "char-deniz-aydin": 0.35,
+        "char-wren-addler": 0.55
+      },
+      "mortalityBelief": {
+        "char-elias-vann": "mortal",
+        "char-nadia-okafor": "mortal",
+        "char-tomas-reyes": "mortal",
+        "char-priya-anand": "mortal",
+        "char-laurent-moreau": "vulnerable",
+        "char-marta-kowalczyk": "mortal",
+        "char-deniz-aydin": "mortal",
+        "char-wren-addler": "protected"
+      },
+      "threatWeights": {
+        "life": 0.9,
+        "freedom": 1.0,
+        "identity": 0.8
+      },
+      "lambdaDecay": 0.35,
+      "residueRatio": 0.3,
+      "preyEnterThreshold": 0.7,
+      "preyExitThreshold": 0.4,
+      "somaticBands": {
+        "band1": 0.25,
+        "band2": 0.5,
+        "band3": 0.75,
+        "band4": 0.9
+      },
+      "releaseValves": [
+        {
+          "id": "okafor-triage",
+          "condition": "Okafor successfully triages or stabilizes a casualty, restoring her clinical footing",
+          "reductionAmount": 0.35
+        },
+        {
+          "id": "reyes-machines-steady",
+          "condition": "Reyes spends a quiet turn with the generator and boiler running steady",
+          "reductionAmount": 0.3
+        },
+        {
+          "id": "moreau-insulin",
+          "condition": "Moreau secures and administers his scheduled insulin",
+          "reductionAmount": 0.4
+        },
+        {
+          "id": "marta-rounds-complete",
+          "condition": "Marta completes a full round of household duties undisturbed",
+          "reductionAmount": 0.25
+        },
+        {
+          "id": "deniz-service-held",
+          "condition": "Deniz serves a proper dinner service without violence entering the kitchen",
+          "reductionAmount": 0.25
+        },
+        {
+          "id": "priya-document-confirmed",
+          "condition": "Priya verifies a document confirming the lodge's finances",
+          "reductionAmount": 0.3
+        },
+        {
+          "id": "vann-guest-redirected",
+          "condition": "Vann successfully redirects a guest away from the cellar stair, restoring his command of the house",
+          "reductionAmount": 0.3
+        }
+      ],
+      "villainGazeAuthorized": true,
+      "submitResponse": {
+        "char-elias-vann": "ACCEPT"
+      }
+    },
   "horrorGrammar": {
     "valueBaselineReview": "REVIEWED_NONE",
     "pursuitReviews": {},

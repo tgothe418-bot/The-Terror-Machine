@@ -412,6 +412,97 @@
     "ambiguityHandling": "The Threshold state — Morel's research objective — is deliberately left epistemologically open: the scenario does not confirm or deny whether it is real. The horror of his conviction operates independently of its truth.",
     "specialBoundaries": "No supernatural agency. Morel's violence is not sadism — it is method. This distinction should be maintained; it is more frightening than sadism. Observer characters do not participate in sessions; their presence is purely voyeuristic and contractual."
   },
+    "deathContract": {
+      "deathMetaphysics": "mundane",
+      "metaphysics": "mundane",
+      "powerBudget": "Dr. Morel's power is institutional and total within the facility: magnetically sealed exits, a loyal staff, restraint hardware, the session apparatus, cameras, and the intercom network. He does not engage in personal violence during the early phases — his violence is delegated, executed by Curator Havel, who is physically capable and procedurally exact. The captives begin unarmed in locked cells; Sable is strong, Rue is combat-trained, the rest are civilians. The Observer cohort are non-combatant by contract and do not intervene. The facility's one unsealed exit — the sub-basement exterior hatch — sits outside the security retrofit and is unknown to the captives. Death here is procedural and irreversible: sessions, restraints, exposure, and the building's sealed arithmetic. No supernatural agency; the horror is that it is organized.",
+      "seatSuccession": {}
+    },
+    "fearContract": {
+      "fearlessness": {
+        "default": 0.3,
+        "char-aleksander-morel": 0.85,
+        "char-curator-havel": 0.7,
+        "char-sable-voss": 0.45,
+        "char-theo-marchetti": 0.3,
+        "char-rue-decatur": 0.55,
+        "char-piotr-zasada": 0.25,
+        "char-louisa-fenn": 0.4,
+        "char-observer-birkenfeld": 0.6
+      },
+      "mortalityBelief": {
+        "char-aleksander-morel": "protected",
+        "char-curator-havel": "mortal",
+        "char-sable-voss": "mortal",
+        "char-theo-marchetti": "mortal",
+        "char-rue-decatur": "mortal",
+        "char-piotr-zasada": "protected",
+        "char-louisa-fenn": "mortal",
+        "char-observer-birkenfeld": "protected"
+      },
+      "threatWeights": {
+        "life": 1.0,
+        "freedom": 1.0,
+        "identity": 0.9
+      },
+      "lambdaDecay": 0.35,
+      "residueRatio": 0.3,
+      "preyEnterThreshold": 0.7,
+      "preyExitThreshold": 0.4,
+      "somaticBands": {
+        "band1": 0.25,
+        "band2": 0.5,
+        "band3": 0.75,
+        "band4": 0.9
+      },
+      "releaseValves": [
+        {
+          "id": "sable-group-intact",
+          "condition": "Sable sees the group intact with no session imminent",
+          "reductionAmount": 0.3
+        },
+        {
+          "id": "sable-hatch-confirmed",
+          "condition": "Sable discovers and confirms the unsealed sub-basement hatch",
+          "reductionAmount": 0.4
+        },
+        {
+          "id": "theo-documentation",
+          "condition": "Theo finds a functional way to document what is happening",
+          "reductionAmount": 0.35
+        },
+        {
+          "id": "rue-freedom-of-movement",
+          "condition": "Rue regains physical freedom of movement, even within the facility",
+          "reductionAmount": 0.3
+        },
+        {
+          "id": "piotr-useful",
+          "condition": "Piotr becomes genuinely useful to the escape plan, restoring his agency",
+          "reductionAmount": 0.35
+        },
+        {
+          "id": "louisa-helping",
+          "condition": "Louisa successfully helps another group member through acute distress",
+          "reductionAmount": 0.35
+        },
+        {
+          "id": "morel-data-logged",
+          "condition": "Morel logs session data confirming progress toward the Threshold",
+          "reductionAmount": 0.25
+        },
+        {
+          "id": "havel-protocol-held",
+          "condition": "Havel completes a session round with zero deviation from protocol",
+          "reductionAmount": 0.25
+        }
+      ],
+      "villainGazeAuthorized": true,
+      "submitResponse": {
+        "char-aleksander-morel": "IGNORE",
+        "char-curator-havel": "REJECT"
+      }
+    },
   "horrorGrammar": {
     "valueBaselineReview": "REVIEWED_NONE",
     "pursuitReviews": {},

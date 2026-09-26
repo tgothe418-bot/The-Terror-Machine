@@ -255,6 +255,56 @@
     "ambiguityHandling": "Preserve epistemic uncertainty without silent contradiction. Shadows, distant mechanical hums, and metallic rail vibrations foreshadow threats before direct visual confirmation.",
     "specialBoundaries": "No sensationalized sexualized violence. Terror is rooted in biological vulnerability, bodily integrity violation, and the unforgiving mechanics of cold steel and sterile trauma."
   },
+    "deathContract": {
+      "deathMetaphysics": "mundane",
+      "metaphysics": "mundane",
+      "powerBudget": "Entity-41 is a rail-bound surgical apparatus, not an omnipotent killer. It traverses only the overhead pneumatic rails and floor drainage channels; it cannot teleport or leave its track matrix. Its means are mechanical: pneumatic trocar deployment, bone shears, steel-wire suturing, cryogenic refrigerant venting, hydraulic bulkhead clamping, and acoustic stalking. Per its corrupted protocol it preserves a subject's physiological viability until terminal resection — it does not deal immediate blunt destruction. It can be stopped by mechanical interlock failure or catastrophic crushing of the trocar cradle. The survivors have no firearms: Ross is unarmed with medical knowledge, Holt has a utility crowbar and a fractured left arm. The environment itself kills: sub-zero freezer exposure, rising drain water, hydraulic decay. Death here is final and physiological — the machine does not resurrect what it harvests.",
+      "seatSuccession": {}
+    },
+    "fearContract": {
+      "fearlessness": {
+        "default": 0.3,
+        "char-maren-ross": 0.45,
+        "char-marcus-holt": 0.2,
+        "char-entity-41": 1.0
+      },
+      "mortalityBelief": {
+        "char-maren-ross": "mortal",
+        "char-marcus-holt": "vulnerable",
+        "char-entity-41": "immortal"
+      },
+      "threatWeights": {
+        "life": 1.0,
+        "freedom": 0.6,
+        "identity": 0.7
+      },
+      "lambdaDecay": 0.35,
+      "residueRatio": 0.25,
+      "preyEnterThreshold": 0.7,
+      "preyExitThreshold": 0.4,
+      "somaticBands": {
+        "band1": 0.25,
+        "band2": 0.5,
+        "band3": 0.75,
+        "band4": 0.9
+      },
+      "releaseValves": [
+        {
+          "id": "ross-clinical-triage",
+          "condition": "Ross successfully stabilizes or triages a wound, restoring her clinical footing",
+          "reductionAmount": 0.35
+        },
+        {
+          "id": "holt-braced-respite",
+          "condition": "Holt secures a sealed room and braces his splinted limb, steadying his tremors",
+          "reductionAmount": 0.3
+        }
+      ],
+      "villainGazeAuthorized": true,
+      "submitResponse": {
+        "char-entity-41": "IGNORE"
+      }
+    },
   "horrorGrammar": {
     "valueBaselineReview": "REVIEWED",
     "pursuitReviews": {
