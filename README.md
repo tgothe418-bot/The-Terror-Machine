@@ -10,6 +10,7 @@
 
 <p align="center">
   <a href="./ROADMAP.md"><strong>Technical Roadmap</strong></a> &middot;
+  <a href="./ARCHITECTURE.md"><strong>System Flowchart</strong></a> &middot;
   <a href="#quickstart"><strong>Quickstart</strong></a> &middot;
   <a href="#three-canonical-scenarios"><strong>Scenarios</strong></a> &middot;
   <a href="#the-laws-of-the-house"><strong>Laws of the House</strong></a> &middot;

@@ -150,5 +150,6 @@ Regardless of model capabilities or scenario themes, these laws remain non-negot
 ## Document Index
 
 - [README](./README.md) &mdash; Project overview, architectural pillars, scenario briefs, and quickstart.
+- [ARCHITECTURE](./ARCHITECTURE.md) &mdash; System flowchart: the three nodes, the atomic turn lifecycle, and the Forge pipeline (Mermaid diagrams).
 - [Development Roadmap](./DEVELOPMENT-ROADMAP.md) &mdash; Granular engineering milestones, packet histories, and proof suites.
 - [MIT License](./LICENSE) &mdash; Terms of open-source distribution.
