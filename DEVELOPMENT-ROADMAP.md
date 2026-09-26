@@ -15,7 +15,7 @@ A focused test proves its named behavior. It does not, by itself, close an integ
 
 ## Live code baseline reviewed for this ledger
 
-- Current live line reviewed: [21a332e](https://github.com/tgothe418/The-Terror-Machine/commit/21a332e) (death mechanics implementation packet + live turn-pipeline wiring follow-up and required `deathContract` enforcement).
+- Current live line reviewed: [84192f7](https://github.com/tgothe418/The-Terror-Machine/commit/84192f7) (HG3 Self-Preservation & Death Awareness subsystem, Stages 1–3).
 - The branch was clean and synced when reviewed. The status below is based on live code inspection, focused proofs, broad gates, and recent smoke telemetry; a packet's completion report is not accepted evidence by itself.
 
 ## Current baseline
