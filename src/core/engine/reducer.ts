@@ -487,7 +487,15 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
       const updatedCast = deathPassRes.cast || state.cast;
 
       const isPovTerminated = deathPassRes.povDeathDeclared;
-      const resolvedPhase: Phase = isPovTerminated ? 'TERMINATED' : (state.phase === 'TERMINATED' ? 'TERMINATED' : nextPhase as Phase);
+      const validEnginePhases: Phase[] = ['LATENT', 'MANIFEST', 'TERMINAL', 'TERMINATED', 'ENGINE'];
+      const normalizedEnginePhase: Phase = validEnginePhases.includes(nextPhase as Phase)
+        ? (nextPhase as Phase)
+        : (validEnginePhases.includes(state.phase) ? state.phase : 'MANIFEST');
+      const resolvedPhase: Phase = isPovTerminated
+        ? 'TERMINATED'
+        : state.phase === 'TERMINATED'
+        ? 'TERMINATED'
+        : normalizedEnginePhase;
       const resolvedCurrentPhase = isPovTerminated ? 'TERMINATED' : nextPhase;
 
       return {

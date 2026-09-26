@@ -23,14 +23,16 @@ export default function App() {
 
   const currentNodeName = spatialGraph?.find((n) => n.id === currentNodeId)?.name || 'Unknown';
 
-  const isEnginePhase = ['LATENT', 'MANIFEST', 'TERMINAL', 'TERMINATED', 'ENGINE', 'RUNTIME'].includes(phase);
+  const isEnginePhase =
+    ['LATENT', 'MANIFEST', 'TERMINAL', 'TERMINATED', 'ENGINE', 'RUNTIME', 'RELEASE'].includes(phase) ||
+    (phase !== 'HUB' && phase !== 'FORGE' && phase !== 'ARCHITECT' && phase !== 'VOICE');
 
   const renderContent = () => {
     if (phase === 'FORGE' || phase === 'ARCHITECT') return <Forge />;
-    if (isEnginePhase) return <Engine />;
     if (phase === 'VOICE') {
       return <TheVoice engineState={{ currentNode: currentNodeName, isShattered }} />;
     }
+    if (isEnginePhase && phase !== 'HUB') return <Engine />;
     return <WelcomeScreen />;
   };
 
