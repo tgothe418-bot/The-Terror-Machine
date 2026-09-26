@@ -8,6 +8,8 @@ import {
   ForgeSourceCandidate,
   ForgeSourceAnalysis,
   DeathContract,
+  FearContract,
+  DEFAULT_FEAR_CONTRACT,
 } from '../types/forge';
 import { normalizeBlueprint } from './normalizeBlueprint';
 import {
@@ -85,6 +87,32 @@ export function deriveDefaultDeathContract(draft?: Partial<ForgeDraft> | null): 
     powerBudget,
     deathMetaphysics,
     seatSuccession,
+  };
+}
+
+/**
+ * Pure helper that deterministically derives default Fear Contract fields
+ * if not fully authored.
+ */
+export function deriveDefaultFearContract(draft?: Partial<ForgeDraft> | null): FearContract {
+  const existing = draft?.fearContract;
+  return {
+    fearlessness: existing?.fearlessness ? { ...existing.fearlessness } : {},
+    mortalityBelief: existing?.mortalityBelief ? { ...existing.mortalityBelief } : {},
+    threatWeights: {
+      life: 1.0,
+      freedom: 1.0,
+      identity: 1.0,
+      ...(existing?.threatWeights || {}),
+    },
+    lambdaDecay: existing?.lambdaDecay ?? DEFAULT_FEAR_CONTRACT.lambdaDecay,
+    residueRatio: existing?.residueRatio ?? DEFAULT_FEAR_CONTRACT.residueRatio,
+    preyEnterThreshold: existing?.preyEnterThreshold ?? DEFAULT_FEAR_CONTRACT.preyEnterThreshold,
+    preyExitThreshold: existing?.preyExitThreshold ?? DEFAULT_FEAR_CONTRACT.preyExitThreshold,
+    somaticBands: existing?.somaticBands || { ...DEFAULT_FEAR_CONTRACT.somaticBands },
+    releaseValves: existing?.releaseValves ? [...existing.releaseValves] : [],
+    villainGazeAuthorized: existing?.villainGazeAuthorized ?? false,
+    submitResponse: existing?.submitResponse ? { ...existing.submitResponse } : {},
   };
 }
 
@@ -206,8 +234,13 @@ export function validateForgeDraft(rawDraft: unknown): ForgeValidationResult {
       const isMissingDeathContract =
         (formattedPath === 'deathContract' || dotPath === 'deathContract') &&
         !(rawDraft as Record<string, unknown>)?.deathContract;
+      const isMissingFearContract =
+        (formattedPath === 'fearContract' || dotPath === 'fearContract') &&
+        !(rawDraft as Record<string, unknown>)?.fearContract;
       const message = isMissingDeathContract
         ? 'Death contract is required for scenario compilation'
+        : isMissingFearContract
+        ? 'Fear contract is required for scenario compilation'
         : issue.message;
       if (!errors[formattedPath]) errors[formattedPath] = [];
       if (!errors[formattedPath].includes(message)) {
@@ -812,6 +845,57 @@ export function validateForgeDraft(rawDraft: unknown): ForgeValidationResult {
     }
   }
 
+  // 13. Fear Contract Validation (HG3 Self-Preservation & Death Awareness)
+  const fearContract = draft.fearContract as FearContract | undefined;
+  if (!fearContract) {
+    if (!errors['fearContract']) errors['fearContract'] = [];
+    if (!errors['fearContract'].includes('Fear contract is required for scenario compilation')) {
+      errors['fearContract'].push('Fear contract is required for scenario compilation');
+    }
+  } else {
+    if (fearContract.lambdaDecay !== undefined) {
+      if (typeof fearContract.lambdaDecay !== 'number' || fearContract.lambdaDecay < 0 || fearContract.lambdaDecay > 1) {
+        errors['fearContract.lambdaDecay'] = ['Fear contract lambdaDecay must be between 0 and 1'];
+      }
+    }
+    if (fearContract.residueRatio !== undefined) {
+      if (typeof fearContract.residueRatio !== 'number' || fearContract.residueRatio < 0 || fearContract.residueRatio > 1) {
+        errors['fearContract.residueRatio'] = ['Fear contract residueRatio must be between 0 and 1'];
+      }
+    }
+    if (fearContract.preyEnterThreshold !== undefined) {
+      if (typeof fearContract.preyEnterThreshold !== 'number' || fearContract.preyEnterThreshold < 0 || fearContract.preyEnterThreshold > 1) {
+        errors['fearContract.preyEnterThreshold'] = ['Fear contract preyEnterThreshold must be between 0 and 1'];
+      }
+    }
+    if (fearContract.preyExitThreshold !== undefined) {
+      if (typeof fearContract.preyExitThreshold !== 'number' || fearContract.preyExitThreshold < 0 || fearContract.preyExitThreshold > 1) {
+        errors['fearContract.preyExitThreshold'] = ['Fear contract preyExitThreshold must be between 0 and 1'];
+      }
+    }
+    if (
+      typeof fearContract.preyEnterThreshold === 'number' &&
+      typeof fearContract.preyExitThreshold === 'number' &&
+      fearContract.preyExitThreshold >= fearContract.preyEnterThreshold
+    ) {
+      errors['fearContract.preyExitThreshold'] = [
+        'preyExitThreshold must be strictly less than preyEnterThreshold for hysteresis',
+      ];
+    }
+    if (fearContract.threatWeights) {
+      const tw = fearContract.threatWeights;
+      if (tw.life !== undefined && (typeof tw.life !== 'number' || tw.life < 0)) {
+        errors['fearContract.threatWeights.life'] = ['Threat weight for life must be non-negative'];
+      }
+      if (tw.freedom !== undefined && (typeof tw.freedom !== 'number' || tw.freedom < 0)) {
+        errors['fearContract.threatWeights.freedom'] = ['Threat weight for freedom must be non-negative'];
+      }
+      if (tw.identity !== undefined && (typeof tw.identity !== 'number' || tw.identity < 0)) {
+        errors['fearContract.threatWeights.identity'] = ['Threat weight for identity must be non-negative'];
+      }
+    }
+  }
+
   return {
     valid: Object.keys(errors).length === 0,
     errors,
@@ -978,6 +1062,7 @@ export function compileForgeDraft(
     depictionContract: resolvedDepiction,
     dramaticSpine: draft.dramaticSpine,
     deathContract: draft.deathContract || deriveDefaultDeathContract(draft),
+    fearContract: draft.fearContract || deriveDefaultFearContract(draft),
   });
 
 

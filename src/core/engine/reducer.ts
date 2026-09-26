@@ -23,6 +23,8 @@ import type { NodeEvidenceItem } from '../../lib/cohortBehaviors';
 import { tickCohortState } from '../../lib/cohortEngine';
 import type { WoundFact, DeathRecord, DeathContract } from '../../types/death';
 import { processTurnDeathPass } from '../../lib/deathEngine';
+import type { FearContract, SalienceLedger } from '../../types/fear';
+import { cloneSalienceLedger } from '../../lib/fearEngine';
 
 export interface RetakeRestorableEngineState {
   sessionId?: string;
@@ -70,6 +72,8 @@ export interface RetakeRestorableEngineState {
   deathContract?: DeathContract;
   deathLedger?: Record<string, WoundFact[]>;
   deathRecords?: DeathRecord[];
+  salienceLedger?: SalienceLedger;
+  fearContract?: FearContract;
   cast?: Array<{
     id: string;
     name?: string;
@@ -131,6 +135,8 @@ export function captureRetakeRestorableState(
     deathContract: state.deathContract,
     deathLedger: state.deathLedger,
     deathRecords: state.deathRecords,
+    salienceLedger: cloneSalienceLedger(state.salienceLedger),
+    fearContract: state.fearContract ? { ...state.fearContract } : undefined,
     cast: state.cast,
   } satisfies RetakeRestorableEngineState;
 }
@@ -170,6 +176,8 @@ export function applyReconciliationPatch(
     'deathContract',
     'deathLedger',
     'deathRecords',
+    'salienceLedger',
+    'fearContract',
     'cast',
   ];
 
@@ -245,6 +253,8 @@ export const initialEngineState: EngineState = {
   deathContract: undefined,
   deathLedger: {},
   deathRecords: [],
+  salienceLedger: {},
+  fearContract: undefined,
   cast: [],
 };
 
@@ -505,6 +515,17 @@ export function engineReducer(state: EngineState, event: EngineEvent): EngineSta
         castPlacement: nextCastPlacement,
         deathLedger: deathPassRes.deathLedger,
         deathRecords: deathPassRes.deathRecords,
+        salienceLedger: event.payload.frame.logic_state?.salience_ledger ||
+          event.payload.frame.logic_state?.salienceLedger ||
+          event.payload.frame.salienceLedger
+            ? cloneSalienceLedger({
+                ...(state.salienceLedger || {}),
+                ...(event.payload.frame.logic_state?.salience_ledger ||
+                  event.payload.frame.logic_state?.salienceLedger ||
+                  event.payload.frame.salienceLedger),
+              })
+            : cloneSalienceLedger(state.salienceLedger || {}),
+        fearContract: state.fearContract,
         cast: updatedCast,
       };
     }

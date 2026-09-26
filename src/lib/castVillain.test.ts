@@ -7,6 +7,7 @@ import {
 } from './castVillain';
 import { normalizeCastDisposition } from './sourceBaseline';
 import type { ForgeDraft, AntagonistProfile } from '../types/forge';
+import { DEFAULT_FEAR_CONTRACT } from '../types/fear';
 
 describe('isVillainCastMember', () => {
   it('returns true when disposition is VILLAIN (case-insensitive)', () => {
@@ -112,6 +113,7 @@ describe('ensureVillainCastMember', () => {
       powerBudget: 'Physical constraints.',
       seatSuccession: {},
     },
+    fearContract: DEFAULT_FEAR_CONTRACT,
     cast: [
       {
         id: 'char-elena',

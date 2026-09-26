@@ -28,6 +28,19 @@ describe('Forge Readiness & Compilation (Packet 1-1)', () => {
       powerBudget: 'Freezing permafrost physical constraints.',
       seatSuccession: {},
     },
+    fearContract: {
+      fearlessness: {},
+      mortalityBelief: {},
+      threatWeights: { life: 1.0, freedom: 1.0, identity: 1.0 },
+      lambdaDecay: 0.35,
+      residueRatio: 0.25,
+      preyEnterThreshold: 0.70,
+      preyExitThreshold: 0.40,
+      somaticBands: { band1: 0.25, band2: 0.50, band3: 0.75, band4: 0.90 },
+      releaseValves: [],
+      villainGazeAuthorized: false,
+      submitResponse: {},
+    },
     cast: [
       {
         id: 'char-user',

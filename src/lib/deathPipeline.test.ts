@@ -3,6 +3,7 @@ import { processTurnDeathPass } from './deathEngine';
 import { engineReducer, initialEngineState } from '../core/engine/reducer';
 import { validateForgeDraft } from './forgeCompiler';
 import { ForgeDraft, ForgeDraftSchema } from '../types/forge';
+import { DEFAULT_FEAR_CONTRACT } from '../types/fear';
 import type { CommittedTurnPayload } from '../core/engine/events';
 import type { RatifiedEngineFrame, RuntimeStateSnapshot } from '../types';
 import type { CohortState } from '../types/cohort';
@@ -728,6 +729,7 @@ describe('Death Subsystem Live Pipeline & Engine Integration', () => {
           c1: 'recruit',
         },
       },
+      fearContract: DEFAULT_FEAR_CONTRACT,
       antagonistProfile: {
         kind: 'ENTITY',
         name: 'The Creature',

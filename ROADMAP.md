@@ -84,6 +84,11 @@ Standard LLM generative sessions degrade due to spatial amnesia, unearned adject
 - **Sacrifice as Unguaranteed Gamble**: `[SACRIFICE victim:<characterId>]` transfers open wounds from victim to intervener with explicit victim binding; both characters are evaluated, and both may die.
 - **POV Death & Chronicle**: POV death transitions the run to `TERMINATED` and presents a generated Chronicle (copy/download); retake unwinds to the exact pre-turn checkpoint — death never seals the retake window.
 
+### 12. Horror Grammar 3 (HG3) — Self-Preservation & Fear Dynamics
+- **Salience Dynamics & Decay Engine**: Deterministic character salience ledger tracking acute fear (`spike`), background terror (`dread`), and threat vectors (`life`, `freedom`, `identity`) with exponential decay and residue accumulation; threat-specific weight scaling; prey-mode transition with hysteresis; 4-band somatic state derivation with deterministic physiological tokens (`[SOMATIC STATE: ...]`).
+- **Cohort Behavior Engine Integration**: Fear-salience integration in behavior selection (`scoreCandidateBehavior`); threat-specific behavior reweighting (`FLEE`, `HIDE`, `SUBMIT`, `CONCEAL`, `DENY`); fearlessness dampening and narrative release valves; submit/capitulation execution under Band 4 terror.
+- **Authoring, Forge & Autopilot Integration**: Mandatory `fearContract` on `ForgeDraft` with compile-time validation (§13); legacy backfill in `normalizeBlueprint`; extraction prompts in `extractionContract.ts` and `architect.ts` eliciting fearlessness, threat weights, release valves, villain gaze authority, and submit responses; Autopilot somatic state and felt wound knowledge injection; Player Sovereignty verification preserving human player choice without fear reweighting.
+
 ---
 
 ## Active Horizons & Next Priorities

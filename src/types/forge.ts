@@ -22,6 +22,8 @@ export * from './horrorGrammar';
 export * from './dramaturgy';
 import { DeathContract, DeathContractSchema } from './death';
 export * from './death';
+import { FearContract, FearContractSchema } from './fear';
+export * from './fear';
 
 
 // ============================================================================
@@ -424,6 +426,7 @@ export const ForgeDraftSchema = z.object({
   })),
   dramaticSpine: DramaticSpineSchema.optional(),
   deathContract: DeathContractSchema,
+  fearContract: FearContractSchema,
 });
 
 export type ForgeDraftTopology = Omit<z.input<typeof ForgeDraftTopologySchema>, 'nodeDefinitions'> & {
@@ -433,6 +436,7 @@ export type ForgeDraft = Omit<z.input<typeof ForgeDraftSchema>, 'topology' | 'an
   topology?: ForgeDraftTopology;
   antagonistProfile?: Partial<AntagonistProfile>;
   deathContract: DeathContract;
+  fearContract: FearContract;
 };
 export type ForgeDraftPatch = Partial<ForgeDraft>;
 export type ForgeDraftIdentity = z.input<typeof ForgeDraftIdentitySchema>;

@@ -89,6 +89,19 @@ describe('forgeCompiler Voice & Acoustic Dossier Compilation', () => {
         'char-holt': 'recruit',
       },
     },
+    fearContract: {
+      fearlessness: { 'char-ross': 0.2, 'char-holt': 0.1, 'char-entity-41': 1.0 },
+      mortalityBelief: {},
+      threatWeights: { life: 1.0, freedom: 1.0, identity: 1.0 },
+      lambdaDecay: 0.35,
+      residueRatio: 0.25,
+      preyEnterThreshold: 0.70,
+      preyExitThreshold: 0.40,
+      somaticBands: { band1: 0.25, band2: 0.50, band3: 0.75, band4: 0.90 },
+      releaseValves: [],
+      villainGazeAuthorized: false,
+      submitResponse: {},
+    },
     cast: [
       {
         id: 'char-ross',
@@ -397,6 +410,19 @@ describe('forgeCompiler Voice & Acoustic Dossier Compilation', () => {
         powerBudget: 'Cybernetic chamber constraints.',
         seatSuccession: {},
       },
+      fearContract: {
+        fearlessness: {},
+        mortalityBelief: {},
+        threatWeights: { life: 1.0, freedom: 1.0, identity: 1.0 },
+        lambdaDecay: 0.35,
+        residueRatio: 0.25,
+        preyEnterThreshold: 0.70,
+        preyExitThreshold: 0.40,
+        somaticBands: { band1: 0.25, band2: 0.50, band3: 0.75, band4: 0.90 },
+        releaseValves: [],
+        villainGazeAuthorized: false,
+        submitResponse: {},
+      },
       cast: [
         {
           id: 'char-elena',
@@ -645,6 +671,56 @@ describe('forgeCompiler Voice & Acoustic Dossier Compilation', () => {
     });
 
     it('passes validation when cohort scenario provides valid seatSuccession', () => {
+      const result = validateForgeDraft(baseValidDraft);
+      expect(result.valid).toBe(true);
+      expect(result.errors).toEqual({});
+    });
+  });
+
+  describe('§13 Fear Contract Validation', () => {
+    it('fails validation when fearContract is missing', () => {
+      const draftWithoutFearContract = {
+        ...baseValidDraft,
+        fearContract: undefined,
+      };
+
+      const result = validateForgeDraft(draftWithoutFearContract);
+      expect(result.valid).toBe(false);
+      expect(result.errors['fearContract']).toBeDefined();
+      expect(result.errors['fearContract'][0]).toContain('Fear contract is required for scenario compilation');
+    });
+
+    it('fails validation when preyExitThreshold >= preyEnterThreshold', () => {
+      const invalidThresholdsDraft = {
+        ...baseValidDraft,
+        fearContract: {
+          ...baseValidDraft.fearContract!,
+          preyEnterThreshold: 0.50,
+          preyExitThreshold: 0.60,
+        },
+      };
+
+      const result = validateForgeDraft(invalidThresholdsDraft);
+      expect(result.valid).toBe(false);
+      expect(result.errors['fearContract.preyExitThreshold']).toBeDefined();
+      expect(result.errors['fearContract.preyExitThreshold'][0]).toContain('preyExitThreshold must be strictly less than preyEnterThreshold');
+    });
+
+    it('fails validation when lambdaDecay is out of bounds', () => {
+      const outOfBoundsDraft = {
+        ...baseValidDraft,
+        fearContract: {
+          ...baseValidDraft.fearContract!,
+          lambdaDecay: 1.5,
+        },
+      };
+
+      const result = validateForgeDraft(outOfBoundsDraft);
+      expect(result.valid).toBe(false);
+      expect(result.errors['fearContract.lambdaDecay']).toBeDefined();
+    });
+
+    it('passes validation when scenario provides valid fearContract', () => {
       const result = validateForgeDraft(baseValidDraft);
       expect(result.valid).toBe(true);
       expect(result.errors).toEqual({});

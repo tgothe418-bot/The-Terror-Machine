@@ -3,6 +3,7 @@ import { ZodError } from 'zod';
 import { compileBlueprintDraft, prepareBlueprintExport } from './compileBlueprintDraft';
 import { BlueprintSchema, Blueprint } from '../types';
 import { ForgeDraft } from '../types/forge';
+import { DEFAULT_FEAR_CONTRACT } from '../types/fear';
 import { ForgeCompilationError } from './forgeCompiler';
 
 describe('compileBlueprintDraft and prepareBlueprintExport', () => {
@@ -88,6 +89,7 @@ describe('compileBlueprintDraft and prepareBlueprintExport', () => {
         powerBudget: 'Physical constraints.',
         seatSuccession: {},
       },
+      fearContract: DEFAULT_FEAR_CONTRACT,
       cast: [
         {
           id: 'c1',
@@ -173,6 +175,7 @@ describe('compileBlueprintDraft and prepareBlueprintExport', () => {
         powerBudget: 'Physical constraints.',
         seatSuccession: {},
       },
+      fearContract: DEFAULT_FEAR_CONTRACT,
       cast: [
         {
           id: 'c1',
@@ -280,6 +283,7 @@ describe('compileBlueprintDraft and prepareBlueprintExport', () => {
         powerBudget: 'Physical constraints.',
         seatSuccession: {},
       },
+      fearContract: DEFAULT_FEAR_CONTRACT,
       cast: [
         {
           id: 'c1',
@@ -365,6 +369,7 @@ describe('compileBlueprintDraft and prepareBlueprintExport', () => {
         powerBudget: 'Physical constraints.',
         seatSuccession: {},
       },
+      fearContract: DEFAULT_FEAR_CONTRACT,
       cast: [
         {
           id: 'c1',
@@ -475,6 +480,7 @@ describe('compileBlueprintDraft and prepareBlueprintExport', () => {
         powerBudget: 'Physical constraints.',
         seatSuccession: {},
       },
+      fearContract: DEFAULT_FEAR_CONTRACT,
       cast: [
         {
           id: 'c1',

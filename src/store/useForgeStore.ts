@@ -680,6 +680,33 @@ const createInitialDraft = (initial?: ForgeDraftPatch): ForgeDraft => ({
         powerBudget: 'Standard mortal and physical constraints.',
         seatSuccession: {},
       },
+  fearContract: initial?.fearContract
+    ? {
+        fearlessness: { ...initial.fearContract.fearlessness },
+        mortalityBelief: { ...initial.fearContract.mortalityBelief },
+        threatWeights: { life: 1.0, freedom: 1.0, identity: 1.0, ...(initial.fearContract.threatWeights || {}) },
+        lambdaDecay: initial.fearContract.lambdaDecay ?? 0.35,
+        residueRatio: initial.fearContract.residueRatio ?? 0.25,
+        preyEnterThreshold: initial.fearContract.preyEnterThreshold ?? 0.70,
+        preyExitThreshold: initial.fearContract.preyExitThreshold ?? 0.40,
+        somaticBands: initial.fearContract.somaticBands || { band1: 0.25, band2: 0.5, band3: 0.75, band4: 0.9 },
+        releaseValves: initial.fearContract.releaseValves ? [...initial.fearContract.releaseValves] : [],
+        villainGazeAuthorized: initial.fearContract.villainGazeAuthorized ?? false,
+        submitResponse: initial.fearContract.submitResponse ? { ...initial.fearContract.submitResponse } : {},
+      }
+    : {
+        fearlessness: {},
+        mortalityBelief: {},
+        threatWeights: { life: 1.0, freedom: 1.0, identity: 1.0 },
+        lambdaDecay: 0.35,
+        residueRatio: 0.25,
+        preyEnterThreshold: 0.70,
+        preyExitThreshold: 0.40,
+        somaticBands: { band1: 0.25, band2: 0.5, band3: 0.75, band4: 0.9 },
+        releaseValves: [],
+        villainGazeAuthorized: false,
+        submitResponse: {},
+      },
 });
 
 /**

@@ -1112,6 +1112,14 @@ EXTRACTION POLICIES & DIRECTIVES:
 - DEATH CONTRACT & POWER BUDGET ELICITATION:
   - Elicit the antagonist's power budget (what the monster or hostile force can do, at what scale, with what ease), death metaphysics ('mundane' | 'zombie' | 'cosmic'), and per-seat cohort succession policies ('recruit' | 'dormant' | 'collapse') from the source material.
   - Where the source material is silent or ambiguous on the monster's power limits, mortality/afterlife metaphysics, or cohort seat succession, DO NOT invent arbitrary canon. Instead, record each as an entry in the 'unknowns' array (the author's ambiguity queue) for creator resolution.
+- FEAR CONTRACT & SELF-PRESERVATION PARAMETERS ELICITATION:
+  - Elicit psychological fear parameters and self-preservation instincts from the source material:
+    * Character fearlessness thresholds (0.0 to 1.0 resistance to fear/panic).
+    * Threat vector weights (importance of 'life', 'freedom', and 'identity' self-preservation stakes, defaulting to 1.0 each).
+    * Narrative release valves (concrete character coping mechanisms, prayers, rituals, or soothing actions that grant tension relief).
+    * Villain gaze authority (whether direct eye contact or attention from the antagonist paralyzes or triggers immediate terror).
+    * Submit/capitulation responses (how specific characters behave if they break under extreme Band 4 terror).
+  - Where the source material is silent or ambiguous on character breaking points, fearlessness, or coping release valves, record them as entries in the 'unknowns' array for creator decision.
 
 ${getBannedNamesPromptBlock()}
 `;

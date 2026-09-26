@@ -220,6 +220,7 @@ describe('Phase 3H.2A: Character Stance Contracts & Pure Resolver', () => {
         'HOSTILE',
         'AFRAID',
         'WITHDRAWN',
+        'SUBMITTED',
       ]);
       expect(STANCE_FOCI).toEqual(['PLAYER', 'SITUATION']);
       expect(MAX_STANCE_CHANGES_PER_TURN).toBe(2);

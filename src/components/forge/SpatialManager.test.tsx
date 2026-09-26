@@ -4,6 +4,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import 'fake-indexeddb/auto';
 import { SpatialManager } from './SpatialManager';
 import { forgeActions, useForgeStore } from '../../store/useForgeStore';
+import { DEFAULT_FEAR_CONTRACT } from '../../types/fear';
 
 describe('SpatialManager Component', () => {
   let container: HTMLDivElement | null = null;
@@ -30,6 +31,7 @@ describe('SpatialManager Component', () => {
           powerBudget: 'Physical constraints.',
           seatSuccession: {},
         },
+        fearContract: DEFAULT_FEAR_CONTRACT,
         cast: [
           {
             id: 'char-tech',

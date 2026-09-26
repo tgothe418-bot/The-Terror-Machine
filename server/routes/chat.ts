@@ -14,6 +14,7 @@ import { getVoiceProvider } from "../ai/voiceProviderPolicy";
 import { cleanSimulatedAction, generateLocalPlayerAction, generateLocalProse } from "../utils/localVoiceClient";
 import { generateZaiPlayerAction, generateZaiProse } from "../utils/zaiClient";
 import { generateHemmingwayPlayerAction, generateHemmingwayProse } from "../utils/hemmingwayClient";
+import { calculateFearResponseIntensity, deriveSomaticState } from "../../src/lib/fearEngine";
 
 const router = express.Router();
 
@@ -509,6 +510,105 @@ router.post("/simulate-player", async (req, res) => {
       roleDirective = `You are the unseen DIRECTOR adjusting scenario pressure. Introduce a physical atmospheric or environmental shift: dim lights, fluctuate temperature, produce a structural sound, lock an access point, or stage an offstage disturbance. Be precise, physical, and evocative.`;
     }
 
+    // Format somatic state and felt wound knowledge for simulated player
+    let somaticStateSnippet = '';
+    if (typeof logicState?.somaticState === 'string' && logicState.somaticState.trim()) {
+      somaticStateSnippet = logicState.somaticState.trim();
+    } else if (logicState?.somaticState && typeof logicState.somaticState === 'object') {
+      const band = logicState.somaticState.band || logicState.somaticState.activeBand;
+      const tokens = Array.isArray(logicState.somaticState.tokens) ? logicState.somaticState.tokens : [];
+      const targetName = characterName || logicState.somaticState.characterName || 'Player';
+      if (band && tokens.length > 0) {
+        somaticStateSnippet = `[SOMATIC STATE: ${targetName} (Band ${band}: ${tokens.join(', ')})]`;
+      }
+    } else if (logicState?.fearState?.salienceLedger || logicState?.salienceLedger) {
+      const ledger = (logicState.fearState?.salienceLedger || logicState.salienceLedger) as Record<string, any>;
+      const fearContract = logicState.fearState?.fearContract || logicState.fearContract || {};
+      const cast = Array.isArray(logicState.cast) ? logicState.cast : [];
+
+      let targetCharId: string | null = null;
+      let targetDisplayName = characterName || 'Player';
+
+      if (characterName) {
+        const foundMember = cast.find(
+          (c: any) => c && (c.name === characterName || c.id === characterName)
+        );
+        if (foundMember) {
+          targetCharId = foundMember.id;
+          targetDisplayName = foundMember.name || foundMember.id;
+        } else if (ledger[characterName]) {
+          targetCharId = characterName;
+        }
+      }
+
+      for (const [charId, salience] of Object.entries(ledger)) {
+        const isMatch = !targetCharId
+          ? (!characterName || charId === characterName || (salience?.name && salience.name === characterName))
+          : (charId === targetCharId || (salience?.name && salience.name === targetDisplayName));
+
+        if (isMatch && salience) {
+          const charName = salience.name || targetDisplayName || charId;
+          if (salience.somaticState && salience.somaticState.band && Array.isArray(salience.somaticState.tokens) && salience.somaticState.tokens.length > 0) {
+            somaticStateSnippet = `[SOMATIC STATE: ${charName} (Band ${salience.somaticState.band}: ${salience.somaticState.tokens.join(', ')})]`;
+            break;
+          } else if (typeof salience.spike === 'number' || typeof salience.dread === 'number') {
+            const fearlessness =
+              fearContract.fearlessness?.[charId] ??
+              fearContract.fearlessness?.[targetCharId || ''] ??
+              fearContract.fearlessness?.['default'] ??
+              0;
+            const intensity = calculateFearResponseIntensity(salience, fearlessness);
+            const { band, tokens } = deriveSomaticState(intensity, fearContract);
+            if (band > 0 && tokens.length > 0) {
+              somaticStateSnippet = `[SOMATIC STATE: ${charName} (Band ${band}: ${tokens.join(', ')})]`;
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    let feltWoundsSnippet = '';
+    const collectedWounds: any[] = [];
+    if (Array.isArray(logicState?.deathLedger?.wounds)) {
+      collectedWounds.push(...logicState.deathLedger.wounds);
+    } else if (Array.isArray(logicState?.wounds)) {
+      collectedWounds.push(...logicState.wounds);
+    } else if (Array.isArray(logicState?.deathLedger)) {
+      collectedWounds.push(...logicState.deathLedger);
+    } else if (logicState?.deathLedger && typeof logicState.deathLedger === 'object') {
+      for (const [charKey, charWounds] of Object.entries(logicState.deathLedger as Record<string, any>)) {
+        if (Array.isArray(charWounds)) {
+          if (!characterName || charKey === characterName) {
+            collectedWounds.push(...charWounds);
+          } else {
+            const matches = charWounds.filter(
+              (w: any) => w && (w.characterId === characterName || w.characterName === characterName)
+            );
+            collectedWounds.push(...matches);
+          }
+        }
+      }
+    }
+
+    if (collectedWounds.length > 0) {
+      const relevantWounds = collectedWounds.filter((w: any) => {
+        if (!w || typeof w !== 'object') return false;
+        if (!characterName) return true;
+        return !w.characterId || w.characterId === characterName || w.characterName === characterName;
+      });
+      if (relevantWounds.length > 0) {
+        const woundDescs = relevantWounds.map((w: any) => {
+          const sev = w.severity || 'wound';
+          const mech = w.mechanism || 'injury';
+          const loc = w.location ? ` to ${w.location}` : '';
+          const status = w.treated ? ' [treated]' : ' [active/untreated]';
+          return `${sev} ${mech}${loc}${status}`;
+        });
+        feltWoundsSnippet = `[FELT WOUNDS: ${woundDescs.join('; ')}]`;
+      }
+    }
+
     const systemPrompt = `
       You are the PLAYER in a clinical, atmospheric text-based horror simulation.
       ROLE DIRECTIVE:
@@ -516,14 +616,14 @@ router.post("/simulate-player", async (req, res) => {
       
       CURRENT STATE:
       ${JSON.stringify(logicState, null, 2)}
-      
+      ${somaticStateSnippet ? `\n      ACTIVE SOMATIC STATE:\n      ${somaticStateSnippet}\n` : ''}${feltWoundsSnippet ? `\n      FELT WOUND KNOWLEDGE:\n      ${feltWoundsSnippet}\n` : ''}
       RECENT HISTORY:
       ${recentHistory}
 
       DIRECTIVE:
       Write your next immediate action or dialogue. 
       Keep it between 1 and 3 sentences. React directly to the Engine's last output.
-      Output a COMMITTED PHYSICAL ACTION or SPOKEN WORDS.
+      ${somaticStateSnippet || feltWoundsSnippet ? 'Reflect your active somatic stress tokens and physical wound limitations in your reaction and physical actions.\n      ' : ''}Output a COMMITTED PHYSICAL ACTION or SPOKEN WORDS.
       Do NOT include your name, labels, markdown, or bracketed tokens. Output ONLY the raw text of your action.
     `;
 

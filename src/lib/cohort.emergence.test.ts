@@ -484,7 +484,7 @@ describe('HG2 Series 2 — Opposition Cohort Emergence Fixtures', () => {
       expect(set).toEqual([...SURVIVAL_VERBS]);
     });
 
-    it('Layer 1: returns all 15 verbs under normal calm conditions', () => {
+    it('Layer 1: returns all 16 verbs under normal calm conditions', () => {
       const member = createFullMember('m1');
       const contextCalm = {
         turnNumber: 1,
@@ -500,7 +500,7 @@ describe('HG2 Series 2 — Opposition Cohort Emergence Fixtures', () => {
 
       const set = computeConsiderationSet(member, contextCalm);
       expect(set).toEqual([...VERB_UNIVERSE]);
-      expect(set).toHaveLength(15);
+      expect(set).toHaveLength(16);
     });
 
     it('Layer 2: modulates DENY by (1 + skepticism) in ONSET', () => {
@@ -634,7 +634,7 @@ describe('HG2 Series 2 — Opposition Cohort Emergence Fixtures', () => {
     });
   });
 
-  describe('Executability Preconditions for All 15 Verbs', () => {
+  describe('Executability Preconditions for All 16 Verbs', () => {
     it('CLOSE_IN executability: requires CONFIRMATION/CONFRONTATION and location hyp >= 0.6', () => {
       const member = createFullMember('m1', {
         cognition: {

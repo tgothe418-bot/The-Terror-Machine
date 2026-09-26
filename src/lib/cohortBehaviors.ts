@@ -1,4 +1,5 @@
 import type { CohortMember, CohortTraceEmission, CohortState } from '../types/cohort';
+import type { CharacterSalience, FearContract } from '../types/fear';
 import { ingestEvidenceEvent, dismissEvidenceEvent } from './cohortCognition';
 
 export interface TopologyNode {
@@ -43,6 +44,10 @@ export interface BehaviorExecutionContext {
   breakingProximity?: Record<string, number>;
   hypothesisNodeMap?: Record<string, string>;
   cohort?: CohortState;
+  salienceLedger?: Record<string, CharacterSalience>;
+  fearContract?: Partial<FearContract>;
+  userCharacterId?: string;
+  isUserCharacter?: boolean;
 }
 
 export interface BehaviorExecutionResult {
@@ -56,6 +61,7 @@ export interface BehaviorExecutionResult {
   warnedCharacterIds?: string[];
   recruitTargetId?: string;
   recruitSucceeded?: boolean;
+  submissionAttempted?: boolean;
   newMember?: CohortMember;
   removedMemberId?: string;
   nodeTrapDelta?: {
@@ -334,6 +340,10 @@ export function isBehaviorExecutable(
 
   if (behaviorId === 'FORTIFY') {
     return true; // Always executable (§4 FORTIFY)
+  }
+
+  if (behaviorId === 'SUBMIT') {
+    return true; // Always executable as a desperation measure (§5.4)
   }
 
   return false;
@@ -962,6 +972,7 @@ export function executeRecruit(
         PARLEY: 0.4,
         FLEE: 0.4,
         FRACTURE: 0.3,
+        SUBMIT: 0.3,
       },
       cognition: {
         characterId: target.characterId,
@@ -1027,5 +1038,47 @@ export function executeFortify(
     },
     emittedTraces: [traceEmission],
     fictionalTimeSeconds: 420, // playtest placeholder
+  };
+}
+
+/**
+ * Executes the SUBMIT verb (Turn N initiation, §5.4).
+ * Sets actor stance to 'SUBMITTED', emits acoustic and social begging traces,
+ * and yields to the Turn N+1 villain response contract.
+ */
+export function executeSubmit(
+  member: CohortMember,
+  context: BehaviorExecutionContext
+): BehaviorExecutionResult {
+  const acousticTrace: CohortTraceEmission = {
+    id: `trace-submit-ac-${member.characterId}-${context.turnNumber}`,
+    channel: 'ACOUSTIC',
+    nodeId: context.currentNodeId,
+    clarity: 'AUDIBLE',
+    cueText: "A trembling voice begging for mercy: 'Please, don't... I surrender. Don't hurt me.'",
+    fictionalTime: context.fictionalTime,
+  };
+
+  const socialTrace: CohortTraceEmission = {
+    id: `trace-submit-so-${member.characterId}-${context.turnNumber}`,
+    channel: 'SOCIAL',
+    nodeId: context.currentNodeId,
+    clarity: 'AUDIBLE',
+    cueText: 'Hands raised defensively in complete capitulation; knees buckling in submission.',
+    fictionalTime: context.fictionalTime,
+  };
+
+  return {
+    member: {
+      ...member,
+      lastAction: 'SUBMIT',
+      stance: {
+        focus: 'SITUATION',
+        stance: 'SUBMITTED',
+      },
+    },
+    submissionAttempted: true,
+    emittedTraces: [acousticTrace, socialTrace],
+    fictionalTimeSeconds: 60, // playtest placeholder
   };
 }

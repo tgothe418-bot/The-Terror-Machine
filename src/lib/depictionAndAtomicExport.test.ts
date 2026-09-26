@@ -32,6 +32,19 @@ describe('Packet 1D-5: Automatic Depiction Contract & One-Action Export', () => 
       powerBudget: 'Crushing ambient depth and hydrostatic pressure.',
       seatSuccession: {},
     },
+    fearContract: {
+      fearlessness: {},
+      mortalityBelief: {},
+      threatWeights: { life: 1.0, freedom: 1.0, identity: 1.0 },
+      lambdaDecay: 0.35,
+      residueRatio: 0.25,
+      preyEnterThreshold: 0.70,
+      preyExitThreshold: 0.40,
+      somaticBands: { band1: 0.25, band2: 0.50, band3: 0.75, band4: 0.90 },
+      releaseValves: [],
+      villainGazeAuthorized: false,
+      submitResponse: {},
+    },
     topology: {
       nodeDefinitions: [
         { id: 'HAB_MODULE', label: 'Habitation Module', description: 'Living quarters' },

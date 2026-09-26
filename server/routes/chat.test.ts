@@ -76,6 +76,112 @@ describe('Chat Routes - /api/simulate-player', () => {
     expect(data.action).toBe('I slowly back away towards the exit.');
   });
 
+  it('injects active somatic state and felt wound knowledge into simulated player prompt', async () => {
+    mockGenerateContent.mockResolvedValueOnce({
+      candidates: [{ finishReason: 'STOP' }],
+      text: 'I clutch my bleeding shoulder and back away slowly.',
+    });
+
+    const payloadWithSomaticAndWounds = {
+      history: [{ role: 'assistant', content: 'The creature strikes from the dark.' }],
+      characterName: 'Mercer',
+      logicState: {
+        current_phase: 'MANIFEST',
+        somaticState: '[SOMATIC STATE: Mercer (Band 2: HAND_TREMOR, COLD_SWEAT)]',
+        deathLedger: {
+          wounds: [
+            {
+              id: 'Mercer:w1',
+              characterId: 'Mercer',
+              severity: 'serious',
+              mechanism: 'claw laceration',
+              location: 'left shoulder',
+              treated: false,
+            },
+          ],
+        },
+      },
+    };
+
+    const res = await fetch(`${baseUrl}/api/simulate-player`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payloadWithSomaticAndWounds),
+    });
+
+    expect(res.status).toBe(200);
+    const data = (await res.json()) as { action: string };
+    expect(data.action).toBe('I clutch my bleeding shoulder and back away slowly.');
+
+    expect(mockGenerateContent).toHaveBeenCalledTimes(1);
+    const promptArg = mockGenerateContent.mock.calls[0][0].contents;
+    expect(promptArg).toContain('ACTIVE SOMATIC STATE:');
+    expect(promptArg).toContain('[SOMATIC STATE: Mercer (Band 2: HAND_TREMOR, COLD_SWEAT)]');
+    expect(promptArg).toContain('FELT WOUND KNOWLEDGE:');
+    expect(promptArg).toContain('[FELT WOUNDS: serious claw laceration to left shoulder [active/untreated]]');
+  });
+
+  it('correctly derives somatic tokens and extracts felt wounds from canonical Record-shaped salienceLedger and deathLedger', async () => {
+    mockGenerateContent.mockResolvedValueOnce({
+      candidates: [{ finishReason: 'STOP' }],
+      text: 'I try to breathe through the pain and hold the door shut.',
+    });
+
+    const payloadCanonicalLedgers = {
+      history: [{ role: 'assistant', content: 'The heavy iron door rattles violently.' }],
+      characterName: 'Elena Mercer',
+      logicState: {
+        current_phase: 'MANIFEST',
+        cast: [
+          { id: 'char-mercer', name: 'Elena Mercer', disposition: 'SURVIVOR' },
+        ],
+        fearContract: {
+          fearlessness: { 'char-mercer': 0.0 },
+          somaticBands: { band1: 0.25, band2: 0.50, band3: 0.75, band4: 0.90 },
+        },
+        salienceLedger: {
+          'char-mercer': {
+            spike: 0.85,
+            dread: 0.10,
+            threatType: 'life',
+            provenance: [],
+            preyMode: true,
+          },
+        },
+        deathLedger: {
+          'char-mercer': [
+            {
+              id: 'wound-1',
+              characterId: 'char-mercer',
+              characterName: 'Elena Mercer',
+              severity: 'grave',
+              mechanism: 'crushing trauma',
+              location: 'ribcage',
+              treated: false,
+            },
+          ],
+        },
+      },
+    };
+
+    const res = await fetch(`${baseUrl}/api/simulate-player`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payloadCanonicalLedgers),
+    });
+
+    expect(res.status).toBe(200);
+    const data = (await res.json()) as { action: string };
+    expect(data.action).toBe('I try to breathe through the pain and hold the door shut.');
+
+    expect(mockGenerateContent).toHaveBeenCalledTimes(1);
+    const promptArg = mockGenerateContent.mock.calls[0][0].contents;
+    expect(promptArg).toContain('ACTIVE SOMATIC STATE:');
+    expect(promptArg).toContain('[SOMATIC STATE: Elena Mercer (Band 4: FREEZE_IMMOBILITY, DISSOCIATIVE_STARE, INVOLUNTARY_VOCALIZATION)]');
+    expect(promptArg).toContain('FELT WOUND KNOWLEDGE:');
+    expect(promptArg).toContain('[FELT WOUNDS: grave crushing trauma to ribcage [active/untreated]]');
+  });
+
   it('returns HTTP 502 with PROVIDER_REFUSAL and no action field for prompt-level block', async () => {
     mockGenerateContent.mockResolvedValueOnce({
       promptFeedback: { blockReason: 'SAFETY' },

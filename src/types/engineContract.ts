@@ -66,6 +66,8 @@ export * from './vocalization';
 export * from './cohort';
 import { WoundFactProposalSchema, TreatmentProposalSchema } from './death';
 export * from './death';
+import { CharacterSalienceSchema, FearContractSchema } from './fear';
+export * from './fear';
 
 export const EdgeKindSchema = z.enum([
   'PHYSICAL',
@@ -214,6 +216,8 @@ export const EngineTurnContextSchema = z.object({
   villainProtagonist: z.boolean().optional(),
   narratorFraming: z.string().optional(),
   cohortState: CohortStateSchema.optional(),
+  salienceLedger: z.record(z.string(), CharacterSalienceSchema).optional(),
+  fearContract: FearContractSchema.optional(),
 });
 
 export type EngineTurnContext = z.infer<typeof EngineTurnContextSchema>;

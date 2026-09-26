@@ -96,6 +96,7 @@ import {
   REMOTE_DISCONNECT_PATTERNS,
   RECOGNIZED_AMBIENT_SPEAKER_PATTERN,
 } from '../../src/lib/vocalizationEngine';
+import { formatSomaticStatePrompt } from '../../src/lib/fearEngine';
 import type {
   IntentReceipt,
   NarrativeReconciliationReceipt,
@@ -1165,6 +1166,18 @@ ${
     );
     const vocalizationPromptDirective =
       formatVocalizationPromptDirective(preTurnAuditoryContext);
+    const rawSomaticState = context.salienceLedger;
+    const somaticStateFormatted = rawSomaticState
+      ? formatSomaticStatePrompt(
+          rawSomaticState,
+          context.cast || [],
+          context.fearContract || {}
+        )
+      : null;
+    const somaticSection =
+      somaticStateFormatted && somaticStateFormatted.trim().length > 0
+        ? `\n[SOMATIC & PHYSIOLOGICAL STATE]\n${somaticStateFormatted}\n`
+        : '';
 
     // Construct the dense, authoritative contract prompt
     const prompt = `[SCENARIO CONTRACT]
@@ -1184,7 +1197,7 @@ Entity Status: ${context.player.isEntity ? 'Entity' : 'Mortal'}${playerStartingO
 
 [CAST LEDGER]
 ${castLedgerFormatted}
-${horrorGrammarSection}
+${somaticSection}${horrorGrammarSection}
 ${dramaturgySection}
 [CHARACTER DIALOGUE CONTRACT]
 - DIALOGUE EXPECTATION & LIVING VOICES: Fiction lives through conversation. When non-player companions or ambient attendants are physically co-present (marked HERE in CAST LEDGER), you SHOULD include exactly ONE dialogue block in the turn response (typically alongside 1–2 prose blocks). Do not leave scenes entirely mute when people share the space.
@@ -1224,7 +1237,7 @@ Cast members have spatial agency. When summoned by the player (e.g. telephone in
 Current Stances:
 ${characterStanceFormatted}
 - character_stance_proposal.changes describes proposed observable stance changes; it is not itself state.
-- Stance is an observable immediate orientation (focus: PLAYER or SITUATION; stance: OPEN, GUARDED, RESISTANT, HOSTILE, AFRAID, WITHDRAWN), not personality, emotion narration, relationship, memory, location, or action.
+- Stance is an observable immediate orientation (focus: PLAYER or SITUATION; stance: OPEN, GUARDED, RESISTANT, HOSTILE, AFRAID, WITHDRAWN, SUBMITTED), not personality, emotion narration, relationship, memory, location, or action.
 - Use exact cast IDs and propose at most two changes.
 - Use an empty array when no material observable change occurred.
 - Do not repeat unchanged stance.

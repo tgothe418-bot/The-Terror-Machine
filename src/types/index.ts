@@ -85,6 +85,8 @@ export * from './dramaturgy';
 export * from './cohort';
 import { DeathContractSchema } from './death';
 export * from './death';
+import { FearContractSchema } from './fear';
+export * from './fear';
 import {
   CharacterPsychologicalStakesSchema,
   DramaticSpineSchema,
@@ -329,6 +331,7 @@ export const BlueprintSchema = z.object({
   })),
   dramaticSpine: DramaticSpineSchema.optional(),
   deathContract: DeathContractSchema.optional(),
+  fearContract: FearContractSchema.optional(),
 });
 
 // For compatibility with previous types, though we augment them
@@ -458,6 +461,7 @@ export interface ScenarioBlueprint {
   antagonistProfile?: AntagonistProfile;
   villainProtagonist?: boolean;
   deathContract?: import('./death').DeathContract;
+  fearContract?: import('./fear').FearContract;
 }
 
 export interface ContextReceipt {
@@ -768,6 +772,8 @@ export interface LogicState {
   lore_and_memory?: LoreAndMemory;
   psychological_status?: string;
   player_injuries?: string[];
+  salience_ledger?: import('./fear').SalienceLedger;
+  salienceLedger?: import('./fear').SalienceLedger;
   inventory?: string[];
   npc_fixations?: string[];
   matrix_mutation?: {
@@ -831,6 +837,8 @@ export const LogicStateSchema = z
     lore_and_memory: z.any().optional(),
     psychological_status: z.string().optional(),
     player_injuries: z.array(z.string()).optional(),
+    salience_ledger: z.record(z.string(), z.any()).optional(),
+    salienceLedger: z.record(z.string(), z.any()).optional(),
     inventory: z.array(z.string()).optional(),
     npc_fixations: z.array(z.string()).optional(),
     matrix_mutation: z.any().nullable().optional(),
@@ -883,6 +891,8 @@ export interface RatifiedEngineFrame {
   };
   wound_facts?: import('./death').WoundFactProposal[];
   treatment_proposals?: import('./death').TreatmentProposal[];
+  salience_events?: import('./fear').SalienceEvent[];
+  salienceLedger?: import('./fear').SalienceLedger;
 }
 
 export interface BicameralOutput {

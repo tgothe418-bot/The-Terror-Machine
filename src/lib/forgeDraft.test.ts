@@ -24,6 +24,19 @@ describe('Phase 3D-1: Forge Draft Contract, Review Validation, and Compiler Boun
         deathMetaphysics: 'mundane' as const,
         seatSuccession: {},
       },
+      fearContract: {
+        fearlessness: {},
+        mortalityBelief: {},
+        threatWeights: { life: 1.0, freedom: 1.0, identity: 1.0 },
+        lambdaDecay: 0.35,
+        residueRatio: 0.25,
+        preyEnterThreshold: 0.70,
+        preyExitThreshold: 0.40,
+        somaticBands: { band1: 0.25, band2: 0.50, band3: 0.75, band4: 0.90 },
+        releaseValves: [],
+        villainGazeAuthorized: false,
+        submitResponse: {},
+      },
     };
 
     const parsed = ForgeDraftSchema.safeParse(rawIncompleteDraft);
@@ -35,6 +48,7 @@ describe('Phase 3D-1: Forge Draft Contract, Review Validation, and Compiler Boun
       expect(parsed.data.cast).toEqual([]);
       expect(parsed.data.setting?.location).toBe('');
       expect(parsed.data.deathContract).toBeDefined();
+      expect(parsed.data.fearContract).toBeDefined();
     }
   });
 
@@ -121,6 +135,19 @@ describe('Phase 3D-1: Forge Draft Contract, Review Validation, and Compiler Boun
         deathMetaphysics: 'mundane',
         powerBudget: 'Biological decay and containment specimens.',
         seatSuccession: {},
+      },
+      fearContract: {
+        fearlessness: {},
+        mortalityBelief: {},
+        threatWeights: { life: 1.0, freedom: 1.0, identity: 1.0 },
+        lambdaDecay: 0.35,
+        residueRatio: 0.25,
+        preyEnterThreshold: 0.70,
+        preyExitThreshold: 0.40,
+        somaticBands: { band1: 0.25, band2: 0.50, band3: 0.75, band4: 0.90 },
+        releaseValves: [],
+        villainGazeAuthorized: false,
+        submitResponse: {},
       },
       depictionContract: {
         dramaticRegister: 'Clinical dread',
@@ -265,6 +292,19 @@ describe('Phase 3D-1: Forge Draft Contract, Review Validation, and Compiler Boun
         powerBudget: 'Orbital vacuum and venting.',
         seatSuccession: {},
       },
+      fearContract: {
+        fearlessness: {},
+        mortalityBelief: {},
+        threatWeights: { life: 1.0, freedom: 1.0, identity: 1.0 },
+        lambdaDecay: 0.35,
+        residueRatio: 0.25,
+        preyEnterThreshold: 0.70,
+        preyExitThreshold: 0.40,
+        somaticBands: { band1: 0.25, band2: 0.50, band3: 0.75, band4: 0.90 },
+        releaseValves: [],
+        villainGazeAuthorized: false,
+        submitResponse: {},
+      },
       depictionContract: {
         dramaticRegister: 'Hard sci-fi dread',
         directness: 'Unflinching mechanical failures',
@@ -365,6 +405,19 @@ describe('Phase 3D-1: Forge Draft Contract, Review Validation, and Compiler Boun
         deathMetaphysics: 'mundane',
         powerBudget: 'Facility physical constraints.',
         seatSuccession: {},
+      },
+      fearContract: {
+        fearlessness: {},
+        mortalityBelief: {},
+        threatWeights: { life: 1.0, freedom: 1.0, identity: 1.0 },
+        lambdaDecay: 0.35,
+        residueRatio: 0.25,
+        preyEnterThreshold: 0.70,
+        preyExitThreshold: 0.40,
+        somaticBands: { band1: 0.25, band2: 0.50, band3: 0.75, band4: 0.90 },
+        releaseValves: [],
+        villainGazeAuthorized: false,
+        submitResponse: {},
       },
       depictionContract: {
         dramaticRegister: 'Visceral',

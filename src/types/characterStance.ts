@@ -7,6 +7,7 @@ export const CHARACTER_STANCES = [
   'HOSTILE',
   'AFRAID',
   'WITHDRAWN',
+  'SUBMITTED',
 ] as const;
 
 export const STANCE_FOCI = ['PLAYER', 'SITUATION'] as const;

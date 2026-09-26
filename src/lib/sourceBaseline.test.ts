@@ -19,9 +19,24 @@ import {
   ForgeSourceAnalysisSchema,
   ForgeCandidateApplicationStateSchema,
   AntagonistProfile,
+  FearContract,
 } from '../types/forge';
 import { compileForgeDraft } from './forgeCompiler';
 import { normalizeBlueprint } from './normalizeBlueprint';
+
+const defaultTestFearContract: FearContract = {
+  fearlessness: {},
+  mortalityBelief: {},
+  threatWeights: { life: 1.0, freedom: 1.0, identity: 1.0 },
+  lambdaDecay: 0.35,
+  residueRatio: 0.25,
+  preyEnterThreshold: 0.70,
+  preyExitThreshold: 0.40,
+  somaticBands: { band1: 0.25, band2: 0.50, band3: 0.75, band4: 0.90 },
+  releaseValves: [],
+  villainGazeAuthorized: false,
+  submitResponse: {},
+};
 
 describe('sourceBaseline pure functions', () => {
   const sampleBlueprint = {
@@ -120,6 +135,7 @@ describe('sourceBaseline pure functions', () => {
       },
       environmentalRules: ['Rule 1'],
       deathContract: { metaphysics: 'mundane', powerBudget: 'Standard constraints.', seatSuccession: {} },
+      fearContract: defaultTestFearContract,
       cast: [
         {
           id: 'char-existing',
@@ -171,6 +187,7 @@ describe('sourceBaseline pure functions', () => {
     const initialDraft: ForgeDraft = {
       id: 'draft-123',
       deathContract: { metaphysics: 'mundane', powerBudget: 'Standard constraints.', seatSuccession: {} },
+      fearContract: defaultTestFearContract,
       environmentalRules: ['Pressure rule'],
       topology: { nodes: ['BATHYSPHERE_DOCK'], connections: [] },
       references: ['drowned_bell.json'],
@@ -218,6 +235,7 @@ describe('sourceBaseline pure functions', () => {
     const initialDraft: ForgeDraft = {
       id: 'draft-123',
       deathContract: { metaphysics: 'mundane', powerBudget: 'Standard constraints.', seatSuccession: {} },
+      fearContract: defaultTestFearContract,
       cast: [
         {
           id: 'char-diver',
@@ -321,6 +339,7 @@ describe('sourceBaseline pure functions', () => {
       startingVector: 'COGNITIVE',
       startingTier: 'LATENT',
       deathContract: { metaphysics: 'mundane', powerBudget: 'Pressure constraints.', seatSuccession: {} },
+      fearContract: defaultTestFearContract,
       depictionContract: {
         dramaticRegister: 'Psychological Dread',
         directness: 'Implied and atmospheric',
@@ -507,6 +526,7 @@ describe('sourceBaseline pure functions', () => {
         startingVector: 'COGNITIVE',
         startingTier: 'LATENT',
         deathContract: { metaphysics: 'mundane', powerBudget: 'Ocean breach constraints.', seatSuccession: {} },
+        fearContract: defaultTestFearContract,
         depictionContract: {
           dramaticRegister: 'Claustrophobic Survival',
           directness: 'Visceral environmental cues',
@@ -613,6 +633,7 @@ describe('sourceBaseline pure functions', () => {
         title: 'Facility Omega',
         premise: 'Deep ocean containment breach.',
         deathContract: { metaphysics: 'mundane', powerBudget: 'Ocean breach constraints.', seatSuccession: {} },
+        fearContract: defaultTestFearContract,
         cast: [
           {
             id: 'char-corvus',
@@ -665,6 +686,7 @@ describe('sourceBaseline pure functions', () => {
         title: 'Facility Omega',
         premise: 'Deep ocean containment breach.',
         deathContract: { metaphysics: 'mundane', powerBudget: 'Ocean breach constraints.', seatSuccession: {} },
+        fearContract: defaultTestFearContract,
         cast: [
           {
             id: 'char-corvus-1',
@@ -715,6 +737,7 @@ describe('sourceBaseline pure functions', () => {
         title: 'Facility Omega',
         premise: 'Deep ocean containment breach.',
         deathContract: { metaphysics: 'mundane', powerBudget: 'Ocean breach constraints.', seatSuccession: {} },
+        fearContract: defaultTestFearContract,
         cast: [
           {
             id: 'char-corvus-1',
@@ -1205,6 +1228,7 @@ describe('sourceBaseline pure functions', () => {
         startingVector: 'COGNITIVE',
         startingTier: 'LATENT',
         deathContract: { metaphysics: 'mundane', powerBudget: 'Fallout constraints.', seatSuccession: {} },
+        fearContract: defaultTestFearContract,
         depictionContract: {
           dramaticRegister: 'Cold War Realism',
           directness: 'High directness',
@@ -1479,6 +1503,7 @@ describe('sourceBaseline pure functions', () => {
         startingVector: 'COGNITIVE',
         startingTier: 'LATENT',
         deathContract: { metaphysics: 'mundane', powerBudget: 'Abyssal hydraulic constraints.', seatSuccession: {} },
+        fearContract: defaultTestFearContract,
         depictionContract: {
           dramaticRegister: 'Cosmic existential dread',
           directness: 'High directness',
@@ -1525,6 +1550,7 @@ describe('sourceBaseline pure functions', () => {
         cast: [{ id: 'char-mortal', name: 'Mortal Crew', isEntity: false }],
         topology: { nodes: ['ROOM_A'], connections: [] },
         deathContract: { metaphysics: 'mundane', powerBudget: 'Outpost constraints.', seatSuccession: {} },
+        fearContract: defaultTestFearContract,
       };
 
       // 1. Connection with unknown destination node
@@ -1605,6 +1631,7 @@ describe('sourceBaseline pure functions', () => {
         id: 'draft-topo-test',
         title: 'Station',
         deathContract: { metaphysics: 'mundane', powerBudget: 'Station constraints.', seatSuccession: {} },
+        fearContract: defaultTestFearContract,
         topology: { nodes: [], nodeDefinitions: [], connections: [] },
       };
 
@@ -1660,6 +1687,7 @@ describe('sourceBaseline pure functions', () => {
         id: 'draft-place-test',
         title: 'Station',
         deathContract: { metaphysics: 'mundane', powerBudget: 'Station constraints.', seatSuccession: {} },
+        fearContract: defaultTestFearContract,
         cast: [{ id: 'char-1', name: 'Officer', isEntity: false, isUserCharacter: false }],
         topology: { nodes: ['ROOM_A'], nodeDefinitions: [{ id: 'ROOM_A', label: 'Room A' }], connections: [] },
       };
@@ -2255,6 +2283,7 @@ describe('sourceBaseline pure functions', () => {
       const draft: ForgeDraft = {
         title: 'Test Scenario',
         deathContract: { metaphysics: 'mundane', powerBudget: 'Standard constraints.', seatSuccession: {} },
+        fearContract: defaultTestFearContract,
         topology: {
           nodes: ['node-estate', 'node-playground'],
           nodeDefinitions: [
@@ -2274,6 +2303,7 @@ describe('sourceBaseline pure functions', () => {
       const draft: ForgeDraft = {
         title: 'Test Scenario',
         deathContract: { metaphysics: 'mundane', powerBudget: 'Standard constraints.', seatSuccession: {} },
+        fearContract: defaultTestFearContract,
         topology: {
           startingNodeId: 'node-playground',
           nodes: ['node-estate', 'node-playground'],
@@ -2294,6 +2324,7 @@ describe('sourceBaseline pure functions', () => {
       const draft: ForgeDraft = {
         title: 'Test Scenario',
         deathContract: { metaphysics: 'mundane', powerBudget: 'Standard constraints.', seatSuccession: {} },
+        fearContract: defaultTestFearContract,
         topology: {
           nodes: ['borden-estate', 'playground-main'],
           nodeDefinitions: [
@@ -2465,6 +2496,7 @@ describe('sourceBaseline pure functions', () => {
         premise: 'Cold outpost.',
         setting: { location: 'Outpost Delta', atmosphere: 'Frozen', timePeriod: 'Modern' },
         deathContract: { metaphysics: 'mundane', powerBudget: 'Cold physical environment.', seatSuccession: {} },
+        fearContract: defaultTestFearContract,
         topology: {
           nodes: ['chamber_1', 'chamber_2', 'chamber_3'],
           nodeDefinitions: [
@@ -2495,6 +2527,7 @@ describe('sourceBaseline pure functions', () => {
         premise: 'Autonomous system gone mad.',
         setting: { location: 'Core 4', atmosphere: 'Clinical', timePeriod: 'Future' },
         deathContract: { metaphysics: 'mundane', powerBudget: 'Drone physical constraints.', seatSuccession: {} },
+        fearContract: defaultTestFearContract,
       };
 
       const cand: ForgeSourceCandidate = {
@@ -2532,6 +2565,7 @@ describe('sourceBaseline pure functions', () => {
         premise: 'Dread in the deep.',
         setting: { location: 'Bunker', atmosphere: 'Cold', timePeriod: '1980' },
         deathContract: { metaphysics: 'mundane', powerBudget: 'Subterranean constraints.', seatSuccession: {} },
+        fearContract: defaultTestFearContract,
         topology: {
           startingNodeId: 'room_alpha',
           nodes: ['room_alpha', 'room_beta'],

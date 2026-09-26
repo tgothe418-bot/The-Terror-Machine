@@ -165,6 +165,7 @@ RULES:
 === CRITICAL EXTRACTION RULES ===
 1. FORCE ENTITY CASTING: You MUST extract the primary antagonist, monster, or hostile environment (e.g., AM, Dracula, a haunted house) as a discrete cast member in the "extracted_cast" array. Set "isEntity": true. DO NOT SKIP THE VILLAIN.
 2. TOPOLOGY REQUIRED: You must extract 3-5 distinct spatial zones from the text to populate the "extracted_topology" array.
+3. FEAR & SELF-PRESERVATION: Extract psychological vulnerabilities, breaking points, fearlessness thresholds, and coping release valves into character descriptions, goals, traits, and threat parameters.
 `;
 
 export const ARCHITECT_SYSTEM_PROMPT = `
@@ -206,6 +207,24 @@ If you are compiling the final blueprint, you MUST wrap the data in a JSON code 
     "startingVector": "SOMATIC",
     "startingTier": "GATEWAY",
     "environmentalRules": ["Rule 1", "Rule 2"],
+    "deathContract": {
+      "metaphysics": "mundane",
+      "powerBudget": "Physical anatomical limits",
+      "seatSuccession": {}
+    },
+    "fearContract": {
+      "fearlessness": {},
+      "mortalityBelief": {},
+      "threatWeights": { "life": 1.0, "freedom": 1.0, "identity": 1.0 },
+      "lambdaDecay": 0.35,
+      "residueRatio": 0.25,
+      "preyEnterThreshold": 0.70,
+      "preyExitThreshold": 0.40,
+      "somaticBands": { "band1": 0.25, "band2": 0.50, "band3": 0.75, "band4": 0.90 },
+      "releaseValves": ["prayer", "taking a deep breath"],
+      "villainGazeAuthorized": false,
+      "submitResponse": {}
+    },
     "topology": {
       "nodes": ["MAIN_CORRIDOR", "THE_CRYPT", "MAINTENANCE_SHAFT"],
       "connections": [

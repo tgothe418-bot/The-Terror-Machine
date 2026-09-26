@@ -25,6 +25,9 @@ import {
   PRESSURE_THREAD_TERMINAL_STATUSES,
 } from '../../src/types/horrorGrammar';
 import {
+  CHARACTER_STANCES,
+} from '../../src/types/characterStance';
+import {
   WOUND_SEVERITIES,
   DEATH_VALENCES,
 } from '../../src/types/death';
@@ -321,7 +324,7 @@ export const geminiTurnResponseJsonSchema: GeminiJsonSchema = {
               focus: { type: 'string', enum: ['PLAYER', 'SITUATION'] },
               stance: {
                 type: 'string',
-                enum: ['OPEN', 'GUARDED', 'RESISTANT', 'HOSTILE', 'AFRAID', 'WITHDRAWN'],
+                enum: [...CHARACTER_STANCES],
               },
               rationale: { type: 'string' },
             },

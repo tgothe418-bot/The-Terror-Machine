@@ -5,6 +5,8 @@ import type {
   CohortCycleReceipt,
 } from '../types/cohort';
 import type { ScenarioBlueprint } from '../types';
+import type { CharacterSalience, FearContract, ThreatType } from '../types/fear';
+import { calculateFearResponseIntensity, generatePanicTrace } from './fearEngine';
 import { isOppositionCastMember } from './castVillain';
 import {
   isBehaviorExecutable,
@@ -23,6 +25,7 @@ import {
   executeWarn,
   executeRecruit,
   executeFortify,
+  executeSubmit,
   downgradeClarity,
   type BehaviorExecutionContext,
   type BehaviorExecutionResult,
@@ -45,9 +48,10 @@ export const VERB_UNIVERSE = [
   'WARN',
   'RECRUIT',
   'FORTIFY',
+  'SUBMIT',
 ] as const;
 
-export const SURVIVAL_VERBS = ['FORTIFY', 'HIDE', 'FLEE', 'CLOSE_IN'] as const;
+export const SURVIVAL_VERBS = ['FORTIFY', 'HIDE', 'FLEE', 'CLOSE_IN', 'SUBMIT'] as const;
 
 export const DEFAULT_AFFINITIES: Record<string, number> = {
   INVESTIGATE: 1.0,
@@ -65,6 +69,36 @@ export const DEFAULT_AFFINITIES: Record<string, number> = {
   PARLEY: 0.4,
   FLEE: 0.4,
   FRACTURE: 0.3,
+  SUBMIT: 0.3,
+};
+
+export const VERB_THREAT_AFFINITIES: Record<'life' | 'freedom' | 'identity', Record<string, number>> = {
+  life: {
+    FLEE: 1.2,
+    HIDE: 1.0,
+    SUBMIT: 0.8,
+    FORTIFY: 0.6,
+    SHARE: 0.2,
+    DENY: 0.1,
+    TRAP: -0.8,
+    CLOSE_IN: -0.9,
+    INVESTIGATE: -1.0,
+  },
+  freedom: {
+    FLEE: 1.0,
+    MISDIRECT: 0.9,
+    HIDE: 0.8,
+    DENY: 0.7,
+    PARLEY: 0.6,
+    INVESTIGATE: -0.6,
+  },
+  identity: {
+    DENY: 1.2,
+    HIDE: 0.9,
+    MISDIRECT: 0.8,
+    FRACTURE: 0.5,
+    INVESTIGATE: -0.5,
+  },
 };
 
 /**
@@ -163,13 +197,24 @@ export function computeEnvironmentalWeight(
   return weight;
 }
 
+export interface ScoreBehaviorOptions {
+  salience?: CharacterSalience;
+  fearContract?: Partial<FearContract>;
+  isUserCharacter?: boolean;
+  context?: BehaviorExecutionContext;
+}
+
 /**
  * Recency fatigue multiplier: Score = Base * EnvironmentalWeight * 0.4 if repeated consecutively.
+ * Layer 2 Threat Modifier & Myopic Greedy Selection & Prey Mode (§5.1, §5.2).
  */
 export function scoreCandidateBehavior(
   verb: string,
   member: CohortMember,
-  environmentalWeight = 1.0
+  environmentalWeight = 1.0,
+  salienceOrOptions?: CharacterSalience | ScoreBehaviorOptions,
+  fearContractParam?: Partial<FearContract>,
+  isUserCharacterParam?: boolean
 ): number {
   let baseAffinity: number;
   if (verb in member.affinities) {
@@ -180,7 +225,110 @@ export function scoreCandidateBehavior(
     baseAffinity = 0;
   }
   const fatigueMultiplier = member.lastAction === verb ? FATIGUE_MULTIPLIER : 1.0;
-  return baseAffinity * environmentalWeight * fatigueMultiplier;
+
+  // Extract options or positional args
+  let salience: CharacterSalience | undefined;
+  let fearContract: Partial<FearContract> | undefined = fearContractParam;
+  let isUserCharacter = isUserCharacterParam ?? false;
+
+  if (salienceOrOptions) {
+    if ('spike' in salienceOrOptions && typeof (salienceOrOptions as CharacterSalience).spike === 'number') {
+      salience = salienceOrOptions as CharacterSalience;
+    } else {
+      const opts = salienceOrOptions as ScoreBehaviorOptions;
+      salience = opts.salience;
+      if (opts.fearContract !== undefined) fearContract = opts.fearContract;
+      if (opts.isUserCharacter !== undefined) isUserCharacter = Boolean(opts.isUserCharacter);
+
+      if (!salience && opts.context?.salienceLedger?.[member.characterId]) {
+        salience = opts.context.salienceLedger[member.characterId];
+      }
+      if (!fearContract && opts.context?.fearContract) {
+        fearContract = opts.context.fearContract;
+      }
+      if (opts.isUserCharacter === undefined && opts.context) {
+        isUserCharacter = Boolean(
+          opts.context.isUserCharacter ||
+          (opts.context.userCharacterId && opts.context.userCharacterId === member.characterId)
+        );
+      }
+    }
+  }
+
+  if (!salience && member.salience) {
+    salience = member.salience;
+  }
+
+  // Invariant 6: Player Sovereignty — human player intent is sovereign and never reweighted
+  if (isUserCharacter) {
+    return baseAffinity * environmentalWeight * fatigueMultiplier;
+  }
+
+  let modifiedAffinity = baseAffinity;
+
+  if (salience) {
+    const fearlessness =
+      fearContract?.fearlessness && typeof fearContract.fearlessness[member.characterId] === 'number'
+        ? fearContract.fearlessness[member.characterId]
+        : typeof fearContract?.fearlessness?.['default'] === 'number'
+        ? fearContract.fearlessness['default']
+        : 0;
+
+    const fearIntensity = calculateFearResponseIntensity(salience, fearlessness);
+    const threatType: ThreatType = salience.threatType || 'life';
+    const threatGain =
+      fearContract?.threatWeights && typeof fearContract.threatWeights[threatType] === 'number'
+        ? fearContract.threatWeights[threatType]
+        : 1.0;
+
+    const verbThreatAffinity = VERB_THREAT_AFFINITIES[threatType]?.[verb] ?? 0;
+    const threatModifier = threatGain * fearIntensity * verbThreatAffinity;
+    modifiedAffinity += threatModifier;
+
+    // Panic = Myopic Greedy Selection: at high fear intensity (Band 3+ / >= 0.75), apply horizon discount
+    const panicBandThreshold = fearContract?.somaticBands?.band3 ?? 0.75;
+    if (fearIntensity >= panicBandThreshold) {
+      if (verb === 'FLEE' || verb === 'HIDE') {
+        modifiedAffinity += 0.5 * fearIntensity;
+      } else if (verb === 'INVESTIGATE' || verb === 'CLOSE_IN' || verb === 'TRAP') {
+        modifiedAffinity -= 0.5 * fearIntensity;
+      }
+    }
+
+    // Prey Mode (Reversible Hysteresis)
+    const enterThreshold =
+      typeof fearContract?.preyEnterThreshold === 'number'
+        ? fearContract.preyEnterThreshold
+        : 0.70;
+    const exitThreshold =
+      typeof fearContract?.preyExitThreshold === 'number'
+        ? fearContract.preyExitThreshold
+        : 0.40;
+
+    let isPrey = Boolean(salience.preyMode);
+    if (isPrey) {
+      if (fearIntensity <= exitThreshold) {
+        isPrey = false;
+      }
+    } else {
+      if (fearIntensity >= enterThreshold) {
+        isPrey = true;
+      }
+    }
+    salience.preyMode = isPrey;
+
+    if (isPrey) {
+      if (['INVESTIGATE', 'CLOSE_IN', 'TRAP'].includes(verb)) {
+        // Layer 2 suppression on escalating verbs
+        modifiedAffinity = modifiedAffinity * 0.1 - 5.0;
+      } else if (['HIDE', 'FLEE', 'SUBMIT', 'DENY'].includes(verb)) {
+        // Survival verbs dominate
+        modifiedAffinity += 1.0;
+      }
+    }
+  }
+
+  return modifiedAffinity * environmentalWeight * fatigueMultiplier;
 }
 
 /**
@@ -459,6 +607,7 @@ const EXECUTORS: Record<
   WARN: executeWarn,
   RECRUIT: executeRecruit,
   FORTIFY: executeFortify,
+  SUBMIT: executeSubmit,
 };
 
 /**
@@ -595,11 +744,26 @@ export function tickCohortState(
       continue;
     }
 
-    // Score executables with affinity profile, Layer 2 environmental modulation, and fatigue
+    // Score executables with affinity profile, Layer 2 environmental modulation, threat salience, and fatigue
     const scores: Record<string, number> = {};
+    const memberSalience = member.salience || baseContext.salienceLedger?.[id];
+    const fearContract = baseContext.fearContract;
+    const isUserChar =
+      baseContext.userCharacterId === id || Boolean(baseContext.isUserCharacter);
+
     for (const verb of executableSet) {
-      const envWeight = computeEnvironmentalWeight(verb, member, memberContext, currentCohortSnapshot);
-      scores[verb] = scoreCandidateBehavior(verb, member, envWeight);
+      const envWeight = computeEnvironmentalWeight(
+        verb,
+        member,
+        memberContext,
+        currentCohortSnapshot
+      );
+      scores[verb] = scoreCandidateBehavior(verb, member, envWeight, {
+        salience: memberSalience,
+        fearContract,
+        isUserCharacter: isUserChar,
+        context: memberContext,
+      });
     }
 
     // Deterministic selection: highest score, tie broken by verb order in considerationSet
@@ -613,6 +777,42 @@ export function tickCohortState(
     // Dispatch winner
     const executor = EXECUTORS[winner];
     const execResult = executor(member, memberContext);
+
+    // Panic trace generation for high terror (Band 3+ / fearIntensity >= 0.75)
+    if (memberSalience) {
+      const fearlessness =
+        fearContract?.fearlessness && typeof fearContract.fearlessness[id] === 'number'
+          ? fearContract.fearlessness[id]
+          : typeof fearContract?.fearlessness?.['default'] === 'number'
+          ? fearContract.fearlessness['default']
+          : 0;
+      const intensity = calculateFearResponseIntensity(memberSalience, fearlessness);
+      if (intensity >= 0.75) {
+        const spikeEvents = memberSalience.provenance?.filter((p) => p.spikeDelta > 0) || [];
+        const salienceSpikeTurn =
+          spikeEvents.length > 0
+            ? spikeEvents[spikeEvents.length - 1].turn
+            : baseContext.turnNumber;
+
+        const panicTrace = generatePanicTrace(
+          id,
+          intensity,
+          currentNodeId,
+          baseContext.turnNumber,
+          baseContext.fictionalTime,
+          salienceSpikeTurn,
+          member.lastEmittedPanicTurn
+        );
+
+        if (panicTrace) {
+          execResult.emittedTraces = [...execResult.emittedTraces, panicTrace];
+          execResult.member = {
+            ...execResult.member,
+            lastEmittedPanicTurn: salienceSpikeTurn,
+          };
+        }
+      }
+    }
 
     // HIDE cover break & clarity downgrade (§4 HIDE)
     if (winner === 'CLOSE_IN' || winner === 'TRAP') {
@@ -753,6 +953,9 @@ export function tickCohortState(
         : {}),
       ...(execResult.locationDelta !== undefined
         ? { locationDelta: execResult.locationDelta }
+        : {}),
+      ...(execResult.submissionAttempted !== undefined
+        ? { submissionAttempted: execResult.submissionAttempted }
         : {}),
     });
   }

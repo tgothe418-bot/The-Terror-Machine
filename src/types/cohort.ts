@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import { CharacterSalienceSchema } from './fear';
+import { CharacterStanceRecordSchema, type CharacterStanceRecord } from './characterStance';
 
 export const CohortPhaseSchema = z.enum([
   'ONSET',
@@ -64,11 +66,16 @@ export const CohortMemberSchema = z
     hidingUntilFictionalTime: z.number().int().nonnegative().optional(),
     agendaProgress: z.number().min(0).max(1).default(0),
     agendaText: z.string().optional(),
+    salience: CharacterSalienceSchema.optional(),
+    stance: z.union([CharacterStanceRecordSchema, z.string()]).optional(),
+    lastEmittedPanicTurn: z.number().int().nonnegative().optional(),
   })
   .strict();
 type InferredCohortMember = z.infer<typeof CohortMemberSchema>;
-export type CohortMember = Omit<InferredCohortMember, 'agendaProgress'> & {
+export type CohortMember = Omit<InferredCohortMember, 'agendaProgress' | 'stance'> & {
   agendaProgress?: number;
+  stance?: CharacterStanceRecord | string;
+  lastEmittedPanicTurn?: number;
 };
 
 export const TraceChannelSchema = z.enum(['ACOUSTIC', 'VISUAL', 'EVIDENTIAL', 'SOCIAL']);
@@ -103,6 +110,7 @@ export const CohortCycleReceiptSchema = z
     recruitTargetId: z.string().optional(),
     recruitSucceeded: z.boolean().optional(),
     locationDelta: z.string().optional(),
+    submissionAttempted: z.boolean().optional(),
   })
   .strict();
 export type CohortCycleReceipt = z.infer<typeof CohortCycleReceiptSchema>;
