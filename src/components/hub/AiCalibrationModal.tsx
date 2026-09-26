@@ -80,8 +80,12 @@ export default function AiCalibrationModal({
   const [tier, setTier] = useState<'free' | 'paid'>('free');
   const [model, setModel] = useState<string>('gemini-3.6-flash');
   const [apiKeyInput, setApiKeyInput] = useState<string>('');
-  const [engineProvider, setEngineProvider] = useState<'gemini' | 'zai' | 'hemmingway' | 'local'>('gemini');
-  const [voiceProvider, setVoiceProvider] = useState<'gemini' | 'openai' | 'zai' | 'hemmingway' | 'local'>('openai');
+  const [engineProvider, setEngineProvider] = useState<'gemini' | 'zai' | 'hemmingway' | 'local'>(
+    'gemini'
+  );
+  const [voiceProvider, setVoiceProvider] = useState<
+    'gemini' | 'openai' | 'zai' | 'hemmingway' | 'local'
+  >('openai');
   const [openAiModel, setOpenAiModel] = useState<string>('gpt-5.6-luna');
   const [openAiApiKeyInput, setOpenAiApiKeyInput] = useState<string>('');
   const [zaiModel, setZaiModel] = useState<string>('glm-4.6');
@@ -89,7 +93,9 @@ export default function AiCalibrationModal({
   const [zaiApiKeyInput, setZaiApiKeyInput] = useState<string>('');
   const [hemmingwayModel, setHemmingwayModel] = useState<string>('hemmingway-27b');
   const [hemmingwayApiKeyInput, setHemmingwayApiKeyInput] = useState<string>('');
-  const [reasoningEffort, setReasoningEffort] = useState<'default' | 'minimal' | 'low' | 'medium' | 'high'>('default');
+  const [reasoningEffort, setReasoningEffort] = useState<
+    'default' | 'minimal' | 'low' | 'medium' | 'high'
+  >('default');
   const [localBaseUrl, setLocalBaseUrl] = useState<string>('http://127.0.0.1:1234/v1');
   const [localModel, setLocalModel] = useState<string>('');
   const [localEngineModel, setLocalEngineModel] = useState<string>('');
@@ -120,7 +126,9 @@ export default function AiCalibrationModal({
           setOpenAiModel(data.openAiModel || data.defaultOpenAiModel || 'gpt-6-astra');
           setZaiModel(data.zaiModel || data.defaultZaiModel || 'glm-4.6');
           setZaiEndpoint(data.zaiEndpoint || 'general');
-          setHemmingwayModel(data.hemmingwayModel || data.defaultHemmingwayModel || 'hemmingway-27b');
+          setHemmingwayModel(
+            data.hemmingwayModel || data.defaultHemmingwayModel || 'hemmingway-27b'
+          );
           setReasoningEffort(data.reasoningEffort || 'default');
           setLocalBaseUrl(
             data.localBaseUrl || data.defaultLocalBaseUrl || 'http://127.0.0.1:1234/v1'
@@ -241,8 +249,13 @@ export default function AiCalibrationModal({
           )
         );
 
-        if (modelsToWarmup.length > 0 && (engineProvider === 'local' || voiceProvider === 'local' || Boolean(localModel))) {
-          setStatusMessage(`AI Configuration saved. Preloading ${modelsToWarmup.length} local model(s) into Bionic memory...`);
+        if (
+          modelsToWarmup.length > 0 &&
+          (engineProvider === 'local' || voiceProvider === 'local' || Boolean(localModel))
+        ) {
+          setStatusMessage(
+            `AI Configuration saved. Preloading ${modelsToWarmup.length} local model(s) into Bionic memory...`
+          );
           try {
             const warmupRes = await fetch('/api/ai/warmup', {
               method: 'POST',
@@ -252,7 +265,8 @@ export default function AiCalibrationModal({
                 baseUrl: payload.localBaseUrl,
               }),
             });
-            const warmupData: { results?: Array<{ ok?: boolean; model?: string }> } = await warmupRes.json();
+            const warmupData: { results?: Array<{ ok?: boolean; model?: string }> } =
+              await warmupRes.json();
             const loadedCount = warmupData?.results
               ? warmupData.results.filter((r) => r.ok).length
               : 0;
@@ -281,7 +295,6 @@ export default function AiCalibrationModal({
     }
   };
 
-
   const handleDiscoverLocalModels = async () => {
     setIsDiscoveringLocalModels(true);
     setStatusMessage(null);
@@ -295,9 +308,10 @@ export default function AiCalibrationModal({
         return;
       }
       setLocalModels(data.models);
-      const chosen = (!localModel || !data.models.includes(localModel))
-        ? (data.models.find((candidate) => /qwen3\.8-27b/i.test(candidate)) || data.models[0])
-        : localModel;
+      const chosen =
+        !localModel || !data.models.includes(localModel)
+          ? data.models.find((candidate) => /qwen3\.8-27b/i.test(candidate)) || data.models[0]
+          : localModel;
       if (!localModel || !data.models.includes(localModel)) {
         setLocalModel(chosen);
       }
@@ -336,14 +350,16 @@ export default function AiCalibrationModal({
                   model: zaiModel,
                   ...(zaiApiKeyInput.trim() ? { apiKey: zaiApiKeyInput.trim() } : {}),
                 }
-            : voiceProvider === 'hemmingway'
-              ? {
-                  model: hemmingwayModel,
-                  ...(hemmingwayApiKeyInput.trim() ? { apiKey: hemmingwayApiKeyInput.trim() } : {}),
-                }
-              : voiceProvider === 'local'
-                ? { model: localModel, baseUrl: localBaseUrl }
-                : {}),
+              : voiceProvider === 'hemmingway'
+                ? {
+                    model: hemmingwayModel,
+                    ...(hemmingwayApiKeyInput.trim()
+                      ? { apiKey: hemmingwayApiKeyInput.trim() }
+                      : {}),
+                  }
+                : voiceProvider === 'local'
+                  ? { model: localModel, baseUrl: localBaseUrl }
+                  : {}),
         }),
       });
       const data: AiPingResponse = await res.json();
@@ -376,7 +392,7 @@ export default function AiCalibrationModal({
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
-        className="max-w-2xl w-full max-h-[90vh] overflow-y-auto bg-zinc-950 border border-zinc-800 rounded-lg shadow-2xl p-6 sm:p-8 space-y-6 text-zinc-100 font-sans relative"
+        className="max-w-6xl w-full max-h-[90vh] overflow-y-auto bg-zinc-950 border border-zinc-800 rounded-lg shadow-2xl p-6 sm:p-8 space-y-6 text-zinc-100 font-sans relative"
       >
         {/* Close Button */}
         <button
@@ -400,93 +416,100 @@ export default function AiCalibrationModal({
           </p>
         </div>
 
-        {/* Simulation Engine Provider Selection */}
-        <div className="space-y-2">
-          <label className="text-xs font-mono uppercase tracking-wider text-zinc-400">
-            Simulation Engine Provider
-          </label>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            {(['gemini', 'zai', 'hemmingway', 'local'] as const).map((provider) => (
-              <button
-                key={provider}
-                type="button"
-                onClick={() => setEngineProvider(provider)}
-                className={`p-4 text-left border rounded transition-all cursor-pointer ${
-                  engineProvider === provider
-                    ? 'border-emerald-500 bg-emerald-950/20 text-white'
-                    : 'border-zinc-800 bg-zinc-900/50 text-zinc-400 hover:border-zinc-700'
-                }`}
-              >
-                <div className="flex items-center justify-between pb-1">
-                  <span className="font-mono text-xs font-bold uppercase tracking-wider text-emerald-300">
-                    {provider === 'gemini'
-                      ? 'Google Gemini'
-                      : provider === 'zai'
-                        ? 'Z.ai GLM'
-                        : provider === 'hemmingway'
-                          ? 'Hemmingway.io'
-                          : 'Local Model'}
-                  </span>
-                  {engineProvider === provider && <CheckCircle2 className="w-4 h-4 text-emerald-400" />}
-                </div>
-                <p className="text-xs text-zinc-300 font-mono">
-                  {provider === 'gemini'
-                    ? 'Uses the cloud Gemini baseline for turns and initialization.'
-                    : provider === 'zai'
-                      ? 'Uses Z.ai GLM models with your API key for turns and initialization.'
-                      : provider === 'hemmingway'
-                        ? 'Uses Hemmingway.io models with your API key for simulation turns.'
-                        : 'Uses the active local API server (LM Studio / Ollama) below.'}
-                </p>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Voice Provider Selection */}
-        <div className="space-y-2">
-          <label className="text-xs font-mono uppercase tracking-wider text-zinc-400">
-            The Historian Provider
-          </label>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-            {(['gemini', 'openai', 'zai', 'hemmingway', 'local'] as const).map((provider) => (
-              <button
-                key={provider}
-                type="button"
-                onClick={() => setVoiceProvider(provider)}
-                className={`p-4 text-left border rounded transition-all cursor-pointer ${
-                  voiceProvider === provider
-                    ? 'border-blue-500 bg-blue-950/20 text-white'
-                    : 'border-zinc-800 bg-zinc-900/50 text-zinc-400 hover:border-zinc-700'
-                }`}
-              >
-                <div className="flex items-center justify-between pb-1">
-                  <span className="font-mono text-xs font-bold uppercase tracking-wider text-blue-300">
-                    {provider === 'gemini'
-                      ? 'Google Gemini'
-                      : provider === 'openai'
-                        ? 'OpenAI'
+        {/* Providers: side-by-side on widescreen */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Simulation Engine Provider Selection */}
+          <div className="space-y-2">
+            <label className="text-xs font-mono uppercase tracking-wider text-zinc-400">
+              Simulation Engine Provider
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {(['gemini', 'zai', 'hemmingway', 'local'] as const).map((provider) => (
+                <button
+                  key={provider}
+                  type="button"
+                  onClick={() => setEngineProvider(provider)}
+                  className={`p-4 text-left border rounded transition-all cursor-pointer ${
+                    engineProvider === provider
+                      ? 'border-emerald-500 bg-emerald-950/20 text-white'
+                      : 'border-zinc-800 bg-zinc-900/50 text-zinc-400 hover:border-zinc-700'
+                  }`}
+                >
+                  <div className="flex items-center justify-between pb-1">
+                    <span className="font-mono text-xs font-bold uppercase tracking-wider text-emerald-300">
+                      {provider === 'gemini'
+                        ? 'Google Gemini'
                         : provider === 'zai'
                           ? 'Z.ai GLM'
                           : provider === 'hemmingway'
-                            ? 'Hemmingway'
-                            : 'Local'}
-                  </span>
-                  {voiceProvider === provider && <CheckCircle2 className="w-4 h-4 text-blue-400" />}
-                </div>
-                <p className="text-xs text-zinc-300 font-mono">
-                  {provider === 'gemini'
-                    ? 'Uses the active Gemini baseline below.'
-                    : provider === 'openai'
-                      ? 'Uses the Responses API for The Historian only.'
+                            ? 'Hemmingway.io'
+                            : 'Local Model'}
+                    </span>
+                    {engineProvider === provider && (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                    )}
+                  </div>
+                  <p className="text-xs text-zinc-300 font-mono">
+                    {provider === 'gemini'
+                      ? 'Uses the cloud Gemini baseline for turns and initialization.'
                       : provider === 'zai'
-                        ? 'Uses Z.ai GLM models with your API key.'
+                        ? 'Uses Z.ai GLM models with your API key for turns and initialization.'
                         : provider === 'hemmingway'
-                          ? 'Uses Hemmingway.io with your API key.'
-                          : 'Uses an API server running on this computer.'}
-                </p>
-              </button>
-            ))}
+                          ? 'Uses Hemmingway.io models with your API key for simulation turns.'
+                          : 'Uses the active local API server (LM Studio / Ollama) below.'}
+                  </p>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* The Historian Provider Selection */}
+          <div className="space-y-2">
+            <label className="text-xs font-mono uppercase tracking-wider text-zinc-400">
+              The Historian Provider
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {(['gemini', 'openai', 'zai', 'hemmingway', 'local'] as const).map((provider) => (
+                <button
+                  key={provider}
+                  type="button"
+                  onClick={() => setVoiceProvider(provider)}
+                  className={`p-4 text-left border rounded transition-all cursor-pointer ${
+                    voiceProvider === provider
+                      ? 'border-blue-500 bg-blue-950/20 text-white'
+                      : 'border-zinc-800 bg-zinc-900/50 text-zinc-400 hover:border-zinc-700'
+                  }`}
+                >
+                  <div className="flex items-center justify-between pb-1">
+                    <span className="font-mono text-xs font-bold uppercase tracking-wider text-blue-300">
+                      {provider === 'gemini'
+                        ? 'Google Gemini'
+                        : provider === 'openai'
+                          ? 'OpenAI'
+                          : provider === 'zai'
+                            ? 'Z.ai GLM'
+                            : provider === 'hemmingway'
+                              ? 'Hemmingway'
+                              : 'Local'}
+                    </span>
+                    {voiceProvider === provider && (
+                      <CheckCircle2 className="w-4 h-4 text-blue-400" />
+                    )}
+                  </div>
+                  <p className="text-xs text-zinc-300 font-mono">
+                    {provider === 'gemini'
+                      ? 'Uses the active Gemini baseline below.'
+                      : provider === 'openai'
+                        ? 'Uses the Responses API for The Historian only.'
+                        : provider === 'zai'
+                          ? 'Uses Z.ai GLM models with your API key.'
+                          : provider === 'hemmingway'
+                            ? 'Uses Hemmingway.io with your API key.'
+                            : 'Uses an API server running on this computer.'}
+                  </p>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -518,84 +541,10 @@ export default function AiCalibrationModal({
             ))}
           </div>
           <p className="text-[11px] text-zinc-500 font-mono">
-            Applies to models supporting reasoning/thinking (Gemini, Z.ai GLM, Hemmingway). &apos;default&apos; defers to purpose-derived policy; explicit levels override across simulation turns, architecture, and voice.
+            Applies to models supporting reasoning/thinking (Gemini, Z.ai GLM, Hemmingway).
+            &apos;default&apos; defers to purpose-derived policy; explicit levels override across
+            simulation turns, architecture, and voice.
           </p>
-        </div>
-
-        {/* Operating Tier Selection */}
-        <div className="space-y-2">
-          <label className="text-xs font-mono uppercase tracking-wider text-zinc-400">
-            Gemini Baseline Tier
-          </label>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {/* Free Tier */}
-            <button
-              type="button"
-              onClick={() => {
-                setTier('free');
-                setModel('gemini-3.6-flash');
-              }}
-              className={`p-4 text-left border rounded transition-all cursor-pointer ${
-                tier === 'free'
-                  ? 'border-system-green bg-system-green/10 text-white'
-                  : 'border-zinc-800 bg-zinc-900/50 text-zinc-400 hover:border-zinc-700'
-              }`}
-            >
-              <div className="flex items-center justify-between pb-1">
-                <span className="font-mono text-xs font-bold uppercase tracking-wider text-system-green flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5" />
-                  Free Tier (Zero Cost)
-                </span>
-                {tier === 'free' && <CheckCircle2 className="w-4 h-4 text-system-green" />}
-              </div>
-              <p className="text-xs text-zinc-300 font-mono">
-                Optimized for standard Google AI Studio free quotas (15 RPM / 1M TPM). Recommended.
-              </p>
-            </button>
-
-            {/* Paid Tier */}
-            <button
-              type="button"
-              onClick={() => {
-                setTier('paid');
-                setModel('gemini-3.7-flash');
-              }}
-              className={`p-4 text-left border rounded transition-all cursor-pointer ${
-                tier === 'paid'
-                  ? 'border-red-500 bg-red-950/20 text-white'
-                  : 'border-zinc-800 bg-zinc-900/50 text-zinc-400 hover:border-zinc-700'
-              }`}
-            >
-              <div className="flex items-center justify-between pb-1">
-                <span className="font-mono text-xs font-bold uppercase tracking-wider text-red-400 flex items-center gap-1.5">
-                  <Zap className="w-3.5 h-3.5" />
-                  Paid / Pro Tier
-                </span>
-                {tier === 'paid' && <CheckCircle2 className="w-4 h-4 text-red-400" />}
-              </div>
-              <p className="text-xs text-zinc-300 font-mono">
-                Uses gemini-3.7-flash. Requires active AI Studio billing or prepayment credits.
-              </p>
-            </button>
-          </div>
-        </div>
-
-        {/* Active Model Selector */}
-        <div className="space-y-2">
-          <label className="text-xs font-mono uppercase tracking-wider text-zinc-400">
-            Gemini Baseline Model
-          </label>
-          <select
-            value={model}
-            onChange={(e) => setModel(e.target.value)}
-            className="w-full bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-xs font-mono text-zinc-200 focus:outline-none focus:border-white transition-colors"
-          >
-            {(config?.approvedModels || [model]).map((approvedModel) => (
-              <option key={approvedModel} value={approvedModel}>
-                {approvedModel}
-              </option>
-            ))}
-          </select>
         </div>
 
         {voiceProvider === 'openai' && (
@@ -660,7 +609,13 @@ export default function AiCalibrationModal({
                 className="w-full bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-xs font-mono text-zinc-200 focus:outline-none focus:border-violet-500 transition-colors"
               >
                 {(
-                  config?.approvedZaiModels || ['glm-5', 'glm-4.7', 'glm-4.6', 'glm-4.5-air', 'glm-4.5-flash']
+                  config?.approvedZaiModels || [
+                    'glm-5',
+                    'glm-4.7',
+                    'glm-4.6',
+                    'glm-4.5-air',
+                    'glm-4.5-flash',
+                  ]
                 ).map((approvedModel) => (
                   <option key={approvedModel} value={approvedModel}>
                     {approvedModel}
@@ -671,7 +626,8 @@ export default function AiCalibrationModal({
                 ))}
               </select>
               <p className="text-[11px] text-zinc-500 font-mono">
-                Applies to every Z.ai subsystem. GLM runs your Engine contracts through JSON mode + the same fail-closed ratification as every other provider.
+                Applies to every Z.ai subsystem. GLM runs your Engine contracts through JSON mode +
+                the same fail-closed ratification as every other provider.
               </p>
             </div>
 
@@ -702,11 +658,14 @@ export default function AiCalibrationModal({
                   }`}
                 >
                   <div className="font-bold text-zinc-200">Coding Plan</div>
-                  <div className="text-[10px] text-zinc-500 truncate">api.z.ai/api/coding/paas/v4</div>
+                  <div className="text-[10px] text-zinc-500 truncate">
+                    api.z.ai/api/coding/paas/v4
+                  </div>
                 </button>
               </div>
               <p className="text-[11px] text-zinc-500 font-mono">
-                Select &apos;Coding Plan&apos; if you have a Z.ai GLM Coding subscription; otherwise use &apos;General API&apos;.
+                Select &apos;Coding Plan&apos; if you have a Z.ai GLM Coding subscription; otherwise
+                use &apos;General API&apos;.
               </p>
             </div>
 
@@ -730,7 +689,8 @@ export default function AiCalibrationModal({
                 className="w-full bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-xs font-mono text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-violet-500 transition-colors"
               />
               <p className="text-[11px] text-zinc-500 font-mono">
-                Create a key at z.ai → API Keys. The key stays on the server process and is never returned to the browser.
+                Create a key at z.ai → API Keys. The key stays on the server process and is never
+                returned to the browser.
               </p>
             </div>
           </div>
@@ -747,9 +707,7 @@ export default function AiCalibrationModal({
                 onChange={(e) => setHemmingwayModel(e.target.value)}
                 className="w-full bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-xs font-mono text-zinc-200 focus:outline-none focus:border-teal-500 transition-colors"
               >
-                {(
-                  config?.approvedHemmingwayModels || ['hemmingway-27b']
-                ).map((approvedModel) => (
+                {(config?.approvedHemmingwayModels || ['hemmingway-27b']).map((approvedModel) => (
                   <option key={approvedModel} value={approvedModel}>
                     {approvedModel}
                     {approvedModel === (config?.defaultHemmingwayModel || 'hemmingway-27b')
@@ -759,7 +717,8 @@ export default function AiCalibrationModal({
                 ))}
               </select>
               <p className="text-[11px] text-zinc-500 font-mono">
-                Hemmingway.io runs Engine contracts through JSON mode with the same fail-closed ratification as every other provider.
+                Hemmingway.io runs Engine contracts through JSON mode with the same fail-closed
+                ratification as every other provider.
               </p>
             </div>
 
@@ -802,7 +761,8 @@ export default function AiCalibrationModal({
                 className="w-full bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-xs font-mono text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-amber-500 transition-colors"
               />
               <p className="text-[11px] text-zinc-500 font-mono">
-                Connect to local LM Studio (1234) or Ollama (11434). For cloud instances (Render), enter a secure tunnel URL (e.g. ngrok / Cloudflare).
+                Connect to local LM Studio (1234) or Ollama (11434). For cloud instances (Render),
+                enter a secure tunnel URL (e.g. ngrok / Cloudflare).
               </p>
             </div>
             <div className="space-y-2">
@@ -829,7 +789,8 @@ export default function AiCalibrationModal({
                     const isVlm = /vl|vision|minicpm-v|llava|pixtral|omni/i.test(candidate);
                     return (
                       <option key={candidate} value={candidate}>
-                        {candidate}{isVlm ? ' [👁️ Vision Ready]' : ''}
+                        {candidate}
+                        {isVlm ? ' [👁️ Vision Ready]' : ''}
                       </option>
                     );
                   })}
@@ -876,12 +837,16 @@ export default function AiCalibrationModal({
               </label>
 
               {useDedicatedSubsystemModels ? (
-                <div className="space-y-3 pt-2 pl-3 border-l-2 border-amber-800/40">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 pl-3 border-l-2 border-amber-800/40">
                   {/* The Engine */}
                   <div className="space-y-1">
                     <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-mono text-zinc-300 font-semibold">The Engine</span>
-                      <span className="text-[10px] font-mono text-zinc-500">Narrative & Spatial Turns</span>
+                      <span className="text-[11px] font-mono text-zinc-300 font-semibold">
+                        The Engine
+                      </span>
+                      <span className="text-[10px] font-mono text-zinc-500">
+                        Narrative & Spatial Turns
+                      </span>
                     </div>
                     {localModels.length > 0 ? (
                       <select
@@ -890,7 +855,9 @@ export default function AiCalibrationModal({
                         className="w-full bg-zinc-900 border border-zinc-800 rounded px-2.5 py-1.5 text-xs font-mono text-zinc-200 focus:outline-none focus:border-amber-500 transition-colors"
                       >
                         {localModels.map((m) => (
-                          <option key={m} value={m}>{m}</option>
+                          <option key={m} value={m}>
+                            {m}
+                          </option>
                         ))}
                       </select>
                     ) : (
@@ -906,8 +873,12 @@ export default function AiCalibrationModal({
                   {/* Autopilot */}
                   <div className="space-y-1">
                     <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-mono text-zinc-300 font-semibold">Autopilot</span>
-                      <span className="text-[10px] font-mono text-zinc-500">Player Simulation (fast 3B–8B recommended)</span>
+                      <span className="text-[11px] font-mono text-zinc-300 font-semibold">
+                        Autopilot
+                      </span>
+                      <span className="text-[10px] font-mono text-zinc-500">
+                        Player Simulation (fast 3B–8B recommended)
+                      </span>
                     </div>
                     {localModels.length > 0 ? (
                       <select
@@ -916,7 +887,9 @@ export default function AiCalibrationModal({
                         className="w-full bg-zinc-900 border border-zinc-800 rounded px-2.5 py-1.5 text-xs font-mono text-zinc-200 focus:outline-none focus:border-amber-500 transition-colors"
                       >
                         {localModels.map((m) => (
-                          <option key={m} value={m}>{m}</option>
+                          <option key={m} value={m}>
+                            {m}
+                          </option>
                         ))}
                       </select>
                     ) : (
@@ -932,8 +905,12 @@ export default function AiCalibrationModal({
                   {/* The Historian */}
                   <div className="space-y-1">
                     <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-mono text-zinc-300 font-semibold">The Historian</span>
-                      <span className="text-[10px] font-mono text-zinc-500">Continuity Oracle & Script Inscriptions</span>
+                      <span className="text-[11px] font-mono text-zinc-300 font-semibold">
+                        The Historian
+                      </span>
+                      <span className="text-[10px] font-mono text-zinc-500">
+                        Continuity Oracle & Script Inscriptions
+                      </span>
                     </div>
                     {localModels.length > 0 ? (
                       <select
@@ -942,7 +919,9 @@ export default function AiCalibrationModal({
                         className="w-full bg-zinc-900 border border-zinc-800 rounded px-2.5 py-1.5 text-xs font-mono text-zinc-200 focus:outline-none focus:border-amber-500 transition-colors"
                       >
                         {localModels.map((m) => (
-                          <option key={m} value={m}>{m}</option>
+                          <option key={m} value={m}>
+                            {m}
+                          </option>
                         ))}
                       </select>
                     ) : (
@@ -955,48 +934,56 @@ export default function AiCalibrationModal({
                     )}
                   </div>
 
-                    {/* The Forge */}
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[11px] font-mono text-zinc-300 font-semibold">The Forge</span>
-                        <span className="text-[10px] font-mono text-zinc-500">Scenario Blueprints & World Architecture</span>
-                      </div>
-                      {localModels.length > 0 ? (
-                        <select
-                          value={localForgeModel || localModel}
-                          onChange={(e) => setLocalForgeModel(e.target.value)}
-                          className="w-full bg-zinc-900 border border-zinc-800 rounded px-2.5 py-1.5 text-xs font-mono text-zinc-200 focus:outline-none focus:border-amber-500 transition-colors"
-                        >
-                          {localModels.map((m) => {
-                            const isVlm = /vl|vision|minicpm-v|llava|pixtral|omni/i.test(m);
-                            return (
-                              <option key={m} value={m}>
-                                {m}{isVlm ? ' [👁️ Vision Ready]' : ''}
-                              </option>
-                            );
-                          })}
-                        </select>
-                      ) : (
-                        <input
-                          value={localForgeModel}
-                          onChange={(e) => setLocalForgeModel(e.target.value)}
-                          placeholder="e.g. qwen/qwen3.8-27b"
-                          className="w-full bg-zinc-900 border border-zinc-800 rounded px-2.5 py-1.5 text-xs font-mono text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-amber-500 transition-colors"
-                        />
-                      )}
-                      {/vl|vision|minicpm-v|llava|pixtral|omni/i.test(localForgeModel || localModel) ? (
-                        <div className="flex items-center gap-1.5 text-[10px] text-emerald-400 font-mono pt-0.5">
-                          <Eye className="w-3 h-3 text-emerald-400 shrink-0" />
-                          <span>Vision-capable VLM — can inspect PDF covers, artwork, and visual maps</span>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-1.5 text-[10px] text-zinc-500 font-mono pt-0.5">
-                          <span>Text-only LLM — will parse text content and structure</span>
-                        </div>
-                      )}
+                  {/* The Forge */}
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-mono text-zinc-300 font-semibold">
+                        The Forge
+                      </span>
+                      <span className="text-[10px] font-mono text-zinc-500">
+                        Scenario Blueprints & World Architecture
+                      </span>
                     </div>
+                    {localModels.length > 0 ? (
+                      <select
+                        value={localForgeModel || localModel}
+                        onChange={(e) => setLocalForgeModel(e.target.value)}
+                        className="w-full bg-zinc-900 border border-zinc-800 rounded px-2.5 py-1.5 text-xs font-mono text-zinc-200 focus:outline-none focus:border-amber-500 transition-colors"
+                      >
+                        {localModels.map((m) => {
+                          const isVlm = /vl|vision|minicpm-v|llava|pixtral|omni/i.test(m);
+                          return (
+                            <option key={m} value={m}>
+                              {m}
+                              {isVlm ? ' [👁️ Vision Ready]' : ''}
+                            </option>
+                          );
+                        })}
+                      </select>
+                    ) : (
+                      <input
+                        value={localForgeModel}
+                        onChange={(e) => setLocalForgeModel(e.target.value)}
+                        placeholder="e.g. qwen/qwen3.8-27b"
+                        className="w-full bg-zinc-900 border border-zinc-800 rounded px-2.5 py-1.5 text-xs font-mono text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-amber-500 transition-colors"
+                      />
+                    )}
+                    {/vl|vision|minicpm-v|llava|pixtral|omni/i.test(
+                      localForgeModel || localModel
+                    ) ? (
+                      <div className="flex items-center gap-1.5 text-[10px] text-emerald-400 font-mono pt-0.5">
+                        <Eye className="w-3 h-3 text-emerald-400 shrink-0" />
+                        <span>
+                          Vision-capable VLM — can inspect PDF covers, artwork, and visual maps
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1.5 text-[10px] text-zinc-500 font-mono pt-0.5">
+                        <span>Text-only LLM — will parse text content and structure</span>
+                      </div>
+                    )}
                   </div>
-
+                </div>
               ) : (
                 <p className="text-[11px] text-zinc-500 font-mono italic">
                   All four subsystems inherit the primary local model above.
@@ -1006,77 +993,161 @@ export default function AiCalibrationModal({
           </div>
         )}
 
-        {/* API Key Input */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <label className="text-xs font-mono uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
-              <Key className="w-3.5 h-3.5" />
-              Gemini API Key
-            </label>
-            {config?.hasApiKey && (
-              <span className="text-[11px] font-mono text-zinc-400">
-                Active: <code className="text-zinc-300">{config.maskedApiKey}</code>
-              </span>
-            )}
-          </div>
-          <input
-            type="password"
-            placeholder="Paste new Gemini API Key to update (optional)..."
-            value={apiKeyInput}
-            onChange={(e) => setApiKeyInput(e.target.value)}
-            className="w-full bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-xs font-mono text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-white transition-colors"
-          />
-        </div>
-
-        {/* Diagnostics / Ping Section */}
-        <div className="p-4 border border-zinc-800 bg-zinc-900/40 rounded space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-xs font-mono text-zinc-300">
-              <ShieldCheck className="w-4 h-4 text-zinc-400" />
-              <span>Voice Provider Diagnostic</span>
-            </div>
-            <button
-              type="button"
-              onClick={handleTestPing}
-              disabled={isPinging}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-mono uppercase tracking-wider rounded transition-all cursor-pointer disabled:opacity-50"
-            >
-              <RefreshCw className={`w-3 h-3 ${isPinging ? 'animate-spin' : ''}`} />
-              {isPinging ? 'Testing...' : 'Test Connection'}
-            </button>
-          </div>
-
-          {pingResult && (
-            <div
-              className={`p-3 rounded text-xs font-mono border ${
-                pingResult.ok
-                  ? 'bg-green-950/30 border-green-800/60 text-green-300'
-                  : 'bg-red-950/30 border-red-800/60 text-red-300'
-              }`}
-            >
-              {pingResult.ok ? (
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-green-400" />
-                  <span>
-                    Connection verified with <strong>{pingResult.provider || voiceProvider}</strong>{' '}
-                    / <strong>{pingResult.model}</strong>. Latency: {pingResult.latencyMs}ms.
-                  </span>
-                </div>
-              ) : (
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2 font-bold text-red-400">
-                    <AlertTriangle className="w-4 h-4 text-red-400" />
-                    <span>Provider Error: {pingResult.code || 'FAILURE'}</span>
+        {/* Configuration: side-by-side on widescreen */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="space-y-6">
+            {/* Operating Tier Selection */}
+            <div className="space-y-2">
+              <label className="text-xs font-mono uppercase tracking-wider text-zinc-400">
+                Gemini Baseline Tier
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Free Tier */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTier('free');
+                    setModel('gemini-3.6-flash');
+                  }}
+                  className={`p-4 text-left border rounded transition-all cursor-pointer ${
+                    tier === 'free'
+                      ? 'border-system-green bg-system-green/10 text-white'
+                      : 'border-zinc-800 bg-zinc-900/50 text-zinc-400 hover:border-zinc-700'
+                  }`}
+                >
+                  <div className="flex items-center justify-between pb-1">
+                    <span className="font-mono text-xs font-bold uppercase tracking-wider text-system-green flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5" />
+                      Free Tier (Zero Cost)
+                    </span>
+                    {tier === 'free' && <CheckCircle2 className="w-4 h-4 text-system-green" />}
                   </div>
-                  <p className="text-[11px] leading-relaxed text-zinc-300">
-                    {pingResult.code === 'PREPAYMENT_DEPLETED'
-                      ? 'Your Google AI Studio project prepayment credits are depleted. To use Free Tier, create an API key in a project with no billing linked at aistudio.google.com/apikey.'
-                      : pingResult.message || 'API request failed.'}
+                  <p className="text-xs text-zinc-300 font-mono">
+                    Optimized for standard Google AI Studio free quotas (15 RPM / 1M TPM).
+                    Recommended.
                   </p>
+                </button>
+
+                {/* Paid Tier */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTier('paid');
+                    setModel('gemini-3.7-flash');
+                  }}
+                  className={`p-4 text-left border rounded transition-all cursor-pointer ${
+                    tier === 'paid'
+                      ? 'border-red-500 bg-red-950/20 text-white'
+                      : 'border-zinc-800 bg-zinc-900/50 text-zinc-400 hover:border-zinc-700'
+                  }`}
+                >
+                  <div className="flex items-center justify-between pb-1">
+                    <span className="font-mono text-xs font-bold uppercase tracking-wider text-red-400 flex items-center gap-1.5">
+                      <Zap className="w-3.5 h-3.5" />
+                      Paid / Pro Tier
+                    </span>
+                    {tier === 'paid' && <CheckCircle2 className="w-4 h-4 text-red-400" />}
+                  </div>
+                  <p className="text-xs text-zinc-300 font-mono">
+                    Uses gemini-3.7-flash. Requires active AI Studio billing or prepayment credits.
+                  </p>
+                </button>
+              </div>
+            </div>
+
+            {/* Active Model Selector */}
+            <div className="space-y-2">
+              <label className="text-xs font-mono uppercase tracking-wider text-zinc-400">
+                Gemini Baseline Model
+              </label>
+              <select
+                value={model}
+                onChange={(e) => setModel(e.target.value)}
+                className="w-full bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-xs font-mono text-zinc-200 focus:outline-none focus:border-white transition-colors"
+              >
+                {(config?.approvedModels || [model]).map((approvedModel) => (
+                  <option key={approvedModel} value={approvedModel}>
+                    {approvedModel}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="space-y-6">
+            {/* API Key Input */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-mono uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
+                  <Key className="w-3.5 h-3.5" />
+                  Gemini API Key
+                </label>
+                {config?.hasApiKey && (
+                  <span className="text-[11px] font-mono text-zinc-400">
+                    Active: <code className="text-zinc-300">{config.maskedApiKey}</code>
+                  </span>
+                )}
+              </div>
+              <input
+                type="password"
+                placeholder="Paste new Gemini API Key to update (optional)..."
+                value={apiKeyInput}
+                onChange={(e) => setApiKeyInput(e.target.value)}
+                className="w-full bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-xs font-mono text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-white transition-colors"
+              />
+            </div>
+
+            {/* Diagnostics / Ping Section */}
+            <div className="p-4 border border-zinc-800 bg-zinc-900/40 rounded space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-xs font-mono text-zinc-300">
+                  <ShieldCheck className="w-4 h-4 text-zinc-400" />
+                  <span>Voice Provider Diagnostic</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleTestPing}
+                  disabled={isPinging}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-mono uppercase tracking-wider rounded transition-all cursor-pointer disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-3 h-3 ${isPinging ? 'animate-spin' : ''}`} />
+                  {isPinging ? 'Testing...' : 'Test Connection'}
+                </button>
+              </div>
+
+              {pingResult && (
+                <div
+                  className={`p-3 rounded text-xs font-mono border ${
+                    pingResult.ok
+                      ? 'bg-green-950/30 border-green-800/60 text-green-300'
+                      : 'bg-red-950/30 border-red-800/60 text-red-300'
+                  }`}
+                >
+                  {pingResult.ok ? (
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-green-400" />
+                      <span>
+                        Connection verified with{' '}
+                        <strong>{pingResult.provider || voiceProvider}</strong> /{' '}
+                        <strong>{pingResult.model}</strong>. Latency: {pingResult.latencyMs}ms.
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2 font-bold text-red-400">
+                        <AlertTriangle className="w-4 h-4 text-red-400" />
+                        <span>Provider Error: {pingResult.code || 'FAILURE'}</span>
+                      </div>
+                      <p className="text-[11px] leading-relaxed text-zinc-300">
+                        {pingResult.code === 'PREPAYMENT_DEPLETED'
+                          ? 'Your Google AI Studio project prepayment credits are depleted. To use Free Tier, create an API key in a project with no billing linked at aistudio.google.com/apikey.'
+                          : pingResult.message || 'API request failed.'}
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
-          )}
+          </div>
         </div>
 
         {statusMessage && (
